@@ -3,14 +3,31 @@
 
 use serde_json::json;
 
-use super::{Methods, registered};
+use super::{Methods, exported, registered};
 
 #[test]
-fn two_methods_are_registered_without_a_timeout() {
+fn four_methods_are_registered_without_a_timeout() {
+    // 后台页的两个、给别的包调的两个（施工 O-42）。
     assert_eq!(
         registered(),
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}]})
+        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]})
     );
+}
+
+#[test]
+fn only_the_two_for_other_packages_go_to_the_route() {
+    let routed: Vec<_> = [
+        "status",
+        "connection.token",
+        "qq.action",
+        "qq.venue",
+        "qq.inbound",
+        "",
+    ]
+    .into_iter()
+    .filter(|method| exported(method))
+    .collect();
+    assert_eq!(routed, ["qq.action", "qq.venue"]);
 }
 
 #[test]

@@ -6,6 +6,8 @@
 //! - 答（[`Methods::answer`]）：和 `tool.call` 一样由读的一头当场答（第 140 条）。读的一头在握手时就起来了，那时桥手里的状态
 //!   还没有：造好以后（`crate::running::Running`，施工 O-28 下）经 [`Methods::ready`] 交进来，登记跟在后面（第 153 条）。
 //! - `status` 照 `Running::status`（和状态文件照的同一份）；`connection.token` 交令牌的值，运行日志不记值。
+//! - 给别的包调的两个（施工 O-42，[`ACTION`]、[`VENUE`]，清单 `[export]` 里只有它们）一起登记，读的一头不在这里答，照推送交给
+//!   跟核心的那一头（`route/exports.rs`）：要用的会话表、连接在那里。
 
 use std::sync::{Arc, OnceLock};
 
@@ -21,6 +23,17 @@ const STATUS: &str = "status";
 
 /// 令牌的值（「显示」「复制」）。
 const TOKEN: &str = "connection.token";
+
+/// 给别的包调的：替它调一个 OneBot 动作（施工 O-42）。
+pub(crate) const ACTION: &str = "qq.action";
+
+/// 给别的包调的：一个会话是哪个场所（施工 O-42）。
+pub(crate) const VENUE: &str = "qq.venue";
+
+/// 方法 `method` 是不是给别的包调的那两个：是的照推送交给跟核心的那一头答（施工 O-42）。
+pub(super) fn exported(method: &str) -> bool {
+    method == ACTION || method == VENUE
+}
 
 /// 答方法的那一头：桥手里的状态交进来以前什么都答不了。
 pub(crate) struct Methods {
@@ -76,9 +89,10 @@ fn short_path(paths: &[String]) -> &str {
         .map_or("", String::as_str)
 }
 
-/// `package.methods` 的参数：两个方法，不写时限（照核心的 30 秒）。
+/// `package.methods` 的参数：后台页的两个、给别的包调的两个（施工 O-42），不写时限（照核心的 30 秒：`qq.action` 最多等
+/// `call_timeout_seconds`，比它短）。
 fn registered() -> Value {
-    json!({"methods": [{"name": STATUS}, {"name": TOKEN}]})
+    json!({"methods": [{"name": STATUS}, {"name": TOKEN}, {"name": ACTION}, {"name": VENUE}]})
 }
 
 /// 登记后台页调的方法：经 `caller` 发 `package.methods`，写出去就交回等回应、记运行日志的那一段（交给 `serve` 的任务组）。

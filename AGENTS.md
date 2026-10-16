@@ -8,7 +8,7 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 
 ## 先读什么
 
-- `docs/blueprint/onebot.md`（桥）、`docs/blueprint/chat.md`（群聊内核）：现在长什么样，事无巨细，由哪些测试守着。改一个部件之前，先读它那一节。
+- `docs/blueprint/onebot.md`（桥）、`docs/blueprint/chat.md`（群聊内核）：现在长什么样，事无巨细，由哪些测试守着。改一个部件之前，先读它那一节。`docs/blueprint/extending.md`：写给扩展包作者的约定（施工 O-42 起），改给别的包调的方法、挂接点时一起改。
 - `docs/ledger.md`：登记簿，`package/data/` 里给模型看的每一份字。
 - `docs/construction/README.md`：施工方案，怎么施工、做到哪了；每一步的施工单在同一个目录。
 - 核心仓库的设计文档（`docs/designs/`）：平台接入是设计 18，给模型看的字是设计 26，软件包是设计 31。O 线以前的施工单在核心仓库的 `docs/construction/` 里，是历史；O-40 起的施工单写在这个仓库的 `docs/construction/`。

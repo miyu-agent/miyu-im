@@ -44,6 +44,10 @@ pub(super) fn heard(tools: &Tools, methods: &Methods, message: Value) -> Heard {
     }
     let id = message["id"].clone();
     if method == "method.call" {
+        // 给别的包调的（施工 O-42）照推送交给跟核心的那一头：会话表、连接在那里。
+        if super::methods::exported(message["params"]["method"].as_str().unwrap_or_default()) {
+            return Heard::Other(message);
+        }
         return Heard::Asked(methods.answer(id, &message["params"]));
     }
     if method != "tool.call" {
@@ -81,6 +85,14 @@ impl Answerer {
             &self.0,
             json!({"jsonrpc": "2.0", "id": id, "result": result}),
         );
+    }
+
+    /// 拒编号是 `id` 的那一次调用，原因是 `why`（施工 O-42：给别的包调的方法）：写错的 -32602，别的 -32010，`message` 和
+    /// `data.reason` 都是 `why`（核心转给调的包，`method_failed` 带 `data.message`、`data.code`）。
+    pub(crate) fn refuse(&self, id: &Value, why: &str) {
+        let code = if why == "bad_params" { -32602 } else { -32010 };
+        let error = json!({"code": code, "message": why, "data": {"reason": why}});
+        reply(&self.0, json!({"jsonrpc": "2.0", "id": id, "error": error}));
     }
 }
 

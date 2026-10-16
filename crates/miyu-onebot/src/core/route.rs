@@ -47,6 +47,7 @@ mod called;
 mod command;
 mod decide;
 mod discipline;
+mod exports;
 mod fetching;
 mod fields;
 mod forwards;
@@ -412,6 +413,11 @@ impl Route {
         }
         if pushed["method"] == "tool.call" {
             return self.tool_called(&pushed).await;
+        }
+        if pushed["method"] == "method.call" {
+            // 给别的包调的方法（施工 O-42，`exports`）：读的一头只把这两个交过来。
+            self.exported(&pushed);
+            return Ok(());
         }
         let Some(session) = params["session"].as_str() else {
             return Ok(());

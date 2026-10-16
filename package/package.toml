@@ -32,6 +32,11 @@ platform = "qq"
 [features.qq]
 name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
 
+# 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：别的包经核心的 package.call 只调得到这里列的（核心 X-18）；后台页的
+# status、connection.token 不列，只有人调得到。
+[export]
+methods = ["qq.action", "qq.venue"]
+
 # 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/onebot/ 下的 page/，入口 index.html；网页把它
 # 放在隔离的框里，它读写这个包的设置项、调桥登记的方法（status、connection.token）。
 [page]

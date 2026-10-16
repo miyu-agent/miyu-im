@@ -7,12 +7,10 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
 
-use miyu_ipc::Connection;
 use miyu_session::testkit::{Play, Script};
-use miyu_store::root::DataRoot;
 
+use crate::support::head::Head;
 use crate::support::ports::on_free_port;
 use crate::support::spawning::{bridge_up, cli, ports_config, served_up, text};
 use crate::support::*;
@@ -22,81 +20,7 @@ fn page_dir() -> PathBuf {
     resources().join("packages/onebot/page")
 }
 
-/// 照网页软件的样子连着核心的头：出示本机令牌，一问一答，交回整条回应（拒绝的 `data` 也在）。
-struct Head {
-    lines: BufReader<ReadHalf<Connection>>,
-    write: WriteHalf<Connection>,
-    next: u64,
-}
-
 impl Head {
-    /// 连数据根 `root` 上跑着的核心、握手。
-    async fn connect(root: &DataRoot) -> Head {
-        let (connection, token) = miyu_ipc::connect(root).await.expect("连得上核心");
-        let (read, write) = tokio::io::split(connection);
-        let mut head = Head {
-            lines: BufReader::new(read),
-            write,
-            next: 0,
-        };
-        let hello =
-            json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": token});
-        let shaken = head.call("hello", hello).await;
-        assert!(shaken.get("result").is_some(), "握手：{shaken}");
-        head
-    }
-
-    /// 发一条请求，等到它的回应，原样交回。
-    async fn call(&mut self, method: &str, params: Value) -> Value {
-        self.next += 1;
-        let id = format!("head-{}", self.next);
-        let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        self.write
-            .write_all(format!("{request}\n").as_bytes())
-            .await
-            .expect("写得进");
-        self.write.flush().await.expect("写得出");
-        within("核心回", async {
-            loop {
-                let mut line = String::new();
-                let read = self.lines.read_line(&mut line).await.expect("读得了");
-                assert!(read > 0, "核心断开了");
-                let Ok(reply) = serde_json::from_str::<Value>(&line) else {
-                    continue;
-                };
-                if reply["id"] == id && reply.get("method").is_none() {
-                    return reply;
-                }
-            }
-        })
-        .await
-    }
-
-    /// 经 `package.call` 调接入QQ 登记的 `method`：交回整条回应。
-    async fn page_call(&mut self, method: &str) -> Value {
-        self.call(
-            "package.call",
-            json!({"package": "onebot", "method": method, "params": {}}),
-        )
-        .await
-    }
-
-    /// 调 `method`，直到回的 `result` 合 `wanted`（桥登记方法、换配置、NapCat 连上都是异步的）：交回那一次的 `result`。
-    async fn until(&mut self, method: &str, wanted: impl Fn(&Value) -> bool) -> Value {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-        loop {
-            let reply = self.page_call(method).await;
-            if wanted(&reply["result"]) {
-                return reply["result"].clone();
-            }
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "等不到 {method}：{reply}"
-            );
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-    }
-
     /// 经 `package.file` 读后台页里的 `path`，一块块读到头：交回整份字节。
     async fn file(&mut self, path: &str) -> Vec<u8> {
         let mut all = Vec::new();
@@ -243,7 +167,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
 
     let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
         .expect("桥写了运行日志");
-    assert!(log.contains("methods registered count=2"), "{log}");
+    assert!(log.contains("methods registered count=4"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
     napcat.close().await;
@@ -255,7 +179,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     let (dir, root) = temp_root();
     let (mut served, listen) =
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
-    // 握手以后先登记工具，再登记方法（不写时限）。
+    // 握手以后先登记工具，再登记方法（不写时限）：后台页的两个、给别的包调的两个（施工 O-42）。
     let registered = within("桥登记方法", async {
         loop {
             let found = served
@@ -274,7 +198,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     .await;
     assert_eq!(
         registered["params"],
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}]})
+        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]})
     );
     for (id, method) in [
         ("core-1", "apply"),

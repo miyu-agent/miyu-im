@@ -34,7 +34,8 @@
 | `crates/miyu-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条）；O-31 多记身份（群主、管理员，「平台工具（一）」第 7 条） |
 | `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`onebot.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条）；O-36 起 `core.rs` 能一起交出一个群的主线连同它几条支线留着的推送，`route.rs` 把子会话推来的交给 `route/lanes.rs`（「群里怎么叫她」第 1 条） |
 | `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
-| `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
+| `crates/miyu-onebot/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`qq.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`qq.venue` 照场所会话的表答（「给别的包调的方法」） |
+| `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-onebot/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
 | `crates/miyu-onebot/src/core/route/private.rs`（O-36 从 `route.rs` 挪出来） | 一条私聊：拼场所、套规则、带上场所的格，交 `submit`（「怎么走」第 6 到 8 条） |
 | `crates/miyu-onebot/src/core/route/session.rs`（O-22 从 `route.rs` 挪出来） | 找会话：`venue.session`（私聊认陌生人，白名单成员的照接、照场所规则带人格、预设、工作区（O-27），别的私聊带 `profile: true`（O-39）；群的规则写错只记一行）、订阅私聊的、群的从头订阅（O-23）、会话不在了再找一次 |
@@ -1047,8 +1048,8 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 1. **清单**：`package/package.toml` 写 `[package] icon = "message-circle"`、`[page] dir = "page"`；包目录照 `Found::files_dir` 算，出厂的是资源目录的 `packages/onebot/`，页面在 `package/page/`，入口 `index.html`（`package-pages.md`「清单多的几格」第 3 条）。
 2. **桥登记的方法**（`core/methods.rs`）：
-   - **登记**：开好监听、桥手里的状态（`running.rs` 的 `Running`，O-28 下从 WebUI 的 `Web` 挪出来）造好以后（这时才齐：NapCat 的连接表、实际听的端口、最新的配置），先把它交给答方法的那一头，再经并着发的调用口发 `package.methods {"methods": [{"name": "status"}, {"name": "connection.token"}]}`（不写 `timeout_ms`，照核心的 30 秒）。和 `provide` 分开，桥每次起来、连上核心都发。写出去就接着起来，不等回应（同 `provide`，第 139 条）：成了记一行 `INFO methods registered count=…`；被拒的（进程里的测试经本机套接字连核心，回 `not_an_extension`）记一行 `ERROR methods not registered reason=… detail=…`，桥照跑：后台页调不到方法，别的照旧（第 154 条）。
-   - **答**：`method.call {"method", "params"}` 和 `tool.call` 一样由读的一头当场答（第 140 条，`core/provider.rs` 交过来）：`{"jsonrpc": "2.0", "id": <原样>, "result": …}`。
+   - **登记**：开好监听、桥手里的状态（`running.rs` 的 `Running`，O-28 下从 WebUI 的 `Web` 挪出来）造好以后（这时才齐：NapCat 的连接表、实际听的端口、最新的配置），先把它交给答方法的那一头，再经并着发的调用口发 `package.methods {"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]}`（不写 `timeout_ms`，照核心的 30 秒；后两个是给别的包调的，O-42，「给别的包调的方法」）。和 `provide` 分开，桥每次起来、连上核心都发。写出去就接着起来，不等回应（同 `provide`，第 139 条）：成了记一行 `INFO methods registered count=…`；被拒的（进程里的测试经本机套接字连核心，回 `not_an_extension`）记一行 `ERROR methods not registered reason=… detail=…`，桥照跑：后台页调不到方法，别的照旧（第 154 条）。
+   - **答**：`method.call {"method", "params"}` 和 `tool.call` 一样由读的一头当场答（第 140 条，`core/provider.rs` 交过来；给别的包调的两个照推送交给跟核心的那一头，O-42）：`{"jsonrpc": "2.0", "id": <原样>, "result": …}`。
    - `status`：不看参数，回 `{"napcat": {"connected", "implementation", "version", "self_id"}, "listen": 端口, "path": "/ws", "token": "set" | "none", "platform": "qq"}`：照桥手里最新的（不读盘，`Running::status`；`napcat`、`listen` 和状态文件照的同一份）：`napcat` 是连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`，没连着的只有 `connected: false`；`listen` 是实际听的端口（推送换过的照换过的）；`token`：桥手里有令牌的 `set`，没有的 `none`（第 41 条）；`path` 是 NapCat 那边地址的路径，照 `bridge.json` 的 `paths` 里最短的那个（出厂 `/ws`，第 152 条）；`platform` 白名单成员页拼 `qq:<号>` 用（第 151 条）。
    - `connection.token`：不看参数，回 `{"token": "<值>" | null}`：照桥手里最新的；令牌随时能看、能复制（2026-10-08 项目主人定，原来桥自己的网页的 `/token`）；运行日志一行 `INFO page token read`，不记值。令牌是桥自己的凭据，由桥经核心交给管理员在后台页上看（`package-pages.md`「还没有的」第 2 条：核心不为后台页开交出密钥的口子）。
    - 不认识的方法：回 JSON-RPC 的「没有这个方法」`{"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}}`（核心交回 `method_failed`，`data.code` 是 -32601），记一行 `WARN page method not understood method=…`。答方法的那一头还没拿到桥手里的状态时来的（核心只转登记了的方法，登记在交进状态以后，照说来不了）也这样回（第 153 条）。
@@ -1243,6 +1244,20 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | # | 定了什么 | 为什么 | 没选 |
 |---|---|---|---|
 | 241 | 不是白名单成员的私聊问 `venue.session` 一律带 `profile: true`；白名单成员的私聊、群不写这一格（不写，不是写 `false`）；已有的会话照快照不变，只影响新造的 | 桥问以前认不出这个人是不是终端管理员（同第 145 条），核心照会话的属主挑，属主是管理员本人的才带，陌生人的会话本来就不接，多写没有害处；白名单成员的会话归系统账号、群聊不进（2026-10-13 项目主人定），配置里只有管理员的个人设置，写了也不带；不写和以前的请求一个字节不差，协议上本来就「不写是假」，少一格省字节；核心只在新造时看这一格，改了个人设置要新会话才生效，和本机开的一样 | 先问核心「这是不是管理员」再写（多一次往返，第 145 条同理）；不带的写 `profile: false`（多一格、请求变了）；白名单成员的私聊、群也写（核心不带，写了没用）
+
+**给别的包调的方法**（O-42，2026-10-17 项目主人定：接入QQ 的新功能以后能做成单独的包装，扩展口分三步做，这是第一步；施工单「要拍板的」三条照推荐定：不挑动作、方法名带 `qq.`、`qq.venue` 照桥手里的表答）：别的包经核心的 `package.call` 调（核心 X-18：要声明 `packages.call`、人批过，只调得到对方清单 `[export]` 里的），核心反向发 `method.call {"method", "params", "from"}`。写给扩展包作者的约定在 `extending.md`。不占编号的几段同「提供者和不说话」。
+
+1. **清单**：`[export] methods = ["qq.action", "qq.venue"]`。后台页的 `status`、`connection.token` 不进 `[export]`，只有人调得到。照旧经 `package.methods` 登记（「后台页」第 2 条），四个一起。
+2. **交给谁答**：读的一头（`core/provider.rs`）认出方法是这两个的，照推送交给跟核心的那一头（`core/route/exports.rs`）：场所会话的表、机器人号的连接在那里。
+3. **`qq.action {"action", "params"?, "bot"?}`**：替别的包调一个 OneBot 动作。
+   - `action` 是小写字母、数字、`_`、`.`，1 到 64 个（NapCat 的扩展动作有 `.`、`_` 开头的）；`params` 不写、`null` 是 `{}`，写了要是对象；`bot` 不写、`null` 照连着的号里最小的那一个（同后台页的 `status`），写了要是整数。写错的拒 `bad_params`（-32602），多写的格不管。
+   - 不挑动作（施工单「要拍板的」第 1 条）：调得到的包是人批过 `packages.call` 的，批的时候就是在批「这个包能让 QQ 做事」。
+   - 另起任务（`chores`，同平台工具），经那个号这时的连接调，等 `call_timeout_seconds`：NapCat 回了的（`status` 是 `ok` 还是 `failed` 都算）原样交回，拿掉桥自己编的 `echo`；没连着那个号、连接断了拒 `not_connected`，等不到拒 `unanswered`（都是 -32010，`message`、`data.reason` 是原因；核心转给调的包，`method_failed` 带 `data.message`、`data.code`）。
+   - 运行日志：答了的 `INFO export action from=<包> action=<名字> retcode=…`；拒的 `INFO export action failed … why=…`、写错的 `INFO export action refused from=…`。不记参数、不记回答。
+   - 她自己说的话不走这里：`qq.action` 发出去的消息不过出站链、不进出站队列、不记 `venue.delivered`，她不知道是她说的。要她知道的随出站挂接点（O-43）。
+4. **`qq.venue {"session"}`**：回 `{"venue": "<场所编号>", "bot": <收进它的机器人号>}`，支线照它的群（同平台工具，O-36）；桥这一刻认不得的会话回 `{"venue": null}`：还没来过消息的群、封存了的支线（支线回完一轮就封存，桥不再记着它；别的包的工具只在那一轮里被调）。`session` 不是字的拒 `bad_params`。别的包提供的工具被调时核心交来的是会话编号，场所会话归系统账号，`venue.sessions` 只给系统账号的连接，别的包问不到，由桥答。
+
+**守着它的**（`exports.rs`、`src/core/route/exports/tests.rs`、`src/core/methods/tests.rs`、`settings.rs`、`backstage.rs`、`lanes.rs`）：参数怎么读（字符、长度、`params`、`bot` 的类型）；清单只导出这两个；登记四个方法。真核心拉起真桥、头照别的包的样子经 `package.call` 调：NapCat 没连着 `not_connected`；连上以后原样转过去、原样交回、没有 `echo`；写的动作、写了连着的号照转；不写参数的是 `{}`；NapCat 回失败也原样交回；写了没连着的号 `not_connected`；九种写错的 `bad_params`；`call_timeout_seconds` 改成 1 秒、NapCat 不回的 `unanswered`；运行日志有谁调了什么、没有参数里的数。拒的 `data.code` 写错的 -32602、别的 -32010。群会话照回场所和机器人号，支线还在回的时候照它的群，认不得的 `null`。读的一头只把这两个交给跟核心的那一头。
 
 ### 二、设置和状态（O-28 下）
 
