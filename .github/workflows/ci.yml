@@ -1,0 +1,36 @@
+# 三平台 CI（施工 S-6 中，照核心仓库、终端仓库那一份）：每台机器跑 cargo xtask check，和本机验收是同一条命令：格式、clippy、
+# 文档（含登记簿对账）、行数、许可证、测试。核心照根目录 Cargo.toml 里 git 依赖钉住的那个提交取，测试拼的出厂资源目录也照
+# 那份检出。
+name: CI
+
+on:
+  push:
+    branches: [main, "step/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # 测试卡住时不白等 GitHub 默认的六个小时（同核心）。
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux 钉 24.04：同核心，发行构建以 glibc 2.39 为基线。
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: 装上 rust-toolchain.toml 钉住的工具链
+        run: rustup toolchain install
+      # 第三方依赖和钉住的核心的编译产物：只有 main 上的那一次存，分支照 main 的取（同核心）。
+      - name: 取编译缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          add-rust-environment-hash-key: false
+      - name: 门禁
+        run: cargo xtask check
