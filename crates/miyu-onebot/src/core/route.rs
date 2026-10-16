@@ -384,8 +384,9 @@ impl Route {
         self.rules.current(Instant::now()).at(venue)
     }
 
-    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），白名单成员在里面的换上（施工 O-23），私聊找过的
-    /// 会话都忘掉（施工 O-27：删了的人下一条照新的白名单再找，就不接了；终端管理员的找回来还是那一个，再订阅一次不重）；群会话的
+    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），群的七项交给场所规则（施工 O-41），白名单
+    /// 成员在里面的换上（施工 O-23），私聊找过的会话都忘掉（施工 O-27：删了的人下一条照新的白名单再找，就不接了；终端管理员的
+    /// 找回来还是那一个，再订阅一次不重）；群会话的
     /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊会话的事件交给 `say_privately`：她的回话发回去（第 10 条），这一轮
     /// 不说话了的不发（施工 O-26，要看 `turn.ended`）；掉了队、会话停了的（`resync`）再订阅一次，群的照收到的最后一条接着补。
     /// 读的一头交来的平台工具的调用（`tool.call`，施工 O-31）交给 `acting`。
@@ -395,6 +396,8 @@ impl Route {
             let Some(keys) = params["keys"].as_object() else {
                 return Ok(());
             };
+            // 群的七项（施工 O-41）：变了的当场重读，下一条消息照新的。
+            self.rules.configure(keys);
             if let Some(value) = keys.get(&whitelist_key()) {
                 self.whitelist = whitelist(value);
                 let groups = &self.groups;

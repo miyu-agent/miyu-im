@@ -4,7 +4,7 @@
 
 use std::time::{Duration, Instant};
 
-use miyu_onebot::rules::Venues;
+use miyu_onebot::rules::{Configured, Venues};
 
 use crate::rules::{FACTORY_WORDS, clean, group, system_rule, system_words, text};
 use crate::support::*;
@@ -15,7 +15,7 @@ fn a_changed_system_file_is_read_at_the_next_use_after_the_interval() {
     let every = Duration::from_secs(1);
     let start = Instant::now();
     let at = |millis| start + Duration::from_millis(millis);
-    let mut venues = Venues::new(factory(), &root, every, start);
+    let mut venues = Venues::new(factory(), &root, Configured::default(), every, start);
     let rate = |venues: &mut Venues, millis| {
         venues.current(at(millis)).at(&group("1")).resolved.entries["rate"]
             .value
@@ -41,7 +41,13 @@ fn an_unchanged_listing_is_not_read_again() {
     let (dir, root) = temp_root();
     let path = system_rule(&root, "80-x.toml", "[[rule]]\nrate = \"30/60s\"\n");
     let start = Instant::now();
-    let mut venues = Venues::new(factory(), &root, Duration::from_secs(1), start);
+    let mut venues = Venues::new(
+        factory(),
+        &root,
+        Configured::default(),
+        Duration::from_secs(1),
+        start,
+    );
     let modified = std::fs::metadata(&path)
         .and_then(|metadata| metadata.modified())
         .expect("有修改时刻");
@@ -76,7 +82,13 @@ fn an_unchanged_listing_is_not_read_again() {
 fn a_changed_word_list_is_read_at_the_next_use_too() {
     let (dir, root) = temp_root();
     let start = Instant::now();
-    let mut venues = Venues::new(factory(), &root, Duration::from_secs(1), start);
+    let mut venues = Venues::new(
+        factory(),
+        &root,
+        Configured::default(),
+        Duration::from_secs(1),
+        start,
+    );
     assert_eq!(venues.current(start).keywords.len(), FACTORY_WORDS);
     let path = system_words(&root, "foo\n");
     assert_eq!(
@@ -91,5 +103,38 @@ fn a_changed_word_list_is_read_at_the_next_use_too() {
             .len(),
         FACTORY_WORDS
     );
+    clean(&dir);
+}
+
+#[test]
+fn pushed_settings_apply_at_once_and_sit_between_system_file_names() {
+    // 配置项那一层（施工 O-41）：推来变了不等隔够；名字排在 `60-settings.toml` 前面的系统文件被它盖，后面的盖它。
+    let (dir, root) = temp_root();
+    let start = Instant::now();
+    let at = |millis| start + Duration::from_millis(millis);
+    let mut venues = Venues::new(
+        factory(),
+        &root,
+        Configured::default(),
+        Duration::from_secs(1),
+        start,
+    );
+    let rate = |venues: &mut Venues, millis| {
+        venues.current(at(millis)).at(&group("1")).resolved.entries["rate"]
+            .value
+            .clone()
+    };
+    assert_eq!(rate(&mut venues, 0), text("5/300s"));
+    let pushed = serde_json::json!({"onebot.other_group_rate": "2/60s"});
+    venues.configure(pushed.as_object().expect("对象"));
+    assert_eq!(rate(&mut venues, 1), text("2/60s"), "不用等");
+    system_rule(&root, "55-before.toml", "[[rule]]\nrate = \"3/60s\"\n");
+    assert_eq!(rate(&mut venues, 1000), text("2/60s"), "排在前面的被盖");
+    system_rule(&root, "80-after.toml", "[[rule]]\nrate = \"4/60s\"\n");
+    assert_eq!(rate(&mut venues, 2000), text("4/60s"), "排在后面的盖它");
+    // 推来别的键、同样的值：不重读，照手里的。
+    let same = serde_json::json!({"onebot.listen": 9000, "onebot.other_group_rate": "2/60s"});
+    venues.configure(same.as_object().expect("对象"));
+    assert_eq!(rate(&mut venues, 2001), text("4/60s"));
     clean(&dir);
 }

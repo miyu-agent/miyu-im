@@ -16,6 +16,7 @@ use miyu_client::texts::{Human, HumanError};
 use crate::control::{Halt, Report};
 use crate::logs::Heading;
 use crate::package::Package;
+use crate::rules::key_of;
 use crate::serve::{Failure, Notice};
 use crate::venue::Shown;
 
@@ -210,7 +211,8 @@ impl Texts {
         self.say("venue/problem", &[("at", at), ("what", what)])
     }
 
-    /// 在哪：出厂或系统、文件名，有第几条规则、第几行的带上（第几条规则只和第几行一起说）。
+    /// 在哪：出厂或系统、文件名，有第几条规则、第几行的带上（第几条规则只和第几行一起说）。配置项那一层（施工 O-41）只说是
+    /// 哪一项（`venue/setting`）：文件是桥拼的，人看不到，行号对不上什么。
     fn place(
         &self,
         source: Source,
@@ -220,6 +222,10 @@ impl Texts {
     ) -> String {
         let source = match source {
             Source::Factory => self.say("venue/factory", &[]),
+            Source::Settings => {
+                let key = rule.and_then(key_of).unwrap_or_else(|| file.to_string());
+                return self.say("venue/setting", &[("key", key)]);
+            }
             Source::System => self.say("venue/system", &[]),
         };
         let mut fields = vec![("source", source), ("file", file.to_string())];

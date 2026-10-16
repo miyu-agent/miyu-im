@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use miyu_chat::{Entry, Origin, Source, Venue, VenueKind};
 use miyu_config::Value;
 use miyu_config::problem::Code;
-use miyu_onebot::rules::{Factory, load};
+use miyu_onebot::rules::{Configured, Factory, load};
 use miyu_store::root::DataRoot;
 
 use crate::support::*;
@@ -102,7 +102,7 @@ pub fn copied_resources() -> PathBuf {
 #[test]
 fn the_factory_data_is_read_clean() {
     let (dir, root) = temp_root();
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     assert_eq!(loaded.problems, [], "出厂的、没有系统的：零问题");
     assert_eq!(loaded.keywords.len(), FACTORY_WORDS);
     let applied = loaded.at(&group("1"));
@@ -142,7 +142,7 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
         "80-late.toml",
         "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { probability = 80 }\njudge = { retries = 3 }\n",
     );
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     assert_eq!(loaded.problems, []);
     let one = loaded.at(&group("1"));
     let late = |value, line| entry(value, Source::System, "80-late.toml", 1, line);
@@ -189,7 +189,10 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
 fn a_system_file_with_the_same_name_replaces_the_factory_one() {
     let (dir, root) = temp_root();
     system_rule(&root, "50-defaults.toml", "[[rule]]\nparallel = 2\n");
-    let entries = load(&factory(), &root).at(&group("1")).resolved.entries;
+    let entries = load(&factory(), &root, &Configured::default())
+        .at(&group("1"))
+        .resolved
+        .entries;
     assert_eq!(
         entries.into_iter().collect::<Vec<_>>(),
         [(
@@ -211,12 +214,16 @@ fn only_rule_files_are_read() {
     system_rule(&root, "80-backup.toml~", rule);
     system_rule(&root, ".#80-lock.toml", rule);
     std::fs::create_dir_all(root.system().join("venues.d").join("80-dir.toml")).expect("建得了");
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     assert_eq!(loaded.problems, [], "不是规则文件的不读，也不报");
     assert_eq!(loaded.at(&group("1")).resolved.entries.get("allow"), None);
     system_rule(&root, "90-real.toml", rule);
     assert_eq!(
-        load(&factory(), &root).at(&group("1")).resolved.entries["allow"].value,
+        load(&factory(), &root, &Configured::default())
+            .at(&group("1"))
+            .resolved
+            .entries["allow"]
+            .value,
         Value::Bool(false)
     );
     clean(&dir);
@@ -242,7 +249,7 @@ fn a_system_mistake_drops_only_that_part_and_is_reported() {
         "95-gbk.toml",
         b"[[rule]]\nparallel = 2\n# \xc4\xe3\n",
     );
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     let entries = loaded.at(&group("1")).resolved.entries;
     assert_eq!(entries["parallel"].value, Value::Int(3), "别的照收");
     assert_eq!(
@@ -293,7 +300,7 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
         "50-defaults.toml",
         b"[[rule]]\nparallel = 2 # \xff\n",
     );
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     assert_eq!(
         loaded.at(&group("1")).resolved.entries.len(),
         0,
@@ -309,7 +316,7 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
 fn venues_d_that_cannot_be_listed_is_a_problem() {
     let (dir, root) = temp_root();
     std::fs::write(root.system().join("venues.d"), "not a directory").expect("写得进");
-    let loaded = load(&factory(), &root);
+    let loaded = load(&factory(), &root, &Configured::default());
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];
     assert_eq!(
@@ -330,7 +337,7 @@ fn the_system_word_list_replaces_the_factory_one() {
     let (dir, root) = temp_root();
     let factory = factory();
     let path = system_words(&root, "# 我们群的\nfoo\n\n  bar  \nfoo\n");
-    let loaded = load(&factory, &root);
+    let loaded = load(&factory, &root, &Configured::default());
     assert_eq!(
         loaded.keywords,
         ["foo", "bar"],
@@ -338,7 +345,7 @@ fn the_system_word_list_replaces_the_factory_one() {
     );
     assert_eq!(loaded.problems, []);
     std::fs::write(&path, b"foo\n\xff\n").expect("写得进");
-    let loaded = load(&factory, &root);
+    let loaded = load(&factory, &root, &Configured::default());
     assert_eq!(loaded.keywords, Vec::<String>::new(), "读不成的照空的用");
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];
@@ -347,7 +354,10 @@ fn the_system_word_list_replaces_the_factory_one() {
         (Code::NotUtf8, Source::System, "moderation.txt")
     );
     std::fs::remove_file(&path).expect("删得了");
-    assert_eq!(load(&factory, &root).keywords.len(), FACTORY_WORDS);
+    assert_eq!(
+        load(&factory, &root, &Configured::default()).keywords.len(),
+        FACTORY_WORDS
+    );
     clean(&dir);
 }
 
@@ -356,7 +366,7 @@ fn word_list_problems_come_after_the_rule_files() {
     let (dir, root) = temp_root();
     system_words(&root, b"\xff");
     system_rule(&root, "99-bad.toml", "nonsense = 1\n");
-    let files: Vec<String> = load(&factory(), &root)
+    let files: Vec<String> = load(&factory(), &root, &Configured::default())
         .problems
         .into_iter()
         .map(|problem| problem.file)

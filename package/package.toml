@@ -66,3 +66,65 @@ layers = ["system"]
 applies = "now"
 name = { en = "Whitelist", zh = "白名单成员", ja = "ホワイトリスト" }
 description = { en = 'People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊 AI、加 AI 好友自动通过、不受限流和睡觉影响、群里冲 AI 来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで AI に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }
+
+# 群的七项（施工 O-41，2026-10-17 项目主人定：做成配置项，网页、终端的设置页照清单画；照旧版加群白名单，白名单以外的群默认照样
+# 接话）。桥照它们拼一份规则文件 60-settings.toml，排在出厂、系统中间：没设的什么都不改，系统里名字排在后面的规则文件盖它
+# （docs/blueprint/onebot.md 第一条「场所规则和出厂数据」第 8 条）。
+
+[settings.groups]
+type = "list"
+element = "int"
+min = 1
+layers = ["system"]
+applies = "now"
+name = { en = "Group whitelist", zh = "群白名单", ja = "グループのホワイトリスト" }
+description = { en = "Group numbers. Whitelisted groups use their own rate limit; with “Other groups” off, the AI only talks in these groups. A rule file that sets something for a group wins.", zh = "群号的列表。白名单群用自己的限流；「白名单以外的群」关了以后，AI 只在这些群里接话。规则文件里给某个群写了的，照文件。", ja = "グループ番号の一覧です。ホワイトリストのグループは専用の回数制限を使います。「ホワイトリスト外のグループ」をオフにすると、AI はこれらのグループでだけ話します。ルールファイルでグループに設定したものはそちらが優先です。" }
+
+[settings.other_groups]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+name = { en = "Other groups", zh = "白名单以外的群", ja = "ホワイトリスト外のグループ" }
+description = { en = "On: the AI also talks in groups outside the whitelist. Off: it only records them; the terminal administrator can still call it.", zh = "开着的，白名单以外的群里 AI 也接话；关了只记下，终端管理员照样叫得动。", ja = "オン：ホワイトリスト外のグループでも AI が話します。オフ：記録だけします。端末の管理者は呼び出せます。" }
+
+[settings.group_rate]
+type = "text"
+max = 32
+layers = ["system"]
+applies = "now"
+name = { en = "Whitelisted group rate limit", zh = "白名单群的限流", ja = "ホワイトリストのグループの回数制限" }
+description = { en = "Turns per time span, for example 5/300s is at most 5 turns in 5 minutes; 0 is no limit. Empty follows the venue rules (5/300s as shipped).", zh = "写成「回合数/时长」，例如 5/300s 是 5 分钟最多 5 个回合，0 是不限。不填照场所规则（出厂 5/300s）。", ja = "「ターン数/時間」で書きます。例えば 5/300s は 5 分間に最大 5 ターン、0 は無制限です。空欄は場所のルールに従います（出荷時 5/300s）。" }
+
+[settings.other_group_rate]
+type = "text"
+max = 32
+layers = ["system"]
+applies = "now"
+name = { en = "Other groups rate limit", zh = "其他群的限流", ja = "ほかのグループの回数制限" }
+description = { en = "Same form as the whitelisted one, for groups outside the whitelist. Empty follows the venue rules (5/300s as shipped).", zh = "写法同白名单群的，管白名单以外的群。不填照场所规则（出厂 5/300s）。", ja = "書き方はホワイトリストのものと同じで、ホワイトリスト外のグループに使います。空欄は場所のルールに従います（出荷時 5/300s）。" }
+
+[settings.sleep]
+type = "text"
+max = 11
+layers = ["system"]
+applies = "now"
+name = { en = "Sleep hours", zh = "睡觉时间", ja = "睡眠時間" }
+description = { en = "HH:MM-HH:MM in local time, for example 23:00-07:00. In these hours the AI only records; the terminal administrator and whitelisted people can still call it. Empty or off: no sleep.", zh = "写成 HH:MM-HH:MM，照本机的时间，例如 23:00-07:00。这段时间里 AI 只记下、不接话，终端管理员和白名单成员照样叫得动。不填或 off 是不睡。", ja = "HH:MM-HH:MM でこのマシンの時刻で書きます。例：23:00-07:00。この時間は記録だけします。端末の管理者とホワイトリストの人は呼び出せます。空欄か off で眠りません。" }
+
+[settings.keywords]
+type = "list"
+element = "text"
+max = 64
+layers = ["system"]
+applies = "now"
+name = { en = "Trigger words", zh = "群里的触发词", ja = "グループの呼び出し語" }
+description = { en = "A group message that starts with one of these counts as calling the AI, like an @. Case-sensitive; put its name here too.", zh = "群里的话以其中一个词开头，算叫 AI，和 @ 一样。区分大小写；名字也写在这里。", ja = "グループの発言がこのどれかで始まると、@ と同じく AI を呼んだことになります。大文字と小文字を区別します。名前もここに書きます。" }
+
+[settings.show_ids]
+type = "bool"
+default = false
+layers = ["system"]
+applies = "now"
+name = { en = "Show QQ numbers", zh = "让 AI 看到 QQ 号", ja = "QQ 番号を AI に見せる" }
+description = { en = "On: the AI sees the QQ number of whoever speaks, next to the name.", zh = "开着的，AI 看得到发话人的 QQ 号，写在名字旁边。", ja = "オン：発言した人の QQ 番号を名前の横に AI が見られます。" }

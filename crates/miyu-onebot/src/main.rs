@@ -31,7 +31,7 @@ use miyu_onebot::serve::{Failure, Notice, Pipe, Serve, run};
 use miyu_onebot::settings::Defaults;
 use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::tuning::Tuning;
-use miyu_onebot::venue::show;
+use miyu_onebot::venue::{configured, show};
 use miyu_onebot::web::web;
 use miyu_onebot::{PROGRAM, TARGET};
 
@@ -133,13 +133,18 @@ fn main() -> ExitCode {
                 &mut std::io::stderr(),
             )
         }
-        Command::Venue(venue) => show(
-            &root,
-            &venue,
-            &texts,
-            &mut std::io::stdout(),
-            &mut std::io::stderr(),
-        ),
+        Command::Venue(venue) => {
+            // 配置项那一层向核心要（施工 O-41），核心没在跑照 `start` 那样拉起。
+            let core: CoreCommand = Arc::new(core);
+            show(
+                &root,
+                &venue,
+                || runtime.block_on(configured(&root, &core)),
+                &texts,
+                &mut std::io::stdout(),
+                &mut std::io::stderr(),
+            )
+        }
     };
     // 标准输入在阻塞线程里读（`serve` 的管道）：核心还开着它时，等那个线程会一直等下去，不等它，进程退出时一起收掉。
     runtime.shutdown_background();

@@ -42,7 +42,7 @@ use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
 use crate::onebot::Members;
 use crate::package::Package;
-use crate::rules::{Factory, Venues};
+use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};
 use crate::status_file;
@@ -158,6 +158,7 @@ pub async fn run(
     let venues = Venues::new(
         serve.factory,
         &serve.root,
+        Configured::handed(&core.config),
         serve.tuning.rules_check(),
         Instant::now(),
     );

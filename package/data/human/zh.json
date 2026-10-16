@@ -52,6 +52,7 @@
     "venue/file": "{source} {file}",
     "venue/factory": "出厂",
     "venue/system": "系统",
+    "venue/setting": "配置项 {key}",
     "venue/none": "没有规则设到这个场所。",
     "venue/defaults": "没列出的参数照出厂的 defaults.toml。",
     "venue/problems": "读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：",

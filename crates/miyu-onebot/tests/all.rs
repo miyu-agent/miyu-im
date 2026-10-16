@@ -21,6 +21,7 @@ mod followed;
 mod forwards;
 mod frames;
 mod group;
+mod group_settings;
 mod ids;
 mod judged;
 mod judged_persona;

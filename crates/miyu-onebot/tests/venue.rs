@@ -1,11 +1,13 @@
-//! `miyu onebot venue show <场所>`（施工 O-21，`onebot.md` 第一条「场所规则和出厂数据」第 7 条）：不连核心，读的文件和桥
-//! 一样；规则设到的一项一行印值和来处，接一句没列出的参数照出厂的，问题印在后面；场所编号认不出是用法不对，出厂的写错说
+//! `miyu onebot venue show <场所>`（施工 O-21，`onebot.md` 第一条「场所规则和出厂数据」第 7 条）：读的文件和桥一样，配置项
+//! 那一层向核心要（施工 O-41：来处印配置项的键；要不到的说连不上核心）；规则设到的一项一行印值和来处，接一句没列出的参数照出厂的，问题印在后面；场所编号认不出是用法不对，出厂的写错说
 //! 是哪些问题。真的程序照系统的语言说；`serve` 出厂的写错握手以前就退，系统的写错照常起来、问题进运行日志。
 
 use std::time::Duration;
 
+use miyu_onebot::rules::Configured;
 use miyu_onebot::texts::Texts;
 use miyu_onebot::venue::show;
+use miyu_session::testkit::Script;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -19,10 +21,20 @@ fn zh(resources: &std::path::Path) -> Texts {
     Texts::load(ResourceRoot::at(resources), package_in(resources), "zh").expect("读得出来")
 }
 
-/// 照中文跑一次 `venue show <venue>`：交回退出码、标准输出、标准错误。
+/// 照中文跑一次 `venue show <venue>`，配置项都没设：交回退出码、标准输出、标准错误。
 fn shown(root: &DataRoot, venue: &str, texts: &Texts) -> (u8, String, String) {
+    shown_with(root, venue, texts, Ok(Configured::default()))
+}
+
+/// 同 [`shown`]，配置项那一层要来的是 `configured`。
+fn shown_with(
+    root: &DataRoot,
+    venue: &str,
+    texts: &Texts,
+    configured: Result<Configured, String>,
+) -> (u8, String, String) {
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let code = show(root, venue, texts, &mut out, &mut err);
+    let code = show(root, venue, || configured, texts, &mut out, &mut err);
     (
         code,
         String::from_utf8(out).expect("UTF-8"),
@@ -163,17 +175,66 @@ fn broken_factory_data_is_said_with_every_problem() {
 }
 
 #[test]
-fn the_program_shows_in_the_system_language() {
+fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
     let (dir, root) = temp_root();
+    let configured = Configured::handed(&serde_json::json!({
+        "onebot.other_groups": false,
+        "onebot.other_group_rate": "abc",
+    }));
+    assert_eq!(
+        shown_with(&root, "qq:group:2", &zh(&resources()), Ok(configured)),
+        (
+            0,
+            "allow = false（配置项 onebot.other_groups）\n\
+             discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
+             parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
+             rate = \"5/300s\"（出厂 50-defaults.toml 第 1 条规则，第 15 行）\n\
+             没列出的参数照出厂的 defaults.toml。\n\
+             读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：\n  \
+             配置项 onebot.other_group_rate：rate 写法不对：\"abc\"\n"
+                .to_string(),
+            String::new()
+        )
+    );
+    let (code, out, err) = shown_with(
+        &root,
+        "qq:group:2",
+        &zh(&resources()),
+        Err("refused".to_string()),
+    );
+    assert_eq!((code, out.as_str()), (1, ""));
+    assert_eq!(err, "连不上核心：refused\n");
+    clean(&dir);
+}
+
+/// 跑一次真的程序 `miyu-onebot <args>` 到完（系统的语言是英文），不占着测试的异步线程。
+async fn ran(root: &DataRoot, args: &[&str]) -> std::process::Output {
+    let mut command = program(root, args);
+    tokio::task::spawn_blocking(move || command.output())
+        .await
+        .expect("没崩")
+        .expect("跑得了")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_program_shows_in_the_system_language() {
+    // 配置项那一层向真核心要（施工 O-41）：核心照系统配置交 `onebot.groups`。
+    let home = Home::spawning(
+        &Script::new([]),
+        &crate::support::spawning::ports_config_with(
+            crate::support::spawning::free_port(),
+            "groups = [1]",
+        ),
+    );
+    let root = home.root.clone();
     test_rules(&root);
-    let shown = program(&root, &["venue", "show", "qq:group:1"])
-        .output()
-        .expect("跑得了");
+    let shown = ran(&root, &["venue", "show", "qq:group:1"]).await;
     assert_eq!(shown.status.code(), Some(0), "{}", text(&shown.stderr));
     assert_eq!(text(&shown.stderr), "");
     assert_eq!(
         text(&shown.stdout),
-        "chatty.probability = 80 (system 80-test.toml, rule 1, line 4)\n\
+        "allow = true (setting onebot.groups)\n\
+         chatty.probability = 80 (system 80-test.toml, rule 1, line 4)\n\
          discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\n\
          parallel = 1 (factory 50-defaults.toml, rule 1, line 16)\n\
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\
@@ -186,7 +247,7 @@ fn the_program_shows_in_the_system_language() {
         &["venue", "show"],
         &["venue", "list", "qq:group:1"],
     ] {
-        let refused = program(&root, wrong).output().expect("跑得了");
+        let refused = ran(&root, wrong).await;
         assert_eq!(refused.status.code(), Some(2), "{wrong:?}");
         assert!(
             text(&refused.stderr).starts_with("usage: "),
@@ -194,12 +255,9 @@ fn the_program_shows_in_the_system_language() {
             text(&refused.stderr)
         );
     }
-    let refused = program(&root, &["venue", "show", "qq:room:1"])
-        .output()
-        .expect("跑得了");
+    let refused = ran(&root, &["venue", "show", "qq:room:1"]).await;
     assert_eq!(refused.status.code(), Some(2));
     assert!(text(&refused.stderr).starts_with("Not a venue id: qq:room:1."));
-    clean(&dir);
 }
 
 #[test]

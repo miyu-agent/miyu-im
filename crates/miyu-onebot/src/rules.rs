@@ -10,6 +10,7 @@
 //! | 给她看的事实的模板（施工 O-25 下，O-36 多一份） | `facts/undelivered.txt`、`facts/another-line.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
 //!
+//! - 配置项那一层（施工 O-41，[`Configured`]）：包的七项配置拼成一份规则文件，排在出厂、系统中间；推来变了当场重读。
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
 //! - 系统的和出厂的合起来读（[`load`]，交回 [`Loaded`]）：坏的那一项、那一条规则、那一份文件照群聊内核的规矩丢，别的照用；
@@ -17,6 +18,7 @@
 //! - 什么时候重读（[`Venues`]）：要用时交进当时的时刻，隔够了才看一眼系统的两处变没变，变了整份重读，问题记运行日志；不监视
 //!   文件（「施工时定的」第 53 条）。
 
+mod configured;
 mod facts;
 mod files;
 mod judge;
@@ -36,6 +38,7 @@ use miyu_client::settings::problem::Code;
 
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
+pub use configured::{Configured, key_of};
 use files::Stamp;
 pub use tools::Tools;
 pub(crate) use tools::{FETCH_MEDIA, MUTE, POKE, RECALL, SKIP_REPLY};
@@ -183,12 +186,13 @@ impl Loaded {
     }
 }
 
-/// 读数据根 `root` 里系统的那几份，和出厂的 `factory` 合起来（「场所规则和出厂数据」第 2 条）。不会失败：读不成的、写错的
-/// 都变成问题，其余照用。不记运行日志（[`Venues`] 记；`venue show` 印出来）。
-pub fn load(factory: &Factory, root: &DataRoot) -> Loaded {
+/// 读数据根 `root` 里系统的那几份，和出厂的 `factory`、配置项拼的那一份 `configured`（施工 O-41）合起来（「场所规则和出厂
+/// 数据」第 2、8 条）。不会失败：读不成的、写错的都变成问题，其余照用。不记运行日志（[`Venues`] 记；`venue show` 印出来）。
+pub fn load(factory: &Factory, root: &DataRoot, configured: &Configured) -> Loaded {
     let system = root.system();
     let mut problems = Vec::new();
     let mut files = factory.rules.clone();
+    files.push(configured.file());
     files.extend(files::rules(
         &system.join(VENUES),
         VENUES,
@@ -234,6 +238,8 @@ pub struct Venues {
     factory: Factory,
     /// 数据根：系统的在它的 `system/` 里。
     root: DataRoot,
+    /// 配置项那一层这一刻的七项（施工 O-41）。
+    configured: Configured,
     /// 隔多久才看一眼（`bridge.json` 的 `rules_check_millis`）。
     every: Duration,
     /// 上一次看的时刻。
@@ -245,14 +251,22 @@ pub struct Venues {
 }
 
 impl Venues {
-    /// 读一次系统的（问题记运行日志），记下这一刻 `now`：之后隔 `every` 才再看。
-    pub fn new(factory: Factory, root: &DataRoot, every: Duration, now: Instant) -> Venues {
+    /// 读一次系统的（问题记运行日志），配置项那一层照 `configured`（握手交来的，施工 O-41），记下这一刻 `now`：之后隔 `every`
+    /// 才再看。
+    pub fn new(
+        factory: Factory,
+        root: &DataRoot,
+        configured: Configured,
+        every: Duration,
+        now: Instant,
+    ) -> Venues {
         // 先记样子再读：读的时候又改了的，下一次看得出来。
         let stamp = stamp(root);
-        let loaded = reload(&factory, root);
+        let loaded = reload(&factory, root, &configured);
         Venues {
             factory,
             root: root.clone(),
+            configured,
             every,
             looked: now,
             stamp,
@@ -288,16 +302,24 @@ impl Venues {
             let stamp = stamp(&self.root);
             if stamp != self.stamp {
                 self.stamp = stamp;
-                self.loaded = reload(&self.factory, &self.root);
+                self.loaded = reload(&self.factory, &self.root, &self.configured);
             }
         }
         &self.loaded
     }
+
+    /// 核心推来的配置变化 `keys`（`extension.config`）合进配置项那一层（施工 O-41）：七项变了的当场整份重读（问题记运行日志），
+    /// 下一条消息就照新的；没变的不读。
+    pub fn configure(&mut self, keys: &serde_json::Map<String, serde_json::Value>) {
+        if self.configured.change(keys) {
+            self.loaded = reload(&self.factory, &self.root, &self.configured);
+        }
+    }
 }
 
 /// 读一次系统的，每条问题记一行运行日志（第 4 条），读完记一行。
-fn reload(factory: &Factory, root: &DataRoot) -> Loaded {
-    let loaded = load(factory, root);
+fn reload(factory: &Factory, root: &DataRoot, configured: &Configured) -> Loaded {
+    let loaded = load(factory, root, configured);
     for problem in &loaded.problems {
         tracing::warn!(
             target: TARGET,
@@ -305,6 +327,7 @@ fn reload(factory: &Factory, root: &DataRoot) -> Loaded {
             source = ?problem.source,
             file = %problem.file,
             rule = %shown(problem.rule),
+            setting = %shown(setting(problem)),
             key = %shown(problem.key.as_deref()),
             line = %shown(problem.at.map(|at| at.line)),
             got = %shown(problem.got.as_deref()),
@@ -314,6 +337,14 @@ fn reload(factory: &Factory, root: &DataRoot) -> Loaded {
     }
     tracing::info!(target: TARGET, problems = loaded.problems.len(), "venue rules read");
     loaded
+}
+
+/// 配置项那一层的问题是哪一项的（施工 O-41）：配置项的键；别的来处的是空的。
+fn setting(problem: &Problem) -> Option<String> {
+    (problem.source == Source::Settings)
+        .then_some(problem.rule)
+        .flatten()
+        .and_then(key_of)
 }
 
 /// 可能没有的一格写进运行日志：没有的是空的。

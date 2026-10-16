@@ -115,6 +115,32 @@ fn system_file_replaces_factory_file_of_same_name() {
 }
 
 #[test]
+fn settings_sit_between_factory_and_system() {
+    // 配置项拼的那一份（施工 O-41）：同名的盖出厂的、被系统的盖，交进来的先后不影响。
+    let make = |source, rate: &str| File {
+        source,
+        name: "60-settings.toml".to_string(),
+        text: format!("[[rule]]\nrate = \"{rate}\"\n"),
+    };
+    let shipped = make(Source::Factory, "1/1s");
+    let settings = make(Source::Settings, "2/1s");
+    let mine = make(Source::System, "3/1s");
+    for files in [
+        [shipped.clone(), settings.clone()],
+        [settings.clone(), shipped.clone()],
+    ] {
+        let resolved = rules(&files).resolve(&group("1"));
+        assert_eq!(resolved.entries["rate"].origin.source, Source::Settings);
+        assert_eq!(resolved.entries["rate"].value, text("2/1s"));
+    }
+    for files in [[settings.clone(), mine.clone()], [mine, settings]] {
+        let resolved = rules(&files).resolve(&group("1"));
+        assert_eq!(resolved.entries["rate"].origin.source, Source::System);
+        assert_eq!(resolved.entries["rate"].value, text("3/1s"));
+    }
+}
+
+#[test]
 fn later_file_of_same_source_and_name_wins() {
     for make in [factory, system] {
         let files = [

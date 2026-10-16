@@ -76,12 +76,13 @@
 | `crates/miyu-onebot/src/core/route/recall.rs`（O-22） | 撤回记 `venue.recalled`（「撤回」） |
 | `crates/miyu-onebot/src/core/route/request.rs`（O-27） | 好友请求：白名单成员的另起任务经那个机器人号的连接 `set_friend_add_request` 同意，别的记一行、放着；群邀请记一行（「好友请求」） |
 | `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去（群里的发回群里，O-22；交 `receipt.rs`，群里的过几秒撤回，O-25 上），认不出的交回去照普通的话发（「斜杠命令」） |
-| `crates/miyu-onebot/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的合起来（`load`、`Loaded`），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志） |
+| `crates/miyu-onebot/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的、配置项那一层合起来（`load`、`Loaded`，O-41），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志；推来群的配置项变了当场重读，`Venues::configure`，O-41） |
 | `crates/miyu-onebot/src/rules/judge.rs`（O-23 下） | 读判官的说明：`package/data/judge/` 的十三份，交 `JudgeTexts::new` 查（「场所规则和出厂数据」第 2 条） |
 | `crates/miyu-onebot/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：`package/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msg`、`aim`（「群里怎么叫她」第 7 条） |
 | `crates/miyu-onebot/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照`package/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `package/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
-| `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：不连核心，照 `rules.rs` 读同样的文件，一项一行印值和来处，问题印在后面 |
+| `crates/miyu-onebot/src/rules/configured.rs`（O-41） | 配置项那一层：群的七项配置（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
+| `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：照 `rules.rs` 读同样的文件，配置项那一层向核心要（`configured`，O-41），一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
 | `crates/miyu-onebot/src/rules/names.rs`（施工 S-6 上） | 桥的工具给人看的名字：照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name` 读，`provide` 时每件带 `display_name`（「提供者和不说话」第 4 条） |
 | `crates/miyu-onebot/src/package.rs`（施工 S-6 上） | 桥自己的包文件夹：照核心交来的 `MIYU_PACKAGE_DIR`，没设、空的照资源目录的 `packages/onebot/`；出厂数据、给模型看的字、给人看的字都在它的 `data/` 里 |
@@ -106,6 +107,15 @@
 | `onebot.listen` | 整数 1024 到 65535 | 8301 | NapCat 反连进来的端口，只听本机 `127.0.0.1`；改了当场换（先开新的再换上，第 1 条，O-20） |
 | `onebot.token` | 密钥（`{ secret = … }` 或 `{ env = … }`） | 没有 | NapCat 连进来时出示的访问令牌；没设、取不到，桥照样起来，NapCat 连进来一律 401；设了、换了、删了不用重启（第 1、2 条，O-16 补二、O-20） |
 | `onebot.whitelist`（O-17；O-27 以前叫 `onebot.trusted`，旧键不认） | 平台身份的列表（`["qq:20017"]`），元素是文字、最多 128 个字 | 没有 | 白名单成员：不写的当没有；在后台页的「白名单成员」页上整张写回；桥照它认白名单成员（O-23 起群里，O-27 起私聊、好友请求，「群里怎么叫她」第 3 条） |
+| `onebot.groups`（O-41） | 群号的列表，元素是正整数 | 没有 | 群白名单：白名单群用 `onebot.group_rate`；`onebot.other_groups` 关了只在这些群里接话 |
+| `onebot.other_groups`（O-41） | 开关 | 开 | 白名单以外的群也接话；关了只记下（`allow = false`：终端管理员照样叫得动，「群里怎么叫她」第 3 条） |
+| `onebot.group_rate`（O-41） | 文字，最多 32 个字符 | 没有 | 白名单群的限流，写法同规则的 `rate`（`chat.md` 第一条）；没设照规则文件（出厂 `5/300s`） |
+| `onebot.other_group_rate`（O-41） | 同上 | 没有 | 其他群的限流 |
+| `onebot.sleep`（O-41） | 文字，最多 11 个字符 | 没有 | 睡觉时间，写法同规则的 `sleep`；群和私聊都算 |
+| `onebot.keywords`（O-41） | 文字的列表，每个最多 64 个字符 | 没有 | 群里的触发词（规则的 `keywords`：以它开头的算冲她来） |
+| `onebot.show_ids`（O-41） | 开关 | 关 | 她看得到发话人的 QQ 号（规则的 `show_ids`） |
+
+群的七项（O-41，2026-10-17 项目主人定：做成配置项，网页、终端的设置页照清单画，两个头不另写界面；照旧版加群白名单，白名单以外的群默认照样接话）由桥拼成一份规则，排在出厂、系统中间（「场所规则和出厂数据」第 8 条）：某一个群的特例照旧写规则文件。
 
 桥自己的数在资源目录的 `packages/onebot/data/bridge.json`，不进配置清单（照网页软件的 `web.json`）：
 
@@ -148,7 +158,7 @@
 | `status` | 调 `extension.status`，取 `onebot` 那一个说：关着、正在起来、在跑（进程号）、退避中（几秒后再拉起、连续失败几次）、停下了（原因，带标准错误的最后几行）。在跑的、状态文件的进程号和它对得上的，再说 NapCat 连没连上、哪个实现和版本、机器人的号、NapCat 那边的地址（「状态文件」）。末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（`status/page`，O-28 下起，O-28 补改成跟在末尾、关着停下的也说）。几个场所、出站队列积压几条随后面的步子 |
 | `web`（O-28 补） | 打开网页软件里接入QQ 的后台页：跑 `miyu-onebot` 真实位置旁边的 `miyu`（Windows 上 `miyu.exe`；`miyu onebot …` 本来就是 `miyu` 转给旁边的 `miyu-onebot`，`packages.md`「怎么走」第 5 条），参数 `web --package onebot`（`package-pages.md`「终端」第 2 条），标准输入输出照原样接着，等它退出，输出、退出码照 `miyu web` 的。不带别的参数（多带的是用法不对） |
 | `logs [-f]` | 印运行日志 `state/logs/onebot.log`；标准错误那一份 `state/logs/onebot.stderr` 有内容的，先印它、再印运行日志，各带一行标题。`-f`：印完接着跟运行日志，每 `follow_millis` 看一次，文件变短了（换了一份）从头读，Ctrl+C 停 |
-| `venue show <场所>`（O-21） | 一个场所每一项的值和来处，像 `udevadm info`（18 第四节「看和改」）：场所编号写成 `qq:group:<群号>`、`qq:private:<号>`。不连核心，照系统的语言说；读的文件和桥一样（「场所规则和出厂数据」第 6 条） |
+| `venue show <场所>`（O-21） | 一个场所每一项的值和来处，像 `udevadm info`（18 第四节「看和改」）：场所编号写成 `qq:group:<群号>`、`qq:private:<号>`。照系统的语言说；读的文件和桥一样，配置项那一层向核心要（O-41：核心没在跑就拉起，「场所规则和出厂数据」第 7、8 条） |
 | `serve` | 只由核心拉起（`extensions.md`）：标准输入输出是协议，说给人听的在标准错误上。从终端跑起来，照协议发握手、等回应，`hello_seconds` 内等不到就说 `failure/not-spawned`、退出码 1 |
 | `-h`、`--help` | 用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`，9-2） |
 
@@ -574,15 +584,15 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    | 桥的工具（O-26） | `tools/*.json` 的说明，`tool-results/skipped.txt`、`unknown.txt` 答的两句（「提供者和不说话」，登记在 `docs/ledger.md`）；O-31 多三件的说明、答的十三句（「平台工具（一）」第 5 条） | 没有：同上 |
 
    规则文件是 `venues.d/` 里名字以 `.toml` 结尾、不以 `.` 开头的普通文件（跟着链接）；名字不是 UTF-8 的不认（「施工时定的」第 51 条）。
-2. **读**：一份文件照配置文件的读法读（`miyu_store::config_file::read`：超过 1 MiB 不读、开头的 BOM 去掉、不是 UTF-8 不读，`config.md`「怎么走」第二条第 2 条），读不成的变成群聊内核的 `Problem`：原因码照配置的 `unreadable`（带系统的原话）、`too_big`、`not_utf8`，没有第几条规则、键、位置；列不出 `venues.d/` 的也是一条 `unreadable`，文件名写 `venues.d`。规则文件交 `Rules::parse`（出厂的 `Source::Factory`、系统的 `Source::System`，文件名不带目录），出厂参数交 `Params::read`，违规词表交 `Moderation::parse_keywords`，判官的说明（O-23 下）照文件名（`JudgeSources` 的格名把 `_` 换成 `-`、加 `.txt`）读成 `JudgeSources` 交 `JudgeTexts::new`，退信的模板（O-25 下）交内核的 `Template::parse`，字段只认 `why`、`detail`、`text`。桥的工具（O-26）：桥答得了的每件照 `miyu_tool::load::spec` 读 `tools/<名字>.json`，答的两句照 `miyu_tool::load::text` 读、试换过字段（`skipped.txt` 不要字段，`unknown.txt` 只认 `name`）。
+2. **读**：一份文件照配置文件的读法读（`miyu_store::config_file::read`：超过 1 MiB 不读、开头的 BOM 去掉、不是 UTF-8 不读，`config.md`「怎么走」第二条第 2 条），读不成的变成群聊内核的 `Problem`：原因码照配置的 `unreadable`（带系统的原话）、`too_big`、`not_utf8`，没有第几条规则、键、位置；列不出 `venues.d/` 的也是一条 `unreadable`，文件名写 `venues.d`。规则文件交 `Rules::parse`（出厂的 `Source::Factory`、系统的 `Source::System`，配置项那一份 `Source::Settings`（第 8 条，O-41），文件名不带目录），出厂参数交 `Params::read`，违规词表交 `Moderation::parse_keywords`，判官的说明（O-23 下）照文件名（`JudgeSources` 的格名把 `_` 换成 `-`、加 `.txt`）读成 `JudgeSources` 交 `JudgeTexts::new`，退信的模板（O-25 下）交内核的 `Template::parse`，字段只认 `why`、`detail`、`text`。桥的工具（O-26）：桥答得了的每件照 `miyu_tool::load::spec` 读 `tools/<名字>.json`，答的两句照 `miyu_tool::load::text` 读、试换过字段（`skipped.txt` 不要字段，`unknown.txt` 只认 `name`）。
    - **出厂的**：起来时读一次（`Factory::load`），握手以前，和 `bridge.json` 一样。规则文件单独过一遍 `Rules::parse`（合上系统的以后，被同名替换的那一份不读，单独过才查得全）。有一条问题（警告也算，照 `chat.md` 第八条施工时定的第 10 条）、出厂参数读不出来、哪一份不在或读不成、判官的说明 `JudgeTexts::new` 不收（O-23 下：`violations.txt` 模板写坏了，记一条 `bad_format`，文件写 `judge/violations.txt`，原话是模板的错；不在、读不成的文件名也带 `judge/`）、退信的模板写坏了或者要了别的字段（O-25 下：同样记一条 `bad_format`，文件写 `facts/undelivered.txt`）、桥的工具的说明或者答的两句不在、读不成、写坏了、要了别的字段（O-26：记一条 `bad_format`，文件写 `tools/<名字>.json`、`tool-results/<名字>.txt`，原话照 `miyu_tool::load` 说的），都是打包的错：在标准错误上说 `failure/factory`，接着每一条问题缩进两格一行（`venue/problem`），退出码 1，核心不再重启（`config_error`）。之后放在内存里，跑着不再读（「施工时定的」第 52 条）。
    - **系统的**：出厂的规则文件合上系统的过 `Rules::parse`，坏的那一项、那一条规则、那一份文件照群聊内核的规矩丢，别的照用。系统那一份读不成的照空的用：规则文件照样替换同名的出厂那一份、自己没有规则（和 TOML 写法不对一样整份不用），违规词表照空的（没有词）（「施工时定的」第 50 条）。违规词表：系统那一份在的整份替换出厂的，不在的照出厂的。问题照文件名排，违规词表的在最后。
 3. **什么时候重读**（`Venues`）：要用时交进当时的时刻（`Instant`）。离上一次看不到 `bridge.json` 的 `rules_check_millis`（出厂 1000 毫秒）的，照手里的；到了，看一眼系统的两处这一刻的样子：`system/venues.d/` 里规则文件的列表、每一份的修改时刻和大小，`system/modules/onebot/moderation.txt` 的修改时刻和大小（不在也是一种样子；列不出 `venues.d/` 的记这个目录本身）。和上一次的一样，照手里的；不一样，整份重读系统的（第 2 条）。先记样子再读：读的时候又改了的，下一次看得出来。不监视文件（「施工时定的」第 53 条）。
 4. **记运行日志**：每读一次系统的（起来时那一次、变了重读的），每条问题一行 `WARN venue rules problem`（原因码、来处、文件、第几条规则、键、行、原文、为什么），读完一行 `INFO venue rules read problems=<条数>`。没变的不记，不会一条问题每秒记一次。
 5. **套场所**（`Loaded::at`）：`Rules::resolve(&venue)` 得出每一项的值和来处，再 `Params::at` 套上规则改的参数。
 6. **起来时**：握手以后读一次系统的（第 4 条记运行日志）。O-22 起每一条消息照第 3 条用它套场所（「群消息」第 3 到 6 条，私聊的 `show_ids`）；进站链、主动回复判断、出站随后面的步子（「施工时定的」第 54 条）。
-7. **`venue show <场所>`**（「施工时定的」第 55 条）：场所编号照内核的 `VenueId` 再 `Venue::parse` 解，解不出的在标准错误上说 `venue/bad-venue`，退出码 2。读出厂的（出厂的有问题照第 2 条那样说，退出码 1），再读系统的（不记运行日志），套到这个场所上，在标准输出上印：
-   - 规则设到的每一项一行（`venue/entry`：键、值、来处），照键排；值照 TOML 的写法（字带引号、列表带方括号），参数照 `表.项`（`chatty.probability`）；来处是出厂或系统、文件名、第几条规则、第几行（`venue/rule`）。一项都没有的说 `venue/none`。
+7. **`venue show <场所>`**（「施工时定的」第 55 条）：场所编号照内核的 `VenueId` 再 `Venue::parse` 解，解不出的在标准错误上说 `venue/bad-venue`，退出码 2。读出厂的（出厂的有问题照第 2 条那样说，退出码 1）；向核心要配置项那一层（O-41：照 `start` 的样子连核心，核心没在跑就拉起，`config.get` 取全部、只认这个包的七项），要不到照 `failure/core` 说，退出码 1；再读系统的（不记运行日志），套到这个场所上，在标准输出上印：
+   - 规则设到的每一项一行（`venue/entry`：键、值、来处），照键排；值照 TOML 的写法（字带引号、列表带方括号），参数照 `表.项`（`chatty.probability`）；来处是出厂或系统、文件名、第几条规则、第几行（`venue/rule`）；配置项那一层只说是哪一项（`venue/setting`：「配置项 onebot.other_groups」，O-41）。一项都没有的说 `venue/none`。
    - 接着一句 `venue/defaults`：没列出的参数照出厂的 `defaults.toml`。参数的每一项不印：`Params` 交的是换算好的格，印不回原文；规则设到的已经在上面。
    - 读系统的发现了问题的，一句标题 `venue/problems`，问题缩进两格一条一行（`venue/problem`：在哪、错在哪；在哪照有没有第几条规则、第几行挑 `venue/rule`、`venue/line`、`venue/file`，错在哪一种原因码一句 `problem/…`）。
    - 违规词表不印：它不分场所。
@@ -598,6 +608,11 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：
      系统 90-bad.toml 第 2 条规则，第 6 行：rate 写法不对："abc"
    ```
+8. **配置项那一层**（O-41，`rules/configured.rs`）：群的七项配置（第一条「对外的样子」的配置表）拼成一份规则文件，交群聊内核和别的一起读（第 2 条），写法、怎么套、写错了丢哪一项都照规则文件的规矩。
+   - 名字是 `60-settings.toml`，来处 `Source::Settings`：照文件名排，排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的规则文件盖它，排在前面的被它盖；系统里放一份同名的整份替换它（同名的照「出厂、配置项、系统」的先后，`chat.md` 第一条「怎么走」第 1 条）。
+   - 一项一条规则，先后固定：其他群的限流、白名单以外的群不接话（`allow = false`）、群里的触发词、睡觉时间、看得到 QQ 号、白名单群接话（`allow = true`）、白名单群的限流。白名单群那两条在最后，盖掉对全部群的几条。没设、等于默认的那一项，规则照写、只有 `match`，什么都不设；群白名单是空的，那两条的 `match` 是空的群号列表，不匹配任何群。规则的先后固定，第几条规则就是哪一项：问题、来处照它说成配置项的键（`key_of`）。
+   - 限流、睡觉时间、触发词照原文写进去：字照 JSON 的写法加引号、转义（JSON 的转义都是 TOML 基本字符串认的），不另加依赖。写错的（`onebot.group_rate = "abc"`、带换行的触发词）照规则的规矩只丢那一项：运行日志那一行多一格 `setting=onebot.group_rate`，`venue show` 印「配置项 onebot.group_rate：rate 写法不对」。
+   - 握手交来的照它拼（`Venues::new`）；推来的 `extension.config` 里七项变了的当场整份重读、记运行日志（第 4 条），下一条消息就照新的；没变的不读。
 
 **样子**：桥起来时在标准错误上说一行「在 127.0.0.1:8301 等 NapCat 连进来」，照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
 
@@ -725,7 +740,8 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 - 握手交来的配置（O-20）：端口照交来的；没有的、`null` 的、不是 0 到 65535 的整数的照清单的默认值；令牌是字的照它、去掉前后空白，没有的、`null`、空的、不是字的是没有；推来的只换带了的键，别的键不认（O-28 下 `onebot.web` 也不认）；出厂清单的默认值是 8301，清单不在、没写默认值的读不出来、说是哪个文件；照出厂的清单拼的配置项里写 `onebot.web` 报不认识的键（O-28 下）。（`settings.rs`）
 - 令牌没设（O-16 补、补二，O-20 改）：桥照样起来，端口照开，先说在哪等 NapCat、再说 `notice/no-token`；NapCat 连进来 401；推来令牌，不重启，NapCat 下一次连就通。再换一个：新的连得进、旧的 401，已经连着的那一条照样收发；推来 `null`：一律 401。真的程序 `miyu-onebot serve` 也这样起来（测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌以后后台页的 `status`（测试当核心发 `method.call`）的 `token` 从 `none` 变 `set`，NapCat 不用重启就连上，`connection.token` 交出值、运行日志里没有这个值。（`no_token.rs`）
 - 场所规则和出厂数据（O-21，`rules.rs`，什么时候重读在 `reload.rs`；钟是交进去的时刻，不等）：出厂的读得出、零问题，违规词表 153 个词；出厂、系统两份照文件名的先后套，系统同名的整份替换出厂的，值和来处（出厂或系统、文件、第几条、第几行）都对；名字不以 `.toml` 结尾的、以 `.` 开头的、目录不当规则文件；系统的写错只丢那一项、那一条，读不成的（超过 1 MiB、不是 UTF-8）报出来、照空的用、同名的出厂那份也不用，别的照用；问题照文件名排（读不成的夹在写错的中间也是），`venues.d` 列不出来的报一条、出厂的照用；套场所时参数照规则改；出厂的写错（规则写错、只有一条警告、出厂参数写错、违规词表不在、`venues.d/` 不在）读不出来，交回每一条问题；判官的说明（O-23 下）：`violations.txt` 的模板要了别的字段报一条 `bad_format`（文件写 `judge/violations.txt`，原话带着那个字段），少了一份报一条读不成（`judge/answer.txt`）；改了、加了、删了系统的规则文件，隔够 `rules_check_millis` 的下一次用照新的，没隔够的照旧，没变的不重读；违规词表系统那一份替换出厂的，读不成的照空的，删了回到出厂的。
-- `venue show`（O-21，`venue.rs`）：印的值和来处、照键排、没有规则的说没有、问题印在后面一条一行，中文一字不差；没有系统规则的只印出厂的；场所编号认不出说 `venue/bad-venue`、退出码 2；出厂的写错在标准错误上说 `failure/factory` 和每一条问题、退出码 1。真的程序：`miyu-onebot venue show` 照系统的语言印、退出码 0；`serve` 出厂的写错握手以前就退、退出码 1、说是哪条问题；系统的写错照常起来，运行日志里有那条问题。
+- 配置项那一层（O-41，`src/rules/configured/tests.rs`、`reload.rs`、`group_settings.rs`）：都没设、照默认交来的什么都不设；七项各设到哪种场所（白名单群那两条盖掉对全部群的，私聊只有睡觉时间、看得到 QQ 号），来处是配置项那一份、第几条规则对得上；群白名单空的，白名单群的限流哪里都不设；引号、反斜杠、`#`、`]]` 这些字的触发词读回原样，带换行、控制字符的整项不收、说是 `onebot.keywords`；限流写错只丢那一项、说是 `onebot.group_rate`，别的照用；第几条规则说回哪一项；推来变了的合进来、`null` 回到默认、空的字当没设、别的键不认。推来变了不等隔够就照新的；名字排在 `60-settings.toml` 前面的系统文件被它盖、后面的盖它；推来同样的值不重读。真核心拉起真桥：系统配置写群白名单、关掉白名单以外的群，白名单以外的群里 @ 她只记下（`not_allowed`），白名单群照回；`config.set` 打开以后桥重读一次，那个群照回。群聊内核那边（`miyu-chat` 的 `rules/tests.rs`）：配置项那一份同名的盖出厂的、被系统的盖，交进来的先后不影响。
+- `venue show`（O-21，`venue.rs`）：印的值和来处、照键排、没有规则的说没有、问题印在后面一条一行，中文一字不差；没有系统规则的只印出厂的；场所编号认不出说 `venue/bad-venue`、退出码 2；出厂的写错在标准错误上说 `failure/factory` 和每一条问题、退出码 1；配置项那一层的来处印「配置项 onebot.…」、写错的问题也这样说，要不到配置说 `failure/core`、退出码 1（O-41）。真的程序（O-41 起连着测试里的真核心，系统配置写了群白名单）：`miyu-onebot venue show` 照系统的语言印、配置项那一层在里面、退出码 0；`serve` 出厂的写错握手以前就退、退出码 1、说是哪条问题；系统的写错照常起来，运行日志里有那条问题。
 - 依赖（O-20）：`cargo metadata` 里 `miyu-onebot` 的依赖（开发依赖不算）没有 `miyu-core`、`miyu-endpoint`（18 第一节「桥不依赖核心的 crate」）。（`dependencies.rs`）
 - 群消息（O-22，真核心拉起真桥、假 NapCat，`group.rs`；起核心和桥、读群会话的事件 O-23 挪进 `support/group.rs` 共用）：群消息记进 `qq:group:<群号>` 那个会话，属主是系统账号 `onebot`，`by` 是外部身份、`ambient` 真，不开回合、不请求模型（这个群规则写了 `allow = false`：没配判官，别人 @ 她判不了、冲她来的照回会开一轮，O-37）；名字取群名片、没有的取昵称；@ 她记 `mentions_me`、@ 别人进 `mentions`、正文里写成 `@名字`（发过言的照缓存、没发过的问 NapCat、问不到的写号），@全体记 `mentions_all`、正文里不写；引用记 `reply_to`；图、表情包、小黄脸、商城表情、语音、视频、文件各自记对，合并转发、卡片在正文里写占位；规则的 `show_ids` 照写；`managers` 里的人报 `manager`，群里的终端管理员带 `account`；机器人自己发的不记；规则里睡觉时间盖住此刻的群 `asleep` 真；规则写了不存在的人格的群什么都不记，连发两条运行日志只一行；群里的 `/stop`、`/clear` 终端管理员、管理的人能用，回执发回群里，别人照核心那一句被拒、什么都不记，认不出的 `/xxx` 记成旁听；撤回记 `venue.recalled`（撤的人是 `operator_id`）。只有一张图、只有一个表情的群消息记得进：没有内容块、`venue.media` 对、运行日志没有 `message refused`（核心 O-13 补以后补，`a_message_with_only_an_image_or_a_sticker_is_recorded`）。
 - 私聊带上场所的格（O-22，`private.rs`）：`msg`、`name`、`reply_to`、`media`、`show_ids`（照私聊的规则），没有 `ambient`；照旧来回；私聊的撤回记 `venue.recalled`。
