@@ -220,3 +220,26 @@ fn pushed_changes_merge_and_say_whether_anything_moved() {
             .contains_key("sleep")
     );
 }
+
+#[test]
+fn misread_names_each_bad_setting_once_in_order() {
+    // 触发词里坏了两个也只报一处。
+    assert_eq!(
+        Configured::handed(&everything()).misread(),
+        Vec::<String>::new()
+    );
+    let mut config = everything();
+    config["onebot.group_rate"] = json!("abc");
+    config["onebot.sleep"] = json!("25:00-26:00");
+    config["onebot.keywords"] = json!(["a\nb", "c\u{1}"]);
+    config["onebot.other_group_rate"] = json!("5/0s");
+    assert_eq!(
+        Configured::handed(&config).misread(),
+        [
+            "onebot.other_group_rate",
+            "onebot.keywords",
+            "onebot.sleep",
+            "onebot.group_rate"
+        ]
+    );
+}

@@ -238,7 +238,7 @@ description = { … }
 {"pid": 12345, "listen": 8301, "napcat": {"connected": true, "self_id": "30003", "implementation": "NapCat.Onebot", "version": "4.8.2"}}
 ```
 
-- `pid`：桥的进程号；`listen`：实际听的 NapCat 端口（推送换过的照换过的；O-28 下去掉了网页的 `web`）；`napcat`：和后台页的 `status` 一样（连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`；没连着的只有 `connected: false`）。
+- `pid`：桥的进程号；`listen`：实际听的 NapCat 端口（推送换过的照换过的；O-28 下去掉了网页的 `web`）；`napcat`：和后台页的 `status` 一样（连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`；没连着的只有 `connected: false`）；`misread`：没认出来的配置项的键（O-41 补），空的不带，推来的配置让它变了的重写一次。
 - 什么时候写：端口听上以后写一次；NapCat 连上、断开、认出号、问到是哪个实现，换了端口（推送来的），照这一刻的再写。和磁盘上一样的不写；先写旁边的临时文件再改名盖上（`miyu_store::generated::write`），读的人看不到写了一半的。写不进记一行 `WARN status not written`，桥照跑。
 - 桥退出不删它：`status` 只在 `extension.status` 说在跑、进程号和文件里的一样时才用它，旧的、上一个进程的、读不懂的都不用。
 
@@ -614,6 +614,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 一项一条规则，先后固定：其他群的限流、白名单以外的群不接话（`allow = false`）、群里的触发词、睡觉时间、看得到 QQ 号、白名单群接话（`allow = true`）、白名单群的限流。白名单群那两条在最后，盖掉对全部群的几条。没设、等于默认的那一项，规则照写、只有 `match`，什么都不设；群白名单是空的，那两条的 `match` 是空的群号列表，不匹配任何群。规则的先后固定，第几条规则就是哪一项：问题、来处照它说成配置项的键（`key_of`）。
    - 限流、睡觉时间、触发词照原文写进去：字照 JSON 的写法加引号、转义（JSON 的转义都是 TOML 基本字符串认的），不另加依赖。写错的（`onebot.group_rate = "abc"`、带换行的触发词）照规则的规矩只丢那一项：运行日志那一行多一格 `setting=onebot.group_rate`，`venue show` 印「配置项 onebot.group_rate：rate 写法不对」。
    - 握手交来的照它拼（`Venues::new`）；推来的 `extension.config` 里七项变了的当场整份重读、记运行日志（第 4 条），下一条消息就照新的；没变的不读。
+   - **没认出来的配置项**（O-41 补，2026-10-17 网页的会话验 O-41 时提的：限流、睡觉时间在清单里是文字，核心只查长度，写错了照样存进去）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项（`Configured::misread`：配置项的键，照拼的先后；一条规则只设一项、一项写错只报一处；规则文件写错的不算）。桥手里另记一份七项（`current.rs`，和端口、令牌一起照推送换），后台页的 `status`、状态文件带 `misread`（「后台页」第 2 条、「状态文件」），`miyu onebot status` 说 `status/misread`，后台页「连接」页 NapCat 那张卡下面画一行。不挡着不让存：存不存由核心照清单的类型定。
 
 **样子**：桥起来时在标准错误上说一行「在 127.0.0.1:8301 等 NapCat 连进来」，照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
 
@@ -671,6 +672,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | `status/napcat-bot` | 连着、还没问到 | NapCat 连上了：机器人 {bot}。 | NapCat connected: bot {bot}. |
 | `status/no-napcat` | 没连着 | NapCat 还没连上。 | NapCat is not connected. |
 | `status/listen`（O-28 下，原来的 `status/ports` 带着网页的地址） | NapCat 那边的地址 | NapCat 连 ws://127.0.0.1:{listen}/ws。 | NapCat connects to ws://127.0.0.1:{listen}/ws. |
+| `status/misread`（O-41 补） | 状态文件里有没认出来的配置项，排在 `status/page` 前面 | 这几项配置没认出来，照旧用规则文件里的：{keys} | These settings could not be read, the rule files are used instead: {keys} |
 | `status/page`（O-28 下；O-28 补改了说法和时机） | `start`、`status` 说完跟在末尾 | 设置和状态在网页里：miyu onebot web | Settings and status are in the web app: miyu onebot web |
 | `reason/config_error` | `config_error` | 配置错了或者端口被占（退出码 1）。改好以后 miyu onebot restart。 | a configuration error or a port in use (exit code 1). Fix it, then run miyu onebot restart. |
 | `reason/failed_repeatedly` | `failed_repeatedly` | 连续失败了 {failures} 次。看 miyu onebot logs，修好以后 miyu onebot restart。 | it failed {failures} times in a row. See miyu onebot logs, then run miyu onebot restart. |
@@ -686,6 +688,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | `venue/line` | 问题在哪：只有第几行的（出厂参数） | {source} {file} 第 {line} 行 | {source} {file}, line {line} |
 | `venue/file` | 问题在哪：整份文件的、缺了的 | {source} {file} | {source} {file} |
 | `venue/factory`、`venue/system` | 上面的 `{source}` | 出厂、系统 | factory、system |
+| `venue/setting`（O-41） | 来处是配置项那一层，整个来处只说这一句 | 配置项 {key} | setting {key} |
 | `venue/none` | 没有规则设到这个场所 | 没有规则设到这个场所。 | No rule sets anything for this venue. |
 | `venue/defaults` | 跟在规则设到的后面 | 没列出的参数照出厂的 defaults.toml。 | Parameters not listed follow the factory defaults.toml. |
 | `venue/problems` | 问题那一段的标题 | 读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）： | Problems found while reading (the wrong item, rule or file is not used; the rest is): |
@@ -1050,7 +1053,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 2. **桥登记的方法**（`core/methods.rs`）：
    - **登记**：开好监听、桥手里的状态（`running.rs` 的 `Running`，O-28 下从 WebUI 的 `Web` 挪出来）造好以后（这时才齐：NapCat 的连接表、实际听的端口、最新的配置），先把它交给答方法的那一头，再经并着发的调用口发 `package.methods {"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]}`（不写 `timeout_ms`，照核心的 30 秒；后两个是给别的包调的，O-42，「给别的包调的方法」）。和 `provide` 分开，桥每次起来、连上核心都发。写出去就接着起来，不等回应（同 `provide`，第 139 条）：成了记一行 `INFO methods registered count=…`；被拒的（进程里的测试经本机套接字连核心，回 `not_an_extension`）记一行 `ERROR methods not registered reason=… detail=…`，桥照跑：后台页调不到方法，别的照旧（第 154 条）。
    - **答**：`method.call {"method", "params"}` 和 `tool.call` 一样由读的一头当场答（第 140 条，`core/provider.rs` 交过来；给别的包调的两个照推送交给跟核心的那一头，O-42）：`{"jsonrpc": "2.0", "id": <原样>, "result": …}`。
-   - `status`：不看参数，回 `{"napcat": {"connected", "implementation", "version", "self_id"}, "listen": 端口, "path": "/ws", "token": "set" | "none", "platform": "qq"}`：照桥手里最新的（不读盘，`Running::status`；`napcat`、`listen` 和状态文件照的同一份）：`napcat` 是连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`，没连着的只有 `connected: false`；`listen` 是实际听的端口（推送换过的照换过的）；`token`：桥手里有令牌的 `set`，没有的 `none`（第 41 条）；`path` 是 NapCat 那边地址的路径，照 `bridge.json` 的 `paths` 里最短的那个（出厂 `/ws`，第 152 条）；`platform` 白名单成员页拼 `qq:<号>` 用（第 151 条）。
+   - `status`：不看参数，回 `{"napcat": {"connected", "implementation", "version", "self_id"}, "listen": 端口, "path": "/ws", "token": "set" | "none", "platform": "qq"}`：照桥手里最新的（不读盘，`Running::status`；`napcat`、`listen` 和状态文件照的同一份）：`napcat` 是连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`，没连着的只有 `connected: false`；`listen` 是实际听的端口（推送换过的照换过的）；`token`：桥手里有令牌的 `set`，没有的 `none`（第 41 条）；`path` 是 NapCat 那边地址的路径，照 `bridge.json` 的 `paths` 里最短的那个（出厂 `/ws`，第 152 条）；`platform` 白名单成员页拼 `qq:<号>` 用（第 151 条）；`misread`：没认出来的配置项的键（O-41 补，「场所规则和出厂数据」第 8 条），空的不带这一格。
    - `connection.token`：不看参数，回 `{"token": "<值>" | null}`：照桥手里最新的；令牌随时能看、能复制（2026-10-08 项目主人定，原来桥自己的网页的 `/token`）；运行日志一行 `INFO page token read`，不记值。令牌是桥自己的凭据，由桥经核心交给管理员在后台页上看（`package-pages.md`「还没有的」第 2 条：核心不为后台页开交出密钥的口子）。
    - 不认识的方法：回 JSON-RPC 的「没有这个方法」`{"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}}`（核心交回 `method_failed`，`data.code` 是 -32601），记一行 `WARN page method not understood method=…`。答方法的那一头还没拿到桥手里的状态时来的（核心只转登记了的方法，登记在交进状态以后，照说来不了）也这样回（第 153 条）。
 3. **页面**（`package/page/`，原生 JS 的模块，`index.html` 照 `type="module"` 载 `app.js`）：只经网页交来的 `MessageChannel` 照 JSON-RPC 说（`package-pages.md`「框和网页之间怎么说」：`context`、`settings.get`、`settings.set`、`call`，推送 `settings.changed`、`theme.changed`）。通道只交一次，页面是单页：两个页签在页里切，不跳页（第 155 条）。

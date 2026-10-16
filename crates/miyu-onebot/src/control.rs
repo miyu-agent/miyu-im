@@ -88,6 +88,8 @@ pub enum Report {
     NoNapcat,
     /// NapCat 那边的地址：实际听的端口（施工 O-28 下：原来连着网页的地址一起说）。
     Listen(u64),
+    /// 这几项配置没认出来，照旧用规则文件里的（施工 O-41 补）：配置项的键。
+    Misread(Vec<String>),
     /// 设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 下；O-28 补改了说法）：`start`、`status` 说完跟上。
     Page,
 }
@@ -254,7 +256,21 @@ fn napcat(board: &Value) -> Vec<Report> {
             }
         }
     };
-    vec![first, Report::Listen(listen)]
+    let mut reports = vec![first, Report::Listen(listen)];
+    // 没认出来的配置项（施工 O-41 补）：桥写进状态文件的，照写的先后。
+    let misread: Vec<String> = board["misread"]
+        .as_array()
+        .map(|keys| {
+            keys.iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    if !misread.is_empty() {
+        reports.push(Report::Misread(misread));
+    }
+    reports
 }
 
 /// 印一行；印不出来也没有别处可说了。

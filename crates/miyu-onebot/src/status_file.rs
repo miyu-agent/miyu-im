@@ -47,11 +47,16 @@ pub(crate) async fn keep(
     changed: Arc<Notify>,
 ) -> Option<Failure> {
     loop {
-        let now = json!({
+        let mut now = json!({
             "pid": std::process::id(),
             "listen": running.listen.load(Ordering::Relaxed),
             "napcat": running.bots.napcat(),
         });
+        // 没认出来的配置项（施工 O-41 补）：`miyu onebot status` 照它说一句；空的不带。
+        let misread = running.current.misread();
+        if !misread.is_empty() {
+            now["misread"] = json!(misread);
+        }
         let bytes = format!("{now}\n").into_bytes();
         let target = path.clone();
         match tokio::task::spawn_blocking(move || miyu_client::places::write(&target, &bytes)).await

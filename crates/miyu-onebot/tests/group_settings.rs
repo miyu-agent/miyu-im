@@ -101,3 +101,31 @@ async fn only_whitelisted_groups_are_answered_until_the_setting_changes() {
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;
 }
+
+#[tokio::test]
+async fn a_misread_setting_is_shown_until_it_is_fixed() {
+    // 施工 O-41 补：睡觉时间写错了，后台页的 `status` 带 `misread`，`miyu onebot status` 说一句；改对了两边都没了。
+    let script = Script::new([]);
+    let (home, _napcat, _) = started(&script, RULES, "sleep = \"abc\"\n", MEMBERS).await;
+    let mut head = crate::support::head::Head::connect(&home.root).await;
+    let status = head.until("status", |result| result.is_object()).await;
+    assert_eq!(status["misread"], json!(["onebot.sleep"]), "{status}");
+    let said =
+        crate::support::spawning::until_status(&home.root, |out| out.contains("onebot.sleep"))
+            .await;
+    assert!(
+        said.contains("这几项配置没认出来，照旧用规则文件里的：onebot.sleep"),
+        "{said}"
+    );
+    set(
+        &home.root,
+        json!([{"key": "onebot.sleep", "value": "23:00-07:00"}]),
+    )
+    .await;
+    let status = head
+        .until("status", |result| result.get("misread").is_none())
+        .await;
+    assert_eq!(status["platform"], "qq");
+    crate::support::spawning::until_status(&home.root, |out| !out.contains("onebot.sleep")).await;
+    stopped(home).await;
+}

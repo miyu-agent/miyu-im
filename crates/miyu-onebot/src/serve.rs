@@ -188,7 +188,11 @@ pub async fn run(
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
     let applied = settings.port;
-    let current = Arc::new(Current::new(settings, serve.defaults));
+    let current = Arc::new(Current::new(
+        settings,
+        Configured::handed(&core.config),
+        serve.defaults,
+    ));
     let (swap, mut swaps) = mpsc::unbounded_channel();
     let running = Arc::new(Running {
         listen: AtomicU16::new(listen),
@@ -279,7 +283,12 @@ pub async fn run(
             // 核心推来的配置（施工 O-20）：令牌当场换上；端口变了另起一个任务换，换的时候不耽误接连接（换不成的记了运行
             // 日志，旧的照旧，「施工时定的」第 167 条）。发的一头在跟核心的那一头里，它停了收到空的，这一支不再看。
             Some(keys) = configs.recv() => {
-                if current.change(&keys) {
+                let changed_now = current.change(&keys);
+                // 没认出来的配置项变了（施工 O-41 补）：状态文件跟着写，`miyu onebot status` 照它说。
+                if changed_now.misread {
+                    changed.notify_one();
+                }
+                if changed_now.port {
                     let running = Arc::clone(&running);
                     tasks.spawn(async move {
                         rebind::latest(&running).await;

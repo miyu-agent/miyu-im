@@ -40,6 +40,7 @@ impl Running {
     ///   `connected: false`（`Bots::napcat`，状态文件也照它）。
     /// - `token`：桥手里有令牌的 `set`，没有的 `none`。没写引用、引用取不到，核心都不交，分不出（「施工时定的」第 41 条）。
     /// - `platform`：桥的平台名（[`PLATFORM`]），白名单成员页照它拼 `qq:<号>`（第 151 条）。
+    /// - `misread`：没认出来的配置项（施工 O-41 补，`Current::misread`），空的不带这一格。
     pub(crate) fn status(&self) -> Map<String, Value> {
         let token = match self.current.token() {
             Some(_) => "set",
@@ -50,6 +51,10 @@ impl Running {
         status.insert("listen".into(), json!(self.listen.load(Ordering::Relaxed)));
         status.insert("token".into(), json!(token));
         status.insert("platform".into(), json!(PLATFORM));
+        let misread = self.current.misread();
+        if !misread.is_empty() {
+            status.insert("misread".into(), json!(misread));
+        }
         status
     }
 }

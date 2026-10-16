@@ -9,7 +9,7 @@
 
 use serde_json::{Map, Value};
 
-use miyu_chat::{File, Source};
+use miyu_chat::{File, Rules, Source};
 
 use crate::PACKAGE;
 
@@ -185,6 +185,19 @@ impl Configured {
             name: FILE.to_string(),
             text,
         }
+    }
+}
+
+impl Configured {
+    /// 没认出来的配置项（施工 O-41 补）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项，配置项的键照拼的先后。
+    /// 只看这一份：规则文件写错的不算。后台页的 `status`、状态文件照它说。一条规则只设一项、一项写错只报一处（列表里坏了几个
+    /// 也是一处），不用去重。
+    pub fn misread(&self) -> Vec<String> {
+        Rules::parse(&[self.file()])
+            .problems
+            .iter()
+            .filter_map(|problem| problem.rule.and_then(key_of))
+            .collect()
     }
 }
 

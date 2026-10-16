@@ -33,6 +33,8 @@ export function connectionView(ui) {
   const dot = (kind) => h('span', { class: `status-dot is-${kind}` });
 
   const napcat = h('div', { class: 'value' });
+  // 没认出来的配置项（施工 O-41 补）：status 带 misread 的才出来，名字照设置页上的。
+  const misread = h('p', { class: 'note error', hidden: true });
   const step = h('li', { text: say('guide/token') });
   const guide = h('section', { class: 'card guide', hidden: true },
     h('h2', { text: say('guide/title') }),
@@ -77,6 +79,10 @@ export function connectionView(ui) {
     const said = kind === 'online' ? say('napcat/connected') : kind === 'offline' ? say('napcat/disconnected')
       : ui.statusError() ? say('napcat/unknown', { reason: ui.reasonOf(ui.statusError()) }) : '';
     napcat.replaceChildren(dot(kind), h('span', { text: said }), detail && h('span', { class: 'detail', text: detail }));
+    const unread = (status?.misread ?? []).map((key) => ui.nameOf(key)).join(say('misread/separator'));
+    const warned = unread ? say('misread', { names: unread }) : '';
+    misread.hidden = !warned;
+    if (misread.textContent !== warned) misread.textContent = warned;
     if (status?.token && status.token !== 'set') guided = true;
     if (napcatStatus?.connected) guided = false;
     guide.hidden = !guided;
@@ -128,7 +134,7 @@ export function connectionView(ui) {
 
   const ports = portsCard(ui);
   return {
-    el: [guide, h('section', { class: 'card' }, row(say('napcat'), napcat)), fill, ports.el],
+    el: [guide, h('section', { class: 'card' }, row(say('napcat'), napcat), misread), fill, ports.el],
     paint,
     changed: () => { ports.changed(); paint(); },
   };

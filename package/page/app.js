@@ -23,10 +23,11 @@ import { whitelistView } from './whitelist.js';
 
   const app = /** @type {HTMLElement} */ (document.getElementById('app'));
 
-  /** 页面的全部状态：用哪一份字、通道、设置项的最终值（settings.get 的 values）、status 的回答和调不到时的错、取 status 的定时器、
-   *  在哪一页、这一页（换页就换一份：画 `paint`、设置项变了 `changed`）、页签。 */
+  /** 页面的全部状态：用哪一份字、通道、设置项的最终值（settings.get 的 values）、设置项的名字（items 的 key 到 name，施工 O-41
+   *  补）、status 的回答和调不到时的错、取 status 的定时器、在哪一页、这一页（换页就换一份：画 `paint`、设置项变了 `changed`）、
+   *  页签。 */
   const state = {
-    said: pick(navigator.language), channel: null, values: {}, status: null, statusError: null, timer: 0,
+    said: pick(navigator.language), channel: null, values: {}, names: {}, status: null, statusError: null, timer: 0,
     page: 'connection', view: null, tabs: {},
   };
 
@@ -171,6 +172,7 @@ import { whitelistView } from './whitelist.js';
   async function reload() {
     const got = await state.channel.call('settings.get');
     state.values = got?.values ?? {};
+    state.names = Object.fromEntries((got?.items ?? []).map((item) => [item.key, item.name]));
   }
 
   /** 调一次桥登记的方法 `method`（经网页的 call 转 package.call），交回它的回答。 */
@@ -200,6 +202,8 @@ import { whitelistView } from './whitelist.js';
   const ui = {
     h, say, reasonOf, copyButton, confirmed, call, refresh,
     values: () => state.values,
+    /** 设置项 `key` 的名字（网页照语言挑好的）；没有的照键。 */
+    nameOf: (key) => state.names[key] ?? key,
     status: () => state.status,
     statusError: () => state.statusError,
     /** 写设置项（settings.set，照 config.set 写进系统配置；密钥给字的网页代存），成了重读一遍。 */

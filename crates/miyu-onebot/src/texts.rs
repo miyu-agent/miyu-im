@@ -279,6 +279,7 @@ impl Texts {
             Report::NoNapcat => self.say("status/no-napcat", &[]),
             Report::Listen(listen) => self.say("status/listen", &[("listen", listen.to_string())]),
             Report::Page => self.say("status/page", &[]),
+            Report::Misread(keys) => self.say("status/misread", &[("keys", keys.join(", "))]),
         }
     }
 
