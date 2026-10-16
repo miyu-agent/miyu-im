@@ -1,7 +1,8 @@
-//! 门禁程序（照核心仓库的 `xtask`，施工 S-6 中）：`cargo xtask check` 依次跑格式、clippy、文档、行数、许可证和测试，最后打
-//! 一张结果表。本机验收和三平台 CI 跑的是同一条命令。
+//! 门禁程序（照核心仓库的 `xtask`，施工 S-6 中）：`cargo xtask check` 依次跑格式、clippy、文档、纯逻辑、行数、许可证和测试，
+//! 最后打一张结果表。本机验收和三平台 CI 跑的是同一条命令。
 //!
-//! 「文档」那一项还查登记簿：`package/data/` 里给模型看的字和 `docs/ledger.md` 一一对上（[`ledger`]）。「行数」查每个 `.rs`
+//! 「文档」那一项还查登记簿：`package/data/` 里给模型看的字和 `docs/ledger.md` 一一对上（[`ledger`]）。「纯逻辑」查群聊内核
+//! 不碰 I/O、时钟，不用遍历顺序会变的容器（[`purity`]，施工 O-40）。「行数」查每个 `.rs`
 //! 不超过 500 行，测试也算。「许可证」查发布的四个平台上用得到的第三方依赖，许可证都能和 GPL-3.0-or-later 合在一起发。
 //! 「测试」另查每个测试文件都进了测试程序（`autotests = false` 的 crate）。里面的 cargo 一个接一个跑，不并行。
 
@@ -9,6 +10,7 @@ mod drawing;
 mod files;
 mod ledger;
 mod licenses;
+mod purity;
 mod size;
 mod test_targets;
 
@@ -84,6 +86,11 @@ fn check() -> ExitCode {
     if let Some(docs) = outcomes.last_mut() {
         docs.problems.extend(ledger::check(&root));
     }
+    println!("\n── 纯逻辑：{} ──", purity::DIRS.join("、"));
+    outcomes.push(Outcome {
+        name: "纯逻辑",
+        problems: pure(&root),
+    });
     println!("\n── 行数：每个 .rs 不超过 {} 行 ──", size::MAX_LINES);
     outcomes.push(Outcome {
         name: "行数",
@@ -136,10 +143,24 @@ fn cargo_step(
     Outcome { name, problems }
 }
 
-/// 每个 `.rs` 文件的行数。读不了的记进去。
+/// 每个 `.rs` 文件的行数（[`size`]）。
 fn lines(root: &Path) -> Vec<String> {
+    sources(root, &CODE, |label, text| {
+        size::check(label, text, size::MAX_LINES)
+            .into_iter()
+            .collect()
+    })
+}
+
+/// 纯逻辑的代码里不许有的（[`purity`]）。
+fn pure(root: &Path) -> Vec<String> {
+    sources(root, &purity::DIRS, purity::scan)
+}
+
+/// 照 `dirs`（相对仓库根）下每个 `.rs` 文件的路径和内容查一遍 `check`，问题并在一起；读不了的记进去。
+fn sources(root: &Path, dirs: &[&str], check: impl Fn(&str, &str) -> Vec<String>) -> Vec<String> {
     let mut problems = Vec::new();
-    for dir in CODE {
+    for dir in dirs {
         let found = match files::rust_files(&root.join(dir)) {
             Ok(found) => found,
             Err(e) => {
@@ -154,7 +175,7 @@ fn lines(root: &Path) -> Vec<String> {
                 .display()
                 .to_string();
             match std::fs::read_to_string(&path) {
-                Ok(text) => problems.extend(size::check(&label, &text, size::MAX_LINES)),
+                Ok(text) => problems.extend(check(&label, &text)),
                 Err(e) => problems.push(format!("读不了 {label}：{e}")),
             }
         }
