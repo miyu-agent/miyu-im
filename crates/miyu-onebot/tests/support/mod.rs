@@ -6,6 +6,7 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod answering;
+pub mod assembled;
 pub mod fake_core;
 pub mod group;
 pub mod judge;
@@ -79,9 +80,9 @@ pub fn admin() -> AccountId {
     AccountId::parse("admin").expect("账号合写法")
 }
 
-/// 源码树里的资源目录。
+/// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `package/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
 pub fn resources() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+    assembled::resources()
 }
 
 /// 资源目录 `resources` 里出厂的那一份包文件夹（`packages/onebot/`，施工 S-6 上）。
@@ -89,9 +90,9 @@ pub fn package_in(resources: impl AsRef<Path>) -> Package {
     Package::at(resources.as_ref().join("packages").join("onebot"))
 }
 
-/// 源码树里出厂的包文件夹。
+/// 这个仓库的包文件夹 `package/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
 pub fn package() -> Package {
-    package_in(resources())
+    Package::at(assembled::package_dir())
 }
 
 /// 出厂的 `bridge.json`。

@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use miyu_onebot::tuning::{FILE, Tuning};
 
-/// 源码树里的资源目录。
+/// 出厂的资源目录（拼成的，施工 S-6 中）。
 fn resources() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+    crate::support::resources()
 }
 
 /// 一个临时的数据目录（包文件夹的 `data/`），`bridge.json` 写成 `text`：交回目录（用完调的一方删）。

@@ -9,10 +9,7 @@ pub(crate) const REASON_CHARS: usize = 500;
 /// 接入QQ 包文件夹的 `data/judge/` 下的一份原文。
 macro_rules! judge {
     ($name:literal) => {
-        include_str!(concat!(
-            "../../../../resources/packages/onebot/data/judge/",
-            $name
-        ))
+        include_str!(concat!("../../../../package/data/judge/", $name))
     };
 }
 pub(crate) use judge;

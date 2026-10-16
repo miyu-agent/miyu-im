@@ -20,7 +20,7 @@ use super::{Case, Conclusion, Decision, decide};
 fn defaults() -> String {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../resources/packages/onebot/data/defaults.toml"
+        "/../../package/data/defaults.toml"
     );
     std::fs::read_to_string(path).expect("出厂的读得到")
 }

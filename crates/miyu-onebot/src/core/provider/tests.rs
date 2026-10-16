@@ -11,21 +11,21 @@ use crate::core::methods::Methods;
 use crate::package::Package;
 use crate::rules::{Factory, Tools};
 
-/// 源码树里的资源目录。
-fn resources() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+/// 这个仓库的包文件夹 `package/`（施工 S-6 中）。
+fn package() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../package")
 }
 
 /// 出厂的工具。
 fn tools() -> Arc<Tools> {
-    Factory::load(&Package::at(resources().join("packages/onebot")))
+    Factory::load(&Package::at(package()))
         .expect("出厂的读得出")
         .tools()
 }
 
 /// 出厂的包文件夹的 `data/<name>` 原样。
 fn shipped(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/onebot/data").join(name)).expect("读得出")
+    std::fs::read_to_string(package().join("data").join(name)).expect("读得出")
 }
 
 /// 核心反向调 `tool`，编号 `id`。

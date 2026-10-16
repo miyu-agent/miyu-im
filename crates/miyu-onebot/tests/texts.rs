@@ -1,4 +1,4 @@
-//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `resources/packages/onebot/data/human/`，三种语言里桥说的
+//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `package/data/human/`，三种语言里桥说的
 //! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说；握手以前照系统的
 //! 语言（施工 O-20：不读配置）。O-18 多了 `start`、`stop`、`restart`、`status`、`logs` 说的；O-21 多了 `venue show` 说的、
 //! 出厂的数据有问题、问题说成话；O-23 多了限流满了发进群里的那一句；O-28 下去掉桥自己的网页说的几句，`status` 多了设置在哪
@@ -14,9 +14,9 @@ use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::venue::Shown;
 use miyu_store::resources::ResourceRoot;
 
-/// 源码树里的资源目录。
+/// 出厂的资源目录（拼成的，施工 S-6 中）。
 fn resources() -> ResourceRoot {
-    ResourceRoot::at(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
+    ResourceRoot::at(crate::support::resources())
 }
 
 /// 一条问题：系统的 `80-x.toml` 第 1 条规则第 3 行的 `rate`，原文 `"abc"`，原因码是 `code`。

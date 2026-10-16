@@ -1,0 +1,61 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+license = "GPL-3.0-or-later"
+publish = false
+
+# 核心的 crate 照 git 依赖钉住核心的同一个提交（施工 S-6 中，设计 32 第三节、第九节）：升级就是改这里的 `rev`、刷
+# Cargo.lock、过 CI。两个 crate 用到的都写成 `{ workspace = true }`，不在别处另写地址、提交。
+[workspace.dependencies]
+# 门面：桥只经它拿核心的东西（设计 32 第九节第 1 条）。`testkit` 只在测试里开：照钉住的那份核心检出读出厂资源。
+miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+# 群聊内核要的：编号、时刻、模板（内核），配置清单的类型和问题（配置）。
+miyu-kernel = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-config = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+# 下面几个只给桥的测试用（开发依赖）：测试进程里起一个真的核心、拼请求、读会话日志。
+miyu-ipc = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-store = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-log = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-tool = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-core = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112", default-features = false }
+miyu-endpoint = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-session = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-http = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+miyu-models = { git = "https://github.com/miyu-agent/miyu", rev = "68457b0306c0869ea631b517119ff00fca54a112" }
+# 这个仓库自己的：桥用群聊内核。
+miyu-chat = { path = "crates/miyu-chat" }
+
+# 同核心（核心仓库根目录的 Cargo.toml，理由见核心的施工单 0-1「我定的」）。
+[workspace.lints.rust]
+unsafe_code = "forbid"
+# 不吞错误：必须处理的返回值不许不理。
+unused_must_use = "deny"
+# 公开的东西都要有文档注释。
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+# 不吞错误：不许用 `let _ =` 或 `.ok()` 把错误悄悄扔掉。真要扔，写 #[expect(..., reason = "...")]。
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+# 读到坏数据要报错，不能直接崩。测试里允许，见 clippy.toml。
+unwrap_used = "deny"
+# 会出错的函数写 # Errors，会 panic 的写 # Panics。
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+# 发出去的照核心的 release：整个程序一起优化、一份代码单元。panic 照旧展开。
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+# 测试里起的真核心要算密码哈希（核心施工 W-8）：不开优化时一次要零点几秒，开发、测试编的也优化它和它用的 blake2。
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

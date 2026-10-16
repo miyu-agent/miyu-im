@@ -14,7 +14,7 @@ use crate::onebot::Lead;
 fn params() -> Params {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../resources/packages/onebot/data/defaults.toml"
+        "/../../package/data/defaults.toml"
     );
     let file = File {
         source: Source::Factory,

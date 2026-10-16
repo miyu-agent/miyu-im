@@ -13,16 +13,16 @@ name = "miyu-onebot"
 path = "src/main.rs"
 
 [dependencies]
-# 核心里的东西只经门面拿（设计 32 第九节第 1 条，施工 S-6 上）：数据根、资源目录、系统的语言（`places`）；给人看的字（`texts`）；
+# 核心里的东西只经门面拿（设计 32 第九节第 1 条，施工 S-6 上；施工 S-6 中起照 git 钉核心的提交，见根目录 Cargo.toml）：数据根、资源目录、系统的语言（`places`）；给人看的字（`texts`）；
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法（`log`）；`start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答
 # （`open::Core`，onebot.md「施工时定的」第 166 条）；场所、平台上的人的编号、时刻、事件（`ids`、`time`、`events`）；桥的工具的
 # 说明、答的几句照工具的读法读（`tooltext`，施工 O-26，`providers.md`「给模型看的字」）；令牌是核心交来的密钥（`settings`，`Debug`
 # 只印 `Secret(…)`）；两个端口的默认值照自己的清单读（`manifest`，施工 O-20）；取图、视频、文件照核心的 HTTP 客户端下（`http`，
 # 施工 O-33：只 http、https，超时、代理照它）。配置由核心在握手时交、变了推过来，桥不依赖核心的 crate（`miyu-core`、
 # `miyu-endpoint`，18 第一节）。
-miyu-client = { path = "../miyu-client" }
+miyu-client = { workspace = true }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
-miyu-chat = { path = "../miyu-chat" }
+miyu-chat = { workspace = true }
 # HTTP/1 的服务端：NapCat 反连进来的那一下是 HTTP 升级（照网页软件，本来就在依赖图里）。MIT。
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
@@ -50,21 +50,24 @@ workspace = true
 
 [dev-dependencies]
 # 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
-miyu-ipc = { path = "../miyu-ipc" }
+miyu-ipc = { workspace = true }
+# 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/onebot/`，
+# 把这个仓库的 `package/` 放进去，`tests/support/assembled.rs`）。
+miyu-client = { workspace = true, features = ["testkit"] }
 # 测试里造编号、读会话日志、装记日志的订阅者、拼请求这些门面上没有的（施工 S-6 上以前是正式依赖）。
-miyu-store = { path = "../miyu-store" }
-miyu-log = { path = "../miyu-log" }
-miyu-kernel = { path = "../miyu-kernel" }
-miyu-tool = { path = "../miyu-tool" }
-miyu-config = { path = "../miyu-config" }
+miyu-store = { workspace = true }
+miyu-log = { workspace = true }
+miyu-kernel = { workspace = true }
+miyu-tool = { workspace = true }
+miyu-config = { workspace = true }
 # 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
 # （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
-miyu-core = { path = "../miyu-core", default-features = false }
-miyu-endpoint = { path = "../miyu-endpoint" }
-miyu-session = { path = "../miyu-session", features = ["testkit"] }
+miyu-core = { workspace = true }
+miyu-endpoint = { workspace = true }
+miyu-session = { workspace = true, features = ["testkit"] }
 # 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。
-miyu-http = { path = "../miyu-http", features = ["testkit"] }
-miyu-models = { path = "../miyu-models" }
+miyu-http = { workspace = true, features = ["testkit"] }
+miyu-models = { workspace = true }
 # 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
 # `process`：测试当核心跑真的 `serve`、`logs -f`（施工 O-18）。

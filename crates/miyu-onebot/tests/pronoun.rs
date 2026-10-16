@@ -2,11 +2,9 @@
 //! 配置项的字）、后台页的字、桥说给人听的字、出厂参数文件里的说明，都不用「她」「彼女」「she」「her」，写「AI」或者换个说法。
 //! 给模型看的字（判官的模板、事实、工具说明）不在这一条里。
 
-use std::path::Path;
-
-/// 源码树里的资源目录。
+/// 出厂的资源目录（拼成的，施工 S-6 中）。
 fn resources() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+    crate::support::resources()
 }
 
 /// 给人看的那几份，相对资源目录。
