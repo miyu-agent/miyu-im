@@ -1,5 +1,5 @@
 //! 通讯平台的桥 `miyu-onebot`（`docs/blueprint/onebot.md`，施工 O-8）：经 OneBot v11 接 QQ 的一个头，和终端界面、网页平级
-//! （`docs/designs/18-通讯平台.md` 第三节）。O-8 是骨架：终端管理员的私聊、只有文字；O-22 起群消息记进场所会话（旁听，不开回合）。
+//! （核心的 `docs/designs/18-通讯平台.md` 第三节）。O-8 是骨架：终端管理员的私聊、只有文字；O-22 起群消息记进场所会话（旁听，不开回合）。
 //!
 //! - [`settings`]：核心在握手时交来、变了推过来的配置：NapCat 的端口、令牌（施工 O-20）；没交的端口照清单的默认值。
 //! - [`package`]：桥自己的包文件夹（施工 S-6 上）：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份；桥自己的
@@ -51,5 +51,5 @@ pub const TARGET: &str = "miyu::onebot";
 /// 还没有字可用时印原话的开头，也是程序的名字。
 pub const PROGRAM: &str = "miyu-onebot";
 
-/// 这个软件包的编号（`resources/packages/onebot/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
+/// 这个软件包的编号（`package/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
 pub const PACKAGE: &str = "onebot";

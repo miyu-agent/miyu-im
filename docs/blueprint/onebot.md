@@ -1,10 +1,12 @@
 ## 通讯平台的桥 `miyu-onebot`
 
+> 这一页 2026-10-16 从核心仓库 [`miyu-agent/miyu`](https://github.com/miyu-agent/miyu) 搬来（施工 S-6 中）：路径照这个仓库写，指核心里东西的写「核心的 …」；不带路径写的别的图纸（`venues.md`、`protocol.md`、`extensions.md` 这些）、设计（`18-通讯平台.md` 这些）、`O-*` 施工单都在核心仓库的 `docs/` 下。
+
 ### 是什么
 
-软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
+软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（核心的 `docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：终端管理员的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（原来的第二条，O-28 下去掉）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「终端管理员与白名单成员」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：终端管理员的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，终端管理员冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。O-23（补）判官带人格：群会话用的人格照订阅回应记下，原文经 `persona.read` 读、记一阵，夹进判官的请求，场所规则写了 `judge = { persona = false }` 的群不带（「群里怎么叫她」第 1 条、第 12 条第 3 款，2026-10-09 项目主人定）。O-25（上）接上出站链：她的每一条话（群、私聊）先过群聊内核的出站链（清理、去重、引用和 @），过了的照纯文本拆段、第一段带上引用和 @，丢了的记一行运行日志；群里的命令回执发出 3 秒后撤回（第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，2026-10-09）。O-25（中）接上出站队列：她要说出去的一切（群里她的话、限流的提示、命令回执，私聊的回话）先记 `ext.onebot.venues.queued` 再交 NapCat，失败、过期的记 `ext.onebot.venues.failed`；她被禁言（`group_ban` 通知）记 `ext.onebot.venues.muted`、`unmuted`，禁言时这个群的出站排着、进站链照它算；没连着的排着、连上了发；排着的过了 `queue_expire_seconds` 作废；去重照入队算（第一条「出站队列」，2026-10-09）。O-25（下）接上退信和贴表情：她的话没发出去的，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，她下一步看到；群里判过要回、主触发是冲她来或续聊的，在她要回的那一条上贴表情，她回了第一段、那一轮完了或者过了 `reaction_seconds` 摘掉（第一条「退信」「贴表情」，2026-10-09）。O-26 接上提供者和「不说话」：桥起来时经 `provide` 登记自己的工具，核心反向发来的 `tool.call` 当场答；头一件是 `skip_reply`，她调了，这一轮什么都不发（第一条「提供者和不说话」，2026-10-09）。O-27 改叫法、接上白名单成员（2026-10-10 项目主人定）：「主人」叫终端管理员、「自己人」叫白名单成员，配置键 `onebot.trusted` 改名 `onebot.whitelist`；白名单成员能私聊她（第 7 条）、加好友自动通过（「好友请求」）、睡觉时间里群里也放行、群里冲她来的不过判官（「群里怎么叫她」第 3、14 条）。O-28（上）做了接入QQ 的后台页（2026-10-10 项目主人定，设计 30 第十三节、`package-pages.md`）：清单写 `icon`、`[page]`，页面在 `resources/packages/onebot/page/`，桥握手以后经 `package.methods` 登记 `status`、`connection.token`，答核心转来的 `method.call`（第一条「后台页」）；O-28（下）去掉了桥自己的网页（原来的第二条 WebUI：`onebot.web` 端口、自己的登录和一次性码、`/status`、`/token`、`/apply`、`/human`、`/ws` 转给核心、`miyu onebot web`），设置和状态只在网页「软件后台」里接入QQ 的页面（第一条「后台页」、第二条，2026-10-10）。O-28（补）加回 `miyu onebot web`：跑旁边的 `miyu web --package onebot` 打开那一页，`start`、`status` 末尾说用它打开（第一条「对外的样子」，2026-10-10 项目主人定）。下载图片和文件、后台页的其余几页随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：终端管理员的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（原来的第二条，O-28 下去掉）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「终端管理员与白名单成员」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：终端管理员的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，终端管理员冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。O-23（补）判官带人格：群会话用的人格照订阅回应记下，原文经 `persona.read` 读、记一阵，夹进判官的请求，场所规则写了 `judge = { persona = false }` 的群不带（「群里怎么叫她」第 1 条、第 12 条第 3 款，2026-10-09 项目主人定）。O-25（上）接上出站链：她的每一条话（群、私聊）先过群聊内核的出站链（清理、去重、引用和 @），过了的照纯文本拆段、第一段带上引用和 @，丢了的记一行运行日志；群里的命令回执发出 3 秒后撤回（第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，2026-10-09）。O-25（中）接上出站队列：她要说出去的一切（群里她的话、限流的提示、命令回执，私聊的回话）先记 `ext.onebot.venues.queued` 再交 NapCat，失败、过期的记 `ext.onebot.venues.failed`；她被禁言（`group_ban` 通知）记 `ext.onebot.venues.muted`、`unmuted`，禁言时这个群的出站排着、进站链照它算；没连着的排着、连上了发；排着的过了 `queue_expire_seconds` 作废；去重照入队算（第一条「出站队列」，2026-10-09）。O-25（下）接上退信和贴表情：她的话没发出去的，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，她下一步看到；群里判过要回、主触发是冲她来或续聊的，在她要回的那一条上贴表情，她回了第一段、那一轮完了或者过了 `reaction_seconds` 摘掉（第一条「退信」「贴表情」，2026-10-09）。O-26 接上提供者和「不说话」：桥起来时经 `provide` 登记自己的工具，核心反向发来的 `tool.call` 当场答；头一件是 `skip_reply`，她调了，这一轮什么都不发（第一条「提供者和不说话」，2026-10-09）。O-27 改叫法、接上白名单成员（2026-10-10 项目主人定）：「主人」叫终端管理员、「自己人」叫白名单成员，配置键 `onebot.trusted` 改名 `onebot.whitelist`；白名单成员能私聊她（第 7 条）、加好友自动通过（「好友请求」）、睡觉时间里群里也放行、群里冲她来的不过判官（「群里怎么叫她」第 3、14 条）。O-28（上）做了接入QQ 的后台页（2026-10-10 项目主人定，设计 30 第十三节、`package-pages.md`）：清单写 `icon`、`[page]`，页面在 `package/page/`，桥握手以后经 `package.methods` 登记 `status`、`connection.token`，答核心转来的 `method.call`（第一条「后台页」）；O-28（下）去掉了桥自己的网页（原来的第二条 WebUI：`onebot.web` 端口、自己的登录和一次性码、`/status`、`/token`、`/apply`、`/human`、`/ws` 转给核心、`miyu onebot web`），设置和状态只在网页「软件后台」里接入QQ 的页面（第一条「后台页」、第二条，2026-10-10）。O-28（补）加回 `miyu onebot web`：跑旁边的 `miyu web --package onebot` 打开那一页，`start`、`status` 末尾说用它打开（第一条「对外的样子」，2026-10-10 项目主人定）。下载图片和文件、后台页的其余几页随后面的步子。
 
 ### 在哪
 
@@ -12,8 +14,8 @@
 |---|---|
 | `crates/miyu-onebot/`（第 5 层，头） | 桥 |
 | `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里 NapCat 端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`web`（O-28 补）交给 `web.rs`，找的是自己真实位置旁边的 `miyu`（和拉起核心找的同一个），不读数据根；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
-| `resources/packages/onebot/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
-| `resources/packages/onebot/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
+| `package/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
+| `package/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成 NapCat 的端口、令牌（`Settings`；网页的端口 O-28 下去掉），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照包文件夹里自己的清单 `package.toml` 读，施工 S-6 上），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
 | `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-33 多取东西三格；O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
 | `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开 NapCat 的监听（O-28 下起只开这一个），把几样接起来；推来的配置交给 `current.rs`，端口变了另起一个任务当场换（O-20，`running/rebind.rs`），开好的新监听换掉旧的；状态文件跟着写（O-18）；桥手里的状态（`running.rs`）造好以后交给后台页的方法、发 `package.methods`（O-28 上）；核心关了管道就停，跟核心的那一头崩了就退 |
@@ -75,23 +77,23 @@
 | `crates/miyu-onebot/src/core/route/request.rs`（O-27） | 好友请求：白名单成员的另起任务经那个机器人号的连接 `set_friend_add_request` 同意，别的记一行、放着；群邀请记一行（「好友请求」） |
 | `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去（群里的发回群里，O-22；交 `receipt.rs`，群里的过几秒撤回，O-25 上），认不出的交回去照普通的话发（「斜杠命令」） |
 | `crates/miyu-onebot/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的合起来（`load`、`Loaded`），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志） |
-| `crates/miyu-onebot/src/rules/judge.rs`（O-23 下） | 读判官的说明：资源 `packages/onebot/data/judge/` 的十三份，交 `JudgeTexts::new` 查（「场所规则和出厂数据」第 2 条） |
-| `crates/miyu-onebot/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：资源 `packages/onebot/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msg`、`aim`（「群里怎么叫她」第 7 条） |
-| `crates/miyu-onebot/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照资源 `packages/onebot/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `packages/onebot/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
+| `crates/miyu-onebot/src/rules/judge.rs`（O-23 下） | 读判官的说明：`package/data/judge/` 的十三份，交 `JudgeTexts::new` 查（「场所规则和出厂数据」第 2 条） |
+| `crates/miyu-onebot/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：`package/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msg`、`aim`（「群里怎么叫她」第 7 条） |
+| `crates/miyu-onebot/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照`package/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `package/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
 | `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：不连核心，照 `rules.rs` 读同样的文件，一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
 | `crates/miyu-onebot/src/rules/names.rs`（施工 S-6 上） | 桥的工具给人看的名字：照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name` 读，`provide` 时每件带 `display_name`（「提供者和不说话」第 4 条） |
 | `crates/miyu-onebot/src/package.rs`（施工 S-6 上） | 桥自己的包文件夹：照核心交来的 `MIYU_PACKAGE_DIR`，没设、空的照资源目录的 `packages/onebot/`；出厂数据、给模型看的字、给人看的字都在它的 `data/` 里 |
-| `resources/packages/onebot/data/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）、冲她来的那条带几张图、一轮取几次、取一次等多久（O-33）（「对外的样子」） |
-| `resources/packages/onebot/data/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
-| `resources/packages/onebot/data/facts/undelivered.txt`（O-25 下） | 退信那一块事实的模板（给模型看的字，登记在 26 第十节；「退信」第 3 条） |
-| `resources/packages/onebot/data/facts/another-line.txt`（O-36） | 「另一条线正在回」那一块事实的模板（给模型看的字，登记在 26 第十节；「群里怎么叫她」第 7 条） |
-| `resources/packages/onebot/data/tools/fetch_media.json`，`tool-results/` 里 `saved`、`not-found`、`no-item`、`not-fetchable`、`unfetched`、`too-many`、`not-saved` 七句（O-33） | `fetch_media` 的说明和答的话（给模型看的字，登记在 26 第十节；说明同一份预算；「平台工具（二）」第 1、6 条） |
-| `resources/packages/onebot/data/tools/recall.json`、`mute.json`、`poke.json`，`tool-results/` 里成了、不做的十三句（O-31） | 平台工具（一）的说明和答的话（给模型看的字，登记在 26 第十节；说明同 `skip_reply` 一份预算；「平台工具（一）」第 1、5 条） |
-| `resources/packages/onebot/data/tools/skip_reply.json`、`tool-results/skipped.txt`、`tool-results/unknown.txt`（O-26） | 桥的工具说明和答的两句（给模型看的字，登记在 26 第十节；说明照字节守预算，`10-自带软件.md` 第九节；「提供者和不说话」） |
-| `resources/packages/onebot/data/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」；O-16 起桥自己的网页的 `web/` 那几句随 O-28 下删掉）；`tools` 是桥的工具的显示名（O-26，「提供者和不说话」第 4 条） |
-| `xtask/src/ledger.rs` | 登记簿门禁豁免 `packages/onebot/data/bridge.json` 这一份文件：是数据，不发给模型（O-16 另豁免的 `software/onebot/web/` 随 O-28 下去掉） |
+| `package/data/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）、冲她来的那条带几张图、一轮取几次、取一次等多久（O-33）（「对外的样子」） |
+| `package/data/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
+| `package/data/facts/undelivered.txt`（O-25 下） | 退信那一块事实的模板（给模型看的字，登记在 `docs/ledger.md`；「退信」第 3 条） |
+| `package/data/facts/another-line.txt`（O-36） | 「另一条线正在回」那一块事实的模板（给模型看的字，登记在 `docs/ledger.md`；「群里怎么叫她」第 7 条） |
+| `package/data/tools/fetch_media.json`，`tool-results/` 里 `saved`、`not-found`、`no-item`、`not-fetchable`、`unfetched`、`too-many`、`not-saved` 七句（O-33） | `fetch_media` 的说明和答的话（给模型看的字，登记在 `docs/ledger.md`；说明同一份预算；「平台工具（二）」第 1、6 条） |
+| `package/data/tools/recall.json`、`mute.json`、`poke.json`，`tool-results/` 里成了、不做的十三句（O-31） | 平台工具（一）的说明和答的话（给模型看的字，登记在 `docs/ledger.md`；说明同 `skip_reply` 一份预算；「平台工具（一）」第 1、5 条） |
+| `package/data/tools/skip_reply.json`、`tool-results/skipped.txt`、`tool-results/unknown.txt`（O-26） | 桥的工具说明和答的两句（给模型看的字，登记在 `docs/ledger.md`；说明照字节守预算，`10-自带软件.md` 第九节；「提供者和不说话」） |
+| `package/data/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」；O-16 起桥自己的网页的 `web/` 那几句随 O-28 下删掉）；`tools` 是桥的工具的显示名（O-26，「提供者和不说话」第 4 条） |
+| `xtask/src/ledger.rs` | 登记簿门禁豁免 `package/data/bridge.json` 这一份文件：是数据，不发给模型（O-16 另豁免的 `software/onebot/web/` 随 O-28 下去掉） |
 
 ### 一、骨架：终端管理员的私聊（施工 O-8）
 
@@ -152,7 +154,7 @@
 
 `start`、`stop`、`restart`、`status` 照终端的样子连核心（出示本机令牌，没在跑就拉起，`miyu_webserve::open::Core`，和网页软件同一个，「施工时定的」第 166 条），握手以后照核心回的语言说。说的印在标准输出上，退出码 0；连不上核心（`failure/core`）、核心拒绝（照核心的原话）、核心那边没有 `onebot` 这个包（`status/missing`）印在标准错误上，退出码 1。`web` 不连核心、不读数据根（这些 `miyu web` 自己做），照系统的语言说：`miyu` 退出码放不进一个字节的、被信号停下的算 1；`miyu` 跑不了（不在、不让跑）的在标准错误上说 `web/no-miyu`（带路径和系统说的原因），退出码 1。`logs` 不连核心：日志印在标准输出上（原样的字节），还没有运行日志的在标准错误上说 `logs/none`。`venue show` 也不连核心：印在标准输出上，退出码 0（读文件时发现了问题也是 0：问题是印出来的一部分）；场所编号认不出的在标准错误上说 `venue/bad-venue`，退出码 2；出厂的数据有问题的在标准错误上说 `failure/factory` 和每一条问题，退出码 1。
 
-**软件包清单**（O-18，`resources/packages/onebot/package.toml`，照 `packages.md`；O-27 照出厂的那一份改对：名字「接入QQ」、`[connection]`、`[features.qq]` 随 F 线，`trusted` 改名 `whitelist`）：
+**软件包清单**（O-18，`package/package.toml`，照 `packages.md`；O-27 照出厂的那一份改对：名字「接入QQ」、`[connection]`、`[features.qq]` 随 F 线，`trusted` 改名 `whitelist`）：
 
 ```toml
 [package]
@@ -338,7 +340,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
      - `JoinLane`：判的几条里比那条支线的分叉点晚、还没抄进去的照先后抄进去（下面「抄」），再 `session.respond {session: 支线, to}`，`to` 是这几条在支线里的序号（分叉点以内的照主线序号，抄进去的照对照表）；不带事实。
      - `Fork`：`session.fork {session: 主线, seal_after: 1}`（命令编号加 `/fork`），回应的 `session`、`upto` 记成一条新支线、回的人是这个人，订阅它（第 1 条）；把留着的人话（第 2 条）里比 `upto` 晚的照先后抄进去（`upto` 以内的已经在支线的底子里，`respond` 直接写主线序号，核心认，`session/fork.md`「继承来的旁听」）；最后 `session.respond {session: 支线, to, facts}`，`facts` 给主线这一轮在回的每一条各带一块。成了记一行 `INFO lane forked venue=… message=… lane=… upto=…`。分叉被拒的（照说不会）记一行 `WARN lane not forked venue=… message=… reason=…`，照 `Queue` 办。订阅不上、`respond` 被拒的支线当场从投影里去掉、退订：开不了轮的支线核心不会封存（「施工时定的」第 227 条）。
      - **抄**（`chat.md` 第七条第 1 条；被拒的记一行 `WARN copy refused session=… lane=… reason=…`，`respond` 里就没有这一条，一条都换不出来的记 `WARN nothing to respond on the lane` 不开）：`session.send {session: 支线, text, as, venue, attachments?}`，命令编号是那一条的命令编号（`cause`）加 `/branch`：`text` 是那一条的字块接起来，`as` 照原来那个人（`{external: by.id, role: by.role}`），`venue` 照原样抄、加上 `ambient: true`，图、文件块照原样写进 `attachments`（`blob`、`name`、`media_type`）。回应交回的序号记进对照表。
-     - **事实**（18 第八节「要守的三条」第 2 条）：`{kind: "another-line", text}`，`text` 照资源 `packages/onebot/data/facts/another-line.txt` 填（给模型看的字，登记在 26 第十节；桥起来时和出厂数据一起读、查过字段，「场所规则和出厂数据」第 2 条）：`msg` 是别的线在回的那一条的平台编号（`venue.msg`，就是近况那一行的 `msg=`），`aim` 是这条线回的那一条（判的几条里最后一条，和引用同一条）的平台编号；没有平台编号的不带。一条一块，开轮时定死，这一轮里不改。出厂的样子：
+     - **事实**（18 第八节「要守的三条」第 2 条）：`{kind: "another-line", text}`，`text` 照`package/data/facts/another-line.txt` 填（给模型看的字，登记在 `docs/ledger.md`；桥起来时和出厂数据一起读、查过字段，「场所规则和出厂数据」第 2 条）：`msg` 是别的线在回的那一条的平台编号（`venue.msg`，就是近况那一行的 `msg=`），`aim` 是这条线回的那一条（判的几条里最后一条，和引用同一条）的平台编号；没有平台编号的不带。一条一块，开轮时定死，这一轮里不改。出厂的样子：
 
        ```
        <another-line>Another line is already replying to msg=1708423305. You are replying to msg=1708423307.</another-line>
@@ -404,7 +406,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
        `decoded` 是判的几条的正文用换行接起来交这个群的 `Params::base64` 的 `Base64::reveal`；`mode` 照走的路（`judge` 是 `Reply`，`moderation_only` 是 `ModerationOnly`）。`request(&判官的说明, &ask, &这个群的 Params::chatty)` 拼成两条，写成 `messages: [{role: "system", text}, {role: "user", text}]`。
     4. **调**：`model.call {purpose: "judge", model?, max_tokens, messages}`：`model` 照 `Params::judge.model`，没写的不带（核心照 `models.chat`）；`max_tokens` 照 `Params::judge.max_tokens`。每一次最多等 `Params::judge.timeout`（只查违规的 `moderation_timeout`），等不到的不再等（核心那边照样做完，回来的回应丢掉）。判不了的（等不到、核心拒了、读不出，第 13 条）再问，最多再问 `Params::judge.retries` 次，记进判断的是最后一次的为什么（「施工时定的」第 94 条）。
-    5. **判官的说明**：资源 `packages/onebot/data/judge/` 的十三份，桥起来时和出厂数据一起读、查过（「场所规则和出厂数据」第 2 条）。
+    5. **判官的说明**：`package/data/judge/` 的十三份，桥起来时和出厂数据一起读、查过（「场所规则和出厂数据」第 2 条）。
 13. **读回答、算分**（O-23 下）：回应的 `text` 交 `read(text, mode, Params::judge.reason_chars)`，读不出的（`Unreadable`）当判不了。判官回来了，被放下的（第 11 条）不再理；没被放下的先把这个会话留着的推送收进投影（同第 3 条），读出来了的拿合起来的条件、投影里她的回复、判官回来的这一刻（冷静照这时的近期发言量）、问判官时套的那一份 `Params::chatty` 交 `score`：`reply` 是真的回，假的只记下（第 7 条）。判不了的：主触发（合起来的条件的，`chat.md` 第三条第 7 条）是冲她来的照回，照第 7 条开一轮、贴表情；别的照不回算，只记下（18 第七节；冲她来的照回 O-37 改，2026-10-11 项目主人看了回放定，照旧版，「施工时定的」第 219 条）。`judge.unjudged` 都写为什么（「施工时定的」第 100 条）。
 14. **额度满了**（O-23 下；群聊内核的 `rate_full`，`Ctx` 同第 5 条）：`chatty` 的群这段时间不抽样（条件里去掉抽样）、不问判官：要问判官的只记下，`judge` 只有 `mode` 和 `unjudged: rate_full`。进站链已经把别人挡下了，走到这里的是终端管理员和白名单成员：冲她来的不过判官、照回（白名单成员 O-27 起，「施工时定的」第 98 条），没冲她来的只记下。
 
@@ -446,7 +448,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 1. **退哪些**：只退她的话（`queued` 的 `kind` 是 `reply`，群里的、私聊的都是）；提示、回执失败了不退：那是桥、核心写的，不是她说的。
 2. **怎么退**：记了 `failed` 以后（「出站队列」第 4 条，四种 `why` 都算），`session.note {session, facts: [{kind: "undelivered", text}]}`，命令编号 `<入队那一条的序号>/note`。支线说的（`queued` 的 `line` 是支线，O-36）记在那条支线，回 `session_sealed`（已经封存了）的改记在主线（施工单「要拍板的」第 6 条：支线一般说完就封存，只记支线这句谁都看不到）。一段一块（施工单「要定的」第 1 条）：一段只有一个结局，只退一次；同一个命令编号再发核心只算一次。
-3. **写什么**：`text` 照资源 `resources/packages/onebot/data/facts/undelivered.txt` 填（给模型看的字，登记在 26 第十节；桥起来时和出厂数据一起读、查过字段，「场所规则和出厂数据」第 2 条）：`why` 是 `failed` 的 `why`；`detail` 是 `failed` 的 `detail`（NapCat 说的原因），没有的填空的；`text` 是她那一段去掉首尾空白以后的头 30 个字符，认得出是哪一句（施工单「要定的」第 2 条，「施工时定的」第 130 条）。字段照内核的模板转义（`Template::render`：没有引号、尖括号）。出厂的样子（排过了期的一段）：
+3. **写什么**：`text` 照`package/data/facts/undelivered.txt` 填（给模型看的字，登记在 `docs/ledger.md`；桥起来时和出厂数据一起读、查过字段，「场所规则和出厂数据」第 2 条）：`why` 是 `failed` 的 `why`；`detail` 是 `failed` 的 `detail`（NapCat 说的原因），没有的填空的；`text` 是她那一段去掉首尾空白以后的头 30 个字符，认得出是哪一句（施工单「要定的」第 2 条，「施工时定的」第 130 条）。字段照内核的模板转义（`Template::render`：没有引号、尖括号）。出厂的样子（排过了期的一段）：
 
    ```
    <undelivered why="expired" detail="">Your message starting "大家说得都有道理。那就这么定了：周六上午十点在东门集合，别迟" was not sent; the chat never saw it.</undelivered>
@@ -466,21 +468,21 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **提供者和「不说话」**（O-26，2026-10-09；施工单「要定的」五条照推荐定：照她的回复里的调用块认、`reason` 必填、理由不另记事件、`access` 是 `read`、登记被拒了记 `ERROR` 桥照跑；18 第七节 Q5、第十一节）：群里的回合都是判过才开的，判官、加值项也会看错（这句其实是对别人说的、她插一句没意思）。每个场所会话都有一件 `skip_reply`：她用了，这一轮什么都不发。桥第一次当提供者（`providers.md`）：起来时经 `provide` 登记自己的工具，答核心反向发来的 `tool.call`；撤回、禁言、发消息这些平台工具以后照同一条路加。说明和答的话随出厂数据读（`rules/tools.rs`），登记、答请求在 `core/provider.rs`，认「这一轮不说话了」在 `route/quiet.rs`（「施工时定的」第 138 条）。不占编号。
 
-1. **登记**：握手以后、开监听以前，经并着发的调用口发 `provide {tools}`：桥答得了的每件（O-26 只有 `skip_reply`；O-31 加 `recall`、`mute`、`poke`，见「平台工具（一）」）一个 `{name, description, input_schema, access, venues}`，`description`、`input_schema` 照资源 `packages/onebot/data/tools/<名字>.json`（`{description, parameters}`，`miyu_tool::load::spec` 读；起来时和出厂数据一起读，「场所规则和出厂数据」第 2 条）；`skip_reply` 的 `access` 是 `read`（施工单「要定的」第 4 条：不碰主机、不往外发），`venues` 是 `["private", "group"]`，不写 `timeout_ms`。哪几件、各自的 `access`、`venues` 跟着答它的代码写，不照目录列（第 138 条）。写出去就接着起来，不等回应（第 139 条）：核心一个连接的请求照先后一条条办，之后的 `venue.session` 造的会话就有它；回应另起一个任务等。成了记一行 `INFO tools provided count=…`；被拒的（`bad_tool`、`not_a_provider` 这些）记一行 `ERROR tools not provided reason=… detail=…`（`detail` 是拒绝的 `data` 原样），桥照旧收发消息：工具没了，话照说（施工单「要定的」第 5 条）。桥每次起来、连上核心都登记一次；核心重启以后、桥登记以前，核心照登记缓存先有它（`providers.md`「登记缓存」）。
+1. **登记**：握手以后、开监听以前，经并着发的调用口发 `provide {tools}`：桥答得了的每件（O-26 只有 `skip_reply`；O-31 加 `recall`、`mute`、`poke`，见「平台工具（一）」）一个 `{name, description, input_schema, access, venues}`，`description`、`input_schema` 照`package/data/tools/<名字>.json`（`{description, parameters}`，`miyu_tool::load::spec` 读；起来时和出厂数据一起读，「场所规则和出厂数据」第 2 条）；`skip_reply` 的 `access` 是 `read`（施工单「要定的」第 4 条：不碰主机、不往外发），`venues` 是 `["private", "group"]`，不写 `timeout_ms`。哪几件、各自的 `access`、`venues` 跟着答它的代码写，不照目录列（第 138 条）。写出去就接着起来，不等回应（第 139 条）：核心一个连接的请求照先后一条条办，之后的 `venue.session` 造的会话就有它；回应另起一个任务等。成了记一行 `INFO tools provided count=…`；被拒的（`bad_tool`、`not_a_provider` 这些）记一行 `ERROR tools not provided reason=… detail=…`（`detail` 是拒绝的 `data` 原样），桥照旧收发消息：工具没了，话照说（施工单「要定的」第 5 条）。桥每次起来、连上核心都登记一次；核心重启以后、桥登记以前，核心照登记缓存先有它（`providers.md`「登记缓存」）。
 2. **答请求**：跟核心的那条连接上读到带 `id`、带 `method` 的一行，是核心发来的请求：读的一头当场答（另起一个小任务写回应），不交给跟核心的那一头（第 140 条）。
-   - `tool.call` 照 `params.tool` 答：`{"jsonrpc": "2.0", "id": <原样>, "result": {"blocks": [{"type": "text", "text": …}], "error": 布尔, "end_turn": 布尔}}`，`end_turn` 只有 `skip_reply` 带、是真（O-38，第 3 条），别的不写。不认识的工具回 `error: true` 和资源 `packages/onebot/data/tool-results/unknown.txt` 那一句（字段 `name` 是工具名，和核心的 `core/tool-results/unknown.txt` 同一个说法，第 141 条），记一行 `WARN unknown tool called tool=…`。
+   - `tool.call` 照 `params.tool` 答：`{"jsonrpc": "2.0", "id": <原样>, "result": {"blocks": [{"type": "text", "text": …}], "error": 布尔, "end_turn": 布尔}}`，`end_turn` 只有 `skip_reply` 带、是真（O-38，第 3 条），别的不写。不认识的工具回 `error: true` 和`package/data/tool-results/unknown.txt` 那一句（字段 `name` 是工具名，和核心的 `core/tool-results/unknown.txt` 同一个说法，第 141 条），记一行 `WARN unknown tool called tool=…`。
    - 别的方法回 JSON-RPC 的「没有这个方法」：`{"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}}`，记一行 `WARN core request not understood method=…`。
    - `tool.cancel`（通知，不带 `id`）记一行调试日志 `tool cancel`（`session`、`call_id`）：这一步的工具都当场答完，没有可停的。
 3. **`skip_reply {reason}`**：`reason` 必填（施工单「要定的」第 2 条：18 第七节「理由只记进日志」，回放、看判官判得对不对要它），参数不写说明（第 143 条）。
    - **认**：会话推来的她的一条回复（`message.assistant`）里有工具调用块（`type` 是 `tool_call`）、`name` 是 `skip_reply` 的，这一回合（同一个会话、同一个回合编号）就算不说话了：这一条里的字和这一轮以后她说的字都不过出站链、不入队、不发，一条记一行 `INFO reply dropped venue=… why=skipped chars=…`（同出站链丢了的那一行，不记原文）；推来这一轮的 `turn.ended` 清掉（第 142 条），核心接着开的下一轮回合编号是新的，照常发（O-38）。调用没成的（桥停着、出错：`end_turn` 核心不认）核心照旧接着请求，这一轮以后说的照旧不发（第 240 条）。照回复里的调用块认、不等 `tool.call`（施工单「要定的」第 1 条）：同一条回复里先说的字，桥收到时工具还没执行，等调用来了字已经发了。群里照订阅推来的认，从头补来的也认（桥重启时还在跑的那一轮照样认得出）；私聊照订阅以后推来的（「怎么走」第 9 条）。
    - 这一轮在调用以前已经入队的照旧发：收不回。
-   - **答**：`tool.call` 回资源 `packages/onebot/data/tool-results/skipped.txt` 那一句（英文、短：这一条回复里写的都没发；O-38 以前是「这一轮写的都不会发出去」，第 239 条），`error` 是假、`end_turn` 是真（O-38，`providers.md` 的 `tool.call`）：核心这一步齐了不再请求模型，这一轮照 `completed` 结束、`by` 是这一次调用；同一步别的工具照常跑完；这一轮里并进来、排着的（又 @ 她的），核心接着开下一轮，照常发（第 238 条）。理由不另记事件（施工单「要定的」第 3 条：调用块、参数本来就记在会话日志的 `message.assistant` 里）。
+   - **答**：`tool.call` 回`package/data/tool-results/skipped.txt` 那一句（英文、短：这一条回复里写的都没发；O-38 以前是「这一轮写的都不会发出去」，第 239 条），`error` 是假、`end_turn` 是真（O-38，`providers.md` 的 `tool.call`）：核心这一步齐了不再请求模型，这一轮照 `completed` 结束、`by` 是这一次调用；同一步别的工具照常跑完；这一轮里并进来、排着的（又 @ 她的），核心接着开下一轮，照常发（第 238 条）。理由不另记事件（施工单「要定的」第 3 条：调用块、参数本来就记在会话日志的 `message.assistant` 里）。
    - 群里、私聊都有，本机的会话没有（`venues` 不含 `local`）。场所会话的工具面照它用的预设挑（`providers.md`「造会话时的工具面」）：`skip_reply` 归清单的功能 `qq`（「QQ 工具」，施工 F-2；只有这一个功能，桥登记的都归它，不用另写，施工 T-2，`providers.md`「`provide`」第 3 条），预设关了这个功能的没有它（施工 F-3，`presets.md`）。出厂的场所规则不写预设，照 `preset.default`，出厂是「全部功能」，开着；「基础功能」不开它。
 4. **给人看的**：显示名在包文件夹 `data/human/{zh,en,ja}.json` 的 `tools`：`skip_reply` 是「不说话」「Skip reply」（`ja.json` 照英文写，同「给人看的字」）。施工 S-6 上字挪进包文件夹以后核心不再读它们：桥 `provide` 时每件带 `display_name`（`{语言: 名字}`，照每种语言那一份的 `tools.<名字>.name`，有几种语言的文件带几种，空白的不带；读得到却读不懂的那一份是打包的错，`rules/names.rs`），同第三方包（作者说明第四节第 4 条），核心照它进 `human.get`，头和核心的视图照它写这一次调用的标题。名字后面跟哪一个参数（`skip_reply` 的 `reason`、`mute` 的 `seconds`、`fetch_media` 的 `msg`）照同一处的 `subject`，`provide` 时带 `subject`，核心一起放进 `human.get`（`providers.md`）。
 
 **平台工具（一）：撤回、禁言、戳一戳**（O-31，2026-10-10；工具和规矩是 18 第十一节定的：撤回的目标以回复的那条为准、不信模型给的编号，禁言单位是秒、结果写明换算成多久、默认不动群主和群管理员；施工单「要定的」四条照推荐定：目标从叫她做的那条的引用、@ 取，秒数 0 到 2592000、0 是解禁，不能做的回一句 `error: true`，名字 `recall`、`mute`、`poke`）：收发消息以外，群里常用的三件事。照「提供者和不说话」那条路登记、答。做不做、对谁做是纯逻辑（`route/platform.rs`），收投影、问身份、调 NapCat、答核心在 `route/acting.rs`（「施工时定的」第 176 条）。不占编号。
 
-1. **登记**：同「提供者和不说话」第 1 条，三件跟 `skip_reply` 一起 `provide`，说明照资源 `packages/onebot/data/tools/<名字>.json`：
+1. **登记**：同「提供者和不说话」第 1 条，三件跟 `skip_reply` 一起 `provide`，说明照`package/data/tools/<名字>.json`：
 
    | 工具 | 参数 | `venues` | `access` | 调的动作 |
    |---|---|---|---|---|
@@ -499,7 +501,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - `recall`：目标是那条引用的那一条（`reply_to`）；没有那一条、没引用的回 `no-quote`。群里引用的是她的（投影里她发过的平台编号，「群里怎么叫她」第 2 条）谁叫都撤；别人的要管理的人叫，不然回 `not-allowed`；她在群里不是群主、管理员的，NapCat 回失败，照原话回（`failed`）。私聊不分谁的：QQ 只让撤她自己的、两分钟以内的，不让的照 NapCat 的原话回（第 180 条）。
    - `mute`：先看谁叫的，不是管理的人回 `not-allowed`；`seconds` 不是 0 到 2592000（30 天，QQ 的上限）的整数回 `bad-seconds`。目标是那条引用的那一条的发的人（投影里认得出的；是她自己的不算）和那条 @ 的人（不算她），合起来去重：没有的回 `no-target`，不止一个的回 `many-targets`。秒数大于 0 的，目标是终端管理员（上一条第 3 款：没在这个群说过话的也认得出，第 183 条）、白名单成员（`onebot.whitelist`）、群主、群管理员（群成员的缓存，没有的问 `get_group_member_info`）的回 `protected`；0 是解禁，谁都能解（第 181 条）。
    - `poke`：私聊戳对方。群里：那条 @ 的人（不算她），一个的戳他，不止一个的回 `many-targets`，没有的戳叫她的人（`by.id`）；都没有的回 `no-target`。谁叫都行。
-5. **答**（资源 `packages/onebot/data/tool-results/`，给模型看的字，登记在 26 第十节；桥起来时和出厂数据一起读、试换过字段，「场所规则和出厂数据」第 2 条）：成了的 `error` 是假：`recalled`、`muted {who, duration}`、`unmuted {who}`、`poked {who}`。`duration` 照人的单位写：天、时、分、秒各一段，`30d`、`1h 30m`、`45s`，0 的一段不写（第 182 条）；`who` 是群成员缓存里的名字（洗法同「群消息」第 6 条的 `name`），没有的、私聊里的写号。不做的、没成的 `error` 是真：
+5. **答**（`package/data/tool-results/`，给模型看的字，登记在 `docs/ledger.md`；桥起来时和出厂数据一起读、试换过字段，「场所规则和出厂数据」第 2 条）：成了的 `error` 是假：`recalled`、`muted {who, duration}`、`unmuted {who}`、`poked {who}`。`duration` 照人的单位写：天、时、分、秒各一段，`30d`、`1h 30m`、`45s`，0 的一段不写（第 182 条）；`who` 是群成员缓存里的名字（洗法同「群消息」第 6 条的 `name`），没有的、私聊里的写号。不做的、没成的 `error` 是真：
 
    | 句 | 什么时候 |
    |---|---|
@@ -520,7 +522,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **平台工具（二）：取图、视频、文件**（O-33，2026-10-11；项目主人定的四条：近况那一行写清种类、名字、大小，一条里几样的标第几个；冲她来的那条和它引用的那条里的图当场取、带上原图，旁听的不带；她调 `fetch_media` 才去取，图交回看、视频文件存进工作区；语音先不转文字、写一句占位。施工单「要定的」四条照推荐定：工具名 `fetch_media`，图作为工具结果的图片块交回，视频、文件放会话工作区的 `qq-files/<编号>-<第几个>-<名字>`，一条最多 4 张。施工中 2026-10-11 主会话定：第几个不分种类数、私聊这一步不给 `fetch_media`、先下 url 再读本机路径再解 base64、桥依赖 `miyu-http` 和 `base64`。O-35，2026-10-11：私聊也给，取之前核对那一条在这个会话里）：群里带的东西她原来只看到 `[image]` 这样的记号。近况那一行的写法是核心的（`kernel/request.md`「群里的一行」）；桥填大小、当场取图、答 `fetch_media`。照「提供者和不说话」那条路登记、答。不占编号。
 
-1. **登记**：同「平台工具（一）」第 1 条，说明照资源 `packages/onebot/data/tools/fetch_media.json`：
+1. **登记**：同「平台工具（一）」第 1 条，说明照`package/data/tools/fetch_media.json`：
 
    | 工具 | 参数 | `venues` | `access` | 调的动作 |
    |---|---|---|---|---|
@@ -542,7 +544,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 文件名 `<编号>-<第几个>-<名字>`：名字去掉 `/`、`\`、`:*?"<>|`、控制字符，去掉开头的点和空白、结尾的点和空白，留 80 个字符；洗完是空的写 `<编号>-<第几个>`。编号只会是整数（第 4 条）。
    - 先在 `qq-files/` 里写一个临时文件（`.<16 位随机十六进制>.part`，新建、不跟链接），写完、落盘、改名成那个名字：同一个文件取两次照新的换掉，读的一方看不到写了一半的；名字那里原来是链接的，换掉的是链接本身，不写进它指的地方。写不成的删掉临时文件。
    - `qq-files/` 里的东西这一步不清（她要的才下，不多）：以后再看（「施工时定的」第 201 条）。
-6. **答**（资源 `packages/onebot/data/tool-results/`，给模型看的字，登记在 26 第十节）：成了的 `saved {path}`（`error` 是假）和图片块；不做的、没成的 `error` 是真：
+6. **答**（`package/data/tool-results/`，给模型看的字，登记在 `docs/ledger.md`）：成了的 `saved {path}`（`error` 是假）和图片块；不做的、没成的 `error` 是真：
 
    | 句 | 什么时候 |
    |---|---|
@@ -567,9 +569,9 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml`（07 第二节） |
    | 出厂参数 | `defaults.toml` | 没有：要改写场所规则（`chat.md` 第八条「怎么走」第 3 条） |
    | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`：在的话整份替换出厂的（`chat.md` 第七条第 5 条；位置 2026-10-09 核心的主会话定：包自己的系统数据放 `system/modules/<包编号>/`，和 `home/<账号>/modules/<模块>/` 对称；不放 `system/packages/<包>/`，那是装进来的包本身，重装会整个换掉） |
-   | 判官的说明（O-23 下） | `judge/*.txt`，十三份（`chat.md` 第六条，登记在 26 第十节） | 没有：给模型看的字随包走 |
-   | 给她看的事实的模板（O-25 下） | `facts/undelivered.txt`（「退信」第 3 条，登记在 26 第十节） | 没有：给模型看的字随包走 |
-   | 桥的工具（O-26） | `tools/*.json` 的说明，`tool-results/skipped.txt`、`unknown.txt` 答的两句（「提供者和不说话」，登记在 26 第十节）；O-31 多三件的说明、答的十三句（「平台工具（一）」第 5 条） | 没有：同上 |
+   | 判官的说明（O-23 下） | `judge/*.txt`，十三份（`chat.md` 第六条，登记在 `docs/ledger.md`） | 没有：给模型看的字随包走 |
+   | 给她看的事实的模板（O-25 下） | `facts/undelivered.txt`（「退信」第 3 条，登记在 `docs/ledger.md`） | 没有：给模型看的字随包走 |
+   | 桥的工具（O-26） | `tools/*.json` 的说明，`tool-results/skipped.txt`、`unknown.txt` 答的两句（「提供者和不说话」，登记在 `docs/ledger.md`）；O-31 多三件的说明、答的十三句（「平台工具（一）」第 5 条） | 没有：同上 |
 
    规则文件是 `venues.d/` 里名字以 `.toml` 结尾、不以 `.` 开头的普通文件（跟着链接）；名字不是 UTF-8 的不认（「施工时定的」第 51 条）。
 2. **读**：一份文件照配置文件的读法读（`miyu_store::config_file::read`：超过 1 MiB 不读、开头的 BOM 去掉、不是 UTF-8 不读，`config.md`「怎么走」第二条第 2 条），读不成的变成群聊内核的 `Problem`：原因码照配置的 `unreadable`（带系统的原话）、`too_big`、`not_utf8`，没有第几条规则、键、位置；列不出 `venues.d/` 的也是一条 `unreadable`，文件名写 `venues.d`。规则文件交 `Rules::parse`（出厂的 `Source::Factory`、系统的 `Source::System`，文件名不带目录），出厂参数交 `Params::read`，违规词表交 `Moderation::parse_keywords`，判官的说明（O-23 下）照文件名（`JudgeSources` 的格名把 `_` 换成 `-`、加 `.txt`）读成 `JudgeSources` 交 `JudgeTexts::new`，退信的模板（O-25 下）交内核的 `Template::parse`，字段只认 `why`、`detail`、`text`。桥的工具（O-26）：桥答得了的每件照 `miyu_tool::load::spec` 读 `tools/<名字>.json`，答的两句照 `miyu_tool::load::text` 读、试换过字段（`skipped.txt` 不要字段，`unknown.txt` 只认 `name`）。
@@ -622,7 +624,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | 用法不对 | 用法（标准错误上） | 2 |
 | `venue show` 的场所编号认不出（O-21） | `venue/bad-venue`（标准错误上） | 2 |
 
-**给人看的字**（`serve` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18；`venue show` 的也是，O-21；`web` 跑不了 `miyu` 的那一句在标准错误上，O-28 补）：放在包文件夹的 `data/human/{zh,en,ja}.json`（出厂的是 `resources/packages/onebot/data/human/`，施工 S-6 上从 `software/onebot/` 挪来）的 `said` 里，照核心的格式；核心那一份照 `Human::load` 读，桥的这一份照 `Human::with_dir` 补读（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`（施工 S-6 上字挪进包文件夹以后编号照旧）；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status` 握手以后照核心回的说，`logs`、`venue show`（O-21）、`web`（O-28 补）不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
+**给人看的字**（`serve` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18；`venue show` 的也是，O-21；`web` 跑不了 `miyu` 的那一句在标准错误上，O-28 补）：放在包文件夹的 `data/human/{zh,en,ja}.json`（出厂的是 `package/data/human/`，施工 S-6 上从 `software/onebot/` 挪来）的 `said` 里，照核心的格式；核心那一份照 `Human::load` 读，桥的这一份照 `Human::with_dir` 补读（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`（施工 S-6 上字挪进包文件夹以后编号照旧）；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status` 握手以后照核心回的说，`logs`、`venue show`（O-21）、`web`（O-28 补）不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
 
 | 编号 | 什么时候 | 中文 | 英文 |
 |---|---|---|---|
@@ -745,7 +747,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 - 判官带人格（O-23 补，`judged_persona.rs`，同上，真核心的系统区装上样本人格）：规则给群设了样本人格 `engineer`，判官的 system 开头是 `system.txt`、`persona-open.txt`、样本的人设、`persona-close.txt` 接着；设了人格、又写了 `judge = { persona = false }` 的群不带；无人格的群不带；会话造好以后人格删了的不带、照样问，运行日志有一行 `persona not read`。
 - 顶替（O-23 下，`superseded.rs`）：别人 @ 她、判官说回，她还没开口他补一句没 @ 的：接过去，并进她这一轮（`turn.joined`，`cause` 是补的那一条加 `/respond`），判断和图纸一字不差，不再问判官；判官还没回他就补一句：放下前一次，两条一起问（判官看的这一条是后一条，前一条在记录里），回了，一轮的 `triggers` 是两条，判断只有一笔（`msgs` 两条、`supersede.rejudge`），前一次晚回来的说不回丢掉、不记判断。
 - 线路规程（O-23 下，`disciplines.rs`，抽样开到必中）：`every-message` 有字的开一轮、只有图的只记下；`when-called` 没叫的只记下（不抽样）、@ 她开一轮、她还没回完补的一句接过去、有人说了违规词没叫她：问判官只查违规（system 照 `moderation-only.txt`），判官说严重程度 2 不回、8 才回；`wake` 没叫的只记下、唤醒词开一轮、她还没回完补的一句不接、她回过的人接着说开一轮（续聊）、别人接着说不算（刚说过话不算）；判官只为那两句违规的问过。
-- 白名单成员的配置（O-23，`settings.rs`）：`onebot.whitelist` 字的列表照收，列表里不是字的不要，没有、`null`、不是列表的是空的；旧键 `onebot.trusted` 不认（O-27；核心那边 `crates/miyu-core/tests/settings.rs` 守着清单里是 `onebot.whitelist`、写 `trusted` 报不认识的键）。
+- 白名单成员的配置（O-23，`settings.rs`）：`onebot.whitelist` 字的列表照收，列表里不是字的不要，没有、`null`、不是列表的是空的；旧键 `onebot.trusted` 不认（O-27；核心那边 核心的 `crates/miyu-core/tests/settings.rs` 守着清单里是 `onebot.whitelist`、写 `trusted` 报不认识的键）。
 - 白名单成员（O-27，真核心拉起真桥、假 NapCat，`whitelist.rs`）：白名单成员私聊她每一条都开一轮、她的话发回去，会话归系统账号、照场所规则的预设造；陌生人的照旧不进会话；终端管理员的私聊不照规则造；`config.set` 把他从白名单里删了，下一条不接。白名单成员加好友，桥调 `set_friend_add_request {flag, approve: true}`；陌生人的、群邀请不调，运行日志各记一行，标记不进日志。睡觉时间里别人 @ 她只记下、白名单成员 @ 她照回（`whitelisted`、`commit`、没有 `judge`）；醒着的群别人 @ 她照旧问判官（没配判官，判不了、照回，O-37）。
 - 私聊带「关于你」（O-39，`profiled.rs`）：进程里的桥（转接记下 `venue.session` 的参数）里，终端管理员的私聊带 `profile: true`，白名单成员的私聊、群的没有这一格；真核心拉起真桥、假 NapCat：个人设置写了 `profile.name`、`profile.about`，终端管理员私聊发一句，模型收到的 system 里有 `<user>` 那一块，白名单成员的私聊没有。改之前两条都是红的。
 - 认请求（O-27，`frames.rs`）：加好友认出号和标记（号写成字也认），群邀请认出群和邀请的人；入群申请、没带标记、空的标记、没带号、别的种类不认。
@@ -768,7 +770,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 - 提供者和「不说话」（O-26，真核心拉起真桥、假 NapCat、她照台词说，`skipped.rs`）：群会话、私聊会话的工具面里有 `skip_reply`，本机的会话没有；她在群里的一条回复里说一句、接着调 `skip_reply`：那一句不入队、不发，工具结果是 `skipped.txt` 那一句、不算出错、带 `end_turn`，这一轮只请求一次、照 `completed` 结束，`by` 是那一次调用，运行日志一行 `why=skipped`；下一轮照常发，模型替身收到的请求里有那一句（O-38 以前这一轮接着请求，以后说的也不发）；这一轮调用以前已经发出去的照旧；私聊也是。核心不收桥的工具（资源目录抄一份，说明的参数改成不是对象）：运行日志一行 `ERROR` 的 `tools not provided`、带 `reason=bad_tool`，私聊照样来回。
 - 不说话就结束这一轮（O-38，真核心拉起真桥、假 NapCat、她照台词说，`skip_ends.rs`）：她那次请求压着时终端管理员又 @ 她、并进这一轮，放行以后她调 `skip_reply`：这一轮照 `completed` 结束，核心由那条 `turn.joined` 接着开下一轮，她在新一轮里的回答发到群里，一共请求两次；同一条回复里 `skip_reply` 和 `poke` 一起调：戳照常到 NapCat、结果成了、不带 `end_turn`，`turn.ended` 在两件结果后面，只请求一次。
 - 答核心的请求（O-26，进程里的桥，`provider.rs`）：桥连上核心头一个发的是 `provide`（本机套接字上的核心回 `not_a_provider`，照样收发）；推来的 `tool.call`：`skip_reply` 回 `skipped.txt` 那一句、`error` 是假、`end_turn` 是真（O-38），不认识的工具回 `error: true` 和 `unknown.txt` 填上那个名字，编号原样；别的方法回 -32601、`unknown_method`；`tool.cancel` 不回，之后照样答。出厂的说明、答的两句读得出；说明写坏了、答的那一句要了别的字段、不在的起不来，问题的文件是 `tools/skip_reply.json`、`tool-results/<名字>.txt`。
-- 工具面预算（O-26，`budget.rs`；O-31、O-33 改）：`resources/packages/onebot/data/tools/` 一件一份说明，五件（`fetch_media`、`mute`、`poke`、`recall`、`skip_reply`），合计不超过 1327 字节（`10-自带软件.md` 第九节）。
+- 工具面预算（O-26，`budget.rs`；O-31、O-33 改）：`package/data/tools/` 一件一份说明，五件（`fetch_media`、`mute`、`poke`、`recall`、`skip_reply`），合计不超过 1327 字节（`10-自带软件.md` 第九节）。
 - 平台工具（二）（O-33，真核心拉起真桥、假 NapCat 答 `get_msg`、`get_image`、`get_file`（`support/answering.rs` 的 `stock_message`、`stock_file`）、本机回环上的假 HTTP 服务器给图、她照台词说，`media.rs`，夹具在 `support/media.rs`）：旁听的那条不取；终端管理员引用它、@ 她，两条的图都到了她的请求里（名字 `msg-<编号>-<第几个>`，引用的在前），一条走 url、一条走 base64，近况那一行写着大小、`#n`，blob 拷进了系统账号名下；`fetch_media` 取图交回图片块（宽高、名字对，blob 在管理员名下，核心照会话属主拷进了系统账号名下：她看得到）、取文件写进 `qq-files/<编号>-<第几个>-<名字>` 回路径、小黄脸和语音取不了、没有的编号和别的群的回 `not-found`、第几个超了回 `no-item`（带几样）、QQ 回失败照原话、一轮第五次回 `too-many`、同一个文件再取换成新的、名字里的 `../` 和开头的点洗掉、视频照 NapCat 的 `file_name` 起名、没有临时文件留下、`qq-files` 换成文件以后回 `not-saved` 不写；私聊只有图的照交带图、私聊的工具面有 `fetch_media`（O-35 起）。O-35（`tests/private_media.rs`）：私聊带图带文件的一条，图当原图交进来、`media` 里那一样记 `shown`，请求里正文后面一块 `[msg=…] [file #2: …]`、没有 `[image`；私聊里 `fetch_media` 取文件写进终端管理员的工作区、取图交回图片块，指到别人的私聊、他在群里说的回 `not-found`、那两样没去取也没写，第五次 `too-many`、下一轮从头数；只带文件的、取不到图又没字的照送、记号在最前、没交原图的不写 `shown`；群里指到一条私聊的回 `not-found`、只问了 `get_msg`。
 - 取到手、存下来（O-33，`src/media/tests.rs`）：url 连不上换路径，路径不是文件、base64 坏了都说为什么，一样都没有说没有；文件名去掉 `/`、`\`、Windows 不许的字符、控制字符、开头的点和空白、结尾的点，留 80 个字符，洗完是空的不接；只写进 `qq-files/`，再取换成新的、不留临时文件；`~` 换家目录，`~别人`、相对路径、没有的工作区不写；`qq-files` 是指到外面的链接的不写，文件名那里是链接的换掉链接本身、外面的文件不动（这台机器建得了链接才测）；名字不是一段的不写。
 - 取东西的动作（O-33，`src/onebot/media/tests.rs`、`tests/segments.rs`、`src/core/route/fields/tests.rs`、`src/core/route/fetching/tests.rs`）：`get_msg`、`get_image`、`get_file` 的参数；回应里 url（只认 `http`、`https`，大小写都认）、本机绝对路径（`file://` 去掉，同一个只算一次，相对的不认）、base64（`base64://` 去掉，空的不算）照先后；段的大小照 `file_size`（字、整数都认，负的、小数、带单位的不认），怎么取照段；`size` 写进场所的格，0 也写；`fetch_media` 的 `msg` 只认整数（字也认），`index` 不写是 1、写错的是 0；一轮到了上限的不给，换一轮从头数，主线没在跑的也数。O-35：取到的那一条要在这个会话里（群里这个群的、号写成字也认；私聊里 `private`、这个人的号，他在群里说的、别人的、她自己发的不认）；交了原图的第几个照号记 `shown`，没有那一样、没有 `media` 的不动。
@@ -803,9 +805,9 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | 12 | 自己编的命令编号（`venue.session`、`subscribe`）带一段随机前缀 | 同一个编号核心交回上一次的结果，桥重启以后从 1 数起会撞上 | 从 1 数起 |
 | 13 | 握手报 `head.kind = "onebot"`、`caps.input = false` | 场所会话没人能确认（`venues.md`） | 照终端报能输入 |
 | 14 | 跟核心的那一头崩了、发回话的任务崩了（是 bug）：说一句带原话、退出码 1 | 桥这时已经不能干活（发回话的任务只等回应、记日志，它崩了说明那一头的代码有错），照实报，不装作还在跑 | 记一行接着跑；当成核心断了退（原因说错了，排查走错路） |
-| 15 | 桥自己的数（路径、调用时限、两个队列、接不了连接歇多久）放在 `resources/packages/onebot/data/bridge.json`，照 `web.json` 读；登记簿门禁只豁免这一份文件 | 数是数据，住在代码之外；不进配置清单：没有人要改它们，进了清单就要给人看的名字、说明和设置页的位置。只豁免一份文件：这个包以后要放给模型看的字（群聊），整个包豁免会漏查 | 写成代码里的常量；进 `onebot.*` 配置；照 mermaid、net 豁免整个 `packages/onebot/data/` |
+| 15 | 桥自己的数（路径、调用时限、两个队列、接不了连接歇多久）放在 `package/data/bridge.json`，照 `web.json` 读；登记簿门禁只豁免这一份文件 | 数是数据，住在代码之外；不进配置清单：没有人要改它们，进了清单就要给人看的名字、说明和设置页的位置。只豁免一份文件：这个包以后要放给模型看的字（群聊），整个包豁免会漏查 | 写成代码里的常量；进 `onebot.*` 配置；照 mermaid、net 豁免整个 `package/data/` |
 | 16 | 平台的名字 `qq` 只写一处（`onebot.rs` 的 `PLATFORM`），场所、平台上的人、命令编号都经三个小函数拼（前两个经群聊内核拼，第 20 条） | 散在几处，改一处漏一处，拼出来的场所和找会话用的对不上 | 每处自己 `format!` |
-| 17 | 给人看的字放 `resources/packages/onebot/data/human/{zh,en,ja}.json`，照核心的格式和 `Human::load` 读；`ja.json` 照英文写；找不到资源目录、字读不懂时印原话 | 文字是数据；照核心的格式，门禁（`human_languages.rs`）一起查三种语言的键、字段对得上；日文没有专门写的，和核心拒绝时的话一样照英文。资源目录、字本身出问题时没有字可用，只能印原话 | 留在 `texts.rs` 里；不写 `ja.json` 让 `Human::load` 退到英文（门禁要求三份都在） |
+| 17 | 给人看的字放 `package/data/human/{zh,en,ja}.json`，照核心的格式和 `Human::load` 读；`ja.json` 照英文写；找不到资源目录、字读不懂时印原话 | 文字是数据；照核心的格式，门禁（`human_languages.rs`）一起查三种语言的键、字段对得上；日文没有专门写的，和核心拒绝时的话一样照英文。资源目录、字本身出问题时没有字可用，只能印原话 | 留在 `texts.rs` 里；不写 `ja.json` 让 `Human::load` 退到英文（门禁要求三份都在） |
 | 18 | 握手的回应没带 `language`：照连不上核心退，退出码 1 | `protocol.md`「握手」说回应一定带；没带是协议不对，照实说 | 当成英文接着跑 |
 | 19 | 算出来的 `Sec-WebSocket-Accept` 放不进头：回 400、不升级 | 回 101 却不带它，NapCat 握手失败，这一头却当升级成了 | 照样回 101 |
 | 20 | 场所、平台上的人经群聊内核拼（`Venue::new`、`miyu_chat::person`），拼不出来的记一行 `WARN`、这条不送；命令编号末尾加事件的 `time`，没带、读不出的照 `0` 拼（照 `chat.md` 第七条第 1 条改，2026-10-07） | 编号的规矩只有一份，桥拼的和群聊内核解的对得上。加时刻：NapCat 重置本地库以后消息编号会重号，只拼编号的话新消息被当成重发吞掉（O 线自查第 17 条）。没带 `time` 照 `0`：OneBot v11 每个事件都带 `time`，没带是实现不合规；照 `0` 拼消息照样送，去重退回只看消息编号，和加时刻以前一样，不比不收差 | 没带的不收：终端管理员的话被吞了还看不出来；照桥收到时的本机时刻拼：同一条重发过来时刻不同，去重失效 |
@@ -847,7 +849,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | # | 定了什么 | 为什么 | 没选 |
 |---|---|---|---|
 | 38 | 握手回应里没有端口的（`null`、不是 0 到 65535 的整数的也算）照清单 `[settings]` 的默认值：起来时读资源目录里自己的清单（`miyu_store::packages` 出厂那一层的 `onebot`，`miyu_config::package` 读成样子），读不出来的起不来 | 核心交的是最终值，正常一定有；真没有就照默认值，不另起一套数，清单是唯一的那一份 | 起不来；在 `bridge.json` 里另写一份默认值 |
-| 39 | `/apply` 留着，改成「照桥手里最新的配置换端口」：推送来了桥已经照它换了的，`/apply` 再照一次什么都不换，回实际听的两个端口；推送来时新端口被占、没换成的，`/apply` 再试一次，还被占回 409 和是哪个。**O-28 下改**：`/apply` 随桥自己的网页去掉；推来时被占、没换成的不再另试（第 167 条） | 页面存了端口要等换完的结果：WebUI 的端口换了要跳到新地址、被占了要说是哪个；只看 `/status`，页面得自己猜什么时候换完，页面这一步不改（`resources/software/onebot/web/` 不动）。页面的 `config.set` 回来以前，核心已经换上新的一份配置、叫醒了推送；回应还要经页面、浏览器再回到桥，推送先到。WebUI 的端口被推送换掉以后，页面这一次 `/apply` 走旧地址，回 403（Host 照新端口核对）或者连不上：页面照刚存的端口跳（原来第二条「施工时定的」第 37 条，无头浏览器里试出来的） | 去掉 `/apply`，页面照 `/status` 看换没换完（页面要改，还要猜等多久） |
+| 39 | `/apply` 留着，改成「照桥手里最新的配置换端口」：推送来了桥已经照它换了的，`/apply` 再照一次什么都不换，回实际听的两个端口；推送来时新端口被占、没换成的，`/apply` 再试一次，还被占回 409 和是哪个。**O-28 下改**：`/apply` 随桥自己的网页去掉；推来时被占、没换成的不再另试（第 167 条） | 页面存了端口要等换完的结果：WebUI 的端口换了要跳到新地址、被占了要说是哪个；只看 `/status`，页面得自己猜什么时候换完，页面这一步不改（核心的 `resources/software/onebot/web/` 不动）。页面的 `config.set` 回来以前，核心已经换上新的一份配置、叫醒了推送；回应还要经页面、浏览器再回到桥，推送先到。WebUI 的端口被推送换掉以后，页面这一次 `/apply` 走旧地址，回 403（Host 照新端口核对）或者连不上：页面照刚存的端口跳（原来第二条「施工时定的」第 37 条，无头浏览器里试出来的） | 去掉 `/apply`，页面照 `/status` 看换没换完（页面要改，还要猜等多久） |
 | 40 | 两个端口的生效时机改成 `now`：推送来了当场换，照 `/apply` 的办法（O-28 下：只剩 NapCat 的端口，办法挪进 `running/rebind.rs`） | 桥收得到推送，不用再说「下次启动时」；命令行改的也当场换 | 照旧 `head_start` |
 | 41 | `/status` 的 `token` 只剩 `set`、`none`：没写引用、引用取不到，核心都不交（`extensions.md`「配置」第 2 条），桥分不出（后台页的 `status` 同此） | 照核心交的说，不另要；页面原来照 `missing` 说「引用的取不到」，现在两种都说「没设」，`missing` 那一支和 `web/token/missing` 一起删掉（页面照 `config.get` 里写没写引用分得出，要分的时候再加） | 请核心把取不到的另交一个记号（核心的形状要改） |
 | 42 | 握手以前不读配置、不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了语言再说；握手回了语言就照它说，端口被占那一句也是（`run` 多一个参数：握手回了语言叫一声） | 核心拉起的桥，握手以前没有配置可读；O-19 时发现端口被占那一句照的是握手以前的语言（`main.rs` 只在「听上了」那一刻换） | 只在「听上了」那一刻换（原来的做法）；端口被占那一句自己带上语言 |
@@ -884,7 +886,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | 58 | `role` 只照场所规则的 `managers`；QQ 的群主、管理员不自动算 `manager` | `manager` 在核心里管的是谁能用 `/clear` 这类命令；群管理员能清她的上下文不对（施工单「要定的」第 1 条） | 群主、管理员自动算 |
 | 59 | @ 的名字照群成员的缓存：每条群消息的发的人顺手记下，缺了的问 `get_group_member_info`（`no_cache: false`），记 `member_names_seconds`（出厂 600 秒，照旧版）；一条里调不成一次，后面的不再调、写号 | NapCat 的 `at` 段只有 `qq`（查过 NapCat 4.x 的代码，带名字那一行注释掉了），名字得另取；发过言的人最常被 @，顺手记下省一次调用；跟核心的那一头一条条照先后办，NapCat 一卡，一条 @ 十个人就要等十个时限 | 一律写号（施工单「要定的」第 2 条没选）；一律问 NapCat、不记 |
 | 60 | @全体成员正文里不写，只记 `mentions_all` | 核心照这一格在 @ 那一行写 `@all`；正文里写就要一句「@全体成员」的字，又是一份要配语言的字，她也会看到两遍 | 正文里写 `@全体成员` |
-| 61 | 合并转发、卡片的占位是 `[forward]`、`[card]`，照核心渲染带的东西的写法 `[种类]` | 是一行里的格式记号，和核心写在代码里的 `[image]`、`[msg=…]` 一样，不是说明的话，不进 26 第十节的登记簿；她看得出这里有一样东西、是什么种类（施工单「要定的」第 3 条） | 写中文的「[合并转发]」；整段不记 |
+| 61 | 合并转发、卡片的占位是 `[forward]`、`[card]`，照核心渲染带的东西的写法 `[种类]` | 是一行里的格式记号，和核心写在代码里的 `[image]`、`[msg=…]` 一样，不是说明的话，不进登记簿（`docs/ledger.md`）；她看得出这里有一样东西、是什么种类（施工单「要定的」第 3 条） | 写中文的「[合并转发]」；整段不记 |
 | 62 | CQ 字符串只读字（第 6 条的办法），@、引用、带的东西不认 | 施工单「字符串格式照现在私聊的办法也认」；NapCat 照这一页配成数组格式，字符串格式只是兜底 | 把 CQ 码也拆成段 |
 | 63 | 场所的格照核心的写法洗：名字去掉控制字符、截到 64（带的东西的名字 200）个字符，空白的不写；引用、带的东西的编号不合（空的、超过 128 个字符、有控制字符）的那一格、那一样不记，消息照记 | 核心收到写错的格整条 `bad_params`、什么都不记（`venues.md`「场所的格」）：一个怪名字、一个长编号不能让整条消息丢了 | 原样交，让核心拒 |
 | 64 | 群会话不订阅（O-23 改：从头订阅，第 71 条）；斜杠命令的回执、被拒的那一句直接经 `send_group_msg` 发回群 | 这一步群里只记旁听、不开回合，没有她的回话要发；她在群里说话随出站链（O-24），到时候再订阅 | 订阅了把她的回话直接发进群（绕过出站链） |
@@ -1027,14 +1029,14 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **后台页**（O-28 上，2026-10-10 项目主人定：接入QQ 在软件包列表里、带自己的页面，照 AstrBot 的插件；施工单「要定的」四条照推荐定：页面生成令牌、`settings.set` 交网页代存，方法叫 `status`、`connection.token`，字放 `page/texts.js`，端口写完等推送生效再调 `status` 看实际的；设计 30 第十三节，`package-pages.md`）：接入QQ 的设置和状态做成网页「软件后台」里它自己的页面。页面是包里的静态文件，跑在网页给的隔离框里：读写接入QQ 自己的设置项、调桥登记的方法，别的都碰不到。桥自己的网页随 O-28（下）去掉，设置和状态只在这里（第二条）。不占编号的几段同「提供者和不说话」。
 
-1. **清单**：`resources/packages/onebot/package.toml` 写 `[package] icon = "message-circle"`、`[page] dir = "page"`；包目录照 `Found::files_dir` 算，出厂的是资源目录的 `packages/onebot/`，页面在 `resources/packages/onebot/page/`，入口 `index.html`（`package-pages.md`「清单多的几格」第 3 条）。
+1. **清单**：`package/package.toml` 写 `[package] icon = "message-circle"`、`[page] dir = "page"`；包目录照 `Found::files_dir` 算，出厂的是资源目录的 `packages/onebot/`，页面在 `package/page/`，入口 `index.html`（`package-pages.md`「清单多的几格」第 3 条）。
 2. **桥登记的方法**（`core/methods.rs`）：
    - **登记**：开好监听、桥手里的状态（`running.rs` 的 `Running`，O-28 下从 WebUI 的 `Web` 挪出来）造好以后（这时才齐：NapCat 的连接表、实际听的端口、最新的配置），先把它交给答方法的那一头，再经并着发的调用口发 `package.methods {"methods": [{"name": "status"}, {"name": "connection.token"}]}`（不写 `timeout_ms`，照核心的 30 秒）。和 `provide` 分开，桥每次起来、连上核心都发。写出去就接着起来，不等回应（同 `provide`，第 139 条）：成了记一行 `INFO methods registered count=…`；被拒的（进程里的测试经本机套接字连核心，回 `not_an_extension`）记一行 `ERROR methods not registered reason=… detail=…`，桥照跑：后台页调不到方法，别的照旧（第 154 条）。
    - **答**：`method.call {"method", "params"}` 和 `tool.call` 一样由读的一头当场答（第 140 条，`core/provider.rs` 交过来）：`{"jsonrpc": "2.0", "id": <原样>, "result": …}`。
    - `status`：不看参数，回 `{"napcat": {"connected", "implementation", "version", "self_id"}, "listen": 端口, "path": "/ws", "token": "set" | "none", "platform": "qq"}`：照桥手里最新的（不读盘，`Running::status`；`napcat`、`listen` 和状态文件照的同一份）：`napcat` 是连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`，没连着的只有 `connected: false`；`listen` 是实际听的端口（推送换过的照换过的）；`token`：桥手里有令牌的 `set`，没有的 `none`（第 41 条）；`path` 是 NapCat 那边地址的路径，照 `bridge.json` 的 `paths` 里最短的那个（出厂 `/ws`，第 152 条）；`platform` 白名单成员页拼 `qq:<号>` 用（第 151 条）。
    - `connection.token`：不看参数，回 `{"token": "<值>" | null}`：照桥手里最新的；令牌随时能看、能复制（2026-10-08 项目主人定，原来桥自己的网页的 `/token`）；运行日志一行 `INFO page token read`，不记值。令牌是桥自己的凭据，由桥经核心交给管理员在后台页上看（`package-pages.md`「还没有的」第 2 条：核心不为后台页开交出密钥的口子）。
    - 不认识的方法：回 JSON-RPC 的「没有这个方法」`{"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}}`（核心交回 `method_failed`，`data.code` 是 -32601），记一行 `WARN page method not understood method=…`。答方法的那一头还没拿到桥手里的状态时来的（核心只转登记了的方法，登记在交进状态以后，照说来不了）也这样回（第 153 条）。
-3. **页面**（`resources/packages/onebot/page/`，原生 JS 的模块，`index.html` 照 `type="module"` 载 `app.js`）：只经网页交来的 `MessageChannel` 照 JSON-RPC 说（`package-pages.md`「框和网页之间怎么说」：`context`、`settings.get`、`settings.set`、`call`，推送 `settings.changed`、`theme.changed`）。通道只交一次，页面是单页：两个页签在页里切，不跳页（第 155 条）。
+3. **页面**（`package/page/`，原生 JS 的模块，`index.html` 照 `type="module"` 载 `app.js`）：只经网页交来的 `MessageChannel` 照 JSON-RPC 说（`package-pages.md`「框和网页之间怎么说」：`context`、`settings.get`、`settings.set`、`call`，推送 `settings.changed`、`theme.changed`）。通道只交一次，页面是单页：两个页签在页里切，不跳页（第 155 条）。
    - **起来**：等网页交通道（`{"miyu": "port"}` 带的那一头），先 `context`：照 `language` 挑字、照 `theme`、`colors` 上色；再 `settings.get`、`call status`，画「连接」页。通道没来之前只有一句「正在连」（字照浏览器的语言挑）。
    - **样子**：没有网页软件的顶栏、左栏（框外是网页的），页顶一排两个页签「连接」「白名单成员」，下面是卡片，页名不另写一行（页签就是）；框撑满网页右边一栏，页面自己滚；字体、按钮、卡片照原来桥自己的网页，看着和网页软件是一家（第 163 条）。颜色：`context` 带了 `colors` 的照它（`accent`、`surface`、`surface_2`、`text`、`text_soft`、`line`、`danger`），没带的照 `theme` 用页面自己的两套（浅色「晨光」、深色「tokyonight」，同网页软件）；`theme.changed` 来了跟着换（第 160 条）。
    - **「连接」**：
@@ -1201,7 +1203,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | 230 | 补发（O-32）照入队的 `line` 认：别的线的入队不算主线这一回合的，没写 `line` 的照这个会话 | 支线的回合编号会撞上主线的，同一回合一样的正文会被当成发过了 | 照旧只看 `turn` |
 | 231 | 平台工具、`fetch_media` 照 `tool.call` 的 `session` 认线：是支线的，照各群投影里的支线找到主线，拿主线的投影、发到哪、群成员的缓存；叫她做的那条、一轮取了几次照那条支线 | 投影里本来就记着支线，不另记一张「支线 → 主线」的表，免得两处一起维护 | 另记一张表 |
 | 232 | 支线推来的不标「补来的」，她在支线说的都照常发 | 分叉以后才订阅，补来的只有子会话的 `session.created`；桥重启不找回支线，没有要补发的 | 照主线那样照订阅回应的 `upto` 标 |
-| 233 | 事实的写法：`<another-line>Another line is already replying to msg={msg}. You are replying to msg={aim}.</another-line>`，带行尾换行（施工单「要拍板的」第 4 条的候选 b）；一条一块，几块各自带一遍 `aim` | 2026-10-11 照真跑抓下来的支线第一次请求（真实的外壳、位置、人格和工具面）换那一块，`kimi-k3`、`deepseek-v4.1-flash` 各 15 次：b 重复回 A 0/30、`skip` 0/30、回 B 30/30；原句 a 重复回 A 4/30、`skip` 1/30；不带外壳的原句 2/30、`skip` 1/30（26 第十节那一格） | 原句（候选 a）；不带外壳；几块合成一句 |
+| 233 | 事实的写法：`<another-line>Another line is already replying to msg={msg}. You are replying to msg={aim}.</another-line>`，带行尾换行（施工单「要拍板的」第 4 条的候选 b）；一条一块，几块各自带一遍 `aim` | 2026-10-11 照真跑抓下来的支线第一次请求（真实的外壳、位置、人格和工具面）换那一块，`kimi-k3`、`deepseek-v4.1-flash` 各 15 次：b 重复回 A 0/30、`skip` 0/30、回 B 30/30；原句 a 重复回 A 4/30、`skip` 1/30；不带外壳的原句 2/30、`skip` 1/30（`docs/ledger.md` 那一格） | 原句（候选 a）；不带外壳；几块合成一句 |
 | 234 | 私聊挪进 `route/private.rs`、一条线的那一份挪进 `projection/track.rs` | `route.rs`、`projection.rs` 贴着 500 行的上限（施工单风险第 4 条） | 压注释 |
 | 235 | 测试里认「换了一个桥」不比进程号：换桥（`restart`、`stop` 再 `start`、杀进程等核心拉起）以前，调用处先 `support::spawning::forget_status`（等状态文件里 NapCat 显示没连着或文件不在，再删）；`bridge_up(root, listen)` 等「`extension.status` 说在跑、状态文件在、里头的进程号是核心说的那个」（纯函数 `is_up`，`tests/replaced_bridge.rs` 守着）。原来的 `before` 参数去掉 | Windows 回收进程号快，新桥拿到和停掉的同一个号（CI run 1840，`followed` 那条等了六十秒）；桥的状态文件变了才写，新桥的内容（同号、同端口、NapCat 没连着）和旧的一模一样时不重写，光比号、光看文件都认不出。先清掉旧的，文件在就一定是新桥写的 | 改桥的写法让它每次启动都重写、或在状态文件里加启动序号：为了测试迁就产品，「变了才写」本身是对的；比核心那一项的启动时刻：核心的 `extension.status` 没有这一格，为测试加字段不值 |
 
