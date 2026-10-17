@@ -103,6 +103,12 @@ async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -
             return false;
         }
     }
+    // 通知、请求原样交给挂在 `qq.event` 的包（施工 O-43 上）：桥认不认它、怎么办都不影响。
+    if matches!(frame["post_type"].as_str(), Some("notice" | "request"))
+        && let Some(id) = onebot::self_id(&frame)
+    {
+        gate.hooks.event(id, &frame);
+    }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
             if !link.calls.answer(reply) {

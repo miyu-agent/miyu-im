@@ -17,6 +17,7 @@
 
 pub(crate) mod blobs;
 mod caller;
+pub(crate) mod hooks;
 pub(crate) mod methods;
 mod provider;
 pub(crate) mod route;

@@ -33,6 +33,8 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
             "标准输入输出是核心亲手给的，不带凭据：{hello}"
         );
     }
+    // 起来时最后一件是订阅软件包列表（施工 O-43 上：挂接点），写出去了再关。
+    served.asked("subscribe").await;
     // 核心请它退出：关它的标准输入。
     drop(served.stdin.take());
     let exited = tokio::time::timeout(Duration::from_secs(5), served.child.wait_with_output())
@@ -41,9 +43,9 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
     let lines = within("标准输出读到头", served.stdout).await.expect("没崩");
-    // 握手、登记工具（施工 O-26）、登记后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：测试不答，读到头就停）四行：
-    // 起来、停下都不往标准输出写别的。
-    assert_eq!(lines.len(), 4, "起来、停下都不往标准输出写别的：{lines:?}");
+    // 握手、登记工具（施工 O-26）、登记后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32）、订阅软件包列表（施工 O-43
+    // 上；测试不答，读到头就停）五行：起来、停下都不往标准输出写别的。
+    assert_eq!(lines.len(), 5, "起来、停下都不往标准输出写别的：{lines:?}");
     for line in &lines {
         let message: Value = serde_json::from_str(line).expect("每一行都是 JSON");
         assert_eq!(message["jsonrpc"], "2.0", "{line}");

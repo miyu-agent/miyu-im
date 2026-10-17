@@ -23,6 +23,7 @@ mod forwards;
 mod frames;
 mod group;
 mod group_settings;
+mod hooks;
 mod ids;
 mod judged;
 mod judged_persona;

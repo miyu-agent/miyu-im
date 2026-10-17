@@ -58,6 +58,7 @@ mod lanes;
 mod muted;
 mod names;
 mod outbound;
+mod packages;
 mod persona;
 mod pictures;
 mod platform;
@@ -89,6 +90,7 @@ use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
 
 use crate::TARGET;
+use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
 use crate::listen::bots::Bots;
 use crate::onebot::{Event, Members, To};
@@ -196,6 +198,8 @@ pub(crate) struct Route {
     forwarding: Forwarding,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
+    /// 挂接点（施工 O-43 上，`packages`）：起来时订阅软件包列表，推来的照换。
+    hooks: Arc<Hooks>,
 }
 
 impl Route {
@@ -221,6 +225,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
+        hooks: Arc<Hooks>,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let judges = Judges::new(core.caller(), rules.judge_texts(), slots, personas);
@@ -252,6 +257,7 @@ impl Route {
             fetches: HashMap::new(),
             forwarding,
             configured,
+            hooks,
         }
     }
 
@@ -262,7 +268,7 @@ impl Route {
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
         // 起来就订阅（施工 O-32，「群里怎么叫她」第 1 条）：NapCat 那头来的先排着，订阅完了再办。
-        if self.revive().await.is_err() {
+        if self.revive().await.is_err() || self.follow_packages().await.is_err() {
             return None;
         }
         let mut open = true;
@@ -413,6 +419,10 @@ impl Route {
         }
         if pushed["method"] == "tool.call" {
             return self.tool_called(&pushed).await;
+        }
+        // 软件包列表变了、订阅掉了队（施工 O-43 上，`packages`）。
+        if self.package_pushed(&pushed).await? {
+            return Ok(());
         }
         if pushed["method"] == "method.call" {
             // 给别的包调的方法（施工 O-42，`exports`）：读的一头只把这两个交过来。

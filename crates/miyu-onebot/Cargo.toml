@@ -12,6 +12,12 @@ autotests = false
 name = "miyu-onebot"
 path = "src/main.rs"
 
+# 测试用的别的包的程序（施工 O-43 上，`extending.md` 第二条）：集成测试当成另一个扩展包让核心拉起，导出挂接点、照参数答。只用
+# 门面以外已有的依赖；发版只打 `miyu-onebot`，不带它（`.github/workflows/release.yml`）。
+[[bin]]
+name = "miyu-onebot-test-hook"
+path = "src/bin/miyu-onebot-test-hook.rs"
+
 [dependencies]
 # 核心里的东西只经门面拿（设计 32 第九节第 1 条，施工 S-6 上；施工 S-6 中起照 git 钉核心的提交，见根目录 Cargo.toml）：数据根、资源目录、系统的语言（`places`）；给人看的字（`texts`）；
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法（`log`）；`start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答

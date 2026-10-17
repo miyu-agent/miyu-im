@@ -34,6 +34,7 @@ use miyu_chat::Problem;
 use miyu_client::places::{DataRoot, ResourceRoot};
 
 use crate::TARGET;
+use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
 use crate::core::route::{Fetching, Forwarding, Personas, Reactions, Route, Slots};
 use crate::core::{Core, provide};
@@ -185,6 +186,8 @@ pub async fn run(
         tell(Notice::NoToken);
     }
     let bots = Arc::new(Bots::default());
+    // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
+    let hooks = Arc::new(Hooks::new(core.caller()));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
     let applied = settings.port;
@@ -214,6 +217,7 @@ pub async fn run(
         tell,
         serial: AtomicU64::new(0),
         changed: Arc::clone(&changed),
+        hooks: Arc::clone(&hooks),
     });
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
@@ -256,7 +260,7 @@ pub async fn run(
             chars: gate.tuning.forward_chars,
         },
     );
-    let route = Route::new(core, bots, venues, members, parts, configured);
+    let route = Route::new(core, bots, venues, members, parts, configured, hooks);
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),

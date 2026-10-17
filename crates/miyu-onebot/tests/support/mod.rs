@@ -10,6 +10,7 @@ pub mod assembled;
 pub mod fake_core;
 pub mod group;
 pub mod head;
+pub mod hooked;
 pub mod judge;
 pub mod media;
 pub mod napcat;
@@ -172,7 +173,7 @@ impl Home {
 
     /// 同 [`Home::new`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`speaking::Lines`]）。
     pub fn speaking(models: Arc<dyn Models>) -> Home {
-        Home::with_config(models, CONFIG, None, None, |_| resources())
+        Home::with_config(models, CONFIG, None, None, |_| resources(), |_| {})
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是终端管理员对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -212,19 +213,11 @@ impl Home {
         more: &str,
         shipped: impl FnOnce(&Path) -> PathBuf,
     ) -> Home {
-        spawning::linked();
-        let timing = Timing {
-            grace: Duration::from_secs(5),
-            stable: Duration::from_secs(60),
-            backoff: Duration::from_millis(20),
-            longest: Duration::from_millis(100),
-        };
-        let secrets = format!("onebot = \"{TOKEN}\"\n");
-        let config = format!("{CONFIG}{more}");
-        Home::with_config(models, &config, Some(&secrets), Some(timing), shipped)
+        Home::spawning_installed(models, more, shipped, |_| {})
     }
 
-    /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，
+    /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它，读清单以前照 `install` 往数据根里
+    /// 放东西（施工 O-43 上）；`extensions` 有的照它等、退避，
     /// 照开关拉起扩展。配置清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
     /// 资源目录照 `shipped`：交进临时目录，交回用哪个（源码树的，或者一份改过的拷贝，[`tuned_resources`]）。
     fn with_config(
@@ -233,8 +226,10 @@ impl Home {
         secrets: Option<&str>,
         extensions: Option<Timing>,
         shipped: impl FnOnce(&Path) -> PathBuf,
+        install: impl FnOnce(&DataRoot),
     ) -> Home {
         let (dir, root) = temp_root();
+        install(&root);
         let file = root.path().join("system").join("config.toml");
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
         std::fs::write(&file, config).expect("写得进");

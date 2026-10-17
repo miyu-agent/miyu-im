@@ -14,7 +14,7 @@
 |---|---|
 | `crates/miyu-onebot/`（第 5 层，头） | 桥 |
 | `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里 NapCat 端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`web`（O-28 补）交给 `web.rs`，找的是自己真实位置旁边的 `miyu`（和拉起核心找的同一个），不读数据根；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
-| `onebot/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
+| `onebot/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`、O-43 上多 `packages.call`（挂接点）；O-42 多 `[export]`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
 | `onebot/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成 NapCat 的端口、令牌（`Settings`；网页的端口 O-28 下去掉），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照包文件夹里自己的清单 `package.toml` 读，施工 S-6 上），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
 | `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-33 多取东西三格；O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
@@ -34,6 +34,8 @@
 | `crates/miyu-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条）；O-31 多记身份（群主、管理员，「平台工具（一）」第 7 条） |
 | `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`onebot.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条）；O-36 起 `core.rs` 能一起交出一个群的主线连同它几条支线留着的推送，`route.rs` 把子会话推来的交给 `route/lanes.rs`（「群里怎么叫她」第 1 条） |
 | `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
+| `crates/miyu-onebot/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`qq.event` 原样交通知、请求（「挂接点」） |
+| `crates/miyu-onebot/src/bin/miyu-onebot-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
 | `crates/miyu-onebot/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`qq.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`qq.venue` 照场所会话的表答（「给别的包调的方法」） |
 | `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-onebot/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
@@ -1262,6 +1264,13 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 4. **`qq.venue {"session"}`**：回 `{"venue": "<场所编号>", "bot": <收进它的机器人号>}`，支线照它的群（同平台工具，O-36）；桥这一刻认不得的会话回 `{"venue": null}`：还没来过消息的群、封存了的支线（支线回完一轮就封存，桥不再记着它；别的包的工具只在那一轮里被调）。`session` 不是字的拒 `bad_params`。别的包提供的工具被调时核心交来的是会话编号，场所会话归系统账号，`venue.sessions` 只给系统账号的连接，别的包问不到，由桥答。
 
 **守着它的**（`exports.rs`、`src/core/route/exports/tests.rs`、`src/core/methods/tests.rs`、`settings.rs`、`backstage.rs`、`lanes.rs`）：参数怎么读（字符、长度、`params`、`bot` 的类型）；清单只导出这两个；登记四个方法。真核心拉起真桥、头照别的包的样子经 `package.call` 调：NapCat 没连着 `not_connected`；连上以后原样转过去、原样交回、没有 `echo`；写的动作、写了连着的号照转；不写参数的是 `{}`；NapCat 回失败也原样交回；写了没连着的号 `not_connected`；九种写错的 `bad_params`；`call_timeout_seconds` 改成 1 秒、NapCat 不回的 `unanswered`；运行日志有谁调了什么、没有参数里的数。拒的 `data.code` 写错的 -32602、别的 -32010。群会话照回场所和机器人号，支线还在回的时候照它的群，认不得的 `null`。读的一头只把这两个交给跟核心的那一头。
+
+**挂接点**（O-43 上，2026-10-17 项目主人定：别的包能插进接入QQ 里面，先开进站、出站、QQ 事件、判断打分四处；施工单「要拍板的」两条照推荐定：照软件包列表找、不另外登记，`qq.event` 原样交、不等回应）：别的包导出约定名字的方法，桥在那一处经核心的 `package.call` 调它（桥的清单 `capabilities` 有 `packages.call`）。写给作者的约定在 `extending.md` 第二条。这一步有找谁和 `qq.event`；进站、出站、打分随 O-43 中、下。不占编号的几段同「提供者和不说话」。
+
+1. **找谁**（`core/hooks.rs`、`core/route/packages.rs`）：起来时订阅名下的场所会话以后（`revive`），订阅核心的 `packages`（`subscribe {"stream": "packages"}`，回应同 `package.list`）：照每一项的 `export.methods` 记下谁导出了桥认的名字，`status` 是 `running` 的才算（缺了依赖的核心不拉起，是 `depends_missing`；停了、关着的也不算），运行日志一行 `INFO hooks learned count=…`。之后推来的 `package.changed` 照它换那一个包（`entry` 是 `null` 的拿掉）；掉了队（`resync`，`stream` 是 `packages`）重新订阅。核心拒了订阅的记一行 `WARN packages not followed why=…`，照没有挂接点跑。几个包挂在同一处的照包的编号排。
+2. **`qq.event`**：读 NapCat 的那一头（`listen/connection.rs`）收到 `post_type` 是 `notice`、`request`、带得出 `self_id` 的一帧，在认它以前原样交给挂在这里的每一个包：`package.call {"package", "method": "qq.event", "params": {"bot", "event": <原样>}}`，各起一个小任务发，不等回应、不看回答，到别的包那里的先后不保证（核心也各自转）；桥自己照旧认、照旧办。核心拒了的、别的包答错的（回应带拒绝）记一行 `WARN hook failed package=… point=qq.event why=…`。没有挂的什么都不做。
+
+**守着它的**（`src/core/hooks/tests.rs`、`hooks.rs`）：在跑、导出了桥认的名字的才算挂上，停了的、缺依赖的、没导出的、导出别的的、没有编号的不算，照编号排。真核心拉起真桥，管理员家目录里另装两个测试包（`miyu-onebot-test-hook`，`tests/support/hooked.rs`）：导出 `qq.event` 的收到通知、请求原样（带 `from: "onebot"`），消息不交；只导出别的方法的不收；推来的一项只换那一个包（停了、卸了、不导出了的拿掉）；桥起来时还关着、之后才打开的测试包照推来的 `package.changed` 挂上。
 
 ### 二、设置和状态（O-28 下）
 
