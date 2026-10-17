@@ -1,5 +1,5 @@
 //! 两页的内容：「其他群」在最前、每组小标题加表单、存的参数带卡、值是卡片上写的（管理的人只写号）、默认值写成一句；加一项的选项
-//! 不列已经有卡的、私聊的带 `p:`；删了的人格照样在选项里；太大的先换成一种语言、再去掉后面几项；仓库里的字三种语言都齐。
+//! 不列已经有卡的、私聊的带 `p:`；删了的人格照样在选项里；默认值带 `value`（类型对得上、下拉里有的才写）；太大的先换成一种语言、再去掉后面几项；仓库里的字三种语言都齐。
 
 use serde_json::{Map, Value, json};
 
@@ -235,4 +235,50 @@ fn every_word_on_the_pages_is_written_in_three_languages() {
     }
     assert_eq!(words.get("save", "fr"), "Save", "没有的语言照英文");
     assert_eq!(words.get("nope", "zh"), "nope");
+}
+
+#[test]
+fn defaults_carry_their_value_when_the_control_can_take_it() {
+    let set = cards(json!({"other_groups": {}, "groups": [{"id": 7}], "privates": [{"id": 9}]}));
+    let page = groups_page(&set, &known(), &words(), "zh");
+    let group = &page[1]["items"][1];
+    assert_eq!(
+        field(group, "chatty")["default"]["value"],
+        "some",
+        "下拉照选项里的值"
+    );
+    assert_eq!(
+        field(group, "managers")["default"]["value"],
+        json!(["1001"]),
+        "管理的人只写号"
+    );
+    assert_eq!(field(group, "persona")["default"]["value"], "miyu");
+    assert!(
+        field(group, "rate")["default"].get("value").is_none(),
+        "没有默认的不写"
+    );
+    let other = &page[1]["items"][0];
+    assert_eq!(field(other, "on")["default"]["value"], false, "开关是布尔");
+    let friends = friends_page(&set, &known(), &words(), "zh");
+    assert_eq!(
+        field(&friends[1]["items"][0], "long_chars")["default"]["value"],
+        300,
+        "数字是数"
+    );
+    // 默认的人格不在选项里（删了）、类型对不上控件的不写。
+    let gone = Known {
+        defaults: json!({"other_groups": {}, "groups": {"7": {"persona": {"value": "gone"}, "on": {"value": "yes"}}}, "privates": {}}),
+        ..known()
+    };
+    let page = groups_page(&set, &gone, &words(), "zh");
+    assert!(
+        field(&page[1]["items"][1], "persona")["default"]
+            .get("value")
+            .is_none()
+    );
+    assert!(
+        field(&page[1]["items"][1], "on")["default"]
+            .get("value")
+            .is_none()
+    );
 }

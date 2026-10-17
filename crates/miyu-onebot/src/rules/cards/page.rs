@@ -14,7 +14,9 @@ use super::Cards;
 mod parts;
 mod words;
 
-use parts::{choices, control_name, name_of, name_of_persona, page_value, to_object};
+use parts::{
+    choices, control_name, default_value, name_of, name_of_persona, page_value, to_object,
+};
 pub use words::Words;
 
 /// 两页的编号（清单 `[[widget]]` 的 `id`）。
@@ -370,6 +372,10 @@ impl Ink<'_> {
                 field["integer"] = json!(true);
             }
             Control::Toggle | Control::Textarea | Control::List | Control::Text => {}
+        }
+        // 默认值本身（核心 X-15 三补）：头照它画 `null` 的样子、点亮默认那一档。类型对不上控件的、下拉里没有的、没有的不写。
+        if let Some(shown) = default_value(key, control, default, &field["options"]) {
+            field["default"]["value"] = shown;
         }
         field
     }

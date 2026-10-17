@@ -63,3 +63,23 @@ pub(super) fn name_of_persona(list: &[(String, String)], id: &str) -> Option<Str
         .find(|(one, _)| one == id)
         .map(|(_, name)| name.clone())
 }
+
+/// 一格默认值写给头的样子（`default.value`）：照控件的类型，开关是布尔，下拉要是选项里的值，数字是数，字是字，列表是字的数组
+/// （管理的人去掉 `qq:`）；没有的（`null`）、类型对不上的、下拉里没有的交回空的，不写。
+pub(super) fn default_value(
+    key: &str,
+    control: Control,
+    value: &Value,
+    options: &Value,
+) -> Option<Value> {
+    let fits = match (control, value) {
+        (Control::Toggle, Value::Bool(_)) | (Control::Number, Value::Number(_)) => true,
+        (Control::Text | Control::Textarea, Value::String(_)) => true,
+        (Control::List, Value::Array(list)) => list.iter().all(Value::is_string),
+        (Control::Persona | Control::Chatty | Control::LongText, Value::String(_)) => options
+            .as_array()
+            .is_some_and(|options| options.iter().any(|option| option["value"] == *value)),
+        _ => false,
+    };
+    fits.then(|| page_value(key, Some(value)))
+}
