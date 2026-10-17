@@ -106,6 +106,36 @@ impl Settings {
     }
 }
 
+/// 配置项的键 `keys`（`onebot.sleep` 这种）照包文件夹 `package` 里自己的清单换成给人看的名字，照语言 `language` 挑（施工 O-41
+/// 补二：`miyu onebot status` 说没认出来的配置项用名字）。清单读不成的、清单里没有这一项的照键。
+pub fn labels(package: &Package, keys: &[String], language: &str) -> Vec<String> {
+    let manifest = std::fs::read_to_string(package.dir().join(MANIFEST))
+        .ok()
+        .and_then(|text| read(&text).ok());
+    keys.iter()
+        .map(|key| {
+            let name = key
+                .strip_prefix(PACKAGE)
+                .and_then(|rest| rest.strip_prefix('.'));
+            manifest
+                .as_ref()
+                .and_then(|manifest| {
+                    manifest
+                        .settings
+                        .iter()
+                        .find(|setting| Some(setting.name.as_str()) == name)
+                })
+                .and_then(|setting| {
+                    // 照语言挑，没写的照 `en`、`zh`、`ja` 的先后（同核心挑包的名字）。
+                    [language, "en", "zh", "ja"]
+                        .iter()
+                        .find_map(|language| setting.label.get(*language))
+                })
+                .map_or_else(|| key.clone(), String::clone)
+        })
+        .collect()
+}
+
 /// 白名单成员那一键（`onebot.whitelist`）：握手交来的 `config`、推来的 `keys` 里照它取（施工 O-23）。
 pub fn whitelist_key() -> String {
     format!("{PACKAGE}.{WHITELIST}")

@@ -614,7 +614,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 一项一条规则，先后固定：其他群的限流、白名单以外的群不接话（`allow = false`）、群里的触发词、睡觉时间、看得到 QQ 号、白名单群接话（`allow = true`）、白名单群的限流。白名单群那两条在最后，盖掉对全部群的几条。没设、等于默认的那一项，规则照写、只有 `match`，什么都不设；群白名单是空的，那两条的 `match` 是空的群号列表，不匹配任何群。规则的先后固定，第几条规则就是哪一项：问题、来处照它说成配置项的键（`key_of`）。
    - 限流、睡觉时间、触发词照原文写进去：字照 JSON 的写法加引号、转义（JSON 的转义都是 TOML 基本字符串认的），不另加依赖。写错的（`onebot.group_rate = "abc"`、带换行的触发词）照规则的规矩只丢那一项：运行日志那一行多一格 `setting=onebot.group_rate`，`venue show` 印「配置项 onebot.group_rate：rate 写法不对」。
    - 握手交来的照它拼（`Venues::new`）；推来的 `extension.config` 里七项变了的当场整份重读、记运行日志（第 4 条），下一条消息就照新的；没变的不读。
-   - **没认出来的配置项**（O-41 补，2026-10-17 网页的会话验 O-41 时提的：限流、睡觉时间在清单里是文字，核心只查长度，写错了照样存进去）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项（`Configured::misread`：配置项的键，照拼的先后；一条规则只设一项、一项写错只报一处；规则文件写错的不算）。桥手里另记一份七项（`current.rs`，和端口、令牌一起照推送换），后台页的 `status`、状态文件带 `misread`（「后台页」第 2 条、「状态文件」），`miyu onebot status` 说 `status/misread`，后台页「连接」页 NapCat 那张卡下面画一行。不挡着不让存：存不存由核心照清单的类型定。
+   - **没认出来的配置项**（O-41 补，2026-10-17 网页的会话验 O-41 时提的：限流、睡觉时间在清单里是文字，核心只查长度，写错了照样存进去）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项（`Configured::misread`：配置项的键，照拼的先后；一条规则只设一项、一项写错只报一处；规则文件写错的不算）。桥手里另记一份七项（`current.rs`，和端口、令牌一起照推送换），后台页的 `status`、状态文件带 `misread`（「后台页」第 2 条、「状态文件」），`miyu onebot status` 说 `status/misread`（O-41 补二：键换成清单里给人看的名字，照说的语言挑，没写的照 `en`、`zh`、`ja`，清单里没有的照键；几项用 `status/misread-separator` 连），后台页「连接」页 NapCat 那张卡下面画一行（O-41 补二：琥珀色 `--gold`，是提醒，和真出错的红字分开）。不挡着不让存：存不存由核心照清单的类型定。
 
 **样子**：桥起来时在标准错误上说一行「在 127.0.0.1:8301 等 NapCat 连进来」，照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
 
@@ -672,7 +672,8 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 | `status/napcat-bot` | 连着、还没问到 | NapCat 连上了：机器人 {bot}。 | NapCat connected: bot {bot}. |
 | `status/no-napcat` | 没连着 | NapCat 还没连上。 | NapCat is not connected. |
 | `status/listen`（O-28 下，原来的 `status/ports` 带着网页的地址） | NapCat 那边的地址 | NapCat 连 ws://127.0.0.1:{listen}/ws。 | NapCat connects to ws://127.0.0.1:{listen}/ws. |
-| `status/misread`（O-41 补） | 状态文件里有没认出来的配置项，排在 `status/page` 前面 | 这几项配置没认出来，照旧用规则文件里的：{keys} | These settings could not be read, the rule files are used instead: {keys} |
+| `status/misread`（O-41 补；O-41 补二起 `{keys}` 是名字） | 状态文件里有没认出来的配置项，排在 `status/page` 前面 | 这几项配置没认出来，照旧用规则文件里的：{keys} | These settings could not be read, the rule files are used instead: {keys} |
+| `status/misread-separator`（O-41 补二） | 几项名字之间 | 、 | , |
 | `status/page`（O-28 下；O-28 补改了说法和时机） | `start`、`status` 说完跟在末尾 | 设置和状态在网页里：miyu onebot web | Settings and status are in the web app: miyu onebot web |
 | `reason/config_error` | `config_error` | 配置错了或者端口被占（退出码 1）。改好以后 miyu onebot restart。 | a configuration error or a port in use (exit code 1). Fix it, then run miyu onebot restart. |
 | `reason/failed_repeatedly` | `failed_repeatedly` | 连续失败了 {failures} 次。看 miyu onebot logs，修好以后 miyu onebot restart。 | it failed {failures} times in a row. See miyu onebot logs, then run miyu onebot restart. |

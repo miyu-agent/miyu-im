@@ -33,8 +33,8 @@ export function connectionView(ui) {
   const dot = (kind) => h('span', { class: `status-dot is-${kind}` });
 
   const napcat = h('div', { class: 'value' });
-  // 没认出来的配置项（施工 O-41 补）：status 带 misread 的才出来，名字照设置页上的。
-  const misread = h('p', { class: 'note error', hidden: true });
+  // 没认出来的配置项（施工 O-41 补）：status 带 misread 的才出来，名字照设置页上的；是提醒，琥珀色（O-41 补二）。
+  const misread = h('p', { class: 'warn', hidden: true });
   const step = h('li', { text: say('guide/token') });
   const guide = h('section', { class: 'card guide', hidden: true },
     h('h2', { text: say('guide/title') }),

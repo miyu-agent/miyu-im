@@ -110,11 +110,11 @@ async fn a_misread_setting_is_shown_until_it_is_fixed() {
     let mut head = crate::support::head::Head::connect(&home.root).await;
     let status = head.until("status", |result| result.is_object()).await;
     assert_eq!(status["misread"], json!(["onebot.sleep"]), "{status}");
+    // 命令行说清单里的名字（施工 O-41 补二）。
     let said =
-        crate::support::spawning::until_status(&home.root, |out| out.contains("onebot.sleep"))
-            .await;
+        crate::support::spawning::until_status(&home.root, |out| out.contains("睡觉时间")).await;
     assert!(
-        said.contains("这几项配置没认出来，照旧用规则文件里的：onebot.sleep"),
+        said.contains("这几项配置没认出来，照旧用规则文件里的：睡觉时间"),
         "{said}"
     );
     set(
@@ -126,6 +126,6 @@ async fn a_misread_setting_is_shown_until_it_is_fixed() {
         .until("status", |result| result.get("misread").is_none())
         .await;
     assert_eq!(status["platform"], "qq");
-    crate::support::spawning::until_status(&home.root, |out| !out.contains("onebot.sleep")).await;
+    crate::support::spawning::until_status(&home.root, |out| !out.contains("睡觉时间")).await;
     stopped(home).await;
 }

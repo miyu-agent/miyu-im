@@ -279,7 +279,17 @@ impl Texts {
             Report::NoNapcat => self.say("status/no-napcat", &[]),
             Report::Listen(listen) => self.say("status/listen", &[("listen", listen.to_string())]),
             Report::Page => self.say("status/page", &[]),
-            Report::Misread(keys) => self.say("status/misread", &[("keys", keys.join(", "))]),
+            Report::Misread(keys) => {
+                // 键换成清单里给人看的名字（施工 O-41 补二），照这时说的语言。
+                let names = crate::settings::labels(&self.package, keys, &self.language);
+                self.say(
+                    "status/misread",
+                    &[(
+                        "keys",
+                        names.join(&self.say("status/misread-separator", &[])),
+                    )],
+                )
+            }
         }
     }
 

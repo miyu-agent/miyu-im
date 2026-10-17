@@ -38,6 +38,7 @@
     "status/listen": "NapCat 连 ws://127.0.0.1:{listen}/ws。",
     "status/page": "设置和状态在网页里：miyu onebot web",
     "status/misread": "这几项配置没认出来，照旧用规则文件里的：{keys}",
+    "status/misread-separator": "、",
     "reason/config_error": "配置错了或者端口被占（退出码 1）。改好以后 miyu onebot restart。",
     "reason/failed_repeatedly": "连续失败了 {failures} 次。看 miyu onebot logs，修好以后 miyu onebot restart。",
     "reason/not_installed": "miyu 旁边没有 miyu-onebot 这个程序。",

@@ -220,3 +220,28 @@ fn the_manifest_exports_only_the_methods_for_other_packages() {
     let manifest = miyu_client::manifest::read(&text).expect("读得出");
     assert_eq!(manifest.export, ["qq.action", "qq.venue"]);
 }
+
+#[test]
+fn setting_keys_read_as_their_names_in_the_language() {
+    // 施工 O-41 补二：`miyu onebot status` 说没认出来的配置项用名字；清单里没有的照键。
+    let package = package_in(resources());
+    let keys = [
+        "onebot.sleep".to_string(),
+        "onebot.group_rate".to_string(),
+        "onebot.nope".to_string(),
+        "other.sleep".to_string(),
+    ];
+    assert_eq!(
+        miyu_onebot::settings::labels(&package, &keys, "zh"),
+        ["睡觉时间", "白名单群的限流", "onebot.nope", "other.sleep"]
+    );
+    assert_eq!(
+        miyu_onebot::settings::labels(&package, &keys[..1], "en"),
+        ["Sleep hours"]
+    );
+    let missing = package_in(std::env::temp_dir().join("miyu-onebot-no-such-resources"));
+    assert_eq!(
+        miyu_onebot::settings::labels(&missing, &keys[..1], "zh"),
+        ["onebot.sleep"]
+    );
+}

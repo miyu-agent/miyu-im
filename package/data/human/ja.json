@@ -38,6 +38,7 @@
     "status/listen": "NapCat connects to ws://127.0.0.1:{listen}/ws.",
     "status/page": "Settings and status are in the web app: miyu onebot web",
     "status/misread": "These settings could not be read, the rule files are used instead: {keys}",
+    "status/misread-separator": ", ",
     "reason/config_error": "a configuration error or a port in use (exit code 1). Fix it, then run miyu onebot restart.",
     "reason/failed_repeatedly": "it failed {failures} times in a row. See miyu onebot logs, then run miyu onebot restart.",
     "reason/not_installed": "there is no miyu-onebot program next to miyu.",
