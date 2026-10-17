@@ -278,6 +278,42 @@ async fn up(
     .await
 }
 
+/// 同 [`started_installed`]，`bridge.json` 照 `tuned` 改几项（施工 O-51：排着的过期）。
+pub async fn started_installed_tuned(
+    script: &Script,
+    tuned: &Value,
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
+    up_installed(
+        Arc::new(script.clone()),
+        ("", tuned),
+        ("", ""),
+        "",
+        |napcat| napcat.answering(members),
+        (install, Catalog::default()),
+    )
+    .await
+}
+
+/// 同 [`started_installed`]，系统配置的 `[onebot]` 照 `onebot` 写（施工 O-51：白名单成员的私聊）。
+pub async fn started_installed_with(
+    script: &Script,
+    onebot: &str,
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
+    up_installed(
+        Arc::new(script.clone()),
+        ("", &Value::Null),
+        ("", ""),
+        onebot,
+        |napcat| napcat.answering(members),
+        (install, Catalog::default()),
+    )
+    .await
+}
+
 /// 同 [`started`]，核心起来以前照 `install` 往数据根里装别的包（施工 O-43 中：挂进站挂接点的测试包，`hooked::install`）。
 pub async fn started_installed(
     script: &Script,

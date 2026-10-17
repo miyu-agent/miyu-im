@@ -346,9 +346,10 @@ impl Route {
             }
         };
         let quiet = self.quiet.heard(lane, raw);
-        // 她在支线给人看的文件照主线发进群里（施工 O-46，`shown`），这一轮不说话的不发。
+        // 她在支线给人看的文件、发出去的图照主线发进群里（施工 O-46，`shown`；O-51，`stickers`），这一轮不说话的不发。
         if !quiet && self.groups.contains_key(session) {
             self.show((session, lane), raw);
+            self.stickers((session, lane), raw).await?;
         }
         let Some(group) = self.groups.get_mut(session) else {
             return Ok(());

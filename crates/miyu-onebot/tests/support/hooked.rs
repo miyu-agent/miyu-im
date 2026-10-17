@@ -42,6 +42,34 @@ pub fn install(root: &DataRoot, id: &str, args: &[String], exports: &[&str]) {
     install_starting(root, id, args, exports, "always");
 }
 
+/// 往数据根 `root` 的管理员家目录装一个编号是 `id` 的扩展包，程序照 `args` 答，声明 `capabilities` 那几样能力、在
+/// `system/extensions.json` 里批过（施工 O-51：登记工具要 `tools`），核心起来就拉起。
+pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[&str]) {
+    install_starting(root, id, args, &[], "always");
+    let manifest = root
+        .path()
+        .join("home/admin/packages")
+        .join(id)
+        .join("package.toml");
+    let text = std::fs::read_to_string(&manifest).expect("读得出");
+    let listed: Vec<String> = capabilities
+        .iter()
+        .map(|name| format!("{name:?}"))
+        .collect();
+    let text = text.replace(
+        "start = \"always\"\n",
+        &format!(
+            "start = \"always\"\ncapabilities = [{}]\n",
+            listed.join(", ")
+        ),
+    );
+    std::fs::write(&manifest, text).expect("写得进");
+    let switches = root.path().join("system").join("extensions.json");
+    std::fs::create_dir_all(switches.parent().expect("有上一级")).expect("建得了");
+    let approved = serde_json::json!({"version": 1, "on": {}, "approved": {id: capabilities}});
+    std::fs::write(switches, approved.to_string()).expect("写得进");
+}
+
 /// 同 [`install`]，`start` 照写的（`manual` 的要开关打开才拉起）。
 pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&str], start: &str) {
     let program = linked();

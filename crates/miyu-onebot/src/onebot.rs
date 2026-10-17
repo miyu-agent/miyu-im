@@ -389,9 +389,16 @@ pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
 }
 
 /// 把一张图（`file` 写成 NapCat 认的 `base64://…`）发给 `to` 的动作和参数：一个图片段的 `send_private_msg`、`send_group_msg`
-/// （施工 O-46，「展示」第 2 条）。
-pub fn image_to(to: To, file: &str) -> (&'static str, Value) {
-    let message = json!([{"type": "image", "data": {"file": file}}]);
+/// （施工 O-46，「展示」第 2 条）。`sticker` 的是表情包（施工 O-51）。
+pub fn image_to(to: To, file: &str, sticker: bool) -> (&'static str, Value) {
+    let mut data = json!({"file": file});
+    if sticker {
+        // 表情包（施工 O-51，设计 34 第二节第 5 条）：QQ 当表情显示。两种拼写都给（照旧版：OneBot 11 的文档写 `sub_type`，
+        // go-cqhttp 系认 `subType`）。
+        data["sub_type"] = json!(1);
+        data["subType"] = json!(1);
+    }
+    let message = json!([{"type": "image", "data": data}]);
     match to {
         To::Private(user) => (
             "send_private_msg",

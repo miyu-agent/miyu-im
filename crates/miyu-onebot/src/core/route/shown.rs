@@ -152,7 +152,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
         .map_err(|why| ("unreadable", why))?;
     let file = format!("base64://{}", STANDARD.encode(bytes));
     let (action, params) = match job.file.is_image() {
-        true => image_to(job.peer.to, &file),
+        true => image_to(job.peer.to, &file, false),
         false => upload_to(job.peer.to, &file, &job.file.name),
     };
     match link.calls.call(&link.out, action, params).await {
@@ -163,8 +163,9 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     }
 }
 
-/// 经 `blob.get` 把会话 `session` 里出现过的 blob `blob` 一块块读完。读不成的交回原因（核心的原因码、`gone`、写法不对）。
-async fn read(caller: &Caller, session: &str, blob: &str) -> Result<Vec<u8>, String> {
+/// 经 `blob.get` 把会话 `session` 里出现过的 blob `blob` 一块块读完。读不成的交回原因（核心的原因码、`gone`、写法不对）。表情包
+/// 也照它读（施工 O-51，`stickers`）。
+pub(super) async fn read(caller: &Caller, session: &str, blob: &str) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     loop {
         let params =

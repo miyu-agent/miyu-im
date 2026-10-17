@@ -24,7 +24,7 @@ use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::core::{Gone, reason};
-use crate::onebot::{CallError, Lead, To, message_to};
+use crate::onebot::{CallError, Lead, To, image_to, message_to};
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.onebot.venues.failed";
@@ -34,6 +34,9 @@ const DELIVERED: &str = "venue.delivered";
 
 /// `ext.onebot.venues.queued` 的 `kind`：命令回执、被拒的那一句。
 const RECEIPT: &str = "receipt";
+
+/// `ext.onebot.venues.queued` 的 `kind`：她发出去的一张图（施工 O-51）。
+const IMAGE: &str = "image";
 
 /// 门关着：她被禁言着。
 const MUTED: &str = "muted";
@@ -56,11 +59,30 @@ pub(super) enum What {
         /// 这一轮回的人；私聊的是空的。
         to: Vec<ExternalId>,
     },
+    /// 她发出去的一张图（施工 O-51，`stickers`：核心的工具结果里的 `sent`，表情包包发的那种）：一张一条，正文是空的。
+    Image(Box<Image>),
     /// 命令回执、被拒的那一句：`recall` 是群里回了编号的要不要过几秒撤回（施工 O-47：照 `onebot.recall_receipts`）。
     Receipt {
         /// 撤不撤。
         recall: bool,
     },
+}
+
+/// 她发出去的一张图（施工 O-51）。
+#[derive(Debug, Clone)]
+pub(super) struct Image {
+    /// 工具结果出现在的那条线（主线、支线、私聊）：发不出去的 `unshown` 记进它。
+    pub(super) line: String,
+    /// 那条线的回合编号。
+    pub(super) turn: u64,
+    /// 图的内容哈希（blob 的编号）：群里发出去了记进 `venue.delivered` 的 `images`。
+    pub(super) blob: String,
+    /// 名字：发不出去的 `unshown` 写它。
+    pub(super) name: String,
+    /// 是表情包：QQ 当表情显示（`sub_type=1`）。
+    pub(super) sticker: bool,
+    /// NapCat 认的 `base64://…`：入队以前读好。
+    pub(super) file: String,
 }
 
 /// 要说出去的一段：是什么、正文（不带引用、@）、前面带的引用和 @。
@@ -113,7 +135,7 @@ impl Route {
         let Some(peer) = self.peers.get(session).cloned() else {
             return Ok(());
         };
-        if piece.text.trim().is_empty() {
+        if piece.text.trim().is_empty() && !matches!(piece.what, What::Image(_)) {
             return Ok(());
         }
         let chars = piece.text.chars().count();
@@ -203,7 +225,10 @@ impl Route {
         };
         let begun = match self.bots.get(peer.bot) {
             Some(link) => {
-                let (action, params) = message_to(peer.to, &item.piece.text, &item.piece.lead);
+                let (action, params) = match &item.piece.what {
+                    What::Image(image) => image_to(peer.to, &image.file, image.sticker),
+                    _ => message_to(peer.to, &item.piece.text, &item.piece.lead),
+                };
                 link.calls.begin(&link.out, action, params).await
             }
             None => Err(CallError::Closed),
@@ -264,9 +289,14 @@ impl Route {
                 let body = json!({"line": line, "turn": turn, "to": to, "msg": msg.to_string(), "text": item.piece.text, "images": []});
                 self.append(&session, None, DELIVERED, body).await.map(drop)
             }
-            (What::Reply { .. }, None) => {
+            (What::Reply { .. } | What::Image(_), None) => {
                 tracing::warn!(target: TARGET, venue = %venue, chars, "delivered without a message id");
                 Ok(())
+            }
+            // 她发出去的图（施工 O-51）：正文是空的，`images` 是它。回的人不算（图不引用、不 @）。
+            (What::Image(image), Some(msg)) => {
+                let body = json!({"line": image.line, "turn": image.turn, "to": [], "msg": msg.to_string(), "text": "", "images": [image.blob]});
+                self.append(&session, None, DELIVERED, body).await.map(drop)
             }
             // 不撤的回执（施工 O-47，`onebot.recall_receipts` 里没有的命令）发了就完。
             (What::Receipt { recall: false }, _) => Ok(()),
@@ -305,6 +335,10 @@ impl Route {
                 let detail = detail.unwrap_or_default();
                 self.undelivered((session, line), &venue, item, (why, &detail))
                     .await
+            }
+            What::Image(ref image) => {
+                let detail = detail.unwrap_or_default();
+                self.unsent_image(image, (why, &detail)).await
             }
             What::Receipt { .. } => Ok(()),
         }
@@ -358,5 +392,8 @@ fn queued_body(piece: &Piece) -> Value {
             json!({"kind": REPLY, "text": piece.text, "line": line, "turn": turn})
         }
         What::Receipt { .. } => json!({"kind": RECEIPT, "text": piece.text}),
+        What::Image(image) => {
+            json!({"kind": IMAGE, "blob": image.blob, "sticker": image.sticker, "line": image.line, "turn": image.turn})
+        }
     }
 }

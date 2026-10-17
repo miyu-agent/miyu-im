@@ -53,9 +53,10 @@ impl Route {
         if let Some(backlog) = backlog {
             backlog.take(raw);
         }
-        // 她给人看的文件发进群里（施工 O-46，`shown`）：补来的、这一轮不说话的不发。
+        // 她给人看的文件、发出去的图发进群里（施工 O-46，`shown`；O-51，`stickers`）：补来的、这一轮不说话的不发。
         if !replayed && !quiet {
             self.show((session, session), raw);
+            self.stickers((session, session), raw).await?;
         }
         match speaking {
             // 补来的不照常发：这一轮没说不说话的交给补来的那一段，期限以内、没入队的补完了补发（施工 O-32，`revive`）。补完以前
@@ -205,9 +206,10 @@ impl Route {
             }
             return Ok(());
         }
-        // 她给人看的文件发进私聊（施工 O-46，`shown`）：补来的上面已经交回去了，这一轮不说话的不发。
+        // 她给人看的文件、发出去的图发进私聊（施工 O-46，`shown`；O-51，`stickers`）：补来的上面已经交回去了，这一轮不说话的不发。
         if !quiet {
             self.show((session, session), event);
+            self.stickers((session, session), event).await?;
         }
         if event["kind"] != "message.assistant" {
             return Ok(());

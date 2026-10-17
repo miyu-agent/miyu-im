@@ -78,6 +78,7 @@ mod session;
 mod shown;
 mod speak;
 mod steering;
+mod stickers;
 #[cfg(test)]
 mod tests;
 mod titled;

@@ -7,8 +7,11 @@
 //! - `record:<路径>`：收到的每一次 `method.call` 往这个文件追加一行：`{"method", "params", "from"}`。
 //! - `answer:<方法>:<JSON>`：这个方法照这段 JSON 答（`result`）。
 //! - `slow:<方法>`：这个方法收了不答。
+//! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
+//!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
 //!
-//! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法，然后一直读标准输入，读到头退出。
+//! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法（有 `sticker:` 的另经 `provide` 登记那件
+//! 工具），然后一直读标准输入，读到头退出。
 
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
@@ -27,6 +30,7 @@ enum Answer {
 fn main() {
     let mut record: Option<File> = None;
     let mut answers: BTreeMap<String, Answer> = BTreeMap::new();
+    let mut sticker: Option<String> = None;
     for arg in std::env::args().skip(1) {
         if let Some(path) = arg.strip_prefix("record:") {
             record = Some(
@@ -42,6 +46,8 @@ fn main() {
             answers.insert(method.to_string(), Answer::With(answer));
         } else if let Some(method) = arg.strip_prefix("slow:") {
             answers.insert(method.to_string(), Answer::Silent);
+        } else if let Some(path) = arg.strip_prefix("sticker:") {
+            sticker = Some(path.to_string());
         }
     }
     let stdin = io::stdin();
@@ -50,17 +56,38 @@ fn main() {
     ask(&mut input, "hello", hello);
     let methods: Vec<Value> = answers.keys().map(|name| json!({"name": name})).collect();
     ask(&mut input, "package.methods", json!({"methods": methods}));
+    // 发出去的那张图（施工 O-51）：传上去，交回的 `blob`、媒体类型、宽高照原样放进 `sent`。
+    let sent = sticker.map(|path| {
+        let put = ask(&mut input, "blob.put", json!({"path": path}));
+        let result = &put["result"];
+        let tool = json!({
+            "name": "sticker",
+            "description": "Send a sticker.",
+            "input_schema": {"type": "object", "properties": {}},
+            "access": "read",
+            "venues": ["private", "group"],
+        });
+        ask(&mut input, "provide", json!({"tools": [tool]}));
+        json!([{
+            "blob": result["blob"],
+            "media_type": result["media_type"],
+            "width": result["width"],
+            "height": result["height"],
+            "alt": "A cat waving.",
+            "sticker": true,
+        }])
+    });
     loop {
         let line = read(&mut input);
         if line.is_empty() {
             return;
         }
-        serve(&line, &answers, &mut record);
+        serve(&line, &answers, &mut record, sent.as_ref());
     }
 }
 
-/// 发一条请求，读到它的回应为止；中间核心说的别的（推送、反向的调用）照 [`serve`] 办，不记。
-fn ask(input: &mut impl BufRead, method: &str, params: Value) {
+/// 发一条请求，读到它的回应为止，交回回应；中间核心说的别的（推送、反向的调用）不办。
+fn ask(input: &mut impl BufRead, method: &str, params: Value) -> Value {
     let id = format!("hook-{method}");
     send(&json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
     loop {
@@ -68,16 +95,28 @@ fn ask(input: &mut impl BufRead, method: &str, params: Value) {
         assert!(!line.is_empty(), "等 {method} 的回应时核心关了管道");
         let message: Value = serde_json::from_str(&line).expect("核心说的是 JSON");
         if message["id"] == id.as_str() && message.get("method").is_none() {
-            return;
+            return message;
         }
     }
 }
 
-/// 核心说的一行：是 `method.call` 的记下、照写的答。
-fn serve(line: &str, answers: &BTreeMap<String, Answer>, record: &mut Option<File>) {
+/// 核心说的一行：是 `method.call` 的记下、照写的答；是工具 `sticker` 的 `tool.call` 的答一段字、`sent` 是传上去的那张（施工 O-51）。
+fn serve(
+    line: &str,
+    answers: &BTreeMap<String, Answer>,
+    record: &mut Option<File>,
+    sent: Option<&Value>,
+) {
     let Ok(message) = serde_json::from_str::<Value>(line) else {
         return;
     };
+    if message["method"] == "tool.call"
+        && let Some(sent) = sent
+    {
+        let result = json!({"blocks": [{"type": "text", "text": "Sent."}], "sent": sent});
+        send(&json!({"jsonrpc": "2.0", "id": message["id"], "result": result}));
+        return;
+    }
     if message["method"] != "method.call" {
         return;
     }
