@@ -22,7 +22,7 @@ mod supersede;
 
 pub use dispatch::{Dispatch, Line, Lines, dispatch};
 pub use restraint::pressure;
-pub use score::{Judgement, Score, score};
+pub use score::{Judgement, Score, nudged, score};
 pub use supersede::{Pending, Status, Supersede, supersede};
 
 use miyu_kernel::id::{ExternalId, Seq, VenueId};

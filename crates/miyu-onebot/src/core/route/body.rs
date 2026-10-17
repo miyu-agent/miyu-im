@@ -7,20 +7,25 @@
 //! 判不了照回的（O-37，[`finale`]）不另加格：`outcome` 是 `reply`、`judge` 里是 `unjudged`、没有 `score` 就是它（「施工时定的」
 //! 第 220 条）。
 
-use miyu_chat::{Flag, Kind, Mode, Outcome, Route, Score, Standing, Supersede, Unreadable, Why};
+use miyu_chat::{
+    Conditions, Flag, Kind, Mode, Outcome, Route, Score, Standing, Supersede, Unreadable, Why,
+};
 use serde_json::{Value, json};
 
 use super::ask::{Answer, Unjudged};
 use super::decide::{Conclusion, Decision};
 use super::projection::RATE_LIMITED;
+use crate::core::hooks::Nudge;
 
 /// 判官回来了的那一段：问的那一次和算的分（读出来了才有分）。
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Judged<'a> {
     /// 问的那一次。
     pub(super) answer: &'a Answer,
-    /// 算的分。
+    /// 算的分（判断打分挂接点给的加分已经加进 `bonus`，施工 O-43 末）。
     pub(super) score: Option<&'a Score>,
+    /// 判断打分挂接点给的加分（施工 O-43 末）：问了的才有。
+    pub(super) nudge: Option<&'a Nudge>,
 }
 
 /// 最后怎么做：回、只记下、回一句提示。
@@ -106,13 +111,7 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
         return body;
     };
     body["discipline"] = json!(passed.discipline.name());
-    let hits: Vec<Value> = passed
-        .conditions
-        .hits
-        .iter()
-        .map(|hit| json!({"kind": kind_name(hit.kind), "bonus": hit.bonus}))
-        .collect();
-    body["conditions"] = json!(hits);
+    body["conditions"] = kinds(&passed.conditions);
     match &passed.supersede {
         Supersede::None => {}
         Supersede::Inherit { msg, .. } => body["supersede"] = json!({"inherit": msg.get()}),
@@ -128,7 +127,12 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
     if passed.rate_full {
         asked["unjudged"] = json!("rate_full");
     }
-    if let Some(Judged { answer, score }) = judged {
+    if let Some(Judged {
+        answer,
+        score,
+        nudge,
+    }) = judged
+    {
         asked["tries"] = json!(answer.tries);
         asked["millis"] = json!(answer.millis);
         if let Some(model) = &answer.model {
@@ -160,10 +164,24 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
                 "raw": score.raw, "adjust": score.adjust, "bonus": score.bonus, "lift": score.lift,
                 "threshold": score.threshold, "total": score.total, "reply": score.reply,
             });
+            // 判断打分挂接点给了不是 0 的加分的（施工 O-43 末）：加了多少、谁给的（已经算进 `bonus`）。
+            if let Some(nudge) = nudge.filter(|nudge| !nudge.by.is_empty()) {
+                body["score"]["hooked"] = json!({"bonus": nudge.bonus, "packages": nudge.by});
+            }
         }
     }
     body["judge"] = asked;
     body
+}
+
+/// 成立了的条件写成 `[{"kind", "bonus"}]`：`body` 的 `conditions`，判断打分挂接点的参数也照它（施工 O-43 末）。
+pub(super) fn kinds(conditions: &Conditions) -> Value {
+    let hits: Vec<Value> = conditions
+        .hits
+        .iter()
+        .map(|hit| json!({"kind": kind_name(hit.kind), "bonus": hit.bonus}))
+        .collect();
+    json!(hits)
 }
 
 /// 没放行的原因的写法：`body` 的 `why`，提示的 `reason`。

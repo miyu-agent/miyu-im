@@ -93,6 +93,32 @@ pub fn score(
     }
 }
 
+/// 在算好的分 `score`（[`score`] 照 `judgement`、`conditions`、`chatty` 算的）上再加扩展给的加分 `extra`（施工 O-43 末，接入QQ
+/// 的判断打分挂接点 `qq.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（总分不低于门槛，或者违规够重）；门槛、修正、
+/// `raw`、`adjust` 不动。只查违规的不打分，原样交回；`extra` 是 0 的也原样交回。
+pub fn nudged(
+    score: &Score,
+    extra: f64,
+    judgement: &Judgement,
+    conditions: &Conditions,
+    chatty: &Chatty,
+) -> Score {
+    if conditions.only_moderation() || extra == 0.0 {
+        return *score;
+    }
+    let violated = judgement
+        .severity
+        .is_some_and(|severity| severity >= chatty.severity_min);
+    let bonus = score.bonus + extra;
+    let total = (score.raw + score.adjust + bonus).max(0.0);
+    Score {
+        bonus,
+        total,
+        reply: total >= score.threshold || violated,
+        ..*score
+    }
+}
+
 /// 五维加权，0 到 1。权重加起来是 0 的（全是 0）是 0，不除以 0。
 fn raw(scores: &[f64; 5], weights: &[f64; 5]) -> f64 {
     let sum = weights.iter().sum::<f64>();

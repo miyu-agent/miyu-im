@@ -3,7 +3,7 @@
 
 use super::super::test_support::{OTHER, cents, chatty, facts, hits, mills, now, reply};
 use super::super::{Chatty, Conditions, Hit, Kind, Reply};
-use super::{Judgement, Score, score};
+use super::{Judgement, Score, nudged, score};
 
 /// 例子里的判官：五维 6/5/4/6/3，该回，不是在跟她说话，没查违规。
 fn judged() -> Judgement {
@@ -235,4 +235,54 @@ fn moderation_only_is_not_scored() {
     let got = scored(&eager, &both, &[], &chatty());
     assert_eq!(mills(got.total), 1300);
     assert!(got.reply);
+}
+
+#[test]
+fn an_extra_bonus_goes_into_bonus_total_and_the_verdict() {
+    // 施工 O-43 末：扩展给的加分加进 `bonus`，重算 `total`、`reply`；门槛、修正不动。
+    let chatty = chatty();
+    // 18 第七节第一个例子：0.785 不到门槛 0.92，不回；加 0.5 就回。
+    let replies = twice();
+    let conditions = hits(&facts(), &[], &replies, &chatty);
+    let judgement = judged();
+    let base = scored(&judgement, &conditions, &replies, &chatty);
+    assert!(!base.reply);
+    let up = nudged(&base, 0.5, &judgement, &conditions, &chatty);
+    assert_eq!(cents(up.bonus), cents(base.bonus + 0.5));
+    assert_eq!(cents(up.total), cents(base.total + 0.5));
+    assert_eq!(
+        (up.threshold, up.lift, up.raw, up.adjust),
+        (base.threshold, base.lift, base.raw, base.adjust)
+    );
+    assert!(up.reply, "{up:?}");
+    // 减到总分不到 0 的当 0，回不了。
+    let down = nudged(&base, -5.0, &judgement, &conditions, &chatty);
+    assert_eq!((down.total, down.reply), (0.0, false));
+    // 0 的不变。
+    assert_eq!(nudged(&base, 0.0, &judgement, &conditions, &chatty), base);
+}
+
+#[test]
+fn an_extra_bonus_does_not_touch_moderation_only_or_a_violation() {
+    let chatty = chatty();
+    let mut judgement = judged();
+    judgement.severity = Some(chatty.severity_min);
+    let moderation = only(Kind::Moderation, 0.0);
+    let checked = scored(&judgement, &moderation, &[], &chatty);
+    assert_eq!(
+        nudged(&checked, 1.0, &judgement, &moderation, &chatty),
+        checked,
+        "只查违规的不打分"
+    );
+    // 违规够重的照回，减分减不掉。
+    let conditions = only(Kind::Direct, 0.3);
+    let base = scored(&judgement, &conditions, &[], &chatty);
+    assert!(nudged(&base, -10.0, &judgement, &conditions, &chatty).reply);
+}
+
+/// 只有一个条件。
+fn only(kind: Kind, bonus: f64) -> Conditions {
+    Conditions {
+        hits: vec![Hit { kind, bonus }],
+    }
 }

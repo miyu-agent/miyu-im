@@ -121,3 +121,30 @@ fn an_outbound_answer_keeps_changes_drops_or_is_wrong() {
         assert_eq!(Edit::read(&wrong), Err("bad_answer".to_string()), "{wrong}");
     }
 }
+
+#[test]
+fn bonuses_add_up_and_are_held_within_one() {
+    let pairs = |list: &[(&str, f64)]| -> Vec<(String, f64)> {
+        list.iter()
+            .map(|(package, bonus)| ((*package).to_string(), *bonus))
+            .collect()
+    };
+    assert_eq!(
+        summed(Vec::new()),
+        Nudge {
+            bonus: 0.0,
+            by: Vec::new()
+        }
+    );
+    assert_eq!(
+        summed(pairs(&[("a", 0.3), ("b", 0.0), ("c", -0.1)])),
+        Nudge {
+            bonus: 0.3 - 0.1,
+            by: vec!["a".to_string(), "c".to_string()]
+        }
+    );
+    assert_eq!(summed(pairs(&[("a", 1.0), ("b", 0.7)])).bonus, 1.0);
+    assert_eq!(summed(pairs(&[("a", -1.0), ("b", -0.7)])).bonus, -1.0);
+    // 每个先夹：给 5 的只算 1，和 -1 抵掉。
+    assert_eq!(summed(pairs(&[("a", 5.0), ("b", -1.0)])).bonus, 0.0);
+}

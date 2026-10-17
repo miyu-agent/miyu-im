@@ -8,6 +8,8 @@
 //!   `record`（只记下）、`reply`（当成冲她来的直接回）、`pass`（照常），几个包的照 [`Steer`] 的轻重取最重的（[`Hooks::inbound`]）。
 //! - [`OUTBOUND`]（施工 O-43 下）：她的一段话过出站链以前，照包的编号一个接一个问，前一个换了的交给后一个；回 `{"text"}` 换、
 //!   `{"drop": true}` 不发、`{}` 照原样（[`Hooks::outbound`]）。
+//! - [`SCORE`]（施工 O-43 末）：要问判官打分的那一条，判官答了以后并着问，回 `{"bonus": <-1 到 1>}`，几个包加起来再夹到 -1 到 1，
+//!   进算分的 `bonus`（[`Hooks::score`]）。
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -29,8 +31,23 @@ pub(crate) const INBOUND: &str = "qq.inbound";
 /// 出站：她的一段话发出去以前问，回 `{"text": <换成的>}`、`{"drop": true}` 或 `{}`。
 pub(crate) const OUTBOUND: &str = "qq.outbound";
 
+/// 判断打分：判官答了、算分以前问，回 `{"bonus": <-1 到 1 的数>}`。
+pub(crate) const SCORE: &str = "qq.score";
+
 /// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
-const POINTS: [&str; 3] = [EVENT, INBOUND, OUTBOUND];
+const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
+
+/// 一个包、几个包的加分最多加减多少：门槛是 0 到 1 左右的数，夹住免得一个包把判断整个改掉（施工 O-43 末）。
+const NUDGE_MAX: f64 = 1.0;
+
+/// 问过判断打分挂接点的结果（施工 O-43 末）。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Nudge {
+    /// 加起来、夹过的加分。
+    pub(crate) bonus: f64,
+    /// 给了不是 0 的加分的包，照编号排。
+    pub(crate) by: Vec<String>,
+}
 
 /// 问过出站挂接点的结果（施工 O-43 下）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -217,6 +234,37 @@ impl Hooks {
         Voiced::Say(text)
     }
 
+    /// 问挂在 [`SCORE`] 的包 `packages`（照编号排）这一条 `params`：并着问，每个最多等 `hook_millis`；回 `{"bonus": <数>}`，每个
+    /// 夹到 -1 到 1，加起来再夹一次。等不到的、核心拒了的、答错的（`bonus` 不是有限的数）照 0 算，记一行 `WARN hook failed
+    /// package=… point=qq.score why=…`。
+    pub(crate) async fn score(&self, packages: Vec<String>, params: Value) -> Nudge {
+        let wait = self.wait;
+        let asks = packages.into_iter().map(|package| {
+            let caller = self.caller.clone();
+            let call = json!({"package": package, "method": SCORE, "params": params});
+            async move {
+                let bonus = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
+                    Err(_) => Err("timeout".to_string()),
+                    // 核心断开：跟核心的那一头会读到头、桥停下；照 0 算。
+                    Ok(Err(_)) => Ok(0.0),
+                    Ok(Ok(reply)) => match reason(&reply) {
+                        Some(why) => Err(why.to_string()),
+                        None => reply["result"]["bonus"]
+                            .as_f64()
+                            .filter(|bonus| bonus.is_finite())
+                            .ok_or_else(|| "bad_answer".to_string()),
+                    },
+                };
+                let bonus = bonus.unwrap_or_else(|why| {
+                    tracing::warn!(target: TARGET, package, point = SCORE, why = %why, "hook failed");
+                    0.0
+                });
+                (package, bonus)
+            }
+        });
+        summed(join_all(asks).await)
+    }
+
     /// 锁上表。锁坏了照样用：表里只有编号和名字。
     fn lock(&self) -> MutexGuard<'_, BTreeMap<String, Vec<&'static str>>> {
         self.hooked.lock().unwrap_or_else(PoisonError::into_inner)
@@ -232,6 +280,22 @@ fn table(packages: &Value) -> BTreeMap<String, Vec<&'static str>> {
         .filter_map(|entry| Some((entry["package"].as_str()?.to_string(), points(entry))))
         .filter(|(_, points)| !points.is_empty())
         .collect()
+}
+
+/// 几个包的加分（照编号排）各夹到 -1 到 1、加起来再夹一次；给了不是 0 的记下是谁。
+fn summed(answers: Vec<(String, f64)>) -> Nudge {
+    let bonus = answers
+        .iter()
+        .map(|(_, bonus)| bonus.clamp(-NUDGE_MAX, NUDGE_MAX))
+        .sum::<f64>();
+    Nudge {
+        bonus: bonus.clamp(-NUDGE_MAX, NUDGE_MAX),
+        by: answers
+            .into_iter()
+            .filter(|(_, bonus)| *bonus != 0.0)
+            .map(|(package, _)| package)
+            .collect(),
+    }
 }
 
 /// 出站挂接点一个包的回答。

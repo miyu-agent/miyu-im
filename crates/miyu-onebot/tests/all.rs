@@ -53,6 +53,7 @@ mod replayed;
 mod replies;
 mod revived;
 mod rules;
+mod scoring;
 mod segments;
 mod settings;
 mod skip_ends;

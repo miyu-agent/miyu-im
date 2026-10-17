@@ -85,6 +85,7 @@ fn a_judged_one_writes_the_judge_and_every_part_of_the_score() {
     let judged = Judged {
         answer: &answer,
         score: Some(&scored),
+        nudge: None,
     };
     assert_eq!(
         body(&asked, Standing::Member, Some(judged)),
@@ -104,6 +105,7 @@ fn a_judged_one_writes_the_judge_and_every_part_of_the_score() {
     let declined = Judged {
         answer: &answer,
         score: Some(&low),
+        nudge: None,
     };
     assert_eq!(
         body(&asked, Standing::Member, Some(declined))["outcome"],
@@ -120,6 +122,7 @@ fn a_judged_one_writes_the_judge_and_every_part_of_the_score() {
         Some(Judged {
             answer: &unchecked,
             score: Some(&scored),
+            nudge: None,
         }),
     );
     assert!(
@@ -172,6 +175,7 @@ fn an_unjudged_one_says_why_and_is_only_recorded() {
         let judged = Judged {
             answer: &answer,
             score: None,
+            nudge: None,
         };
         let written = body(&asked, Standing::Whitelisted, Some(judged));
         let mut wanted = json!({"mode": "moderation_only", "tries": 1, "millis": 5});
@@ -221,6 +225,7 @@ fn an_unjudged_call_to_her_is_answered_and_the_rest_only_recorded() {
         let judged = Judged {
             answer: &answer,
             score: None,
+            nudge: None,
         };
         for kinds in [
             &[Kind::Direct][..],
@@ -253,6 +258,7 @@ fn an_unjudged_call_to_her_is_answered_and_the_rest_only_recorded() {
     let declined = Judged {
         answer: &answer,
         score: Some(&low),
+        nudge: None,
     };
     assert_eq!(
         body(&with(&[Kind::Direct]), Standing::Member, Some(declined))["outcome"],
@@ -262,6 +268,7 @@ fn an_unjudged_call_to_her_is_answered_and_the_rest_only_recorded() {
     let unscored = Judged {
         answer: &answer,
         score: None,
+        nudge: None,
     };
     assert_eq!(
         body(&with(&[Kind::Direct]), Standing::Member, Some(unscored))["outcome"],

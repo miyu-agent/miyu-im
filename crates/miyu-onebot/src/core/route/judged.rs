@@ -1,9 +1,10 @@
 //! 判官回来了（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 7、11、13 条）：问判官的任务交回号和回答，照号拿回在判的那
 //! 一条；被顶替放下的拿不到，回答丢掉（施工单「要定的」第 1 条）。没被放下的先把这个会话留着的推送收进投影，读出来了的算分
 //! （`score`：合起来的条件、投影里她的回复、判官回来的这一刻、交出去时套的那一份参数，「施工时定的」第 100 条），记一笔判断，
-//! 回的开一轮；判不了的主触发是冲她来的照回，别的照不回算、只记下（O-37 改，`body::finale`），运行日志另记一行为什么。
+//! 回的开一轮；判不了的主触发是冲她来的照回，别的照不回算、只记下（O-37 改，`body::finale`），运行日志另记一行为什么。判断打分
+//! 挂接点给了加分的（施工 O-43 末）算完分再加进去（`nudged`）。
 
-use miyu_chat::score;
+use miyu_chat::{nudged, score};
 
 use super::Route;
 use super::applied;
@@ -13,12 +14,12 @@ use crate::TARGET;
 use crate::core::Gone;
 
 impl Route {
-    /// 号是 `ticket` 的那一次问完了（`answer`；核心断开了的是空的，什么都不做）。
+    /// 号是 `ticket` 的那一次问完了（`answer`；核心断开了的是空的，什么都不做；`nudge` 是判断打分挂接点给的加分）。
     ///
     /// # Errors
     ///
     /// 写不出去、等的时候核心断开。
-    pub(super) async fn judged(&mut self, (ticket, answer): Asked) -> Result<(), Gone> {
+    pub(super) async fn judged(&mut self, (ticket, answer, nudge): Asked) -> Result<(), Gone> {
         let Some(answer) = answer else {
             return Ok(());
         };
@@ -34,13 +35,24 @@ impl Route {
         }
         self.catch_up(&session).await?;
         let scored = match (&answer.result, applied::clock(), self.groups.get(&session)) {
-            (Ok(judgement), Some(clock), Some(group)) => Some(score(
-                judgement,
-                &judging.pending.conditions,
-                group.replies(),
-                clock,
-                &judging.chatty,
-            )),
+            (Ok(judgement), Some(clock), Some(group)) => {
+                let conditions = &judging.pending.conditions;
+                let scored = score(
+                    judgement,
+                    conditions,
+                    group.replies(),
+                    clock,
+                    &judging.chatty,
+                );
+                let extra = nudge.as_ref().map_or(0.0, |nudge| nudge.bonus);
+                Some(nudged(
+                    &scored,
+                    extra,
+                    judgement,
+                    conditions,
+                    &judging.chatty,
+                ))
+            }
             (Ok(_), None, _) => {
                 tracing::warn!(target: TARGET, venue = %judging.tag.venue, message = judging.tag.number, "clock not readable, not scored");
                 None
@@ -54,6 +66,7 @@ impl Route {
         let judged = Judged {
             answer: &answer,
             score: scored.as_ref(),
+            nudge: nudge.as_ref(),
         };
         self.settle(
             &session,

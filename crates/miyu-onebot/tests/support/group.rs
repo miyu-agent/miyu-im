@@ -199,6 +199,26 @@ pub async fn started_judged(
     started_with_models(models, judge, (rules, words), onebot, members).await
 }
 
+/// 同 [`started_judged`]，核心起来以前照 `install` 装别的包（施工 O-43 末：挂判断打分挂接点的测试包）。
+pub async fn started_judged_installed(
+    script: &Script,
+    judge: &Server,
+    (rules, words): (&str, &str),
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
+    let more = super::judge::config(judge);
+    up_installed(
+        super::judge::models(script),
+        (&more, &Value::Null),
+        (rules, words),
+        "",
+        |napcat| napcat.answering(members),
+        install,
+    )
+    .await
+}
+
 /// 同 [`started_judged`]，请求模型照 `models`（[`super::judge::holding`] 这类）。
 pub async fn started_with_models(
     models: Arc<dyn Models>,

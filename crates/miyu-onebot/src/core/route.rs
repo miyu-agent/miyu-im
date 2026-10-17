@@ -237,7 +237,12 @@ impl Route {
         hooks: Arc<Hooks>,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
-        let judges = Judges::new(core.caller(), rules.judge_texts(), slots, personas);
+        let judges = Judges::new(
+            core.caller(),
+            rules.judge_texts(),
+            slots,
+            (personas, Arc::clone(&hooks)),
+        );
         let tools = rules.tools();
         Route {
             core,
