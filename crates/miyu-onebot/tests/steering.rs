@@ -115,7 +115,7 @@ async fn record_holds_her_back_except_for_the_admin() {
     assert_eq!(asked["from"], "onebot");
     assert_eq!(
         asked["params"],
-        json!({"venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false}),
+        json!({"venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false, "media": []}),
     );
     // 终端管理员的照回：挂接点也问了，意见不算。
     napcat.send(says(ADMIN, 2, true));
@@ -260,5 +260,33 @@ async fn reply_does_not_get_past_the_rate_limit() {
     assert_eq!(held["outcome"], "record", "{held}");
     assert!(held.get("hook").is_none(), "{held}");
     assert!(napcat.pending().is_none(), "别的什么都不发");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn the_inbound_hook_hears_what_a_message_carries() {
+    // 施工 O-52：带的东西照先后交给挂接点：第几样、种类、平台的编号、名字、字节数（表情包包偷图照它自己去取）。
+    let script = Script::new([]);
+    let (home, napcat, _) = started_installed(&script, RULES, MEMBERS, |root| {
+        hook(root, "guard", r#"{"route":"pass"}"#)
+    })
+    .await;
+    until_hooked(&home, 1).await;
+    let venue = format!("qq:group:{GROUP}");
+    let words = json!([
+        plain("看"),
+        {"type": "image", "data": {"file": "cat.png", "file_size": "2048", "sub_type": 0}},
+        {"type": "image", "data": {"file": "doge.gif", "sub_type": 1, "summary": "[动画表情]"}},
+    ]);
+    napcat.send(group_frame(GROUP, LIN, 1, words, ("小林", "lin")));
+    until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
+    let asked = &calls(&home.root, "guard")[0];
+    assert_eq!(
+        asked["params"]["media"],
+        json!([
+            {"index": 1, "kind": "image", "id": "cat.png", "size": 2048},
+            {"index": 2, "kind": "sticker", "id": "doge.gif"},
+        ])
+    );
     stopped(home).await;
 }

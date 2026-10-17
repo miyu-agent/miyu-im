@@ -1,6 +1,6 @@
 ## 给接入QQ 写扩展包
 
-状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `qq.event`，O-43 中写了 `qq.inbound`，O-43 下写了 `qq.outbound`，O-43 末写了 `qq.score`。项目主人 2026-10-17 定：接入QQ 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-onebot-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
+状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `qq.event`，O-43 中写了 `qq.inbound`，O-43 下写了 `qq.outbound`，O-43 末写了 `qq.score`，O-52 `qq.inbound` 多带 `media`。项目主人 2026-10-17 定：接入QQ 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-onebot-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
 
 ### 是什么
 
@@ -53,8 +53,11 @@ methods = ["qq.event"]             # 挂在哪几处
 
 ```json
 {"venue": "qq:group:<群号>", "bot": <机器人号>, "msg": "<平台的消息编号>", "sender": {"id": "qq:<号>", "name": "<名字>"},
- "text": "<正文，@ 已经写成名字>", "mentions_me": <@ 了 AI>, "quotes_me": <引用了 AI 的话>}
+ "text": "<正文，@ 已经写成名字>", "mentions_me": <@ 了 AI>, "quotes_me": <引用了 AI 的话>,
+ "media": [{"index": 1, "kind": "image", "id": "<平台的编号>", "name"?: "<名字>", "size"?: <字节数>}]}
 ```
+
+`media`（施工 O-52）是这条带的东西，照先后：`index` 从 1 数（同 AI 看到的 `#n`），`kind` 是 `image`、`sticker`（表情包、小黄脸、商城表情）、`video`、`file`、`voice`，`id` 是平台的编号，`name`、`size` 有的才写；没带的是空的列表。要图本身的，调第一条的 `qq.action`：`{"action": "get_image", "params": {"file": "<id>"}}`，NapCat 回本机的路径和网址（`data.file`、`data.url`）；视频、文件照 `get_file`。表情包包偷图就照这样做，接入QQ 不知道有表情包这回事。
 
 回 `{"route": "pass"}`（照常）、`{"route": "record"}`（只记下，AI 不接这一条）、`{"route": "reply"}`（当成冲 AI 来的，直接回、不过判官）。
 
