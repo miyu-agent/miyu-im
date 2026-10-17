@@ -61,17 +61,16 @@ const SKIPPED: &str = "skipped";
 const UNKNOWN: &str = "unknown";
 
 /// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段；`saved` 以后是
-/// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered` 共用。
-const ANSWERS: [(&str, &[&str]); 20] = [
+/// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered`、`not-found` 共用。施工 O-48 去掉
+/// 不让做的两句（`not-allowed`、`protected`）。
+const ANSWERS: [(&str, &[&str]); 18] = [
     ("recalled", &[]),
     ("muted", &["who", "duration"]),
     ("unmuted", &["who"]),
     ("poked", &["who"]),
-    ("not-allowed", &[]),
     ("no-quote", &[]),
     ("no-target", &[]),
     ("many-targets", &[]),
-    ("protected", &["who"]),
     ("bad-seconds", &[]),
     ("failed", &["detail"]),
     ("unreachable", &[]),

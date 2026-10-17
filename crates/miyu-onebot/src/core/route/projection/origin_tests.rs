@@ -63,7 +63,6 @@ fn the_origin_is_the_message_she_answers_with_its_quote_and_mentions() {
             sender: qq(20002),
             quote: Some(Quote {
                 msg: "1".to_string(),
-                mine: false,
                 sender: Some(qq(10001)),
             }),
             mentions: vec![qq(20003)],
@@ -83,7 +82,6 @@ fn the_origin_is_the_message_she_answers_with_its_quote_and_mentions() {
             sender: qq(20003),
             quote: Some(Quote {
                 msg: "90001".to_string(),
-                mine: true,
                 sender: None,
             }),
             mentions: Vec::new(),
@@ -104,7 +102,6 @@ fn the_origin_is_the_message_she_answers_with_its_quote_and_mentions() {
         quote,
         Some(Quote {
             msg: "777".to_string(),
-            mine: false,
             sender: None,
         })
     );

@@ -1,9 +1,8 @@
 //! 平台工具（一）的那一头（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 2、5、6 条）：读的一头把撤回、禁言、戳一戳的
 //! `tool.call` 照推送交到这里。先把这个会话留着的推送收进投影（私聊的照「怎么走」第 9 条那条路收，记下最近一条的引用），认出
-//! 叫她做的那条、谁叫的；群里叫的人和那条牵涉的人是不是终端管理员，记着的照记的，没记着的问核心的 `venue.binding`（`bindings`，
-//! 「施工时定的」第 183 条）；交 `platform.rs` 定做不做、对谁做，不做的当场答。做的另起一个任务（`chores`，同贴表情）：禁言要问
-//! 身份的先问 `get_group_member_info`，再经收进这个会话的那个机器人号那时的连接调动作，答核心。跟核心的那一头不等 NapCat
-//! （「施工时定的」第 178 条）。
+//! 叫她做的那条、谁叫的；交 `platform.rs` 定对谁做，认不出目标的当场答。做的另起一个任务（`chores`，同贴表情）：她给的撤回编号先
+//! `get_msg` 核对在不在这个会话里，再经收进这个会话的那个机器人号那时的连接调动作，答核心。跟核心的那一头不等 NapCat（「施工时
+//! 定的」第 178 条）。施工 O-48 起不挡人（谁叫的、禁谁都交给 QQ）。
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,23 +11,26 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::fields::{NAME, clean};
-use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan};
+use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
 use super::{Peer, Route};
 use crate::TARGET;
 use crate::core::{Answerer, Gone};
 use crate::listen::bots::Bots;
-use crate::onebot::{
-    CallError, MEMBER_INFO, Rank, To, delete_msg, group_ban, member_info, person, poke, rank_of,
-    said,
-};
+use crate::media::{Missed, message};
+use crate::onebot::{CallError, To, delete_msg, group_ban, person, poke, said};
 use crate::rules::{FETCH_MEDIA, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
 enum Act {
-    /// 撤这一条（平台编号原样）。
-    Recall(String),
-    /// 在这个群里禁言这个号几秒；`check` 的先问身份，群主、群管理员不动。
+    /// 撤这一条（平台编号原样）；`check` 的先 `get_msg` 核对在不在这个会话里（施工 O-48）。
+    Recall {
+        /// 平台编号。
+        msg: String,
+        /// 先核对。
+        check: bool,
+    },
+    /// 在这个群里禁言这个号几秒。
     Mute {
         /// 群号。
         group: i64,
@@ -36,8 +38,6 @@ enum Act {
         user: i64,
         /// 几秒，0 是解禁。
         seconds: u64,
-        /// 先问身份。
-        check: bool,
     },
     /// 戳这个号。
     Poke(i64),
@@ -88,9 +88,6 @@ impl Route {
             return Ok(());
         };
         let caller = Caller::read(params);
-        if matches!(peer.to, To::Group(_)) {
-            self.ask_bindings((&session, &line), &caller).await?;
-        }
         let decided = Order::read(tool, &params["args"])
             .and_then(|order| self.decide((&session, &line), &peer, order, &caller));
         let Some(decided) = decided else {
@@ -101,16 +98,12 @@ impl Route {
             Ok(act) => act,
             Err(why) => {
                 tracing::info!(target: TARGET, venue = %peer.venue, tool, why = why.name(), "platform tool refused");
-                let who = match &why {
-                    Why::Protected(user) => self.who(&peer, user),
-                    _ => String::new(),
-                };
-                answerer.answer(id, self.tools.answer(why.name(), &[("who", &who)], true));
+                answerer.answer(id, self.tools.answer(why.name(), &[], true));
                 return Ok(());
             }
         };
         let who = match &act {
-            Act::Recall(_) => String::new(),
+            Act::Recall { .. } => String::new(),
             Act::Mute { user, .. } | Act::Poke(user) => self.who_number(&peer, *user),
         };
         let job = Job {
@@ -127,8 +120,8 @@ impl Route {
         Ok(())
     }
 
-    /// 会话 `session`（发到 `peer`）里 `caller` 叫她做的 `order` 做不做、对谁做（「平台工具（一）」第 3、4 条）：群里叫她做的
-    /// 那条照投影里调用所在那条线 `line`（主线或者支线，施工 O-36），私聊照最近一条的引用。私聊里的禁言是空的。
+    /// 会话 `session`（发到 `peer`）里 `caller` 叫她做的 `order` 对谁做（「平台工具（一）」第 3、4 条）：群里叫她做的那条照投影里
+    /// 调用所在那条线 `line`（主线或者支线，施工 O-36），私聊照最近一条的引用。私聊里的禁言是空的。
     fn decide(
         &self,
         (session, line): (&str, &str),
@@ -139,77 +132,29 @@ impl Route {
         let me = person(peer.bot).ok()?;
         match peer.to {
             To::Group(_) => {
-                let projection = self.groups.get(session);
-                let now = Instant::now();
-                // 终端管理员：对应表里有的（问过核心的），或者在这个群说过的话带 `account` 的（问不到时兜底）。
-                let admin = |who: &ExternalId| {
-                    self.bindings.known(who.as_str(), now) == Some(true)
-                        || projection.is_some_and(|one| one.is_admin(who))
-                };
-                let caller = &Caller {
-                    manager: caller.manager || caller.id.as_ref().is_some_and(admin),
-                    id: caller.id.clone(),
-                };
                 let scene = Scene {
                     peer: None,
                     me: &me,
-                    whitelist: &self.whitelist,
-                    admin: &admin,
                 };
-                let origin = projection.and_then(|one| one.origin(line));
+                let origin = self.groups.get(session).and_then(|one| one.origin(line));
                 Some(plan(order, caller, origin.as_ref(), &scene))
             }
-            To::Private(_) if matches!(order, Order::Mute(_)) => None,
+            To::Private(_) if matches!(order, Order::Mute { .. }) => None,
             To::Private(user) => {
                 let other = person(user).ok()?;
                 let quote = self.quotes.get(session).cloned().flatten();
                 let origin = Origin {
                     sender: other.clone(),
-                    quote: quote.map(|msg| Quote {
-                        msg,
-                        mine: false,
-                        sender: None,
-                    }),
+                    quote: quote.map(|msg| Quote { msg, sender: None }),
                     mentions: Vec::new(),
                 };
-                let nobody = |_: &ExternalId| false;
                 let scene = Scene {
                     peer: Some(&other),
                     me: &me,
-                    whitelist: &self.whitelist,
-                    admin: &nobody,
                 };
                 Some(plan(order, caller, Some(&origin), &scene))
             }
         }
-    }
-
-    /// 群会话 `session` 里叫的人 `caller` 和叫她做的那条（调用所在那条线 `line` 的，施工 O-36）牵涉的人（发它的人、引用的那一条
-    /// 的发的人、@ 的人），没记着是不是终端管理员的问核心的 `venue.binding`，问到的记下（「平台工具（一）」第 3 条）。核心拒了的（照说不会：桥是系统账号）记一行
-    /// `WARN binding not asked`、不记，这一次照投影兜底。
-    ///
-    /// # Errors
-    ///
-    /// 写不出去、等的时候核心断开。
-    async fn ask_bindings(
-        &mut self,
-        (session, line): (&str, &str),
-        caller: &Caller,
-    ) -> Result<(), Gone> {
-        let origin = self
-            .groups
-            .get(session)
-            .and_then(|group| group.origin(line));
-        let mut people: Vec<ExternalId> = caller.id.iter().cloned().collect();
-        if let Some(origin) = origin {
-            people.push(origin.sender);
-            people.extend(origin.quote.and_then(|quote| quote.sender));
-            people.extend(origin.mentions);
-        }
-        for who in people {
-            self.terminal_admin(who.as_str()).await?;
-        }
-        Ok(())
     }
 
     /// 把会话 `session` 留着的推送收进来：群的进投影（同「群里怎么叫她」第 3 条），私聊的照「怎么走」第 9 条那条路（记下最近一条
@@ -225,8 +170,7 @@ impl Route {
         Ok(())
     }
 
-    /// 定下来的 `plan` 换成要调的动作：号解成整数；禁言秒数大于 0 的，群成员的缓存里有身份的当场挡群主、群管理员，没有的交给
-    /// 任务问。不做的交回为什么。
+    /// 定下来的 `plan` 换成要调的动作：号解成整数。认不出目标的交回为什么。
     fn act(&self, peer: &Peer, plan: Plan) -> Result<Act, Why> {
         let number = |user: &ExternalId| {
             miyu_chat::parse_person(user)
@@ -235,7 +179,7 @@ impl Route {
         };
         match plan {
             Plan::Refuse(why) => Err(why),
-            Plan::Recall(msg) => Ok(Act::Recall(msg)),
+            Plan::Recall { msg, check } => Ok(Act::Recall { msg, check }),
             Plan::Poke(user) => Ok(Act::Poke(number(&user)?)),
             Plan::Mute { user, seconds } => {
                 let id = number(&user)?;
@@ -243,25 +187,13 @@ impl Route {
                 let To::Group(group) = peer.to else {
                     return Err(Why::NoTarget);
                 };
-                let rank = self.members.rank(group, id, Instant::now());
-                if seconds > 0 && matches!(rank, Some(Rank::Owner | Rank::Admin)) {
-                    return Err(Why::Protected(user));
-                }
                 Ok(Act::Mute {
                     group,
                     user: id,
                     seconds,
-                    check: seconds > 0 && rank.is_none(),
                 })
             }
         }
-    }
-
-    /// 结果里写的人 `user`：同 [`Route::who_number`]，号解不出的写原样。
-    fn who(&self, peer: &Peer, user: &ExternalId) -> String {
-        miyu_chat::parse_person(user)
-            .and_then(|(_, number)| number.parse::<i64>().ok())
-            .map_or_else(|| user.as_str().to_string(), |id| self.who_number(peer, id))
     }
 
     /// 结果里写的号是 `user` 的人：群里照群成员缓存里的名字（洗过），没有的、私聊里的写号（「施工时定的」第 185 条）。
@@ -277,16 +209,12 @@ impl Route {
     }
 }
 
-/// 没做成的。
+/// 没做成的：答的那一句的名字（`failed`、`unreachable`、`unanswered`；她给的撤回编号不在这个会话里的 `not-found`），`failed` 的
+/// 带 NapCat 说的原因。
 #[derive(Debug, PartialEq, Eq)]
-enum Undone {
-    /// 问了身份：是群主、群管理员。
-    Protected,
-    /// NapCat 没成：答的那一句的名字（`failed`、`unreachable`、`unanswered`），`failed` 的带它说的原因。
-    Failed(&'static str, Option<String>),
-}
+struct Undone(&'static str, Option<String>);
 
-/// 办一次调用：要问身份的先问，再调动作，答核心、记运行日志（「平台工具（一）」第 5、6 条）。
+/// 办一次调用：她给的撤回编号先核对，再调动作，答核心、记运行日志（「平台工具（一）」第 5、6 条）。
 async fn run(job: Job) {
     let venue = &job.peer.venue;
     let who = job.who.as_str();
@@ -296,7 +224,7 @@ async fn run(job: Job) {
         Ok(()) => {
             tracing::info!(target: TARGET, venue = %venue, tool = job.tool, "platform tool done");
             match &job.act {
-                Act::Recall(_) => ("recalled", Vec::new(), false),
+                Act::Recall { .. } => ("recalled", Vec::new(), false),
                 Act::Mute { seconds: 0, .. } => ("unmuted", vec![("who", who)], false),
                 Act::Mute { seconds: muted, .. } => {
                     seconds = duration(*muted);
@@ -305,11 +233,7 @@ async fn run(job: Job) {
                 Act::Poke(_) => ("poked", vec![("who", who)], false),
             }
         }
-        Err(Undone::Protected) => {
-            tracing::info!(target: TARGET, venue = %venue, tool = job.tool, why = "protected", "platform tool refused");
-            ("protected", vec![("who", who)], true)
-        }
-        Err(Undone::Failed(why, detail)) => {
+        Err(Undone(why, detail)) => {
             tracing::warn!(target: TARGET, venue = %venue, tool = job.tool, why, "platform tool failed");
             let fields = detail.as_deref().map(|detail| ("detail", detail));
             (why, fields.into_iter().collect(), true)
@@ -319,31 +243,32 @@ async fn run(job: Job) {
         .answer(&job.id, job.tools.answer(name, &fields, error));
 }
 
-/// 调 `job` 的动作，经那个机器人号这时的连接；禁言要问身份的先问（「施工时定的」第 184 条：回了成功、没有 `role` 的当普通
-/// 成员）。
+/// 调 `job` 的动作，经那个机器人号这时的连接；她给的撤回编号先 `get_msg` 核对（施工 O-48）：NapCat 说没有、不在这个会话里的
+/// 答 `not-found`。
 async fn act(job: &Job) -> Result<(), Undone> {
     let Some(link) = job.bots.get(job.peer.bot) else {
-        return Err(Undone::Failed("unreachable", None));
+        return Err(Undone("unreachable", None));
     };
     let (action, params) = match &job.act {
-        Act::Recall(msg) => delete_msg(msg.as_str()),
+        Act::Recall { msg, check } => {
+            if *check {
+                let data = match message(&link, msg).await {
+                    Ok(data) => data,
+                    Err(Missed::Failed(_)) => return Err(Undone("not-found", None)),
+                    Err(Missed::Unanswered) => return Err(Undone("unanswered", None)),
+                    Err(_) => return Err(Undone("unreachable", None)),
+                };
+                if !recallable(&data, job.peer.to, job.peer.bot) {
+                    return Err(Undone("not-found", None));
+                }
+            }
+            delete_msg(msg.as_str())
+        }
         Act::Mute {
             group,
             user,
             seconds,
-            check,
-        } => {
-            if *check {
-                let asked = link
-                    .calls
-                    .call(&link.out, MEMBER_INFO, member_info(*group, *user));
-                let reply = asked.await.map_err(undone)?;
-                if matches!(rank_of(&reply["data"]), Some(Rank::Owner | Rank::Admin)) {
-                    return Err(Undone::Protected);
-                }
-            }
-            group_ban(*group, *user, *seconds)
-        }
+        } => group_ban(*group, *user, *seconds),
         Act::Poke(user) => poke(job.peer.to, *user),
     };
     link.calls
@@ -357,9 +282,9 @@ async fn act(job: &Job) -> Result<(), Undone> {
 /// 去掉首尾空白、截到 200 个字符）；等不到是 `unanswered`；没连着、断了是 `unreachable`。
 fn undone(error: CallError) -> Undone {
     match error {
-        CallError::Failed(reply) => Undone::Failed("failed", Some(said(&reply))),
-        CallError::Timeout => Undone::Failed("unanswered", None),
-        CallError::Closed => Undone::Failed("unreachable", None),
+        CallError::Failed(reply) => Undone("failed", Some(said(&reply))),
+        CallError::Timeout => Undone("unanswered", None),
+        CallError::Closed => Undone("unreachable", None),
     }
 }
 

@@ -1,25 +1,54 @@
-//! 平台工具（一）做不做、对谁做（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 3、4 条；18 第十一节）：纯逻辑。
+//! 平台工具（一）对谁做（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 3、4 条；18 第十一节）：纯逻辑。
 //!
-//! 目标从叫她做的那条取（[`Origin`]：群里是投影里主线这一轮她回的那一条，私聊是最近一条人说的话），模型不给编号、不给人：撤回
-//! 的目标以回复的那条为准。叫她做的那条和 `tool.call` 的 `by` 对不上的当没有：A 的身份配不上 B 的引用（「施工时定的」第 179 条）。
-//! 谁能叫：撤她自己的、戳一戳谁都行；撤别人的、禁言只给管理的人（`owner`，或者 `by.role` 是 `manager`）。禁言不动终端管理员、
-//! 白名单成员（这里挡），群主、群管理员要问身份（[`Plan::Mute`] 交出去以后由 `acting.rs` 挡）；解禁谁都解（第 181 条）。
+//! 施工 O-48（2026-10-17 项目主人定：工具只做动作，做不做由她判断，程序不替她判断）起不挡人：谁叫的都做，动不动得了由 QQ 说。
+//! 这里只认目标：撤回撤她给的 `msg`，没给的撤叫她做的那条引用的那一条；禁言禁她给的 `user`，没给的禁那条引用的人或者唯一 @
+//! 的人；戳一戳戳 @ 的那一个，没有的戳叫她的人（[`Origin`]：群里是投影里主线这一轮她回的那一条，私聊是最近一条人说的话）。
+//! 叫她做的那条和 `tool.call` 的 `by` 对不上的当没有：A 的身份配不上 B 的引用（「施工时定的」第 179 条）。她给的 `msg` 先核对
+//! 在不在这个会话里（[`recallable`]，同取图）：编号是数字，人打得出别的群的。
 
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
+use super::fetching::msg_id;
+use crate::onebot::{To, person};
 use crate::rules::{MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
 const MAX_SECONDS: u64 = 2_592_000;
 
+/// 她给的一个参数：没给、给了、给错了（施工 O-48）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum Arg<T> {
+    /// 没给：照叫她做的那条认。
+    Absent,
+    /// 给了。
+    Given(T),
+    /// 给了，写法不对。
+    Bad,
+}
+
+impl<T> Arg<T> {
+    /// `value` 照 `read` 读：`null` 是没给，读不出的是给错了。
+    fn read(value: &Value, read: impl Fn(&Value) -> Option<T>) -> Arg<T> {
+        match value {
+            Value::Null => Arg::Absent,
+            value => read(value).map_or(Arg::Bad, Arg::Given),
+        }
+    }
+}
+
 /// 叫她做的一件。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Order {
-    /// 撤回。
-    Recall,
-    /// 禁言几秒（0 是解禁）；没写、不是整数、出了范围的是空的。
-    Mute(Option<u64>),
+    /// 撤回：她给的消息编号（施工 O-48）。
+    Recall(Arg<String>),
+    /// 禁言。
+    Mute {
+        /// 几秒（0 是解禁）；没写、不是整数、出了范围的是空的。
+        seconds: Option<u64>,
+        /// 她给的 QQ 号（施工 O-48）。
+        user: Arg<i64>,
+    },
     /// 戳一戳。
     Poke,
 }
@@ -28,12 +57,13 @@ impl Order {
     /// 工具 `tool`、参数 `args`：不是这三件的是空的。
     pub(super) fn read(tool: &str, args: &Value) -> Option<Order> {
         match tool {
-            RECALL => Some(Order::Recall),
+            RECALL => Some(Order::Recall(Arg::read(&args["msg"], msg_id))),
             MUTE => {
                 let seconds = args["seconds"]
                     .as_u64()
                     .filter(|seconds| *seconds <= MAX_SECONDS);
-                Some(Order::Mute(seconds))
+                let user = Arg::read(&args["user"], qq_number);
+                Some(Order::Mute { seconds, user })
             }
             POKE => Some(Order::Poke),
             _ => None,
@@ -41,14 +71,22 @@ impl Order {
     }
 }
 
-/// 谁叫的（`tool.call` 的 `by`、`owner`，`providers.md`「是谁要的」）。
+/// QQ 号：正整数，或者写成正整数的字。
+fn qq_number(value: &Value) -> Option<i64> {
+    let number = match value {
+        Value::Number(number) => number.as_i64(),
+        Value::String(text) => text.trim().parse().ok(),
+        _ => None,
+    };
+    number.filter(|number| *number > 0)
+}
+
+/// 谁叫的（`tool.call` 的 `by`，`providers.md`「是谁要的」）：外部身份的 `by.id`；私聊里核心照对应表认出的终端管理员记成本人，照
+/// 它经的平台身份 `by.via`。没有触发的回合、本机的人是空的。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Caller {
-    /// 平台上的身份：外部身份的 `by.id`；私聊里核心照对应表认出的终端管理员记成本人，照它经的平台身份 `by.via`。没有触发的回合、
-    /// 本机的人是空的。
+    /// 平台上的身份。
     pub(super) id: Option<ExternalId>,
-    /// 管理的人：`owner` 是真（终端管理员，核心照对应表认的），或者 `by.role` 是 `manager`（场所规则的 `managers`）。
-    pub(super) manager: bool,
 }
 
 impl Caller {
@@ -60,10 +98,8 @@ impl Caller {
             Some("person") => by["via"].as_str(),
             _ => None,
         };
-        let id = id.and_then(|id| ExternalId::parse(id).ok());
         Caller {
-            id,
-            manager: params["owner"] == true || by["role"] == "manager",
+            id: id.and_then(|id| ExternalId::parse(id).ok()),
         }
     }
 }
@@ -84,8 +120,6 @@ pub(super) struct Origin {
 pub(super) struct Quote {
     /// 平台编号，照引用里的原样：撤它时原样还回去。
     pub(super) msg: String,
-    /// 是她发的（投影里她发过的编号）。
-    pub(super) mine: bool,
     /// 发它的人：投影里认得出的；她的、桥不认识的是空的。
     pub(super) sender: Option<ExternalId>,
 }
@@ -96,18 +130,19 @@ pub(super) struct Scene<'a> {
     pub(super) peer: Option<&'a ExternalId>,
     /// 她自己（收进这个会话的机器人号）。
     pub(super) me: &'a ExternalId,
-    /// 白名单成员的平台身份（`onebot.whitelist`）。
-    pub(super) whitelist: &'a [String],
-    /// 这个人是不是终端管理员（群里照投影，「施工时定的」第 183 条）。
-    pub(super) admin: &'a dyn Fn(&ExternalId) -> bool,
 }
 
 /// 定下来的。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Plan {
-    /// 撤平台编号是它的那一条。
-    Recall(String),
-    /// 禁言这个人这么多秒（0 是解禁）。秒数大于 0 的，群主、群管理员还没挡（要问身份）。
+    /// 撤平台编号是 `msg` 的那一条；`check` 的是她给的编号，先核对在不在这个会话里。
+    Recall {
+        /// 平台编号。
+        msg: String,
+        /// 先核对。
+        check: bool,
+    },
+    /// 禁言这个人这么多秒（0 是解禁）。
     Mute {
         /// 禁谁。
         user: ExternalId,
@@ -120,84 +155,83 @@ pub(super) enum Plan {
     Refuse(Why),
 }
 
-/// 不做的为什么：每一种答一句（`tool-results/<名字>.txt`，「平台工具（一）」第 5 条）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// 做不了的为什么：每一种答一句（`tool-results/<名字>.txt`，「平台工具（一）」第 5 条）。都是认不出目标、参数写错，不是不让做。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Why {
-    /// 不是管理的人叫她撤别人的、禁言。
-    NotAllowed,
-    /// 撤回：没引用，或者没有叫她做的那条。
+    /// 撤回：没给 `msg`，叫她做的那条又没引用（或者没有那条）。
     NoQuote,
-    /// 禁言、戳一戳：认不出人。
+    /// 撤回：`msg` 写错了，或者不在这个会话里。
+    NotFound,
+    /// 禁言、戳一戳：认不出人（`user` 写错的也是）。
     NoTarget,
     /// 禁言、戳一戳：不止一个人。
     ManyTargets,
-    /// 禁言：动不得的人。
-    Protected(ExternalId),
     /// 禁言：秒数没写、不是整数、出了范围。
     BadSeconds,
 }
 
 impl Why {
     /// 答的那一句的名字。
-    pub(super) fn name(&self) -> &'static str {
+    pub(super) fn name(self) -> &'static str {
         match self {
-            Why::NotAllowed => "not-allowed",
             Why::NoQuote => "no-quote",
+            Why::NotFound => "not-found",
             Why::NoTarget => "no-target",
             Why::ManyTargets => "many-targets",
-            Why::Protected(_) => "protected",
             Why::BadSeconds => "bad-seconds",
         }
     }
 }
 
-/// 定 `order` 做不做、对谁做：`caller` 叫的，叫她做的那条是 `origin`，场所的情形 `scene`。私聊里的禁言（`venues` 不给）由调的
-/// 一方挡在前面。
+/// 定 `order` 对谁做：`caller` 叫的，叫她做的那条是 `origin`，场所的情形 `scene`。私聊里的禁言（`venues` 不给）由调的一方挡在
+/// 前面。
 pub(super) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
     let origin = origin.filter(|origin| caller.id.as_ref() == Some(&origin.sender));
     match order {
-        Order::Recall => recall(caller, origin, scene),
-        Order::Mute(seconds) => mute(seconds, caller, origin, scene),
+        Order::Recall(msg) => recall(msg, origin),
+        Order::Mute { seconds, user } => mute(seconds, user, origin, scene),
         Order::Poke => poke(caller, origin, scene),
     }
 }
 
-/// 撤回：引用的那一条；群里别人的要管理的人叫，私聊不分（交 QQ，第 180 条）。
-fn recall(caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
-    let Some(quote) = origin.and_then(|origin| origin.quote.as_ref()) else {
-        return Plan::Refuse(Why::NoQuote);
-    };
-    if scene.peer.is_some() || quote.mine || caller.manager {
-        Plan::Recall(quote.msg.clone())
-    } else {
-        Plan::Refuse(Why::NotAllowed)
+/// 撤回：她给的编号（先核对），没给的撤引用的那一条。
+fn recall(msg: Arg<String>, origin: Option<&Origin>) -> Plan {
+    match msg {
+        Arg::Given(msg) => Plan::Recall { msg, check: true },
+        Arg::Bad => Plan::Refuse(Why::NotFound),
+        Arg::Absent => match origin.and_then(|origin| origin.quote.as_ref()) {
+            Some(quote) => Plan::Recall {
+                msg: quote.msg.clone(),
+                check: false,
+            },
+            None => Plan::Refuse(Why::NoQuote),
+        },
     }
 }
 
-/// 禁言：先看谁叫的，再看秒数，再认人。
-fn mute(seconds: Option<u64>, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
-    if !caller.manager {
-        return Plan::Refuse(Why::NotAllowed);
-    }
+/// 禁言：先看秒数，再认人：她给的号，没给的照引用的人和 @ 的人认唯一的一个。
+fn mute(seconds: Option<u64>, user: Arg<i64>, origin: Option<&Origin>, scene: &Scene) -> Plan {
     let Some(seconds) = seconds else {
         return Plan::Refuse(Why::BadSeconds);
     };
-    // 她的那一条没有发的人（她说的不是人说的话），去掉她的那一步在 `one` 里。
-    let quoted = origin
-        .and_then(|origin| origin.quote.as_ref())
-        .and_then(|quote| quote.sender.as_ref());
-    let mentions = origin
-        .map(|origin| origin.mentions.as_slice())
-        .unwrap_or_default();
-    let user = match one(quoted.into_iter().chain(mentions), scene.me) {
-        Ok(user) => user,
-        Err(why) => return Plan::Refuse(why),
+    let user = match user {
+        Arg::Given(number) => person(number).map_err(|_| Why::NoTarget),
+        Arg::Bad => Err(Why::NoTarget),
+        Arg::Absent => {
+            // 她的那一条没有发的人（她说的不是人说的话），去掉她的那一步在 `one` 里。
+            let quoted = origin
+                .and_then(|origin| origin.quote.as_ref())
+                .and_then(|quote| quote.sender.as_ref());
+            let mentions = origin
+                .map(|origin| origin.mentions.as_slice())
+                .unwrap_or_default();
+            one(quoted.into_iter().chain(mentions), scene.me)
+        }
     };
-    let protected = (scene.admin)(&user) || scene.whitelist.iter().any(|one| one == user.as_str());
-    if seconds > 0 && protected {
-        return Plan::Refuse(Why::Protected(user));
+    match user {
+        Ok(user) => Plan::Mute { user, seconds },
+        Err(why) => Plan::Refuse(why),
     }
-    Plan::Mute { user, seconds }
 }
 
 /// 戳一戳：私聊戳对方；群里 @ 的那一个，没有的戳叫她的人。
@@ -233,6 +267,21 @@ fn one<'a>(
         [] => Err(Why::NoTarget),
         [only] => Ok((*only).clone()),
         _ => Err(Why::ManyTargets),
+    }
+}
+
+/// 她给的编号 `get_msg` 回的那一条 `data` 撤不撤得到（施工 O-48，同取图核对归属）：群里是这个群的（`group_id`），她的、别人的
+/// 都算；私聊里是私聊的（`message_type` 是 `private`），发的人是对方或者她（机器人号 `bot`）。号写成整数的字也认。
+pub(super) fn recallable(data: &Value, to: To, bot: i64) -> bool {
+    let is = |key: &str, number: i64| {
+        data[key].as_i64() == Some(number)
+            || data[key].as_str() == Some(number.to_string().as_str())
+    };
+    match to {
+        To::Group(group) => is("group_id", group),
+        To::Private(user) => {
+            data["message_type"] == "private" && (is("user_id", user) || is("user_id", bot))
+        }
     }
 }
 

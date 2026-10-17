@@ -51,11 +51,7 @@ pub(super) struct Wanted {
 /// 读参数（纯逻辑）：`msg` 是整数，或者写成十进制整数的字（最多 20 位，前面可以有负号），别的交回 `not-found`；`index` 不写是 1，
 /// 是正整数（字也认）的照它，别的是 0。
 pub(super) fn wanted(args: &Value) -> Result<Wanted, &'static str> {
-    let msg = match &args["msg"] {
-        Value::Number(number) if number.is_i64() => number.to_string(),
-        Value::String(text) if integer(text) => text.clone(),
-        _ => return Err("not-found"),
-    };
+    let msg = msg_id(&args["msg"]).ok_or("not-found")?;
     let index = match &args["index"] {
         Value::Null => 1,
         Value::Number(number) => number
@@ -66,6 +62,16 @@ pub(super) fn wanted(args: &Value) -> Result<Wanted, &'static str> {
         _ => 0,
     };
     Ok(Wanted { msg, index })
+}
+
+/// 她给的消息编号 `value`（纯逻辑）：整数，或者写成十进制整数的字（最多 20 位，前面可以有负号），交回写成字的；别的是空的。撤回的
+/// `msg` 也照它读（施工 O-48）。
+pub(super) fn msg_id(value: &Value) -> Option<String> {
+    match value {
+        Value::Number(number) if number.is_i64() => Some(number.to_string()),
+        Value::String(text) if integer(text) => Some(text.clone()),
+        _ => None,
+    }
 }
 
 /// 是不是十进制整数：可以有一个负号，1 到 20 位数字。

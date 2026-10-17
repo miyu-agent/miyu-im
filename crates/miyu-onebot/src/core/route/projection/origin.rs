@@ -15,7 +15,6 @@ impl Projection {
         let aimed = self.said.get(&self.track(line)?.running.as_ref()?.aim?)?;
         let quote = aimed.reply_to.as_ref().map(|msg| Quote {
             msg: msg.clone(),
-            mine: self.mine(msg),
             sender: self
                 .said
                 .values()

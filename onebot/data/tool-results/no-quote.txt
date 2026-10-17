@@ -1,1 +1,1 @@
-Not done: they must reply to the message to recall, then ask again.
+Not done: give the msg= id, or they must reply to the message to recall.

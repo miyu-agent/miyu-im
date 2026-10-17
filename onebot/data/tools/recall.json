@@ -1,4 +1,4 @@
 {
-  "description": "Recall the message quoted by the message you are answering.",
-  "parameters": {"type":"object","properties":{}}
+  "description": "Recall a QQ message: the msg= one, else the one quoted by the message you are answering.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string"}}}
 }

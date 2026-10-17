@@ -1,7 +1,7 @@
 //! 平台工具（一）：撤回、禁言、戳一戳（施工 O-31，`onebot.md` 第一条「平台工具（一）」；18 第十一节）：真核心拉起真桥、假 NapCat、
 //! 她照台词说（`support/speaking.rs`）。叫她做的那一条开一轮（终端管理员 @ 她的自己开，别的照判官点了头的样子开），她调工具，
-//! 看 NapCat 收到的动作和参数、她收到的结果。往坏里测：昵称冒充终端管理员、目标是她自己、目标是群主和管理员、没引用也没 @、
-//! @ 了两个人、引用的是她自己的消息叫她禁言。
+//! 看 NapCat 收到的动作和参数、她收到的结果。施工 O-48 起不挡人：昵称冒充终端管理员的、普通成员叫她撤别人的、禁群主和终端管理员
+//! 的都照做。往坏里测：目标是她自己、没引用也没 @、@ 了两个人、引用的是她自己的消息叫她禁言、她给的编号是别的群的、号写错。
 
 use serde_json::json;
 
@@ -11,7 +11,7 @@ use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
 #[tokio::test]
-async fn recall_takes_the_quoted_message_and_only_managers_recall_others() {
+async fn recall_takes_the_quoted_message_or_the_msg_she_gives_for_anyone() {
     let lines = Lines::new(
         [
             uses("recall", "{}"),
@@ -19,6 +19,9 @@ async fn recall_takes_the_quoted_message_and_only_managers_recall_others() {
             uses("recall", "{}"),
             uses("recall", "{}"),
             uses("recall", "{}"),
+            uses("recall", r#"{"msg":"555"}"#),
+            uses("recall", r#"{"msg":"666"}"#),
+            uses("recall", r#"{"msg":"777"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -43,13 +46,14 @@ async fn recall_takes_the_quoted_message_and_only_managers_recall_others() {
         ["mute", "poke", "recall"],
         "群会话的工具面里三件都有（照名字排）"
     );
-    // 她那一轮说的「好。」是 FIRST_SENT。冒充终端管理员的普通成员叫她撤别人的：不能。
+    // 施工 O-48：普通成员（昵称冒充终端管理员的也是）叫她撤别人的：照撤，做不做由她，成不成由 QQ。
     let words = json!([quote(101), plain("撤了")]);
     assert_eq!(
         asks(&home, &napcat, IMPOSTOR, 103, words, 2).await,
-        refused("not-allowed", &[])
+        done("recalled", &[])
     );
-    // 撤她自己的：谁叫都行。
+    assert_eq!(napcat.recalled().await, json!({"message_id": "101"}));
+    // 撤她自己的。
     let words = json!([quote(FIRST_SENT), plain("你撤回一下")]);
     assert_eq!(
         asks(&home, &napcat, IMPOSTOR, 104, words, 3).await,
@@ -59,13 +63,13 @@ async fn recall_takes_the_quoted_message_and_only_managers_recall_others() {
         napcat.recalled().await,
         json!({"message_id": FIRST_SENT.to_string()})
     );
-    // 没引用：回提示，不撤。
+    // 没引用、没给编号：回提示，不撤。
     let words = json!([plain("撤一下")]);
     assert_eq!(
         asks(&home, &napcat, MANAGER, 105, words, 4).await,
         refused("no-quote", &[])
     );
-    // 管理的人叫她撤别人的：她在群里撤不了，NapCat 回失败，原话截到 200 个字符交回。
+    // NapCat 撤不了：原话截到 200 个字符交回。
     let words = json!([quote(UNRECALLABLE), plain("撤这条")]);
     let detail: String = unrecallable().trim().chars().take(200).collect();
     assert_eq!(
@@ -76,12 +80,37 @@ async fn recall_takes_the_quoted_message_and_only_managers_recall_others() {
         napcat.recalled().await,
         json!({"message_id": UNRECALLABLE.to_string()})
     );
+    // 她给了编号：先 `get_msg` 核对是这个群的，撤它。
+    napcat.stock_message(
+        555,
+        json!({"message_type": "group", "group_id": GROUP, "user_id": MEMBER, "message": []}),
+    );
+    let words = json!([plain("把刚才那条撤了")]);
+    assert_eq!(
+        asks(&home, &napcat, MEMBER, 107, words, 6).await,
+        done("recalled", &[])
+    );
+    assert_eq!(napcat.recalled().await, json!({"message_id": "555"}));
+    // 别的群的编号、NapCat 找不到的编号：不撤，答找不到。
+    napcat.stock_message(
+        666,
+        json!({"message_type": "group", "group_id": GROUP + 1, "user_id": MEMBER, "message": []}),
+    );
+    assert_eq!(
+        asks(&home, &napcat, MEMBER, 108, json!([plain("撤 666")]), 7).await,
+        refused("not-found", &[])
+    );
+    assert_eq!(
+        asks(&home, &napcat, MEMBER, 109, json!([plain("撤 777")]), 8).await,
+        refused("not-found", &[])
+    );
+    assert!(napcat.pending_recall().is_none(), "这两条都没撤");
     no_platform(&mut napcat);
     stopped(home).await;
 }
 
 #[tokio::test]
-async fn mute_takes_one_person_from_the_quote_or_the_mention() {
+async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_mention() {
     let lines = Lines::new(
         [
             uses("mute", r#"{"seconds":600}"#),
@@ -91,6 +120,8 @@ async fn mute_takes_one_person_from_the_quote_or_the_mention() {
             uses("mute", r#"{"seconds":60}"#),
             uses("mute", r#"{"seconds":2592001}"#),
             uses("mute", r#"{"seconds":2592000}"#),
+            uses("mute", r#"{"seconds":120,"user":40005}"#),
+            uses("mute", r#"{"seconds":120,"user":"小杰"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -128,19 +159,23 @@ async fn mute_takes_one_person_from_the_quote_or_the_mention() {
         json!({"group_id": GROUP, "user_id": MEMBER, "duration": 0})
     );
     assert_eq!(ended(&home, 2).await, done("unmuted", &[("who", "小明")]));
-    // 群名片写成「终端管理员」的普通成员：不能叫她禁言。
+    // 施工 O-48：群名片写成「终端管理员」的普通成员叫她禁言也照禁，做不做由她。
     let words = json!([at(MEMBER), plain(" 禁了")]);
     assert_eq!(
         asks(&home, &napcat, IMPOSTOR, 204, words, 3).await,
-        refused("not-allowed", &[])
+        done("muted", &[("who", "小明"), ("duration", "1m")])
     );
-    // 管理的人 @ 了两个人：不猜。
+    assert_eq!(
+        next_platform(&mut napcat).await["params"]["user_id"],
+        MEMBER
+    );
+    // @ 了两个人：不猜。
     let words = json!([at(MEMBER), at(IMPOSTOR), plain(" 都禁了")]);
     assert_eq!(
         asks(&home, &napcat, MANAGER, 205, words, 4).await,
         refused("many-targets", &[])
     );
-    // 管理的人引用的是她自己的消息（第一轮说的「好。」）：不算她，没有人。
+    // 引用的是她自己的消息（第一轮说的「好。」）：不算她，没有人。
     let words = json!([quote(FIRST_SENT), plain("禁言")]);
     assert_eq!(
         asks(&home, &napcat, MANAGER, 206, words, 5).await,
@@ -160,16 +195,31 @@ async fn mute_takes_one_person_from_the_quote_or_the_mention() {
     );
     let action = next_platform(&mut napcat).await;
     assert_eq!(action["params"]["duration"], 2_592_000);
+    // 她给了号：禁那个人，引用的、@ 的不看（白名单成员也照禁）。小杰没在群里说过话，结果里写号（「施工时定的」第 185 条）。
+    let words = json!([at(MEMBER), plain(" 禁小杰两分钟")]);
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 209, words, 8).await,
+        done("muted", &[("who", "40005"), ("duration", "2m")])
+    );
+    let action = next_platform(&mut napcat).await;
+    assert_eq!(
+        action["params"],
+        json!({"group_id": GROUP, "user_id": FRIEND, "duration": 120})
+    );
+    // 号写错了：认不出人。
+    let words = json!([plain("禁小杰")]);
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 210, words, 9).await,
+        refused("no-target", &[])
+    );
     no_platform(&mut napcat);
     stopped(home).await;
 }
 
 #[tokio::test]
-async fn mute_never_touches_the_owner_admins_the_terminal_admin_or_the_whitelisted() {
+async fn mute_holds_no_one_back_and_asks_nothing_first() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
             uses("mute", r#"{"seconds":60}"#),
             uses("mute", r#"{"seconds":60}"#),
             uses("mute", r#"{"seconds":60}"#),
@@ -183,47 +233,27 @@ async fn mute_never_touches_the_owner_admins_the_terminal_admin_or_the_whitelist
     let words = json!([at(BOT), plain(" 禁言")]);
     says(&home, &napcat, (ADMIN, "member"), 301, words).await;
     assert_eq!(ended(&home, 1).await, refused("no-target", &[]));
-    // 群主说的话没带身份：禁他以前问 NapCat。
+    // 施工 O-48：群主、终端管理员、终端管理员的小号都照禁，桥不先问身份；动不动得了由 QQ 说。
     says(&home, &napcat, (OWNER, ""), 3021, json!([plain("开会")])).await;
     let words = json!([quote(3021), plain("禁了")]);
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 302, words, 2).await,
-        refused("protected", &[("who", "群主")])
+        asks(&home, &napcat, MEMBER, 302, words, 2).await,
+        done("muted", &[("who", "群主"), ("duration", "1m")])
     );
-    assert!(napcat.asked().contains(&OWNER), "问过群主的身份");
-    // QQ 的管理员说过话：身份照消息带的记下，不再问。
-    says(
-        &home,
-        &napcat,
-        (QQ_ADMIN, "admin"),
-        303,
-        json!([plain("在")]),
-    )
-    .await;
-    let words = json!([quote(303), plain("禁他")]);
-    assert_eq!(
-        asks(&home, &napcat, MANAGER, 304, words, 3).await,
-        refused("protected", &[("who", "管理员")])
-    );
-    assert!(!napcat.asked().contains(&QQ_ADMIN), "记下了的不问");
-    // 白名单成员。
-    let words = json!([at(FRIEND), plain(" 禁了")]);
-    assert_eq!(
-        asks(&home, &napcat, MANAGER, 305, words, 4).await,
-        refused("protected", &[("who", "小杰")])
-    );
-    // 终端管理员：引用他在这个群说过的那一条。
+    assert_eq!(next_platform(&mut napcat).await["params"]["user_id"], OWNER);
+    assert!(!napcat.asked().contains(&OWNER), "不问群主的身份");
     let words = json!([quote(301), plain("禁他")]);
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 306, words, 5).await,
-        refused("protected", &[("who", "老板")])
+        asks(&home, &napcat, MEMBER, 303, words, 3).await,
+        done("muted", &[("who", "老板"), ("duration", "1m")])
     );
-    // 终端管理员的另一个号（对应表里有，没在这个群说过话）：照 `venue.binding` 认，照样不禁。
+    assert_eq!(next_platform(&mut napcat).await["params"]["user_id"], ADMIN);
     let words = json!([at(ALT), plain(" 禁了")]);
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 307, words, 6).await,
-        refused("protected", &[("who", "小号")])
+        asks(&home, &napcat, MEMBER, 304, words, 4).await,
+        done("muted", &[("who", "小号"), ("duration", "1m")])
     );
+    assert_eq!(next_platform(&mut napcat).await["params"]["user_id"], ALT);
     no_platform(&mut napcat);
     stopped(home).await;
 }

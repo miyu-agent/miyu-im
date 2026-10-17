@@ -13,7 +13,7 @@ fn failed(reply: serde_json::Value) -> Undone {
 
 #[test]
 fn a_refusal_carries_what_napcat_said() {
-    let said = |text: &str| Undone::Failed("failed", Some(text.to_string()));
+    let said = |text: &str| Undone("failed", Some(text.to_string()));
     assert_eq!(
         failed(
             json!({"status": "failed", "retcode": 200, "message": "  cannot ban owner ", "wording": "x"})
@@ -39,12 +39,6 @@ fn a_refusal_carries_what_napcat_said() {
 
 #[test]
 fn no_answer_and_a_dropped_link_are_their_own_sentences() {
-    assert_eq!(
-        undone(CallError::Timeout),
-        Undone::Failed("unanswered", None)
-    );
-    assert_eq!(
-        undone(CallError::Closed),
-        Undone::Failed("unreachable", None)
-    );
+    assert_eq!(undone(CallError::Timeout), Undone("unanswered", None));
+    assert_eq!(undone(CallError::Closed), Undone("unreachable", None));
 }
