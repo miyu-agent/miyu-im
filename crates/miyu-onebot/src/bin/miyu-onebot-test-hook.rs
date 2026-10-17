@@ -9,6 +9,7 @@
 //! - `slow:<方法>`：这个方法收了不答。
 //! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
 //!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
+//! - `render:<路径>`：扮渲染包（施工 O-59 上）：把这个图经 `blob.put` 传上去，`markdown` 答两页、都是它。清单要导出 `markdown`。
 //!
 //! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法（有 `sticker:` 的另经 `provide` 登记那件
 //! 工具），然后一直读标准输入，读到头退出。
@@ -31,6 +32,7 @@ fn main() {
     let mut record: Option<File> = None;
     let mut answers: BTreeMap<String, Answer> = BTreeMap::new();
     let mut sticker: Option<String> = None;
+    let mut render: Option<String> = None;
     for arg in std::env::args().skip(1) {
         if let Some(path) = arg.strip_prefix("record:") {
             record = Some(
@@ -48,12 +50,23 @@ fn main() {
             answers.insert(method.to_string(), Answer::Silent);
         } else if let Some(path) = arg.strip_prefix("sticker:") {
             sticker = Some(path.to_string());
+        } else if let Some(path) = arg.strip_prefix("render:") {
+            render = Some(path.to_string());
         }
     }
     let stdin = io::stdin();
     let mut input = stdin.lock();
     let hello = json!({"protocol": [1, 1], "head": {"kind": "test-hook", "version": "0"}});
     ask(&mut input, "hello", hello);
+    // 扮渲染包（施工 O-59 上）：图先传上去，`markdown` 照它答两页。
+    if let Some(path) = render {
+        let put = ask(&mut input, "blob.put", json!({"path": path}));
+        let page = json!({"blob": put["result"]["blob"], "width": 1, "height": 1});
+        answers.insert(
+            "markdown".to_string(),
+            Answer::With(json!({"pages": [page, page]})),
+        );
+    }
     let methods: Vec<Value> = answers.keys().map(|name| json!({"name": name})).collect();
     ask(&mut input, "package.methods", json!({"methods": methods}));
     // 发出去的那张图（施工 O-51）：传上去，交回的 `blob`、媒体类型、宽高照原样放进 `sent`。

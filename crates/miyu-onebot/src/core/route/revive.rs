@@ -159,6 +159,8 @@ impl Route {
             }
             if passed.pieces.first() != first.as_ref() {
                 passed.lead = Lead::default();
+                // 发出去了一部分：长文照剩下的几段判、画（施工 O-59 上），不把发过的再画一遍。
+                passed.text = passed.pieces.join("\n\n");
             }
             let chars = said.text.chars().count();
             tracing::info!(target: TARGET, venue = %peer.venue, chars, "reply resent");

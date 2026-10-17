@@ -60,7 +60,7 @@ pub use outbound::{
     Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since, Target,
     split,
 };
-pub use params::Params;
+pub use params::{LongText, Params};
 pub use rules::{
     Entry, File, Origin, Parsed, Problem, Resolved, Rules, Source, Venue, VenueKind, parse_person,
     person,

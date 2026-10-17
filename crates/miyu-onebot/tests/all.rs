@@ -33,6 +33,7 @@ mod lanes;
 mod linking;
 mod listen;
 mod logs;
+mod long_text;
 mod lookup;
 mod media;
 mod members;

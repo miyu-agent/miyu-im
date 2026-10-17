@@ -45,6 +45,8 @@ fn factory() -> Params {
         },
         outbound: outbound_support::ctx().outbound,
         split_chars: 3000,
+        long_text: crate::LongText::Image,
+        long_chars: 300,
     }
 }
 

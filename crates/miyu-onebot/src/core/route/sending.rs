@@ -24,7 +24,7 @@ use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::core::{Gone, reason};
-use crate::onebot::{CallError, Lead, To, image_to, message_to};
+use crate::onebot::{CallError, Lead, To, image_to, message_to, picture_to};
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.onebot.venues.failed";
@@ -61,6 +61,8 @@ pub(super) enum What {
     },
     /// 她发出去的一张图（施工 O-51，`stickers`：核心的工具结果里的 `sent`，表情包包发的那种）：一张一条，正文是空的。
     Image(Box<Image>),
+    /// 她的一句长文画成的一页（施工 O-59 上，`long`）：第一页的正文是全文，算她的话；后面几页正文是空的。
+    Page(Box<Page>),
     /// 命令回执、被拒的那一句：`recall` 是群里回了编号的要不要过几秒撤回（施工 O-47：照 `onebot.recall_receipts`）。
     Receipt {
         /// 撤不撤。
@@ -83,6 +85,17 @@ pub(super) struct Image {
     pub(super) sticker: bool,
     /// NapCat 认的 `base64://…`：入队以前读好。
     pub(super) file: String,
+}
+
+/// 长文画成的一页（施工 O-59 上）：图照发图的写法（线、回合、blob、名字、读好的 `base64://…`），另带她回的人、是不是第一页。
+#[derive(Debug, Clone)]
+pub(super) struct Page {
+    /// 这一页的图。
+    pub(super) image: Image,
+    /// 这一轮回的人；私聊的是空的。只有第一页记进 `venue.delivered`。
+    pub(super) to: Vec<ExternalId>,
+    /// 是第一页：带全文、引用和 @，算她的话（进投影、退信）。
+    pub(super) first: bool,
 }
 
 /// 要说出去的一段：是什么、正文（不带引用、@）、前面带的引用和 @。
@@ -135,7 +148,7 @@ impl Route {
         let Some(peer) = self.peers.get(session).cloned() else {
             return Ok(());
         };
-        if piece.text.trim().is_empty() && !matches!(piece.what, What::Image(_)) {
+        if piece.text.trim().is_empty() && !matches!(piece.what, What::Image(_) | What::Page(_)) {
             return Ok(());
         }
         let chars = piece.text.chars().count();
@@ -147,15 +160,20 @@ impl Route {
         let Some(queued) = self.append(session, id, QUEUED, body).await? else {
             return Ok(());
         };
-        if let What::Reply { line, turn, .. } = &piece.what {
+        let said = match &piece.what {
+            What::Reply { line, turn, .. } => Some((line, *turn)),
+            What::Page(page) if page.first => Some((&page.image.line, page.image.turn)),
+            _ => None,
+        };
+        if let Some((line, turn)) = said {
             match (peer.to, self.groups.get_mut(session)) {
-                (To::Group(_), Some(group)) => group.queued(line, *turn, &piece.text),
+                (To::Group(_), Some(group)) => group.queued(line, turn, &piece.text),
                 (To::Group(_), None) => {}
                 (To::Private(_), _) => self
                     .spoken
                     .entry(session.to_string())
                     .or_default()
-                    .add(*turn, piece.text.clone()),
+                    .add(turn, piece.text.clone()),
             }
         }
         if let Some(why) = self.shut(session, clock.now) {
@@ -227,6 +245,7 @@ impl Route {
             Some(link) => {
                 let (action, params) = match &item.piece.what {
                     What::Image(image) => image_to(peer.to, &image.file, image.sticker),
+                    What::Page(page) => picture_to(peer.to, &page.image.file, &item.piece.lead),
                     _ => message_to(peer.to, &item.piece.text, &item.piece.lead),
                 };
                 link.calls.begin(&link.out, action, params).await
@@ -289,7 +308,13 @@ impl Route {
                 let body = json!({"line": line, "turn": turn, "to": to, "msg": msg.to_string(), "text": item.piece.text, "images": []});
                 self.append(&session, None, DELIVERED, body).await.map(drop)
             }
-            (What::Reply { .. } | What::Image(_), None) => {
+            // 长文的一页（施工 O-59 上）：第一页同她的话（全文、回的人），后面几页只有图；`images` 都是那一页。
+            (What::Page(page), Some(msg)) => {
+                let to = if page.first { page.to } else { Vec::new() };
+                let body = json!({"line": page.image.line, "turn": page.image.turn, "to": to, "msg": msg.to_string(), "text": item.piece.text, "images": [page.image.blob]});
+                self.append(&session, None, DELIVERED, body).await.map(drop)
+            }
+            (What::Reply { .. } | What::Image(_) | What::Page(_), None) => {
                 tracing::warn!(target: TARGET, venue = %venue, chars, "delivered without a message id");
                 Ok(())
             }
@@ -340,6 +365,16 @@ impl Route {
                 let detail = detail.unwrap_or_default();
                 self.unsent_image(image, (why, &detail)).await
             }
+            // 长文的第一页照她的话退信，后面几页照发图记 `unshown`（施工 O-59 上）。
+            What::Page(ref page) if page.first => {
+                let detail = detail.unwrap_or_default();
+                self.undelivered((session, &page.image.line), &venue, item, (why, &detail))
+                    .await
+            }
+            What::Page(ref page) => {
+                let detail = detail.unwrap_or_default();
+                self.unsent_image(&page.image, (why, &detail)).await
+            }
             What::Receipt { .. } => Ok(()),
         }
     }
@@ -384,7 +419,7 @@ impl Route {
     }
 }
 
-/// 入队那一条的 `body`（第 2 条）：`{kind, text}`，她的话另带 `line`（她说它的那条线，主线或者支线，施工 O-36）、`turn`，提示
+/// 入队那一条的 `body`（第 2 条）：`{kind, text}`，她的话（长文的第一页也是，另带 `blob`）另带 `line`（她说它的那条线，主线或者支线，施工 O-36）、`turn`，提示
 /// 另带 `reason`。
 fn queued_body(piece: &Piece) -> Value {
     match &piece.what {
@@ -394,6 +429,13 @@ fn queued_body(piece: &Piece) -> Value {
         What::Receipt { .. } => json!({"kind": RECEIPT, "text": piece.text}),
         What::Image(image) => {
             json!({"kind": IMAGE, "blob": image.blob, "sticker": image.sticker, "line": image.line, "turn": image.turn})
+        }
+        // 长文的第一页记成她的话（去重、补发都认它），另带 blob；后面几页记成图（施工 O-59 上）。
+        What::Page(page) if page.first => {
+            json!({"kind": REPLY, "text": piece.text, "line": page.image.line, "turn": page.image.turn, "blob": page.image.blob})
+        }
+        What::Page(page) => {
+            json!({"kind": IMAGE, "blob": page.image.blob, "sticker": false, "line": page.image.line, "turn": page.image.turn})
         }
     }
 }

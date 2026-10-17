@@ -58,6 +58,7 @@ mod impostor;
 mod judged;
 mod judges;
 mod lanes;
+mod long;
 mod lookup;
 mod mentions;
 mod muted;

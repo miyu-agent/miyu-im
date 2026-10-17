@@ -147,7 +147,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     let Some(link) = job.bots.get(job.peer.bot) else {
         return Err(("unreachable", String::new()));
     };
-    let bytes = read(&job.caller, &job.line, &job.file.blob)
+    let bytes = read(&job.caller, Some(&job.line), &job.file.blob)
         .await
         .map_err(|why| ("unreadable", why))?;
     let file = format!("base64://{}", STANDARD.encode(bytes));
@@ -164,12 +164,18 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
 }
 
 /// 经 `blob.get` 把会话 `session` 里出现过的 blob `blob` 一块块读完。读不成的交回原因（核心的原因码、`gone`、写法不对）。表情包
-/// 也照它读（施工 O-51，`stickers`）。
-pub(super) async fn read(caller: &Caller, session: &str, blob: &str) -> Result<Vec<u8>, String> {
+/// 也照它读（施工 O-51，`stickers`）；长文画成的图（施工 O-59 上，`long`）不写会话：渲染包传的在管理员名下。
+pub(super) async fn read(
+    caller: &Caller,
+    session: Option<&str>,
+    blob: &str,
+) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     loop {
-        let params =
-            json!({"blob": blob, "session": session, "offset": bytes.len(), "length": CHUNK});
+        let mut params = json!({"blob": blob, "offset": bytes.len(), "length": CHUNK});
+        if let Some(session) = session {
+            params["session"] = json!(session);
+        }
         let reply = caller
             .call("blob.get", params)
             .await

@@ -257,16 +257,20 @@ impl Route {
     }
 
     /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @；她这一轮在这条线上用 `mention`
-    /// 指定了要 @ 的（施工 O-55，`mentions`），第一段也带上、用掉。
+    /// 指定了要 @ 的（施工 O-55，`mentions`），第一段也带上、用掉。照场所参数是长文的先试着画成图（施工 O-59 上）。
     pub(super) async fn say(
         &mut self,
         session: &str,
         passed: Passed,
         what: What,
     ) -> Result<(), Gone> {
-        let mut lead = passed.lead;
+        let mut lead = passed.lead.clone();
         if let What::Reply { line, turn, .. } = &what {
             lead.more = self.take_mentions(line, *turn);
+        }
+        // 长文画成图（施工 O-59 上，`long`）：画成了的一页一段入队；不是长文、画不成的照拆段。
+        if self.say_long(session, (&passed, &what), &mut lead).await? {
+            return Ok(());
         }
         for text in passed.pieces {
             let piece = Piece {

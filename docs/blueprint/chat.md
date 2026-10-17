@@ -607,6 +607,8 @@ restraint_half_life = "3m"
 | `outbound.similar` | 整数 1 到 100，百分比 | 66 | `Outbound::similar` |
 | `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
 | `outbound.split_chars` | 整数 0 到 100000 | 3000 | `Params::split_chars`：交给第五条的 `split`，`0` 是不拆 |
+| `outbound.long_text` | 选项 `split`、`image` | `image` | `Params::long_text`（`LongText`，施工 O-59 上）：超过 `long_chars` 的一句怎么发，桥照它拆段或者画成图 |
+| `outbound.long_chars` | 整数 0 到 100000 | 300 | `Params::long_chars`：超过几个字算长文，`0` 是不算 |
 | `outbound.invisible` | 文字的列表，每项正好一个字符，可以是空的列表 | U+200B 到 U+200F、U+2060 到 U+2064、U+FEFF、U+00AD、U+180E、U+2028、U+2029，十五个，一个一项（O-15 下） | `Outbound::invisible`：清理判空时和空白一样算 |
 | `outbound.leak_open` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | `<tool_call>`、`<function=`（O-15 下） | `Outbound::leak_open`：漏进来的工具调用从哪开始 |
 | `outbound.leak_close` | 同 `leak_open`，和它一样长（「怎么走」第 7 条） | `</tool_call>`、`</function>`（O-15 下） | `Outbound::leak_close`：照位置和 `leak_open` 一一对上 |
@@ -632,7 +634,7 @@ Rust 这一边：
 |---|---|
 | `Params::read(&file) -> Result<Params, Vec<Problem>>` | 读出厂文件（第一条的 `File`）：每一项都在、都合声明的，交回 `Params`；有一条问题就整份不用，交回全部问题（第一条的 `Problem`） |
 | `params.at(&resolved) -> Params` | 套上场所规则改的几项：`Rules::resolve` 交出的 `Resolved` 里键是 `表.项` 的，各自换上去 |
-| `Params { base64, chatty, supersede_window, judge, outbound, split_chars }` | 第二到第六条要的那几样：`Base64`、`Chatty`、顶替窗口（毫秒）、判官的几项、`Outbound`、拆段的长度（字符数）。格公开，桥照它读 |
+| `Params { base64, chatty, supersede_window, judge, outbound, split_chars, long_text, long_chars }` | 第二到第六条要的那几样：`Base64`、`Chatty`、顶替窗口（毫秒）、判官的几项、`Outbound`、拆段的长度（字符数）、长文怎么发和阈值（施工 O-59 上）。格公开，桥照它读 |
 | `Judge { model, records, persona, max_tokens, timeout, moderation_timeout, retries, reason_chars }` | 判官的几项：模型（`None` 照 `models.chat`）、看几条记录、带不带人格的说明（O-23 补）、最多输出、超时和只查违规的超时（毫秒）、重试几次、理由最长几个字符。格公开，桥照它调 `model.call` |
 | `Base64`、`Chatty`、`Window`、`Restraint`、`Outbound` | 格只在 crate 里可见，外面造不出，只能从 `Params` 拿（照 O-12 下 `Rate`、`Sleep` 的做法）：拿到的都照声明查过，`Outbound` 的两份标记一样长 |
 

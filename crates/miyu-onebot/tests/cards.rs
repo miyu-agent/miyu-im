@@ -23,7 +23,7 @@ const OTHER: i64 = 666;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\noutbound = { long_chars = 5000 }\n";
 
 /// 平台编号是 `message` 的那一条判下来的样子。
 fn decided(events: &[Value], message: i64) -> Option<Value> {
@@ -197,6 +197,15 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         json!({"value": true, "from": "factory"})
     );
     assert_eq!(group["persona"], json!({"value": null, "from": null}));
+    // 长文（施工 O-59 上）：转成图是出厂的，阈值照系统的规则。
+    assert_eq!(
+        group["long_text"],
+        json!({"value": "image", "from": "factory"})
+    );
+    assert_eq!(
+        group["long_chars"],
+        json!({"value": 5000, "from": "system"})
+    );
     assert_eq!(got["defaults"]["other_groups"]["rate"]["value"], "5/300s");
     let private = &got["defaults"]["privates"][LIN.to_string()];
     assert_eq!(private["strip_period"]["value"], true, "{private}");

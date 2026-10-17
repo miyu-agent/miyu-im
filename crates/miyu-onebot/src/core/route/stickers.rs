@@ -87,7 +87,7 @@ impl Route {
                 sticker: one.sticker,
                 file: String::new(),
             };
-            match read(&self.core.caller(), line, &image.blob).await {
+            match read(&self.core.caller(), Some(line), &image.blob).await {
                 Ok(bytes) => image.file = format!("base64://{}", STANDARD.encode(bytes)),
                 Err(why) => {
                     tracing::warn!(target: TARGET, session, why, "image not sent");

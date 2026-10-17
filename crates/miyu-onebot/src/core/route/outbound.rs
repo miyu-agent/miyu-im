@@ -18,6 +18,8 @@ use crate::onebot::Lead;
 pub(super) struct Passed {
     /// 照先后的几段：拆好了的，没有空的。
     pub(super) pieces: Vec<String>,
+    /// 过了链的全文（拆以前）：判长文、画成图照它（施工 O-59 上）。
+    pub(super) text: String,
     /// 第一段前面带的引用和 @。
     pub(super) lead: Lead,
 }
@@ -45,6 +47,7 @@ pub(super) fn pass(
     };
     Ok(Passed {
         pieces: split(&outgoing.text, split_chars),
+        text: outgoing.text.trim().to_string(),
         lead,
     })
 }

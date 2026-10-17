@@ -34,6 +34,43 @@ pub struct Params {
     pub outbound: Outbound,
     /// 按段拆开时一段最多几个字符（`[outbound]` 的 `split_chars`）：交给 [`split()`](crate::split())，`0` 是不拆。
     pub split_chars: usize,
+    /// 长文怎么发（`[outbound]` 的 `long_text`，施工 O-59 上）：过了出站链的一句超过 `long_chars` 个字的照它。
+    pub long_text: LongText,
+    /// 超过几个字算长文（`[outbound]` 的 `long_chars`）：`0` 是不算。
+    pub long_chars: usize,
+}
+
+/// 长文怎么发（施工 O-59 上，接入QQ 的场所卡片里「长文」那一格）：拆成几条、转成图。合并转发 O-59 下加。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LongText {
+    /// 照拆段发，和不长的一样。
+    Split,
+    /// 画成图发（桥调渲染包，画不出来的照拆段）。
+    Image,
+}
+
+impl LongText {
+    /// 规则、出厂文件里的写法，照先后。
+    pub const NAMES: &'static [&'static str] = &["split", "image"];
+
+    /// 照写法认：别的不认。
+    #[must_use]
+    pub fn parse(name: &str) -> Option<LongText> {
+        match name {
+            "split" => Some(LongText::Split),
+            "image" => Some(LongText::Image),
+            _ => None,
+        }
+    }
+
+    /// 写法。
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            LongText::Split => "split",
+            LongText::Image => "image",
+        }
+    }
 }
 
 impl Params {
@@ -137,6 +174,8 @@ fn blank() -> Params {
             strip_period: false,
         },
         split_chars: 0,
+        long_text: LongText::Split,
+        long_chars: 0,
     }
 }
 

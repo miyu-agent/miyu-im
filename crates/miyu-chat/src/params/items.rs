@@ -8,7 +8,7 @@ use miyu_config::problem::Code;
 use miyu_config::{Kind, Value, duration};
 use toml_edit::Value as TomlValue;
 
-use super::Params;
+use super::{LongText, Params};
 
 /// 分、权重、加分、门槛、冷静的上限和 `k`：0 到 10。分的量级是 0 到 1，加起来能过 1；负的没有意义。
 const SCORE: Kind = Kind::Float { min: 0, max: 10 };
@@ -216,6 +216,15 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)
     }),
+    // 长文（施工 O-59 上）。
+    item(
+        "outbound.long_text",
+        Kind::Option(LongText::NAMES),
+        |p, v| p.long_text = long_text(v),
+    ),
+    item("outbound.long_chars", CHARS_OR_NONE, |p, v| {
+        p.long_chars = count(v)
+    }),
     // 清理的两份名单（O-15 下）。两份标记照位置对上（[`PAIRED`]）。
     item("outbound.invisible", ONE_CHAR_EACH, |p, v| {
         p.outbound.invisible = texts(v).iter().filter_map(|c| c.chars().next()).collect()
@@ -320,6 +329,14 @@ fn count<T: TryFrom<i64> + Default>(value: &Value) -> T {
 /// 开关。
 fn flag(value: &Value) -> bool {
     matches!(value, Value::Bool(true))
+}
+
+/// 长文怎么发：查过的写法都认得，走不到的照拆段。
+fn long_text(value: &Value) -> LongText {
+    match value {
+        Value::Text(name) => LongText::parse(name).unwrap_or(LongText::Split),
+        _ => LongText::Split,
+    }
 }
 
 /// 小数。

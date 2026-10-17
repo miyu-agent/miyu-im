@@ -29,6 +29,7 @@ pub fn group(applied: &Applied) -> Value {
     }
     set.insert("chatty".into(), chatty(applied));
     set.insert("strip_period".into(), strip_period(applied));
+    long_text(applied, &mut set);
     Value::Object(set)
 }
 
@@ -39,6 +40,7 @@ pub fn private(applied: &Applied) -> Value {
         set.insert(key.into(), plain(applied, key));
     }
     set.insert("strip_period".into(), strip_period(applied));
+    long_text(applied, &mut set);
     Value::Object(set)
 }
 
@@ -83,6 +85,25 @@ fn strip_period(applied: &Applied) -> Value {
         .get("outbound.strip_period")
         .map_or("factory", |entry| layer(entry.origin.source));
     json!({"value": applied.params.outbound.strip_period(), "from": from})
+}
+
+/// 长文的两格：出厂参数套上规则改的（施工 O-59 上）。
+fn long_text(applied: &Applied, set: &mut Map<String, Value>) {
+    let from = |key: &str| {
+        applied
+            .resolved
+            .entries
+            .get(key)
+            .map_or("factory", |entry| layer(entry.origin.source))
+    };
+    set.insert(
+        "long_text".into(),
+        json!({"value": applied.params.long_text.name(), "from": from("outbound.long_text")}),
+    );
+    set.insert(
+        "long_chars".into(),
+        json!({"value": applied.params.long_chars, "from": from("outbound.long_chars")}),
+    );
 }
 
 /// 哪一层。

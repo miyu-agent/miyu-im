@@ -69,6 +69,8 @@ fn every_group_field_lands_on_its_attribute() {
         "rate": "3/60s",
         "show_ids": true,
         "strip_period": false,
+        "long_text": "split",
+        "long_chars": 500,
     }}]}));
     assert_eq!(
         values(&full, &group("7")),
@@ -82,6 +84,8 @@ fn every_group_field_lands_on_its_attribute() {
                 Value::List(vec![text("miyu"), text("小羽")])
             ),
             ("managers".to_string(), Value::List(vec![text("qq:1001")])),
+            ("outbound.long_chars".to_string(), Value::Int(500)),
+            ("outbound.long_text".to_string(), text("split")),
             ("outbound.strip_period".to_string(), Value::Bool(false)),
             ("persona".to_string(), text("engineer")),
             ("rate".to_string(), text("3/60s")),
@@ -138,11 +142,12 @@ fn a_listed_group_does_not_inherit_the_other_groups_card() {
 #[test]
 fn private_cards_set_only_their_own_chat() {
     let set = cards(
-        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "strip_period": true}}]}),
+        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "strip_period": true, "long_text": "image"}}]}),
     );
     assert_eq!(
         values(&set, &private("9")),
         [
+            ("outbound.long_text".to_string(), text("image")),
             ("outbound.strip_period".to_string(), Value::Bool(true)),
             ("persona".to_string(), text("engineer")),
         ]
@@ -225,5 +230,24 @@ fn only_known_fields_are_read_and_unset_ones_are_not_written() {
     assert_eq!(
         serde_json::to_value(&some).expect("写得出"),
         json!({"other_groups": {}, "groups": [{"id": 1, "set": {"rate": "1/60s"}}], "privates": []})
+    );
+}
+
+#[test]
+fn long_text_alone_is_one_outbound_table_and_forward_is_not_taken_yet() {
+    let set = cards(json!({"groups": [{"id": 7, "set": {"long_chars": 0}}]}));
+    assert_eq!(
+        values(&set, &group("7")),
+        [
+            ("allow".to_string(), Value::Bool(true)),
+            ("outbound.long_chars".to_string(), Value::Int(0)),
+        ]
+    );
+    assert!(
+        serde_json::from_value::<Cards>(
+            json!({"groups": [{"id": 7, "set": {"long_text": "forward"}}]})
+        )
+        .is_err(),
+        "合并转发 O-59 下才收"
     );
 }
