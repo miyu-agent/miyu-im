@@ -53,7 +53,7 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
     assert_eq!(requests[1].1.system, *system, "第二轮 system 逐字节一样");
     let log = run_log(&home.root);
     assert_eq!(
-        log.matches("group title set").count(),
+        log.matches("venue tail set").count(),
         1,
         "一小时里不再放：{log}"
     );
@@ -95,7 +95,7 @@ async fn asked_every_time_the_same_name_is_set_once() {
     napcat.send(call(2));
     assert_eq!(napcat.group_reply(GROUP).await, "嗯");
     let log = run_log(&home.root);
-    assert_eq!(log.matches("group title set").count(), 1, "{log}");
+    assert_eq!(log.matches("venue tail set").count(), 1, "{log}");
     assert_eq!(napcat.group_infos(), [GROUP, GROUP], "每条都问了");
     stopped(home).await;
 }

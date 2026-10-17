@@ -243,13 +243,13 @@ fn setting_keys_read_as_their_names_in_the_language() {
     let package = package_in(resources());
     let keys = [
         "onebot.sleep".to_string(),
-        "onebot.group_rate".to_string(),
+        "onebot.keywords".to_string(),
         "onebot.nope".to_string(),
         "other.sleep".to_string(),
     ];
     assert_eq!(
         miyu_onebot::settings::labels(&package, &keys, "zh"),
-        ["睡觉时间", "白名单群的限流", "onebot.nope", "other.sleep"]
+        ["睡觉时间", "群里的触发词", "onebot.nope", "other.sleep"]
     );
     assert_eq!(
         miyu_onebot::settings::labels(&package, &keys[..1], "en"),

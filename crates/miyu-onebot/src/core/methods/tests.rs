@@ -6,29 +6,48 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn five_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）。
+fn seven_methods_are_registered_without_a_timeout() {
+    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）、场所卡片的两个（施工 O-58 上）。
     assert_eq!(
         registered(),
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}, {"name": "qq.send"}]})
+        json!({"methods": [
+            {"name": "status"},
+            {"name": "connection.token"},
+            {"name": "qq.action"},
+            {"name": "qq.venue"},
+            {"name": "qq.send"},
+            {"name": "cards.get"},
+            {"name": "cards.save"},
+        ]})
     );
 }
 
 #[test]
-fn only_the_ones_for_other_packages_go_to_the_route() {
+fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
     let routed: Vec<_> = [
         "status",
         "connection.token",
         "qq.action",
         "qq.venue",
         "qq.send",
+        "cards.get",
+        "cards.save",
         "qq.inbound",
         "",
     ]
     .into_iter()
     .filter(|method| exported(method))
     .collect();
-    assert_eq!(routed, ["qq.action", "qq.venue", "qq.send"]);
+    assert_eq!(
+        routed,
+        [
+            "qq.action",
+            "qq.venue",
+            "qq.send",
+            "cards.get",
+            "cards.save"
+        ]
+    );
 }
 
 #[test]

@@ -44,6 +44,7 @@ mod backlog;
 mod bindings;
 mod body;
 mod called;
+mod cards;
 mod command;
 mod decide;
 mod deferred;

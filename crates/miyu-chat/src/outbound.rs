@@ -155,6 +155,14 @@ pub struct OutChain {
     rules: Vec<Box<dyn OutboundRule>>,
 }
 
+impl Outbound {
+    /// 去不去掉一条话末尾的一个「。」（施工 O-58 上：接入QQ 的后台页照它说卡片里的默认）。
+    #[must_use]
+    pub fn strip_period(&self) -> bool {
+        self.strip_period
+    }
+}
+
 impl OutChain {
     /// 自带的四条，照这个顺序：清理、去末尾句号、去重、引用和 @（「怎么走」第 1 条）。去句号在去重前面：去重比的是发出去
     /// 的样子。

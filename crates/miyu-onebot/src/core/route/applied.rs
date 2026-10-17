@@ -34,6 +34,11 @@ pub(super) fn opening(applied: &Applied) -> Vec<(&'static str, &str)> {
         .collect()
 }
 
+/// 附加提示词（施工 O-58 上，`titled`）：规则的 `extra_prompt`，没设的是空的。
+pub(super) fn extra_prompt(applied: &Applied) -> Option<&str> {
+    text(applied, "extra_prompt")
+}
+
 /// 平台上是 `who` 的人在这个场所里的身份：规则的 `managers` 里有的是 `manager`，别的 `member`（「群消息」第 4 条）。
 pub(super) fn role(applied: &Applied, who: &ExternalId) -> &'static str {
     let listed = match entry(applied, "managers") {

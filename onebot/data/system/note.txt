@@ -1,0 +1,3 @@
+<venue_note>
+{text}
+</venue_note>

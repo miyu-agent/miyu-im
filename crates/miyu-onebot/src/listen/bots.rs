@@ -57,6 +57,17 @@ impl Bots {
             .map(|(bot, link)| (*bot, link.clone()))
     }
 
+    /// 连着的每一个号和它的连接，照号排（施工 O-58 上：`cards.get` 问每个号在的群、好友）。
+    pub(crate) fn all(&self) -> Vec<(i64, Link)> {
+        let mut all: Vec<(i64, Link)> = self
+            .lock()
+            .iter()
+            .map(|(bot, link)| (*bot, link.clone()))
+            .collect();
+        all.sort_by_key(|(bot, _)| *bot);
+        all
+    }
+
     /// NapCat 连没连上、是哪个号、哪个实现：连着的号里最小的那一个，`connected`、`self_id`，问到了是哪个实现的再带
     /// `implementation`、`version`；没连着的只有 `connected: false`（`onebot.md` 第一条「后台页」第 2 条、「状态文件」）。
     pub(crate) fn napcat(&self) -> Value {

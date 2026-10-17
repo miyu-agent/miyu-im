@@ -20,6 +20,7 @@ use miyu_client::open::Core;
 use miyu_client::places::DataRoot;
 
 use crate::PACKAGE;
+use crate::rules::Cards;
 use crate::rules::{Configured, Factory, load};
 use crate::serve::Failure;
 use crate::texts::Texts;
@@ -90,7 +91,9 @@ pub fn show(
         Ok(configured) => configured,
         Err(reason) => return said(err, &texts.failure(&Failure::Core(reason)), FAILED),
     };
-    let loaded = load(&factory, root, &configured);
+    // 卡片那一层（施工 O-58 上）：照盘上的，读不成的照没有卡片印（桥起来时一样，运行日志里有原因）。
+    let cards = crate::rules::load_cards(root).unwrap_or_else(|_| Cards::default());
+    let loaded = load(&factory, root, &configured, &cards);
     let mut lines: Vec<String> = loaded
         .at(&parsed)
         .resolved

@@ -142,6 +142,14 @@ pub struct Conditions {
     pub hits: Vec<Hit>,
 }
 
+impl Chatty {
+    /// 抽样的千分比（施工 O-58 上：接入QQ 的后台页照它说卡片里「插嘴」的默认是哪一档）。
+    #[must_use]
+    pub fn probability(&self) -> u16 {
+        self.probability
+    }
+}
+
 impl Conditions {
     /// 主触发：照冲她来、续聊、刚说过话、抽样、违规旗的先后取第一个成立的（「怎么走」第 7 条）；一个都没有是 `None`。
     /// 只用来归类：日志、贴不贴表情、回合开头那句「为什么叫你」写哪一种。注意抽样排在违规旗前面，和插槽的先后不一样。

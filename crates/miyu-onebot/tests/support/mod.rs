@@ -7,6 +7,7 @@
 
 pub mod answering;
 pub mod assembled;
+pub mod events;
 pub mod fake_core;
 pub mod group;
 pub mod head;

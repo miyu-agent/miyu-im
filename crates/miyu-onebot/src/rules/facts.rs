@@ -1,5 +1,5 @@
 //! 给她看的事实的模板（施工 O-25 下，`onebot.md` 第一条「退信」第 3 条、「场所规则和出厂数据」第 1、2 条；O-36 多「另一条线正在
-//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条；O-49 多群会话 system 尾部的群名、群号，「群名」；O-50 多禁言、解禁，「禁言」；O-53 多冒充提醒，「冒充提醒」；O-56 多她先找人，「主动发消息」）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
+//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条；O-49 多群会话 system 尾部的群名、群号，「群名」；O-50 多禁言、解禁，「禁言」；O-53 多冒充提醒，「冒充提醒」；O-56 多她先找人，「主动发消息」；O-58 上多附加提示词，「场所卡片」）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
 //! 时和别的出厂数据一起读，交内核的 [`Template::parse`] 查。没有系统那一份：给模型看的字随包走。
 //!
 //! 字段只认各自的那几个：多要了别的，填的时候换不出来，起来时就当打包的错（「施工时定的」第 129 条）。少要几个照收。
@@ -60,6 +60,12 @@ const GROUP: &str = "system/group.txt";
 /// 群名、群号那一段认的字段（「群名」第 2 条）。
 const GROUP_FIELDS: &[&str] = &["name", "id"];
 
+/// 场所会话 system 尾部的附加提示词（施工 O-58 上，「场所卡片」）。
+const NOTE: &str = "system/note.txt";
+
+/// 附加提示词认的字段：卡片里写的原文。
+const NOTE_FIELDS: &[&str] = &["text"];
+
 /// 查过的几份模板。
 #[derive(Debug)]
 pub(super) struct Facts {
@@ -71,6 +77,8 @@ pub(super) struct Facts {
     pub(super) unshown: Template,
     /// 群名、群号（施工 O-49）。
     pub(super) group: Template,
+    /// 附加提示词（施工 O-58 上）。
+    pub(super) note: Template,
     /// 她被禁言了（施工 O-50）。
     pub(super) muted: Template,
     /// 她被解禁了（施工 O-50）。
@@ -87,6 +95,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let another_line = template(dir, ANOTHER_LINE, ANOTHER_LINE_FIELDS, problems);
     let unshown = template(dir, UNSHOWN, UNSHOWN_FIELDS, problems);
     let group = template(dir, GROUP, GROUP_FIELDS, problems);
+    let note = template(dir, NOTE, NOTE_FIELDS, problems);
     let muted = template(dir, MUTED, MUTED_FIELDS, problems);
     let unmuted = template(dir, UNMUTED, UNMUTED_FIELDS, problems);
     let impostor = template(dir, IMPOSTOR, IMPOSTOR_FIELDS, problems);
@@ -96,6 +105,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         another_line: another_line?,
         unshown: unshown?,
         group: group?,
+        note: note?,
         muted: muted?,
         unmuted: unmuted?,
         impostor: impostor?,

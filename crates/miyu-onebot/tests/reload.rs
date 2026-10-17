@@ -4,7 +4,7 @@
 
 use std::time::{Duration, Instant};
 
-use miyu_onebot::rules::{Configured, Venues};
+use miyu_onebot::rules::{Cards, Configured, Venues};
 
 use crate::rules::{FACTORY_WORDS, clean, group, system_rule, system_words, text};
 use crate::support::*;
@@ -16,23 +16,43 @@ fn a_changed_system_file_is_read_at_the_next_use_after_the_interval() {
     let start = Instant::now();
     let at = |millis| start + Duration::from_millis(millis);
     let mut venues = Venues::new(factory(), &root, Configured::default(), every, start);
-    let rate = |venues: &mut Venues, millis| {
-        venues.current(at(millis)).at(&group("1")).resolved.entries["rate"]
-            .value
-            .clone()
+    let sleep = |venues: &mut Venues, millis| {
+        venues
+            .current(at(millis))
+            .at(&group("1"))
+            .resolved
+            .entries
+            .get("sleep")
+            .map(|entry| entry.value.clone())
     };
-    assert_eq!(rate(&mut venues, 0), text("5/300s"));
-    // 加了一份：没隔够照旧，隔够了照新的。
-    let path = system_rule(&root, "80-x.toml", "[[rule]]\nrate = \"30/60s\"\n");
-    assert_eq!(rate(&mut venues, 999), text("5/300s"), "没隔够");
-    assert_eq!(rate(&mut venues, 1000), text("30/60s"), "隔够了");
-    // 改了：从上一次看的时候起算。
-    std::fs::write(&path, "[[rule]]\nrate = \"700/600s\"\n").expect("写得进");
-    assert_eq!(rate(&mut venues, 1999), text("30/60s"));
-    assert_eq!(rate(&mut venues, 2000), text("700/600s"));
-    // 删了：回到出厂的。
-    std::fs::remove_file(&path).expect("删得了");
-    assert_eq!(rate(&mut venues, 3000), text("5/300s"));
+    assert_eq!(sleep(&mut venues, 0), None);
+    let pushed = serde_json::json!({"onebot.sleep": "23:00-07:00"});
+    venues.configure(pushed.as_object().expect("对象"));
+    assert_eq!(sleep(&mut venues, 1), Some(text("23:00-07:00")), "不用等");
+    system_rule(
+        &root,
+        "55-before.toml",
+        "[[rule]]\nsleep = \"01:00-02:00\"\n",
+    );
+    assert_eq!(
+        sleep(&mut venues, 1000),
+        Some(text("23:00-07:00")),
+        "排在前面的被盖"
+    );
+    system_rule(
+        &root,
+        "80-after.toml",
+        "[[rule]]\nsleep = \"03:00-04:00\"\n",
+    );
+    assert_eq!(
+        sleep(&mut venues, 2000),
+        Some(text("03:00-04:00")),
+        "排在后面的盖它"
+    );
+    // 推来别的键、同样的值：不重读，照手里的。
+    let same = serde_json::json!({"onebot.listen": 9000, "onebot.sleep": "23:00-07:00"});
+    venues.configure(same.as_object().expect("对象"));
+    assert_eq!(sleep(&mut venues, 2001), Some(text("03:00-04:00")));
     clean(&dir);
 }
 
@@ -119,22 +139,99 @@ fn pushed_settings_apply_at_once_and_sit_between_system_file_names() {
         Duration::from_secs(1),
         start,
     );
-    let rate = |venues: &mut Venues, millis| {
-        venues.current(at(millis)).at(&group("1")).resolved.entries["rate"]
+    let sleep = |venues: &mut Venues, millis| {
+        venues
+            .current(at(millis))
+            .at(&group("1"))
+            .resolved
+            .entries
+            .get("sleep")
+            .map(|entry| entry.value.clone())
+    };
+    assert_eq!(sleep(&mut venues, 0), None);
+    let pushed = serde_json::json!({"onebot.sleep": "23:00-07:00"});
+    venues.configure(pushed.as_object().expect("对象"));
+    assert_eq!(sleep(&mut venues, 1), Some(text("23:00-07:00")), "不用等");
+    system_rule(
+        &root,
+        "55-before.toml",
+        "[[rule]]\nsleep = \"01:00-02:00\"\n",
+    );
+    assert_eq!(
+        sleep(&mut venues, 1000),
+        Some(text("23:00-07:00")),
+        "排在前面的被盖"
+    );
+    system_rule(
+        &root,
+        "80-after.toml",
+        "[[rule]]\nsleep = \"03:00-04:00\"\n",
+    );
+    assert_eq!(
+        sleep(&mut venues, 2000),
+        Some(text("03:00-04:00")),
+        "排在后面的盖它"
+    );
+    // 推来别的键、同样的值：不重读，照手里的。
+    let same = serde_json::json!({"onebot.listen": 9000, "onebot.sleep": "23:00-07:00"});
+    venues.configure(same.as_object().expect("对象"));
+    assert_eq!(sleep(&mut venues, 2001), Some(text("03:00-04:00")));
+    clean(&dir);
+}
+
+#[test]
+fn saved_cards_apply_at_once_and_sit_after_the_settings() {
+    // 卡片那一层（施工 O-58 上）：换了不等隔够；排在配置项那一份后面，系统里名字排在后面的照旧盖它。
+    let (dir, root) = temp_root();
+    let start = Instant::now();
+    let at = |millis| start + Duration::from_millis(millis);
+    let mut venues = Venues::new(
+        factory(),
+        &root,
+        Configured::default(),
+        Duration::from_secs(1),
+        start,
+    );
+    let rate = |venues: &mut Venues, millis, number| {
+        venues
+            .current(at(millis))
+            .at(&group(number))
+            .resolved
+            .entries["rate"]
             .value
             .clone()
     };
-    assert_eq!(rate(&mut venues, 0), text("5/300s"));
-    let pushed = serde_json::json!({"onebot.other_group_rate": "2/60s"});
-    venues.configure(pushed.as_object().expect("对象"));
-    assert_eq!(rate(&mut venues, 1), text("2/60s"), "不用等");
-    system_rule(&root, "55-before.toml", "[[rule]]\nrate = \"3/60s\"\n");
-    assert_eq!(rate(&mut venues, 1000), text("2/60s"), "排在前面的被盖");
+    let allow = |venues: &mut Venues, number| {
+        venues.current(at(0)).at(&group(number)).resolved.entries["allow"]
+            .value
+            .clone()
+    };
+    // 出厂没有卡片：「其他群」关着。
+    assert_eq!(allow(&mut venues, "1"), miyu_config::Value::Bool(false));
+    let cards: Cards = serde_json::from_value(serde_json::json!({
+        "other_groups": {"rate": "1/60s"},
+        "groups": [{"id": 1, "set": {"rate": "2/60s"}}, {"id": 3}],
+    }))
+    .expect("卡片的样子");
+    venues.set_cards(cards.clone());
+    assert_eq!(rate(&mut venues, 1, "1"), text("2/60s"), "不用等");
+    assert_eq!(allow(&mut venues, "1"), miyu_config::Value::Bool(true));
+    assert_eq!(
+        rate(&mut venues, 1, "2"),
+        text("1/60s"),
+        "名单以外的照「其他群」"
+    );
+    assert_eq!(
+        rate(&mut venues, 1, "3"),
+        text("5/300s"),
+        "名单里没写的不继承「其他群」"
+    );
+    assert_eq!(venues.cards(), &cards);
     system_rule(&root, "80-after.toml", "[[rule]]\nrate = \"4/60s\"\n");
-    assert_eq!(rate(&mut venues, 2000), text("4/60s"), "排在后面的盖它");
-    // 推来别的键、同样的值：不重读，照手里的。
-    let same = serde_json::json!({"onebot.listen": 9000, "onebot.other_group_rate": "2/60s"});
-    venues.configure(same.as_object().expect("对象"));
-    assert_eq!(rate(&mut venues, 2001), text("4/60s"));
+    assert_eq!(
+        rate(&mut venues, 1000, "1"),
+        text("4/60s"),
+        "排在后面的系统文件盖它"
+    );
     clean(&dir);
 }

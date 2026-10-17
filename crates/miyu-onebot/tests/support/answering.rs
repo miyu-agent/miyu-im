@@ -44,6 +44,9 @@ pub const UNRECALLABLE: i64 = 4040;
 /// 假 NapCat 回的群名（`get_group_info`，施工 O-49）：每个群都是它。
 pub const GROUP_NAME: &str = "测试群";
 
+/// 假 NapCat 回的她在的群（`get_group_list`，施工 O-58 上）：群号、群名、人数。
+pub const LISTED_GROUPS: &[(i64, &str, u64)] = &[(777, GROUP_NAME, 12), (666, "另一个群", 30)];
+
 /// 撤 [`UNRECALLABLE`] 时 NapCat 说的：前后带空白、超过 200 个字符，桥交回的去掉空白、截到 200 个字符。
 pub fn unrecallable() -> String {
     format!("  {}  ", "Recall failed".repeat(20))
@@ -170,6 +173,8 @@ impl NapCat {
                             && kind != "get_group_member_info"
                             && kind != "get_group_member_list"
                             && kind != "get_group_info"
+                            && kind != "get_group_list"
+                            && kind != "get_friend_list"
                             && !FETCHING.contains(&kind);
                         if sending && refuse {
                             answer = json!({"status": "failed", "retcode": 1200, "data": null, "message": refused(), "wording": "", "echo": action["echo"]});
@@ -284,6 +289,21 @@ fn answer(
             | "group_poke"
             | "friend_poke",
         ) => ("ok", Value::Null),
+        // 她在的群、好友（施工 O-58 上，`cards.get`）：群照 [`LISTED_GROUPS`]，好友照给的群成员。
+        Some("get_group_list") => {
+            let list: Vec<Value> = LISTED_GROUPS
+                .iter()
+                .map(|(id, name, count)| json!({"group_id": id, "group_name": name, "member_count": count}))
+                .collect();
+            ("ok", Value::Array(list))
+        }
+        Some("get_friend_list") => {
+            let list: Vec<Value> = members
+                .iter()
+                .map(|(id, _, nickname)| json!({"user_id": id, "nickname": nickname}))
+                .collect();
+            ("ok", Value::Array(list))
+        }
         // 群成员列表（施工 O-54）：照给的群成员回，身份照 `ranks`。
         Some("get_group_member_list") => {
             let list: Vec<Value> = members

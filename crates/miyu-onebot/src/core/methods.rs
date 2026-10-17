@@ -33,9 +33,16 @@ pub(crate) const VENUE: &str = "qq.venue";
 /// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `qq_send`）。
 pub(crate) const SEND: &str = "qq.send";
 
-/// 方法 `method` 是不是给别的包调的那几个：是的照推送交给跟核心的那一头答（施工 O-42；O-56 多 `qq.send`）。
+/// 后台页的场所卡片：读（施工 O-58 上）。
+pub(crate) const CARDS_GET: &str = "cards.get";
+
+/// 后台页的场所卡片：存（施工 O-58 上）。
+pub(crate) const CARDS_SAVE: &str = "cards.save";
+
+/// 方法 `method` 是不是交给跟核心的那一头答的：给别的包调的那几个（施工 O-42；O-56 多 `qq.send`），场所卡片的两个（施工 O-58
+/// 上：卡片、场所规则、连接都在那一头）。
 pub(super) fn exported(method: &str) -> bool {
-    method == ACTION || method == VENUE || method == SEND
+    matches!(method, ACTION | VENUE | SEND | CARDS_GET | CARDS_SAVE)
 }
 
 /// 答方法的那一头：桥手里的状态交进来以前什么都答不了。
@@ -95,7 +102,15 @@ fn short_path(paths: &[String]) -> &str {
 /// `package.methods` 的参数：后台页的两个、给别的包调的两个（施工 O-42），不写时限（照核心的 30 秒：`qq.action` 最多等
 /// `call_timeout_seconds`，比它短）。
 fn registered() -> Value {
-    json!({"methods": [{"name": STATUS}, {"name": TOKEN}, {"name": ACTION}, {"name": VENUE}, {"name": SEND}]})
+    json!({"methods": [
+        {"name": STATUS},
+        {"name": TOKEN},
+        {"name": ACTION},
+        {"name": VENUE},
+        {"name": SEND},
+        {"name": CARDS_GET},
+        {"name": CARDS_SAVE},
+    ]})
 }
 
 /// 登记后台页调的方法：经 `caller` 发 `package.methods`，写出去就交回等回应、记运行日志的那一段（交给 `serve` 的任务组）。

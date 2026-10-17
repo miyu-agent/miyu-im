@@ -16,7 +16,7 @@ use miyu_client::texts::{Human, HumanError};
 use crate::control::{Halt, Report};
 use crate::logs::Heading;
 use crate::package::Package;
-use crate::rules::key_of;
+use crate::rules::{Card, key_of};
 use crate::serve::{Failure, Notice};
 use crate::venue::Shown;
 
@@ -217,9 +217,21 @@ impl Texts {
     ) -> String {
         let source = match source {
             Source::Factory => self.say("venue/factory", &[]),
+            // 卡片那一层（施工 O-58 上）：说是哪一张卡，文件同样是桥拼的。
             Source::Settings => {
-                let key = rule.and_then(key_of).unwrap_or_else(|| file.to_string());
-                return self.say("venue/setting", &[("key", key)]);
+                return match Card::parse(file) {
+                    Some(Card::OtherGroups) => self.say("venue/card-other-groups", &[]),
+                    Some(Card::Group(id)) => {
+                        self.say("venue/card-group", &[("id", id.to_string())])
+                    }
+                    Some(Card::Private(id)) => {
+                        self.say("venue/card-private", &[("id", id.to_string())])
+                    }
+                    None => {
+                        let key = rule.and_then(key_of).unwrap_or_else(|| file.to_string());
+                        self.say("venue/setting", &[("key", key)])
+                    }
+                };
             }
             Source::System => self.say("venue/system", &[]),
         };

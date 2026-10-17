@@ -53,6 +53,10 @@ impl Route {
             if pushed["params"]["method"] == SEND {
                 return self.send_exported(&pushed).await;
             }
+            // 后台页的场所卡片（施工 O-58 上，`cards`）。
+            if self.cards_called(&pushed) {
+                return Ok(());
+            }
             self.exported(&pushed);
             return Ok(());
         }

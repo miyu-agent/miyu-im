@@ -62,9 +62,14 @@ impl Head {
 
     /// 经 `package.call` 调接入QQ 登记的 `method`：交回整条回应。
     pub async fn page_call(&mut self, method: &str) -> Value {
+        self.page_call_with(method, json!({})).await
+    }
+
+    /// 同 [`Head::page_call`]，带参数 `params`（施工 O-58 上：`cards.save`）。
+    pub async fn page_call_with(&mut self, method: &str, params: Value) -> Value {
         self.call(
             "package.call",
-            json!({"package": "onebot", "method": method, "params": {}}),
+            json!({"package": "onebot", "method": method, "params": params}),
         )
         .await
     }

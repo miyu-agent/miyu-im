@@ -167,7 +167,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
 
     let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
         .expect("桥写了运行日志");
-    assert!(log.contains("methods registered count=5"), "{log}");
+    assert!(log.contains("methods registered count=7"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
     napcat.close().await;
@@ -179,7 +179,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     let (dir, root) = temp_root();
     let (mut served, listen) =
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
-    // 握手以后先登记工具，再登记方法（不写时限）：后台页的两个、给别的包调的两个（施工 O-42）。
+    // 握手以后先登记工具，再登记方法（不写时限）：后台页的两个、给别的包调的三个（施工 O-42、O-56）、场所卡片的两个（施工 O-58 上）。
     let registered = within("桥登记方法", async {
         loop {
             let found = served
@@ -198,7 +198,15 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     .await;
     assert_eq!(
         registered["params"],
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}, {"name": "qq.send"}]})
+        json!({"methods": [
+            {"name": "status"},
+            {"name": "connection.token"},
+            {"name": "qq.action"},
+            {"name": "qq.venue"},
+            {"name": "qq.send"},
+            {"name": "cards.get"},
+            {"name": "cards.save"},
+        ]})
     );
     for (id, method) in [
         ("core-1", "apply"),

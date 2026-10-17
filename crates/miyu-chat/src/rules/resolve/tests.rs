@@ -1,5 +1,5 @@
 //! 套到一个场所上（`chat.md` 第一条「守着它的」）：后面的规则盖前面的，来处的来源、文件、第几条、第几行都对；没设到的不在
-//! 结果里；四种匹配条件各自的对与不对，都写了的要同时满足；整数和字的编号一样；`group` 只配群、`user` 只配私聊；两个都写、
+//! 结果里；六种匹配条件各自的对与不对（`not_group`、`not_user` 施工 O-58 上），都写了的要同时满足；整数和字的编号一样；`group` 只配群、`user` 只配私聊；两个都写、
 //! 空列表不匹配；不写 `match`、空表匹配所有。仓库里的出厂规则文件读得出、零问题，套到群、私聊上的值对（O-15 下）。
 
 use miyu_config::Value;
@@ -162,6 +162,30 @@ fn user_matches_only_listed_private_chats() {
     assert!(matches(&files, &private("10002")));
     assert!(!matches(&files, &private("10003")));
     assert!(!matches(&files, &group("10002")));
+}
+
+#[test]
+fn not_group_and_not_user_spare_only_the_listed_ones() {
+    // 施工 O-58 上：「其他群」卡写成 `not_group`，名单里的群不配。
+    let files = allow_when("match = { kind = \"group\", not_group = [1, \"2\"] }");
+    assert!(!matches(&files, &group("1")));
+    assert!(!matches(&files, &group("2")));
+    assert!(matches(&files, &group("3")));
+    assert!(!matches(&files, &private("3")), "kind 照旧算");
+    let files = allow_when("match = { not_user = [5] }");
+    assert!(!matches(&files, &private("5")));
+    assert!(matches(&files, &private("6")));
+    assert!(matches(&files, &group("5")), "not_user 不管群");
+    let files = allow_when("match = { not_group = [5] }");
+    assert!(matches(&files, &private("5")), "not_group 不管私聊");
+    for condition in ["match = { not_group = [] }", "match = { not_user = [] }"] {
+        let files = allow_when(condition);
+        assert!(
+            matches(&files, &group("1")),
+            "空的列表什么都不排除：{condition}"
+        );
+        assert!(matches(&files, &private("1")), "{condition}");
+    }
 }
 
 #[test]

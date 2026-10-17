@@ -7,10 +7,11 @@
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
-//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、群会话 system 尾部的群名（施工 O-49） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt` | 没有：同上 |
+//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、场所会话 system 尾部的群名（施工 O-49）、附加提示词（施工 O-58 上） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt`、`system/note.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
 //!
-//! - 配置项那一层（施工 O-41，[`Configured`]）：包的七项配置拼成一份规则文件，排在出厂、系统中间；推来变了当场重读。
+//! - 配置项那一层（施工 O-41，[`Configured`]）：包的三项配置拼成一份规则文件，排在出厂、系统中间；推来变了当场重读。
+//! - 卡片那一层（施工 O-58 上，[`Cards`]）：后台页的场所卡片一张拼一份，排在配置项那一份后面；存了新的当场重读。
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
 //! - 系统的和出厂的合起来读（[`load`]，交回 [`Loaded`]）：坏的那一项、那一条规则、那一份文件照群聊内核的规矩丢，别的照用；
@@ -18,6 +19,7 @@
 //! - 什么时候重读（[`Venues`]）：要用时交进当时的时刻，隔够了才看一眼系统的两处变没变，变了整份重读，问题记运行日志；不监视
 //!   文件（「施工时定的」第 53 条）。
 
+mod cards;
 mod configured;
 mod facts;
 mod files;
@@ -38,6 +40,9 @@ use miyu_client::settings::problem::Code;
 
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
+pub use cards::defaults as card_defaults;
+pub use cards::{Card, Cards, Chatty, GroupCard, GroupSet, PrivateCard, PrivateSet};
+pub use cards::{load as load_cards, path as cards_path, save as save_cards};
 pub use configured::{Configured, key_of};
 use files::Stamp;
 pub use tools::Tools;
@@ -188,13 +193,21 @@ impl Loaded {
     }
 }
 
-/// 读数据根 `root` 里系统的那几份，和出厂的 `factory`、配置项拼的那一份 `configured`（施工 O-41）合起来（「场所规则和出厂
-/// 数据」第 2、8 条）。不会失败：读不成的、写错的都变成问题，其余照用。不记运行日志（[`Venues`] 记；`venue show` 印出来）。
-pub fn load(factory: &Factory, root: &DataRoot, configured: &Configured) -> Loaded {
+/// 读数据根 `root` 里系统的那几份，和出厂的 `factory`、配置项拼的那一份 `configured`（施工 O-41）、卡片拼的几份 `cards`（施工
+/// O-58 上）合起来（「场所规则和出厂数据」第 2、8 条）。不会失败：读不成的、写错的都变成问题，其余照用。不记运行日志
+/// （[`Venues`] 记；`venue show` 印出来）。
+pub fn load(factory: &Factory, root: &DataRoot, configured: &Configured, cards: &Cards) -> Loaded {
+    let mut layers = vec![configured.file()];
+    layers.extend(cards.files());
+    assemble(factory, root, layers)
+}
+
+/// 出厂的、桥拼的几份 `layers`、系统的合起来读（[`load`]；卡片的默认值不带卡片那几份，[`Venues::beneath`]）。
+fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
     let system = root.system();
     let mut problems = Vec::new();
     let mut files = factory.rules.clone();
-    files.push(configured.file());
+    files.extend(layers);
     files.extend(files::rules(
         &system.join(VENUES),
         VENUES,
@@ -240,8 +253,10 @@ pub struct Venues {
     factory: Factory,
     /// 数据根：系统的在它的 `system/` 里。
     root: DataRoot,
-    /// 配置项那一层这一刻的七项（施工 O-41）。
+    /// 配置项那一层这一刻的三项（施工 O-41）。
     configured: Configured,
+    /// 卡片那一层这一刻的卡片（施工 O-58 上）。
+    cards: Cards,
     /// 隔多久才看一眼（`bridge.json` 的 `rules_check_millis`）。
     every: Duration,
     /// 上一次看的时刻。
@@ -253,8 +268,8 @@ pub struct Venues {
 }
 
 impl Venues {
-    /// 读一次系统的（问题记运行日志），配置项那一层照 `configured`（握手交来的，施工 O-41），记下这一刻 `now`：之后隔 `every`
-    /// 才再看。
+    /// 读一次系统的（问题记运行日志），配置项那一层照 `configured`（握手交来的，施工 O-41），卡片照盘上的（施工 O-58 上：读不成的
+    /// 照没有卡片用、记一行），记下这一刻 `now`：之后隔 `every` 才再看。
     pub fn new(
         factory: Factory,
         root: &DataRoot,
@@ -262,13 +277,18 @@ impl Venues {
         every: Duration,
         now: Instant,
     ) -> Venues {
+        let cards = cards::load(root).unwrap_or_else(|error| {
+            tracing::warn!(target: TARGET, error, "venue cards unreadable");
+            Cards::default()
+        });
         // 先记样子再读：读的时候又改了的，下一次看得出来。
         let stamp = stamp(root);
-        let loaded = reload(&factory, root, &configured);
+        let loaded = reload(&factory, root, &configured, &cards);
         Venues {
             factory,
             root: root.clone(),
             configured,
+            cards,
             every,
             looked: now,
             stamp,
@@ -321,6 +341,11 @@ impl Venues {
         &self.factory.facts.impostor
     }
 
+    /// 附加提示词那一段的模板（施工 O-58 上）：出厂的，跑着不再读。
+    pub fn note(&self) -> &Template {
+        &self.factory.facts.note
+    }
+
     /// 群名、群号那一段的模板（施工 O-49）：出厂的，跑着不再读。
     pub fn group_title(&self) -> &Template {
         &self.factory.facts.group
@@ -334,24 +359,46 @@ impl Venues {
             let stamp = stamp(&self.root);
             if stamp != self.stamp {
                 self.stamp = stamp;
-                self.loaded = reload(&self.factory, &self.root, &self.configured);
+                self.loaded = reload(&self.factory, &self.root, &self.configured, &self.cards);
             }
         }
         &self.loaded
     }
 
-    /// 核心推来的配置变化 `keys`（`extension.config`）合进配置项那一层（施工 O-41）：七项变了的当场整份重读（问题记运行日志），
+    /// 这一刻的卡片（施工 O-58 上，`cards.get`）。
+    pub fn cards(&self) -> &Cards {
+        &self.cards
+    }
+
+    /// 换上存好的卡片 `cards`（施工 O-58 上，`cards.save`）：当场整份重读（问题记运行日志），下一条消息就照新的。
+    pub fn set_cards(&mut self, cards: Cards) {
+        self.cards = cards;
+        self.loaded = reload(&self.factory, &self.root, &self.configured, &self.cards);
+    }
+
+    /// 卡片下面几层（出厂、配置项、系统的）套到场所 `venue` 上的样子（施工 O-58 上：`cards.get` 照它说每一格的默认值）。重读
+    /// 一次系统的规则文件，问题不记：页面才调。
+    pub fn beneath(&self, venue: &Venue) -> Applied {
+        assemble(&self.factory, &self.root, vec![self.configured.file()]).at(venue)
+    }
+
+    /// 数据根（施工 O-58 上：卡片存在它里面）。
+    pub fn root(&self) -> &DataRoot {
+        &self.root
+    }
+
+    /// 核心推来的配置变化 `keys`（`extension.config`）合进配置项那一层（施工 O-41）：三项变了的当场整份重读（问题记运行日志），
     /// 下一条消息就照新的；没变的不读。
     pub fn configure(&mut self, keys: &serde_json::Map<String, serde_json::Value>) {
         if self.configured.change(keys) {
-            self.loaded = reload(&self.factory, &self.root, &self.configured);
+            self.loaded = reload(&self.factory, &self.root, &self.configured, &self.cards);
         }
     }
 }
 
 /// 读一次系统的，每条问题记一行运行日志（第 4 条），读完记一行。
-fn reload(factory: &Factory, root: &DataRoot, configured: &Configured) -> Loaded {
-    let loaded = load(factory, root, configured);
+fn reload(factory: &Factory, root: &DataRoot, configured: &Configured, cards: &Cards) -> Loaded {
+    let loaded = load(factory, root, configured, cards);
     for problem in &loaded.problems {
         tracing::warn!(
             target: TARGET,
@@ -360,6 +407,7 @@ fn reload(factory: &Factory, root: &DataRoot, configured: &Configured) -> Loaded
             file = %problem.file,
             rule = %shown(problem.rule),
             setting = %shown(setting(problem)),
+            card = %shown(Card::parse(&problem.file).map(|card| card.json())),
             key = %shown(problem.key.as_deref()),
             line = %shown(problem.at.map(|at| at.line)),
             got = %shown(problem.got.as_deref()),

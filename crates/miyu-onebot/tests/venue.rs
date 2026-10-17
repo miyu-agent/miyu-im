@@ -63,6 +63,13 @@ fn test_rules(root: &DataRoot) {
     );
 }
 
+/// 数据根 `root` 里的卡片写成 `json`（施工 O-58 上）。
+fn write_cards(root: &DataRoot, json: &str) {
+    let dir = root.state().join("packages").join("onebot");
+    std::fs::create_dir_all(&dir).expect("建得了目录");
+    std::fs::write(dir.join("cards.json"), json).expect("写得进");
+}
+
 #[test]
 fn values_and_origins_come_one_a_line_and_problems_after() {
     let (dir, root) = temp_root();
@@ -71,7 +78,8 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
         shown(&root, "qq:group:1", &zh(&resources())),
         (
             0,
-            "chatty.probability = 80（系统 80-test.toml 第 1 条规则，第 4 行）\n\
+            "allow = false（卡片「其他群」）\n\
+             chatty.probability = 80（系统 80-test.toml 第 1 条规则，第 4 行）\n\
              discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
              parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
              rate = \"30/60s\"（系统 80-test.toml 第 1 条规则，第 3 行）\n\
@@ -106,10 +114,10 @@ fn without_system_rules_the_factory_ones_are_shown() {
 #[test]
 fn a_venue_nothing_sets_says_so() {
     let (dir, root) = temp_root();
-    // 同名的空文件替换出厂的那一份：什么规则都没有。
+    // 同名的空文件替换出厂的那一份：什么规则都没有（私聊：卡片「其他群」只管群）。
     system_rule(&root, "50-defaults.toml", "");
     assert_eq!(
-        shown(&root, "qq:group:1", &zh(&resources())),
+        shown(&root, "qq:private:1", &zh(&resources())),
         (
             0,
             "没有规则设到这个场所。\n没列出的参数照出厂的 defaults.toml。\n".to_string(),
@@ -178,20 +186,26 @@ fn broken_factory_data_is_said_with_every_problem() {
 fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
     let (dir, root) = temp_root();
     let configured = Configured::handed(&serde_json::json!({
-        "onebot.other_groups": false,
-        "onebot.other_group_rate": "abc",
+        "onebot.show_ids": true,
+        "onebot.sleep": "abc",
     }));
+    // 卡片那一层照数据根里的（施工 O-58 上）：群 2 有卡、设了限流。
+    write_cards(
+        &root,
+        r#"{"groups": [{"id": 2, "set": {"rate": "7/60s"}}]}"#,
+    );
     assert_eq!(
         shown_with(&root, "qq:group:2", &zh(&resources()), Ok(configured)),
         (
             0,
-            "allow = false（配置项 onebot.other_groups）\n\
+            "allow = true（群 2 的卡片）\n\
              discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
              parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
-             rate = \"5/300s\"（出厂 50-defaults.toml 第 1 条规则，第 15 行）\n\
+             rate = \"7/60s\"（群 2 的卡片）\n\
+             show_ids = true（配置项 onebot.show_ids）\n\
              没列出的参数照出厂的 defaults.toml。\n\
              读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：\n  \
-             配置项 onebot.other_group_rate：rate 写法不对：\"abc\"\n"
+             配置项 onebot.sleep：sleep 写法不对：\"abc\"\n"
                 .to_string(),
             String::new()
         )
@@ -218,26 +232,28 @@ async fn ran(root: &DataRoot, args: &[&str]) -> std::process::Output {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_program_shows_in_the_system_language() {
-    // 配置项那一层向真核心要（施工 O-41）：核心照系统配置交 `onebot.groups`。
+    // 配置项那一层向真核心要（施工 O-41）：核心照系统配置交 `onebot.show_ids`；卡片照数据根里的（施工 O-58 上）。
     let home = Home::spawning(
         &Script::new([]),
         &crate::support::spawning::ports_config_with(
             crate::support::spawning::free_port(),
-            "groups = [1]",
+            "show_ids = true",
         ),
     );
     let root = home.root.clone();
     test_rules(&root);
+    write_cards(&root, r#"{"groups": [{"id": 1}]}"#);
     let shown = ran(&root, &["venue", "show", "qq:group:1"]).await;
     assert_eq!(shown.status.code(), Some(0), "{}", text(&shown.stderr));
     assert_eq!(text(&shown.stderr), "");
     assert_eq!(
         text(&shown.stdout),
-        "allow = true (setting onebot.groups)\n\
+        "allow = true (card of group 1)\n\
          chatty.probability = 80 (system 80-test.toml, rule 1, line 4)\n\
          discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\n\
          parallel = 1 (factory 50-defaults.toml, rule 1, line 16)\n\
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\
+         show_ids = true (setting onebot.show_ids)\n\
          Parameters not listed follow the factory defaults.toml.\n\
          Problems found while reading (the wrong item, rule or file is not used; the rest is):\n  \
          system 90-bad.toml, rule 2, line 6: rate is not written right: \"abc\"\n"

@@ -40,7 +40,7 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("managers", Form::Managers),
     ("show_ids", Form::Kind(Kind::Bool)),
     ("workspace", Form::Kind(Kind::Text { max: 4096 })),
-    ("extra_prompt", Form::Kind(Kind::Text { max: 2000 })),
+    ("extra_prompt", Form::Kind(Kind::Lines { max: 2000 })),
 ];
 
 /// 照名字找一项属性：交回表里的名字（活得和程序一样长，结果的键用它）和写法。

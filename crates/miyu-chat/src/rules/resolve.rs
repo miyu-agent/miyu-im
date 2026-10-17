@@ -11,7 +11,8 @@ use super::ids::{Venue, VenueKind};
 use super::{Rules, Source, forms};
 
 /// 匹配条件的键，照 `chat.md` 那张表的先后：拼错的找离得最近的那一个。
-pub(super) const CONDITIONS: &[&str] = &["platform", "kind", "group", "user"];
+pub(super) const CONDITIONS: &[&str] =
+    &["platform", "kind", "group", "user", "not_group", "not_user"];
 
 /// 套到一个场所上的结果：每一项属性的值和来处。没有规则设到的项不在里面（「怎么走」第 7 条）：默认值是出厂的规则文件，
 /// 代码里不写死。
@@ -55,6 +56,10 @@ pub(super) struct Match {
     group: Option<Vec<String>>,
     /// 对方的号的列表：场所是私聊，并且对方的号在里面。
     user: Option<Vec<String>>,
+    /// 不配的群号（施工 O-58 上，接入QQ 的「其他群」卡）：场所是群、群号在里面的不配，别的照旧。
+    not_group: Option<Vec<String>>,
+    /// 不配的对方的号：场所是私聊、对方的号在里面的不配，别的照旧。
+    not_user: Option<Vec<String>>,
 }
 
 impl Match {
@@ -81,23 +86,31 @@ impl Match {
                 self.kind = Some(VenueKind::parse(kind).ok_or(Code::NotAnOption)?);
             }
             "group" => self.group = Some(ids(value)?),
-            _ => self.user = Some(ids(value)?),
+            "user" => self.user = Some(ids(value)?),
+            "not_group" => self.not_group = Some(ids(value)?),
+            _ => self.not_user = Some(ids(value)?),
         }
         Ok(())
     }
 
-    /// 这个场所满不满足写了的每一个条件。`group`、`user` 都写了的没有场所满足；空的列表谁也不配。
+    /// 这个场所满不满足写了的每一个条件。`group`、`user` 都写了的没有场所满足；空的列表谁也不配。`not_group`、`not_user`
+    /// 只排除列出的那几个，空的列表什么都不排除。
     fn matches(&self, venue: &Venue) -> bool {
-        let listed = |ids: &Option<Vec<String>>, kind| {
-            ids.as_ref()
-                .is_none_or(|ids| venue.kind() == kind && ids.iter().any(|id| id == venue.number()))
+        let named = |ids: &Vec<String>, kind| {
+            venue.kind() == kind && ids.iter().any(|id| id == venue.number())
         };
+        let listed =
+            |ids: &Option<Vec<String>>, kind| ids.as_ref().is_none_or(|ids| named(ids, kind));
+        let spared =
+            |ids: &Option<Vec<String>>, kind| ids.as_ref().is_none_or(|ids| !named(ids, kind));
         self.platform
             .as_ref()
             .is_none_or(|platform| platform == venue.platform())
             && self.kind.is_none_or(|kind| kind == venue.kind())
             && listed(&self.group, VenueKind::Group)
             && listed(&self.user, VenueKind::Private)
+            && spared(&self.not_group, VenueKind::Group)
+            && spared(&self.not_user, VenueKind::Private)
     }
 }
 

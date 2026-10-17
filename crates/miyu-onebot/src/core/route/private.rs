@@ -52,6 +52,17 @@ impl Route {
             pictures: Some(pictures),
             forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),
         };
+        // 附加提示词放进 system（施工 O-58 上，`titled`）：先找到会话、放好，这一条开的轮就带上。找过的会话照新的换；没找过的
+        // 只为白名单成员的提示词先找（陌生人、管理员照旧交的时候才找，不多问一次）。
+        let note = applied::extra_prompt(&applied).map(str::to_string);
+        let venue = message.place.peer.venue.to_string();
+        let known = self.venues.contains_key(&venue);
+        if (known
+            || (note.is_some() && message.place.listed() && self.found(&message.place).await?))
+            && let Some(session) = self.venues.get(&venue).cloned()
+        {
+            self.noted(&session, note.as_deref()).await?;
+        }
         self.submit(message).await.map(|_| ())
     }
 }
