@@ -67,5 +67,6 @@ mod texts;
 mod tuning;
 mod undelivered;
 mod venue;
+mod voicing;
 mod web;
 mod whitelist;

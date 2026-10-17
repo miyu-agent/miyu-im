@@ -6,6 +6,8 @@
 //! - [`EVENT`]（施工 O-43 上）：NapCat 推来的通知、请求原样交出去，不等回应、不看回答（[`Hooks::event`]）。
 //! - [`INBOUND`]（施工 O-43 中）：群里一条人说的话记下以后、判以前，并着问挂在这里的每一个包，每个最多等 `hook_millis`；回
 //!   `record`（只记下）、`reply`（当成冲她来的直接回）、`pass`（照常），几个包的照 [`Steer`] 的轻重取最重的（[`Hooks::inbound`]）。
+//! - [`OUTBOUND`]（施工 O-43 下）：她的一段话过出站链以前，照包的编号一个接一个问，前一个换了的交给后一个；回 `{"text"}` 换、
+//!   `{"drop": true}` 不发、`{}` 照原样（[`Hooks::outbound`]）。
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -24,8 +26,20 @@ pub(crate) const EVENT: &str = "qq.event";
 /// 进站：群里一条人说的话判以前问，回 `{"route": "pass" | "record" | "reply"}`。
 pub(crate) const INBOUND: &str = "qq.inbound";
 
+/// 出站：她的一段话发出去以前问，回 `{"text": <换成的>}`、`{"drop": true}` 或 `{}`。
+pub(crate) const OUTBOUND: &str = "qq.outbound";
+
 /// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
-const POINTS: [&str; 2] = [EVENT, INBOUND];
+const POINTS: [&str; 3] = [EVENT, INBOUND, OUTBOUND];
+
+/// 问过出站挂接点的结果（施工 O-43 下）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Voiced {
+    /// 照这一段发：没换的是原样，换了的是最后换成的。
+    Say(String),
+    /// 这个包说不发。
+    Drop(String),
+}
 
 /// 进站挂接点的意见，照轻重排：几个包的取最重的，只记下盖直接回盖照常（施工 O-43 中）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -167,6 +181,42 @@ impl Hooks {
         heaviest(answers)
     }
 
+    /// 问挂在 [`OUTBOUND`] 的包 `packages`（照编号排）她在场所 `venue`（机器人号 `bot`）的一段话 `text`：一个接一个问，前一个
+    /// 换了的交给后一个，每个最多等 `hook_millis`；有一个说不发的就停、交回它。等不到的、核心拒了的、答错的（`text` 不是不空的
+    /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=qq.outbound why=…`。
+    pub(crate) async fn outbound(
+        &self,
+        packages: Vec<String>,
+        venue: &str,
+        bot: i64,
+        text: String,
+    ) -> Voiced {
+        let mut text = text;
+        for package in packages {
+            let call = json!({"package": package, "method": OUTBOUND, "params": {"venue": venue, "bot": bot, "text": text}});
+            let answered =
+                match tokio::time::timeout(self.wait, self.caller.call("package.call", call)).await
+                {
+                    Err(_) => Err("timeout".to_string()),
+                    // 核心断开：跟核心的那一头会读到头、桥停下；照原样。
+                    Ok(Err(_)) => Ok(Value::Null),
+                    Ok(Ok(reply)) => match reason(&reply) {
+                        Some(why) => Err(why.to_string()),
+                        None => Ok(reply["result"].clone()),
+                    },
+                };
+            match answered.and_then(|result| Edit::read(&result)) {
+                Ok(Edit::Drop) => return Voiced::Drop(package),
+                Ok(Edit::Change(changed)) => text = changed,
+                Ok(Edit::Keep) => {}
+                Err(why) => {
+                    tracing::warn!(target: TARGET, package, point = OUTBOUND, why = %why, "hook failed");
+                }
+            }
+        }
+        Voiced::Say(text)
+    }
+
     /// 锁上表。锁坏了照样用：表里只有编号和名字。
     fn lock(&self) -> MutexGuard<'_, BTreeMap<String, Vec<&'static str>>> {
         self.hooked.lock().unwrap_or_else(PoisonError::into_inner)
@@ -182,6 +232,33 @@ fn table(packages: &Value) -> BTreeMap<String, Vec<&'static str>> {
         .filter_map(|entry| Some((entry["package"].as_str()?.to_string(), points(entry))))
         .filter(|(_, points)| !points.is_empty())
         .collect()
+}
+
+/// 出站挂接点一个包的回答。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Edit {
+    /// 照原样：`{}`、核心断开的。
+    Keep,
+    /// 换成这一段：`{"text": <不空的字>}`。
+    Change(String),
+    /// 不发：`{"drop": true}`。
+    Drop,
+}
+
+impl Edit {
+    /// 读一个包的回答 `result`：`drop` 是 `true` 的不发；`text` 是不空的字的换；两格都没有的照原样；别的写法是答错了
+    /// （`bad_answer`）。
+    fn read(result: &Value) -> Result<Edit, String> {
+        let bad = || "bad_answer".to_string();
+        match (result.get("drop"), result.get("text")) {
+            (Some(Value::Bool(true)), None) => Ok(Edit::Drop),
+            (None, Some(Value::String(text))) if !text.trim().is_empty() => {
+                Ok(Edit::Change(text.clone()))
+            }
+            (None, None) if result.is_object() || result.is_null() => Ok(Edit::Keep),
+            _ => Err(bad()),
+        }
+    }
 }
 
 /// 几个包的意见（照编号排）取最重的：一样重的照编号取头一个；都照常的没有包。

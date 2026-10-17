@@ -15,6 +15,7 @@ use super::backlog::queued_reply;
 use super::outbound::{Passed, group_ctx, pass, private_ctx, why_name};
 use super::projection::{Aim, Speaking};
 use super::sending::{Piece, What};
+use super::voicing::Voice;
 use super::{Route, applied, reply_text};
 use crate::TARGET;
 use crate::core::Gone;
@@ -108,9 +109,25 @@ impl Route {
         Ok(())
     }
 
-    /// 她在群会话 `session` 里（主线或者它的一条支线，照 `speaking` 的 `line`，施工 O-36）新说的一段话 `text`（第 9 条）：过出站链
-    /// （情形照投影交出的 `speaking`、本机此刻、这个群此刻的参数），过了的一段一条入队。本机的钟读不出的（照说不会）记一行、不发。
+    /// 她在群会话 `session` 里（主线或者它的一条支线，照 `speaking` 的 `line`，施工 O-36）新说的一段话 `text`（第 9 条）：先问出站
+    /// 挂接点（施工 O-43 下，`voicing`），再 [`Route::speak_now`]。
+    ///
+    /// # Errors
+    ///
+    /// 入队时写不出去、核心断开。
     pub(super) async fn speak(
+        &mut self,
+        session: &str,
+        speaking: Speaking,
+        text: &str,
+    ) -> Result<(), Gone> {
+        self.voice(session, Voice::Group(speaking), text.to_string())
+            .await
+    }
+
+    /// 群里她的一段话 `text` 过出站链（情形照投影交出的 `speaking`、本机此刻、这个群此刻的参数），过了的一段一条入队。本机的钟读
+    /// 不出的（照说不会）记一行、不发。
+    pub(super) async fn speak_now(
         &mut self,
         session: &str,
         speaking: Speaking,
@@ -190,19 +207,34 @@ impl Route {
             self.hushed(session, &reply_text(event));
             return Ok(());
         }
+        // 先问出站挂接点（施工 O-43 下，`voicing`），再 `say_privately_now`。
+        let turn = event["turn"].as_u64().unwrap_or(0);
+        self.voice(session, Voice::Private { turn }, reply_text(event))
+            .await
+    }
+
+    /// 私聊里她第 `turn` 个回合的一段话 `text` 过出站链（去重照这一回合发过的，`Spoken`），过了的一段一条入队。
+    ///
+    /// # Errors
+    ///
+    /// 入队时写不出去、核心断开。
+    pub(super) async fn say_privately_now(
+        &mut self,
+        session: &str,
+        turn: u64,
+        text: &str,
+    ) -> Result<(), Gone> {
         let Some(peer) = self.peers.get(session).cloned() else {
-            unknown_peer(session, &reply_text(event));
+            unknown_peer(session, text);
             return Ok(());
         };
         let Some(venue) = Venue::parse(&peer.venue) else {
             return Ok(());
         };
-        let turn = event["turn"].as_u64().unwrap_or(0);
         let params = self.applied(&venue).params;
         let spoken = self.spoken.get(session).map(|spoken| spoken.of(turn));
         let ctx = private_ctx(spoken.unwrap_or_default(), params.outbound);
-        let text = reply_text(event);
-        let Some(passed) = passed(&peer.venue, &text, &ctx, None, params.split_chars) else {
+        let Some(passed) = passed(&peer.venue, text, &ctx, None, params.split_chars) else {
             return Ok(());
         };
         let what = What::Reply {

@@ -98,3 +98,26 @@ fn the_heaviest_opinion_wins_and_names_the_first_package_giving_it() {
         assert_eq!(Steer::read(&wrong), None, "{wrong}");
     }
 }
+
+#[test]
+fn an_outbound_answer_keeps_changes_drops_or_is_wrong() {
+    assert_eq!(Edit::read(&json!({})), Ok(Edit::Keep));
+    assert_eq!(Edit::read(&json!(null)), Ok(Edit::Keep));
+    assert_eq!(
+        Edit::read(&json!({"text": "新的"})),
+        Ok(Edit::Change("新的".to_string()))
+    );
+    assert_eq!(Edit::read(&json!({"drop": true})), Ok(Edit::Drop));
+    for wrong in [
+        json!({"text": ""}),
+        json!({"text": "  "}),
+        json!({"text": 1}),
+        json!({"drop": false}),
+        json!({"drop": "yes"}),
+        json!({"drop": true, "text": "x"}),
+        json!("x"),
+        json!([]),
+    ] {
+        assert_eq!(Edit::read(&wrong), Err("bad_answer".to_string()), "{wrong}");
+    }
+}

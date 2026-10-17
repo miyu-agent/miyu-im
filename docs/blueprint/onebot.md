@@ -36,6 +36,8 @@
 | `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
 | `crates/miyu-onebot/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`qq.event` 原样交通知、请求（「挂接点」） |
 | `crates/miyu-onebot/src/bin/miyu-onebot-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
+| `crates/miyu-onebot/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
+| `crates/miyu-onebot/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
 | `crates/miyu-onebot/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`qq.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`qq.venue` 照场所会话的表答（「给别的包调的方法」） |
 | `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-onebot/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
@@ -1266,7 +1268,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **守着它的**（`exports.rs`、`src/core/route/exports/tests.rs`、`src/core/methods/tests.rs`、`settings.rs`、`backstage.rs`、`lanes.rs`）：参数怎么读（字符、长度、`params`、`bot` 的类型）；清单只导出这两个；登记四个方法。真核心拉起真桥、头照别的包的样子经 `package.call` 调：NapCat 没连着 `not_connected`；连上以后原样转过去、原样交回、没有 `echo`；写的动作、写了连着的号照转；不写参数的是 `{}`；NapCat 回失败也原样交回；写了没连着的号 `not_connected`；九种写错的 `bad_params`；`call_timeout_seconds` 改成 1 秒、NapCat 不回的 `unanswered`；运行日志有谁调了什么、没有参数里的数。拒的 `data.code` 写错的 -32602、别的 -32010。群会话照回场所和机器人号，支线还在回的时候照它的群，认不得的 `null`。读的一头只把这两个交给跟核心的那一头。
 
-**挂接点**（O-43 上，2026-10-17 项目主人定：别的包能插进接入QQ 里面，先开进站、出站、QQ 事件、判断打分四处；施工单「要拍板的」两条照推荐定：照软件包列表找、不另外登记，`qq.event` 原样交、不等回应）：别的包导出约定名字的方法，桥在那一处经核心的 `package.call` 调它（桥的清单 `capabilities` 有 `packages.call`）。写给作者的约定在 `extending.md` 第二条。O-43 上有找谁和 `qq.event`，O-43 中有进站 `qq.inbound`；出站、打分随 O-43 下。不占编号的几段同「提供者和不说话」。
+**挂接点**（O-43 上，2026-10-17 项目主人定：别的包能插进接入QQ 里面，先开进站、出站、QQ 事件、判断打分四处；施工单「要拍板的」两条照推荐定：照软件包列表找、不另外登记，`qq.event` 原样交、不等回应）：别的包导出约定名字的方法，桥在那一处经核心的 `package.call` 调它（桥的清单 `capabilities` 有 `packages.call`）。写给作者的约定在 `extending.md` 第二条。O-43 上有找谁和 `qq.event`，O-43 中有进站 `qq.inbound`，O-43 下有出站 `qq.outbound`；判断打分随后面一步。不占编号的几段同「提供者和不说话」。
 
 1. **找谁**（`core/hooks.rs`、`core/route/packages.rs`）：起来时订阅名下的场所会话以后（`revive`），订阅核心的 `packages`（`subscribe {"stream": "packages"}`，回应同 `package.list`）：照每一项的 `export.methods` 记下谁导出了桥认的名字，`status` 是 `running` 的才算（缺了依赖的核心不拉起，是 `depends_missing`；停了、关着的也不算），运行日志一行 `INFO hooks learned count=…`。之后推来的 `package.changed` 照它换那一个包（`entry` 是 `null` 的拿掉）；掉了队（`resync`，`stream` 是 `packages`）重新订阅。核心拒了订阅的记一行 `WARN packages not followed why=…`，照没有挂接点跑。几个包挂在同一处的照包的编号排。
 2. **`qq.event`**：读 NapCat 的那一头（`listen/connection.rs`）收到 `post_type` 是 `notice`、`request`、带得出 `self_id` 的一帧，在认它以前原样交给挂在这里的每一个包：`package.call {"package", "method": "qq.event", "params": {"bot", "event": <原样>}}`，各起一个小任务发，不等回应、不看回答，到别的包那里的先后不保证（核心也各自转）；桥自己照旧认、照旧办。核心拒了的、别的包答错的（回应带拒绝）记一行 `WARN hook failed package=… point=qq.event why=…`。没有挂的什么都不做。
@@ -1275,8 +1277,13 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 问的时候跟核心的那一头不等：另起任务问，排进一条照先后交回的队（`steering`），交回来的照先后判，一条慢的不会让后面的抢到前面。没挂的、队里也没有排着的当场判，和没有挂接点时一样；挂的没了、队里还排着的也排进去。重发的（第 8 条）照记下那一刻看（问的这段时间投影会补上它，`Route::known`）。
    - 照意见改判断（`called.rs` 的 `steer`）：`record` 改成只记下，发的人是终端管理员的不改（出错的包挡不住终端管理员）；`reply` 改成回，只在进站链放行了的时候（限流、睡觉、`allow = false` 的群在进站链就只记下了，越不过去；放行了、额度满了的只有不受限流的白名单成员，照他们的豁免回；不问判官）；`pass`、改不了的不动。改了的 `ext.onebot.chat.decided` 多一格 `hook: {"package", "route"}`。
    - 私聊不问：只有终端管理员、白名单成员私聊得了，`every-message` 本来每条都回。
+4. **`qq.outbound`**（O-43 下，2026-10-17；施工单「要拍板的」三条照推荐定：放在出站链以前、照包的编号接力、不发的不退信）：她的一段话（群里主线、支线，私聊；补发的也是）这一轮没说不说话（`skip_reply` 的照旧不发、不问）、过出站链以前（`core/route/voicing.rs`），照包的编号一个接一个问挂在这里的包：`{"venue", "bot", "text": <她这一段的原话，前一个包换过的照换过的>}`。
+   - 回 `{"text": <不空的字>}` 换成它、交给下一个包；`{"drop": true}` 不发、不再问后面的；`{}` 照原样。每个最多等 `hook_millis`；等不到的、核心拒了的、写法不对的（`text` 是空的、不是字，`drop` 不是 `true`，两格都写）照原样，记一行 `WARN hook failed package=… point=qq.outbound why=…`。
+   - 换过的照常过出站链（清理、去重、引用和 @、拆段）、入队、发；不发的记一行 `INFO reply dropped why=hooked package=…`（不记原文），不退信：是别的包的意思，她看到的是自己说过的话。
+   - 问的时候跟核心的那一头不等：另起任务问，排进一条照先后交回的队（`voicing`），交回来的照先后过链、入队；出站链要的情形（这一回合发过的、去重）在交回来以后才算，排着的前一段入队了，后一段照它去重。没挂的、队里也没有排着的当场过链；不知道发到哪的当场办（记一行、不发）。
+   - 命令回执、限流的提示不问：不是她说的话。
 
-**守着它的**（`src/core/hooks/tests.rs`、`hooks.rs`、`steering.rs`、`src/core/route/body/tests.rs`）：在跑、导出了桥认的名字的才算挂上，停了的、缺依赖的、没导出的、导出别的的、没有编号的不算，照编号排。真核心拉起真桥，管理员家目录里另装两个测试包（`miyu-onebot-test-hook`，`tests/support/hooked.rs`）：导出 `qq.event` 的收到通知、请求原样（带 `from: "onebot"`），消息不交；只导出别的方法的不收；推来的一项只换那一个包（停了、卸了、不导出了的拿掉）；桥起来时还关着、之后才打开的测试包照推来的 `package.changed` 挂上。进站（O-43 中）：意见取最重的、`route` 的写法；判断写 `hook`、没改的不带。真核心拉起真桥：回 `record` 的别人 @ 她只记下、判断写 `hook`，终端管理员 @ 她照回、不写；问的参数一格一格对；回 `reply` 的随口一句也直接回、不问判官，两个包都问了；`record` 盖 `reply`；本来就回的不写 `hook`；回得不对的照常、记 `why=bad_answer`；限流满了 `reply` 越不过去；不回的等满 1.5 秒照常、运行日志记 `why=timeout`。
+**守着它的**（`src/core/hooks/tests.rs`、`hooks.rs`、`steering.rs`、`src/core/route/body/tests.rs`）：在跑、导出了桥认的名字的才算挂上，停了的、缺依赖的、没导出的、导出别的的、没有编号的不算，照编号排。真核心拉起真桥，管理员家目录里另装两个测试包（`miyu-onebot-test-hook`，`tests/support/hooked.rs`）：导出 `qq.event` 的收到通知、请求原样（带 `from: "onebot"`），消息不交；只导出别的方法的不收；推来的一项只换那一个包（停了、卸了、不导出了的拿掉）；桥起来时还关着、之后才打开的测试包照推来的 `package.changed` 挂上。进站（O-43 中）：意见取最重的、`route` 的写法；判断写 `hook`、没改的不带。真核心拉起真桥：回 `record` 的别人 @ 她只记下、判断写 `hook`，终端管理员 @ 她照回、不写；问的参数一格一格对；回 `reply` 的随口一句也直接回、不问判官，两个包都问了；`record` 盖 `reply`；本来就回的不写 `hook`；回得不对的照常、记 `why=bad_answer`；限流满了 `reply` 越不过去；不回的等满 1.5 秒照常、运行日志记 `why=timeout`。出站（O-43 下，`voicing.rs`）：回答的几种写法；换字的群里、私聊都照换的发，问的参数对；两个包接力，后一个拿到的是换过的；不发的不发、记 `why=hooked`、不记原文；写法不对的照原样、记 `why=bad_answer`；不回的等满 1.5 秒照原样发、记 `why=timeout`。
 
 ### 二、设置和状态（O-28 下）
 
