@@ -14,6 +14,8 @@
   --accent: #3a63c9;
   --danger: #c2413b;
   --gold: #b8892f;
+  /* 提醒的字（施工 O-45 补）：浅色下琥珀压暗一些，卡片底上的小字对比度过 4.5:1（网页的会话量过：原来约 2.9:1）。 */
+  --warn: color-mix(in srgb, var(--gold) 65%, var(--text));
   --online: #2e8b57;
   --scrim: rgba(28, 24, 18, 0.32);
   --sans: Inter, "Adwaita Sans", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -35,6 +37,7 @@
   --accent: #7aa2f7;
   --danger: #f7768e;
   --gold: #e0af68;
+  --warn: var(--gold);
   --online: #9ece6a;
   --scrim: rgba(6, 7, 12, 0.5);
 }
@@ -130,7 +133,7 @@ dialog.confirm .actions { gap: 8px; }
 .note:empty { display: none; }
 .note.error { color: var(--danger); }
 /* 提醒（施工 O-41 补二：没认出来的配置项）：配置照旧能用、只是那一项没生效，用琥珀色，和真出错的红字分开。 */
-.card > .warn { margin: 4px 0; color: var(--gold); }
+.card > .warn { margin: 4px 0; color: var(--warn); }
 
 /* 「白名单成员」：一行是号、「删」、旁边一句；号不对的描红、那一句是红的。表空着时一句；下面一句终端管理员在哪改 */
 .card > .hint { margin: -6px 0 10px; }

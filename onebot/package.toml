@@ -69,8 +69,8 @@ element = "text"
 max = 128
 layers = ["system"]
 applies = "now"
-name = { en = "Whitelist", zh = "白名单成员", ja = "ホワイトリスト" }
-description = { en = 'People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊 AI、加 AI 好友自动通过、不受限流和睡觉影响、群里冲 AI 来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで AI に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }
+name = { en = "Whitelist", zh = "白名单成员", ja = "ホワイトリストのメンバー" }
+description = { en = 'People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊 AI、加 AI 好友自动通过、不受限流和睡觉影响、群里冲 AI 来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も休止時間もかからず、グループで AI に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }
 
 # 群的七项（施工 O-41，2026-10-17 项目主人定：做成配置项，网页、终端的设置页照清单画；照旧版加群白名单，白名单以外的群默认照样
 # 接话）。桥照它们拼一份规则文件 60-settings.toml，排在出厂、系统中间：没设的什么都不改，系统里名字排在后面的规则文件盖它
@@ -114,7 +114,7 @@ type = "text"
 max = 11
 layers = ["system"]
 applies = "now"
-name = { en = "Sleep hours", zh = "睡觉时间", ja = "睡眠時間" }
+name = { en = "Sleep hours", zh = "睡觉时间", ja = "休止時間" }
 description = { en = "HH:MM-HH:MM in local time, for example 23:00-07:00. In these hours the AI only records; the terminal administrator and whitelisted people can still call it. Empty or off: no sleep.", zh = "写成 HH:MM-HH:MM，照本机的时间，例如 23:00-07:00。这段时间里 AI 只记下、不接话，终端管理员和白名单成员照样叫得动。不填或 off 是不睡。", ja = "HH:MM-HH:MM でこのマシンの時刻で書きます。例：23:00-07:00。この時間は記録だけします。端末の管理者とホワイトリストの人は呼び出せます。空欄か off で眠りません。" }
 
 [settings.keywords]

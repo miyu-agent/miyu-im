@@ -119,7 +119,7 @@ export const TEXTS = {
     "fill/token": "アクセストークン",
     "fill/url": "ws://127.0.0.1:{port}{path}",
     "guide/napcat": "NapCat のネットワーク設定に「WebSocket クライアント」を追加し、下のアドレスとトークンを入れて、メッセージ形式は配列を選びます。",
-    "guide/title": "まずこの三つ",
+    "guide/title": "まずは次の3ステップ",
     "guide/token": "トークンを生成：下の「アクセストークン」の行の「生成」を押します。",
     "guide/wait": "数秒待つと、下の NapCat の行が「接続済み」になります。",
     "loading": "QQ接続につないでいます…",
@@ -132,8 +132,8 @@ export const TEXTS = {
     "misread": "これらの設定は読み取れなかったので、ルールファイルの値を使っています：{names}",
     "misread/separator": "、",
     "nav/connection": "接続",
-    "nav/whitelist": "ホワイトリスト",
-    "ports/listen": "NapCat の接続先",
+    "nav/whitelist": "ホワイトリストのメンバー",
+    "ports/listen": "NapCat 接続用",
     "ports/listen-in-use": "ポート {port} は使われているので、ブリッジは元のポートのままです。別のポートにして保存し直してください。",
     "ports/listen-moved": "NapCat のポートを {port} にしました：NapCat 側のアドレスも上のものに変えてください。",
     "ports/title": "ポート",
@@ -153,9 +153,9 @@ export const TEXTS = {
     "whitelist/bad-number": "数字だけで、0 から始まらないこと",
     "whitelist/duplicate": "この番号は重複しています",
     "whitelist/empty": "ホワイトリストにはまだ誰もいません。",
-    "whitelist/hint": "AI と個人チャットでき、友だち申請は自動で通り、回数制限がなく、AI の睡眠時間でも通ります。グループで AI に向けた発言にはそのまま返事します。",
+    "whitelist/hint": "AI と個人チャットでき、友だち申請は自動で通り、回数制限がなく、AI の休止時間でも通ります。グループで AI に向けた発言にはそのまま返事します。",
     "whitelist/number": "QQ 番号",
     "whitelist/remove": "削除",
-    "whitelist/title": "ホワイトリスト"
+    "whitelist/title": "ホワイトリストのメンバー"
   }
 };
