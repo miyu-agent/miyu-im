@@ -1,0 +1,65 @@
+//! 拼两页用的几个小件：加一项的选项、卡片写成 JSON、页面上的值、控件的名字、号和人格的名字。
+
+use serde_json::{Map, Value, json};
+
+use super::{Control, MAX_OPTIONS};
+
+/// 加一项的选项：`all` 里不在 `taken` 的，照号排，最多 [`MAX_OPTIONS`] 个，值是 `prefix` 加号，字是「名字（号）」。
+pub(super) fn choices(all: &[(u64, String)], taken: &[u64], prefix: &str) -> Vec<Value> {
+    let mut left: Vec<&(u64, String)> = all.iter().filter(|(id, _)| !taken.contains(id)).collect();
+    left.sort_by_key(|(id, _)| *id);
+    left.into_iter()
+        .take(MAX_OPTIONS)
+        .map(|(id, name)| json!({"value": format!("{prefix}{id}"), "label": format!("{name}（{id}）")}))
+        .collect()
+}
+
+/// 卡片的一组格写成 JSON 对象（没写的格不在里面）。
+pub(super) fn to_object(set: &impl serde::Serialize) -> Map<String, Value> {
+    match serde_json::to_value(set) {
+        Ok(Value::Object(object)) => object,
+        _ => Map::new(),
+    }
+}
+
+/// 页面上的值：没写的 `null`，管理的人去掉 `qq:`。
+pub(super) fn page_value(key: &str, value: Option<&Value>) -> Value {
+    match (key, value) {
+        (_, None) => Value::Null,
+        ("managers", Some(Value::Array(list))) => list
+            .iter()
+            .map(|one| match one.as_str() {
+                Some(text) => json!(text.strip_prefix("qq:").unwrap_or(text)),
+                None => one.clone(),
+            })
+            .collect(),
+        (_, Some(value)) => value.clone(),
+    }
+}
+
+/// 控件的名字。
+pub(super) fn control_name(control: Control) -> &'static str {
+    match control {
+        Control::Toggle => "toggle",
+        Control::Persona | Control::Chatty | Control::LongText => "select",
+        Control::Textarea => "textarea",
+        Control::List => "list",
+        Control::Text => "text",
+        Control::Number => "number",
+    }
+}
+
+/// 号对应的名字。
+pub(super) fn name_of(list: &[(u64, String)], id: u64) -> Option<String> {
+    list.iter()
+        .find(|(one, _)| *one == id)
+        .map(|(_, name)| name.clone())
+        .filter(|name| !name.is_empty())
+}
+
+/// 人格编号对应的名字。
+pub(super) fn name_of_persona(list: &[(String, String)], id: &str) -> Option<String> {
+    list.iter()
+        .find(|(one, _)| one == id)
+        .map(|(_, name)| name.clone())
+}

@@ -30,6 +30,8 @@ impl Route {
                 self.venues
                     .retain(|_, session| groups.contains_key(session));
                 tracing::info!(target: TARGET, count = self.whitelist.len(), "whitelist changed");
+                // 私聊页照新的白名单推（施工 O-58 下）。
+                self.repush_pages();
             }
             // 撤回回执的命令（施工 O-47）：下一条回执照新的。
             if let Some(value) = keys.get(&recall_receipts_key()) {
@@ -44,6 +46,10 @@ impl Route {
         if pushed["method"] == "tool.call" {
             return self.tool_called(&pushed).await;
         }
+        // 场所卡片两页的有人看、没人看了（施工 O-58 下，`pages`）。
+        if self.page_pushed(&pushed) {
+            return Ok(());
+        }
         // 软件包列表变了、订阅掉了队（施工 O-43 上，`packages`）。
         if self.package_pushed(&pushed).await? {
             return Ok(());
@@ -53,8 +59,8 @@ impl Route {
             if pushed["params"]["method"] == SEND {
                 return self.send_exported(&pushed).await;
             }
-            // 后台页的场所卡片（施工 O-58 上，`cards`）。
-            if self.cards_called(&pushed) {
+            // 后台页的场所卡片（施工 O-58 上，`cards`）、两页的三个方法（施工 O-58 下，`pages`）。
+            if self.cards_called(&pushed) || self.page_called(&pushed).await? {
                 return Ok(());
             }
             self.exported(&pushed);

@@ -6,8 +6,8 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn seven_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）、场所卡片的两个（施工 O-58 上）。
+fn ten_methods_are_registered_without_a_timeout() {
+    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）。
     assert_eq!(
         registered(),
         json!({"methods": [
@@ -18,6 +18,9 @@ fn seven_methods_are_registered_without_a_timeout() {
             {"name": "qq.send"},
             {"name": "cards.get"},
             {"name": "cards.save"},
+            {"name": "cards.save_one"},
+            {"name": "cards.add"},
+            {"name": "cards.remove"},
         ]})
     );
 }
@@ -32,6 +35,9 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "qq.send",
         "cards.get",
         "cards.save",
+        "cards.save_one",
+        "cards.add",
+        "cards.remove",
         "qq.inbound",
         "",
     ]
@@ -45,7 +51,10 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
             "qq.venue",
             "qq.send",
             "cards.get",
-            "cards.save"
+            "cards.save",
+            "cards.save_one",
+            "cards.add",
+            "cards.remove"
         ]
     );
 }

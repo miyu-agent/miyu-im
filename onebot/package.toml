@@ -19,8 +19,9 @@ start = "manual"
 # 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send、session.respond 是操作会话，带 as 是代
 # 平台上的人发话，subscribe 是读会话，events.append 记 ext.onebot.*、venue.* 是写事件（施工 O-23），开本机的两个端口、NapCat
 # 连进来是联网；provide 是提供工具：桥给场所会话登记 skip_reply 这些平台工具（施工 O-26，docs/blueprint/onebot.md 第一条
-# 「提供者和不说话」）；packages.call 是调别的包导出的方法：挂接点（施工 O-43 上，docs/blueprint/extending.md 第二条）。出厂的包算批过的，不用人批。
-capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system"]
+# 「提供者和不说话」）；packages.call 是调别的包导出的方法：挂接点（施工 O-43 上，docs/blueprint/extending.md 第二条）；widgets 是终端、
+# 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。
+capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system", "widgets"]
 # 自己的系统账号 onebot（施工 O-4 下，06-多用户与身份.md U14）：群、陌生人私聊的场所会话归它，桥以它的身份连进来。
 system_account = true
 
@@ -39,6 +40,20 @@ methods = ["qq.action", "qq.venue", "qq.send"]
 
 # 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/onebot/ 下的 page/，入口 index.html；网页把它
 # 放在隔离的框里，它读写这个包的设置项、调桥登记的方法（status、connection.token）。
+# 场所卡片的两页（施工 O-58 下，docs/blueprint/onebot.md「场所卡片的两页」）：终端、网页里的整页，内容由桥经 widget.set 推，
+# 改了经 package.call 调 cards.save_one、cards.add、cards.remove。
+[[widget]]
+id = "groups"
+place = "page"
+title = { en = "QQ groups", zh = "QQ 群", ja = "QQ グループ" }
+command = "qq-groups"
+
+[[widget]]
+id = "friends"
+place = "page"
+title = { en = "QQ private chats", zh = "QQ 私聊", ja = "QQ 個人チャット" }
+command = "qq-friends"
+
 [page]
 dir = "page"
 

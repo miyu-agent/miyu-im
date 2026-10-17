@@ -66,6 +66,7 @@ mod names;
 mod outbound;
 mod outreach;
 mod packages;
+mod pages;
 mod parts;
 mod persona;
 mod pictures;
@@ -238,6 +239,8 @@ pub(crate) struct Route {
     steering: FuturesOrdered<JoinHandle<Steering>>,
     /// 问过出站挂接点、照先后等着过链的她的话（施工 O-43 下，`voicing`）。
     voicing: FuturesOrdered<JoinHandle<Voicing>>,
+    /// 场所卡片的两页在看的（施工 O-58 下，`pages`）。
+    pages: pages::Pages,
 }
 
 impl Route {
@@ -313,6 +316,7 @@ impl Route {
             hooks,
             steering: FuturesOrdered::new(),
             voicing: FuturesOrdered::new(),
+            pages: pages::Pages::default(),
         }
     }
 

@@ -11,6 +11,8 @@
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
 pub mod defaults;
+pub mod edit;
+pub mod page;
 mod store;
 
 use serde::{Deserialize, Serialize};

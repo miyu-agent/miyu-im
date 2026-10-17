@@ -68,7 +68,7 @@ impl Route {
     }
 
     /// 群号是 `group` 的群卡每一格的默认值。
-    fn group_defaults(&self, group: u64) -> Value {
+    pub(super) fn group_defaults(&self, group: u64) -> Value {
         match i64::try_from(group)
             .ok()
             .and_then(|number| venue(VenueKind::Group, number).ok())
@@ -79,7 +79,7 @@ impl Route {
     }
 
     /// 对方的号是 `user` 的私聊卡每一格的默认值。
-    fn private_defaults(&self, user: u64) -> Value {
+    pub(super) fn private_defaults(&self, user: u64) -> Value {
         match i64::try_from(user)
             .ok()
             .and_then(|number| venue(VenueKind::Private, number).ok())
@@ -127,11 +127,30 @@ impl Route {
         );
         self.rules.set_cards(cards);
         answerer.answer(id, json!({"saved": true}));
+        // 在看两页的照新的推（施工 O-58 下，`pages`）。
+        self.repush_pages();
     }
 }
 
 /// 问齐她在的群、好友、人格的名字，和手头的 `known` 一起答。
 async fn listed(id: Value, known: Value, bots: Arc<Bots>, caller: Caller, answerer: Answerer) {
+    let lists = lists(&bots, &caller).await;
+    let mut answer = known;
+    answer["groups"] = Value::Array(lists.groups);
+    answer["friends"] = Value::Array(lists.friends);
+    answer["personas"] = Value::Array(lists.personas);
+    answerer.answer(&id, answer);
+}
+
+/// 她在的群（`{id, name, members}`）、好友（`{id, name}`）、人格（`{persona, name}`）。
+pub(super) struct Lists {
+    pub(super) groups: Vec<Value>,
+    pub(super) friends: Vec<Value>,
+    pub(super) personas: Vec<Value>,
+}
+
+/// 问齐她在的群、好友（连着的号都问 NapCat）、人格的名字（核心的 `persona.list`，写错的不列）：问不到的是空的。
+pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
     let mut groups = Vec::new();
     let mut friends = Vec::new();
     for (_, link) in bots.all() {
@@ -167,11 +186,11 @@ async fn listed(id: Value, known: Value, bots: Arc<Bots>, caller: Caller, answer
             .unwrap_or_default(),
         _ => Vec::new(),
     };
-    let mut answer = known;
-    answer["groups"] = Value::Array(groups);
-    answer["friends"] = Value::Array(friends);
-    answer["personas"] = Value::Array(personas);
-    answerer.answer(&id, answer);
+    Lists {
+        groups,
+        friends,
+        personas,
+    }
 }
 
 /// NapCat 回的一张表里每一行的号、名字（和人数）：号不是整数的不要；同一个号只留第一行（几个号都在一个群里）。

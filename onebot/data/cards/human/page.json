@@ -1,0 +1,257 @@
+{
+  "other_groups": {
+    "zh": "其他群",
+    "en": "Other groups",
+    "ja": "その他のグループ"
+  },
+  "other_groups_sub": {
+    "zh": "白名单以外的群",
+    "en": "Groups not on the whitelist",
+    "ja": "ホワイトリスト外のグループ"
+  },
+  "add_group": {
+    "zh": "加一个群",
+    "en": "Add a group",
+    "ja": "グループを追加"
+  },
+  "add_friend": {
+    "zh": "加一个人",
+    "en": "Add a person",
+    "ja": "人を追加"
+  },
+  "to_friends": {
+    "zh": "私聊",
+    "en": "Private chats",
+    "ja": "個人チャット"
+  },
+  "to_groups": {
+    "zh": "群",
+    "en": "Groups",
+    "ja": "グループ"
+  },
+  "remove": {
+    "zh": "删掉",
+    "en": "Remove",
+    "ja": "削除"
+  },
+  "save": {
+    "zh": "保存",
+    "en": "Save",
+    "ja": "保存"
+  },
+  "heading.chat": {
+    "zh": "对话",
+    "en": "Conversation",
+    "ja": "会話"
+  },
+  "heading.call": {
+    "zh": "群里怎么叫她",
+    "en": "How she is called",
+    "ja": "呼びかけ"
+  },
+  "heading.pace": {
+    "zh": "节奏",
+    "en": "Pace",
+    "ja": "ペース"
+  },
+  "heading.out": {
+    "zh": "发出去",
+    "en": "Sending",
+    "ja": "送信"
+  },
+  "field.on": {
+    "zh": "接话",
+    "en": "Replies",
+    "ja": "返信する"
+  },
+  "field.persona": {
+    "zh": "人格",
+    "en": "Persona",
+    "ja": "人格"
+  },
+  "field.extra_prompt": {
+    "zh": "附加提示词",
+    "en": "Extra prompt",
+    "ja": "追加プロンプト"
+  },
+  "field.keywords": {
+    "zh": "触发词",
+    "en": "Trigger words",
+    "ja": "トリガー語"
+  },
+  "field.chatty": {
+    "zh": "插嘴",
+    "en": "Joins in",
+    "ja": "割り込み"
+  },
+  "field.managers": {
+    "zh": "管理的人",
+    "en": "Managers",
+    "ja": "管理者"
+  },
+  "field.show_ids": {
+    "zh": "看得到 QQ 号",
+    "en": "Sees QQ numbers",
+    "ja": "QQ 番号を見る"
+  },
+  "field.sleep": {
+    "zh": "睡觉时间",
+    "en": "Sleep time",
+    "ja": "睡眠時間"
+  },
+  "field.rate": {
+    "zh": "限流",
+    "en": "Rate limit",
+    "ja": "レート制限"
+  },
+  "field.strip_period": {
+    "zh": "去句号",
+    "en": "Drop final period",
+    "ja": "句点を外す"
+  },
+  "field.long_text": {
+    "zh": "长文",
+    "en": "Long text",
+    "ja": "長文"
+  },
+  "field.long_chars": {
+    "zh": "长文阈值",
+    "en": "Long text threshold",
+    "ja": "長文のしきい値"
+  },
+  "hint.persona": {
+    "zh": "改了以后新开的会话才换",
+    "en": "Takes effect in new conversations",
+    "ja": "新しい会話から反映"
+  },
+  "hint.managers": {
+    "zh": "QQ 号",
+    "en": "QQ numbers",
+    "ja": "QQ 番号"
+  },
+  "hint.sleep": {
+    "zh": "例如 23:00-07:00",
+    "en": "e.g. 23:00-07:00",
+    "ja": "例：23:00-07:00"
+  },
+  "hint.rate": {
+    "zh": "例如 3/60s：60 秒最多 3 条",
+    "en": "e.g. 3/60s: at most 3 per 60 seconds",
+    "ja": "例：3/60s（60 秒に最大 3 件）"
+  },
+  "hint.long_chars": {
+    "zh": "超过几个字算长文，0 是不算",
+    "en": "Characters before a reply counts as long; 0 turns it off",
+    "ja": "この文字数を超えると長文、0 で無効"
+  },
+  "chatty.never": {
+    "zh": "不插嘴",
+    "en": "Never",
+    "ja": "しない"
+  },
+  "chatty.few": {
+    "zh": "少",
+    "en": "Rarely",
+    "ja": "少なめ"
+  },
+  "chatty.some": {
+    "zh": "偶尔",
+    "en": "Sometimes",
+    "ja": "時々"
+  },
+  "chatty.many": {
+    "zh": "常",
+    "en": "Often",
+    "ja": "よく"
+  },
+  "long_text.split": {
+    "zh": "拆成几条",
+    "en": "Split into messages",
+    "ja": "分割して送る"
+  },
+  "long_text.image": {
+    "zh": "转成图",
+    "en": "As an image",
+    "ja": "画像にする"
+  },
+  "default": {
+    "zh": "默认 · {}",
+    "en": "Default · {}",
+    "ja": "既定 · {}"
+  },
+  "unset": {
+    "zh": "不设",
+    "en": "Not set",
+    "ja": "未設定"
+  },
+  "on": {
+    "zh": "开",
+    "en": "On",
+    "ja": "オン"
+  },
+  "off": {
+    "zh": "关",
+    "en": "Off",
+    "ja": "オフ"
+  },
+  "missing": {
+    "zh": "这张卡已经不在了",
+    "en": "This card is gone",
+    "ja": "このカードはもうありません"
+  },
+  "whitelist_changed": {
+    "zh": "白名单刚被别处改过，请再试一次",
+    "en": "The whitelist was just changed elsewhere, try again",
+    "ja": "ホワイトリストが他で変更されました。もう一度お試しください"
+  },
+  "whitelist_failed": {
+    "zh": "改不了白名单：{}",
+    "en": "Could not change the whitelist: {}",
+    "ja": "ホワイトリストを変更できません：{}"
+  },
+  "not_saved": {
+    "zh": "存不进盘",
+    "en": "Could not save",
+    "ja": "保存できません"
+  },
+  "problem.value": {
+    "zh": "写法不对",
+    "en": "Not valid",
+    "ja": "書き方が正しくありません"
+  },
+  "problem.unknown_key": {
+    "zh": "没有这一格",
+    "en": "Unknown field",
+    "ja": "不明な項目"
+  },
+  "problem.other": {
+    "zh": "写法不对",
+    "en": "Not valid",
+    "ja": "書き方が正しくありません"
+  },
+  "problem.field.rate": {
+    "zh": "要写成 3/60s 这样：60 秒最多 3 条",
+    "en": "Write it like 3/60s: at most 3 per 60 seconds",
+    "ja": "3/60s のように書いてください（60 秒に最大 3 件）"
+  },
+  "problem.field.sleep": {
+    "zh": "要写成 23:00-07:00 这样",
+    "en": "Write it like 23:00-07:00",
+    "ja": "23:00-07:00 のように書いてください"
+  },
+  "problem.field.long_chars": {
+    "zh": "要填 0 到 100000 的整数",
+    "en": "Enter a whole number from 0 to 100000",
+    "ja": "0 から 100000 の整数を入力してください"
+  },
+  "problem.field.persona": {
+    "zh": "没有这个人格",
+    "en": "No such persona",
+    "ja": "その人格はありません"
+  },
+  "problem.field.managers": {
+    "zh": "写 QQ 号",
+    "en": "Write QQ numbers",
+    "ja": "QQ 番号を書いてください"
+  }
+}

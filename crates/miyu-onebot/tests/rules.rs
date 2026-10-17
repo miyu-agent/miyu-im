@@ -77,6 +77,7 @@ pub fn copied_resources() -> PathBuf {
         "packages/onebot/data/venues.d/50-defaults.toml",
         "packages/onebot/data/defaults.toml",
         "packages/onebot/data/moderation.txt",
+        "packages/onebot/data/cards/human/page.json",
     ] {
         let to = copy.join(file);
         std::fs::create_dir_all(to.parent().expect("有上一级")).expect("建得了");

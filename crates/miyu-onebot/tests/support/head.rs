@@ -15,6 +15,8 @@ pub struct Head {
     lines: BufReader<ReadHalf<Connection>>,
     write: WriteHalf<Connection>,
     next: u64,
+    /// 等回应时读到的推送（施工 O-58 下：界面块的 `widget.changed`），照先后留着给 [`Head::pushed`]。
+    pushes: std::collections::VecDeque<Value>,
 }
 
 impl Head {
@@ -26,6 +28,7 @@ impl Head {
             lines: BufReader::new(read),
             write,
             next: 0,
+            pushes: std::collections::VecDeque::new(),
         };
         let hello =
             json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": token});
@@ -54,6 +57,32 @@ impl Head {
                 };
                 if reply["id"] == id && reply.get("method").is_none() {
                     return reply;
+                }
+                if reply.get("method").is_some() && reply.get("id").is_none() {
+                    self.pushes.push_back(reply);
+                }
+            }
+        })
+        .await
+    }
+
+    /// 等到一条合 `wanted` 的推送（先看等回应时留下的），交回它；不合的扔掉。最多等六十秒。
+    pub async fn pushed(&mut self, wanted: impl Fn(&Value) -> bool) -> Value {
+        while let Some(push) = self.pushes.pop_front() {
+            if wanted(&push) {
+                return push;
+            }
+        }
+        within("核心推", async {
+            loop {
+                let mut line = String::new();
+                let read = self.lines.read_line(&mut line).await.expect("读得了");
+                assert!(read > 0, "核心断开了");
+                let Ok(push) = serde_json::from_str::<Value>(&line) else {
+                    continue;
+                };
+                if push.get("id").is_none() && wanted(&push) {
+                    return push;
                 }
             }
         })

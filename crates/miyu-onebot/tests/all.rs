@@ -43,6 +43,7 @@ mod no_token;
 mod outbound;
 mod outreach;
 mod page;
+mod pages;
 mod pipe;
 mod platform;
 mod private;

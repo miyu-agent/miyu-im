@@ -41,6 +41,8 @@ use miyu_client::settings::problem::Code;
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
 pub use cards::defaults as card_defaults;
+pub use cards::edit::{self as card_edit, Edit};
+pub use cards::page::{self as card_page, Known, Words};
 pub use cards::{Card, Cards, Chatty, GroupCard, GroupSet, PrivateCard, PrivateSet};
 pub use cards::{load as load_cards, path as cards_path, save as save_cards};
 pub use configured::{Configured, key_of};
@@ -58,6 +60,9 @@ const DEFAULTS: &str = "defaults.toml";
 
 /// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在 `system/modules/onebot/` 里。
 const MODERATION: &str = "moderation.txt";
+
+/// 场所卡片两页上给人看的字（施工 O-58 下）：不放进 `human/`，那里只放语言文件（工具说明照语言读整个目录）。
+const PAGE: &str = "cards/human/page.json";
 
 /// 包自己的系统数据在 `system/` 下的哪个目录里，再往下是包的编号（2026-10-09 核心的主会话定）。
 const MODULES: &str = "modules";
@@ -78,6 +83,8 @@ pub struct Factory {
     facts: facts::Facts,
     /// 桥的工具（施工 O-26，`onebot.md`「提供者和不说话」）：说明、答的两句，查过字段。
     tools: Arc<Tools>,
+    /// 场所卡片两页上给人看的字（施工 O-58 下，`cards/human/page.json`）。
+    page: Words,
 }
 
 impl Factory {
@@ -118,8 +125,9 @@ impl Factory {
         let judge = judge::texts(&dir, &mut problems);
         let facts = facts::load(&dir, &mut problems);
         let tools = tools::load(&dir, &mut problems);
-        match (params, keywords, judge, facts, tools) {
-            (Some(params), Some(keywords), Some(judge), Some(facts), Some(tools))
+        let page = page_words(&dir, &mut problems);
+        match (params, keywords, judge, facts, tools, page) {
+            (Some(params), Some(keywords), Some(judge), Some(facts), Some(tools), Some(page))
                 if problems.is_empty() =>
             {
                 Ok(Factory {
@@ -129,6 +137,7 @@ impl Factory {
                     judge: Arc::new(judge),
                     facts,
                     tools: Arc::new(tools),
+                    page,
                 })
             }
             _ => Err(problems),
@@ -139,6 +148,16 @@ impl Factory {
     pub fn tools(&self) -> Arc<Tools> {
         Arc::clone(&self.tools)
     }
+}
+
+/// 场所卡片两页的字（施工 O-58 下）：不在的、读不成的、写法不对的记一条问题。
+fn page_words(dir: &Path, problems: &mut Vec<Problem>) -> Option<Words> {
+    let text = required(&dir.join(PAGE), PAGE, problems)?;
+    let words = Words::parse(&text);
+    if words.is_none() {
+        problems.push(files::whole(Code::Syntax, Source::Factory, PAGE, None));
+    }
+    words
 }
 
 /// 出厂的一份 `path`（问题里写成 `name`）：不在的、读不成的记一条问题，交回空的。
@@ -299,6 +318,11 @@ impl Venues {
     /// 桥的工具（施工 O-31：平台工具的话由跟核心的那一头答）：出厂的，跑着不再读。
     pub fn tools(&self) -> Arc<Tools> {
         self.factory.tools()
+    }
+
+    /// 场所卡片两页上给人看的字（施工 O-58 下）：出厂的，跑着不再读。
+    pub fn page_words(&self) -> &Words {
+        &self.factory.page
     }
 
     /// 判官的说明（施工 O-23 下）：出厂的，跑着不再读。

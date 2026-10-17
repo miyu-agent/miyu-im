@@ -39,10 +39,18 @@ pub(crate) const CARDS_GET: &str = "cards.get";
 /// 后台页的场所卡片：存（施工 O-58 上）。
 pub(crate) const CARDS_SAVE: &str = "cards.save";
 
+/// 场所卡片两页的三个方法（施工 O-58 下，`rules::card_page`）：页面上存一张表单、加一项、删一项。
+use crate::rules::card_page::{
+    ADD as CARDS_ADD, REMOVE as CARDS_REMOVE, SAVE_ONE as CARDS_SAVE_ONE,
+};
+
 /// 方法 `method` 是不是交给跟核心的那一头答的：给别的包调的那几个（施工 O-42；O-56 多 `qq.send`），场所卡片的两个（施工 O-58
 /// 上：卡片、场所规则、连接都在那一头）。
 pub(super) fn exported(method: &str) -> bool {
-    matches!(method, ACTION | VENUE | SEND | CARDS_GET | CARDS_SAVE)
+    matches!(
+        method,
+        ACTION | VENUE | SEND | CARDS_GET | CARDS_SAVE | CARDS_SAVE_ONE | CARDS_ADD | CARDS_REMOVE
+    )
 }
 
 /// 答方法的那一头：桥手里的状态交进来以前什么都答不了。
@@ -110,6 +118,9 @@ fn registered() -> Value {
         {"name": SEND},
         {"name": CARDS_GET},
         {"name": CARDS_SAVE},
+        {"name": CARDS_SAVE_ONE},
+        {"name": CARDS_ADD},
+        {"name": CARDS_REMOVE},
     ]})
 }
 
