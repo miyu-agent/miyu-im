@@ -104,7 +104,6 @@ const FRIEND: i64 = 50005;
 
 #[tokio::test]
 async fn a_sticker_reaches_a_whitelisted_private_chat_too() {
-    // 终端管理员的私聊归他本人：核心照 W-6 补读 `sent` 里的 blob 还不认（等核心补），这一步只测白名单成员的私聊。
     let path = picture();
     let args = vec![format!("sticker:{}", path.display())];
     let install =
@@ -172,5 +171,26 @@ async fn a_sticker_that_never_got_out_is_noted_for_her() {
         "名字照 alt：{}",
         unshown[0]
     );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_sticker_reaches_the_admins_private_chat() {
+    // 终端管理员的私聊归他本人：核心 W-6 再补（4a691ddc）起 `blob.get` 认 `sent` 里的 blob（施工 O-51 补）。
+    let path = picture();
+    let args = vec![format!("sticker:{}", path.display())];
+    let install =
+        move |root: &miyu_store::root::DataRoot| install_with(root, "stickers", &args, &["tools"]);
+    let (home, mut napcat, _) = started_installed(&script(), "", MEMBERS, install).await;
+    until_provided(&home).await;
+    napcat.send(private_frame(ADMIN, 1, json!([plain("来个表情")])));
+    let first = napcat.action().await;
+    assert_eq!(first["action"], "send_private_msg", "{first}");
+    assert_eq!(first["params"]["user_id"], ADMIN);
+    is_the_sticker(first["params"]["message"].as_array().expect("段的数组"));
+    let second = napcat.action().await;
+    assert_eq!(second["params"]["message"][0]["data"]["text"], "看这个");
+    let log = run_log(&home.root);
+    assert!(!log.contains("image not sent"), "{log}");
     stopped(home).await;
 }
