@@ -31,8 +31,8 @@ impl Route {
     }
 
     /// 群 `group` 里号是 `user` 的人叫什么，洗过（同场所的格的 `name`）：先看缓存；没有的、`asking` 还是真的，经机器人号
-    /// `bot` 的连接问一次，问不到的把 `asking` 放成假。
-    async fn member(
+    /// `bot` 的连接问一次，问不到的把 `asking` 放成假。冒充提醒照它问她自己的群名片（施工 O-53）。
+    pub(super) async fn member(
         &mut self,
         group: i64,
         user: i64,

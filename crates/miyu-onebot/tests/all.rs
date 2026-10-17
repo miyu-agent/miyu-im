@@ -25,6 +25,7 @@ mod group;
 mod group_settings;
 mod hooks;
 mod ids;
+mod impostor;
 mod judged;
 mod judged_persona;
 mod lanes;

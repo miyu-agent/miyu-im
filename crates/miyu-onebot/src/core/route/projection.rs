@@ -66,6 +66,8 @@ struct Speaker {
     reply_to: Option<String>,
     /// 这一条 @ 了谁（`venue.mentions`，不含她，O-31）。
     mentions: Vec<ExternalId>,
+    /// 发的人这一条时叫什么（`venue.name`，O-53：冒充提醒照终端管理员用过的名字比）；没写的是空的。
+    name: Option<String>,
 }
 
 /// 判过要回、她还没回完的一笔（O-23 下）。
@@ -199,6 +201,7 @@ impl Projection {
                         mentions: venue
                             .map(|venue| venue.mentions.clone())
                             .unwrap_or_default(),
+                        name: venue.and_then(|venue| venue.name.clone()),
                     };
                     self.said.insert(seq, speaker);
                     self.keep(seq, event);

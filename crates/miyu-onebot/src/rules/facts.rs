@@ -1,5 +1,5 @@
 //! 给她看的事实的模板（施工 O-25 下，`onebot.md` 第一条「退信」第 3 条、「场所规则和出厂数据」第 1、2 条；O-36 多「另一条线正在
-//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条；O-49 多群会话 system 尾部的群名、群号，「群名」；O-50 多禁言、解禁，「禁言」）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
+//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条；O-49 多群会话 system 尾部的群名、群号，「群名」；O-50 多禁言、解禁，「禁言」；O-53 多冒充提醒，「冒充提醒」）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
 //! 时和别的出厂数据一起读，交内核的 [`Template::parse`] 查。没有系统那一份：给模型看的字随包走。
 //!
 //! 字段只认各自的那几个：多要了别的，填的时候换不出来，起来时就当打包的错（「施工时定的」第 129 条）。少要几个照收。
@@ -42,6 +42,12 @@ const UNMUTED: &str = "facts/unmuted.txt";
 /// 解禁的事实认的字段：怎么解的（`lifted`、`expired`）、谁解的。
 const UNMUTED_FIELDS: &[&str] = &["why", "by"];
 
+/// 冒充提醒的事实（施工 O-53，「冒充提醒」）在出厂目录里的位置。
+const IMPOSTOR: &str = "facts/impostor.txt";
+
+/// 冒充提醒认的字段：哪一条（平台编号）、借的是谁的名字。
+const IMPOSTOR_FIELDS: &[&str] = &["msg", "name"];
+
 /// 群名、群号那一段（施工 O-49，放在群会话的 system 尾部）在出厂目录里的位置。
 const GROUP: &str = "system/group.txt";
 
@@ -63,6 +69,8 @@ pub(super) struct Facts {
     pub(super) muted: Template,
     /// 她被解禁了（施工 O-50）。
     pub(super) unmuted: Template,
+    /// 有人借了名字（施工 O-53）。
+    pub(super) impostor: Template,
 }
 
 /// 读出厂目录 `dir`（包文件夹的 `data/`）里的几份模板，查过交回。问题照退信、另一条线的先后记；有问题的交回空的。
@@ -73,6 +81,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let group = template(dir, GROUP, GROUP_FIELDS, problems);
     let muted = template(dir, MUTED, MUTED_FIELDS, problems);
     let unmuted = template(dir, UNMUTED, UNMUTED_FIELDS, problems);
+    let impostor = template(dir, IMPOSTOR, IMPOSTOR_FIELDS, problems);
     Some(Facts {
         undelivered: undelivered?,
         another_line: another_line?,
@@ -80,6 +89,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         group: group?,
         muted: muted?,
         unmuted: unmuted?,
+        impostor: impostor?,
     })
 }
 

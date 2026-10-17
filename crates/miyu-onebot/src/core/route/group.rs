@@ -148,6 +148,11 @@ impl Route {
         };
         // 群名放进 system（施工 O-49，`titled`）：判以前放好，这一条开的轮就带上。
         self.titled(&session, group, posted.bot).await?;
+        // 借了终端管理员、她自己的名字的记一块冒充提醒（施工 O-53，`impostor`）：判以前记好，这一条开的轮就看得到。
+        if let Some(name) = posted.name.as_deref() {
+            let who = (&heard.sender, name, posted.message_id);
+            self.impostor(&session, (group, posted.bot), who).await?;
+        }
         // 被拒的没有序号，不判。
         match reply["result"]["events"][0].as_u64() {
             Some(seq) => self.steer(session, seq, heard, ask).await,

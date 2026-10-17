@@ -195,9 +195,10 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         }),
         "@ 她的不进 mentions，@ 同一个人两次只进一次"
     );
+    // 头一个 `BOT` 是冒充提醒问她自己的群名片（施工 O-53：每个群只问一次，假 NapCat 认不得她，问不到也不再问）。
     assert_eq!(
         napcat.asked(),
-        [BOT, WANG, NOBODY],
+        [BOT, WANG, NOBODY, BOT],
         "发过言的照缓存，问不到一次后面的不再问"
     );
     assert_eq!(

@@ -53,6 +53,7 @@ mod fetching;
 mod fields;
 mod forwards;
 mod group;
+mod impostor;
 mod judged;
 mod judges;
 mod lanes;
@@ -60,6 +61,7 @@ mod muted;
 mod names;
 mod outbound;
 mod packages;
+mod parts;
 mod persona;
 mod pictures;
 mod platform;
@@ -111,8 +113,10 @@ use deferred::Deferred;
 pub(crate) use fetching::Fetching;
 pub(crate) use forwards::Forwarding;
 use forwards::Forwards;
+use impostor::Noted;
 use judges::Judges;
 use outbound::Spoken;
+pub(crate) use parts::{Asking, Recalling};
 pub(crate) use persona::Personas;
 use pictures::Pictures;
 use projection::Projection;
@@ -151,26 +155,6 @@ struct Message {
     pictures: Option<Pictures>,
     /// 交以前要展开的合并转发（施工 O-34，`forwards`）：没有转发的是空的。
     forwards: Option<Forwards>,
-}
-
-/// 群里的回执怎么撤（施工 O-25 上、O-47）：发出去几秒后撤，`onebot.recall_receipts` 的默认值（推来 `null` 的回到它）。
-pub(crate) struct Recalling {
-    /// 发出去几秒后撤（`bridge.json` 的 `receipt_recall_seconds`）。
-    pub(crate) after: Duration,
-    /// 撤回执的命令的默认值（清单里的）。
-    pub(crate) default: Vec<String>,
-}
-
-/// 问到的记多久：「是不是终端管理员」（施工 O-31，`binding_seconds`），群名隔多久再问（施工 O-49，`group_info_seconds`）。
-pub(crate) struct Asking {
-    /// 「是不是终端管理员」记多久。
-    pub(crate) binding: Duration,
-    /// 群名隔多久再问。
-    pub(crate) group_info: Duration,
-    /// 禁言以后多久以内来的排着（施工 O-50，`mute_window_seconds`）。
-    pub(crate) mute_window: Duration,
-    /// 解禁以后最多回几条排着的（施工 O-50，`mute_replies`）。
-    pub(crate) mute_replies: usize,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -220,6 +204,8 @@ pub(crate) struct Route {
     bindings: Bindings,
     /// 问过的群名、放进 system 的那一段（施工 O-49，`titled`）。
     titles: Titles,
+    /// 记过的冒充提醒（施工 O-53，`impostor`）。
+    impostors: Noted,
     /// 禁言时判了要回的，按群会话排着（施工 O-50，`deferred`）。
     deferred: HashMap<String, Vec<Deferred>>,
     /// 禁言以后多久以内来的排着（施工 O-50）。
@@ -305,6 +291,7 @@ impl Route {
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
+            impostors: Noted::default(),
             deferred: HashMap::new(),
             mute_window: asking.mute_window,
             mute_replies: asking.mute_replies,

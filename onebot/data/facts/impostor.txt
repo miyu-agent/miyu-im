@@ -1,0 +1,1 @@
+<impostor msg="{msg}" name="{name}">The sender of msg={msg} is not {name}; the name is borrowed.</impostor>
