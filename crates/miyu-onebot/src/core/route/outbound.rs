@@ -41,6 +41,7 @@ pub(super) fn pass(
     let lead = Lead {
         reply: aim.filter(|_| target.quote).and_then(|aim| aim.msg.clone()),
         at: aim.filter(|_| target.mention).and_then(number),
+        more: Vec::new(),
     };
     Ok(Passed {
         pieces: split(&outgoing.text, split_chars),

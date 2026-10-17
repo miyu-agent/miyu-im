@@ -35,6 +35,7 @@ mod logs;
 mod lookup;
 mod media;
 mod members;
+mod mention;
 mod muted;
 mod no_token;
 mod outbound;

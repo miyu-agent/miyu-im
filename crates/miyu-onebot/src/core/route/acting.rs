@@ -18,7 +18,7 @@ use crate::core::{Answerer, Gone};
 use crate::listen::bots::Bots;
 use crate::media::{Missed, message};
 use crate::onebot::{CallError, To, delete_msg, group_ban, person, poke, said};
-use crate::rules::{AVATAR, FETCH_MEDIA, MEMBERS, Tools};
+use crate::rules::{AVATAR, FETCH_MEDIA, MEMBERS, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -80,6 +80,10 @@ impl Route {
         // 头像、群成员（施工 O-54，`lookup`）。
         if tool == AVATAR || tool == MEMBERS {
             return self.looked_up(pushed).await;
+        }
+        // @ 指定的人（施工 O-55，`mentions`）。
+        if tool == MENTION {
+            return self.mention_called(pushed).await;
         }
         // 调用所在那条线（`line`）是支线的，照主线找投影、发到哪（施工 O-36）。
         let line = params["session"].as_str().unwrap_or_default().to_string();

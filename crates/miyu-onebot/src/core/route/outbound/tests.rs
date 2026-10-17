@@ -109,7 +109,8 @@ fn only_the_first_piece_carries_what_the_chain_left() {
         quoted.lead,
         Lead {
             reply: Some("21".to_string()),
-            at: None
+            at: None,
+            more: Vec::new(),
         },
         "隔了 4 条引用，没到 15 秒不 @"
     );
@@ -124,7 +125,8 @@ fn only_the_first_piece_carries_what_the_chain_left() {
         mentioned.lead,
         Lead {
             reply: None,
-            at: Some("10001".to_string())
+            at: Some("10001".to_string()),
+            more: Vec::new(),
         },
         "隔了 15 秒、有人说过话 @ 发它的人"
     );

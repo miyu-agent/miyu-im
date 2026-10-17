@@ -6,7 +6,8 @@
     "poke": { "name": "Poke" },
     "fetch_media": { "name": "Fetch media", "subject": "msg" },
     "avatar": { "name": "Avatar" },
-    "members": { "name": "Group members", "subject": "query" }
+    "members": { "name": "Group members", "subject": "query" },
+    "mention": { "name": "Mention" }
   },
   "said": {
     "usage": "usage: miyu onebot start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",

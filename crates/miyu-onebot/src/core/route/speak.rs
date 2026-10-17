@@ -256,7 +256,8 @@ impl Route {
         self.say(session, passed, what).await
     }
 
-    /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @。
+    /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @；她这一轮在这条线上用 `mention`
+    /// 指定了要 @ 的（施工 O-55，`mentions`），第一段也带上、用掉。
     pub(super) async fn say(
         &mut self,
         session: &str,
@@ -264,6 +265,9 @@ impl Route {
         what: What,
     ) -> Result<(), Gone> {
         let mut lead = passed.lead;
+        if let What::Reply { line, turn, .. } = &what {
+            lead.more = self.take_mentions(line, *turn);
+        }
         for text in passed.pieces {
             let piece = Piece {
                 what: what.clone(),

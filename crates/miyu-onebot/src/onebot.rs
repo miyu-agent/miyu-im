@@ -361,6 +361,8 @@ pub struct Lead {
     pub reply: Option<String>,
     /// @ 的号：`at` 段，后面跟一个空格的文字段。
     pub at: Option<String>,
+    /// 她用 `mention` 指定要 @ 的号（施工 O-54 后的 O-55）：照先后接在 `at` 后面，和它重的不再写。
+    pub more: Vec<String>,
 }
 
 /// 发一句 `text` 给 `to` 的动作和参数：`send_private_msg {user_id, message}` 或者 `send_group_msg {group_id, message}`
@@ -370,7 +372,13 @@ pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
     if let Some(id) = &lead.reply {
         message.push(json!({"type": "reply", "data": {"id": id}}));
     }
-    if let Some(qq) = &lead.at {
+    let mut ats: Vec<&String> = lead.at.iter().collect();
+    for qq in &lead.more {
+        if !ats.contains(&qq) {
+            ats.push(qq);
+        }
+    }
+    for qq in ats {
         message.push(json!({"type": "at", "data": {"qq": qq}}));
         // @ 段和后面的字挨着画，隔一个空格好读（旧版这样发，客户端不一定自己隔开）。
         message.push(json!({"type": "text", "data": {"text": " "}}));

@@ -5,7 +5,7 @@
 
 use serde_json::{Value, json};
 
-use miyu_onebot::onebot::{Event, Frame, Piece, Posted, Rank, Recall, read};
+use miyu_onebot::onebot::{Event, Frame, Lead, Piece, Posted, Rank, Recall, To, message_to, read};
 
 /// 一条群消息事件：群 555 里 `user` 发的第 9 条，`sender` 照给的写。
 fn group(user: Value, sender: Value) -> Value {
@@ -289,4 +289,31 @@ fn friend_requests_and_group_invites_are_read() {
     ] {
         assert_eq!(read(frame), Frame::Other("request".to_string()), "{name}");
     }
+}
+
+#[test]
+fn her_message_leads_with_the_quote_and_each_mention_once() {
+    // 施工 O-55：出站链本来要 @ 的一个，接她指定的几个，重的只写一次；每个 @ 后面隔一个空格。
+    let lead = Lead {
+        reply: Some("21".to_string()),
+        at: Some("10001".to_string()),
+        more: vec![
+            "40001".to_string(),
+            "10001".to_string(),
+            "40005".to_string(),
+        ],
+    };
+    let (action, params) = message_to(To::Group(888), "开会了", &lead);
+    assert_eq!(action, "send_group_msg");
+    let space = json!({"type": "text", "data": {"text": " "}});
+    assert_eq!(
+        params["message"],
+        json!([
+            {"type": "reply", "data": {"id": "21"}},
+            {"type": "at", "data": {"qq": "10001"}}, space,
+            {"type": "at", "data": {"qq": "40001"}}, space,
+            {"type": "at", "data": {"qq": "40005"}}, space,
+            {"type": "text", "data": {"text": "开会了"}},
+        ])
+    );
 }

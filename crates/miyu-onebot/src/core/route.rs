@@ -58,6 +58,7 @@ mod judged;
 mod judges;
 mod lanes;
 mod lookup;
+mod mentions;
 mod muted;
 mod names;
 mod outbound;
@@ -116,6 +117,7 @@ pub(crate) use forwards::Forwarding;
 use forwards::Forwards;
 use impostor::Noted;
 use judges::Judges;
+use mentions::Mentions;
 use outbound::Spoken;
 pub(crate) use parts::{Asking, Recalling};
 pub(crate) use persona::Personas;
@@ -207,6 +209,8 @@ pub(crate) struct Route {
     titles: Titles,
     /// 记过的冒充提醒（施工 O-53，`impostor`）。
     impostors: Noted,
+    /// 她要 @ 的人（施工 O-55，`mentions`）。
+    mentions: Mentions,
     /// 禁言时判了要回的，按群会话排着（施工 O-50，`deferred`）。
     deferred: HashMap<String, Vec<Deferred>>,
     /// 禁言以后多久以内来的排着（施工 O-50）。
@@ -293,6 +297,7 @@ impl Route {
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
             impostors: Noted::default(),
+            mentions: Mentions::default(),
             deferred: HashMap::new(),
             mute_window: asking.mute_window,
             mute_replies: asking.mute_replies,

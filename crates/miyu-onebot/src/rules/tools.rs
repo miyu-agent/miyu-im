@@ -41,6 +41,9 @@ pub(crate) const AVATAR: &str = "avatar";
 /// 查群成员（施工 O-54）：只给群。
 pub(crate) const MEMBERS: &str = "members";
 
+/// @ 指定的人（施工 O-55）：只给群。
+pub(crate) const MENTION: &str = "mention";
+
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
 
@@ -49,7 +52,7 @@ const VENUES: &[&str] = &["private", "group"];
 /// 会话里拒绝，谁能叫、能动谁由桥自己挡（`providers.md`「在场所里做的事」，「施工时定的」第 177 条）。本机的会话都没有。
 /// `fetch_media` 也是在场所里做的事（施工 O-33：去平台取东西、写进这个会话自己的工作区）；O-33 只给群，O-35 起私聊里带了东西
 /// 的那条也写出消息编号，私聊也给。
-const TOOLS: [(&str, Access, &[&str]); 7] = [
+const TOOLS: [(&str, Access, &[&str]); 8] = [
     (SKIP_REPLY, Access::Read, VENUES),
     (RECALL, Access::Venue, VENUES),
     (MUTE, Access::Venue, &["group"]),
@@ -57,6 +60,7 @@ const TOOLS: [(&str, Access, &[&str]); 7] = [
     (FETCH_MEDIA, Access::Venue, VENUES),
     (AVATAR, Access::Venue, VENUES),
     (MEMBERS, Access::Read, &["group"]),
+    (MENTION, Access::Venue, &["group"]),
 ];
 
 /// 答的那几句在包文件夹的 `data/` 下的哪个目录里（照核心的 `core/tool-results/`）。
@@ -71,7 +75,7 @@ const UNKNOWN: &str = "unknown";
 /// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段；`saved` 以后是
 /// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered`、`not-found` 共用。施工 O-48 去掉
 /// 不让做的两句（`not-allowed`、`protected`）。
-const ANSWERS: [(&str, &[&str]); 20] = [
+const ANSWERS: [(&str, &[&str]); 22] = [
     ("recalled", &[]),
     ("muted", &["who", "duration"]),
     ("unmuted", &["who"]),
@@ -92,6 +96,8 @@ const ANSWERS: [(&str, &[&str]); 20] = [
     ("not-saved", &["detail"]),
     ("members", &["shown", "total", "list"]),
     ("no-members", &[]),
+    ("mentioned", &["who"]),
+    ("not-members", &["who"]),
 ];
 
 /// 读好、查过的桥的工具。
@@ -141,7 +147,7 @@ impl Tools {
     /// 缓存和机器人号的连接；`fetch_media`（施工 O-33）要会话发到哪、这一轮取了几次；`avatar`、`members`（施工 O-54）要会话发到哪、
     /// 机器人号的连接。
     pub(crate) fn routed(&self, tool: &str) -> bool {
-        [RECALL, MUTE, POKE, FETCH_MEDIA, AVATAR, MEMBERS].contains(&tool)
+        [RECALL, MUTE, POKE, FETCH_MEDIA, AVATAR, MEMBERS, MENTION].contains(&tool)
     }
 
     /// 读的一头当场答的 `tool.call` 的结果（`tool.call` 回应的 `result`，「提供者和不说话」第 2、3 条）：`skip_reply` 答出厂的
