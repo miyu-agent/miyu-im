@@ -59,7 +59,7 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
         yes("spare"),
     ])
     .await;
-    let script = Script::new([Play::Says("在呢。"), Play::Says("嗯。")]);
+    let script = Script::new([Play::Says("在呢"), Play::Says("嗯")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
     // 1：小林 @ 她，判官判不了：冲她来的照回。
     napcat.send(group_frame(
@@ -69,7 +69,7 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
         json!([at(BOT), plain(" 在吗")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "在呢。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在呢");
     // 刚说过话照送达算：等 `venue.delivered` 记下了再接着说。
     until_count(&home, GROUP, "venue.delivered", 1).await;
     // 2：阿杰接一句（没 @ 她）：刚说过话，判官判不了，只记下。
@@ -83,7 +83,7 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
     let events = until_decided(&home, GROUP, 2).await;
     // 3：终端管理员 @ 她：这一轮是第二轮，前面没有多开的。
     admin_calls(&napcat, 3);
-    assert_eq!(napcat.group_reply(GROUP).await, "嗯。");
+    assert_eq!(napcat.group_reply(GROUP).await, "嗯");
     let after = until_count(&home, GROUP, "turn.ended", 2).await;
 
     let called = decided(&events, 1).expect("记了判断");
@@ -129,10 +129,10 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
 async fn textless_messages_after_she_speaks_are_only_recorded() {
     // 判官只该被问一次（有字的那一句）；多备两份，多问了看得出来。
     let server = judge(vec![no("just chatting"), yes("spare"), yes("spare")]).await;
-    let script = Script::new([Play::Says("在。"), Play::Says("嗯。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
     admin_calls(&napcat, 1);
-    assert_eq!(napcat.group_reply(GROUP).await, "在。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在");
     until_count(&home, GROUP, "venue.delivered", 1).await;
     // 2：小林只发一张图。3：小林只发一个合并转发（取不到，正文只有占位）。都在她说完的 30 秒里。
     napcat.send(group_frame(
@@ -161,7 +161,7 @@ async fn textless_messages_after_she_speaks_are_only_recorded() {
     ));
     let events = until_decided(&home, GROUP, 4).await;
     admin_calls(&napcat, 5);
-    assert_eq!(napcat.group_reply(GROUP).await, "嗯。");
+    assert_eq!(napcat.group_reply(GROUP).await, "嗯");
     until_count(&home, GROUP, "turn.ended", 2).await;
 
     for message in [2, 3] {

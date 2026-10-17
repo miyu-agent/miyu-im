@@ -42,9 +42,6 @@ pub(super) const QUEUED: &str = "ext.onebot.venues.queued";
 /// 判断记成的事件（`chat.md` 第七条第 2 条）。
 pub(super) const DECIDED: &str = "ext.onebot.chat.decided";
 
-/// `ext.onebot.venues.queued` 的 `kind`：提示。
-pub(super) const NOTICE: &str = "notice";
-
 /// `ext.onebot.venues.queued` 的 `kind`：她的话（O-25 中，「出站队列」第 2 条）。
 pub(super) const REPLY: &str = "reply";
 
@@ -53,9 +50,6 @@ pub(super) const MUTED: &str = "ext.onebot.venues.muted";
 
 /// 她被解禁记成的事件（O-25 中）：`body` 是 `{}`。
 pub(super) const UNMUTED: &str = "ext.onebot.venues.unmuted";
-
-/// 限流提示的 `reason`：照进站链的 `Why::RateLimited` 写（`decide.rs`）。
-pub(super) const RATE_LIMITED: &str = "rate_limited";
 
 /// 说过话的一个人。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,8 +149,6 @@ pub(super) struct Projection {
     own: u64,
     /// 她在主线最后说的一段：（回合编号，`message.assistant` 的序号）。主线的回执照回合认它（支线的不认，O-36）。
     spoke: Option<(u64, u64)>,
-    /// 限流提示过的时刻。
-    notices: Vec<Timestamp>,
     /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。
     muted: Option<Timestamp>,
     /// 判过要回、她还没回完的，照先后（O-23 下）。
@@ -254,9 +246,7 @@ impl Projection {
             }
             Body::Unknown { kind, body } if kind.as_str() == QUEUED => {
                 let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
-                if body["kind"] == NOTICE && body["reason"] == RATE_LIMITED {
-                    self.notices.push(event.at);
-                }
+                // 以前的日志里还有限流提示（`kind: notice`，施工 O-47 起不发了）：不算什么。
                 if body["kind"] == REPLY
                     && let (Some(turn), Some(text)) = (body["turn"].as_u64(), body["text"].as_str())
                 {
@@ -359,11 +349,6 @@ impl Projection {
             .filter(|turn| turn.by.is_empty() || !turn.by.iter().all(exempt))
             .map(|turn| turn.at)
             .collect()
-    }
-
-    /// 进站链的 `Ctx.notices`：限流提示过的时刻。
-    pub(super) fn notices(&self) -> &[Timestamp] {
-        &self.notices
     }
 
     /// 她的回复，一轮一笔（第三条的 `Reply`）。

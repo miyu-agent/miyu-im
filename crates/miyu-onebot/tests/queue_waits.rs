@@ -143,7 +143,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
 #[tokio::test]
 async fn while_away_she_waits_and_speaks_on_reconnect() {
     let (release, released) = oneshot::channel();
-    let lines = Lines::new([Line::says("在。").released_by(released)]);
+    let lines = Lines::new([Line::says("在").released_by(released)]);
     let (home, napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
     until_count(&home, "turn.started", 1).await;
@@ -154,7 +154,7 @@ async fn while_away_she_waits_and_speaks_on_reconnect() {
     until_log(&home, "why=disconnected", 1).await;
     assert!(of_kind(&events, "venue.delivered").is_empty(), "还没发");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
-    assert_eq!(next_words(&mut napcat).await, "在。", "连上了就发");
+    assert_eq!(next_words(&mut napcat).await, "在", "连上了就发");
     let events = until_count(&home, "venue.delivered", 1).await;
     let queued = of_kind(&events, QUEUED)[0]["seq"].as_u64();
     assert!(queued < of_kind(&events, "venue.delivered")[0]["seq"].as_u64());
@@ -167,9 +167,9 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
     let (first, first_released) = oneshot::channel();
     let (second, second_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("我在看这个问题。").released_by(first_released),
+        Line::calls("我在看这个问题").released_by(first_released),
         Line::calls("我在看这个问题！").released_by(second_released),
-        Line::says("看完了。"),
+        Line::says("看完了"),
     ]);
     let (home, napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
@@ -202,13 +202,13 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
     until_count(&home, "ext.onebot.chat.decided", 2).await;
     // 她接着说差个标点的一句：照日志重建的投影里这一回合入队过第一句，不发；最后一句照发。
     second.send(()).expect("她在等");
-    assert_eq!(next_words(&mut napcat).await, "看完了。");
+    assert_eq!(next_words(&mut napcat).await, "看完了");
     let events = until_count(&home, "turn.ended", 1).await;
     let texts: Vec<Value> = of_kind(&events, QUEUED)
         .iter()
         .map(|one| one["body"]["text"].clone())
         .collect();
-    assert_eq!(texts, ["我在看这个问题。", "看完了。"]);
+    assert_eq!(texts, ["我在看这个问题", "看完了"]);
     assert!(of_kind(&events, FAILED).is_empty(), "没结局的不另记");
     assert!(run_log(&home.root).contains("why=repeated"));
     until_count(&home, "venue.delivered", 1).await;
@@ -220,9 +220,9 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
 async fn private_replies_wait_for_the_connection_and_are_not_repeated() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("我在看这个问题。").released_by(released),
+        Line::calls("我在看这个问题").released_by(released),
         Line::calls("我在看这个问题！"),
-        Line::says("看完了。"),
+        Line::says("看完了"),
     ]);
     let home = Home::speaking(Arc::new(lines));
     let bridge = bridge(&home).await;
@@ -287,13 +287,13 @@ async fn private_replies_wait_for_the_connection_and_are_not_repeated() {
     assert_eq!(
         bodies,
         [
-            json!({"kind": "reply", "text": "我在看这个问题。", "line": line, "turn": turn}),
-            json!({"kind": "reply", "text": "看完了。", "line": line, "turn": turn}),
+            json!({"kind": "reply", "text": "我在看这个问题", "line": line, "turn": turn}),
+            json!({"kind": "reply", "text": "看完了", "line": line, "turn": turn}),
         ],
         "重复的那一句不入队"
     );
     let mut napcat = admin_napcat(bridge.port).await;
-    assert_eq!(napcat.reply().await, "我在看这个问题。", "连上了照先后发");
-    assert_eq!(napcat.reply().await, "看完了。");
+    assert_eq!(napcat.reply().await, "我在看这个问题", "连上了照先后发");
+    assert_eq!(napcat.reply().await, "看完了");
     bridge.stop().await.expect("停得下");
 }

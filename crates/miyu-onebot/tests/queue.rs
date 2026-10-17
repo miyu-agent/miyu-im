@@ -113,13 +113,13 @@ async fn each_piece_is_queued_before_it_is_delivered() {
 
 #[tokio::test]
 async fn a_refused_piece_is_failed_as_rejected() {
-    let models = Arc::new(Script::new([Play::Says("在。")]));
+    let models = Arc::new(Script::new([Play::Says("在")]));
     let (home, mut napcat, _) = started_tuned(models, RULES, &Value::Null, |napcat| {
         napcat.refusing(MEMBERS)
     })
     .await;
     admin_calls(&napcat, PLAIN, 1);
-    assert_eq!(napcat.group_message(PLAIN).await, [words("在。")]);
+    assert_eq!(napcat.group_message(PLAIN).await, [words("在")]);
     let events = until_count(&home, PLAIN, FAILED, 1).await;
     let queued = &of_kind(&events, QUEUED)[0];
     let detail: String = refused().trim().chars().take(200).collect();
@@ -181,7 +181,7 @@ async fn while_muted_she_only_listens_and_speaks_after_the_lift() {
 
 #[tokio::test]
 async fn a_shorter_ban_ends_by_itself() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
@@ -192,7 +192,7 @@ async fn a_shorter_ban_ends_by_itself() {
     until_count(&home, PLAIN, QUEUED, 1).await;
     // 管理员把禁言改短成 1 秒（NapCat 再推一次 `ban`）：到了就发，不另记解禁。
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(1)));
-    assert_eq!(napcat.group_message(PLAIN).await, [words("在。")]);
+    assert_eq!(napcat.group_message(PLAIN).await, [words("在")]);
     let events = until_count(&home, PLAIN, "venue.delivered", 1).await;
     assert_eq!(of_kind(&events, MUTED).len(), 2);
     assert!(of_kind(&events, UNMUTED).is_empty(), "到期不另记");
@@ -202,13 +202,13 @@ async fn a_shorter_ban_ends_by_itself() {
 
 #[tokio::test]
 async fn someone_else_or_everyone_banned_is_not_her() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     napcat.send(group_ban(PLAIN, LIN, "ban", Some(600)));
     napcat.send(group_ban(PLAIN, 0, "ban", Some(600)));
     napcat.send(group_ban(PLAIN, BOT, "ban", None));
     admin_calls(&napcat, PLAIN, 1);
-    assert_eq!(napcat.group_message(PLAIN).await, [words("在。")]);
+    assert_eq!(napcat.group_message(PLAIN).await, [words("在")]);
     let events = until_count(&home, PLAIN, "venue.delivered", 1).await;
     assert!(of_kind(&events, MUTED).is_empty(), "{events:#?}");
     assert_eq!(decided(&home, PLAIN, 1).await["outcome"], "reply");
@@ -222,9 +222,9 @@ async fn someone_else_or_everyone_banned_is_not_her() {
 #[tokio::test]
 async fn what_waits_in_the_queue_counts_for_repeats() {
     let lines = Lines::new([
-        Line::calls("我在看这个问题。"),
+        Line::calls("我在看这个问题"),
         Line::calls("我在看这个问题！"),
-        Line::says("看完了。"),
+        Line::says("看完了"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
@@ -241,18 +241,18 @@ async fn what_waits_in_the_queue_counts_for_repeats() {
         .collect();
     assert_eq!(
         texts,
-        ["我在看这个问题。", "看完了。"],
+        ["我在看这个问题", "看完了"],
         "排着没发的也算这一回合说过的"
     );
     assert!(run_log(&home.root).contains("why=repeated"));
     napcat.send(group_ban(PLAIN, BOT, "lift_ban", None));
     assert_eq!(
         napcat.group_message(PLAIN).await.last(),
-        Some(&words("我在看这个问题。"))
+        Some(&words("我在看这个问题"))
     );
     assert_eq!(
         napcat.group_message(PLAIN).await.last(),
-        Some(&words("看完了。"))
+        Some(&words("看完了"))
     );
     until_count(&home, PLAIN, "venue.delivered", 2).await;
     assert!(napcat.pending().is_none());

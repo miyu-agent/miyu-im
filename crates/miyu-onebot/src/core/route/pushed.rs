@@ -6,7 +6,7 @@ use serde_json::Value;
 use super::{Projection, Route};
 use crate::TARGET;
 use crate::core::Gone;
-use crate::settings::{whitelist, whitelist_key};
+use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
 
 impl Route {
     /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），群的七项交给场所规则（施工 O-41），白名单
@@ -29,6 +29,11 @@ impl Route {
                 self.venues
                     .retain(|_, session| groups.contains_key(session));
                 tracing::info!(target: TARGET, count = self.whitelist.len(), "whitelist changed");
+            }
+            // 撤回回执的命令（施工 O-47）：下一条回执照新的。
+            if let Some(value) = keys.get(&recall_receipts_key()) {
+                self.recalled = recall_receipts(value, &self.recall_default);
+                tracing::info!(target: TARGET, count = self.recalled.len(), "recall receipts changed");
             }
             if self.configured.send(keys.clone()).is_err() {
                 // `serve` 不收了：桥在停，没有别处可交。

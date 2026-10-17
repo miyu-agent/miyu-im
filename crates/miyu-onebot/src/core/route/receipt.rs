@@ -19,18 +19,23 @@ use crate::onebot::{Lead, delete_msg};
 
 impl Route {
     /// 把斜杠命令的回执、被拒的那一句 `said` 发回会话 `session` 的那个私聊、群（「斜杠命令」第 2、4、7 条）：去掉首尾空白，空的
-    /// 不发；入队。
+    /// 不发；入队。`recall` 是群里的要不要过几秒撤回（施工 O-47）。
     ///
     /// # Errors
     ///
     /// 入队时写不出去、等的时候核心断开。
-    pub(super) async fn receipt(&mut self, session: &str, said: &str) -> Result<(), Gone> {
+    pub(super) async fn receipt(
+        &mut self,
+        session: &str,
+        said: &str,
+        recall: bool,
+    ) -> Result<(), Gone> {
         let said = said.trim();
         if said.is_empty() {
             return Ok(());
         }
         let piece = Piece {
-            what: What::Receipt,
+            what: What::Receipt { recall },
             text: said.to_string(),
             lead: Lead::default(),
         };

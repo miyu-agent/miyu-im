@@ -87,10 +87,10 @@ async fn until_answered(home: &Home, group: i64, turns: usize, delivered: usize)
 #[tokio::test]
 async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     let script = Script::new([
-        Play::Says("在。"),
+        Play::Says("在"),
         Play::Says("叫我？"),
-        Play::Says("**看到**了。"),
-        Play::Says("你好。"),
+        Play::Says("`看`了。"),
+        Play::Says("你好"),
     ]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
     // 1：没条件的只记下。2：终端管理员 @ 她。
@@ -108,7 +108,7 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
         json!([at(BOT), plain(" 在吗")]),
         ("终端管理员", "o"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "在。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在");
     until_answered(&home, GROUP, 1, 1).await;
     // 3：叫她的名字（触发词开头）。
     napcat.send(group_frame(
@@ -124,7 +124,11 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     let quoting =
         json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, plain("这个呢")]);
     napcat.send(group_frame(GROUP, ADMIN, 4, quoting, ("终端管理员", "o")));
-    assert_eq!(napcat.group_reply(GROUP).await, "看到了。", "转成纯文本");
+    assert_eq!(
+        napcat.group_reply(GROUP).await,
+        "`看`了",
+        "不转纯文本、去掉末尾的句号（施工 O-47）"
+    );
     until_answered(&home, GROUP, 3, 3).await;
     // 5：别人的 @：判官判不了，冲她来的照回（O-37）。
     napcat.send(group_frame(
@@ -134,7 +138,7 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
         json!([at(BOT), plain(" 你好")]),
         ("阿杰", "jie"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "你好。");
+    assert_eq!(napcat.group_reply(GROUP).await, "你好");
     let events = until_answered(&home, GROUP, 4, 4).await;
 
     let (session, _) = venue_session(&home.root, &venue(GROUP)).expect("有会话");
@@ -187,7 +191,7 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
         );
     }
     let delivered = of_kind(&events, "venue.delivered");
-    let texts = ["在。", "叫我？", "看到了。", "你好。"];
+    let texts = ["在", "叫我？", "`看`了", "你好"];
     let to = ["qq:10001", "qq:10001", "qq:10001", "qq:20003"];
     assert_eq!(delivered.len(), 4, "{delivered:#?}");
     for (n, (one, turn)) in delivered.iter().zip(&started).enumerate() {

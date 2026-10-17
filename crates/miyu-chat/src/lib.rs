@@ -22,9 +22,9 @@
 //! - 主动回复判断的下半（`chat.md` 第四条，施工 O-9）：[`supersede`] 看一条消息顶替了同一个人前面还没回完的哪一条
 //!   （[`Pending`]），接过去还是几条一起重判；[`dispatch`] 把承诺要回的一条分派到主线还是支线（[`Lines`]）。
 //!
-//! - 出站链与纯文本（`chat.md` 第五条，施工 O-10）：[`OutChain::judge`] 让她要说出去的一条（[`Outgoing`]）照顺序过自带的
-//!   三条规则（清理、去重、引用和 @），给出 [`Out`]；插槽是 [`OutboundRule`]。纯文本的形态：[`plain()`] 把 Markdown 转成
-//!   纯文本，[`split()`] 把太长的按段拆开。
+//! - 出站链（`chat.md` 第五条，施工 O-10）：[`OutChain::judge`] 让她要说出去的一条（[`Outgoing`]）照顺序过自带的
+//!   四条规则（清理、去末尾句号、去重、引用和 @，去句号施工 O-47 加），给出 [`Out`]；插槽是 [`OutboundRule`]。
+//!   [`split()`] 把太长的按段拆开；原来的 Markdown 转纯文本施工 O-47 去掉了（2026-10-17 项目主人定：写法由提示词管）。
 //!
 //! - 判官的请求和回答（`chat.md` 第六条，施工 O-11）：[`request()`] 照 `model.call` 的形状拼出一条 `system`、一条 `user`
 //!   （[`JudgeMessage`]），说明的原文由外面交进来（[`JudgeTexts`]）；[`read()`] 从判官的回答里读出 [`Judgement`]，读不出来的是
@@ -58,7 +58,7 @@ pub use judge::{
 };
 pub use outbound::{
     Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since, Target,
-    plain, split,
+    split,
 };
 pub use params::Params;
 pub use rules::{

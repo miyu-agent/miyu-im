@@ -89,7 +89,7 @@ async fn private_reply(napcat: &mut Answering) -> String {
 
 #[tokio::test]
 async fn her_words_go_out_as_the_package_changed_them_in_groups_and_in_private() {
-    let script = Script::new([Play::Says("在。"), Play::Says("私聊在。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("私聊在")]);
     let (home, mut napcat, _) = started_installed(&script, RULES, MEMBERS, |root| {
         hook(root, "polish", r#"{"text":"换过的"}"#);
     })
@@ -102,17 +102,17 @@ async fn her_words_go_out_as_the_package_changed_them_in_groups_and_in_private()
     assert_eq!(asked["from"], "onebot");
     assert_eq!(
         asked["params"],
-        json!({"venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在。"})
+        json!({"venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在"})
     );
     napcat.send(private_frame(ADMIN, 2, json!([plain("在吗")])));
     assert_eq!(private_reply(&mut napcat).await, "换过的");
-    assert_eq!(calls(&home.root, "polish")[1]["params"]["text"], "私聊在。");
+    assert_eq!(calls(&home.root, "polish")[1]["params"]["text"], "私聊在");
     stopped(home).await;
 }
 
 #[tokio::test]
 async fn two_packages_pass_the_words_along() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, mut napcat, _) = started_installed(&script, RULES, MEMBERS, |root| {
         hook(root, "aaa", r#"{"text":"甲换的"}"#);
         hook(root, "zzz", "{}");

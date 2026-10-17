@@ -18,7 +18,7 @@ use miyu_client::ids::ExternalId;
 use miyu_client::time::Timestamp;
 use serde_json::{Value, json};
 
-use super::projection::{NOTICE, QUEUED, REPLY};
+use super::projection::{QUEUED, REPLY};
 use super::queue::{DISCONNECTED, EXPIRED, Ending, ending};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
@@ -56,10 +56,11 @@ pub(super) enum What {
         /// 这一轮回的人；私聊的是空的。
         to: Vec<ExternalId>,
     },
-    /// 提示：为什么（`rate_limited`）。
-    Notice(&'static str),
-    /// 命令回执、被拒的那一句：群里的回了编号的过几秒撤回。
-    Receipt,
+    /// 命令回执、被拒的那一句：`recall` 是群里回了编号的要不要过几秒撤回（施工 O-47：照 `onebot.recall_receipts`）。
+    Receipt {
+        /// 撤不撤。
+        recall: bool,
+    },
 }
 
 /// 要说出去的一段：是什么、正文（不带引用、@）、前面带的引用和 @。
@@ -265,16 +266,17 @@ impl Route {
                 tracing::warn!(target: TARGET, venue = %venue, chars, "delivered without a message id");
                 Ok(())
             }
-            (What::Receipt, Some(msg)) => {
+            // 不撤的回执（施工 O-47，`onebot.recall_receipts` 里没有的命令）发了就完。
+            (What::Receipt { recall: false }, _) => Ok(()),
+            (What::Receipt { recall: true }, Some(msg)) => {
                 let bots = Arc::clone(&self.bots);
                 self.chores.spawn(recall(msg, peer, bots, self.recall));
                 Ok(())
             }
-            (What::Receipt, None) => {
+            (What::Receipt { recall: true }, None) => {
                 tracing::warn!(target: TARGET, venue = %venue, "receipt not recalled, no message id");
                 Ok(())
             }
-            (What::Notice(_), _) => Ok(()),
         }
     }
 
@@ -302,7 +304,7 @@ impl Route {
                 self.undelivered((session, line), &venue, item, (why, &detail))
                     .await
             }
-            What::Notice(_) | What::Receipt => Ok(()),
+            What::Receipt { .. } => Ok(()),
         }
     }
 
@@ -353,7 +355,6 @@ fn queued_body(piece: &Piece) -> Value {
         What::Reply { line, turn, .. } => {
             json!({"kind": REPLY, "text": piece.text, "line": line, "turn": turn})
         }
-        What::Notice(reason) => json!({"kind": NOTICE, "reason": reason, "text": piece.text}),
-        What::Receipt => json!({"kind": RECEIPT, "text": piece.text}),
+        What::Receipt { .. } => json!({"kind": RECEIPT, "text": piece.text}),
     }
 }

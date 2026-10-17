@@ -6,7 +6,7 @@
 
 use miyu_chat::{
     Chatty, Clock, Conditions, Ctx, Facts, File, Hit, Kind, Mode, Moderation, Params, Pending,
-    Rate, Reply, Said, Sleep, Source, Standing, Status, Why,
+    Rate, Reply, Said, Sleep, Source, Standing, Status,
 };
 use miyu_client::ids::{ExternalId, Seq, VenueId};
 use miyu_client::time::{Timestamp, UtcOffset};
@@ -71,7 +71,6 @@ pub(super) fn ctx(params: &Params) -> Ctx {
         allow: None,
         muted: false,
         turns: Vec::new(),
-        notices: Vec::new(),
         moderation: Moderation {
             keywords: vec!["违规".to_string()],
             base64: params.base64,
@@ -279,7 +278,7 @@ fn the_factory_continuation_window_is_thirty_seconds() {
 }
 
 #[test]
-fn a_full_rate_notices_once_then_records_and_spares_admin_and_whitelisted() {
+fn a_full_rate_records_silently_and_spares_admin_and_whitelisted() {
     let params = params();
     let chatty = &params.chatty;
     let full = Ctx {
@@ -288,21 +287,12 @@ fn a_full_rate_notices_once_then_records_and_spares_admin_and_whitelisted() {
         ..ctx(&params)
     };
     let first = judged(facts(Standing::Member, true), "@米尤", full.clone(), chatty);
-    assert_eq!(first.conclusion, Conclusion::Notice(Why::RateLimited));
+    // 施工 O-47：头一回冲她来也只记下，不回提示。
+    assert_eq!(first.conclusion, Conclusion::Record);
     assert_eq!(
         written(&first, Standing::Member, None),
-        json!({"msgs": [12], "standing": "member", "inbound": "notice", "why": "rate_limited", "outcome": "notice"}),
+        json!({"msgs": [12], "standing": "member", "inbound": "record_only", "why": "rate_limited", "outcome": "record"}),
         "没放行的不算条件、不走路"
-    );
-    let noticed = Ctx {
-        notices: vec![ago(30)],
-        ..full.clone()
-    };
-    let again = judged(facts(Standing::Member, true), "@米尤", noticed, chatty);
-    assert_eq!(again.conclusion, Conclusion::Record);
-    assert_eq!(
-        written(&again, Standing::Member, None)["inbound"],
-        "record_only"
     );
     let quiet = judged(
         facts(Standing::Member, false),

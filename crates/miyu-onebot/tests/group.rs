@@ -39,7 +39,8 @@ const MEMBERS: &[Member] = &[
 
 /// 核心照中文写的几句（`resources/core/human/zh.json`、`protocol.md`「给人看的字」）。
 const STOPPED: &str = "已全部停止。";
-const NOT_ALLOWED: &str = "仅终端管理员和群管理员可用。";
+/// 上下文空着时 `/clear` 被拒的那一句（核心的中文）。
+const NOTHING_TO_CLEAR: &str = "上下文为空。";
 
 /// 系统的场所规则：[`GROUP`] 写 `show_ids`、`managers`、不让别人叫她（这里只看怎么记：没配判官，别人 @ 她判不了，冲她来的
 /// 照回会开一轮，O-37），[`SLEEPY`] 的睡觉时间盖住此刻（前后各一个小时，照本机的时区），[`BROKEN`] 写一个不存在的人格。
@@ -280,7 +281,7 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
         json!([plain("大家好")]),
         ("小林", "lin"),
     ));
-    // 终端管理员、管理的人能用；别人照核心那一句被拒，什么都不记；认不出的记成旁听。
+    // 终端管理员、管理的人能用；别人被拒什么都不发、不记（施工 O-47）；管理的人被拒照回那一句；认不出的记成旁听。
     napcat.send(group_frame(
         GROUP,
         ADMIN,
@@ -296,7 +297,6 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
         json!([plain("  /clear")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, NOT_ALLOWED);
     napcat.send(group_frame(
         GROUP,
         MANAGER,
@@ -305,6 +305,18 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
         ("管理", "m"),
     ));
     let cleared = napcat.group_reply(GROUP).await;
+    napcat.send(group_frame(
+        GROUP,
+        MANAGER,
+        6,
+        json!([plain("/clear")]),
+        ("管理", "m"),
+    ));
+    assert_eq!(
+        napcat.group_reply(GROUP).await,
+        NOTHING_TO_CLEAR,
+        "管理的人被拒照回"
+    );
     napcat.send(group_frame(
         GROUP,
         LIN,

@@ -92,7 +92,7 @@ fn calls(root: &DataRoot, id: &str) -> Vec<Value> {
 
 #[tokio::test]
 async fn record_holds_her_back_except_for_the_admin() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, mut napcat, _) = started_installed(&script, RULES, MEMBERS, |root| {
         hook(root, "guard", r#"{"route":"record"}"#)
     })
@@ -119,7 +119,7 @@ async fn record_holds_her_back_except_for_the_admin() {
     );
     // 终端管理员的照回：挂接点也问了，意见不算。
     napcat.send(says(ADMIN, 2, true));
-    assert_eq!(napcat.group_reply(GROUP).await, "在。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在");
     let events = until_events(&home.root, &venue, |events| decided(events, 2).is_some()).await;
     let admin = decided(&events, 2).expect("记了");
     assert_eq!(admin["outcome"], "reply", "{admin}");

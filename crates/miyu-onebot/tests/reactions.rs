@@ -85,23 +85,23 @@ async fn until_count(home: &Home, group: i64, kind: &str, n: usize) -> Vec<Value
 async fn an_admin_call_is_marked_until_her_first_piece() {
     let (release, held) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在。"),
-        Line::says("好了。").released_by(held),
-        Line::says("嗯。"),
+        Line::calls("在"),
+        Line::says("好了").released_by(held),
+        Line::says("嗯"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), &rules(), MEMBERS).await;
     admin_says(&napcat, GROUP, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true), "先贴上");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "在");
     // 这一轮还没完（第二句压着）：发出去第一段就摘。
     assert_eq!(napcat.reacted().await, reaction(1, false));
     release.send(()).expect("还在等");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "好了。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "好了");
     until_count(&home, GROUP, "turn.ended", 1).await;
     // 这一轮完了不再摘：下一个贴、摘是新叫的那一条。
     admin_says(&napcat, GROUP, 2, "还在吗", true);
     assert_eq!(napcat.reacted().await, reaction(2, true), "只摘一次");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "嗯。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "嗯");
     assert_eq!(napcat.reacted().await, reaction(2, false));
     let log = run_log(&home.root);
     assert_eq!(log.matches("reaction set").count(), 2, "{log}");
@@ -111,17 +111,17 @@ async fn an_admin_call_is_marked_until_her_first_piece() {
 
 #[tokio::test]
 async fn a_continuation_is_marked_too() {
-    let script = Script::new([Play::Says("在。"), Play::Says("好的。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("好的")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
     admin_says(&napcat, CALLED, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
-    assert_eq!(next_words(&mut napcat, CALLED).await, "在。");
+    assert_eq!(next_words(&mut napcat, CALLED).await, "在");
     assert_eq!(napcat.reacted().await, reaction(1, false));
     // 她刚回过终端管理员（续聊照送达算：等 `venue.delivered` 记下了，NapCat 收到她的话时还没记），终端管理员不 @ 她接着说：续聊，照样贴。
     until_count(&home, CALLED, "venue.delivered", 1).await;
     admin_says(&napcat, CALLED, 2, "那明天见", false);
     assert_eq!(napcat.reacted().await, reaction(2, true));
-    assert_eq!(next_words(&mut napcat, CALLED).await, "好的。");
+    assert_eq!(next_words(&mut napcat, CALLED).await, "好的");
     assert_eq!(napcat.reacted().await, reaction(2, false));
     let events = until_count(&home, CALLED, "ext.onebot.chat.decided", 2).await;
     let second = &of_kind(&events, "ext.onebot.chat.decided")[1]["body"];
@@ -137,9 +137,9 @@ async fn a_continuation_is_marked_too() {
 async fn superseding_moves_the_mark() {
     let (release, held) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("在。").released_by(held),
-        Line::says("明白。"),
-        Line::says("嗯。"),
+        Line::says("在").released_by(held),
+        Line::says("明白"),
+        Line::says("嗯"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), &rules(), MEMBERS).await;
     admin_says(&napcat, GROUP, 1, "帮我看看", true);
@@ -159,9 +159,9 @@ async fn superseding_moves_the_mark() {
     );
     // 她回了第一段：收了第二条的那一轮发出去了，摘它。
     release.send(()).expect("还在等");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "在");
     assert_eq!(napcat.reacted().await, reaction(2, false));
-    assert_eq!(next_words(&mut napcat, GROUP).await, "明白。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "明白");
     until_count(&home, GROUP, "turn.ended", 2).await;
     admin_says(&napcat, GROUP, 3, "还在吗", true);
     assert_eq!(
@@ -175,7 +175,7 @@ async fn superseding_moves_the_mark() {
 #[tokio::test]
 async fn a_late_reply_is_unmarked_in_time_and_only_once() {
     let (release, held) = oneshot::channel();
-    let lines = Lines::new([Line::says("在。").released_by(held), Line::says("嗯。")]);
+    let lines = Lines::new([Line::says("在").released_by(held), Line::says("嗯")]);
     let tuned = json!({"reaction_seconds": 1});
     let (home, mut napcat, _) = started_tuned(Arc::new(lines), &rules(), &tuned, |napcat| {
         napcat.answering(MEMBERS)
@@ -186,7 +186,7 @@ async fn a_late_reply_is_unmarked_in_time_and_only_once() {
     // 她一直不回：到时候摘。
     assert_eq!(napcat.reacted().await, reaction(1, false));
     release.send(()).expect("还在等");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "在");
     until_count(&home, GROUP, "turn.ended", 1).await;
     // 后来回了不再摘：下一个贴、摘是新叫的那一条。
     admin_says(&napcat, GROUP, 2, "还在吗", true);
@@ -197,7 +197,7 @@ async fn a_late_reply_is_unmarked_in_time_and_only_once() {
 #[tokio::test]
 async fn judged_but_not_called_are_not_marked() {
     let server = judge(vec![no("not for her"), yes("easy"), yes("go on")]).await;
-    let script = Script::new([Play::Says("是啊。"), Play::Says("对。"), Play::Says("在。")]);
+    let script = Script::new([Play::Says("是啊"), Play::Says("对"), Play::Says("在")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (&rules(), ""), "", MEMBERS).await;
     // 1：小林 @ 她，判官说不回：不贴。
     napcat.send(group_frame(
@@ -221,7 +221,7 @@ async fn judged_but_not_called_are_not_marked() {
         json!([plain("今天天气不错")]),
         ("小林", "lin"),
     ));
-    assert_eq!(next_words(&mut napcat, SAMPLED).await, "是啊。");
+    assert_eq!(next_words(&mut napcat, SAMPLED).await, "是啊");
     // 刚说过话照送达算：等 `venue.delivered` 记下了再接着说。
     until_count(&home, SAMPLED, "venue.delivered", 1).await;
     napcat.send(group_frame(
@@ -231,7 +231,7 @@ async fn judged_but_not_called_are_not_marked() {
         json!([plain("是挺好的")]),
         ("阿杰", "jie"),
     ));
-    assert_eq!(next_words(&mut napcat, SAMPLED).await, "对。");
+    assert_eq!(next_words(&mut napcat, SAMPLED).await, "对");
     let events = until_count(&home, SAMPLED, "ext.onebot.chat.decided", 2).await;
     let primaries: Vec<Value> = of_kind(&events, "ext.onebot.chat.decided")
         .iter()
@@ -241,7 +241,7 @@ async fn judged_but_not_called_are_not_marked() {
     // 4：终端管理员 @ 她：头一个贴的是它，前面三条都没贴。
     admin_says(&napcat, GROUP, 4, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(4, true), "前面的不贴");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "在");
     stopped(home).await;
 }
 
@@ -255,7 +255,7 @@ async fn a_rejudged_pair_is_marked_on_the_last_only_after_the_judge() {
         gated(&gate, yes("both together")),
     ])
     .await;
-    let script = Script::new([Play::Says("后天十点。")]);
+    let script = Script::new([Play::Says("后天十点")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (&rules(), ""), "", MEMBERS).await;
     napcat.send(group_frame(
         GROUP,
@@ -277,7 +277,7 @@ async fn a_rejudged_pair_is_marked_on_the_last_only_after_the_judge() {
         ("小林", "lin"),
     ));
     assert_eq!(napcat.reacted().await, reaction(2, true), "贴在后一条上");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "后天十点。");
+    assert_eq!(next_words(&mut napcat, GROUP).await, "后天十点");
     assert_eq!(napcat.reacted().await, reaction(2, false));
     let events = until_count(&home, GROUP, "ext.onebot.chat.decided", 1).await;
     let together = &of_kind(&events, "ext.onebot.chat.decided")[0]["body"];

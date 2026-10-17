@@ -61,6 +61,7 @@ pub(crate) fn ctx() -> OutCtx {
             invisible: INVISIBLE.to_vec(),
             leak_open: LEAKS.iter().map(|(open, _)| open.to_string()).collect(),
             leak_close: LEAKS.iter().map(|(_, close)| close.to_string()).collect(),
+            strip_period: true,
         },
     }
 }

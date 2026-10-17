@@ -8,8 +8,6 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use serde_json::json;
-
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
@@ -17,7 +15,7 @@ use super::fields::{NAME, clean};
 use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan};
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::core::{Answerer, Gone, reason};
+use crate::core::{Answerer, Gone};
 use crate::listen::bots::Bots;
 use crate::onebot::{
     CallError, MEMBER_INFO, Rank, To, delete_msg, group_ban, member_info, person, poke, rank_of,
@@ -209,22 +207,7 @@ impl Route {
             people.extend(origin.mentions);
         }
         for who in people {
-            if self.bindings.known(who.as_str(), Instant::now()).is_some() {
-                continue;
-            }
-            let reply = self
-                .core
-                .call("venue.binding", json!({"id": who.as_str()}))
-                .await?;
-            match reason(&reply) {
-                None => {
-                    let admin = reply["result"]["account"].is_string();
-                    self.bindings.note(who.as_str(), admin, Instant::now());
-                }
-                Some(reason) => {
-                    tracing::warn!(target: TARGET, id = who.as_str(), reason, "binding not asked");
-                }
-            }
+            self.terminal_admin(who.as_str()).await?;
         }
         Ok(())
     }

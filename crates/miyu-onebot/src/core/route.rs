@@ -100,8 +100,7 @@ use crate::listen::bots::Bots;
 use crate::onebot::{Event, Members, To};
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
-use crate::settings::{whitelist, whitelist_key};
-use crate::texts::Texts;
+use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
 pub(crate) use ask::Slots;
 use backlog::Backlog;
 use bindings::Bindings;
@@ -149,6 +148,14 @@ struct Message {
     forwards: Option<Forwards>,
 }
 
+/// 群里的回执怎么撤（施工 O-25 上、O-47）：发出去几秒后撤，`onebot.recall_receipts` 的默认值（推来 `null` 的回到它）。
+pub(crate) struct Recalling {
+    /// 发出去几秒后撤（`bridge.json` 的 `receipt_recall_seconds`）。
+    pub(crate) after: Duration,
+    /// 撤回执的命令的默认值（清单里的）。
+    pub(crate) default: Vec<String>,
+}
+
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
@@ -167,8 +174,6 @@ pub(crate) struct Route {
     groups: HashMap<String, Projection>,
     /// 白名单成员的平台身份（`onebot.whitelist`，施工 O-23）：握手交来的，推来新的就换。
     whitelist: Vec<String>,
-    /// 发进群里的提示照它说（施工 O-23）：握手回的语言。
-    texts: Texts,
     /// 出站排着的（施工 O-25 中，「出站队列」）：门关着（她被禁言、号没连着）的照会话排着，过了期作废。
     waiting: Queue<Item>,
     /// 在等 NapCat 回应的一段段（她的话、提示、回执）：一段一个任务，结果照放进写队列的先后交出来（NapCat 并着办动作，回的
@@ -180,6 +185,10 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
+    /// 群里回执要撤回的命令（施工 O-47，`onebot.recall_receipts`；推来的换）。
+    recalled: Vec<String>,
+    /// `onebot.recall_receipts` 的默认值：推来 `null` 的回到它。
+    recall_default: Vec<String>,
     /// 群里的命令回执发出去几秒后撤回（`bridge.json` 的 `receipt_recall_seconds`）。
     recall: Duration,
     /// 在判的和问判官的任务（施工 O-23 下）。
@@ -213,8 +222,7 @@ pub(crate) struct Route {
 }
 
 impl Route {
-    /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
-    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
+    /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
     /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记 `binding`（施工
     /// O-31）。取图、视频、文件照 `fetching`（施工 O-33），合并转发照 `forwarding` 展开（施工 O-34）。
@@ -223,11 +231,10 @@ impl Route {
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots, personas, recall, expire, reactions, binding, fetching, forwarding): (
-            Texts,
+        (slots, personas, recall, expire, reactions, binding, fetching, forwarding): (
             Slots,
             Personas,
-            Duration,
+            Recalling,
             Duration,
             Reactions,
             Duration,
@@ -238,6 +245,11 @@ impl Route {
         hooks: Arc<Hooks>,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
+        let Recalling {
+            after: recall,
+            default: recall_default,
+        } = recall;
+        let recalled = recall_receipts(&core.config[recall_receipts_key()], &recall_default);
         let judges = Judges::new(
             core.caller(),
             rules.judge_texts(),
@@ -255,12 +267,13 @@ impl Route {
             refused: HashSet::new(),
             groups: HashMap::new(),
             whitelist,
-            texts,
             waiting: Queue::new(expire),
             sending: FuturesOrdered::new(),
             spoken: HashMap::new(),
             chores: JoinSet::new(),
             recall,
+            recalled,
+            recall_default,
             judges,
             reactions,
             quiet: Quiet::default(),

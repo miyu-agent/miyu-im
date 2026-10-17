@@ -59,12 +59,12 @@ async fn until_ended(home: &Home, turns: usize) {
 
 #[tokio::test]
 async fn clear_and_stop_run_and_their_receipts_come_back() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.admin_says(1, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。");
+    assert_eq!(napcat.reply().await, "在");
     until_ended(&home, 1).await;
     napcat.admin_says(2, "/clear").await;
     assert_eq!(napcat.reply().await, CLEARED);
@@ -114,17 +114,16 @@ async fn refusals_and_answers_come_back_even_when_a_command_comes_first() {
 #[tokio::test]
 async fn unknown_commands_go_to_her_as_plain_words() {
     let script = Script::new([
-        Play::Says("一。"),
-        Play::Says("二。"),
-        Play::Says("三。"),
-        Play::Says("四。"),
+        Play::Says("一"),
+        Play::Says("二"),
+        Play::Says("三"),
+        Play::Says("四"),
     ]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
     let words = ["/xxx", "/ 你好", "/", "/home/me/笔记.txt"];
-    for ((message_id, text), reply) in (1..).zip(words).zip(["一。", "二。", "三。", "四。"])
-    {
+    for ((message_id, text), reply) in (1..).zip(words).zip(["一", "二", "三", "四"]) {
         napcat.admin_says(message_id, text).await;
         assert_eq!(napcat.reply().await, reply, "{text}");
     }
@@ -171,7 +170,7 @@ async fn a_resent_command_runs_once_and_leading_blanks_do_not_count() {
 
 #[tokio::test]
 async fn stop_ends_a_turn_that_has_not_spoken_and_nothing_empty_is_sent() {
-    let script = Script::new([Play::Stalls, Play::Says("好。")]);
+    let script = Script::new([Play::Stalls, Play::Says("好")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
@@ -188,7 +187,7 @@ async fn stop_ends_a_turn_that_has_not_spoken_and_nothing_empty_is_sent() {
     assert_eq!(script.cancelled().len(), 1, "那一轮的请求停了");
     // 她那一轮一个字都没说：不发空的，下一个到的就是下一句的回话。
     napcat.admin_says(3, "还在吗").await;
-    assert_eq!(napcat.reply().await, "好。");
+    assert_eq!(napcat.reply().await, "好");
     assert_eq!(home.said_texts(), ["在吗", "还在吗"]);
     assert_eq!(
         ran(&home),
@@ -200,12 +199,12 @@ async fn stop_ends_a_turn_that_has_not_spoken_and_nothing_empty_is_sent() {
 #[tokio::test]
 async fn a_command_after_the_session_was_deleted_finds_it_again() {
     // 会话不在了：照第 7 条忘掉、再找、再交一次（`deliver` 和发消息共用这一段）。
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.admin_says(1, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。");
+    assert_eq!(napcat.reply().await, "在");
     until_ended(&home, 1).await;
     let old = home.sessions()[0].clone();
     let mut core = within(

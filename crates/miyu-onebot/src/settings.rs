@@ -33,6 +33,9 @@ const TOKEN: &str = "token";
 /// 白名单成员：清单里的名字（施工 O-23；O-27 从 `trusted` 改名，旧键不认）。
 const WHITELIST: &str = "whitelist";
 
+/// 群里回执要撤回的命令：清单里的名字（施工 O-47）。
+const RECALL_RECEIPTS: &str = "recall_receipts";
+
 /// 桥用的两项。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
@@ -42,20 +45,23 @@ pub struct Settings {
     pub token: Option<Secret>,
 }
 
-/// 清单 `[settings]` 里 NapCat 端口的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Defaults {
     /// `onebot.listen` 的默认值（出厂 8301）。
     pub listen: u16,
+    /// `onebot.recall_receipts` 的默认值（出厂 `clear`、`clear-memory`，施工 O-47）。
+    pub recall_receipts: Vec<String>,
 }
 
 impl Defaults {
     /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取 NapCat
-    /// 端口的默认值。
+    /// 端口、撤回回执的命令（施工 O-47）的默认值。
     ///
     /// # Errors
     ///
-    /// 清单不在、读不成、写错了，端口没声明、没写默认值、默认值不是端口：原话里说是哪个文件。
+    /// 清单不在、读不成、写错了，端口没声明、没写默认值、默认值不是端口，撤回回执的命令没声明、默认值不是字的列表：原话里说是
+    /// 哪个文件。
     pub fn load(package: &Package) -> Result<Defaults, String> {
         let path = package.dir().join(MANIFEST);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
@@ -70,7 +76,25 @@ impl Defaults {
                 _ => None,
             })
             .ok_or_else(|| bad(format!("no port default for {PACKAGE}.{LISTEN}")))?;
-        Ok(Defaults { listen })
+        let recall_receipts = manifest
+            .settings
+            .iter()
+            .find(|setting| setting.name == RECALL_RECEIPTS)
+            .and_then(|setting| match &setting.default {
+                Some(manifest::Value::List(items)) => items
+                    .iter()
+                    .map(|item| match item {
+                        manifest::Value::Text(text) => Some(text.to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+                _ => None,
+            })
+            .ok_or_else(|| bad(format!("no list default for {PACKAGE}.{RECALL_RECEIPTS}")))?;
+        Ok(Defaults {
+            listen,
+            recall_receipts,
+        })
     }
 }
 
@@ -153,6 +177,24 @@ pub fn whitelist(value: &Value) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// 撤回回执的命令那一键（`onebot.recall_receipts`，施工 O-47）。
+pub fn recall_receipts_key() -> String {
+    format!("{PACKAGE}.{RECALL_RECEIPTS}")
+}
+
+/// 撤回回执的命令（`onebot.recall_receipts` 的值，施工 O-47）：字的列表照收，去掉开头的 `/`（写了也认）；没有、`null`、不是
+/// 列表的是空的（照 `defaults`，交了 `null` 就是回到默认），列表里不是字的不要。
+pub fn recall_receipts(value: &Value, defaults: &[String]) -> Vec<String> {
+    match value.as_array() {
+        Some(list) => list
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|name| name.trim().trim_start_matches('/').to_string())
+            .collect(),
+        None => defaults.to_vec(),
+    }
 }
 
 /// 一个端口：0 到 65535 的整数；别的是空的。

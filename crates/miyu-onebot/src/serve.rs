@@ -31,23 +31,21 @@ use tokio::sync::{Notify, mpsc};
 use tokio::task::JoinSet;
 
 use miyu_chat::Problem;
-use miyu_client::places::{DataRoot, ResourceRoot};
+use miyu_client::places::DataRoot;
 
 use crate::TARGET;
 use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
-use crate::core::route::{Fetching, Forwarding, Personas, Reactions, Route, Slots};
+use crate::core::route::{Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots};
 use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
 use crate::onebot::Members;
-use crate::package::Package;
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};
 use crate::status_file;
-use crate::texts::{Texts, system_language};
 use crate::tuning::Tuning;
 
 /// 跟核心说协议的管道：读的一头、写的一头（施工 O-18）。程序里是核心拉起桥时接好的标准输入输出；测试里是内存里的管道。
@@ -81,10 +79,6 @@ pub struct Serve {
     pub locale: Option<String>,
     /// 桥自己的数（`bridge.json`）。
     pub tuning: Tuning,
-    /// 资源目录：核心那一份给人看的字在这里（握手回了语言照它再读）。
-    pub resources: ResourceRoot,
-    /// 包文件夹：桥自己的给人看的字在它的 `data/` 里（握手回了语言照它再读，施工 S-6 上）。
-    pub package: Package,
     /// 清单 `[settings]` 里 NapCat 端口的默认值：握手没交、推来 `null` 的照它（施工 O-20）。
     pub defaults: Defaults,
     /// 出厂的场所规则、出厂参数、违规词表：握手以前读好、查过（施工 O-21，[`Factory::load`]）。
@@ -164,19 +158,8 @@ pub async fn run(
         Instant::now(),
     );
     let settings = Settings::handed(&core.config, &serve.defaults);
-    let texts = Texts::load(
-        serve.resources.clone(),
-        serve.package.clone(),
-        &core.language,
-    )
-    .or_else(|_| {
-        Texts::load(
-            serve.resources.clone(),
-            serve.package.clone(),
-            system_language(serve.locale.as_deref()),
-        )
-    })
-    .map_err(|error| Failure::Start(error.to_string()))?;
+    // 撤回回执的命令的默认值（施工 O-47）：跟核心的那一头照它读握手交来的、推来的。
+    let recall_default = serve.defaults.recall_receipts.clone();
     let (mut napcat, listen) = bind(settings.port).await?;
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
     tracing::info!(target: TARGET, port = listen, "listening");
@@ -237,10 +220,12 @@ pub async fn run(
     let members = Members::new(gate.tuning.member_names());
     let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
     let personas = Personas::new(gate.tuning.judge_persona());
-    let recall = gate.tuning.receipt_recall();
+    let recall = Recalling {
+        after: gate.tuning.receipt_recall(),
+        default: recall_default,
+    };
     let reactions = Reactions::new(gate.tuning.reaction_emoji.clone(), gate.tuning.reaction());
     let parts = (
-        texts,
         slots,
         personas,
         recall,

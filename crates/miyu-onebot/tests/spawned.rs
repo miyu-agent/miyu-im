@@ -134,7 +134,7 @@ async fn ok(root: &DataRoot, args: &[&str]) -> String {
 
 #[tokio::test]
 async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, listen, pid) = on_free_port(async |listen| {
         let home = home(&script, listen);
         assert_eq!(
@@ -157,7 +157,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
     .await;
     let mut napcat = admin_napcat(listen).await;
     napcat.admin_says(1, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。", "终端管理员的私聊照旧来回");
+    assert_eq!(napcat.reply().await, "在", "终端管理员的私聊照旧来回");
     let status = until_status(&home.root, |out| out.contains("NapCat.Onebot")).await;
     let expected = [
         zh(&Report::Running(pid)),
@@ -197,7 +197,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
 
 #[tokio::test]
 async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
-    let script = Script::new([Play::Says("回来了。")]);
+    let script = Script::new([Play::Says("回来了")]);
     // 核心拉起的新桥照样绑这个端口：杀掉以后到它绑上之间被别人占了的，也换一个从头再来。
     let (home, listen) = on_free_port(async |listen| {
         let home = home(&script, listen);
@@ -213,7 +213,7 @@ async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
     assert_eq!(again["failures"], 1, "被杀掉算一次失败：{again}");
     let mut napcat = admin_napcat(listen).await;
     napcat.admin_says(2, "还在吗").await;
-    assert_eq!(napcat.reply().await, "回来了。", "NapCat 重连得上");
+    assert_eq!(napcat.reply().await, "回来了", "NapCat 重连得上");
     napcat.close().await;
     ok(&home.root, &["stop"]).await;
     home.stop_extensions().await;
@@ -289,7 +289,7 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
 
 #[tokio::test]
 async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
-    let script = Script::new([Play::Says("在。"), Play::Says("还在。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("还在")]);
     let (home, listen) = on_free_port(async |listen| {
         let home = home(&script, listen);
         ok(&home.root, &["start"]).await;
@@ -310,7 +310,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let old = napcat(listen, "/ws", Auth::Bearer(TOKEN), None).await;
     assert_eq!(old.err(), Some(401), "旧的不收");
     open.admin_says(1, "在吗").await;
-    assert_eq!(open.reply().await, "在。", "已经连着的那一条照样收发");
+    assert_eq!(open.reply().await, "在", "已经连着的那一条照样收发");
     // 引用换成别的密钥（`config.set`）。
     core_call(
         &home.root,
@@ -328,7 +328,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     until_port(listen, false).await;
     until_admitted(new_listen, OTHER).await.close().await;
     open.admin_says(2, "还在吗").await;
-    assert_eq!(open.reply().await, "还在。", "换端口不断连着的");
+    assert_eq!(open.reply().await, "还在", "换端口不断连着的");
     let address = zh(&Report::Listen(u64::from(new_listen)));
     until_status(&home.root, |out| out.contains(&address)).await;
     // 删了令牌：以后连进来的一律 401。
@@ -342,7 +342,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
 
 #[tokio::test]
 async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_bridge() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, listen) = on_free_port(async |listen| {
         let home = home(&script, listen);
         ok(&home.root, &["start"]).await;
@@ -355,7 +355,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     napcat.private(STRANGER, 2, json!("还在吗")).await;
     // 一条条照先后办：终端管理员这一句的回话先到，前面陌生人的两句就是办完了、没回（回了的话 `reply` 先收到发给陌生人的，红）。
     napcat.admin_says(3, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。", "终端管理员的私聊照常来回");
+    assert_eq!(napcat.reply().await, "在", "终端管理员的私聊照常来回");
     assert_eq!(home.said_texts(), ["在吗"]);
     // 核心照 O-4 下把陌生人的私聊归系统账号、造了会话（回应的属主是桥自己，走的正是第 49 条那一处，不是 `no_system_account`）：
     // 两条找的是同一个，里面没有人说的话。

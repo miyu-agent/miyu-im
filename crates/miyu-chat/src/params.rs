@@ -134,6 +134,7 @@ fn blank() -> Params {
             invisible: Vec::new(),
             leak_open: Vec::new(),
             leak_close: Vec::new(),
+            strip_period: false,
         },
         split_chars: 0,
     }

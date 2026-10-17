@@ -8,7 +8,7 @@
 
 use miyu_chat::{
     Chain, Chatty, Clock, Conditions, Ctx, Facts, Inbound, Mode, Outcome, Pending, Reply, Route,
-    Supersede, VenueKind, Verdict, Why, conditions, rate_full, supersede,
+    Supersede, VenueKind, Verdict, conditions, rate_full, supersede,
 };
 
 use super::discipline::Discipline;
@@ -41,10 +41,8 @@ pub(super) struct Case<'a> {
 pub(super) enum Conclusion {
     /// 回：开一轮。
     Reply,
-    /// 只记下。
+    /// 只记下：限流满了冲她来的也是（施工 O-47：不回提示）。
     Record,
-    /// 回一句提示（限流满了冲她来的）：为什么，写进提示的 `reason`。
-    Notice(Why),
     /// 问判官：打分，或者只查违规。回不回等判官回来、算完分。
     Judge(Mode),
 }
@@ -79,7 +77,7 @@ pub(super) struct Passed {
     pub(super) rate_full: bool,
 }
 
-/// 判一条（「群里怎么叫她」第 5、6、10、11、14 条）：进站链只记下的只记下，提示的回一句；放行的照线路规程留下条件、看顶替：
+/// 判一条（「群里怎么叫她」第 5、6、10、11、14 条）：进站链只记下的只记下（限流满了的也是，施工 O-47）；放行的照线路规程留下条件、看顶替：
 /// 接过去的回，别的照线路规程走路：`Record` 只记下，`Commit` 回，`Judge`、`ModerationOnly` 问判官（额度满了的只记下）。
 pub(super) fn decide(case: &Case<'_>) -> Decision {
     let own = case.facts.msg.get();
@@ -91,7 +89,6 @@ pub(super) fn decide(case: &Case<'_>) -> Decision {
     let verdict = Chain::builtin().judge(&inbound, &case.ctx, case.clock);
     let (passed, conclusion, msgs) = match verdict.outcome {
         Outcome::RecordOnly(_) => (None, Conclusion::Record, vec![own]),
-        Outcome::Notice(why) => (None, Conclusion::Notice(why), vec![own]),
         Outcome::Pass => {
             let (passed, msgs) = pass(case, &verdict);
             let conclusion = match passed.route {

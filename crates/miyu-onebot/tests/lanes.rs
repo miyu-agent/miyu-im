@@ -157,16 +157,16 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     let (release_a, hold_a) = oneshot::channel();
     let (release_b, hold_b) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("在。"),
-        Line::says("回A。").released_by(hold_a),
-        Line::says("回B。").released_by(hold_b),
-        Line::says("回A和C。"),
-        Line::says("再回B。"),
+        Line::says("在"),
+        Line::says("回A").released_by(hold_a),
+        Line::says("回B").released_by(hold_b),
+        Line::says("回A和C"),
+        Line::says("再回B"),
     ]);
     let (home, mut napcat, _) =
         started_by(Arc::new(lines.clone()), &rules("100/1h"), MEMBERS).await;
     calls(&napcat, A, 101, "在吗", &[]);
-    assert_eq!(next_said(&mut napcat).await.1, "在。");
+    assert_eq!(next_said(&mut napcat).await.1, "在");
     until_main(&home, "turn.ended", 1).await;
     // 主线回 A，压着；B @ 她：分叉一条支线回他。
     calls(&napcat, A, 102, "明天几点开会", &[]);
@@ -215,15 +215,15 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     release_a.send(()).expect("还在等");
     assert_eq!(
         next_said(&mut napcat).await,
-        (Some("301".into()), "回A。".into())
+        (Some("301".into()), "回A".into())
     );
-    assert_eq!(next_said(&mut napcat).await.1, "回A和C。");
+    assert_eq!(next_said(&mut napcat).await.1, "回A和C");
     release_b.send(()).expect("还在等");
     assert_eq!(
         next_said(&mut napcat).await,
-        (Some("202".into()), "回B。".into())
+        (Some("202".into()), "回B".into())
     );
-    assert_eq!(next_said(&mut napcat).await.1, "再回B。");
+    assert_eq!(next_said(&mut napcat).await.1, "再回B");
     let lanes = until_lanes(&home, |lanes| {
         !of_kind(&lanes[0].1, "session.sealed").is_empty()
     })
@@ -250,10 +250,10 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     let (release_a, hold_a) = oneshot::channel();
     let (release_b, hold_b) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("回A。").released_by(hold_a),
-        Line::says("回B。").released_by(hold_b),
-        Line::says("回C。"),
-        Line::says("又回B。"),
+        Line::says("回A").released_by(hold_a),
+        Line::says("回B").released_by(hold_b),
+        Line::says("回C"),
+        Line::says("又回B"),
     ]);
     let (home, mut napcat, _) =
         started_by(Arc::new(lines.clone()), &rules("100/1h"), MEMBERS).await;
@@ -262,7 +262,7 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     calls(&napcat, B, 201, "帮我想个标题", &[]);
     until_requests(&lines, 2).await;
     release_a.send(()).expect("还在等");
-    assert_eq!(next_said(&mut napcat).await.1, "回A。");
+    assert_eq!(next_said(&mut napcat).await.1, "回A");
     until_main(&home, "turn.ended", 1).await;
     // 主线闲了、支线还在回 B：C 开主线，带上 B 那一条。
     calls(&napcat, C, 301, "在吗", &[]);
@@ -272,9 +272,9 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
         "{}",
         last(&lines.requests()[2])
     );
-    assert_eq!(next_said(&mut napcat).await.1, "回C。");
+    assert_eq!(next_said(&mut napcat).await.1, "回C");
     release_b.send(()).expect("还在等");
-    assert_eq!(next_said(&mut napcat).await.1, "回B。");
+    assert_eq!(next_said(&mut napcat).await.1, "回B");
     until_lanes(&home, |lanes| {
         !of_kind(&lanes[0].1, "session.sealed").is_empty()
     })
@@ -282,10 +282,10 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     until_main(&home, "venue.delivered", 3).await;
     // 支线封存了：B 再叫她，主线开一轮，近况里有支线说的那句、不再带那一块。
     calls(&napcat, B, 202, "还在吗", &[]);
-    assert_eq!(next_said(&mut napcat).await.1, "又回B。");
+    assert_eq!(next_said(&mut napcat).await.1, "又回B");
     let request = last(&lines.requests()[3]);
     assert!(
-        request.contains("[you]") && request.contains("回B。"),
+        request.contains("[you]") && request.contains("回B"),
         "{request}"
     );
     assert!(!request.contains("another-line"), "{request}");
@@ -303,10 +303,10 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
 async fn tools_on_a_lane_look_at_its_own_trigger() {
     let (release_a, hold_a) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("回A。").released_by(hold_a),
+        Line::says("回A").released_by(hold_a),
         Line::uses("", "poke", "{}"),
         Line::uses("", "fetch_media", r#"{"msg":"999"}"#),
-        Line::says("好。"),
+        Line::says("好"),
     ]);
     let (home, mut napcat, _) =
         started_by(Arc::new(lines.clone()), &rules("100/1h"), MEMBERS).await;
@@ -334,9 +334,9 @@ async fn tools_on_a_lane_look_at_its_own_trigger() {
         not_found.trim_end(),
         "找得到发到哪：{results:#?}"
     );
-    assert_eq!(next_said(&mut napcat).await.1, "好。");
+    assert_eq!(next_said(&mut napcat).await.1, "好");
     release_a.send(()).expect("还在等");
-    assert_eq!(next_said(&mut napcat).await.1, "回A。");
+    assert_eq!(next_said(&mut napcat).await.1, "回A");
     stopped(home).await;
 }
 
@@ -345,8 +345,8 @@ async fn turns_opened_on_a_lane_count_toward_the_rate() {
     let (release_a, hold_a) = oneshot::channel();
     let (release_b, hold_b) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("回A。").released_by(hold_a),
-        Line::says("回B。").released_by(hold_b),
+        Line::says("回A").released_by(hold_a),
+        Line::says("回B").released_by(hold_b),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), &rules("2/1h"), MEMBERS).await;
     calls(&napcat, A, 101, "在吗", &[]);
@@ -357,24 +357,28 @@ async fn turns_opened_on_a_lane_count_toward_the_rate() {
     calls(&napcat, C, 301, "在吗", &[]);
     let events = until_main(&home, "ext.onebot.chat.decided", 3).await;
     let decided = &of_kind(&events, "ext.onebot.chat.decided")[2]["body"];
-    assert_eq!(decided["inbound"], "notice", "{decided}");
+    assert_eq!(decided["inbound"], "record_only", "{decided}");
     assert_eq!(decided["why"], "rate_limited", "{decided}");
     release_a.send(()).expect("还在等");
     release_b.send(()).expect("还在等");
     let mut heard = Vec::new();
-    for _ in 0..3 {
+    for _ in 0..2 {
         heard.push(next_said(&mut napcat).await.1);
     }
     heard.sort();
-    assert_eq!(heard.len(), 3, "提示一句、两条线各一句：{heard:?}");
-    assert!(heard.contains(&"回A。".to_string()) && heard.contains(&"回B。".to_string()));
+    assert_eq!(
+        heard.len(),
+        2,
+        "两条线各一句，不发限流提示（施工 O-47）：{heard:?}"
+    );
+    assert!(heard.contains(&"回A".to_string()) && heard.contains(&"回B".to_string()));
     stopped(home).await;
 }
 
 #[tokio::test]
 async fn what_a_lane_could_not_send_is_noted_where_she_will_see_it() {
     let (release_a, hold_a) = oneshot::channel();
-    let lines = Lines::new([Line::says("回A。").released_by(hold_a), Line::says("回B。")]);
+    let lines = Lines::new([Line::says("回A").released_by(hold_a), Line::says("回B")]);
     let (home, napcat, _) = started_tuned(
         Arc::new(lines.clone()),
         &rules("100/1h"),
@@ -431,8 +435,8 @@ async fn a_lane_names_its_group_to_other_packages() {
     let (release_a, hold_a) = oneshot::channel();
     let (release_b, hold_b) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("回A。").released_by(hold_a),
-        Line::says("回B。").released_by(hold_b),
+        Line::says("回A").released_by(hold_a),
+        Line::says("回B").released_by(hold_b),
     ]);
     let (home, mut napcat, _) =
         started_by(Arc::new(lines.clone()), &rules("100/1h"), MEMBERS).await;
@@ -455,8 +459,8 @@ async fn a_lane_names_its_group_to_other_packages() {
         "{reply}"
     );
     release_b.send(()).expect("还在等");
-    assert_eq!(next_said(&mut napcat).await.1, "回B。");
+    assert_eq!(next_said(&mut napcat).await.1, "回B");
     release_a.send(()).expect("还在等");
-    assert_eq!(next_said(&mut napcat).await.1, "回A。");
+    assert_eq!(next_said(&mut napcat).await.1, "回A");
     stopped(home).await;
 }

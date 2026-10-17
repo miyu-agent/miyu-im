@@ -26,7 +26,7 @@
 | `crates/miyu-chat/src/chatty.rs` | 主动回复判断：两个插槽（加值项、门槛修正）、条件、走哪条路、算分（施工 O-7） |
 | `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静 |
 | `crates/miyu-chat/src/chatty/supersede.rs`、`chatty/dispatch.rs` | 顶替、分派，各一个文件（施工 O-9，O-12 下分开） |
-| `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带三条（清理、去重、引用和 @）；纯文本：Markdown 转纯文本、按段拆开（施工 O-10） |
+| `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带四条（清理、去末尾句号、去重、引用和 @）；按段拆开（施工 O-10；去句号 O-47 加，Markdown 转纯文本 O-47 去掉） |
 | `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
 | `onebot/data/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `docs/ledger.md`） |
 | `crates/miyu-chat/src/params.rs` | 出厂参数：`Params`、读出厂文件、套上场所规则改的几项（第八条，施工 O-15） |
@@ -162,7 +162,7 @@ Rust 这一边：
 | `addressed(kind, mentions_me, quotes_me, text, keywords) -> bool` | 是不是冲她来的（「怎么走」第 11 条）：场所是群还是私聊、@ 了她没有、引用的是不是她的消息、正文、场所规则的触发词 `keywords` |
 | `Inbound { kind, said, text }` | 一条进来的消息：场所是群还是私聊（`VenueKind`）、`Said`、正文 |
 | `Clock { now, offset }` | 此刻（内核的 `Timestamp`）；场所会话的时区（内核的 `UtcOffset`） |
-| `Ctx { rate, sleep, allow, muted, turns, notices, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻、限流提示过的时刻（都是 `Timestamp`）、违规关键词的参数 |
+| `Ctx { rate, sleep, allow, muted, turns, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻（`Timestamp`）、违规关键词的参数。原来的 `notices`（限流提示过的时刻）施工 O-47 去掉 |
 | `Rate::read(text) -> Option<Rate>` | 从 `rate` 的原文读出来：几个回合（不会是 0）、窗口多少毫秒（不会是 0，时长照旧是毫秒数）；不限、写错的读成 `None`。几格私有，只能这样造 |
 | `Sleep::read(text) -> Option<Sleep>` | 从 `sleep` 的原文读出来：一天里的第几分钟开始、第几分钟结束（不会相等）；开始晚于结束的跨午夜；`off`、写错的读成 `None`。几格私有，只能这样造 |
 | `Moderation { keywords, base64 }`、`Base64 { min_chars, max_chars, printable }` | 违规关键词（违规词表读出来的，`Moderation::parse_keywords`），和 base64 的三个数：至少多长才去解、解出来最多看多少个字符、可打印的字符至少占几成（千分比）。`Base64` 从第八条的 `Params::base64` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
@@ -170,7 +170,7 @@ Rust 这一边：
 | `Base64::reveal(text) -> Option<String>` | 正文里的 base64 解出来的字（「怎么走」第 10 条）：违规关键词查它，桥拿它填判官的 `Ask.decoded`（第六条）；一段都没有是 `None` |
 | `InboundRule` | 进站链的插槽：一条规则，`judge` 给出 `Step::Continue`、`Step::Flag(Flag)`（插旗、往下走）或 `Step::Stop(Outcome)` |
 | `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的五条照顺序过；`Verdict { outcome, flags }` |
-| `Outcome::{Pass, RecordOnly(Why), Notice(Why)}`、`Why::{Asleep, Muted, NotAllowed, RateLimited}` | 放行、只记下、拒绝并回一句；为什么 |
+| `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, RateLimited}` | 放行、只记下；为什么。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
 | `Flag::Moderation` | 违规旗 |
 | `rate_full(&ctx, clock) -> bool` | 额度满了没有：满了的这段时间线路规程不抽样、不调判官（18 第六节） |
 | `gate(&ctx, clock) -> Gate::{Now, Later(at)}` | 回合闸的回答：现在开，或者推迟到某个时刻（`Timestamp`）再问 |
@@ -186,7 +186,7 @@ Rust 这一边：
    - 终端管理员、白名单成员继续：他们开的回合本来就不在 `turns` 里（外面交进来时就去掉了）。
    - 没有限流（`rate` 没设或 `0`）继续。
    - 最近的回合数：`turns` 里落在 `(now − window, now]` 的个数；正好 `window` 毫秒以前的不算。少于 `turns` 个，继续。
-   - 满了：不冲她来的 `RecordOnly(RateLimited)`。冲她来的看这一回满了以后提示过没有：「这一回满了」从窗口里从早往晚数第 `turns` 个回合的时刻算起（额度就是在它开始的那一刻满的），`notices` 里有不早于它的就是提示过了，`RecordOnly(RateLimited)`；没有就 `Notice(RateLimited)`。降下去以后又满了，算新的一回，会再提示一次。窗口一直满着、又进了新回合时，这个时刻也往后挪，同一回可能多提示一次；正常情况下满了别人就开不了新回合，影响很小。
+   - 满了：`RecordOnly(RateLimited)`，冲她来的也是，不回提示（施工 O-47；原来头一回冲她来的回一句 `Notice`）。
 7. **`rate_full`**：照第 6 条的数法，满了是 `true`，不看发的人。
 8. **回合闸**：
    - 睡着（第 2 条，不看发的人：核心开的回合没有人）：`Later` 到醒来那一分钟的开头，也就是当地时间下一次到 `end` 的那一刻。
@@ -224,7 +224,7 @@ Rust 这一边：
 | 4 | 「这一回满了」从窗口里从早往晚数第 N 个回合算起 | 滑动窗口没有固定的段；额度就是在第 N 个回合开始时满的，降下去再满，这个时刻就往后挪，自然会再提示。起草时写成「倒数第 N 个」是笔误，那样降下去再满不会再提示（施工时分身查出来） | 照固定窗口分段；从最早的回合算 |
 | 5 | 回合闸只回 `Now`、`Later` | 「先记着」是桥没连着时核心自己定的，群聊内核这时根本不在 | 这里也回 `Hold` |
 | 6 | 时区由外面交进来，差几分钟 | 第 2 层不碰时钟和时区库 | 在这里查时区 |
-| 7 | `allow` 交进来是可有可无的，没设当 `true` 由库落实；`turns`、`notices` 的先后不要紧，库里自己排 | 交进来的一方少操心 | 要求外面先排好 |
+| 7 | `allow` 交进来是可有可无的，没设当 `true` 由库落实；`turns` 的先后不要紧，库里自己排 | 交进来的一方少操心 | 要求外面先排好 |
 | 8 | base64 那一段的长度连末尾的 `=` 一起数；遇到 `=` 这一段就结束，后面再接的是另一段；只剩一个字符的不解出字节 | 照 base64 的写法，`=` 只在末尾 | 把 `=` 当普通字符 |
 | 9 | 查写法和读成 `Rate`、`Sleep` 走同一份规矩：第一条的查写法改成调读的那个函数 | 一份规矩，两处用 | 两份各写各的 |
 | 10 | 现在只有 `Chain::builtin()`，没有往链里加规则的入口 | 加规则的是扩展，随插件那一步 | 先留一个入口 |
@@ -369,9 +369,9 @@ Rust 这一边：
 | 8 | 消息用序号（`Seq`），人用 `ExternalId`，时刻用 `Timestamp`（O-12，O 线自查以后照第七条改） | 第七条第 1 条：群聊内核里的消息就是场所主线会话日志里的序号；投影时不用再转 | 平台的编号、带前缀的字 |
 | 9 | 条件那一格叫 `conditions`；顶替、分派各一个文件，测试跟着拆（O-12 下） | 原来叫 `hits`，读着是 `pending.hits.hits`；两样是两种职责 | 照旧 |
 
-### 五、出站链与纯文本（施工 O-10）
+### 五、出站链（施工 O-10）
 
-她要说出去的一切先过出站链，像 netfilter 的 OUTPUT 链（核心的 `docs/designs/18-通讯平台.md` 第十节、Q8、Q14）：清理、去重、引用和 @。过了链的照出站形态发；这一步只有纯文本这一种形态：Markdown 转成纯文本、太长的按段拆开。长文转图、合并转发、表情包随后面的步子。纯逻辑：这一回合已经发出去的、她回的那条之后群里来了几条别人的消息，都由外面交进来；出站队列随桥那几步。
+她要说出去的一切先过出站链，像 netfilter 的 OUTPUT 链（核心的 `docs/designs/18-通讯平台.md` 第十节、Q8、Q14）：清理、去末尾句号、去重、引用和 @。过了链的原样发，太长的按段拆开。原来的 Markdown 转纯文本施工 O-47 去掉（2026-10-17 项目主人定：她怎么写由提示词管；链接 `[字](地址)` 的处理随长文转图）。长文转图、合并转发、表情包随后面的步子。纯逻辑：这一回合已经发出去的、她回的那条之后群里来了几条别人的消息，都由外面交进来；出站队列随桥那几步。
 
 **对外的样子**
 
@@ -381,16 +381,15 @@ Rust 这一边：
 | `Sent { texts, images }` | 这一回合已经发出去的：正文、图的哈希（`ContentHash`；去重只看这一回合） |
 | `Target { quote, mention }` | 引用、@ 那个人：这一条要不要 |
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
-| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close }` | 参数：隔几条别人的消息才引用（出厂 4）、隔多少毫秒才 @（出厂 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
+| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period }` | 参数：隔几条别人的消息才引用（出厂 4）、隔多少毫秒才 @（出厂 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
 | `OutboundRule` | 出站链的插槽：一条规则，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
-| `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的三条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
-| `plain(text) -> String` | Markdown 转纯文本 |
+| `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的四条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
 | `split(text, max_chars) -> Vec<String>` | 按段拆开；`max_chars` 从第八条的 `Params::split_chars` 拿（出厂 3000，`0` 是不拆） |
 
 **怎么走**
 
-1. **先后**：清理、去重、引用和 @。哪一条丢了就停。
+1. **先后**：清理、去末尾句号、去重、引用和 @。哪一条丢了就停。去句号在去重前面：去重比的是发出去的样子。
 2. **清理**：
    - 去掉漏进正文的工具调用：`Outbound` 的 `leak_open`、`leak_close` 照位置一一对上，每一对是一种（出厂两种：`<tool_call>` 到 `</tool_call>`、`<function=` 到 `</function>`，第八条）。几种里取最早出现的开头，从它到它后面的第一个收尾（收尾从开头的后面找起），整段去掉；找不到收尾的去到末尾；一段一段去，直到没有。
    - 去完以后正文只剩空白（`char::is_whitespace`）和 `Outbound::invisible` 里的字，而且没有图：`Drop(Blank)`；去之前就是这样的也一样。整条被工具调用占满的：`Drop(Leaked)`。出厂的不可见字符（第八条）：零宽空格、零宽连接符这一带 U+200B 到 U+200F、U+2060 到 U+2064、BOM U+FEFF、软连字号 U+00AD、U+180E、U+2028、U+2029。
@@ -404,15 +403,13 @@ Rust 这一边：
    - 引用：本来要引用，并且（群里最后一条是她自己的，或者 `others` 不少于 `quote_after`）。`quote_after` 是 0 时后一样恒成立，不另写一条。
    - @：本来要 @，并且 `elapsed` 不少于 `mention_after`，并且 `others` 大于 0。
    - 私聊不带引用和 @（外面交进来的 `Target` 两样都是假）。
-5. **Markdown 转纯文本**（QQ 不画 Markdown，故意保守）：
-   - 一行一行看。以 ` ``` ` 或 `~~~` 开头的行（前面可以有空白）开关代码块，这一行本身不要；代码块里的行原样留着。
-   - 别的行：`#` 开头的标题去掉 `#` 和后面的空白；`> ` 开头的引用去掉 `> `；然后去掉行内的 `**`、`__`、反引号；`[字](地址)` 写成 `字 (地址)`，地址空的或和字一样的只留字。单个 `*` 留着（可能是乘号），列表和换行留着。
-   - 去掉末尾的空白。
+5. **Markdown 转纯文本**：施工 O-47 去掉，过了链的正文原样交给按段拆开。
 6. **按段拆开**（`max_chars` 按字符数，不是字节，中文不会被切到半个字）：
    - 去掉首尾空白；空的不出；不超过 `max_chars` 或 `max_chars` 是 0 的原样一段。
    - 先按空行（`\n\n`）分段往一块里装，装不下就换一块；一段本身就超了，按行装；一行本身就超了，按字符硬切。
    - 每一块去掉首尾空白，空的不出。
 7. **不在这里的**：她被禁言时暂停、过期作废、命令回执 3 秒撤回、定时消息、退信：出站队列，随桥。
+8. **去末尾句号**（施工 O-47，2026-10-17 项目主人定，照旧版；排在清理和去重之间，见第 1 条）：`strip_period` 开着的，正文末尾（不算空白）的一个 `。` 去掉，连同它后面的空白；只去一个、只去中文句号；去了以后只剩空白的不去（只有一个 `。` 的照发）。
 
 **守着它的**（`crates/miyu-chat/src/outbound/tests.rs` 等，O-10）
 
@@ -421,7 +418,7 @@ Rust 这一边：
 - 清理照参数走（`outbound/tests.rs`，O-15 下）：换一份标记、换一份不可见字符，照换的去、照换的判空，出厂的那几个不再算；照位置对上（一对的开头遇上另一对的收尾不算收尾）；两份名单都是空的，什么都不去、只有空白算空；收尾是开头的一段的，从开头后面找起。
 - 去重：一字不差、只差标点大小写、相似度正好 0.66、两字组 15 个的不比相似度、跨回合的不管、正文重复带图、图重复、同一条里两张一样的图。
 - 引用和 @：最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条；@ 正好 15 秒、14.999 秒、别人没说过话。
-- Markdown：代码块、标题、引用、加粗、反引号、链接三种、单个 `*`。
+- 去末尾句号（`outbound/period/tests.rs`，O-47）：去一个、两个只去一个、省略号后面的去、末尾空白不挡、只去中文句号（英文句号、感叹号、半角句点不去）、中间的不动、只有句号的不去、关了不去。
 - 拆段：正好 `max_chars`、空段、超长的段、超长的行、中文。
 
 **施工时定的**（O-10）
@@ -536,7 +533,7 @@ Rust 这一边：
 | 输入 | 从哪几种事件 | 怎么算 |
 |---|---|---|
 | 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是终端管理员或白名单成员的；没有 `triggers` 的（回报、后台命令、定时）照算 |
-| 进站链 `Ctx.notices` | `ext.onebot.venues.queued` | 种类是提示、原因是限流的那几条的时刻 |
+| （施工 O-47 去掉）进站链原来的 `Ctx.notices` | `ext.onebot.venues.queued` | 不再算：旧日志里的提示照收、不算什么 |
 | 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 `muted` 的 `until` 晚于此刻、之后没有 `unmuted`（O-25 中） |
 | 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：终端管理员；编号在 `onebot.whitelist` 里：白名单成员；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
@@ -606,6 +603,7 @@ restraint_half_life = "3m"
 | `outbound.mention_after` | 时长 1 秒到 1 天 | `15s` | `Outbound::mention_after` |
 | `outbound.min_bigrams` | 整数 1 到 10000 | 16 | `Outbound::min_bigrams` |
 | `outbound.similar` | 整数 1 到 100，百分比 | 66 | `Outbound::similar` |
+| `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
 | `outbound.split_chars` | 整数 0 到 100000 | 3000 | `Params::split_chars`：交给第五条的 `split`，`0` 是不拆 |
 | `outbound.invisible` | 文字的列表，每项正好一个字符，可以是空的列表 | U+200B 到 U+200F、U+2060 到 U+2064、U+FEFF、U+00AD、U+180E、U+2028、U+2029，十五个，一个一项（O-15 下） | `Outbound::invisible`：清理判空时和空白一样算 |
 | `outbound.leak_open` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | `<tool_call>`、`<function=`（O-15 下） | `Outbound::leak_open`：漏进来的工具调用从哪开始 |

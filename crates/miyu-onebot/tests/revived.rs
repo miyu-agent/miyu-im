@@ -31,7 +31,7 @@ const SESSION: &str = "0199d0c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f";
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 她新说的那一句。
-const WORDS: &str = "接着说的。";
+const WORDS: &str = "接着说的";
 
 /// 此刻，写成日志里的样子：补发只补期限以内的。
 fn now() -> String {

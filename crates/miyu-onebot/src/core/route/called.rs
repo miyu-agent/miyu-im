@@ -19,17 +19,16 @@ use miyu_client::ids::{ExternalId, Seq};
 use serde_json::{Value, json};
 
 use super::ask::Asking;
-use super::body::{Finale, Judged, body, finale, why_name};
+use super::body::{Finale, Judged, body, finale};
 use super::decide::{Case, Conclusion, Decision, decide};
 use super::discipline::Discipline;
 use super::judges::{Judging, Tag};
 use super::projection::DECIDED;
-use super::sending::{Piece, What};
 use super::{Route, applied};
 use crate::TARGET;
 use crate::core::hooks::{Steer, Steered};
 use crate::core::{Gone, reason};
-use crate::onebot::{Lead, MediaKind};
+use crate::onebot::MediaKind;
 
 /// 判一条群消息要的、从这条消息来的几样（`group.rs` 填）。
 pub(super) struct Heard {
@@ -147,16 +146,6 @@ impl Route {
                     self.react(session, decision);
                 }
                 Ok(())
-            }
-            Finale::Notice(why) => {
-                // 提示入队（施工 O-25 中，「出站队列」第 2 条）：命令编号照这一条加 `/queued`，一条消息至多提示一次。
-                let queued = format!("{}/queued", tag.id);
-                let piece = Piece {
-                    what: What::Notice(why_name(why)),
-                    text: self.texts.rate_limited().trim().to_string(),
-                    lead: Lead::default(),
-                };
-                self.enqueue(session, Some(&queued), piece).await
             }
             Finale::Record => Ok(()),
         }
@@ -278,7 +267,6 @@ impl Route {
             // 她被禁言着照投影（施工 O-25 中，「群里怎么叫她」第 5 条）。
             muted: group.muted(clock.now).is_some(),
             turns: group.turns(&self.whitelist),
-            notices: group.notices().to_vec(),
             moderation,
         };
         let pendings: Vec<Pending> = group

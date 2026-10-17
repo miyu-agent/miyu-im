@@ -1,7 +1,8 @@
 //! 限流（`docs/blueprint/chat.md` 第二条「怎么走」第 6、7 条，`18-通讯平台.md` 第六节 Q22）：数这个场所最近一段时间开了
-//! 几个回合（不数消息），滑动窗口。满了，冲她来的这一回第一次回一句，之后只记下；不冲她来的只记下。终端管理员、白名单成员不限。
+//! 几个回合（不数消息），滑动窗口。满了只记下，冲她来的也不回提示（施工 O-47，2026-10-17 项目主人定）。终端管理员、白名单成员
+//! 不限。
 //!
-//! 回合的时刻、提示过的时刻由外面从场所会话的日志投影出来交进来，核心或桥重启都不丢。
+//! 回合的时刻由外面从场所会话的日志投影出来交进来，核心或桥重启都不丢。
 
 use std::num::NonZeroU32;
 
@@ -21,9 +22,6 @@ pub struct Rate {
 
 /// 额度满了的情形。
 pub(super) struct Full {
-    /// 这一回满了从什么时候算起：窗口里从早往晚数第 `turns` 个回合的时刻。窗口从这一刻起一直是满的；降下去再满，
-    /// 它往后挪，就是新的一回（施工时定的第 4 条）。
-    pub(super) since: Timestamp,
     /// 窗口里最早那个回合出窗口的时刻（毫秒）：回合闸推迟到它（「怎么走」第 8 条）。
     pub(super) frees: i64,
 }
@@ -41,9 +39,9 @@ pub(super) fn full(ctx: &Ctx, now: Timestamp) -> Option<Full> {
     recent.sort_unstable();
     // `turns` 至少是 1；放不进 usize 的平台上当永远数不满。
     let nth = usize::try_from(rate.turns.get() - 1).unwrap_or(usize::MAX);
-    let (&earliest, &since) = (recent.first()?, recent.get(nth)?);
+    recent.get(nth)?;
+    let earliest = recent.first()?;
     Some(Full {
-        since,
         frees: earliest.unix_millis().saturating_add(rate.window),
     })
 }
@@ -62,13 +60,10 @@ impl InboundRule for Rule {
         if msg.said.standing != Standing::Member {
             return Step::Continue;
         }
-        let Some(full) = full(ctx, clock.now) else {
-            return Step::Continue;
-        };
-        let noticed = ctx.notices.iter().any(|&notice| notice >= full.since);
-        match msg.said.addressed && !noticed {
-            true => Step::Stop(Outcome::Notice(Why::RateLimited)),
-            false => Step::Stop(Outcome::RecordOnly(Why::RateLimited)),
+        // 满了的冲她来也只记下，不回提示（施工 O-47）。
+        match full(ctx, clock.now) {
+            Some(_) => Step::Stop(Outcome::RecordOnly(Why::RateLimited)),
+            None => Step::Continue,
         }
     }
 }

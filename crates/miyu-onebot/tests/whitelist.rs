@@ -102,16 +102,16 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
 
 #[tokio::test]
 async fn the_whitelist_chats_in_private_and_strangers_do_not() {
-    let script = Script::new([Play::Says("在。"), Play::Says("嗯。"), Play::Says("好。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("嗯"), Play::Says("好")]);
     let (home, mut napcat, _) = started(&script, PRIVATE_RULES, &whitelist(), MEMBERS).await;
     // 陌生人先说，白名单成员接着说：一条条照先后办，白名单成员这一句的回话先到，陌生人的就是办完了、没回。
     napcat.send(private_frame(STRANGER, 1, json!([plain("你好")])));
     napcat.send(private_frame(JIE, 2, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat, JIE).await, "在。");
+    assert_eq!(private_reply(&mut napcat, JIE).await, "在");
     napcat.send(private_frame(JIE, 3, json!([plain("还在吗")])));
     assert_eq!(
         private_reply(&mut napcat, JIE).await,
-        "嗯。",
+        "嗯",
         "每一条都开一轮"
     );
     let theirs = until_events(&home.root, &format!("qq:private:{JIE}"), |events| {
@@ -146,7 +146,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
     napcat.send(private_frame(JIE, 4, json!([plain("我还在")])));
     // 终端管理员接着说：她的回话先到，前面那一条就是办完了、没回。
     napcat.send(private_frame(ADMIN, 5, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat, ADMIN).await, "好。");
+    assert_eq!(private_reply(&mut napcat, ADMIN).await, "好");
     let theirs = venue_events(&home.root, &format!("qq:private:{JIE}"));
     assert_eq!(said(&theirs).len(), 2, "删了以后的不进会话：{theirs:#?}");
     let admins = home.sessions();

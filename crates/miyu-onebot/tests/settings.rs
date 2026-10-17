@@ -7,7 +7,7 @@
 use serde_json::{Map, Value, json};
 
 use miyu_config::secret::Secret;
-use miyu_onebot::settings::{Defaults, Settings, whitelist, whitelist_key};
+use miyu_onebot::settings::{Defaults, Settings, recall_receipts, whitelist, whitelist_key};
 use miyu_store::resources::ResourceRoot;
 
 use miyu_config::Layer;
@@ -16,7 +16,12 @@ use miyu_config::problem::Code;
 use crate::support::{TOKEN, admin, defaults, package_in, resources, temp_root};
 
 /// 测试用的默认值：和出厂的不一样，看得出照的是它。
-const FALLBACK: Defaults = Defaults { listen: 18301 };
+fn fallback() -> Defaults {
+    Defaults {
+        listen: 18301,
+        recall_receipts: vec!["x".to_string()],
+    }
+}
 
 /// 令牌 `token`。
 fn secret(token: &str) -> Option<Secret> {
@@ -30,7 +35,14 @@ fn keys(value: Value) -> Map<String, Value> {
 
 #[test]
 fn the_shipped_manifest_gives_the_default_port() {
-    assert_eq!(defaults(), Defaults { listen: 8301 });
+    // 撤回回执的命令出厂只有清除上下文、清除记忆的（施工 O-47）。
+    assert_eq!(
+        defaults(),
+        Defaults {
+            listen: 8301,
+            recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
+        }
+    );
 }
 
 #[test]
@@ -74,24 +86,28 @@ fn the_handed_config_is_taken_as_it_comes() {
     let handed =
         json!({"onebot.listen": 9000, "onebot.token": TOKEN, "onebot.whitelist": ["qq:20017"]});
     assert_eq!(
-        Settings::handed(&handed, &FALLBACK),
+        Settings::handed(&handed, &fallback()),
         Settings {
             port: 9000,
             token: secret(TOKEN)
         }
     );
     assert_eq!(
-        Settings::handed(&json!({"onebot.token": format!("  {TOKEN}\n")}), &FALLBACK).token,
+        Settings::handed(
+            &json!({"onebot.token": format!("  {TOKEN}\n")}),
+            &fallback()
+        )
+        .token,
         secret(TOKEN),
         "前后的空白去掉"
     );
     assert_eq!(
-        Settings::handed(&json!({"onebot.listen": 0}), &FALLBACK).port,
+        Settings::handed(&json!({"onebot.listen": 0}), &fallback()).port,
         0,
         "0 也照它"
     );
     assert_eq!(
-        Settings::handed(&json!({"onebot.listen": 65535}), &FALLBACK).port,
+        Settings::handed(&json!({"onebot.listen": 65535}), &fallback()).port,
         65535,
         "65535 也照它"
     );
@@ -116,7 +132,7 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
         // 原来桥自己的网页的端口（施工 O-28 下去掉）：不认。
         json!({"onebot.web": 9001}),
     ] {
-        assert_eq!(Settings::handed(&config, &FALLBACK), nothing, "{config}");
+        assert_eq!(Settings::handed(&config, &fallback()), nothing, "{config}");
     }
 }
 
@@ -124,9 +140,9 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
 fn a_push_changes_only_the_keys_it_carries() {
     let mut settings = Settings::handed(
         &json!({"onebot.listen": 9000, "onebot.token": TOKEN}),
-        &FALLBACK,
+        &fallback(),
     );
-    settings.change(&keys(json!({"onebot.token": "new"})), &FALLBACK);
+    settings.change(&keys(json!({"onebot.token": "new"})), &fallback());
     assert_eq!(
         settings,
         Settings {
@@ -134,9 +150,9 @@ fn a_push_changes_only_the_keys_it_carries() {
             token: secret("new")
         }
     );
-    settings.change(&keys(json!({"onebot.listen": 9100})), &FALLBACK);
+    settings.change(&keys(json!({"onebot.listen": 9100})), &fallback());
     assert_eq!(settings.port, 9100);
-    settings.change(&keys(json!({"onebot.token": null})), &FALLBACK);
+    settings.change(&keys(json!({"onebot.token": null})), &fallback());
     assert_eq!(
         settings,
         Settings {
@@ -145,11 +161,11 @@ fn a_push_changes_only_the_keys_it_carries() {
         },
         "null 当没有：令牌没了"
     );
-    settings.change(&keys(json!({"onebot.listen": null})), &FALLBACK);
+    settings.change(&keys(json!({"onebot.listen": null})), &fallback());
     assert_eq!(settings.port, 18301, "null 当没有：端口照默认值");
     settings.change(
         &keys(json!({"onebot.whitelist": ["qq:1"], "web.port": 1, "onebot.web": 9001})),
-        &FALLBACK,
+        &fallback(),
     );
     assert_eq!(
         settings,
@@ -258,4 +274,21 @@ fn the_package_folder_is_named_after_the_package() {
         Some(miyu_onebot::PACKAGE)
     );
     assert!(dir.join("package.toml").is_file());
+}
+
+#[test]
+fn recall_receipts_fall_back_to_the_default_and_take_names_with_a_slash() {
+    // 施工 O-47：推来 `null`、没交、不是列表的回到清单的默认值；写了的照写的，开头的 `/` 去掉，不是字的不要。
+    let defaults = vec!["clear".to_string(), "clear-memory".to_string()];
+    for value in [Value::Null, json!("clear"), json!({"a": 1})] {
+        assert_eq!(recall_receipts(&value, &defaults), defaults, "{value}");
+    }
+    assert_eq!(
+        recall_receipts(&json!(["/stop", " goal ", 3]), &defaults),
+        ["stop", "goal"]
+    );
+    assert!(
+        recall_receipts(&json!([]), &defaults).is_empty(),
+        "空的就是都不撤"
+    );
 }

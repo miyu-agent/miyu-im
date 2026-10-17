@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 use super::ask::{Answer, Unjudged};
 use super::decide::{Conclusion, Decision};
-use super::projection::RATE_LIMITED;
+
 use crate::core::hooks::Nudge;
 
 /// 判官回来了的那一段：问的那一次和算的分（读出来了才有分）。
@@ -28,15 +28,13 @@ pub(super) struct Judged<'a> {
     pub(super) nudge: Option<&'a Nudge>,
 }
 
-/// 最后怎么做：回、只记下、回一句提示。
+/// 最后怎么做：回、只记下。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Finale {
     /// 开一轮。
     Reply,
     /// 只记下。
     Record,
-    /// 回一句提示：为什么。
-    Notice(Why),
 }
 
 impl Finale {
@@ -45,7 +43,6 @@ impl Finale {
         match self {
             Finale::Reply => "reply",
             Finale::Record => "record",
-            Finale::Notice(_) => "notice",
         }
     }
 }
@@ -57,7 +54,6 @@ pub(super) fn finale(decision: &Decision, judged: Option<Judged<'_>>) -> Finale 
     match decision.conclusion {
         Conclusion::Reply => Finale::Reply,
         Conclusion::Record => Finale::Record,
-        Conclusion::Notice(why) => Finale::Notice(why),
         Conclusion::Judge(_) => match judged {
             Some(Judged {
                 score: Some(score), ..
@@ -88,7 +84,6 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
     let (inbound, why) = match decision.verdict.outcome {
         Outcome::Pass => ("pass", None),
         Outcome::RecordOnly(why) => ("record_only", Some(why)),
-        Outcome::Notice(why) => ("notice", Some(why)),
     };
     body["inbound"] = json!(inbound);
     // 进站挂接点改了结论的（施工 O-43 中）：哪个包、什么意见。
@@ -190,7 +185,7 @@ pub(super) fn why_name(why: Why) -> &'static str {
         Why::Asleep => "asleep",
         Why::Muted => "muted",
         Why::NotAllowed => "not_allowed",
-        Why::RateLimited => RATE_LIMITED,
+        Why::RateLimited => "rate_limited",
     }
 }
 

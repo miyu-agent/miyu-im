@@ -65,7 +65,6 @@ pub(super) fn asleep(applied: &Applied) -> bool {
         allow: None,
         muted: false,
         turns: Vec::new(),
-        notices: Vec::new(),
         moderation: Moderation {
             keywords: Vec::new(),
             base64: applied.params.base64,

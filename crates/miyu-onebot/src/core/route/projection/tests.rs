@@ -311,7 +311,8 @@ fn her_replies_are_one_per_turn_and_her_ids_are_kept() {
 }
 
 #[test]
-fn notices_are_the_rate_limit_notices_only() {
+fn old_rate_limit_notices_are_taken_quietly() {
+    // 施工 O-47 起不发限流提示；以前的日志里的照收（编号往后挪），不算她的话、不算回合。
     let mut projection = Projection::new(LINE, 0);
     let queued = "ext.onebot.venues.queued";
     take_all(
@@ -321,30 +322,18 @@ fn notices_are_the_rate_limit_notices_only() {
                 1,
                 10,
                 queued,
-                json!({"kind": "notice", "reason": "rate_limited"}),
+                json!({"kind": "notice", "reason": "rate_limited", "text": "x"}),
             ),
             ext(
                 2,
                 20,
                 queued,
-                json!({"kind": "reply", "reason": "rate_limited"}),
-            ),
-            ext(3, 30, queued, json!({"kind": "notice", "reason": "asleep"})),
-            ext(
-                4,
-                40,
-                "ext.onebot.chat.decided",
-                json!({"kind": "notice", "reason": "rate_limited"}),
-            ),
-            ext(
-                5,
-                50,
-                queued,
-                json!({"kind": "notice", "reason": "rate_limited"}),
+                json!({"kind": "notice", "reason": "rate_limited", "text": "y"}),
             ),
         ],
     );
-    assert_eq!(projection.notices(), [at(10), at(50)]);
+    assert_eq!(projection.last(), 2);
+    assert!(projection.replies().is_empty());
 }
 
 #[test]

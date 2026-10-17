@@ -113,7 +113,7 @@ async fn a_follow_up_while_judging_is_judged_together() {
         gated(&gate, yes("both together")),
     ])
     .await;
-    let script = Script::new([Play::Says("后天十点。")]);
+    let script = Script::new([Play::Says("后天十点")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
     napcat.send(group_frame(
         GROUP,
@@ -138,7 +138,7 @@ async fn a_follow_up_while_judging_is_judged_together() {
         json!([plain("我是说后天")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "后天十点。");
+    assert_eq!(napcat.group_reply(GROUP).await, "后天十点");
     let events = until_events(&home.root, &venue(), |events| {
         of_kind(events, "turn.ended").len() == 1
     })
@@ -201,7 +201,7 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     // 小林 @ 她、判官说回；她这一轮还没说完（头一次请求压着），小林补一句：并进这一轮。这一轮没再请求就结束了，核心接着开
     // 一轮（`turn.started` 只有指向那条 `turn.joined` 的 `trigger`）：这一轮的话也是回小林的，他再说一句认得出是续聊。
     let server = judge(vec![yes("asked her"), no("not this time")]).await;
-    let script = Script::new([Play::Says("在。"), Play::Says("补上。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("补上")]);
     let (release, held) = tokio::sync::oneshot::channel();
     let models = holding(&script, held);
     let (home, mut napcat, _) =
@@ -227,13 +227,13 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     let events = until_event(&home.root, &venue(), |event| event["kind"] == "turn.joined").await;
     let joined = of_kind(&events, "turn.joined")[0]["seq"].clone();
     release.send(()).expect("还在等");
-    assert_eq!(napcat.group_reply(GROUP).await, "在。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在");
     // 她连着说：前一句先记下了的，这一句引用小林补的那一条（O-25 上，「施工时定的」第 111、112 条），剧本说得快，记没记下
     // 不一定。这里看的是回给谁，不看带没带引用。
     let followed = napcat.group_message(GROUP).await;
     assert_eq!(
         followed.last(),
-        Some(&json!({"type": "text", "data": {"text": "补上。"}})),
+        Some(&json!({"type": "text", "data": {"text": "补上"}})),
         "{followed:?}"
     );
     let events = until_events(&home.root, &venue(), |events| {

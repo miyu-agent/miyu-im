@@ -56,7 +56,7 @@ async fn a_call_joined_into_a_skipped_turn_is_answered_in_the_next_turn() {
     let (release, held) = oneshot::channel();
     let lines = Lines::new([
         Line::skips("不是叫我吧。").released_by(held),
-        Line::says("在，看到了。"),
+        Line::says("在，看到了"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
     admin_calls(&napcat, 1, "在吗");
@@ -67,7 +67,7 @@ async fn a_call_joined_into_a_skipped_turn_is_answered_in_the_next_turn() {
     let joined = of_kind(&events, "turn.joined")[0]["seq"].clone();
     // 放行：她调 `skip_reply`，这一轮结束；核心由那条 `turn.joined` 接着开一轮，她的回答发到群里。
     release.send(()).expect("她在等");
-    assert_eq!(napcat.group_message(GROUP).await, [words("在，看到了。")]);
+    assert_eq!(napcat.group_message(GROUP).await, [words("在，看到了")]);
     let events = until_count(&home, "turn.ended", 2).await;
     let ended = of_kind(&events, "turn.ended");
     assert_eq!(ended[0]["body"]["reason"], "completed", "{events:#?}");

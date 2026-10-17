@@ -209,6 +209,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.similar", PERCENT, |p, v| {
         p.outbound.similar = count(v)
     }),
+    // 去末尾句号（施工 O-47）。
+    item("outbound.strip_period", Kind::Bool, |p, v| {
+        p.outbound.strip_period = flag(v)
+    }),
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)
     }),

@@ -107,11 +107,7 @@ async fn others_calling_her_are_judged() {
         })),
     ])
     .await;
-    let script = Script::new([
-        Play::Says("在呢。"),
-        Play::Says("是啊。"),
-        Play::Says("别这样。"),
-    ]);
+    let script = Script::new([Play::Says("在呢"), Play::Says("是啊"), Play::Says("别这样")]);
     let words = format!("{BAD}\n");
     let (home, mut napcat, _) =
         started_judged(&script, &server, (&rules(), &words), "", MEMBERS).await;
@@ -123,7 +119,7 @@ async fn others_calling_her_are_judged() {
         json!([at(BOT), plain(" 在吗")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "在呢。");
+    assert_eq!(napcat.group_reply(GROUP).await, "在呢");
     until_turns(&home, GROUP, 1).await;
     napcat.send(group_frame(
         GROUP,
@@ -141,7 +137,7 @@ async fn others_calling_her_are_judged() {
         json!([plain("今天天气不错")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(SAMPLED).await, "是啊。");
+    assert_eq!(napcat.group_reply(SAMPLED).await, "是啊");
     napcat.send(group_frame(
         QUIET,
         JIE,
@@ -149,7 +145,7 @@ async fn others_calling_her_are_judged() {
         json!([plain(&format!("这里有{BAD}"))]),
         ("阿杰", "jie"),
     ));
-    assert_eq!(napcat.group_reply(QUIET).await, "别这样。");
+    assert_eq!(napcat.group_reply(QUIET).await, "别这样");
     let sampled = until_decided(&home, SAMPLED, 3).await;
     let quiet = until_decided(&home, QUIET, 4).await;
 
@@ -263,10 +259,10 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
     ])
     .await;
     let script = Script::new([
-        Play::Says("来了。"),
-        Play::Says("你好。"),
-        Play::Says("等等。"),
-        Play::Says("嗯。"),
+        Play::Says("来了"),
+        Play::Says("你好"),
+        Play::Says("等等"),
+        Play::Says("嗯"),
     ]);
     let (home, mut napcat, _) = started_judged(&script, &server, (&rules(), ""), "", MEMBERS).await;
     // 1：两次都读不出：判不了，冲她来的照回（O-37）。
@@ -277,7 +273,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
         json!([at(BOT), plain(" 在吗")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "来了。");
+    assert_eq!(napcat.group_reply(GROUP).await, "来了");
     let events = until_turns(&home, GROUP, 1).await;
     let unread = decided(&events, 1).expect("记了判断");
     assert_eq!(
@@ -296,7 +292,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
         json!([at(BOT), plain(" 你好")]),
         ("阿杰", "jie"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, "你好。");
+    assert_eq!(napcat.group_reply(GROUP).await, "你好");
     let events = until_decided(&home, GROUP, 2).await;
     let retried = decided(&events, 2).expect("记了判断");
     assert_eq!(retried["judge"]["tries"], 2, "{retried}");
@@ -310,7 +306,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
         json!([at(BOT), plain(" 在吗")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(SLOW).await, "等等。");
+    assert_eq!(napcat.group_reply(SLOW).await, "等等");
     let slow = until_turns(&home, SLOW, 1).await;
     let late = decided(&slow, 3).expect("记了判断");
     assert_eq!(
@@ -342,7 +338,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
         json!([at(BOT), plain(" 在吗")]),
         ("终端管理员", "o"),
     ));
-    assert_eq!(napcat.group_reply(SLOW).await, "嗯。");
+    assert_eq!(napcat.group_reply(SLOW).await, "嗯");
     let slow = until_decided(&home, SLOW, 4).await;
     let started = of_kind(&slow, "turn.started");
     assert_eq!(started.len(), 2, "{slow:#?}");
@@ -361,7 +357,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
 async fn other_messages_are_recorded_while_the_judge_thinks() {
     // 判官一次几十秒：这段时间别人说的照样记进、判完（问判官的任务另走一路，核心的 `model.call` 在后台答，施工 8-20 补）。
     let server = judge(vec![slow(Duration::from_secs(30), yes("slow"))]).await;
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, napcat, _) = started_judged(&script, &server, (&rules(), ""), "", MEMBERS).await;
     napcat.send(group_frame(
         GROUP,

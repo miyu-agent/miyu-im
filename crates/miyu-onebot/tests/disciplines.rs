@@ -84,12 +84,12 @@ async fn each_discipline_goes_its_own_way() {
     };
     let server = judge(vec![checked(2), checked(8)]).await;
     let script = Script::new([
-        Play::Says("好。"),
+        Play::Says("好"),
         Play::Stalls,
-        Play::Says("别这样。"),
+        Play::Says("别这样"),
         Play::Stalls,
-        Play::Says("三点。"),
-        Play::Says("也热。"),
+        Play::Says("三点"),
+        Play::Says("也热"),
     ]);
     let words = format!("{BAD}\n");
     let (home, mut napcat, _) =
@@ -100,7 +100,7 @@ async fn each_discipline_goes_its_own_way() {
 
     // every-message：有字的开一轮，只有图的只记下。
     napcat.send(send(EVERY, LIN, 1, json!([plain("大家好")])));
-    assert_eq!(napcat.group_reply(EVERY).await, "好。");
+    assert_eq!(napcat.group_reply(EVERY).await, "好");
     let first = until_decided(&home, EVERY, 1).await;
     assert_eq!(first["discipline"], "every-message", "{first}");
     assert_eq!(way(&first), (json!("commit"), json!("reply")), "{first}");
@@ -144,7 +144,7 @@ async fn each_discipline_goes_its_own_way() {
     assert_eq!(mild["judge"]["answer"]["severity"], 2, "{mild}");
     assert_eq!(mild["score"]["reply"], false, "{mild}");
     napcat.send(send(CALLED, JIE, 70, json!([plain(&format!("又是{BAD}"))])));
-    assert_eq!(napcat.group_reply(CALLED).await, "别这样。");
+    assert_eq!(napcat.group_reply(CALLED).await, "别这样");
     let severe = until_decided(&home, CALLED, 70).await;
     assert_eq!(way(&severe), (json!("moderation_only"), json!("reply")));
     assert_eq!(severe["judge"]["answer"]["severity"], 8, "{severe}");
@@ -175,7 +175,7 @@ async fn each_discipline_goes_its_own_way() {
     assert_eq!(napcat.group_reply(WAKE).await, STOPPED);
     until_turns(&home, WAKE, 1).await;
     napcat.send(send(WAKE, JIE, 12, json!([plain("米尤，几点了")])));
-    assert_eq!(napcat.group_reply(WAKE).await, "三点。");
+    assert_eq!(napcat.group_reply(WAKE).await, "三点");
     until_turns(&home, WAKE, 2).await;
     // 续聊照她的回复算（`venue.delivered`）：NapCat 收到她的话时桥还没记送达，等记下了再接着说，不然这一句可能先判、算不上续聊。
     until_events(&home.root, &venue(WAKE), |events| {
@@ -183,7 +183,7 @@ async fn each_discipline_goes_its_own_way() {
     })
     .await;
     napcat.send(send(WAKE, JIE, 13, json!([plain("那明天呢")])));
-    assert_eq!(napcat.group_reply(WAKE).await, "也热。");
+    assert_eq!(napcat.group_reply(WAKE).await, "也热");
     let continued = until_decided(&home, WAKE, 13).await;
     assert_eq!(
         continued["conditions"],

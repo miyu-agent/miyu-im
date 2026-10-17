@@ -88,6 +88,11 @@ impl Place {
     pub(super) fn private_chat(&self) -> bool {
         matches!(self.peer.to, To::Private(_))
     }
+
+    /// 私聊的对方是不是白名单成员（群的是假）。
+    pub(super) fn listed(&self) -> bool {
+        self.listed
+    }
 }
 
 impl Route {

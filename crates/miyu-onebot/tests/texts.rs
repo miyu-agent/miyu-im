@@ -88,7 +88,6 @@ fn everything(texts: &Texts) -> Vec<String> {
     let mut said = vec![
         texts.usage(),
         texts.no_log("disk full"),
-        texts.rate_limited(),
         texts.no_miyu("/opt/miyu/miyu", "not found"),
     ];
     for notice in [
@@ -232,7 +231,6 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "QQ 桥关了：核心停下它，以后不再拉起。"
     );
     assert_eq!(texts.report(&Report::Restarted), "QQ 桥重新拉起了。");
-    assert_eq!(texts.rate_limited(), "这会儿叫的人太多了，过几分钟再来吧。");
     assert_eq!(
         texts.report(&Report::Off),
         "QQ 桥关着。用 miyu onebot start 打开。"

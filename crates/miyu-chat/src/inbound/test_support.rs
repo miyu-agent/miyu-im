@@ -52,7 +52,6 @@ pub(crate) fn ctx() -> Ctx {
         allow: None,
         muted: false,
         turns: Vec::new(),
-        notices: Vec::new(),
         moderation: Moderation {
             keywords: Vec::new(),
             base64: Base64 {

@@ -405,8 +405,6 @@ pub fn serve_handed(root: DataRoot, config: Value, accounts: Option<Accounts>) -
         root,
         locale: Some("zh_CN.UTF-8".to_string()),
         tuning: tuning(),
-        resources: ResourceRoot::at(resources()),
-        package: package(),
         defaults: defaults(),
         factory: factory(),
     };

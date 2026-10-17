@@ -80,20 +80,27 @@ impl Route {
         if self.whitelisted(peer) {
             return Ok(true);
         }
-        if let Some(admin) = self.bindings.known(peer.as_str(), Instant::now()) {
-            return Ok(admin);
+        Ok(self.terminal_admin(peer.as_str()).await?.unwrap_or(false))
+    }
+
+    /// 平台身份 `who` 是不是终端管理员：问到的照记的，没记着的问核心的 `venue.binding`、记下（「平台工具（一）」第 3 条）。核心拒了
+    /// 的（照说不会：桥是系统账号）记一行 `WARN binding not asked`，交回空的。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn terminal_admin(&mut self, who: &str) -> Result<Option<bool>, Gone> {
+        if let Some(admin) = self.bindings.known(who, Instant::now()) {
+            return Ok(Some(admin));
         }
-        let reply = self
-            .core
-            .call("venue.binding", json!({"id": peer.as_str()}))
-            .await?;
+        let reply = self.core.call("venue.binding", json!({"id": who})).await?;
         if let Some(reason) = reason(&reply) {
-            tracing::warn!(target: TARGET, id = peer.as_str(), reason, "binding not asked");
-            return Ok(false);
+            tracing::warn!(target: TARGET, id = who, reason, "binding not asked");
+            return Ok(None);
         }
         let admin = reply["result"]["account"].is_string();
-        self.bindings.note(peer.as_str(), admin, Instant::now());
-        Ok(admin)
+        self.bindings.note(who, admin, Instant::now());
+        Ok(Some(admin))
     }
 
     /// 会话 `session` 订阅上了、补到 `upto`：留着的补来的推送照先后收下（群的进投影，`heard`；私聊的 `say_privately`），再补发。

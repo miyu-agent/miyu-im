@@ -78,7 +78,7 @@ fn files(dir: &Path, prefix: &str, found: &mut Vec<String>) {
 
 #[tokio::test]
 async fn the_page_reaches_the_bridge_through_the_core() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, listen) = on_free_port(async |listen| {
         let home = Home::spawning(&script, &ports_config(listen));
         let started = cli(&home.root, &["start"]).await;

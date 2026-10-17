@@ -71,7 +71,6 @@
     "problem/not-an-option": "{key} 不是能选的值：{got}",
     "problem/out-of-range": "{key} 超出范围：{got}",
     "problem/bad-format": "{key} 写法不对：{got}",
-    "problem/other": "{key}：{code}",
-    "group/rate-limited": "这会儿叫的人太多了，过几分钟再来吧。"
+    "problem/other": "{key}：{code}"
   }
 }

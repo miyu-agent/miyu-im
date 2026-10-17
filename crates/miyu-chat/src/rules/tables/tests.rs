@@ -294,7 +294,7 @@ fn every_item_lands_in_its_own_field() {
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nretries = 2\nreason_chars = 29\n\
          [rule.outbound]\nquote_after = 5\nmention_after = \"31s\"\nmin_bigrams = 17\nsimilar = 67\n\
-         split_chars = 3001\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
+         strip_period = false\nsplit_chars = 3001\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
     );
     let expected = Params {
         base64: Base64 {
@@ -343,6 +343,7 @@ fn every_item_lands_in_its_own_field() {
             invisible: vec!['a', 'b'],
             leak_open: vec!["<c".to_string()],
             leak_close: vec!["c>".to_string()],
+            strip_period: false,
         },
         split_chars: 3001,
     };

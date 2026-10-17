@@ -1,9 +1,10 @@
 //! 出站链与纯文本（`docs/blueprint/chat.md` 第五条，`docs/designs/18-通讯平台.md` 第十节、Q8、Q14，施工 O-10）。
 //!
 //! 她要说出去的一切先过出站链，像 netfilter 的 OUTPUT 链：一条条规则（[`OutboundRule`]）照顺序过，每条可以改写这一条
-//! 往下走，或者整条丢掉（[`OutStep`]）。自带三条（[`OutChain::builtin`]）：清理、去重、引用和 @，每条一个文件。
+//! 往下走，或者整条丢掉（[`OutStep`]）。自带四条（[`OutChain::builtin`]）：清理、去末尾句号（施工 O-47）、去重、引用和 @，
+//! 每条一个文件。
 //!
-//! 过了链的照出站形态发；这一步只有纯文本一种形态：[`plain()`] 把 Markdown 转成纯文本，[`split()`] 把太长的按段拆开。
+//! 过了链的原样发（施工 O-47 去掉了 Markdown 转纯文本：她怎么写由提示词管），[`split()`] 把太长的按段拆开。
 //!
 //! 纯逻辑：这一回合已经发出去的（[`Sent`]）、她回的那条之后群里的动静（[`Since`]）、参数（[`Outbound`]），都由外面交进来
 //! （[`OutCtx`]）；出站队列（禁言暂停、过期作废、回执撤回、退信）随桥（「怎么走」第 7 条）。
@@ -12,11 +13,10 @@ use miyu_kernel::id::ContentHash;
 
 mod clean;
 mod dedupe;
-mod plain;
+mod period;
 mod split;
 mod target;
 
-pub use plain::plain;
 pub use split::split;
 
 /// 要发的一条。
@@ -82,6 +82,8 @@ pub struct Outbound {
     /// 清理：漏进正文的工具调用到哪结束（出厂 `</tool_call>`、`</function>`），和 `leak_open` 一样长（第八条「怎么走」
     /// 第 7 条）。
     pub(crate) leak_close: Vec<String>,
+    /// 去掉一条话末尾的一个 `。`（出厂开，照旧版；施工 O-47）。
+    pub(crate) strip_period: bool,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -154,11 +156,13 @@ pub struct OutChain {
 }
 
 impl OutChain {
-    /// 自带的三条，照这个顺序：清理、去重、引用和 @（「怎么走」第 1 条）。
+    /// 自带的四条，照这个顺序：清理、去末尾句号、去重、引用和 @（「怎么走」第 1 条）。去句号在去重前面：去重比的是发出去
+    /// 的样子。
     pub fn builtin() -> Self {
         Self {
             rules: vec![
                 Box::new(clean::Rule),
+                Box::new(period::Rule),
                 Box::new(dedupe::Rule),
                 Box::new(target::Rule),
             ],

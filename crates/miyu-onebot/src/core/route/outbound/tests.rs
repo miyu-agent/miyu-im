@@ -94,13 +94,17 @@ fn only_the_first_piece_carries_what_the_chain_left() {
     let mut params = params();
     params.split_chars = 2;
     let quoted = pass(
-        "**看到**了",
+        "**看到**了。",
         &group_ctx(&speaking(4), at(1), params.outbound.clone()),
         Some(&aim()),
         params.split_chars,
     )
     .expect("过得了");
-    assert_eq!(quoted.pieces, ["看到", "了"], "转成纯文本再拆");
+    assert_eq!(
+        quoted.pieces,
+        ["**", "看到", "**", "了"],
+        "去掉末尾的句号、不转纯文本，再拆（施工 O-47）"
+    );
     assert_eq!(
         quoted.lead,
         Lead {

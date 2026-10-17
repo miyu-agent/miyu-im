@@ -143,13 +143,13 @@ async fn after_a_restart_her_next_words_reach_the_group_without_anyone_speaking(
     let lines = Lines::new([
         Line::calls("第一段。\n\n第二段。"),
         Line::calls("第一段！"),
-        Line::calls("第二句。").released_by(second_released),
-        Line::says("第三句。").released_by(third_released),
+        Line::calls("第二句").released_by(second_released),
+        Line::says("第三句").released_by(third_released),
     ]);
     let (home, mut napcat, listen) = started_by(Arc::new(lines), SPLIT_RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
     assert_eq!(next_words(&mut napcat).await, "第一段。");
-    assert_eq!(next_words(&mut napcat).await, "第二段。");
+    assert_eq!(next_words(&mut napcat).await, "第二段");
     until_count(&home, &group_venue(), "venue.delivered", 2).await;
     // 差个标点的一句当场被出站链丢了，没入队：重启以后照这一回合入队了的再过一遍链，照样丢。
     until_count(&home, &group_venue(), "message.assistant", 2).await;
@@ -157,17 +157,17 @@ async fn after_a_restart_her_next_words_reach_the_group_without_anyone_speaking(
     // 重启以后群里没人说话：她接着说的照样发；拆成两段发过的那一句照段比，一段都不再发。
     let mut napcat = restarted(&home, listen, napcat).await;
     second.send(()).expect("她在等");
-    assert_eq!(next_words(&mut napcat).await, "第二句。");
+    assert_eq!(next_words(&mut napcat).await, "第二句");
     until_count(&home, &group_venue(), "venue.delivered", 3).await;
     // 再重启一次：发过的都在期限以内，入队过，不补。
     let mut napcat = restarted(&home, listen, napcat).await;
     third.send(()).expect("她在等");
-    assert_eq!(next_words(&mut napcat).await, "第三句。");
+    assert_eq!(next_words(&mut napcat).await, "第三句");
     until_count(&home, &group_venue(), "turn.ended", 1).await;
     until_count(&home, &group_venue(), "venue.delivered", 4).await;
     assert_eq!(
         queued(&home, &group_venue()),
-        ["第一段。", "第二段。", "第二句。", "第三句。"]
+        ["第一段。", "第二段", "第二句", "第三句"]
     );
     assert!(napcat.pending().is_none(), "一句都不重发");
     stopped(home).await;
@@ -179,10 +179,10 @@ async fn words_said_while_the_bridge_was_off_are_sent_while_still_fresh() {
     let (fresh, fresh_released) = oneshot::channel();
     let (last, last_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("开头。"),
+        Line::calls("开头"),
         Line::calls("早就说了的一句。").released_by(stale_released),
-        Line::calls("刚说的一句。").released_by(fresh_released),
-        Line::says("收尾。").released_by(last_released),
+        Line::calls("刚说的一句").released_by(fresh_released),
+        Line::says("收尾").released_by(last_released),
     ]);
     let tuned = json!({"queue_expire_seconds": EXPIRE});
     let (home, mut napcat, listen) = started_tuned(Arc::new(lines), RULES, &tuned, |napcat| {
@@ -190,7 +190,7 @@ async fn words_said_while_the_bridge_was_off_are_sent_while_still_fresh() {
     })
     .await;
     admin_calls(&napcat, 1);
-    assert_eq!(next_words(&mut napcat).await, "开头。");
+    assert_eq!(next_words(&mut napcat).await, "开头");
     until_count(&home, &group_venue(), "venue.delivered", 1).await;
     stopped_bridge(&home, napcat).await;
     // 桥停着：她说了一句，过了期限；又说了一句，还在期限以内。
@@ -200,14 +200,14 @@ async fn words_said_while_the_bridge_was_off_are_sent_while_still_fresh() {
     fresh.send(()).expect("她在等");
     until_count(&home, &group_venue(), "message.assistant", 3).await;
     let mut napcat = up_again(&home, listen, &["start"]).await;
-    assert_eq!(next_words(&mut napcat).await, "刚说的一句。", "补发");
+    assert_eq!(next_words(&mut napcat).await, "刚说的一句", "补发");
     last.send(()).expect("她在等");
-    assert_eq!(next_words(&mut napcat).await, "收尾。", "过了期限的不补");
+    assert_eq!(next_words(&mut napcat).await, "收尾", "过了期限的不补");
     until_count(&home, &group_venue(), "turn.ended", 1).await;
     until_count(&home, &group_venue(), "venue.delivered", 3).await;
     assert_eq!(
         queued(&home, &group_venue()),
-        ["开头。", "刚说的一句。", "收尾。"]
+        ["开头", "刚说的一句", "收尾"]
     );
     assert!(napcat.pending().is_none());
     stopped(home).await;
@@ -218,35 +218,35 @@ async fn a_whitelisted_private_chat_is_followed_and_caught_up_after_a_restart() 
     let (away, away_released) = oneshot::channel();
     let (after, after_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在的。"),
-        Line::calls("停着时说的。").released_by(away_released),
+        Line::calls("在的"),
+        Line::calls("停着时说的").released_by(away_released),
         Line::calls("在的！").released_by(after_released),
-        Line::says("接着说的。"),
-        Line::says("又一轮。"),
+        Line::says("接着说的"),
+        Line::says("又一轮"),
     ]);
     let (home, mut napcat, listen) =
         started_ranked(Arc::new(lines), "", &whitelist(), (MEMBERS, &[])).await;
     napcat.send(private_frame(JIE, 1, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat).await, "在的。");
+    assert_eq!(private_reply(&mut napcat).await, "在的");
     stopped_bridge(&home, napcat).await;
     away.send(()).expect("她在等");
     until_count(&home, &private_venue(), "message.assistant", 2).await;
     let mut napcat = up_again(&home, listen, &["start"]).await;
-    assert_eq!(private_reply(&mut napcat).await, "停着时说的。", "补发");
+    assert_eq!(private_reply(&mut napcat).await, "停着时说的", "补发");
     after.send(()).expect("她在等");
     assert_eq!(
         private_reply(&mut napcat).await,
-        "接着说的。",
+        "接着说的",
         "没人说话也发得出去；这一轮入队了的照日志补回来，差个标点的一句照旧去重"
     );
     until_count(&home, &private_venue(), "turn.ended", 1).await;
     // 再重启一次：期限以内的都入队过，不补；下一条照常开一轮。
     let mut napcat = restarted(&home, listen, napcat).await;
     napcat.send(private_frame(JIE, 2, json!([plain("还在吗")])));
-    assert_eq!(private_reply(&mut napcat).await, "又一轮。");
+    assert_eq!(private_reply(&mut napcat).await, "又一轮");
     assert_eq!(
         queued(&home, &private_venue()),
-        ["在的。", "停着时说的。", "接着说的。", "又一轮。"]
+        ["在的", "停着时说的", "接着说的", "又一轮"]
     );
     assert!(napcat.pending().is_none());
     stopped(home).await;
@@ -256,15 +256,15 @@ async fn a_whitelisted_private_chat_is_followed_and_caught_up_after_a_restart() 
 async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     let (old, old_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在的。"),
+        Line::calls("在的"),
         Line::says("旧会话里接着说的。").released_by(old_released),
-        Line::says("新会话里的。"),
-        Line::says("群里的。"),
+        Line::says("新会话里的"),
+        Line::says("群里的"),
     ]);
     let (home, mut napcat, listen) =
         started_ranked(Arc::new(lines), RULES, &whitelist(), (MEMBERS, &[])).await;
     napcat.send(private_frame(JIE, 1, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat).await, "在的。");
+    assert_eq!(private_reply(&mut napcat).await, "在的");
     // 她在旧会话里还没说完，白名单成员写进了对应表（成了终端管理员的号）；白名单一换，桥忘掉找过的私聊，下一条照新的找：
     // 归终端管理员的新会话。
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
@@ -281,7 +281,7 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     assert!(reply.get("error").is_none(), "{reply}");
     until_log(&home, "whitelist changed count=2").await;
     napcat.send(private_frame(JIE, 2, json!([plain("又来了")])));
-    assert_eq!(private_reply(&mut napcat).await, "新会话里的。");
+    assert_eq!(private_reply(&mut napcat).await, "新会话里的");
     let mine = home.sessions();
     assert_eq!(mine.len(), 1, "新会话归终端管理员：{mine:?}");
     // 重启：旧会话不列、不订阅，她在里面接着说的不发。
@@ -289,11 +289,7 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     old.send(()).expect("她在等");
     until_count(&home, &private_venue(), "message.assistant", 2).await;
     admin_calls(&napcat, 3);
-    assert_eq!(
-        next_words(&mut napcat).await,
-        "群里的。",
-        "旧会话里说的没发"
-    );
+    assert_eq!(next_words(&mut napcat).await, "群里的", "旧会话里说的没发");
     assert!(napcat.pending().is_none());
     stopped(home).await;
 }
@@ -302,14 +298,14 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
 async fn a_private_chat_dropped_from_the_whitelist_is_not_followed() {
     let (old, old_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在的。"),
+        Line::calls("在的"),
         Line::says("删了以后接着说的。").released_by(old_released),
-        Line::says("群里的。"),
+        Line::says("群里的"),
     ]);
     let (home, mut napcat, listen) =
         started_ranked(Arc::new(lines), RULES, &whitelist(), (MEMBERS, &[])).await;
     napcat.send(private_frame(JIE, 1, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat).await, "在的。");
+    assert_eq!(private_reply(&mut napcat).await, "在的");
     // 她还没说完，白名单成员被删了：重启以后这个私聊照私聊的办法认，是陌生人，不订阅。
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
@@ -325,7 +321,7 @@ async fn a_private_chat_dropped_from_the_whitelist_is_not_followed() {
     old.send(()).expect("她在等");
     until_count(&home, &private_venue(), "message.assistant", 2).await;
     admin_calls(&napcat, 2);
-    assert_eq!(next_words(&mut napcat).await, "群里的。", "私聊里说的没发");
+    assert_eq!(next_words(&mut napcat).await, "群里的", "私聊里说的没发");
     assert!(napcat.pending().is_none());
     stopped(home).await;
 }
@@ -334,21 +330,21 @@ async fn a_private_chat_dropped_from_the_whitelist_is_not_followed() {
 async fn a_turn_she_kept_quiet_in_is_not_caught_up() {
     let (quiet, quiet_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("开头。"),
+        Line::calls("开头"),
         Line::skips("不该发的。").released_by(quiet_released),
         Line::says("也不该发的。"),
-        Line::says("下一轮。"),
+        Line::says("下一轮"),
     ]);
     let (home, mut napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
-    assert_eq!(next_words(&mut napcat).await, "开头。");
+    assert_eq!(next_words(&mut napcat).await, "开头");
     stopped_bridge(&home, napcat).await;
     // 桥停着：她这一轮调了 `skip_reply`，说的都不补。
     quiet.send(()).expect("她在等");
     until_count(&home, &group_venue(), "turn.ended", 1).await;
     let mut napcat = up_again(&home, listen, &["start"]).await;
     admin_calls(&napcat, 2);
-    assert_eq!(next_words(&mut napcat).await, "下一轮。");
+    assert_eq!(next_words(&mut napcat).await, "下一轮");
     assert!(napcat.pending().is_none());
     stopped(home).await;
 }
@@ -358,13 +354,13 @@ async fn the_admins_private_chat_is_followed_and_caught_up_after_a_restart() {
     let (away, away_released) = oneshot::channel();
     let (after, after_released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在。"),
-        Line::calls("停着时说的一句。").released_by(away_released),
-        Line::says("接着说的一句。").released_by(after_released),
+        Line::calls("在"),
+        Line::calls("停着时说的一句").released_by(away_released),
+        Line::says("接着说的一句").released_by(after_released),
     ]);
     let (home, mut napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     napcat.send(private_frame(ADMIN, 1, json!([plain("在吗")])));
-    assert_eq!(reply_to(&mut napcat, ADMIN).await, "在。");
+    assert_eq!(reply_to(&mut napcat, ADMIN).await, "在");
     let session = home
         .sessions()
         .first()
@@ -388,15 +384,11 @@ async fn the_admins_private_chat_is_followed_and_caught_up_after_a_restart() {
     })
     .await;
     let mut napcat = up_again(&home, listen, &["start"]).await;
-    assert_eq!(
-        reply_to(&mut napcat, ADMIN).await,
-        "停着时说的一句。",
-        "补发"
-    );
+    assert_eq!(reply_to(&mut napcat, ADMIN).await, "停着时说的一句", "补发");
     after.send(()).expect("她在等");
     assert_eq!(
         reply_to(&mut napcat, ADMIN).await,
-        "接着说的一句。",
+        "接着说的一句",
         "他没说话也发得出去"
     );
     assert!(napcat.pending().is_none(), "说过的不再发");

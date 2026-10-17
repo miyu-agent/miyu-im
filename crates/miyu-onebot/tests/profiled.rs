@@ -50,7 +50,7 @@ fn asked(relay: &Relay, venue: &str) -> Value {
 
 #[tokio::test]
 async fn only_the_admins_private_chat_asks_for_the_profile() {
-    let script = Script::new([Play::Says("在。"), Play::Says("嗯。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
     let home = Home::new(&script);
     let (serve, relay) = serve_handed(home.root.clone(), whitelisted(), None);
     let bridge = start(serve).await;
@@ -66,7 +66,7 @@ async fn only_the_admins_private_chat_asks_for_the_profile() {
         ))
         .await;
     napcat.admin_says(3, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。");
+    assert_eq!(napcat.reply().await, "在");
     within("三个场所都问过", async {
         while relay.sessions().len() < 3 {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
@@ -103,7 +103,7 @@ async fn private_reply(napcat: &mut Answering, user: i64) -> String {
 
 #[tokio::test]
 async fn the_admins_private_chat_knows_the_profile_and_the_whitelisted_one_does_not() {
-    let script = Script::new([Play::Says("在。"), Play::Says("嗯。")]);
+    let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
     let (home, mut napcat, _) = started(&script, "", &whitelist(), MEMBERS).await;
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
@@ -118,9 +118,9 @@ async fn the_admins_private_chat_knows_the_profile_and_the_whitelisted_one_does_
         .expect("改得了");
     assert!(reply.get("error").is_none(), "{reply}");
     napcat.send(private_frame(JIE, 1, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat, JIE).await, "在。");
+    assert_eq!(private_reply(&mut napcat, JIE).await, "在");
     napcat.send(private_frame(ADMIN, 2, json!([plain("在吗")])));
-    assert_eq!(private_reply(&mut napcat, ADMIN).await, "嗯。");
+    assert_eq!(private_reply(&mut napcat, ADMIN).await, "嗯");
     let systems: Vec<String> = script
         .requests()
         .iter()

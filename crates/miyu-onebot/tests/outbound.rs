@@ -77,7 +77,7 @@ async fn leaks_are_cleaned_and_blanks_asides_and_bare_calls_are_not_sent() {
         Line::says("（眨眨眼）"),
         Line::says(" \n\u{200b} "),
         Line::says("<function=x>{}</function>"),
-        Line::says("好。"),
+        Line::says("好"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     for message in 1..=5 {
@@ -85,7 +85,7 @@ async fn leaks_are_cleaned_and_blanks_asides_and_bare_calls_are_not_sent() {
         until_count(&home, PLAIN, "turn.ended", message as usize).await;
     }
     assert_eq!(napcat.group_message(PLAIN).await, [words("看到了")]);
-    assert_eq!(napcat.group_message(PLAIN).await, [words("好。")]);
+    assert_eq!(napcat.group_message(PLAIN).await, [words("好")]);
     assert!(napcat.pending().is_none(), "别的都没发");
     let log = run_log(&home.root);
     for why in ["aside", "blank", "leaked"] {
@@ -102,16 +102,13 @@ async fn leaks_are_cleaned_and_blanks_asides_and_bare_calls_are_not_sent() {
 async fn saying_the_same_twice_in_a_turn_sends_it_once() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("我在看这个问题。"),
+        Line::calls("我在看这个问题"),
         Line::calls("我在看这个问题！").released_by(released),
-        Line::says("看完了。"),
+        Line::says("看完了"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, PLAIN, 1);
-    assert_eq!(
-        napcat.group_message(PLAIN).await,
-        [words("我在看这个问题。")]
-    );
+    assert_eq!(napcat.group_message(PLAIN).await, [words("我在看这个问题")]);
     // 前一句发出去了再说下一句（O-25 上照 `venue.delivered` 去重时要等；O-25 中照入队算，等着也不碍事）：真跑时两句之间
     // 隔一次请求模型。
     until_count(&home, PLAIN, "venue.delivered", 1).await;
@@ -119,7 +116,7 @@ async fn saying_the_same_twice_in_a_turn_sends_it_once() {
     let quote = json!({"type": "reply", "data": {"id": "1"}});
     assert_eq!(
         napcat.group_message(PLAIN).await,
-        [quote, words("看完了。")],
+        [quote, words("看完了")],
         "她连着说，群里最后一条是她自己的：引用分清在回谁"
     );
     let events = until_count(&home, PLAIN, "venue.delivered", 2).await;
@@ -129,7 +126,7 @@ async fn saying_the_same_twice_in_a_turn_sends_it_once() {
         .collect();
     assert_eq!(
         texts,
-        ["我在看这个问题。", "看完了。"],
+        ["我在看这个问题", "看完了"],
         "重复的那一句不发、不记"
     );
     assert!(run_log(&home.root).contains("why=repeated"));
@@ -166,13 +163,13 @@ async fn four_others_later_only_the_first_piece_quotes() {
 async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([
-        Line::says("在。"),
-        Line::says("嗯，刚才在忙。").released_by(released),
+        Line::says("在"),
+        Line::says("嗯，刚才在忙").released_by(released),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     // 刚说完紧接着回：两样都不带。
     admin_calls(&napcat, PROMPT, 31);
-    assert_eq!(napcat.group_message(PROMPT).await, [words("在。")]);
+    assert_eq!(napcat.group_message(PROMPT).await, [words("在")]);
     until_count(&home, PROMPT, "turn.ended", 1).await;
     // 再叫她，她还没开口，别人说了一句，过了一秒多。
     admin_calls(&napcat, PROMPT, 32);
@@ -184,7 +181,7 @@ async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
     let mention = json!({"type": "at", "data": {"qq": ADMIN.to_string()}});
     assert_eq!(
         napcat.group_message(PROMPT).await,
-        [mention, words(" "), words("嗯，刚才在忙。")],
+        [mention, words(" "), words("嗯，刚才在忙")],
         "@ 终端管理员，只隔了一条不引用"
     );
     stopped(home).await;
@@ -193,16 +190,16 @@ async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
 #[tokio::test]
 async fn private_replies_carry_neither_and_are_not_repeated() {
     let lines = Lines::new([
-        Line::calls("我在看这个问题。"),
+        Line::calls("我在看这个问题"),
         Line::calls("我在看这个问题！"),
-        Line::says("看完了。"),
+        Line::says("看完了"),
     ]);
     let home = Home::speaking(Arc::new(lines));
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.admin_says(41, "在吗").await;
     // 私聊的回话只有一个文字段（`reply` 验）：不带引用、@。
-    assert_eq!(napcat.reply().await, "我在看这个问题。");
-    assert_eq!(napcat.reply().await, "看完了。", "同一轮重复的那一句不发");
+    assert_eq!(napcat.reply().await, "我在看这个问题");
+    assert_eq!(napcat.reply().await, "看完了", "同一轮重复的那一句不发");
     bridge.stop().await.expect("停得下");
 }

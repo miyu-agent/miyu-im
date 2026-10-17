@@ -107,11 +107,6 @@ impl Texts {
         )
     }
 
-    /// 限流满了、别人冲她来时发进群里的那一句（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 7 条）：说话的是桥，不是她。
-    pub fn rate_limited(&self) -> String {
-        self.say("group/rate-limited", &[])
-    }
-
     /// 起来了（令牌没设的说怎么设）、连上了、断开了。号没认出来的不说号。
     pub fn notice(&self, notice: &Notice) -> String {
         match notice {

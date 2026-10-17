@@ -116,9 +116,9 @@ fn note_ids(events: &[Value]) -> Vec<Value> {
 async fn her_refused_words_come_back_to_her_in_the_same_turn() {
     let (release, held) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("在。"),
-        Line::calls("我看看。").released_by(held),
-        Line::says("好。"),
+        Line::calls("在"),
+        Line::calls("我看看").released_by(held),
+        Line::says("好"),
     ]);
     let models = Arc::new(lines.clone());
     let (home, napcat, _) = started_tuned(models, &rules(), &Value::Null, |napcat| {
@@ -149,7 +149,7 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         notes(&events),
         [(
             note_ids(&events)[0].clone(),
-            json!({"kind": "undelivered", "text": fact("rejected", &detail, "在。")}),
+            json!({"kind": "undelivered", "text": fact("rejected", &detail, "在")}),
             turn.clone(),
         )]
     );
@@ -166,9 +166,9 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
     assert_eq!(
         texts,
         [
-            fact("rejected", &detail, "在。"),
-            fact("rejected", &detail, "我看看。"),
-            fact("rejected", &detail, "好。"),
+            fact("rejected", &detail, "在"),
+            fact("rejected", &detail, "我看看"),
+            fact("rejected", &detail, "好"),
         ],
         "一段一块"
     );
@@ -183,7 +183,7 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         "{:?}",
         requests[2]
     );
-    // 别人再叫她：限流的提示被拒了，不退；终端管理员的 `/stop` 回执被拒了，不退。
+    // 别人再叫她：限流满了只记下，不发提示（施工 O-47）；终端管理员的 `/stop` 回执被拒了，不退。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -191,7 +191,7 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         json!([at(BOT), plain(" 在吗")]),
         ("小林", "lin"),
     ));
-    until_count(&home, GROUP, FAILED, 4).await;
+    until_decided(&home, GROUP, 2).await;
     napcat.send(group_frame(
         GROUP,
         ADMIN,
@@ -199,12 +199,12 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         json!([plain("/stop")]),
         ("终端管理员", "o"),
     ));
-    let events = until_count(&home, GROUP, FAILED, 5).await;
+    let events = until_count(&home, GROUP, FAILED, 4).await;
     let kinds: Vec<Value> = of_kind(&events, QUEUED)
         .iter()
         .map(|one| one["body"]["kind"].clone())
         .collect();
-    assert_eq!(kinds, ["reply", "reply", "reply", "notice", "receipt"]);
+    assert_eq!(kinds, ["reply", "reply", "reply", "receipt"]);
     // 记了失败的那一步办完了，桥才办下一条：判下一条以前，要退的早就退了。
     napcat.send(group_frame(
         GROUP,
@@ -215,10 +215,10 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
     ));
     until_decided(&home, GROUP, 4).await;
     let events = venue_events(&home.root, &venue(GROUP));
-    assert_eq!(undelivered(&events).len(), 3, "提示、回执不退：{events:#?}");
+    assert_eq!(undelivered(&events).len(), 3, "回执不退：{events:#?}");
     let log = run_log(&home.root);
     assert_eq!(log.matches("undelivered noted").count(), 3, "{log}");
-    assert!(!log.contains("在。"), "正文不进运行日志：{log}");
+    assert!(!log.contains("在"), "正文不进运行日志：{log}");
     stopped(home).await;
 }
 
@@ -287,7 +287,7 @@ async fn expired_words_come_back_at_the_next_turn_once() {
 
 #[tokio::test]
 async fn private_words_come_back_too() {
-    let script = Script::new([Play::Says("在。")]);
+    let script = Script::new([Play::Says("在")]);
     let (home, mut napcat, _) = started_tuned(Arc::new(script), "", &Value::Null, |napcat| {
         napcat.refusing(MEMBERS)
     })
@@ -312,7 +312,7 @@ async fn private_words_come_back_too() {
     assert_eq!(noted.len(), 1);
     assert_eq!(
         noted[0]["body"],
-        json!({"kind": "undelivered", "text": fact("rejected", &detail, "在。")})
+        json!({"kind": "undelivered", "text": fact("rejected", &detail, "在")})
     );
     stopped(home).await;
 }

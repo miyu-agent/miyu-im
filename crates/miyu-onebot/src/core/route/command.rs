@@ -4,12 +4,20 @@
 //! 交回给 `Route::submit` 照普通的话发，别的被拒把核心拒绝时那一句（`error.message`，照连接的语言写好的，「施工时定的」
 //! 第 31 条）发回去（群里的发回群里）、不交给她。发回去的交 `receipt`：入队（施工 O-25 中），群里的过几秒撤回（施工 O-25 上）。
 //! 运行日志只记正名和原因码，不记原文。
+//!
+//! 施工 O-47（2026-10-17 项目主人定：QQ 里只有管理员跑命令时才出现系统口吻的话）：被拒的那一句只回给终端管理员和场所规则
+//! `managers` 里的人，别人被拒什么都不发；群里成了的回执照 `onebot.recall_receipts` 撤不撤（出厂只撤 `clear`、
+//! `clear-memory`），被拒的那一句照旧撤。
 
+use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::{Message, Route};
 use crate::TARGET;
 use crate::core::{Gone, reason};
+
+/// `as` 的 `role`：场所规则 `managers` 里的人（「群消息」第 4 条）。
+const MANAGER: &str = "manager";
 
 impl Route {
     /// 把 `message` 当斜杠命令交给核心（「斜杠命令」第 1 到 5 条）。办完了（成了、被拒、不接、找不到会话）交回真；核心认不
@@ -23,11 +31,12 @@ impl Route {
             return Ok(true);
         };
         let (venue, number) = (&message.place.peer.venue, message.number);
-        let said = match reason(&reply) {
+        let (said, recall) = match reason(&reply) {
             None => {
                 let command = reply["result"]["command"].as_str().unwrap_or_default();
                 tracing::info!(target: TARGET, venue = %venue, message = number, command, "command ran");
-                said(&reply["result"]["said"])
+                let recall = self.recalled.iter().any(|name| name == command);
+                (said(&reply["result"]["said"]).to_string(), recall)
             }
             Some(reason @ "unknown_command") => {
                 tracing::debug!(target: TARGET, venue = %venue, message = number, reason, "not a command");
@@ -35,11 +44,45 @@ impl Route {
             }
             Some(reason) => {
                 tracing::info!(target: TARGET, venue = %venue, message = number, reason, "command refused");
-                said(&reply["error"]["message"])
+                if !self.hears_refusals(message).await? {
+                    return Ok(true);
+                }
+                (said(&reply["error"]["message"]).to_string(), true)
             }
         };
-        self.receipt(&session, said).await?;
+        self.receipt(&session, &said, recall).await?;
         Ok(true)
+    }
+
+    /// 打命令的人听不听得到被拒的那一句（施工 O-47）：场所规则 `managers` 里的（`as.role` 是 `manager`）、终端管理员听得到，
+    /// 别人听不到。终端管理员：私聊接进来、对方又不在白名单里的只会是他（陌生人的私聊不接）；别的问到的照记的，没记着的问核心的
+    /// `venue.binding`；问不到的（核心拒了）群里照他在这个群说过的话带不带 `account` 兜底（同「平台工具（一）」第 3 条）。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    async fn hears_refusals(&mut self, message: &Message) -> Result<bool, Gone> {
+        if message.acting["role"] == MANAGER {
+            return Ok(true);
+        }
+        let place = &message.place;
+        if place.private_chat() && !place.listed() {
+            return Ok(true);
+        }
+        let Some(who) = message.acting["external"].as_str() else {
+            return Ok(false);
+        };
+        if self.terminal_admin(who).await? == Some(true) {
+            return Ok(true);
+        }
+        let Ok(id) = ExternalId::parse(who) else {
+            return Ok(false);
+        };
+        Ok(self
+            .venues
+            .get(place.peer.venue.as_str())
+            .and_then(|session| self.groups.get(session))
+            .is_some_and(|group| group.is_admin(&id)))
     }
 }
 

@@ -91,7 +91,7 @@ fn skipped_lines(home: &Home) -> usize {
 
 #[tokio::test]
 async fn a_skipped_turn_sends_nothing_and_the_next_turn_speaks() {
-    let lines = Lines::new([Line::skips("这句不是冲我来的吧。"), Line::says("在。")]);
+    let lines = Lines::new([Line::skips("这句不是冲我来的吧。"), Line::says("在")]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
     admin_calls(&napcat, GROUP, 1);
     let events = until_count(&home, GROUP, "turn.ended", 1).await;
@@ -116,13 +116,13 @@ async fn a_skipped_turn_sends_nothing_and_the_next_turn_speaks() {
     assert!(offers_skip(&requests[0]), "群会话的工具面里有它");
     // 下一轮照常发：群里收到的头一条就是它，前一轮的那句没发、没入队；她的请求里照历史有桥答的那一句。
     admin_calls(&napcat, GROUP, 2);
-    assert_eq!(napcat.group_message(GROUP).await, [words("在。")]);
+    assert_eq!(napcat.group_message(GROUP).await, [words("在")]);
     let events = until_count(&home, GROUP, "venue.delivered", 1).await;
     let queued: Vec<Value> = of_kind(&events, QUEUED)
         .iter()
         .map(|one| one["body"]["text"].clone())
         .collect();
-    assert_eq!(queued, ["在。"], "{events:#?}");
+    assert_eq!(queued, ["在"], "{events:#?}");
     assert!(
         format!("{:?}", lines.requests()[1]).contains(skipped().trim()),
         "她下一次请求里有那一句：{:?}",
@@ -139,10 +139,10 @@ async fn a_skipped_turn_sends_nothing_and_the_next_turn_speaks() {
 
 #[tokio::test]
 async fn words_sent_before_the_call_stay_sent() {
-    let lines = Lines::new([Line::calls("我先看看。"), Line::skips("其实不用回。")]);
+    let lines = Lines::new([Line::calls("我先看看"), Line::skips("其实不用回。")]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
     admin_calls(&napcat, GROUP, 1);
-    assert_eq!(napcat.group_message(GROUP).await, [words("我先看看。")]);
+    assert_eq!(napcat.group_message(GROUP).await, [words("我先看看")]);
     until_count(&home, GROUP, "turn.ended", 1).await;
     assert_eq!(lines.requests().len(), 2, "调了以后不再请求");
     // 调用的那一条过完了才看：等运行日志记下一行。
@@ -160,7 +160,7 @@ async fn words_sent_before_the_call_stay_sent() {
         .iter()
         .map(|one| one["body"]["text"].clone())
         .collect();
-    assert_eq!(queued, ["我先看看。"], "调用以后的不入队：{events:#?}");
+    assert_eq!(queued, ["我先看看"], "调用以后的不入队：{events:#?}");
     assert!(napcat.pending().is_none(), "调用以后的都没发");
     stopped(home).await;
 }
@@ -169,7 +169,7 @@ async fn words_sent_before_the_call_stay_sent() {
 async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
     let lines = Lines::new([
         Line::skips("嗯。"),
-        Line::says("好的。"),
+        Line::says("好的"),
         Line::says("本机。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
@@ -182,7 +182,7 @@ async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
     assert_eq!(sent["action"], "send_private_msg", "{sent}");
     assert_eq!(
         sent["params"]["message"],
-        json!([words("好的。")]),
+        json!([words("好的")]),
         "调了的那一轮没发，下一轮照常"
     );
     let requests = lines.requests();
@@ -218,7 +218,7 @@ async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
 
 #[tokio::test]
 async fn refused_tools_are_logged_and_the_bridge_goes_on() {
-    let lines = Lines::new([Line::says("在。")]);
+    let lines = Lines::new([Line::says("在")]);
     let models: Arc<dyn Models> = Arc::new(lines.clone());
     let (home, listen) = on_free_port(async |listen| {
         let home = Home::spawning_edited(Arc::clone(&models), &ports_config(listen), unacceptable);
@@ -230,7 +230,7 @@ async fn refused_tools_are_logged_and_the_bridge_goes_on() {
     .await;
     let mut napcat = admin_napcat(listen).await;
     napcat.admin_says(1, "在吗").await;
-    assert_eq!(napcat.reply().await, "在。", "工具没了，话照说");
+    assert_eq!(napcat.reply().await, "在", "工具没了，话照说");
     assert!(!offers_skip(&lines.requests()[0]), "核心没收，工具面里没有");
     let deadline = tokio::time::Instant::now() + WAIT;
     let line = loop {

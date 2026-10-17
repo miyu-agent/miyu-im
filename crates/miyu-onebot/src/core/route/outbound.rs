@@ -1,5 +1,5 @@
 //! 出站（施工 O-25 上，`onebot.md` 第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条）：她的一条话过群聊内核的出站链
-//! （`chat.md` 第五条：清理、去重、引用和 @），过了的照 `plain` 转成纯文本、`split` 拆段，交出几段和第一段带的引用、@。纯逻辑：
+//! （`chat.md` 第五条：清理、去末尾句号、去重、引用和 @），过了的照 `split` 拆段（施工 O-47 起不转纯文本），交出几段和第一段带的引用、@。纯逻辑：
 //! 此刻、参数、这一轮发出去的都由调的一方交进来。
 //!
 //! - 群里的情形照投影（`projection` 的 [`Speaking`]）：本来想要引用她回的那一条、@ 发它的人；那之后别人说了几条、过了多久、
@@ -7,9 +7,7 @@
 //! - 私聊的两样都是假；这一轮发出去的照桥自己入队了的那几段（[`Spoken`]，入队记成了就记上，内存里一个会话一份，换回合就清，
 //!   桥重启就丢）：私聊的订阅不补从前的，照日志算不了（「施工时定的」第 113 条，O-25 中改成入队时记）。
 
-use miyu_chat::{
-    Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target, plain, split,
-};
+use miyu_chat::{Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target, split};
 use miyu_client::time::Timestamp;
 
 use super::projection::{Aim, Speaking};
@@ -18,13 +16,13 @@ use crate::onebot::Lead;
 /// 过了链、要发的一句。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Passed {
-    /// 照先后的几段：纯文本、拆好了的，没有空的。
+    /// 照先后的几段：拆好了的，没有空的。
     pub(super) pieces: Vec<String>,
     /// 第一段前面带的引用和 @。
     pub(super) lead: Lead,
 }
 
-/// 她的一句 `text` 过出站链，情形是 `ctx`：丢了的交回为什么；过了的照 `plain`、`split`（一段最多 `split_chars` 个字符，`0`
+/// 她的一句 `text` 过出站链，情形是 `ctx`：丢了的交回为什么；过了的照 `split`（一段最多 `split_chars` 个字符，`0`
 /// 不拆）拆段，实际要带的引用、@ 照她回的那一条 `aim` 填（第 9 条第 1 到 3 项）。
 pub(super) fn pass(
     text: &str,
@@ -45,7 +43,7 @@ pub(super) fn pass(
         at: aim.filter(|_| target.mention).and_then(number),
     };
     Ok(Passed {
-        pieces: split(&plain(&outgoing.text), split_chars),
+        pieces: split(&outgoing.text, split_chars),
         lead,
     })
 }

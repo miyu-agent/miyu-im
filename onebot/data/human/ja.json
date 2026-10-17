@@ -71,7 +71,6 @@
     "problem/not-an-option": "{key} は選択肢にありません：{got}",
     "problem/out-of-range": "{key} は範囲外です：{got}",
     "problem/bad-format": "{key} の書き方が違います：{got}",
-    "problem/other": "{key}：{code}",
-    "group/rate-limited": "いま呼ばれすぎています。数分たってからもう一度どうぞ。"
+    "problem/other": "{key}：{code}"
   }
 }

@@ -23,9 +23,6 @@ const WANG: i64 = 20005;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 限流满了的提示（`group/rate-limited`，中文）。
-const LIMITED: &str = "这会儿叫的人太多了，过几分钟再来吧。";
-
 /// 系统的场所规则：[`GROUP`] 一小时一轮、不抽样。
 fn rules() -> String {
     format!(
@@ -97,7 +94,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         of_kind(events, "turn.ended").len() == 1
     })
     .await;
-    // 2：终端管理员照样回。3：白名单成员不受限流、不过判官，照样回。4：别人冲她来回一句提示。5：再来只记下。
+    // 2：终端管理员照样回。3：白名单成员不受限流、不过判官，照样回。4、5：别人冲她来只记下，不回提示（施工 O-47）。
     napcat.send(group_frame(
         GROUP,
         ADMIN,
@@ -121,7 +118,6 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         json!([at(BOT), plain(" 嗨")]),
         ("老王", "w"),
     ));
-    assert_eq!(napcat.group_reply(GROUP).await, LIMITED);
     napcat.send(group_frame(
         GROUP,
         WANG,
@@ -151,14 +147,20 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     let limited = decided(&events, 4).expect("记了");
     assert_eq!(
         (&limited["inbound"], &limited["why"], &limited["outcome"]),
-        (&json!("notice"), &json!("rate_limited"), &json!("notice")),
-        "{limited}"
+        (
+            &json!("record_only"),
+            &json!("rate_limited"),
+            &json!("record")
+        ),
+        "头一回冲她来也只记下：{limited}"
     );
-    assert_eq!(
-        noted(&events, "ext.onebot.venues.queued", 4, "queued"),
-        Some(json!({"kind": "notice", "reason": "rate_limited", "text": LIMITED})),
-        "提示入队（施工 O-25 中）"
+    assert!(
+        of_kind(&events, "ext.onebot.venues.queued")
+            .iter()
+            .all(|queued| queued["body"]["kind"] == "reply"),
+        "不发限流提示（施工 O-47）"
     );
+    assert!(napcat.pending().is_none(), "群里什么都没发");
     let again = decided(&events, 5).expect("记了");
     assert_eq!(
         (&again["inbound"], &again["why"], &again["outcome"]),
@@ -167,7 +169,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
             &json!("rate_limited"),
             &json!("record")
         ),
-        "提示过了只记下：{again}"
+        "再来也只记下：{again}"
     );
 
     // 桥重启：照日志重建。
@@ -182,7 +184,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     );
     bridge_up(&home.root, listen).await.expect("桥重新起来");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
-    // 6：小林冲她来：限流照旧满、这一回提示过了，只记下。7：终端管理员引用她以前的「一」：照样认得，回。
+    // 6：小林冲她来：限流照旧满，只记下。7：终端管理员引用她以前的「一」：照样认得，回。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -206,7 +208,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
             &json!("rate_limited"),
             &json!("record")
         ),
-        "重启以后限流、提示照日志重建：{after}"
+        "重启以后限流照日志重建：{after}"
     );
     let quoted = decided(&events, 7).expect("记了");
     assert_eq!(quoted["conditions"][0]["kind"], "direct", "{quoted}");

@@ -185,8 +185,6 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         pipe: Pipe::new(tokio::io::stdin(), tokio::io::stdout()),
         locale,
         tuning,
-        resources: texts.resources().clone(),
-        package,
         defaults,
         factory,
     };
