@@ -112,3 +112,20 @@ pub fn words(said: &Value) -> &str {
 pub fn run_log(root: &DataRoot) -> String {
     std::fs::read_to_string(root.state().join("logs").join("onebot.log")).unwrap_or_default()
 }
+
+/// 等到运行日志合 `wanted`，交回那一刻的全文：桥常常先做了事（NapCat 收到了动作）、等回应以后才写日志，测试收到动作就读会
+/// 早一步。最多等六十秒。
+pub async fn until_logged(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> String {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let log = run_log(root);
+        if wanted(&log) {
+            return log;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "运行日志等不到：{log}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+}

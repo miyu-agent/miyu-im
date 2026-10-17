@@ -133,7 +133,8 @@ async fn a_picture_and_a_file_she_shows_reach_the_private_chat() {
         .filter_map(|action| action["params"]["message"][0]["data"]["text"].as_str())
         .collect();
     assert_eq!(texts, ["给你看", "好了"]);
-    let log = run_log(&home.root);
+    // 发出去了才写「file shown」：收到 NapCat 的动作时日志可能还没写。
+    let log = until_logged(&home.root, |log| log.matches("file shown").count() >= 2).await;
     assert_eq!(log.matches("file shown").count(), 2, "{log}");
     stopped(home).await;
 }
@@ -240,7 +241,8 @@ async fn a_picture_and_a_file_she_shows_reach_the_group() {
         upload["params"],
         json!({"group_id": GROUP, "file": format!("base64://{}", STANDARD.encode(note())), "name": "note.txt"})
     );
-    let log = run_log(&home.root);
+    // 发出去了才写「file shown」：收到 NapCat 的动作时日志可能还没写。
+    let log = until_logged(&home.root, |log| log.matches("file shown").count() >= 2).await;
     assert_eq!(log.matches("file shown").count(), 2, "{log}");
     assert!(!log.contains("unknown_blob"), "{log}");
     stopped(home).await;
