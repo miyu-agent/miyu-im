@@ -73,6 +73,8 @@ pub struct Tuning {
     /// 问挂接点的包（`qq.inbound` 这类，施工 O-43 中，`onebot.md`「挂接点」）每一次最多等几毫秒：等不到的照「没意见」算。群里
     /// 一条消息不能被一个慢的包卡住太久。0 是不等（照说没人这样写：等于挂了也不问）。
     pub hook_millis: u64,
+    /// 群名问到了隔几秒再问（施工 O-49，`onebot.md`「群名」）：群改了名，她最多晚这么久知道。0 是每条消息都问。
+    pub group_info_seconds: u64,
 }
 
 impl Tuning {
@@ -150,6 +152,11 @@ impl Tuning {
     /// 贴的表情过多久摘。
     pub fn reaction(&self) -> Duration {
         Duration::from_secs(self.reaction_seconds)
+    }
+
+    /// 群名问到了隔多久再问（施工 O-49）。
+    pub fn group_info(&self) -> Duration {
+        Duration::from_secs(self.group_info_seconds)
     }
 
     /// 问到的「是不是终端管理员」记多久（施工 O-31）。

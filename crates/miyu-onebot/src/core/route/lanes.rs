@@ -151,6 +151,8 @@ impl Route {
         group.forked(&lane, upto, msgs);
         tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, lane, upto, "lane forked");
         let facts = self.another_line(answering, aim.as_deref());
+        // 群名那一段照主线的给支线也放一份（施工 O-49）：开轮以前放好，支线第一次请求的 system 和主线的一样。
+        self.title_lane(session, &lane).await?;
         let responded = match self.follow_lane(&lane, upto).await? {
             true => {
                 self.catch_up(session).await?;

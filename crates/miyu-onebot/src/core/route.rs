@@ -79,6 +79,7 @@ mod speak;
 mod steering;
 #[cfg(test)]
 mod tests;
+mod titled;
 mod voicing;
 
 use std::collections::{HashMap, HashSet};
@@ -118,6 +119,7 @@ pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
 use session::Place;
 use steering::Steering;
+use titled::Titles;
 use voicing::Voicing;
 
 /// 一个场所会话的回执、回话发到哪：收进它的机器人号、私聊的对方或者群；场所只拿来记运行日志。
@@ -154,6 +156,14 @@ pub(crate) struct Recalling {
     pub(crate) after: Duration,
     /// 撤回执的命令的默认值（清单里的）。
     pub(crate) default: Vec<String>,
+}
+
+/// 问到的记多久：「是不是终端管理员」（施工 O-31，`binding_seconds`），群名隔多久再问（施工 O-49，`group_info_seconds`）。
+pub(crate) struct Asking {
+    /// 「是不是终端管理员」记多久。
+    pub(crate) binding: Duration,
+    /// 群名隔多久再问。
+    pub(crate) group_info: Duration,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -201,6 +211,8 @@ pub(crate) struct Route {
     tools: Arc<Tools>,
     /// 问到的「是不是终端管理员」（施工 O-31，`bindings`）。
     bindings: Bindings,
+    /// 问过的群名、放进 system 的那一段（施工 O-49，`titled`）。
+    titles: Titles,
     /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
     quotes: HashMap<String, Option<String>>,
     /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
@@ -224,20 +236,20 @@ pub(crate) struct Route {
 impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
-    /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记 `binding`（施工
+    /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记多久、群名隔多久再问照 `asking`（施工
     /// O-31）。取图、视频、文件照 `fetching`（施工 O-33），合并转发照 `forwarding` 展开（施工 O-34）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (slots, personas, recall, expire, reactions, binding, fetching, forwarding): (
+        (slots, personas, recall, expire, reactions, asking, fetching, forwarding): (
             Slots,
             Personas,
             Recalling,
             Duration,
             Reactions,
-            Duration,
+            Asking,
             Fetching,
             Forwarding,
         ),
@@ -278,7 +290,8 @@ impl Route {
             reactions,
             quiet: Quiet::default(),
             tools,
-            bindings: Bindings::new(binding),
+            bindings: Bindings::new(asking.binding),
+            titles: Titles::new(asking.group_info),
             quotes: HashMap::new(),
             backlogs: HashMap::new(),
             fetching,

@@ -151,12 +151,17 @@ impl NapCat {
             let kind = action["action"].as_str().unwrap_or_default();
             // 取东西（施工 O-33）：这个假 NapCat 什么都没存，回失败、不交出去。
             let fetching = ["get_msg", "get_image", "get_file", "get_forward_msg"].contains(&kind);
+            // 群名（施工 O-49）：照 `answering` 的回，不交出去。
+            let asking = kind == "get_group_info";
             let data = match kind {
                 "get_version_info" => json!({
                     "app_name": "NapCat.Onebot",
                     "app_version": "4.8.0",
                     "protocol_version": "v11",
                 }),
+                "get_group_info" => {
+                    json!({"group_id": action["params"]["group_id"], "group_name": super::answering::GROUP_NAME})
+                }
                 _ => json!({"message_id": 1}),
             };
             let status = if fetching { "failed" } else { "ok" };
@@ -169,7 +174,7 @@ impl NapCat {
                 "echo": action["echo"],
             }))
             .await;
-            if kind != "get_version_info" && !fetching {
+            if kind != "get_version_info" && !fetching && !asking {
                 return action;
             }
         }

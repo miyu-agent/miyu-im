@@ -7,7 +7,8 @@
 //! 4. 正文空白、又没有带的东西的不送；只有带的东西的照样交（「施工时定的」第 67 条）。冲她来的（@ 她、引用她、关键词开头）
 //!    交以前取这一条和它引用的那一条的图，`attachments` 带上（施工 O-33，`pictures`）。
 //! 5. 照私聊的办法交（`Route::submit`）：`/` 开头的先当斜杠命令，回执发回群里；别的 `session.send` 带场所的格。
-//! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）；挂了进站挂接点的先问它（施工 O-43 中，`steering`）。
+//! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）；挂了进站挂接点的先问它（施工 O-43 中，`steering`）。判以前该问
+//!    群名的问、放进 system（施工 O-49，`titled`）。
 //!
 //! 带合并转发的（施工 O-34）：正文里照旧是占位，交以前展开、写进场所的格（`forwards`）。
 
@@ -44,7 +45,7 @@ impl Route {
                 .remember(group, posted.user, name.clone(), Instant::now());
         }
         if let Some(rank) = posted.rank {
-            // 禁言不动群主、群管理员（施工 O-31，「平台工具（一）」第 7 条）。
+            // 身份顺手记下（施工 O-31，「平台工具（一）」第 7 条；O-48 起禁言不再看它）。
             self.members
                 .ranked(group, posted.user, rank, Instant::now());
         }
@@ -122,6 +123,8 @@ impl Route {
         let Some((session, reply)) = self.submit(message).await? else {
             return Ok(());
         };
+        // 群名放进 system（施工 O-49，`titled`）：判以前放好，这一条开的轮就带上。
+        self.titled(&session, group, posted.bot).await?;
         // 被拒的没有序号，不判。
         match reply["result"]["events"][0].as_u64() {
             Some(seq) => self.steer(session, seq, heard, ask).await,

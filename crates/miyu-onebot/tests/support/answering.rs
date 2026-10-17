@@ -41,6 +41,9 @@ pub type Rank = (i64, &'static str);
 /// 撤不了的那一条的编号（施工 O-31）：撤它回失败，说的是 [`unrecallable`]。
 pub const UNRECALLABLE: i64 = 4040;
 
+/// 假 NapCat 回的群名（`get_group_info`，施工 O-49）：每个群都是它。
+pub const GROUP_NAME: &str = "测试群";
+
 /// 撤 [`UNRECALLABLE`] 时 NapCat 说的：前后带空白、超过 200 个字符，桥交回的去掉空白、截到 200 个字符。
 pub fn unrecallable() -> String {
     format!("  {}  ", "Recall failed".repeat(20))
@@ -63,6 +66,16 @@ struct Stock {
     forwards: HashMap<String, Value>,
     /// 问过的：动作和 `message_id` 或 `file`，照先后。
     asked: Vec<(String, String)>,
+}
+
+/// 回 `get_group_info`（施工 O-49）：每个群都叫 [`GROUP_NAME`]，问的群号记进问过的。
+fn group_info(action: &Value, stock: &Mutex<Stock>) -> Value {
+    let group = &action["params"]["group_id"];
+    let mut stock = stock.lock().expect("没 panic");
+    stock
+        .asked
+        .push(("get_group_info".to_string(), group.to_string()));
+    json!({"status": "ok", "retcode": 0, "data": {"group_id": group, "group_name": GROUP_NAME}, "message": "", "wording": "", "echo": action["echo"]})
 }
 
 /// 交给任务应答的假 NapCat。放下了任务跟着停。
@@ -142,6 +155,8 @@ impl NapCat {
                         let kind = action["action"].as_str().unwrap_or_default();
                         let mut answer = if FETCHING.contains(&kind) {
                             fetched(&action, &stocked)
+                        } else if kind == "get_group_info" {
+                            group_info(&action, &stocked)
                         } else {
                             answer(&action, (&members, &ranks), &noted, &mut sent)
                         };
@@ -153,6 +168,7 @@ impl NapCat {
                             && !platform
                             && kind != "get_version_info"
                             && kind != "get_group_member_info"
+                            && kind != "get_group_info"
                             && !FETCHING.contains(&kind);
                         if sending && refuse {
                             answer = json!({"status": "failed", "retcode": 1200, "data": null, "message": refused(), "wording": "", "echo": action["echo"]});
@@ -358,6 +374,17 @@ impl Answering {
         self.actions.try_recv().ok()
     }
 
+    /// 桥问过哪些群的群名（施工 O-49），照先后。
+    pub fn group_infos(&self) -> Vec<i64> {
+        let stock = self.stock.lock().expect("没 panic");
+        stock
+            .asked
+            .iter()
+            .filter(|(action, _)| action == "get_group_info")
+            .filter_map(|(_, group)| group.parse().ok())
+            .collect()
+    }
+
     /// 桥问过哪些群成员，照先后。
     pub fn asked(&self) -> Vec<i64> {
         self.asked.lock().expect("没 panic").clone()
@@ -385,9 +412,15 @@ impl Answering {
             .insert(id.to_string(), json!({ "messages": messages }));
     }
 
-    /// 桥取过的：动作和 `message_id`、`file` 或 `id`，照先后（施工 O-33）。
+    /// 桥取过的：动作和 `message_id`、`file` 或 `id`，照先后（施工 O-33）。问群名的不算（施工 O-49，[`Answering::group_infos`]）。
     pub fn fetched(&self) -> Vec<(String, String)> {
-        self.stock.lock().expect("没 panic").asked.clone()
+        let stock = self.stock.lock().expect("没 panic");
+        stock
+            .asked
+            .iter()
+            .filter(|(action, _)| action != "get_group_info")
+            .cloned()
+            .collect()
     }
 }
 

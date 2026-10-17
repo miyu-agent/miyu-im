@@ -1,5 +1,5 @@
 //! 给她看的事实的模板（施工 O-25 下，`onebot.md` 第一条「退信」第 3 条、「场所规则和出厂数据」第 1、2 条；O-36 多「另一条线正在
-//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
+//! 回」，「群里怎么叫她」第 7 条；O-46 多「文件没发出去」，「展示」第 4 条；O-49 多群会话 system 尾部的群名、群号，「群名」）：包文件夹的 `data/facts/` 里的两份（给模型看的字，登记在 `26-提示词.md` 第十节），桥起来
 //! 时和别的出厂数据一起读，交内核的 [`Template::parse`] 查。没有系统那一份：给模型看的字随包走。
 //!
 //! 字段只认各自的那几个：多要了别的，填的时候换不出来，起来时就当打包的错（「施工时定的」第 129 条）。少要几个照收。
@@ -30,6 +30,12 @@ const UNSHOWN: &str = "facts/unshown.txt";
 /// 「文件没发出去」认的字段：为什么、NapCat 说的原因、文件名（「展示」第 4 条）。
 const UNSHOWN_FIELDS: &[&str] = &["why", "detail", "name"];
 
+/// 群名、群号那一段（施工 O-49，放在群会话的 system 尾部）在出厂目录里的位置。
+const GROUP: &str = "system/group.txt";
+
+/// 群名、群号那一段认的字段（「群名」第 2 条）。
+const GROUP_FIELDS: &[&str] = &["name", "id"];
+
 /// 查过的几份模板。
 #[derive(Debug)]
 pub(super) struct Facts {
@@ -39,6 +45,8 @@ pub(super) struct Facts {
     pub(super) another_line: Template,
     /// 她给人看的文件没发出去（施工 O-46）。
     pub(super) unshown: Template,
+    /// 群名、群号（施工 O-49）。
+    pub(super) group: Template,
 }
 
 /// 读出厂目录 `dir`（包文件夹的 `data/`）里的几份模板，查过交回。问题照退信、另一条线的先后记；有问题的交回空的。
@@ -46,10 +54,12 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let undelivered = template(dir, UNDELIVERED, UNDELIVERED_FIELDS, problems);
     let another_line = template(dir, ANOTHER_LINE, ANOTHER_LINE_FIELDS, problems);
     let unshown = template(dir, UNSHOWN, UNSHOWN_FIELDS, problems);
+    let group = template(dir, GROUP, GROUP_FIELDS, problems);
     Some(Facts {
         undelivered: undelivered?,
         another_line: another_line?,
         unshown: unshown?,
+        group: group?,
     })
 }
 

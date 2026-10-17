@@ -36,7 +36,9 @@ use miyu_client::places::DataRoot;
 use crate::TARGET;
 use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
-use crate::core::route::{Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots};
+use crate::core::route::{
+    Asking, Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots,
+};
 use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::bots::Bots;
@@ -231,7 +233,10 @@ pub async fn run(
         recall,
         gate.tuning.queue_expire(),
         reactions,
-        gate.tuning.binding(),
+        Asking {
+            binding: gate.tuning.binding(),
+            group_info: gate.tuning.group_info(),
+        },
         Fetching {
             images: gate.tuning.message_images,
             per_turn: gate.tuning.fetch_per_turn,

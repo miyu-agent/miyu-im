@@ -16,7 +16,9 @@ use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
 #[allow(unused_imports, reason = "几个测试程序各用其中一部分")]
-pub use super::answering::{Answering, FIRST_SENT, Member, Rank, UNRECALLABLE, unrecallable};
+pub use super::answering::{
+    Answering, FIRST_SENT, GROUP_NAME, Member, Rank, UNRECALLABLE, unrecallable,
+};
 use super::ports::on_free_port;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
 use super::{BOT, Home, NapCat, TIME, admin_napcat, resources, tuned_resources};

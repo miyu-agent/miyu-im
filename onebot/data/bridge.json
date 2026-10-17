@@ -23,5 +23,6 @@
   "forward_depth": 2,
   "forward_nodes": 20,
   "forward_chars": 500,
-  "hook_millis": 1500
+  "hook_millis": 1500,
+  "group_info_seconds": 3600
 }
