@@ -171,9 +171,11 @@ impl Route {
     /// 离下一次该看一遍还有多久（第 8 条）：排着的里最早的过期时刻、被禁言着的会话禁言到期的时刻；没有排着的是空的，不用醒。
     pub(super) fn wake(&self) -> Option<Duration> {
         let now = applied::clock()?.now;
-        let at = self
+        let queued = self
             .waiting
-            .wake(|session| self.groups.get(session)?.muted(now))?;
+            .wake(|session| self.groups.get(session)?.muted(now));
+        // 还没记解禁的禁言到点也醒（施工 O-50，`muted`）。
+        let at = queued.into_iter().chain(self.mute_wake()).min()?;
         let millis = at.unix_millis().saturating_sub(now.unix_millis());
         Some(Duration::from_millis(u64::try_from(millis).unwrap_or(0)))
     }

@@ -236,6 +236,8 @@ pub async fn run(
         Asking {
             binding: gate.tuning.binding(),
             group_info: gate.tuning.group_info(),
+            mute_window: gate.tuning.mute_window(),
+            mute_replies: gate.tuning.mute_replies,
         },
         Fetching {
             images: gate.tuning.message_images,

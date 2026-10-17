@@ -149,8 +149,11 @@ pub(super) struct Projection {
     own: u64,
     /// 她在主线最后说的一段：（回合编号，`message.assistant` 的序号）。主线的回执照回合认它（支线的不认，O-36）。
     spoke: Option<(u64, u64)>,
-    /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。
+    /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。到了时刻、还没记 `unmuted` 的照旧在
+    /// （O-50：桥照它补记到点解禁）。
     muted: Option<Timestamp>,
+    /// 她这一回被禁言从什么时候起（O-50）：最后一条 `muted` 记下的时刻；解禁了、没禁过的是空的。
+    muted_since: Option<Timestamp>,
     /// 判过要回、她还没回完的，照先后（O-23 下）。
     committed: Vec<Committed>,
 }
@@ -260,9 +263,13 @@ impl Projection {
                 // 读不出 `until` 的（照说不会）不改。
                 if let Ok(until) = serde_json::from_value(body["until"].clone()) {
                     self.muted = Some(until);
+                    self.muted_since = Some(event.at);
                 }
             }
-            Body::Unknown { kind, .. } if kind.as_str() == UNMUTED => self.muted = None,
+            Body::Unknown { kind, .. } if kind.as_str() == UNMUTED => {
+                self.muted = None;
+                self.muted_since = None;
+            }
             Body::Unknown { kind, body } if kind.as_str() == DECIDED => {
                 let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
                 if let Some(committed) = self.committed_from(&body) {
@@ -311,6 +318,17 @@ impl Projection {
     /// `Ctx.muted`、出站的门、该醒的时刻都照它）。
     pub(super) fn muted(&self, now: Timestamp) -> Option<Timestamp> {
         self.muted.filter(|until| *until > now)
+    }
+
+    /// 她此刻（`now`）被禁言着的，交回这一回从什么时候起（O-50，「禁言」第 2 条：禁言以后多久以内来的排着）。
+    pub(super) fn muted_since(&self, now: Timestamp) -> Option<Timestamp> {
+        self.muted(now).and(self.muted_since)
+    }
+
+    /// 还没记解禁的这一回禁言到什么时候（O-50）：到了时刻、还没记 `unmuted` 的也交回，桥照它补记到点解禁、照它醒。解禁了、没禁过
+    /// 的是空的。
+    pub(super) fn mute_end(&self) -> Option<Timestamp> {
+        self.muted
     }
 
     /// 序号是 `seq` 的这一条收过了没有（「群里怎么叫她」第 8 条：重发的不再判）。

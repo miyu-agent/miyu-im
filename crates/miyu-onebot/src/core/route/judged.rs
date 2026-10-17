@@ -71,7 +71,7 @@ impl Route {
         self.settle(
             &session,
             &judging.decision,
-            judging.standing,
+            (judging.standing, &judging.pending.sender),
             Some(judged),
             &judging.tag,
         )

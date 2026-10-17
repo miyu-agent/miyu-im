@@ -174,10 +174,12 @@ fn only_her_own_ban_is_read() {
         bot: 30003,
         group: 555,
         seconds,
+        operator: Some(40004),
     };
     let unmuted = Event::Unmuted {
         bot: 30003,
         group: 555,
+        operator: Some(40004),
     };
     assert_eq!(event(ban(json!(30003), "ban", json!(600))), muted(600));
     assert_eq!(
@@ -192,6 +194,23 @@ fn only_her_own_ban_is_read() {
         unmuted,
         "禁 0 秒是解禁"
     );
+    // 谁禁的（施工 O-50）：写成字的也认，没带的、0 是不知道。
+    let mut by_text = ban(json!(30003), "ban", json!(600));
+    by_text["operator_id"] = json!("40004");
+    assert_eq!(event(by_text), muted(600));
+    for operator in [Value::Null, json!(0)] {
+        let mut unknown = ban(json!(30003), "ban", json!(600));
+        unknown["operator_id"] = operator;
+        assert_eq!(
+            event(unknown),
+            Event::Muted {
+                bot: 30003,
+                group: 555,
+                seconds: 600,
+                operator: None
+            }
+        );
+    }
     for (name, frame) in [
         ("别人", ban(json!(20002), "ban", json!(600))),
         ("全员", ban(json!(0), "ban", json!(600))),

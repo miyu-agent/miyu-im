@@ -7,7 +7,7 @@
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
-//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、群会话 system 尾部的群名（施工 O-49） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`system/group.txt` | 没有：同上 |
+//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、群会话 system 尾部的群名（施工 O-49） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`system/group.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
 //!
 //! - 配置项那一层（施工 O-41，[`Configured`]）：包的七项配置拼成一份规则文件，排在出厂、系统中间；推来变了当场重读。
@@ -297,6 +297,16 @@ impl Venues {
     /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。
     pub fn unshown(&self) -> &Template {
         &self.factory.facts.unshown
+    }
+
+    /// 她被禁言了的事实的模板（施工 O-50）：出厂的，跑着不再读。
+    pub fn muted_fact(&self) -> &Template {
+        &self.factory.facts.muted
+    }
+
+    /// 她被解禁了的事实的模板（施工 O-50）：出厂的，跑着不再读。
+    pub fn unmuted_fact(&self) -> &Template {
+        &self.factory.facts.unmuted
     }
 
     /// 群名、群号那一段的模板（施工 O-49）：出厂的，跑着不再读。

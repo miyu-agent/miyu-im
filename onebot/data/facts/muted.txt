@@ -1,0 +1,1 @@
+<muted by="{by}" for="{duration}">You are muted in this group; nobody sees what you say until it ends.</muted>

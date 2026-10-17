@@ -75,6 +75,11 @@ pub struct Tuning {
     pub hook_millis: u64,
     /// 群名问到了隔几秒再问（施工 O-49，`onebot.md`「群名」）：群改了名，她最多晚这么久知道。0 是每条消息都问。
     pub group_info_seconds: u64,
+    /// 她被禁言以后几秒以内来的消息照常判、判了要回的排着，解禁以后回（施工 O-50，`onebot.md`「禁言」第 2 条）；更晚的只记下。
+    /// 0 是一条都不排。
+    pub mute_window_seconds: u64,
+    /// 解禁以后最多回几条排着的（施工 O-50，「禁言」第 3 条）：多的丢掉。0 是一条都不回。
+    pub mute_replies: usize,
 }
 
 impl Tuning {
@@ -152,6 +157,11 @@ impl Tuning {
     /// 贴的表情过多久摘。
     pub fn reaction(&self) -> Duration {
         Duration::from_secs(self.reaction_seconds)
+    }
+
+    /// 禁言以后多久以内来的排着（施工 O-50）。
+    pub fn mute_window(&self) -> Duration {
+        Duration::from_secs(self.mute_window_seconds)
     }
 
     /// 群名问到了隔多久再问（施工 O-49）。

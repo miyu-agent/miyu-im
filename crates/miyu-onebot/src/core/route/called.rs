@@ -21,6 +21,7 @@ use serde_json::{Value, json};
 use super::ask::Asking;
 use super::body::{Finale, Judged, body, finale};
 use super::decide::{Case, Conclusion, Decision, decide};
+use super::deferred::Deferred;
 use super::discipline::Discipline;
 use super::judges::{Judging, Tag};
 use super::projection::DECIDED;
@@ -29,6 +30,9 @@ use crate::TARGET;
 use crate::core::hooks::{Steer, Steered};
 use crate::core::{Gone, reason};
 use crate::onebot::MediaKind;
+
+/// 禁言时判了要回、排着的那一次，判断的 `outcome` 记成它（施工 O-50）：投影不把它算进判过要回、还没回完的。
+const DEFERRED: &str = "deferred";
 
 /// 判一条群消息要的、从这条消息来的几样（`group.rs` 填）。
 pub(super) struct Heard {
@@ -106,7 +110,8 @@ impl Route {
             }
             _ => {
                 let (decision, standing) = (weighed.decision, weighed.standing);
-                self.settle(session, &decision, standing, None, &tag(&heard))
+                let who = (standing, &heard.sender);
+                self.settle(session, &decision, who, None, &tag(&heard))
                     .await
             }
         }
@@ -120,7 +125,8 @@ impl Route {
             .is_some_and(|group| group.knows(seq))
     }
 
-    /// 记一笔判断（`judged` 是问了判官的那一次），照最后怎么做做（第 7 条）：回的开一轮，提示的回一句，别的不再做什么。
+    /// 记一笔判断（`judged` 是问了判官的那一次），照最后怎么做做（第 7 条）：回的开一轮，别的不再做什么。发的人是 `sender`，
+    /// 是谁是 `standing`。她这时被禁言着的，回的不开轮、排着（施工 O-50，`deferred`），判断的 `outcome` 记成 `deferred`。
     ///
     /// # Errors
     ///
@@ -129,17 +135,30 @@ impl Route {
         &mut self,
         session: &str,
         decision: &Decision,
-        standing: Standing,
+        (standing, sender): (Standing, &ExternalId),
         judged: Option<Judged<'_>>,
         tag: &Tag,
     ) -> Result<(), Gone> {
         let finale = finale(decision, judged);
-        tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, outcome = finale.name(), "chat decided");
+        let deferring = finale == Finale::Reply && self.deferring(session);
+        let outcome = if deferring { DEFERRED } else { finale.name() };
+        tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, outcome, "chat decided");
         let decided = format!("{}/decided", tag.id);
-        let written = body(decision, standing, judged);
+        let mut written = body(decision, standing, judged);
+        written["outcome"] = json!(outcome);
         self.append(session, Some(&decided), DECIDED, written)
             .await?;
         match finale {
+            Finale::Reply if deferring => {
+                let deferred = Deferred {
+                    sender: sender.clone(),
+                    standing,
+                    decision: decision.clone(),
+                    tag: tag.clone(),
+                };
+                self.defer(session, deferred);
+                Ok(())
+            }
             Finale::Reply => {
                 // 照分派开一轮、并进一轮（施工 O-36，`lanes`），成了的贴表情（施工 O-25 下，「贴表情」第 1 条）。
                 if self.dispatched(session, &decision.msgs, tag).await? {
@@ -264,8 +283,12 @@ impl Route {
             rate: applied::rate(&applied),
             sleep: applied::sleep(&applied),
             allow: applied::allow(&applied),
-            // 她被禁言着照投影（施工 O-25 中，「群里怎么叫她」第 5 条）。
-            muted: group.muted(clock.now).is_some(),
+            // 她被禁言着照投影（施工 O-25 中，「群里怎么叫她」第 5 条）；禁言以后 `mute_window` 以内的照常判，判了要回的排着
+            // （施工 O-50，`deferred`）。
+            muted: group.muted_since(clock.now).is_some_and(|since| {
+                clock.now.unix_millis() - since.unix_millis()
+                    >= i64::try_from(self.mute_window.as_millis()).unwrap_or(i64::MAX)
+            }),
             turns: group.turns(&self.whitelist),
             moderation,
         };

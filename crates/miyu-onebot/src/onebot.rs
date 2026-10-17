@@ -151,6 +151,8 @@ pub enum Event {
         group: i64,
         /// 禁几秒，大于 0。
         seconds: u64,
+        /// 谁禁的（`operator_id`，施工 O-50）；没带的是空的。
+        operator: Option<i64>,
     },
     /// 她在群里被解禁了（施工 O-25 中）：`lift_ban`，或者禁 0 秒。
     Unmuted {
@@ -158,6 +160,8 @@ pub enum Event {
         bot: i64,
         /// 群号。
         group: i64,
+        /// 谁解的（施工 O-50）；没带的是空的。
+        operator: Option<i64>,
     },
     /// 一个机器人号连上了（施工 O-25 中，「怎么走」第 2 条）：号认出来的那一刻（`X-Self-ID`、第一条事件），由连接那一头交，
     /// 不是 NapCat 的一帧。排着的照先后发。
@@ -289,12 +293,19 @@ fn ban(frame: &Value) -> Option<Event> {
         "lift_ban" => 0,
         _ => return None,
     };
+    // 谁禁的、谁解的（施工 O-50）：0 和没带的当不知道。
+    let operator = number(&frame["operator_id"]).filter(|operator| *operator > 0);
     Some(match seconds {
-        0 => Event::Unmuted { bot, group },
+        0 => Event::Unmuted {
+            bot,
+            group,
+            operator,
+        },
         seconds => Event::Muted {
             bot,
             group,
             seconds,
+            operator,
         },
     })
 }

@@ -1,7 +1,8 @@
 //! 出站队列（施工 O-25 中，`onebot.md` 第一条「出站队列」）：真核心拉起真桥、假 NapCat，她照剧本、台词说。群里她的每一段先记
 //! `ext.onebot.venues.queued` 再发，日志里入队在送达前面；NapCat 回失败的记 `failed {why: rejected, detail}`；她被禁言（假
-//! NapCat 推 `group_ban`）记 `muted {until}`，禁言时终端管理员 @ 她只记下，主线开的一轮她的话排着，解禁的通知来了照先后发，`until`
-//! 到了自己发；别人被禁言、全员禁言不认；去重照入队算（排着的也算）。要等过期、断开再连、桥重启、私聊的在 `queue_waits.rs`。
+//! NapCat 推 `group_ban`）记 `muted {until, by}`，禁言以后不久终端管理员 @ 她排着（施工 O-50），主线开的一轮她的话排着，解禁的
+//! 通知来了照先后发、记 `unmuted {why: lifted, by}`，`until` 到了自己发、补记 `unmuted {why: expired}`；别人被禁言、全员禁言不认；
+//! 去重照入队算（排着的也算）。要等过期、断开再连、桥重启、私聊的在 `queue_waits.rs`；禁言的事实、排着的怎么回在 `muted.rs`。
 
 use std::sync::Arc;
 
@@ -135,67 +136,110 @@ async fn a_refused_piece_is_failed_as_rejected() {
     stopped(home).await;
 }
 
+/// 一条发出去的消息里的字（引用、@ 不算）。
+fn said_words(message: Vec<Value>) -> String {
+    message
+        .iter()
+        .filter(|segment| segment["type"] == "text")
+        .filter_map(|segment| segment["data"]["text"].as_str())
+        .collect()
+}
+
+/// 小林在群 `group` 里说一句（只记下）：第 `message` 条。
+fn lin_says(napcat: &Answering, group: i64, message: i64) {
+    napcat.send(group_frame(
+        group,
+        LIN,
+        message,
+        json!([plain("大家好")]),
+        ("小林", "lin"),
+    ));
+}
+
 #[tokio::test]
-async fn while_muted_she_only_listens_and_speaks_after_the_lift() {
-    let script = Script::new([Play::Says("看到大家了"), Play::Says("嗯")]);
+async fn while_muted_her_words_wait_and_a_call_waits_until_the_lift() {
+    let script = Script::new([Play::Says("看到大家了"), Play::Says("嗯"), Play::Says("好")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     let before = Timestamp::from_unix_millis(now_millis()).expect("在范围里");
     napcat.send(group_ban(SPLIT, BOT, "ban", Some(600)));
     let events = until_count(&home, SPLIT, MUTED, 1).await;
-    let until: Timestamp =
-        serde_json::from_value(of_kind(&events, MUTED)[0]["body"]["until"].clone())
-            .expect("写法同事件的时刻");
+    let body = &of_kind(&events, MUTED)[0]["body"];
+    let until: Timestamp = serde_json::from_value(body["until"].clone()).expect("写法同事件的时刻");
     let ahead = until.unix_millis() - before.unix_millis();
     assert!(
         (600_000..660_000).contains(&ahead),
         "本机此刻加 600 秒：{ahead}"
     );
-    // 禁言时终端管理员 @ 她也只记下。
+    assert_eq!(body["by"], 40004, "谁禁的（施工 O-50）");
+    // 禁言以后 5 分钟以内终端管理员 @ 她：照常判，判了要回的排着（施工 O-50），不开轮。
     admin_calls(&napcat, SPLIT, 1);
     let body = decided(&home, SPLIT, 1).await;
     assert_eq!(
-        (&body["inbound"], &body["why"], &body["outcome"]),
-        (&json!("record_only"), &json!("muted"), &json!("record")),
+        (&body["inbound"], &body["outcome"]),
+        (&json!("pass"), &json!("deferred")),
         "{body}"
     );
-    // 主线照判官点了头的样子开一轮：她的话排着。
+    // 主线照判官点了头的样子拿小林的一句开一轮：她的话排着。
+    lin_says(&napcat, SPLIT, 2);
+    decided(&home, SPLIT, 2).await;
     let events = venue_events(&home.root, &venue(SPLIT));
-    respond(&home, &venue(SPLIT), "muted-1", &[seq_of(&events, 0)]).await;
+    respond(&home, &venue(SPLIT), "muted-1", &[seq_of(&events, 1)]).await;
     let events = until_count(&home, SPLIT, QUEUED, 2).await;
     let log = run_log(&home.root);
     assert!(log.contains("reply waiting"), "{log}");
     assert!(log.contains("why=muted"), "{log}");
+    assert_eq!(
+        of_kind(&events, "turn.started").len(),
+        1,
+        "终端管理员那一条没开轮"
+    );
     assert!(of_kind(&events, "venue.delivered").is_empty(), "还没发");
-    // 解禁的通知来了：照先后发。
+    // 解禁的通知来了：记 `unmuted {why: lifted, by}`，她排着的话照先后发，排着的那一条开一轮回。
     napcat.send(group_ban(SPLIT, BOT, "lift_ban", Some(0)));
     assert_eq!(napcat.group_message(SPLIT).await, [words("看到大家")]);
     assert_eq!(napcat.group_message(SPLIT).await, [words("了")]);
-    let events = until_count(&home, SPLIT, "venue.delivered", 2).await;
-    assert_eq!(of_kind(&events, UNMUTED)[0]["body"], json!({}));
+    assert_eq!(said_words(napcat.group_message(SPLIT).await), "嗯");
+    let events = until_count(&home, SPLIT, "venue.delivered", 3).await;
+    assert_eq!(
+        of_kind(&events, UNMUTED)[0]["body"],
+        json!({"why": "lifted", "by": 40004})
+    );
     // 解禁以后终端管理员 @ 她照回。
-    admin_calls(&napcat, SPLIT, 2);
-    assert_eq!(napcat.group_message(SPLIT).await, [words("嗯")]);
+    admin_calls(&napcat, SPLIT, 3);
+    assert_eq!(napcat.group_message(SPLIT).await, [words("好")]);
     assert!(napcat.pending().is_none());
     stopped(home).await;
 }
 
 #[tokio::test]
-async fn a_shorter_ban_ends_by_itself() {
-    let script = Script::new([Play::Says("在")]);
+async fn a_shorter_ban_ends_by_itself_and_is_noted() {
+    let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
     admin_calls(&napcat, PLAIN, 1);
-    decided(&home, PLAIN, 1).await;
+    assert_eq!(decided(&home, PLAIN, 1).await["outcome"], "deferred");
+    lin_says(&napcat, PLAIN, 2);
+    decided(&home, PLAIN, 2).await;
     let events = venue_events(&home.root, &venue(PLAIN));
-    respond(&home, &venue(PLAIN), "muted-2", &[seq_of(&events, 0)]).await;
+    respond(&home, &venue(PLAIN), "muted-2", &[seq_of(&events, 1)]).await;
     until_count(&home, PLAIN, QUEUED, 1).await;
-    // 管理员把禁言改短成 1 秒（NapCat 再推一次 `ban`）：到了就发，不另记解禁。
+    // 管理员把禁言改短成 1 秒（NapCat 再推一次 `ban`）：到了就发；QQ 到点不推解禁，桥补记 `unmuted {why: expired}`（施工 O-50），
+    // 排着的那一条开一轮回。
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(1)));
     assert_eq!(napcat.group_message(PLAIN).await, [words("在")]);
-    let events = until_count(&home, PLAIN, "venue.delivered", 1).await;
+    // 前一段刚发出去、群里最后一条可能是她自己的：带不带引用看回执先到没有，只比字。
+    assert_eq!(said_words(napcat.group_message(PLAIN).await), "嗯");
+    let events = until_count(&home, PLAIN, "venue.delivered", 2).await;
     assert_eq!(of_kind(&events, MUTED).len(), 2);
-    assert!(of_kind(&events, UNMUTED).is_empty(), "到期不另记");
+    assert_eq!(
+        of_kind(&events, UNMUTED)
+            .iter()
+            .map(|one| one["body"].clone())
+            .collect::<Vec<_>>(),
+        [json!({"why": "expired"})],
+        "到期补记一次"
+    );
     assert!(of_kind(&events, FAILED).is_empty());
     stopped(home).await;
 }

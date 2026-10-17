@@ -33,6 +33,7 @@ mod listen;
 mod logs;
 mod media;
 mod members;
+mod muted;
 mod no_token;
 mod outbound;
 mod page;

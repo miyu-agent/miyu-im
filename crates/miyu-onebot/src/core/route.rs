@@ -46,6 +46,7 @@ mod body;
 mod called;
 mod command;
 mod decide;
+mod deferred;
 mod discipline;
 mod exports;
 mod fetching;
@@ -105,6 +106,7 @@ use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist
 pub(crate) use ask::Slots;
 use backlog::Backlog;
 use bindings::Bindings;
+use deferred::Deferred;
 pub(crate) use fetching::Fetching;
 pub(crate) use forwards::Forwarding;
 use forwards::Forwards;
@@ -164,6 +166,10 @@ pub(crate) struct Asking {
     pub(crate) binding: Duration,
     /// 群名隔多久再问。
     pub(crate) group_info: Duration,
+    /// 禁言以后多久以内来的排着（施工 O-50，`mute_window_seconds`）。
+    pub(crate) mute_window: Duration,
+    /// 解禁以后最多回几条排着的（施工 O-50，`mute_replies`）。
+    pub(crate) mute_replies: usize,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -213,6 +219,12 @@ pub(crate) struct Route {
     bindings: Bindings,
     /// 问过的群名、放进 system 的那一段（施工 O-49，`titled`）。
     titles: Titles,
+    /// 禁言时判了要回的，按群会话排着（施工 O-50，`deferred`）。
+    deferred: HashMap<String, Vec<Deferred>>,
+    /// 禁言以后多久以内来的排着（施工 O-50）。
+    mute_window: Duration,
+    /// 解禁以后最多回几条排着的（施工 O-50）。
+    mute_replies: usize,
     /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
     quotes: HashMap<String, Option<String>>,
     /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
@@ -292,6 +304,9 @@ impl Route {
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
+            deferred: HashMap::new(),
+            mute_window: asking.mute_window,
+            mute_replies: asking.mute_replies,
             quotes: HashMap::new(),
             backlogs: HashMap::new(),
             fetching,
@@ -337,7 +352,11 @@ impl Route {
                     sent(joined).map_err(Some)
                 }
                 () = tokio::time::sleep(wake.unwrap_or_default()), if wake.is_some() => {
-                    self.pump().await.map_err(|Gone| None)
+                    // 到点的禁言先补记解禁（施工 O-50），再看排着的。
+                    match self.expire_mutes().await {
+                        Ok(()) => self.pump().await.map_err(|Gone| None),
+                        Err(Gone) => Err(None),
+                    }
                 }
                 Some(joined) = self.voicing.next(), if !self.voicing.is_empty() => match joined {
                     Ok(voicing) => self.voiced(voicing).await.map_err(|Gone| None),
@@ -377,8 +396,13 @@ impl Route {
                 bot,
                 group,
                 seconds,
-            } => self.muted(bot, group, Some(seconds)).await,
-            Event::Unmuted { bot, group } => self.muted(bot, group, None).await,
+                operator,
+            } => self.muted((bot, group), Some(seconds), operator).await,
+            Event::Unmuted {
+                bot,
+                group,
+                operator,
+            } => self.muted((bot, group), None, operator).await,
             // 号连上了：排着的照先后发（施工 O-25 中，「出站队列」第 3 条）。
             Event::Connected { .. } => self.pump().await,
             Event::Befriend { bot, user, flag } => {
