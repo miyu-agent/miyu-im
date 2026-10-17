@@ -2,7 +2,7 @@
 
 写给想在 QQ 里给 Miyu 加功能的第三方作者。你写的是一个普通的 Miyu 软件包（扩展、技能、脚本都行），装好以后她在 QQ 私聊、QQ 群里也能用。
 
-这一页只讲「在 QQ 里」和在终端、网页里不一样的地方。包怎么写、清单怎么写、扩展怎么说协议，看核心仓库的作者说明：[写一个 Miyu 软件包](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md)。调接入QQ 的方法、插进接入QQ 里面的挂接点，细节在本仓库的 [`docs/blueprint/extending.md`](../blueprint/extending.md)。
+这一页只讲「在 QQ 里」和在终端、网页里不一样的地方。包怎么写、清单怎么写、扩展怎么说协议，看核心仓库的作者说明：[写一个 Miyu 软件包](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md)。每个方法的参数、回应、错误码在核心的[协议参考](https://github.com/miyu-agent/miyu/blob/main/docs/reference/README.md)（场所会话那几个在 [`venues.md`](https://github.com/miyu-agent/miyu/blob/main/docs/reference/venues.md)）。调接入QQ 的方法、插进接入QQ 里面的挂接点，细节在本仓库的 [`docs/blueprint/extending.md`](../blueprint/extending.md)。
 
 现成的例子：表情包包 [`miyu-memes`](https://github.com/miyu-agent/miyu-memes)（工具、注入提示、发图）、渲染包 [`miyu-render`](https://github.com/miyu-agent/miyu-render)（给接入QQ 调的方法）。
 
@@ -17,7 +17,7 @@
 
 ### 二、让工具在 QQ 里出现
 
-扩展经 `provide` 登记工具时，`venues` 写这件工具给哪几种会话（核心作者说明[第四节「写扩展程序」](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md#四写扩展程序)第 4 条）：
+扩展经 `provide` 登记工具时，`venues` 写这件工具给哪几种会话（核心作者说明[「写扩展」的登记工具](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#登记工具provide)）：
 
 | `venues` 里写 | 出现在 |
 |---|---|
@@ -38,7 +38,7 @@
 - `venue`：在平台上留下后果的动作（撤回、禁言、戳一戳）。场所会话里放行、不问人；本机会话里照 `outbound` 判（完全放开直接调，工作区级别问人）。
 - 「这一轮的回话」不算出去：表情包的 `meme_send` 用 `read`，因为它只是她这一轮回话的一部分，由接入QQ 照回话发。
 
-**谁在叫她**：`tool.call` 带着 `by`、`owner`（核心作者说明[第四节](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md#四写扩展程序)第 5 条）：
+**谁在叫她**：`tool.call` 带着 `by`、`owner`（核心作者说明[「写扩展」的被调](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#被调toolcall)）：
 
 - `by` 是她这时在回应的那一条消息是谁发的，例如 `{"kind": "external", "venue": "qq:group:123", "id": "qq:456", "role": "manager"}`。群里每来一条新消息、她看到了，`by` 就换成那一条的人。
 - `owner` 是核心认不认这个人是主人本人。
@@ -48,7 +48,7 @@
 
 ### 三、往对话里加提示
 
-声明 `context.inject` 的扩展，每一轮开始时核心问你一次 `user.append {"session", "venue", "text"?}`。`venue` 是 `local`、`private`、`group`，你照它决定在 QQ 里说不说、说什么。答 `{"content": [{"kind", "text"}]}`，至多 3 块，排在触发这一轮的那句话后面，记进日志、之后原样回放。
+声明 `context.inject` 的扩展（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），每一轮开始时核心问你一次 `user.append {"session", "venue", "text"?}`。`venue` 是 `local`、`private`、`group`，你照它决定在 QQ 里说不说、说什么。答 `{"content": [{"kind", "text"}]}`，至多 3 块，排在触发这一轮的那句话后面，记进日志、之后原样回放。
 
 - 300 毫秒内答不上的当这一轮没交。
 - 外壳、转义你自己做：`text` 原样进上下文。
@@ -91,7 +91,7 @@
 
 ### 七、和接入QQ 打交道
 
-你的扩展能调接入QQ，接入QQ 也能调你。都经核心的 `package.call`（核心作者说明[第四节](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md#四写扩展程序)第 12 条），清单声明 `packages.call`，人批过才行。
+你的扩展能调接入QQ，接入QQ 也能调你。都经核心的 `package.call`（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），清单声明 `packages.call`，人批过才行。
 
 **你调接入QQ**（细节在 [`extending.md` 第一条](../blueprint/extending.md#一调接入qq-的方法)）：
 
@@ -107,7 +107,7 @@
 ### 八、在 QQ 里试
 
 1. 接入QQ 先跑起来：装 NapCat、登录机器人号，`miyu onebot start`，`miyu onebot web` 打开后台页把令牌填进 NapCat，终端管理员和白名单成员在后台页里设好。`miyu onebot status` 看连没连上。
-2. 装你的包：`miyu pkg install ./你的包`，答「打开」并批能力（核心作者说明[第七节「装、试、查」](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md#七装试查)）。场所会话的工具面跟着包变：已经开着的会话下一轮就换上。
+2. 装你的包：`miyu pkg install ./你的包`，答「打开」并批能力（核心作者说明[「装、试、查」](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md#装试查)）。场所会话的工具面跟着包变：已经开着的会话下一轮就换上。
 3. 用终端管理员的 QQ 号私聊机器人号，让她调你的工具。群里试：后台页把一个群加进白名单、打开，@ 她。
 4. 看发生了什么：
    - `miyu onebot logs -f`：接入QQ 的运行日志（判断、入队、发没发出去、挂接点答没答）。

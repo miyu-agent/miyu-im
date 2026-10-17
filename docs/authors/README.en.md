@@ -2,7 +2,7 @@
 
 For third-party authors who want to add features to Miyu in QQ. You write an ordinary Miyu package (an extension, skills, scripts). Once it is installed, she can use it in QQ private chats and QQ groups too.
 
-This page only covers what is different "in QQ" compared with the terminal and the web app. For how to write a package, its manifest and the extension protocol, read the core repository's author guide: [Writing a Miyu package](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md). Calling the QQ bridge's methods and its hook points are specified in this repository's [`docs/blueprint/extending.md`](../blueprint/extending.md) (Chinese).
+This page only covers what is different "in QQ" compared with the terminal and the web app. For how to write a package, its manifest and the extension protocol, read the core repository's author guide: [Writing a Miyu package](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md). Every method's parameters, answers and error codes are in the core's [protocol reference](https://github.com/miyu-agent/miyu/blob/main/docs/reference/README.en.md) (the venue session ones in [`venues.en.md`](https://github.com/miyu-agent/miyu/blob/main/docs/reference/venues.en.md)). Calling the QQ bridge's methods and its hook points are specified in this repository's [`docs/blueprint/extending.md`](../blueprint/extending.md) (Chinese).
 
 Working examples: the memes package [`miyu-memes`](https://github.com/miyu-agent/miyu-memes) (tools, injected hints, sending pictures) and the render package [`miyu-render`](https://github.com/miyu-agent/miyu-render) (a method the bridge calls).
 
@@ -17,7 +17,7 @@ Working examples: the memes package [`miyu-memes`](https://github.com/miyu-agent
 
 ### 2. Making a tool show up in QQ
 
-When your extension registers tools with `provide`, `venues` says which kinds of session get each tool (core author guide, [section 4 "Writing an extension"](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md), item 4):
+When your extension registers tools with `provide`, `venues` says which kinds of session get each tool (core author guide, ["Writing an extension": registering tools](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#registering-tools-provide)):
 
 | Put in `venues` | Shows up in |
 |---|---|
@@ -38,7 +38,7 @@ When your extension registers tools with `provide`, `venues` says which kinds of
 - `venue` is for actions that leave a mark on the platform (recall a message, mute, poke). It runs without asking in venue sessions. In the admin's local sessions it is judged like `outbound`: it runs directly with full access and asks at the workspace level.
 - Part of "this turn's reply" does not count as going out. The memes package's `meme_send` is `read` because the sticker is part of her reply this turn, and the bridge sends it with the reply.
 
-**Who is asking her.** `tool.call` carries `by` and `owner` (core author guide, section 4, item 5):
+**Who is asking her.** `tool.call` carries `by` and `owner` (core author guide, ["Writing an extension": being called](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#being-called-toolcall)):
 
 - `by` is who sent the message she is answering right now, for example `{"kind": "external", "venue": "qq:group:123", "id": "qq:456", "role": "manager"}`. In a group, `by` changes whenever a new message arrives and she sees it.
 - `owner` says whether the core recognizes that person as the owner.
@@ -48,7 +48,7 @@ When your extension registers tools with `provide`, `venues` says which kinds of
 
 ### 3. Adding hints to the conversation
 
-An extension that declares `context.inject` is asked once at the start of every turn: `user.append {"session", "venue", "text"?}`. `venue` is `local`, `private` or `group`, so you can decide whether and what to say in QQ. Answer `{"content": [{"kind", "text"}]}` with at most 3 blocks. They go after the message that started the turn, are written to the log and are replayed byte for byte afterwards.
+An extension that declares `context.inject` (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)) is asked once at the start of every turn: `user.append {"session", "venue", "text"?}`. `venue` is `local`, `private` or `group`, so you can decide whether and what to say in QQ. Answer `{"content": [{"kind", "text"}]}` with at most 3 blocks. They go after the message that started the turn, are written to the log and are replayed byte for byte afterwards.
 
 - An answer later than 300 milliseconds counts as nothing for this turn.
 - You wrap and escape the text yourself: `text` goes into the context as is.
@@ -91,7 +91,7 @@ Groups have many people and many strangers. A tool that changes anything must ch
 
 ### 7. Working with the QQ bridge
 
-Your extension can call the bridge, and the bridge can call you. Both go through the core's `package.call` (core author guide, section 4, item 12). The manifest must declare `packages.call` and a person must approve it.
+Your extension can call the bridge, and the bridge can call you. Both go through the core's `package.call` (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)). The manifest must declare `packages.call` and a person must approve it.
 
 **You call the bridge** (details in [`extending.md` section 1](../blueprint/extending.md)):
 
@@ -107,7 +107,7 @@ Your extension can call the bridge, and the bridge can call you. Both go through
 ### 8. Trying it in QQ
 
 1. Get the bridge running: install NapCat and log in the bot account, run `miyu onebot start`, open the settings page with `miyu onebot web`, put its token into NapCat, and set the terminal admin and whitelisted members there. `miyu onebot status` tells you whether it is connected.
-2. Install your package: `miyu pkg install ./your-package`, answer "turn it on" and approve the capabilities (core author guide, section 7 "Install, try, check"). Venue sessions follow package changes: sessions already open get your tools on their next turn.
+2. Install your package: `miyu pkg install ./your-package`, answer "turn it on" and approve the capabilities (core author guide, ["Install, try, check"](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md#install-try-check)). Venue sessions follow package changes: sessions already open get your tools on their next turn.
 3. Send a private message to the bot account from the terminal admin's QQ account and ask her to use your tool. To try a group, add a group to the whitelist on the settings page, turn it on and @ her.
 4. See what happened:
    - `miyu onebot logs -f`: the bridge's log (decisions, queueing, whether messages went out, whether hooks answered).
