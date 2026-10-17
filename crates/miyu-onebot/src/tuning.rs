@@ -80,6 +80,12 @@ pub struct Tuning {
     pub mute_window_seconds: u64,
     /// 解禁以后最多回几条排着的（施工 O-50，「禁言」第 3 条）：多的丢掉。0 是一条都不回。
     pub mute_replies: usize,
+    /// 一个人的头像的地址（施工 O-54，`onebot.md`「头像和群成员」）：`{id}` 换成 QQ 号。
+    pub avatar_user_url: String,
+    /// 一个群的头像的地址（施工 O-54）：`{id}` 换成群号。
+    pub avatar_group_url: String,
+    /// 查群成员一次最多列几个（施工 O-54），多的只说一共几个。
+    pub members_shown: usize,
 }
 
 impl Tuning {

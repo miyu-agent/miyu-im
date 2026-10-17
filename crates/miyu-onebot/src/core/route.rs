@@ -57,6 +57,7 @@ mod impostor;
 mod judged;
 mod judges;
 mod lanes;
+mod lookup;
 mod muted;
 mod names;
 mod outbound;

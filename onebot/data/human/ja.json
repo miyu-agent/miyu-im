@@ -4,7 +4,9 @@
     "recall": { "name": "取り消し" },
     "mute": { "name": "発言禁止", "subject": "seconds" },
     "poke": { "name": "つつく" },
-    "fetch_media": { "name": "画像やファイルを取得", "subject": "msg" }
+    "fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
+    "avatar": { "name": "アイコン" },
+    "members": { "name": "グループのメンバー", "subject": "query" }
   },
   "said": {
     "usage": "使い方：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",

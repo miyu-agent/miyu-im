@@ -1,0 +1,1 @@
+Showing {shown} of {total} members: {list}

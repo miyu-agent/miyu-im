@@ -168,6 +168,7 @@ impl NapCat {
                             && !platform
                             && kind != "get_version_info"
                             && kind != "get_group_member_info"
+                            && kind != "get_group_member_list"
                             && kind != "get_group_info"
                             && !FETCHING.contains(&kind);
                         if sending && refuse {
@@ -283,6 +284,20 @@ fn answer(
             | "group_poke"
             | "friend_poke",
         ) => ("ok", Value::Null),
+        // 群成员列表（施工 O-54）：照给的群成员回，身份照 `ranks`。
+        Some("get_group_member_list") => {
+            let list: Vec<Value> = members
+                .iter()
+                .map(|(id, card, nickname)| {
+                    let role = ranks
+                        .iter()
+                        .find(|(user, _)| user == id)
+                        .map_or("member", |(_, role)| role);
+                    json!({"user_id": id, "card": card, "nickname": nickname, "role": role})
+                })
+                .collect();
+            ("ok", Value::Array(list))
+        }
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);

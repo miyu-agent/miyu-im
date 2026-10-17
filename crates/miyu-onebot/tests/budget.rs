@@ -6,15 +6,25 @@
 //! （2026-10-10 同一个端点、同一个办法）：十九件一起时四件的边际份量 70、36、80、46，合计 232 个 token、825 字节；预算是实测加
 //! 一成，255 个 token，合 910 字节。施工 O-33 加 `fetch_media`（2026-10-11 同一个端点、同一个办法）：二十件一起时边际份量 114，
 //! 五件合计 346 个 token、1206 字节；预算是实测加一成，381 个 token，合 1327 字节。施工 O-48 给 `recall`、`mute` 加参数（2026-10-17
-//! 同一个端点、同一个办法，二十三件一起）：五件合计 380 个 token、1302 字节，还在预算里。加工具、改说明超了，重新量过再改这里和设计。
+//! 同一个端点、同一个办法，二十三件一起）：五件合计 380 个 token、1302 字节，还在预算里。施工 O-54 加 `avatar`、
+//! `members`（2026-10-17 同一个端点、同一个办法，二十五件一起）：边际份量 84、55，七件合计 519 个 token、1795 字节；预算是实测
+//! 加一成，571 个 token，合 1974 字节。加工具、改说明超了，重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 1327;
+const BUDGET: usize = 1974;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 5] = ["fetch_media", "mute", "poke", "recall", "skip_reply"];
+const TOOLS: [&str; 7] = [
+    "avatar",
+    "fetch_media",
+    "members",
+    "mute",
+    "poke",
+    "recall",
+    "skip_reply",
+];
 
 #[test]
 fn the_bridge_tool_face_stays_within_its_budget() {

@@ -26,5 +26,8 @@
   "hook_millis": 1500,
   "group_info_seconds": 3600,
   "mute_window_seconds": 300,
-  "mute_replies": 3
+  "mute_replies": 3,
+  "avatar_user_url": "https://q1.qlogo.cn/g?b=qq&nk={id}&s=640",
+  "avatar_group_url": "https://p.qlogo.cn/gh/{id}/{id}/640/",
+  "members_shown": 30
 }

@@ -4,7 +4,9 @@
     "recall": { "name": "撤回" },
     "mute": { "name": "禁言", "subject": "seconds" },
     "poke": { "name": "戳一戳" },
-    "fetch_media": { "name": "取图和文件", "subject": "msg" }
+    "fetch_media": { "name": "取图和文件", "subject": "msg" },
+    "avatar": { "name": "取头像" },
+    "members": { "name": "群成员", "subject": "query" }
   },
   "said": {
     "usage": "用法：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <场所>（serve 只由核心拉起）",

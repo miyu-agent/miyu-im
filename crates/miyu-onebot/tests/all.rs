@@ -32,6 +32,7 @@ mod lanes;
 mod linking;
 mod listen;
 mod logs;
+mod lookup;
 mod media;
 mod members;
 mod muted;

@@ -27,7 +27,7 @@ use crate::onebot::{DETAIL, Fetch, To, segments};
 use crate::rules::Tools;
 
 /// 取东西的几个数（`bridge.json`，施工 O-33）。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct Fetching {
     /// 冲她来的那条（和它引用的那条）各最多带几张图（`message_images`）。
     pub(crate) images: usize,
@@ -37,6 +37,10 @@ pub(crate) struct Fetching {
     pub(crate) wait: Duration,
     /// 冲她来的那条的图等多久（`call_timeout_seconds`）：交消息以前取，不能等太久。
     pub(crate) quick: Duration,
+    /// 头像的地址：一个人的、一个群的，`{id}` 换成号（施工 O-54，`lookup`）。
+    pub(crate) avatars: (String, String),
+    /// 查群成员一次最多列几个（施工 O-54）。
+    pub(crate) members: usize,
 }
 
 /// 她要的那一样：消息的平台编号、第几样（从 1 数；写错的是 0，取的时候照「没有这一样」答）。

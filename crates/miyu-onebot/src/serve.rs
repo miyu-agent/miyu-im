@@ -244,6 +244,11 @@ pub async fn run(
             per_turn: gate.tuning.fetch_per_turn,
             wait: gate.tuning.fetch(),
             quick: gate.tuning.call_timeout(),
+            avatars: (
+                gate.tuning.avatar_user_url.clone(),
+                gate.tuning.avatar_group_url.clone(),
+            ),
+            members: gate.tuning.members_shown,
         },
         Forwarding {
             per_message: gate.tuning.message_forwards,
