@@ -245,3 +245,17 @@ fn setting_keys_read_as_their_names_in_the_language() {
         ["onebot.sleep"]
     );
 }
+
+#[test]
+fn the_package_folder_is_named_after_the_package() {
+    // 施工 O-44：核心照文件夹的名字定包的编号，仓库里的包文件夹一定叫 `onebot`，从源码 `miyu pkg install ./onebot` 装出来
+    // 配置项的键才是 `onebot.*`（原来叫 `package/`，装出来编号是 `package`）。
+    let dir = crate::support::assembled::package_dir()
+        .canonicalize()
+        .expect("在");
+    assert_eq!(
+        dir.file_name().and_then(|name| name.to_str()),
+        Some(miyu_onebot::PACKAGE)
+    );
+    assert!(dir.join("package.toml").is_file());
+}

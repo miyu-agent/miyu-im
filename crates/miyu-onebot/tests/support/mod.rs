@@ -81,7 +81,7 @@ pub fn admin() -> AccountId {
     AccountId::parse("admin").expect("账号合写法")
 }
 
-/// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `package/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
+/// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `onebot/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
 pub fn resources() -> PathBuf {
     assembled::resources()
 }
@@ -91,7 +91,7 @@ pub fn package_in(resources: impl AsRef<Path>) -> Package {
     Package::at(resources.as_ref().join("packages").join("onebot"))
 }
 
-/// 这个仓库的包文件夹 `package/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
+/// 这个仓库的包文件夹 `onebot/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
 pub fn package() -> Package {
     Package::at(assembled::package_dir())
 }

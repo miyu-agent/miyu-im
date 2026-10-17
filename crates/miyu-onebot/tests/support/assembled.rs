@@ -1,6 +1,6 @@
 //! 测试用的出厂资源目录（施工 S-6 中）：核心的资源目录以后没有 `packages/onebot/`（核心施工 S-6 下删），测试要的「出厂的
 //! onebot 包」照钉住的那份核心检出拼出来：抄一份核心的 `resources/`（门面 `testkit` 的 [`miyu_client::WORKSPACE_ROOT`]，
-//! git 依赖在 cargo 的检出里是整个核心仓库），再把这个仓库的 `package/` 放成它的 `packages/onebot/`。核心里要是还带着一份
+//! git 依赖在 cargo 的检出里是整个核心仓库），再把这个仓库的 `onebot/` 放成它的 `packages/onebot/`。核心里要是还带着一份
 //! `packages/onebot/`（钉住的提交在 S-6 下以前），先删掉，用的总是这个仓库的。
 //!
 //! 一个测试程序拼一次（[`resources`]），放在 cargo 给集成测试的临时目录（`CARGO_TARGET_TMPDIR`）下、按进程分开。拷贝不用
@@ -15,12 +15,12 @@ use super::copy_tree;
 /// 留着的旧拼法多久以后删：比一趟测试跑得久得多，删不到正在跑的别的测试程序的那一份。
 const STALE: Duration = Duration::from_secs(60 * 60);
 
-/// 这个仓库的包文件夹 `package/`。
+/// 这个仓库的包文件夹 `onebot/`。
 pub fn package_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../package")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../onebot")
 }
 
-/// 拼好的资源目录：核心的出厂资源加上这个仓库的 `package/`（`packages/onebot/`）。一个测试程序第一次要时拼，以后照用。
+/// 拼好的资源目录：核心的出厂资源加上这个仓库的 `onebot/`（`packages/onebot/`）。一个测试程序第一次要时拼，以后照用。
 pub fn resources() -> PathBuf {
     static ASSEMBLED: OnceLock<PathBuf> = OnceLock::new();
     ASSEMBLED.get_or_init(assemble).clone()

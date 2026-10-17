@@ -51,5 +51,5 @@ pub const TARGET: &str = "miyu::onebot";
 /// 还没有字可用时印原话的开头，也是程序的名字。
 pub const PROGRAM: &str = "miyu-onebot";
 
-/// 这个软件包的编号（`package/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
+/// 这个软件包的编号（`onebot/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
 pub const PACKAGE: &str = "onebot";

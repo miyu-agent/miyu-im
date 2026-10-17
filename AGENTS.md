@@ -4,12 +4,12 @@
 
 ## 这个仓库是什么
 
-Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot`）、群聊内核 `crates/miyu-chat`、包文件夹 `package/`。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install ./onebot`。
+Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot`）、群聊内核 `crates/miyu-chat`、包文件夹 `onebot/`。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install ./onebot`。
 
 ## 先读什么
 
 - `docs/blueprint/onebot.md`（桥）、`docs/blueprint/chat.md`（群聊内核）：现在长什么样，事无巨细，由哪些测试守着。改一个部件之前，先读它那一节。`docs/blueprint/extending.md`：写给扩展包作者的约定（施工 O-42 起），改给别的包调的方法、挂接点时一起改。
-- `docs/ledger.md`：登记簿，`package/data/` 里给模型看的每一份字。
+- `docs/ledger.md`：登记簿，`onebot/data/` 里给模型看的每一份字。
 - `docs/construction/README.md`：施工方案，怎么施工、做到哪了；每一步的施工单在同一个目录。
 - 核心仓库的设计文档（`docs/designs/`）：平台接入是设计 18，给模型看的字是设计 26，软件包是设计 31。O 线以前的施工单在核心仓库的 `docs/construction/` 里，是历史；O-40 起的施工单写在这个仓库的 `docs/construction/`。
 
@@ -40,8 +40,8 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 - 加第三方依赖之前先看许可证：仓库是 GPL-3.0-or-later，依赖要能和它合在一起发，门禁的「许可证」一项查。
 - 一个模块一种职责；文件小，每个 `.rs` 不超过 500 行，测试也算。
 - 不吞错误：要么处理，要么如实上报（不写 `let _ =`、`.ok()` 扔错误）。
-- 无硬编码：数值、文字、名单是数据，住在 `package/data/` 里。
-- 给模型看的字一律英文短句；给人看的字照三种语言（`package/data/human/`），不用「她」说 AI。
+- 无硬编码：数值、文字、名单是数据，住在 `onebot/data/` 里。
+- 给模型看的字一律英文短句；给人看的字照三种语言（`onebot/data/human/`），不用「她」说 AI。
 - 给模型看的字克制、有账：非必要不加，加之前先实测证明不加不行、量出多少 token；加了就登记在 `docs/ledger.md`，门禁照文件算指纹、和登记簿一一对上。
 - 注释用中文，名字用英文；公开的东西都写 `///`，模块开头写 `//!`：管什么、设计在哪。第一句说它是什么，接着写为什么这样、要守的规矩、容易踩的坑；照图纸、设计写的注明出处（文件名加节号、施工步号）。会出错的写 `# Errors`，会 panic 的写 `# Panics`；私有的代码，不直白的地方写「为什么」。代码改了，注释一起改。
 
@@ -53,7 +53,7 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 
 - 测试一律把 `MIYU_HOME` 指到临时目录，绝不碰真实数据。
 - 往坏里测：边界情况、奇怪的组合、故意去弄坏它。修 bug 先复现，修完照原步骤再验证，相近的情况也测一遍。
-- 要出厂资源的测试照钉住的那份核心检出（门面 `testkit` 的 `WORKSPACE_ROOT`）拼一个临时资源目录，把这个仓库的 `package/` 放成它的 `packages/onebot/`（`crates/miyu-onebot/tests/support/assembled.rs`）；直接拉桥的设 `MIYU_PACKAGE_DIR` 指 `package/`。
+- 要出厂资源的测试照钉住的那份核心检出（门面 `testkit` 的 `WORKSPACE_ROOT`）拼一个临时资源目录，把这个仓库的 `onebot/` 放成它的 `packages/onebot/`（`crates/miyu-onebot/tests/support/assembled.rs`）；直接拉桥的设 `MIYU_PACKAGE_DIR` 指 `onebot/`。
 - 每个 crate 的集成测试并成一个程序 `tests/all.rs`，一个文件一个模块；装日志订阅者的自己一个程序，在 `Cargo.toml` 另列 `[[test]]`。门禁查漏掉的文件。
 - 量尺类的测试标 `#[ignore]`；断言结果，不断言耗时。
 

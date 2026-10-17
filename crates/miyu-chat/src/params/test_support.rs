@@ -7,7 +7,7 @@ use crate::Params;
 use crate::rules::{File, Problem, Source};
 
 /// 仓库里的出厂文件。
-pub(crate) const DEFAULTS: &str = include_str!("../../../../package/data/defaults.toml");
+pub(crate) const DEFAULTS: &str = include_str!("../../../../onebot/data/defaults.toml");
 
 /// 出厂文件的名字：问题里的 `file` 照交进来的。
 pub(crate) const NAME: &str = "defaults.toml";

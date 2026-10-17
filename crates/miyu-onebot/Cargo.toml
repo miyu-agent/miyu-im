@@ -52,7 +52,7 @@ workspace = true
 # 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
 miyu-ipc = { workspace = true }
 # 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/onebot/`，
-# 把这个仓库的 `package/` 放进去，`tests/support/assembled.rs`）。
+# 把这个仓库的 `onebot/` 放进去，`tests/support/assembled.rs`）。
 miyu-client = { workspace = true, features = ["testkit"] }
 # 测试里造编号、读会话日志、装记日志的订阅者、拼请求这些门面上没有的（施工 S-6 上以前是正式依赖）。
 miyu-store = { workspace = true }
