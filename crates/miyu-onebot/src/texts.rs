@@ -5,7 +5,7 @@
 //! `miyu` 的那一句（施工 O-28 补）也在这里。
 //!
 //! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
-//! `language`。日文没有专门写的，`ja.json` 照英文写，和核心拒绝时的话一样（`protocol.md`「握手」`language`）。
+//! `language`。三种语言各写一份（`ja.json` 施工 O-45 起是日文，原来照英文写）。
 
 use miyu_chat::{Entry, Problem, Source};
 use miyu_client::places::ResourceRoot;

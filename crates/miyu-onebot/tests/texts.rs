@@ -323,17 +323,24 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
 }
 
 #[test]
-fn japanese_reads_as_english_and_the_language_can_change() {
+fn japanese_is_its_own_and_the_language_can_change() {
+    // 施工 O-45：日文另写一份（原来照英文写），说的每一句都不和英文一样。
     let english = Texts::load(resources(), crate::support::package(), "en").expect("读得出来");
     let mut texts = Texts::load(resources(), crate::support::package(), "ja").expect("读得出来");
-    assert_eq!(everything(&texts), everything(&english));
+    let same: Vec<String> = everything(&texts)
+        .into_iter()
+        .zip(everything(&english))
+        .filter(|(ja, en)| ja == en)
+        .map(|(ja, _)| ja)
+        .collect();
+    assert_eq!(same, Vec::<String>::new(), "和英文一样的");
     assert_eq!(
         texts.usage(),
-        "usage: miyu onebot start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)"
+        "使い方：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "The QQ bridge stopped and the core will not start it again: a configuration error or a port in use (exit code 1). Fix it, then run miyu onebot restart."
+        "QQ接続は止まっていて、コアはもう起動しません：設定の誤りか、ポートが使われています（終了コード 1）。直してから miyu onebot restart を実行してください。"
     );
     texts.speak("zh").expect("读得出来");
     assert_eq!(texts.report(&Report::NoNapcat), "NapCat 还没连上。");

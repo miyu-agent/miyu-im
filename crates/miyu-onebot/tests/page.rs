@@ -142,3 +142,18 @@ fn the_entry_loads_the_app_as_a_module() {
         "{index}"
     );
 }
+
+#[test]
+fn japanese_is_written_in_japanese() {
+    // 施工 O-45：`ja` 另写一份（原来照英文写）。和英文一样的只有专名、地址的样子。
+    let texts = texts();
+    let (ja, en) = (&texts["ja"], &texts["en"]);
+    let same: BTreeSet<&str> = ja
+        .as_object()
+        .expect("是对象")
+        .iter()
+        .filter(|(key, value)| en[key.as_str()] == **value)
+        .map(|(key, _)| key.as_str())
+        .collect();
+    assert_eq!(same, BTreeSet::from(["fill/url", "napcat"]));
+}
