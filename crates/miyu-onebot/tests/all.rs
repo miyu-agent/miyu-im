@@ -60,6 +60,7 @@ mod skipped;
 mod spawned;
 mod status_file;
 mod stdio;
+mod steering;
 mod superseded;
 mod text;
 mod texts;

@@ -187,7 +187,7 @@ pub async fn run(
     }
     let bots = Arc::new(Bots::default());
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
-    let hooks = Arc::new(Hooks::new(core.caller()));
+    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook()));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
     let applied = settings.port;

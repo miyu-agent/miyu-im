@@ -18,7 +18,7 @@ use miyu_store::root::DataRoot;
 pub use super::answering::{Answering, FIRST_SENT, Member, Rank, UNRECALLABLE, unrecallable};
 use super::ports::on_free_port;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
-use super::{BOT, Home, NapCat, TIME, admin_napcat};
+use super::{BOT, Home, NapCat, TIME, admin_napcat, resources, tuned_resources};
 
 /// 正向的等待最多多久：真的程序、真的核心，负载高时慢。
 pub const WAIT: Duration = Duration::from_secs(60);
@@ -227,9 +227,55 @@ async fn up(
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
 ) -> (Home, Answering, u16) {
+    up_installed(
+        models,
+        (more, tuned),
+        (rules, words),
+        onebot,
+        answer,
+        |_| {},
+    )
+    .await
+}
+
+/// 同 [`started`]，核心起来以前照 `install` 往数据根里装别的包（施工 O-43 中：挂进站挂接点的测试包，`hooked::install`）。
+pub async fn started_installed(
+    script: &Script,
+    rules: &str,
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
+    up_installed(
+        Arc::new(script.clone()),
+        ("", &Value::Null),
+        (rules, ""),
+        "",
+        |napcat| napcat.answering(members),
+        install,
+    )
+    .await
+}
+
+/// 同 [`up`]，核心起来以前照 `install` 往数据根里放东西（换端口重来的每一次都放）。
+async fn up_installed(
+    models: Arc<dyn Models>,
+    (more, tuned): (&str, &Value),
+    (rules, words): (&str, &str),
+    onebot: &str,
+    answer: impl FnOnce(NapCat) -> Answering,
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
     let (home, listen) = on_free_port(async |listen| {
         let config = format!("{}{more}", ports_config_with(listen, onebot));
-        let home = Home::spawning_tuned(Arc::clone(&models), &config, tuned);
+        let home = Home::spawning_installed(
+            Arc::clone(&models),
+            &config,
+            |dir| match tuned.as_object() {
+                Some(keys) => tuned_resources(dir, keys),
+                None => resources(),
+            },
+            install.clone(),
+        );
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");

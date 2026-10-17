@@ -86,6 +86,10 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
         Outcome::Notice(why) => ("notice", Some(why)),
     };
     body["inbound"] = json!(inbound);
+    // 进站挂接点改了结论的（施工 O-43 中）：哪个包、什么意见。
+    if let Some(steered) = &decision.steered {
+        body["hook"] = json!({"package": steered.by, "route": steered.steer.name()});
+    }
     if let Some(why) = why {
         body["why"] = json!(why_name(why));
     }

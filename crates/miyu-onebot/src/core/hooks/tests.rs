@@ -50,3 +50,51 @@ fn a_pushed_entry_hooks_or_unhooks_that_package_only() {
     assert_eq!(hooked_at(&hooked, EVENT), Vec::<String>::new());
     assert!(hooked.is_empty());
 }
+
+#[test]
+fn the_heaviest_opinion_wins_and_names_the_first_package_giving_it() {
+    let answers = |pairs: &[(&str, Steer)]| -> Vec<(String, Steer)> {
+        pairs
+            .iter()
+            .map(|(package, steer)| ((*package).to_string(), *steer))
+            .collect()
+    };
+    assert_eq!(heaviest(Vec::new()), Steered::pass());
+    assert_eq!(
+        heaviest(answers(&[("a", Steer::Pass), ("b", Steer::Pass)])),
+        Steered::pass()
+    );
+    assert_eq!(
+        heaviest(answers(&[
+            ("a", Steer::Reply),
+            ("b", Steer::Record),
+            ("c", Steer::Record)
+        ])),
+        Steered {
+            steer: Steer::Record,
+            by: Some("b".to_string())
+        }
+    );
+    assert_eq!(
+        heaviest(answers(&[
+            ("a", Steer::Pass),
+            ("b", Steer::Reply),
+            ("c", Steer::Pass)
+        ])),
+        Steered {
+            steer: Steer::Reply,
+            by: Some("b".to_string())
+        }
+    );
+    for (route, steer) in [
+        ("pass", Steer::Pass),
+        ("reply", Steer::Reply),
+        ("record", Steer::Record),
+    ] {
+        assert_eq!(Steer::read(&json!(route)), Some(steer));
+        assert_eq!(steer.name(), route);
+    }
+    for wrong in [json!("Record"), json!(""), json!(1), json!(null)] {
+        assert_eq!(Steer::read(&wrong), None, "{wrong}");
+    }
+}

@@ -40,6 +40,7 @@ fn decision(route: Route, conclusion: Conclusion, supersede: Supersede) -> Decis
             rate_full: false,
         }),
         conclusion,
+        steered: None,
     }
 }
 
@@ -359,4 +360,22 @@ fn kinds_read_back_as_written() {
     );
     assert_eq!(kind_of("inherited"), None);
     assert_eq!(kind_of(""), None);
+}
+
+#[test]
+fn a_steered_decision_names_the_package_and_its_opinion() {
+    // 施工 O-43 中：进站挂接点改了结论的，判断里写哪个包、什么意见；没改的不带这一格。
+    let plain = decision(Route::Judge, Conclusion::Record, Supersede::None);
+    assert!(body(&plain, Standing::Member, None).get("hook").is_none());
+    let steered = Decision {
+        steered: Some(crate::core::hooks::Steered {
+            steer: crate::core::hooks::Steer::Record,
+            by: Some("guard".to_string()),
+        }),
+        ..plain
+    };
+    assert_eq!(
+        body(&steered, Standing::Member, None)["hook"],
+        json!({"package": "guard", "route": "record"})
+    );
 }

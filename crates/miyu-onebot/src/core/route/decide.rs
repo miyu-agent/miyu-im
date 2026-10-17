@@ -12,6 +12,7 @@ use miyu_chat::{
 };
 
 use super::discipline::Discipline;
+use crate::core::hooks::Steered;
 
 /// 判一条要的。
 pub(super) struct Case<'a> {
@@ -59,6 +60,8 @@ pub(super) struct Decision {
     pub(super) passed: Option<Passed>,
     /// 结论。
     pub(super) conclusion: Conclusion,
+    /// 进站挂接点改了结论的（施工 O-43 中，`steering`）：意见和给出它的包；没改的是空的。
+    pub(super) steered: Option<Steered>,
 }
 
 /// 放行了的一条怎么走的。
@@ -106,6 +109,7 @@ pub(super) fn decide(case: &Case<'_>) -> Decision {
         verdict,
         passed,
         conclusion,
+        steered: None,
     }
 }
 

@@ -66,6 +66,8 @@ fn the_shipped_numbers_are_the_blueprints() {
         ),
         (4, 2, 20, 500)
     );
+    // 问挂接点的包最多等一秒半（施工 O-43 中）。
+    assert_eq!(tuning.hook(), Duration::from_millis(1500));
 }
 
 #[test]

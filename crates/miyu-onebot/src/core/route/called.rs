@@ -27,6 +27,7 @@ use super::projection::DECIDED;
 use super::sending::{Piece, What};
 use super::{Route, applied};
 use crate::TARGET;
+use crate::core::hooks::{Steer, Steered};
 use crate::core::{Gone, reason};
 use crate::onebot::{Lead, MediaKind};
 
@@ -67,8 +68,9 @@ struct Weighed {
 }
 
 impl Route {
-    /// 群会话 `session` 里刚记下的、序号是 `seq` 的这一条（`heard`）：判它；要问判官的交出去，别的记判断、照结论做（第 3 到 8、
-    /// 10、11 条）。
+    /// 群会话 `session` 里刚记下的、序号是 `seq` 的这一条（`heard`）：判它，照进站挂接点的意见 `steered` 改（施工 O-43 中，
+    /// [`steer`]）；要问判官的交出去，别的记判断、照结论做（第 3 到 8、10、11 条）。`known` 是刚记下的那一刻它是不是已经在投影里
+    /// （[`Route::known`]，重发的不再判）：问挂接点的这段时间投影会补上它，所以由调的一方在记下时就看好交进来。
     ///
     /// # Errors
     ///
@@ -78,11 +80,8 @@ impl Route {
         session: &str,
         seq: u64,
         heard: Heard,
+        (steered, known): (Steered, bool),
     ) -> Result<(), Gone> {
-        let known = self
-            .groups
-            .get(session)
-            .is_some_and(|group| group.knows(seq));
         self.catch_up(session).await?;
         if known {
             tracing::debug!(target: TARGET, venue = %heard.venue.id(), message = heard.number, "already decided");
@@ -91,6 +90,7 @@ impl Route {
         let Some(weighed) = self.weigh(session, seq, &heard) else {
             return Ok(());
         };
+        let weighed = steer(weighed, steered);
         // 顶替重判的：先放下在判的那一次，它的正文接在前面（几条一起解 base64）。
         let mut texts = Vec::new();
         if let Some(passed) = &weighed.decision.passed
@@ -111,6 +111,14 @@ impl Route {
                     .await
             }
         }
+    }
+
+    /// 群会话 `session` 里序号是 `seq` 的这一条这时是不是已经在投影里：在的是重发的（第 8 条），不再判。要在刚记下、还没收留着
+    /// 的推送时看。
+    pub(super) fn known(&self, session: &str, seq: u64) -> bool {
+        self.groups
+            .get(session)
+            .is_some_and(|group| group.knows(seq))
     }
 
     /// 记一笔判断（`judged` 是问了判官的那一次），照最后怎么做做（第 7 条）：回的开一轮，提示的回一句，别的不再做什么。
@@ -334,4 +342,21 @@ fn tag(heard: &Heard) -> Tag {
         number: heard.number,
         venue: heard.venue.id().to_string(),
     }
+}
+
+/// 照进站挂接点的意见改判断（施工 O-43 中，`onebot.md`「挂接点」第 3 条）：只记下的改成只记下，终端管理员的不改；直接回的，进站
+/// 链放行了的改成回（限流、睡觉、不让叫她的群在进站链就只记下了，越不过去；放行了、额度满了的只有不受限流的白名单成员，照他们
+/// 的豁免回）；照常的、改不了的不动。改了的把意见记在判断上（`body` 写 `hook`）。
+fn steer(mut weighed: Weighed, steered: Steered) -> Weighed {
+    let decision = &mut weighed.decision;
+    let to = match steered.steer {
+        Steer::Record if weighed.standing != Standing::Admin => Conclusion::Record,
+        Steer::Reply if decision.passed.is_some() => Conclusion::Reply,
+        _ => return weighed,
+    };
+    if decision.conclusion != to {
+        decision.conclusion = to;
+        decision.steered = Some(steered);
+    }
+    weighed
 }

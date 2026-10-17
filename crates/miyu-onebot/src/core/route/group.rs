@@ -7,7 +7,7 @@
 //! 4. 正文空白、又没有带的东西的不送；只有带的东西的照样交（「施工时定的」第 67 条）。冲她来的（@ 她、引用她、关键词开头）
 //!    交以前取这一条和它引用的那一条的图，`attachments` 带上（施工 O-33，`pictures`）。
 //! 5. 照私聊的办法交（`Route::submit`）：`/` 开头的先当斜杠命令，回执发回群里；别的 `session.send` 带场所的格。
-//! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）。
+//! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）；挂了进站挂接点的先问它（施工 O-43 中，`steering`）。
 //!
 //! 带合并转发的（施工 O-34）：正文里照旧是占位，交以前展开、写进场所的格（`forwards`）。
 
@@ -109,12 +109,22 @@ impl Route {
                 .map(|media| media.kind)
                 .collect(),
         };
+        // 问进站挂接点的那一条（施工 O-43 中，`onebot.md`「挂接点」第 3 条）。
+        let ask = json!({
+            "venue": heard.venue.id().as_str(),
+            "bot": posted.bot,
+            "msg": posted.message_id.to_string(),
+            "sender": {"id": heard.sender.as_str(), "name": posted.name},
+            "text": heard.text,
+            "mentions_me": flags.mentions_me,
+            "quotes_me": quotes_me,
+        });
         let Some((session, reply)) = self.submit(message).await? else {
             return Ok(());
         };
         // 被拒的没有序号，不判。
         match reply["result"]["events"][0].as_u64() {
-            Some(seq) => self.called(&session, seq, heard).await,
+            Some(seq) => self.steer(session, seq, heard, ask).await,
             None => Ok(()),
         }
     }

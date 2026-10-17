@@ -74,6 +74,7 @@ mod revive;
 mod sending;
 mod session;
 mod speak;
+mod steering;
 #[cfg(test)]
 mod tests;
 
@@ -114,6 +115,7 @@ use quiet::Quiet;
 pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
 use session::Place;
+use steering::Steering;
 
 /// 一个场所会话的回执、回话发到哪：收进它的机器人号、私聊的对方或者群；场所只拿来记运行日志。
 #[derive(Debug, Clone)]
@@ -200,6 +202,8 @@ pub(crate) struct Route {
     configured: mpsc::UnboundedSender<Map<String, Value>>,
     /// 挂接点（施工 O-43 上，`packages`）：起来时订阅软件包列表，推来的照换。
     hooks: Arc<Hooks>,
+    /// 问过进站挂接点、照先后等着判的（施工 O-43 中，`steering`）。
+    steering: FuturesOrdered<JoinHandle<Steering>>,
 }
 
 impl Route {
@@ -258,6 +262,7 @@ impl Route {
             forwarding,
             configured,
             hooks,
+            steering: FuturesOrdered::new(),
         }
     }
 
@@ -296,6 +301,13 @@ impl Route {
                 () = tokio::time::sleep(wake.unwrap_or_default()), if wake.is_some() => {
                     self.pump().await.map_err(|Gone| None)
                 }
+                Some(joined) = self.steering.next(), if !self.steering.is_empty() => match joined {
+                    Ok(steering) => self.steered(steering).await.map_err(|Gone| None),
+                    Err(error) => {
+                        tracing::error!(target: TARGET, error = %error, "hook task crashed");
+                        Err(Some(Failure::Crashed(error.to_string())))
+                    }
+                },
                 Some(joined) = self.judges.running.join_next(), if !self.judges.running.is_empty() => match joined {
                     Ok(asked) => self.judged(asked).await.map_err(|Gone| None),
                     Err(error) => {
