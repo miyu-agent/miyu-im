@@ -167,7 +167,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
 
     let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
         .expect("桥写了运行日志");
-    assert!(log.contains("methods registered count=4"), "{log}");
+    assert!(log.contains("methods registered count=5"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
     napcat.close().await;
@@ -198,7 +198,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     .await;
     assert_eq!(
         registered["params"],
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]})
+        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}, {"name": "qq.send"}]})
     );
     for (id, method) in [
         ("core-1", "apply"),

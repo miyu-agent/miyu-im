@@ -7,7 +7,8 @@
     "fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
     "avatar": { "name": "アイコン" },
     "members": { "name": "グループのメンバー", "subject": "query" },
-    "mention": { "name": "メンション" }
+    "mention": { "name": "メンション" },
+    "qq_send": { "name": "QQ メッセージを送る", "subject": "text" }
   },
   "said": {
     "usage": "使い方：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",

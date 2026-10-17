@@ -25,6 +25,7 @@
 - 施工 O-53 的一份（`onebot/data/facts/impostor.txt`）2026-10-17 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量：接在 `hi` 和一个换行后面量，带行尾换行，`msg` 填 10 位的 `1234567890`、`name` 填 `老板` 是 38。同一个人借同一个名字只记一块，进了历史留到压缩。
 - 施工 O-54 的四份（`onebot/data/tools/avatar.json`、`members.json`，`tool-results/members.txt`、`no-members.txt`）2026-10-17 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量，量法同 O-48：二十五件（基础系统十八件和桥的七件）一起时边际份量 `avatar` 84、`members` 55，整个 tools 数组 3486 → 3625；两句结果接在 `hi` 和一个换行后面量，带行尾换行，字段空着：`members.txt` 13（列出来的一行另算：一个人约 8 到 10 个）、`no-members.txt` 4。`avatar` 私聊、群的工具面上有，`members` 只在群的；本机的会话没有。
 - 施工 O-55 的三份（`onebot/data/tools/mention.json`，`tool-results/mentioned.txt`、`not-members.txt`）2026-10-17 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量，量法同 O-48：二十六件一起时 `mention` 的边际份量 66，整个 tools 数组 3625 → 3691；两句结果接在 `hi` 和一个换行后面量，带行尾换行，字段空着：`mentioned.txt` 8、`not-members.txt` 11。`mention` 只在群的工具面上。
+- 施工 O-56 的三份（`onebot/data/tools/qq_send.json`，`tool-results/sent.txt`，`facts/reached.txt`）2026-10-17 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量：二十七件一起时 `qq_send` 的边际份量 86（第一稿两个号的参数各带一句是 99，去掉、说明里写「friend (user)」以后 86），整个 tools 数组 3691 → 3777；`sent.txt` 接在 `hi` 和一个换行后面量是 2；`reached.txt` 的 `text` 填 14 个字的中文是 31。`qq_send` 在私聊、群的工具面上（本机会话里用等核心的「一件工具同时给本机和场所」）；`reached` 发到别的场所才有一块。
 - 施工 O-36 的一份（`onebot/data/facts/another-line.txt`）2026-10-11 照开发端点（magpie 网关）在真实位置量：真核心拉起真桥、真模型（`kimi-k3`）跑一遍「两个人几乎同时 @ 她」，抓下支线第一次请求的原样字节（人格、示范对话、工具面、事实外壳、近况都是真的），只换那一块，`kimi-k3`、`deepseek-v4.1-flash` 各 15 次：候选 a（原句 `Another line is already replying to msg=504.` 带外壳）重复回 A 1/15、3/15，`skip` 0、1；候选 b（末尾加 `You are replying to msg=505.`）重复回 A 0/15、0/15，`skip` 0、0，回 B 15/15、15/15；不带外壳的原句（草稿 `lane-marker/` 那种，另量的对照）0/15、2/15，`skip` 1、0。定 b。接在 `hi` 和一个换行后面量，带行尾换行，`msg`、`aim` 填十位的 QQ 消息编号：b 是 33，a 是 21。只在有别的线还在回的那一轮开头有，一条一块。
 
 ### 登记簿
@@ -50,6 +51,7 @@
 | `onebot/data/facts/muted.txt` | 事实（`kind` 是 `muted`），桥经核心的 `session.note` 记 | 她在群里被禁言的那一刻，一次一块：谁禁的（群成员缓存里的名字，没有的写号，不知道的空着）、禁多久（`10m` 这样）（`onebot.md`「禁言」，施工 O-50） | 31（`群主`、`10m`；2026-10-17 量） | 2026-10-17 项目主人定：禁言那一刻注入上下文、解禁那一刻再注入一次，她知道自己是被禁言以后才开始回 | `311d3304` |
 | `onebot/data/facts/unmuted.txt` | 事实（`kind` 是 `unmuted`），同上 | 她被解禁的那一刻：怎么解的（`lifted` 有人解、`expired` 到点）、谁解的（到点的空着）（同上） | 26（`lifted`、`群主`），23（`expired`） | 同上 | `8865283e` |
 | `onebot/data/facts/impostor.txt` | 事实（`kind` 是 `impostor`），桥经核心的 `session.note` 记 | 群里有人的名字含着终端管理员在这个群用过的名字、或者她的群名片，他又不是那个人：记在他那一条后面，写着哪一条、借的是谁的名字；同一个人借同一个名字只记一块（`onebot.md`「冒充提醒」，施工 O-53） | 38（10 位编号、`老板`；2026-10-17 量） | 2026-10-17 项目主人定：识人术，免得她在群里被别人借名字带着走；旧版有同样的提示（`protected_identity_conflict`） | `0588fcfd` |
+| `onebot/data/facts/reached.txt` | 事实（`kind` 是 `reached`），桥经核心的 `session.note` 记 | 她经 `qq_send`（或者别的包经 `qq.send`）给一个场所发了消息、那个场所的会话找得到：记在那个会话里，写着她那句话的开头（施工 O-56） | 31（14 个字的中文；2026-10-17 量） | 2026-10-17 项目主人定（第二段）：对方回复时她知道是自己先找的人 | `b76ba3e7` |
 | `onebot/data/system/group.txt` | system 尾部（核心的 `system.append`，单给这个群会话） | 群会话：桥照 NapCat 的 `get_group_info` 换进群名、群号，问到了隔 `group_info_seconds` 再问，改了名才换（`onebot.md`「群名」，施工 O-49） | 17（`摸鱼群`、`123456789`；2026-10-17 量） | 2026-10-17 项目主人定：她在群里要知道是哪个群（群名、群号）。放在 system 而不是事实：一直在、压缩不掉；群名是群里的人改得了的字，照模板的规矩转义、截到 64 个字符，裹在标签里 | `3bf06e49` |
 | `onebot/data/tools/skip_reply.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `skip_reply`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「提供者和不说话」，施工 O-26） | 70（2026-10-09 照开发端点量，十六件一起时的边际份量） | 群里的回合判过才开，判官、加值项会看错；每个回合都要有一条不说话的路（18 第七节、Q5：旧版只靠提示词叫她别回，她把「没 @ 我」说出了口）。两句：这一轮写的都不发、什么时候用；`reason` 必填、不写说明 | `c4ebd416` |
 | `onebot/data/tool-results/skipped.txt` | 工具结果 | `skip_reply` 答的那一句（施工 O-26；O-38 改） | 11（2026-10-12 量；O-26 那一句 14） | 告诉她这一条回复里写的没发。O-38 起调了这一轮就结束（桥带 `end_turn`），这一句只在以后的轮次照历史看到，改成说已经发生的事：原来的「这一轮写的都不会发出去」放在历史里像在说正在跑的那一轮（`onebot.md` 施工时定的第 239 条） | `46eb168d` |
@@ -60,10 +62,12 @@
 | `onebot/data/tools/avatar.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `avatar`（同 `recall`；`onebot.md`「头像和群成员」，施工 O-54） | 84（2026-10-17 照开发端点量，二十五件一起时的边际份量） | 2026-10-17 项目主人定：取一个人、一个群的头像存成文件，她自己选看图还是别的；一句说清存在哪、没写人取叫她的人 | `bd6aeef5` |
 | `onebot/data/tools/members.json` | tools 数组 | 群会话的工具面里有 `members`（只给群；同上） | 55（同上） | 2026-10-17 项目主人定（「查群成员」，配 @ 指定的人、给号禁言用）：一句说清列的是这个群的、带 QQ 号；`query` 一句 | `03bcfca6` |
 | `onebot/data/tools/mention.json` | tools 数组 | 群会话的工具面里有 `mention`（只给群；`onebot.md`「@ 指定的人」，施工 O-55） | 66（2026-10-17 照开发端点量，二十六件一起时的边际份量） | 2026-10-17 项目主人定：@ 指定的人要做（旧版 `qq_mention_users`）；一句说清 @ 在下一句话开头 | `56bde89c` |
+| `onebot/data/tools/qq_send.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `qq_send`（`onebot.md`「主动发消息」，施工 O-56） | 86（2026-10-17 照开发端点量，二十七件一起时的边际份量） | 2026-10-17 项目主人定：她的好友、她在的群她都能发，这是拟人的一种设计；说明里点一句「在这个聊天里直接回」免得她拿它回眼前的人 | `31307a7e` |
 | `onebot/data/tool-results/members.txt` | 工具结果 | `members` 成了：列了几个、一共几个、那一行（一个一段 `<号> <名字> (<身份>)`，`; ` 隔开；施工 O-54） | 13（字段空着；一个人约 8 到 10 个） | 一行说清列了几个，多的她知道还有 | `b7a8ae7f` |
 | `onebot/data/tool-results/no-members.txt` | 工具结果 | `members` 照 `query` 一个都没找到 | 4 | 说没有 | `a28b118a` |
 | `onebot/data/tool-results/mentioned.txt` | 工具结果 | `mention` 成了：下一句会 @ 谁（群名片，没有的写号；施工 O-55） | 8（字段空着） | 告诉她 @ 的是谁、在下一句 | `0b58dc81` |
 | `onebot/data/tool-results/not-members.txt` | 工具结果 | `mention` 有不是这个群的成员的号：整次不记，写哪几个 | 11（字段空着） | 她知道哪几个号不对，可以先查群成员 | `2e88a9fc` |
+| `onebot/data/tool-results/sent.txt` | 工具结果 | `qq_send` 发成了（施工 O-56） | 2 | 告诉她发出去了 | `4b30586e` |
 | `onebot/data/tool-results/recalled.txt` | 工具结果 | `recall` 成了（施工 O-31） | 3（2026-10-10 量） | 告诉她撤了 | `5a6ee52c` |
 | `onebot/data/tool-results/muted.txt` | 工具结果 | `mute` 成了，秒数大于 0；`who` 是名字（没有的写号），`duration` 是 `10m` 这样的时长 | 9（`小明`、`10m`） | 18 第十一节：返回写明换算成多久，单位错了她看得出 | `1bee606a` |
 | `onebot/data/tool-results/unmuted.txt` | 工具结果 | `mute` 成了，秒数是 0（解禁） | 6（`小明`） | 解禁和禁言分开说，她转告不会说反 | `d0036420` |

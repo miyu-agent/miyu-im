@@ -6,28 +6,29 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn four_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的两个（施工 O-42）。
+fn five_methods_are_registered_without_a_timeout() {
+    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）。
     assert_eq!(
         registered(),
-        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}]})
+        json!({"methods": [{"name": "status"}, {"name": "connection.token"}, {"name": "qq.action"}, {"name": "qq.venue"}, {"name": "qq.send"}]})
     );
 }
 
 #[test]
-fn only_the_two_for_other_packages_go_to_the_route() {
+fn only_the_ones_for_other_packages_go_to_the_route() {
     let routed: Vec<_> = [
         "status",
         "connection.token",
         "qq.action",
         "qq.venue",
+        "qq.send",
         "qq.inbound",
         "",
     ]
     .into_iter()
     .filter(|method| exported(method))
     .collect();
-    assert_eq!(routed, ["qq.action", "qq.venue"]);
+    assert_eq!(routed, ["qq.action", "qq.venue", "qq.send"]);
 }
 
 #[test]

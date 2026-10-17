@@ -9,21 +9,23 @@
 //! 同一个端点、同一个办法，二十三件一起）：五件合计 380 个 token、1302 字节，还在预算里。施工 O-54 加 `avatar`、
 //! `members`（2026-10-17 同一个端点、同一个办法，二十五件一起）：边际份量 84、55，七件合计 519 个 token、1795 字节；预算是实测
 //! 加一成，571 个 token，合 1974 字节。施工 O-55 加 `mention`（二十六件一起）：边际份量 66，八件合计 585 个 token、2026 字节；
-//! 预算 643 个 token，合 2228 字节。加工具、改说明超了，重新量过再改这里和设计。
+//! 预算 643 个 token，合 2228 字节。施工 O-56 加 `qq_send`（二十七件一起）：边际份量 86，九件合计 671 个 token、2294 字节；
+//! 预算 738 个 token，合 2523 字节。加工具、改说明超了，重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 2228;
+const BUDGET: usize = 2523;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 8] = [
+const TOOLS: [&str; 9] = [
     "avatar",
     "fetch_media",
     "members",
     "mention",
     "mute",
     "poke",
+    "qq_send",
     "recall",
     "skip_reply",
 ];

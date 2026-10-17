@@ -1,6 +1,6 @@
 ## 给接入QQ 写扩展包
 
-状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `qq.event`，O-43 中写了 `qq.inbound`，O-43 下写了 `qq.outbound`，O-43 末写了 `qq.score`，O-52 `qq.inbound` 多带 `media`。项目主人 2026-10-17 定：接入QQ 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-onebot-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
+状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `qq.event`，O-43 中写了 `qq.inbound`，O-43 下写了 `qq.outbound`，O-43 末写了 `qq.score`，O-52 `qq.inbound` 多带 `media`，O-56 多 `qq.send`。项目主人 2026-10-17 定：接入QQ 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-onebot-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
 
 ### 是什么
 
@@ -27,7 +27,17 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 
 回答是 NapCat 的回答原样：`{"status": "ok" | "failed", "retcode", "data", "message", "wording"}`。NapCat 说没成也是回答，看 `status`、`retcode`。拒绝：`bad_params`（写错）、`not_connected`（那个号没连着）、`unanswered`（NapCat 没回）。
 
-用 `qq.action` 发的消息，AI 不知道是自己说的：不过接入QQ 的出站链（清理、去重）、不记进会话。要 AI 知道的，等第二条的出站挂接点。
+用 `qq.action` 发的消息，AI 不知道是自己说的：不过接入QQ 的出站链（清理、去重）、不记进会话。要以 AI 的名义说话的，用下面的 `qq.send`。
+
+**`qq.send`**（施工 O-56）：以 AI 的名义发一条，同 AI 自己用 `qq_send` 发。
+
+| 参数 | 写法 |
+|---|---|
+| `user`、`group` | 好友的 QQ 号、群号，写正好一个 |
+| `text` | 要说的话，去掉首尾空白不空，最多 4000 个字符 |
+| `bot` | 经哪个机器人号；不写是连着的号里最小的那一个 |
+
+照那个场所的出站链过一遍（去末尾的句号这些），太长的拆成几段发；对方那个场所的会话找得到的，给它记一块事实，AI 下次在那里说话时知道是自己先找的人。回答 `{"sent": <几段>}`。拒绝：`bad_params`（写错）、`not_connected`（没连着）、`failed`（NapCat 说没成）、`unanswered`（NapCat 没回）。
 
 **`qq.venue`**：`{"session": <会话编号>}` → `{"venue": "qq:group:<群号>" | "qq:private:<号>", "bot": <机器人号>}`；接入QQ 认不得的会话是 `{"venue": null}`（还没来过消息的群、回完封存了的支线）。你提供的工具被调时，核心的 `tool.call` 交来的是会话编号，用它查是哪个群。
 

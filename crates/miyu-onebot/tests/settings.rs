@@ -230,11 +230,11 @@ fn the_web_port_is_an_unknown_key_now() {
 
 #[test]
 fn the_manifest_exports_only_the_methods_for_other_packages() {
-    // 施工 O-42：别的包只调得到 `qq.action`、`qq.venue`；后台页的两个不导出。
+    // 施工 O-42：别的包只调得到 `qq.action`、`qq.venue`（O-56 多 `qq.send`）；后台页的两个不导出。
     let text = std::fs::read_to_string(package_in(resources()).dir().join("package.toml"))
         .expect("读得了");
     let manifest = miyu_client::manifest::read(&text).expect("读得出");
-    assert_eq!(manifest.export, ["qq.action", "qq.venue"]);
+    assert_eq!(manifest.export, ["qq.action", "qq.venue", "qq.send"]);
 }
 
 #[test]

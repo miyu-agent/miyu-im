@@ -1,0 +1,4 @@
+{
+  "description": "Send a QQ message to a friend (user) or a group you are in. For the chat you are in, just reply.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"},"group":{"type":"integer"},"text":{"type":"string"}},"required":["text"]}
+}

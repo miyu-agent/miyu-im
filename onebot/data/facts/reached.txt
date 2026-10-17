@@ -1,0 +1,1 @@
+<reached>You messaged this chat first, on your own: "{text}"</reached>
