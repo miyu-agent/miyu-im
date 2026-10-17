@@ -468,7 +468,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 3. **记**：发成了一行 `INFO file shown venue=… kind=image|file`；没成的一行 `WARN file not shown venue=… kind=… why=…`。
 4. **发不了**（她被禁言着 `muted`、那个号没连着 `unreachable`、读不出 `unreadable`、NapCat 回失败 `failed`、等不到 `unanswered`）：照 `facts/unshown.txt`（登记在 `docs/ledger.md`）写一块，经核心的 `session.note` 记进工具结果出现在的那条线（支线封存了的改记主线，同「退信」），`kind` 是 `unshown`、`why`、`detail`（NapCat 说的原话）、`name` 填进去；她下一步看得到：工具结果已经说了「给人看了」，这一块说其实没到。不改那次工具结果，不另发一句，要不要再说由她定。核心拒了的记一行 `WARN note refused`。
 
-**守着它的**（`src/core/route/shown/tests.rs`、`shown.rs`）：只认工具结果里三格齐的 `file.shown`；常见四种图片发成图片段，svg、PDF、文本、HTML 传成文件。真核心（工具目录只装基础系统的 `show`，`tests/support/hooked.rs` 的 `showing`）拉起真桥、她照台词调 `show`：终端管理员私聊里一张图发成图片段、`base64://` 是图的原样，一份文本传成文件、带文件名，她的两句话照常发，运行日志两行 `file shown`；NapCat 回失败的，管理员名下的会话里记两块 `unshown`（`why="failed"`、文件名）。
+**守着它的**（`src/core/route/shown/tests.rs`、`shown.rs`）：只认工具结果里三格齐的 `file.shown`；常见四种图片发成图片段，svg、PDF、文本、HTML 传成文件。真核心（工具目录只装基础系统的 `show`，`tests/support/hooked.rs` 的 `showing`）拉起真桥、她照台词调 `show`：终端管理员私聊里一张图发成图片段、`base64://` 是图的原样，一份文本传成文件、带文件名，她的两句话照常发，运行日志两行 `file shown`；NapCat 回失败的，管理员名下的会话里记两块 `unshown`（`why="failed"`、文件名）。群里（O-46 补，核心钉到 f4eb1b1e，W-6 补以后 `blob.get` 带 `session` 读得到群会话的 blob）：终端管理员在群里 @ 她，图发成群里的图片段、文本传成群文件；她这一轮里被禁言了的不发，群会话里记两块 `unshown`（`why="muted"`），运行日志没有 `file shown`。
 
 **退信**（O-25 下，2026-10-09；施工单「要定的」第 1、2 条照推荐定：一段一块、带那一段的开头；18 第十节「发不出去就退回给她，像退信」、Q15）：她的话没发出去（NapCat 拒了、等不到、连接断了、排过期了），她自己要知道，不然会以为群里看到了。经核心的 `session.note`（`venues.md`「记几块事实」）给那个会话记一块事实：这一轮还在跑的，她下一次请求看到；不在跑的，下一轮开头看到。接在 `route/sending.rs` 记 `failed` 的后面（「施工时定的」第 129 条）。不占编号。
 
