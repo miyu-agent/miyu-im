@@ -69,6 +69,8 @@ miyu-config = { workspace = true }
 # 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
 # （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
 miyu-core = { workspace = true }
+# 测试里的核心只装基础系统的 `show` 一件（施工 O-46：她给人看文件，桥发进 QQ），别的测试照旧不装工具。
+miyu-basesystem = { workspace = true }
 miyu-endpoint = { workspace = true }
 miyu-session = { workspace = true, features = ["testkit"] }
 # 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。

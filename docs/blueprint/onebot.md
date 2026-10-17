@@ -36,6 +36,7 @@
 | `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
 | `crates/miyu-onebot/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`qq.event` 原样交通知、请求（「挂接点」） |
 | `crates/miyu-onebot/src/bin/miyu-onebot-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
+| `crates/miyu-onebot/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」） |
 | `crates/miyu-onebot/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-onebot/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
 | `crates/miyu-onebot/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`qq.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`qq.venue` 照场所会话的表答（「给别的包调的方法」） |
@@ -459,6 +460,15 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 只照通知：NapCat 查禁言用的成员缓存会说错（18 第十三节），复查随 quirk 那一步（施工单「要定的」第 6 条）；错过了解禁的通知，最多等到禁言本来到期。
 8. **定时**：跟核心的那一头等推送、等 NapCat 的消息的同时，睡到最早的过期时刻或者禁言到期的时刻（有东西排着的会话里最早的那一个；没有排着的不睡），醒了照第 3 条再看一遍：过期的记 `expired`，门开了的发出去。
 9. **不在这一步的**：积压几条进 `miyu onebot status` 随状态页那一步；定时消息（带「不早于」入队）随定时的那一步。退信、贴表情是 O-25 下，见下面两段。
+
+**展示**（O-46，2026-10-17 项目主人定：核心的 `show`（设计 35、`tools/show.md`）在场所会话里给人看的文件，图片发成图片，别的发成文件，发不了的告诉她；施工单「要拍板的」三条照推荐定：不走出站队列、发不了的记事实不另发一句、svg 当文件）：她调核心的 `show`，那次工具结果的效果里有 `file.shown`（`kernel/events-bodies.md`：`blob`、`name`、`media_type`……），桥照它发进 QQ（`core/route/shown.rs`）。不占编号的几段同「提供者和不说话」。
+
+1. **哪里来的**：群会话（主线、支线）、私聊会话订阅着的事件里，`kind` 是 `tool.result`、`body.effects` 里 `kind` 是 `file.shown`、`blob`、`name`、`media_type` 三格是字的，一份一份发。补来的（订阅时从头补的，`backlog`）、这一轮不说话了的（`skip_reply`，照 `quiet` 这一刻知道的）不发。支线里的照主线发进群里。
+2. **怎么发**：`media_type` 是 `image/png`、`image/jpeg`、`image/gif`、`image/webp` 的发成一个图片段（`send_group_msg`、`send_private_msg`，`file` 写 `base64://…`）；别的（PDF、文本、HTML、svg……）传成文件（`upload_group_file {group_id, file, name}`、`upload_private_file {user_id, file, name}`，`file` 写 `base64://…`，`name` 是 `file.shown` 的 `name`）。内容经核心的 `blob.get {blob, session, offset, length}` 一块块读（一块 512 KiB，`session` 是工具结果出现在的那条线：核心照会话的属主找）。一份各起一个任务（`chores`，同平台工具），跟核心的那一头不等，和她的话不排在一个队里，先后不保证。不过出站链、不进出站队列、不问出站挂接点（`qq.outbound` 只管她的话）。
+3. **记**：发成了一行 `INFO file shown venue=… kind=image|file`；没成的一行 `WARN file not shown venue=… kind=… why=…`。
+4. **发不了**（她被禁言着 `muted`、那个号没连着 `unreachable`、读不出 `unreadable`、NapCat 回失败 `failed`、等不到 `unanswered`）：照 `facts/unshown.txt`（登记在 `docs/ledger.md`）写一块，经核心的 `session.note` 记进工具结果出现在的那条线（支线封存了的改记主线，同「退信」），`kind` 是 `unshown`、`why`、`detail`（NapCat 说的原话）、`name` 填进去；她下一步看得到：工具结果已经说了「给人看了」，这一块说其实没到。不改那次工具结果，不另发一句，要不要再说由她定。核心拒了的记一行 `WARN note refused`。
+
+**守着它的**（`src/core/route/shown/tests.rs`、`shown.rs`）：只认工具结果里三格齐的 `file.shown`；常见四种图片发成图片段，svg、PDF、文本、HTML 传成文件。真核心（工具目录只装基础系统的 `show`，`tests/support/hooked.rs` 的 `showing`）拉起真桥、她照台词调 `show`：终端管理员私聊里一张图发成图片段、`base64://` 是图的原样，一份文本传成文件、带文件名，她的两句话照常发，运行日志两行 `file shown`；NapCat 回失败的，管理员名下的会话里记两块 `unshown`（`why="failed"`、文件名）。
 
 **退信**（O-25 下，2026-10-09；施工单「要定的」第 1、2 条照推荐定：一段一块、带那一段的开头；18 第十节「发不出去就退回给她，像退信」、Q15）：她的话没发出去（NapCat 拒了、等不到、连接断了、排过期了），她自己要知道，不然会以为群里看到了。经核心的 `session.note`（`venues.md`「记几块事实」）给那个会话记一块事实：这一轮还在跑的，她下一次请求看到；不在跑的，下一轮开头看到。接在 `route/sending.rs` 记 `failed` 的后面（「施工时定的」第 129 条）。不占编号。
 

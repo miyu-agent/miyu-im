@@ -294,6 +294,11 @@ impl Venues {
         &self.factory.facts.another_line
     }
 
+    /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。
+    pub fn unshown(&self) -> &Template {
+        &self.factory.facts.unshown
+    }
+
     /// 这一刻 `now` 该用的那一份：离上一次看不到 `every` 的照手里的；到了，看一眼系统的两处，和上一次的一样照手里的，
     /// 不一样整份重读（问题记运行日志）。
     pub fn current(&mut self, now: Instant) -> &Loaded {

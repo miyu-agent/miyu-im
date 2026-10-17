@@ -377,6 +377,37 @@ pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
     }
 }
 
+/// 把一张图（`file` 写成 NapCat 认的 `base64://…`）发给 `to` 的动作和参数：一个图片段的 `send_private_msg`、`send_group_msg`
+/// （施工 O-46，「展示」第 2 条）。
+pub fn image_to(to: To, file: &str) -> (&'static str, Value) {
+    let message = json!([{"type": "image", "data": {"file": file}}]);
+    match to {
+        To::Private(user) => (
+            "send_private_msg",
+            json!({"user_id": user, "message": message}),
+        ),
+        To::Group(group) => (
+            "send_group_msg",
+            json!({"group_id": group, "message": message}),
+        ),
+    }
+}
+
+/// 把一份文件（`file` 写成 `base64://…`，文件名 `name`）传给 `to` 的动作和参数：`upload_private_file {user_id, file, name}`、
+/// `upload_group_file {group_id, file, name}`（施工 O-46，「展示」第 2 条；NapCat 的 `file` 认本机路径、网址和 `base64://`）。
+pub fn upload_to(to: To, file: &str, name: &str) -> (&'static str, Value) {
+    match to {
+        To::Private(user) => (
+            "upload_private_file",
+            json!({"user_id": user, "file": file, "name": name}),
+        ),
+        To::Group(group) => (
+            "upload_group_file",
+            json!({"group_id": group, "file": file, "name": name}),
+        ),
+    }
+}
+
 /// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。编号是
 /// NapCat 回的整数（回执），或者引用里原样的字（平台工具，施工 O-31：原样还回去，同 [`emoji_like`]）；NapCat 两样都收
 /// （`DeleteMsg.ts`）。

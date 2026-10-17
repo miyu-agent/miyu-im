@@ -173,7 +173,14 @@ impl Home {
 
     /// 同 [`Home::new`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`speaking::Lines`]）。
     pub fn speaking(models: Arc<dyn Models>) -> Home {
-        Home::with_config(models, CONFIG, None, None, |_| resources(), |_| {})
+        Home::with_config(
+            models,
+            CONFIG,
+            None,
+            None,
+            |_| resources(),
+            (|_| {}, Catalog::default()),
+        )
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是终端管理员对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -213,7 +220,7 @@ impl Home {
         more: &str,
         shipped: impl FnOnce(&Path) -> PathBuf,
     ) -> Home {
-        Home::spawning_installed(models, more, shipped, |_| {})
+        Home::spawning_installed(models, more, shipped, (|_| {}, Catalog::default()))
     }
 
     /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它，读清单以前照 `install` 往数据根里
@@ -226,7 +233,7 @@ impl Home {
         secrets: Option<&str>,
         extensions: Option<Timing>,
         shipped: impl FnOnce(&Path) -> PathBuf,
-        install: impl FnOnce(&DataRoot),
+        (install, catalog): (impl FnOnce(&DataRoot), Catalog),
     ) -> Home {
         let (dir, root) = temp_root();
         install(&root);
@@ -251,7 +258,7 @@ impl Home {
                 root.clone(),
                 shipped,
                 models,
-                Catalog::default(),
+                catalog,
                 None,
                 admin(),
                 opened.token.clone(),

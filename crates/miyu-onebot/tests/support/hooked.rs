@@ -8,6 +8,7 @@ use std::time::Duration;
 use miyu_endpoint::extensions::Timing;
 use miyu_session::Models;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 use super::spawning::{self, link_beside};
 use super::{CONFIG, Home, TOKEN, resources};
@@ -73,15 +74,16 @@ impl Home {
         more: &str,
         install: impl FnOnce(&DataRoot),
     ) -> Home {
-        Home::spawning_installed(models, more, |_| resources(), install)
+        Home::spawning_installed(models, more, |_| resources(), (install, Catalog::default()))
     }
 
-    /// 起一个照开关拉起扩展的核心，资源目录照 `shipped`，起来以前照 `install` 往数据根里放东西。
+    /// 起一个照开关拉起扩展的核心，资源目录照 `shipped`，起来以前照 `install` 往数据根里放东西，工具目录是 `catalog`（施工
+    /// O-46：要她能调 `show` 的照 [`showing`]，别的是空的）。
     pub(super) fn spawning_installed(
         models: Arc<dyn Models>,
         more: &str,
         shipped: impl FnOnce(&Path) -> PathBuf,
-        install: impl FnOnce(&DataRoot),
+        (install, catalog): (impl FnOnce(&DataRoot), Catalog),
     ) -> Home {
         spawning::linked();
         let timing = Timing {
@@ -98,7 +100,18 @@ impl Home {
             Some(&secrets),
             Some(timing),
             shipped,
-            install,
+            (install, catalog),
         )
     }
+}
+
+/// 只有基础系统的 `show` 一件的工具目录（施工 O-46）：她给人看文件，核心记 `file.shown`，桥发进 QQ。字照源码树的资源目录读。
+pub fn showing() -> Catalog {
+    let tools = miyu_basesystem::tools(&resources())
+        .expect("基础系统的字读得出")
+        .into_iter()
+        .filter(|tool| tool.spec().name == "show")
+        .collect::<Vec<_>>();
+    assert_eq!(tools.len(), 1, "基础系统有 show");
+    Catalog::new(tools).expect("登记得上")
 }

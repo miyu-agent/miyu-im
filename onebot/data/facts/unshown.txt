@@ -1,0 +1,1 @@
+<unshown why="{why}" detail="{detail}">The file "{name}" did not reach the chat; nobody saw it.</unshown>

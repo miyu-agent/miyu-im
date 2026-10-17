@@ -49,8 +49,13 @@ impl Route {
             .backlogs
             .get_mut(session)
             .filter(|backlog| backlog.replayed(raw));
+        let replayed = backlog.is_some();
         if let Some(backlog) = backlog {
             backlog.take(raw);
+        }
+        // 她给人看的文件发进群里（施工 O-46，`shown`）：补来的、这一轮不说话的不发。
+        if !replayed && !quiet {
+            self.show((session, session), raw);
         }
         match speaking {
             // 补来的不照常发：这一轮没说不说话的交给补来的那一段，期限以内、没入队的补完了补发（施工 O-32，`revive`）。补完以前
@@ -199,6 +204,10 @@ impl Route {
                 backlog.said(event, reply_text(event), None);
             }
             return Ok(());
+        }
+        // 她给人看的文件发进私聊（施工 O-46，`shown`）：补来的上面已经交回去了，这一轮不说话的不发。
+        if !quiet {
+            self.show((session, session), event);
         }
         if event["kind"] != "message.assistant" {
             return Ok(());

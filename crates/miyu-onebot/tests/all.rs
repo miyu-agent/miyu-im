@@ -56,6 +56,7 @@ mod rules;
 mod scoring;
 mod segments;
 mod settings;
+mod shown;
 mod skip_ends;
 mod skipped;
 mod spawned;

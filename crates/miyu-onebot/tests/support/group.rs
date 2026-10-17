@@ -13,6 +13,7 @@ use miyu_session::Models;
 use miyu_session::testkit::Script;
 use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 #[allow(unused_imports, reason = "几个测试程序各用其中一部分")]
 pub use super::answering::{Answering, FIRST_SENT, Member, Rank, UNRECALLABLE, unrecallable};
@@ -214,7 +215,24 @@ pub async fn started_judged_installed(
         (rules, words),
         "",
         |napcat| napcat.answering(members),
-        install,
+        (install, Catalog::default()),
+    )
+    .await
+}
+
+/// 同 [`started_by`]，工具目录里有基础系统的 `show`（施工 O-46，[`super::hooked::showing`]），假 NapCat 照 `answer` 回。
+pub async fn started_showing(
+    models: Arc<dyn Models>,
+    rules: &str,
+    answer: impl FnOnce(NapCat) -> Answering,
+) -> (Home, Answering, u16) {
+    up_installed(
+        models,
+        ("", &Value::Null),
+        (rules, ""),
+        "",
+        answer,
+        (|_: &DataRoot| {}, super::hooked::showing()),
     )
     .await
 }
@@ -253,7 +271,7 @@ async fn up(
         (rules, words),
         onebot,
         answer,
-        |_| {},
+        (|_: &DataRoot| {}, Catalog::default()),
     )
     .await
 }
@@ -271,7 +289,7 @@ pub async fn started_installed(
         (rules, ""),
         "",
         |napcat| napcat.answering(members),
-        install,
+        (install, Catalog::default()),
     )
     .await
 }
@@ -283,7 +301,7 @@ async fn up_installed(
     (rules, words): (&str, &str),
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
-    install: impl Fn(&DataRoot) + Clone,
+    (install, catalog): (impl Fn(&DataRoot) + Clone, Catalog),
 ) -> (Home, Answering, u16) {
     let (home, listen) = on_free_port(async |listen| {
         let config = format!("{}{more}", ports_config_with(listen, onebot));
@@ -294,7 +312,7 @@ async fn up_installed(
                 Some(keys) => tuned_resources(dir, keys),
                 None => resources(),
             },
-            install.clone(),
+            (install.clone(), catalog.clone()),
         );
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");

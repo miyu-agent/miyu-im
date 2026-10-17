@@ -74,6 +74,7 @@ mod request;
 mod revive;
 mod sending;
 mod session;
+mod shown;
 mod speak;
 mod steering;
 #[cfg(test)]
