@@ -234,7 +234,7 @@ fn only_known_fields_are_read_and_unset_ones_are_not_written() {
 }
 
 #[test]
-fn long_text_alone_is_one_outbound_table_and_forward_is_not_taken_yet() {
+fn long_text_alone_is_one_outbound_table_and_forward_is_taken() {
     let set = cards(json!({"groups": [{"id": 7, "set": {"long_chars": 0}}]}));
     assert_eq!(
         values(&set, &group("7")),
@@ -243,11 +243,19 @@ fn long_text_alone_is_one_outbound_table_and_forward_is_not_taken_yet() {
             ("outbound.long_chars".to_string(), Value::Int(0)),
         ]
     );
+    // 合并转发（施工 O-59 下）。
+    let set = cards(json!({"groups": [{"id": 7, "set": {"long_text": "forward"}}]}));
+    assert_eq!(
+        values(&set, &group("7")),
+        [
+            ("allow".to_string(), Value::Bool(true)),
+            ("outbound.long_text".to_string(), text("forward")),
+        ]
+    );
     assert!(
         serde_json::from_value::<Cards>(
-            json!({"groups": [{"id": 7, "set": {"long_text": "forward"}}]})
+            json!({"groups": [{"id": 7, "set": {"long_text": "fax"}}]})
         )
-        .is_err(),
-        "合并转发 O-59 下才收"
+        .is_err()
     );
 }

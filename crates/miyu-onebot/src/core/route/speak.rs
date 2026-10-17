@@ -14,7 +14,7 @@ use serde_json::Value;
 use super::backlog::queued_reply;
 use super::outbound::{Passed, group_ctx, pass, private_ctx, why_name};
 use super::projection::{Aim, Speaking};
-use super::sending::{Piece, What};
+use super::sending::{Body, Piece, What};
 use super::voicing::Voice;
 use super::{Route, applied, reply_text};
 use crate::TARGET;
@@ -277,6 +277,7 @@ impl Route {
                 what: what.clone(),
                 text,
                 lead: std::mem::take(&mut lead),
+                body: Body::Text,
             };
             self.enqueue(session, None, piece).await?;
         }

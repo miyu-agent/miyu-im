@@ -2,7 +2,8 @@
 //! （`miyu-render`，`render:` 答两页）。出厂超过 300 个字的回话画成图：一页一条图片段、照先后，渲染包收到的是全文；入队第一页记成
 //! `reply`（全文）、第二页记成 `image`；`venue.delivered` 第一页带全文和回的人、第二页都是空的；她 `mention` 的 @ 只在第一页。
 //! 判、画、记照过了出站链的全文（去了末尾的「。」）。不长的照发字；渲染包没装的、交回零页的、这个群写了
-//! `long_text = "split"` 的照发字。
+//! `long_text = "split"` 的照发字。合并转发（施工 O-59 下）：她的长回话发成一条、算她的话（入队带 `forward`）；命令回执、别的包
+//! 经 `qq.send` 发的照那个场所的长文办（合并转发一条，转成图一页一条）。
 
 use std::path::PathBuf;
 
@@ -203,5 +204,146 @@ async fn a_renderer_that_draws_no_pages_does_not_swallow_the_reply() {
     let (home, mut napcat, _) = started_installed(&script, "", MEMBERS, install).await;
     call_her(&napcat);
     assert_eq!(napcat.group_reply(GROUP).await, cleaned(), "零页的照拆段");
+    stopped(home).await;
+}
+
+/// 群 671 的长文照 `mode`、超过 `chars` 个字算（施工 O-59 下）。
+fn rule(mode: &str, chars: u32) -> String {
+    format!(
+        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\noutbound = {{ long_text = \"{mode}\", long_chars = {chars} }}\n"
+    )
+}
+
+/// 一条合并转发的几个节点的字；节点是机器人号发的。
+fn forwarded(action: &Value) -> Vec<String> {
+    action["params"]["messages"]
+        .as_array()
+        .expect("几个节点")
+        .iter()
+        .map(|node| {
+            assert_eq!(node["type"], "node", "{node}");
+            assert_eq!(node["data"]["user_id"], BOT.to_string(), "{node}");
+            assert!(
+                node["data"]["nickname"]
+                    .as_str()
+                    .is_some_and(|name| !name.is_empty()),
+                "{node}"
+            );
+            node["data"]["content"][0]["data"]["text"]
+                .as_str()
+                .expect("字")
+                .to_string()
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_long_reply_goes_out_as_one_forwarded_bundle() {
+    let script = Script::new([Play::Says(long())]);
+    let (home, mut napcat, _) = started_installed(
+        &script,
+        &rule("forward", 300),
+        MEMBERS,
+        |_: &miyu_store::root::DataRoot| {},
+    )
+    .await;
+    call_her(&napcat);
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_group_forward_msg", "{action}");
+    assert_eq!(action["params"]["group_id"], GROUP);
+    assert_eq!(
+        forwarded(&action),
+        [cleaned()],
+        "一段一个节点，过了出站链的全文"
+    );
+    let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+        !of_kind(events, "venue.delivered").is_empty()
+    })
+    .await;
+    let queued = of_kind(&events, "ext.onebot.venues.queued");
+    assert_eq!(queued[0]["body"]["kind"], "reply");
+    assert_eq!(queued[0]["body"]["forward"], true);
+    assert_eq!(
+        of_kind(&events, "venue.delivered")[0]["body"]["text"],
+        cleaned(),
+        "算她的话"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_long_receipt_follows_the_long_text_setting() {
+    // 阈值 5：「已全部停止。」就算长文。合并转发的一条；转成图的照渲染包画的两页。
+    let (home, mut napcat, _) = started_installed(
+        &Script::new([]),
+        &rule("forward", 5),
+        MEMBERS,
+        |_: &miyu_store::root::DataRoot| {},
+    )
+    .await;
+    napcat.send(group_frame(
+        GROUP,
+        ADMIN,
+        1,
+        json!([plain("/stop")]),
+        ("老板", "boss"),
+    ));
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_group_forward_msg", "{action}");
+    assert_eq!(forwarded(&action), ["已全部停止。"], "回执不过出站链，原文");
+    stopped(home).await;
+    let (dir, _) = temp_root();
+    let record = dir.join("calls.jsonl");
+    let (home, mut napcat, _) = started_installed(
+        &Script::new([]),
+        &rule("image", 5),
+        MEMBERS,
+        renderer(&record),
+    )
+    .await;
+    napcat.send(group_frame(
+        GROUP,
+        ADMIN,
+        1,
+        json!([plain("/stop")]),
+        ("老板", "boss"),
+    ));
+    is_a_page(&napcat.group_message(GROUP).await);
+    is_a_page(&napcat.group_message(GROUP).await);
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
+    // 别的包经 `qq.send` 发到群 671（阈值 5）：转成图的一页一条、答两条；合并转发的一条。
+    let (dir, _) = temp_root();
+    let record = dir.join("calls.jsonl");
+    let (home, mut napcat, _) = started_installed(
+        &Script::new([]),
+        &rule("image", 5),
+        MEMBERS,
+        renderer(&record),
+    )
+    .await;
+    let mut head = crate::support::head::Head::connect(&home.root).await;
+    let call = json!({"package": "onebot", "method": "qq.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
+    let reply = head.call("package.call", call.clone()).await;
+    assert_eq!(reply["result"], json!({"sent": 2}), "{reply}");
+    is_a_page(&napcat.group_message(GROUP).await);
+    is_a_page(&napcat.group_message(GROUP).await);
+    stopped(home).await;
+    let (home, mut napcat, _) = started_installed(
+        &Script::new([]),
+        &rule("forward", 5),
+        MEMBERS,
+        |_: &miyu_store::root::DataRoot| {},
+    )
+    .await;
+    let mut head = crate::support::head::Head::connect(&home.root).await;
+    let reply = head.call("package.call", call).await;
+    assert_eq!(reply["result"], json!({"sent": 1}), "{reply}");
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_group_forward_msg", "{action}");
+    assert_eq!(forwarded(&action), ["公告：今晚八点开会"]);
     stopped(home).await;
 }

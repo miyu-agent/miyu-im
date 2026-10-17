@@ -607,7 +607,7 @@ restraint_half_life = "3m"
 | `outbound.similar` | 整数 1 到 100，百分比 | 66 | `Outbound::similar` |
 | `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
 | `outbound.split_chars` | 整数 0 到 100000 | 3000 | `Params::split_chars`：交给第五条的 `split`，`0` 是不拆 |
-| `outbound.long_text` | 选项 `split`、`image` | `image` | `Params::long_text`（`LongText`，施工 O-59 上）：超过 `long_chars` 的一句怎么发，桥照它拆段或者画成图 |
+| `outbound.long_text` | 选项 `split`、`image`、`forward` | `image` | `Params::long_text`（`LongText`，施工 O-59 上；`forward` O-59 下）：超过 `long_chars` 的一句怎么发，桥照它拆段、画成图或者打成合并转发 |
 | `outbound.long_chars` | 整数 0 到 100000 | 300 | `Params::long_chars`：超过几个字算长文，`0` 是不算 |
 | `outbound.invisible` | 文字的列表，每项正好一个字符，可以是空的列表 | U+200B 到 U+200F、U+2060 到 U+2064、U+FEFF、U+00AD、U+180E、U+2028、U+2029，十五个，一个一项（O-15 下） | `Outbound::invisible`：清理判空时和空白一样算 |
 | `outbound.leak_open` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | `<tool_call>`、`<function=`（O-15 下） | `Outbound::leak_open`：漏进来的工具调用从哪开始 |

@@ -40,18 +40,20 @@ pub struct Params {
     pub long_chars: usize,
 }
 
-/// 长文怎么发（施工 O-59 上，接入QQ 的场所卡片里「长文」那一格）：拆成几条、转成图。合并转发 O-59 下加。
+/// 长文怎么发（施工 O-59 上，接入QQ 的场所卡片里「长文」那一格）：拆成几条、转成图、合并转发（O-59 下）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LongText {
     /// 照拆段发，和不长的一样。
     Split,
     /// 画成图发（桥调渲染包，画不出来的照拆段）。
     Image,
+    /// 打成一条合并转发（施工 O-59 下）。
+    Forward,
 }
 
 impl LongText {
     /// 规则、出厂文件里的写法，照先后。
-    pub const NAMES: &'static [&'static str] = &["split", "image"];
+    pub const NAMES: &'static [&'static str] = &["split", "image", "forward"];
 
     /// 照写法认：别的不认。
     #[must_use]
@@ -59,6 +61,7 @@ impl LongText {
         match name {
             "split" => Some(LongText::Split),
             "image" => Some(LongText::Image),
+            "forward" => Some(LongText::Forward),
             _ => None,
         }
     }
@@ -69,6 +72,7 @@ impl LongText {
         match self {
             LongText::Split => "split",
             LongText::Image => "image",
+            LongText::Forward => "forward",
         }
     }
 }

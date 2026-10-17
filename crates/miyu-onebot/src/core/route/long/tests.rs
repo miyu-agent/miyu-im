@@ -1,4 +1,4 @@
-//! 长文：照参数判（转成图、阈值不是 0、超过阈值才算，正好等于的不算）；画成的一页带引用和 @ 拼在图前面；页的名字照第几页。
+//! 长文：照参数判（转成图、合并转发，阈值不是 0、超过阈值才算，正好等于的不算）；合并转发的节点照拆段的长度拆、拼成转发的动作；画成的一页带引用和 @ 拼在图前面；页的名字照第几页。
 
 use miyu_chat::{File, LongText, Params, Source};
 
@@ -31,16 +31,16 @@ fn params(long_text: LongText, long_chars: usize) -> Params {
 fn only_image_mode_over_the_threshold_is_drawn() {
     let text = "字".repeat(300);
     assert!(
-        !wants_image(&params(LongText::Image, 300), &text),
+        !wants(&params(LongText::Image, 300), &text).is_some(),
         "正好 300 不算"
     );
-    assert!(wants_image(&params(LongText::Image, 299), &text));
+    assert!(wants(&params(LongText::Image, 299), &text) == Some(LongText::Image));
     assert!(
-        !wants_image(&params(LongText::Split, 299), &text),
+        !wants(&params(LongText::Split, 299), &text).is_some(),
         "拆成几条的不画"
     );
     assert!(
-        !wants_image(&params(LongText::Image, 0), &text),
+        !wants(&params(LongText::Image, 0), &text).is_some(),
         "0 是不算长文"
     );
     let factory = factory();
@@ -79,4 +79,27 @@ fn a_page_carries_the_quote_and_mentions_before_the_image() {
         serde_json::json!([{"type": "image", "data": {"file": "base64://AA=="}}])
     );
     assert_eq!(page_name(1), "long-text-2.png");
+}
+
+#[test]
+fn forward_mode_is_long_text_too_and_its_nodes_follow_split_chars() {
+    let text = format!("{}\n\n{}", "一".repeat(200), "二".repeat(200));
+    assert_eq!(
+        wants(&params(LongText::Forward, 300), &text),
+        Some(LongText::Forward)
+    );
+    let mut small = params(LongText::Forward, 300);
+    small.split_chars = 250;
+    assert_eq!(
+        nodes(&small, &text),
+        ["一".repeat(200), "二".repeat(200)],
+        "照拆成几条的长度拆节点"
+    );
+    let (action, params) =
+        crate::onebot::forward_to(To::Private(9), 42, "米尤", &["甲".to_string()]);
+    assert_eq!(action, "send_private_forward_msg");
+    assert_eq!(
+        params,
+        serde_json::json!({"user_id": 9, "messages": [{"type": "node", "data": {"user_id": "42", "nickname": "米尤", "content": [{"type": "text", "data": {"text": "甲"}}]}}]})
+    );
 }

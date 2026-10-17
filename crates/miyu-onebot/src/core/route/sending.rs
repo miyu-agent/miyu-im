@@ -24,7 +24,7 @@ use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::core::{Gone, reason};
-use crate::onebot::{CallError, Lead, To, image_to, message_to, picture_to};
+use crate::onebot::{CallError, Lead, To, forward_to, image_to, message_to, picture_to};
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.onebot.venues.failed";
@@ -98,7 +98,7 @@ pub(super) struct Page {
     pub(super) first: bool,
 }
 
-/// 要说出去的一段：是什么、正文（不带引用、@）、前面带的引用和 @。
+/// 要说出去的一段：是什么、正文（不带引用、@）、前面带的引用和 @、正文发成什么样。
 #[derive(Debug, Clone)]
 pub(super) struct Piece {
     /// 是什么。
@@ -107,6 +107,25 @@ pub(super) struct Piece {
     pub(super) text: String,
     /// 前面带的引用和 @：只有她一句话的第一段带。
     pub(super) lead: Lead,
+    /// 正文发成什么样（施工 O-59 下）：字、图、合并转发。
+    pub(super) body: Body,
+}
+
+/// 正文发成什么样（施工 O-59 下，`onebot.md`「长文」）：她发出去的图、长文画成的一页照旧在 [`What`] 里带着图。
+#[derive(Debug, Clone, Default)]
+pub(super) enum Body {
+    /// 一段字（`text`）。
+    #[default]
+    Text,
+    /// 一张图：NapCat 认的 `base64://…`（回执画成的长图）。
+    Picture(String),
+    /// 一条合并转发：几段字一个节点一段，发的人的名字。
+    Forward {
+        /// 节点的字，照先后。
+        nodes: Vec<String>,
+        /// 节点上写的名字。
+        nickname: String,
+    },
 }
 
 /// 排着的一段：入队那一条的序号和这一段。
@@ -148,7 +167,11 @@ impl Route {
         let Some(peer) = self.peers.get(session).cloned() else {
             return Ok(());
         };
-        if piece.text.trim().is_empty() && !matches!(piece.what, What::Image(_) | What::Page(_)) {
+        let bodied = !matches!(piece.body, Body::Text);
+        if piece.text.trim().is_empty()
+            && !bodied
+            && !matches!(piece.what, What::Image(_) | What::Page(_))
+        {
             return Ok(());
         }
         let chars = piece.text.chars().count();
@@ -243,10 +266,18 @@ impl Route {
         };
         let begun = match self.bots.get(peer.bot) {
             Some(link) => {
-                let (action, params) = match &item.piece.what {
-                    What::Image(image) => image_to(peer.to, &image.file, image.sticker),
-                    What::Page(page) => picture_to(peer.to, &page.image.file, &item.piece.lead),
-                    _ => message_to(peer.to, &item.piece.text, &item.piece.lead),
+                let (action, params) = match (&item.piece.body, &item.piece.what) {
+                    (Body::Picture(file), _) => picture_to(peer.to, file, &item.piece.lead),
+                    (Body::Forward { nodes, nickname }, _) => {
+                        forward_to(peer.to, peer.bot, nickname, nodes)
+                    }
+                    (Body::Text, What::Image(image)) => {
+                        image_to(peer.to, &image.file, image.sticker)
+                    }
+                    (Body::Text, What::Page(page)) => {
+                        picture_to(peer.to, &page.image.file, &item.piece.lead)
+                    }
+                    (Body::Text, _) => message_to(peer.to, &item.piece.text, &item.piece.lead),
                 };
                 link.calls.begin(&link.out, action, params).await
             }
@@ -424,7 +455,12 @@ impl Route {
 fn queued_body(piece: &Piece) -> Value {
     match &piece.what {
         What::Reply { line, turn, .. } => {
-            json!({"kind": REPLY, "text": piece.text, "line": line, "turn": turn})
+            let mut body = json!({"kind": REPLY, "text": piece.text, "line": line, "turn": turn});
+            // 打成合并转发的长文（施工 O-59 下）。
+            if matches!(piece.body, Body::Forward { .. }) {
+                body["forward"] = json!(true);
+            }
+            body
         }
         What::Receipt { .. } => json!({"kind": RECEIPT, "text": piece.text}),
         What::Image(image) => {

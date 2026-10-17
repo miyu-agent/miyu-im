@@ -253,5 +253,10 @@
     "zh": "写 QQ 号",
     "en": "Write QQ numbers",
     "ja": "QQ 番号を書いてください"
+  },
+  "long_text.forward": {
+    "zh": "合并转发",
+    "en": "As a forwarded bundle",
+    "ja": "まとめて転送"
   }
 }

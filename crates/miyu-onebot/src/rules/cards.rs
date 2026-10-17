@@ -43,7 +43,7 @@ pub enum Chatty {
     Many,
 }
 
-/// 长文怎么发（施工 O-59 上）：拆成几条、转成图。拼成规则的 `outbound.long_text`。
+/// 长文怎么发（施工 O-59 上）：拆成几条、转成图、合并转发（O-59 下）。拼成规则的 `outbound.long_text`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LongText {
@@ -51,6 +51,8 @@ pub enum LongText {
     Split,
     /// 转成图（出厂）。
     Image,
+    /// 合并转发（施工 O-59 下）。
+    Forward,
 }
 
 impl LongText {
@@ -59,6 +61,7 @@ impl LongText {
         match self {
             LongText::Split => "split",
             LongText::Image => "image",
+            LongText::Forward => "forward",
         }
     }
 }

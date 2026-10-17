@@ -141,7 +141,7 @@ const PRIVATE_FORMS: [Form; 2] = [
 
 /// 插嘴四档、长文两种：值和字的键。
 const CHATTY: [&str; 4] = ["never", "few", "some", "many"];
-const LONG_TEXT: [&str; 2] = ["split", "image"];
+const LONG_TEXT: [&str; 3] = ["split", "image", "forward"];
 
 /// 「群」那一页：`lang` 是桥这时的语言（太大时只画它）。
 pub fn groups_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> Value {

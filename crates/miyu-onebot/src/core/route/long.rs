@@ -5,23 +5,23 @@
 //! 桥这一头等着画完（同发表情包读图）：长图要和她前后的话守先后。等至多 [`WAIT`]；哪一步不成（没装、没开、拒了、超时、读不出）
 //! 交回空的、记一行 `long text not drawn`，调的一方照拆段发。
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use miyu_chat::{LongText, Params};
+use miyu_chat::{LongText, Params, split};
 use miyu_client::ids::VenueId;
 use serde_json::json;
 
 use miyu_chat::Venue;
 
-use super::Route;
 use super::outbound::Passed;
-use super::sending::{Image, Page, Piece, What};
+use super::sending::{Body, Image, Page, Piece, What};
 use super::shown::read;
+use super::{Peer, Route};
 use crate::TARGET;
 use crate::core::{Caller, Gone, reason};
-use crate::onebot::Lead;
+use crate::onebot::{Lead, To};
 
 /// 渲染包的编号、方法。
 const RENDER: (&str, &str) = ("miyu-render", "markdown");
@@ -36,11 +36,17 @@ pub(super) struct Drawn {
     pub(super) file: String,
 }
 
-/// 照参数 `params`，全文 `text` 算不算要画成图的长文。
-pub(super) fn wants_image(params: &Params, text: &str) -> bool {
-    params.long_text == LongText::Image
+/// 照参数 `params`，全文 `text` 算不算长文：算的交回怎么发（转成图、合并转发），拆成几条的、不长的交回空的。
+pub(super) fn wants(params: &Params, text: &str) -> Option<LongText> {
+    (params.long_text != LongText::Split
         && params.long_chars > 0
-        && text.chars().count() > params.long_chars
+        && text.chars().count() > params.long_chars)
+        .then_some(params.long_text)
+}
+
+/// 合并转发的几段：照 `split_chars` 拆（同拆成几条）。
+pub(super) fn nodes(params: &Params, text: &str) -> Vec<String> {
+    split(text, params.split_chars)
 }
 
 /// 在场所 `venue` 把 `text` 画成几页、读好：不成的记一行、交回空的。`wait` 是最多等多久（正式跑是 [`WAIT`]）。
@@ -104,8 +110,9 @@ fn page_name(index: usize) -> String {
 }
 
 impl Route {
-    /// 她的话（`what` 是 [`What::Reply`]）过了链的 `passed` 是要画成图的长文、也画成了：一页一段照先后入队，第一页带全文和
-    /// `lead`（拿走），交回真；不是、画不成的交回假，调的一方照拆段发。
+    /// 她的话（`what` 是 [`What::Reply`]）过了链的 `passed` 是长文：转成图的画成了一页一段照先后入队，第一页带全文和 `lead`
+    /// （拿走）；合并转发的入队一段（正文是全文，不带引用、@，`lead` 照样拿走）。办了的交回真；不是长文、画不成的交回假，调的
+    /// 一方照拆段发。
     ///
     /// # Errors
     ///
@@ -125,8 +132,26 @@ impl Route {
         let Some(venue) = Venue::parse(&peer.venue) else {
             return Ok(false);
         };
-        if !wants_image(&self.applied(&venue).params, &passed.text) {
-            return Ok(false);
+        let params = self.applied(&venue).params;
+        match wants(&params, &passed.text) {
+            Some(LongText::Image) => {}
+            Some(LongText::Forward) => {
+                // 合并转发里带不了引用、@（施工 O-59 下）：拿走不用。
+                drop(std::mem::take(lead));
+                let piece = Piece {
+                    what: what.clone(),
+                    text: passed.text.clone(),
+                    lead: Lead::default(),
+                    body: Body::Forward {
+                        nodes: nodes(&params, &passed.text),
+                        nickname: self.nickname(&peer),
+                    },
+                };
+                tracing::info!(target: TARGET, venue = %peer.venue, chars = passed.text.chars().count(), "long text forwarded");
+                self.enqueue(session, None, piece).await?;
+                return Ok(true);
+            }
+            Some(LongText::Split) | None => return Ok(false),
         }
         let Some(drawn) = draw(&self.core.caller(), &peer.venue, &passed.text, WAIT).await else {
             return Ok(false);
@@ -153,10 +178,25 @@ impl Route {
                     String::new()
                 },
                 lead: std::mem::take(lead),
+                body: Body::Text,
             };
             self.enqueue(session, None, piece).await?;
         }
         Ok(true)
+    }
+
+    /// 合并转发的节点上写的名字：群里照她在这个群的群名片（见过的），别的写机器人号。
+    pub(super) fn nickname(&self, peer: &Peer) -> String {
+        self.nickname_at(peer.to, peer.bot)
+    }
+
+    /// 同 [`Route::nickname`]，照发到哪 `to`、经哪个机器人号 `bot`（主动发消息没有会话可查）。
+    pub(super) fn nickname_at(&self, to: To, bot: i64) -> String {
+        let known = match to {
+            To::Group(group) => self.members.name(group, bot, Instant::now()),
+            To::Private(_) => None,
+        };
+        known.map_or_else(|| bot.to_string(), str::to_string)
     }
 }
 

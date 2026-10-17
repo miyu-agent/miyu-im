@@ -4,7 +4,8 @@
 //! - 发到哪：`user`（QQ 号）、`group`（群号）写一个。发不发、发给谁由她（或者调的包）定，桥不挡；QQ 不让的照 NapCat 的原话回。
 //! - 发什么：照那个场所的出站链过一遍（清理、去末尾句号；不引用、不 @，同私聊），拆好的一段一条，经收进叫她的那个会话的机器人号
 //!   （别的包调的、找不到的照连着的号里最小的那一个）调 `send_group_msg`、`send_private_msg`，不走出站队列：一段段等 NapCat 回了
-//!   再答。
+//!   再答。太长的照对方场所的长文办（施工 O-59 下，`long`）：转成图的在这个任务里画、一页一条（画不成的照拆好的几段），合并
+//!   转发的发一条。
 //! - 对方那个场所的会话找得到的（群；终端管理员、白名单成员的私聊），发成了以后经核心的 `session.note` 给它记一块 `reached`
 //!   事实（模板 `facts/reached.txt`，给模型看的字，登记在 `docs/ledger.md`）：对方回了，她知道是自己先找的人。陌生人的私聊没有
 //!   会话，不记。
@@ -12,17 +13,19 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use miyu_chat::{Venue, VenueKind};
+use miyu_chat::{LongText, Venue, VenueKind};
+use miyu_client::ids::VenueId;
 use miyu_client::protocol::Template;
 use serde_json::{Value, json};
 
 use super::Route;
+use super::long::{WAIT, draw, nodes, wants};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
 use crate::core::{Answerer, Caller, Gone, reason};
 use crate::listen::bots::Bots;
-use crate::onebot::{CallError, Lead, To, message_to, person, said, venue};
+use crate::onebot::{CallError, Lead, To, forward_to, message_to, person, picture_to, said, venue};
 use crate::rules::Tools;
 
 /// `reached` 事实的 `kind`。
@@ -59,8 +62,10 @@ struct Job {
     bot: i64,
     /// 发到哪。
     to: To,
-    /// 拆好的几段。
+    /// 拆好的几段：拆成几条的照它发；转成图画不成的也照它（施工 O-59 下）。
     pieces: Vec<String>,
+    /// 长文怎么发（施工 O-59 下，`long`）。
+    long: Long,
     /// 对方的场所会话：发成了记 `reached`；没有的不记。
     session: Option<String>,
     /// 机器人号的连接。
@@ -71,6 +76,16 @@ struct Job {
     template: Template,
     /// 答谁。
     answer: Answer,
+}
+
+/// 长文怎么发（施工 O-59 下）：照对方场所的参数。
+enum Long {
+    /// 不长、拆成几条的：照 `pieces` 一段一条。
+    Split,
+    /// 转成图：在发的任务里调渲染包画（同她的话，`long::draw`），场所的编号、全文。
+    Image(VenueId, String),
+    /// 合并转发：几段、节点上的名字。
+    Forward(Vec<String>, String),
 }
 
 /// 发完了答谁：她调的工具（`tool.call`），别的包调的方法（`method.call`）。
@@ -150,18 +165,28 @@ impl Route {
         };
         let applied = self.applied(&target);
         let ctx = private_ctx(Vec::new(), applied.params.outbound.clone());
-        let pieces = match pass(&text, &ctx, None, applied.params.split_chars) {
-            Ok(passed) => passed.pieces,
+        let passed = match pass(&text, &ctx, None, applied.params.split_chars) {
+            Ok(passed) => passed,
             Err(_) => {
                 finish(answer, Err(("no-target", None)));
                 return Ok(());
             }
         };
+        let long = match wants(&applied.params, &passed.text) {
+            Some(LongText::Image) => Long::Image(target.id().clone(), passed.text.clone()),
+            Some(LongText::Forward) => Long::Forward(
+                nodes(&applied.params, &passed.text),
+                self.nickname_at(to, bot),
+            ),
+            Some(LongText::Split) | None => Long::Split,
+        };
+        let pieces = passed.pieces;
         let session = self.target_session(&target, to, bot).await?;
         let job = Job {
             bot,
             to,
             pieces,
+            long,
             session,
             bots: Arc::clone(&self.bots),
             caller: self.core.caller(),
@@ -206,21 +231,37 @@ async fn run(job: Job) {
     {
         note(&job, session).await;
     }
-    finish(job.answer, outcome.map(|()| job.pieces.len()));
+    finish(job.answer, outcome);
 }
 
 /// 没发成的：答的那一句（拒的原因）、NapCat 说的。
 type Undone = (&'static str, Option<String>);
 
-/// 一段段发。
-async fn send(job: &Job) -> Result<(), Undone> {
+/// 一条条发，交回发了几条：照长文的办法拼好几个动作（转成图的先画，画不成的照拆好的几段）。
+async fn send(job: &Job) -> Result<usize, Undone> {
     let Some(link) = job.bots.get(job.bot) else {
         return Err(("unreachable", None));
     };
-    for piece in &job.pieces {
-        let (action, params) = message_to(job.to, piece, &Lead::default());
+    let words = || -> Vec<(&'static str, Value)> {
+        job.pieces
+            .iter()
+            .map(|piece| message_to(job.to, piece, &Lead::default()))
+            .collect()
+    };
+    let actions = match &job.long {
+        Long::Split => words(),
+        Long::Image(venue, text) => match draw(&job.caller, venue, text, WAIT).await {
+            Some(drawn) => drawn
+                .iter()
+                .map(|page| picture_to(job.to, &page.file, &Lead::default()))
+                .collect(),
+            None => words(),
+        },
+        Long::Forward(nodes, nickname) => vec![forward_to(job.to, job.bot, nickname, nodes)],
+    };
+    for (action, params) in &actions {
         link.calls
-            .call(&link.out, action, params)
+            .call(&link.out, action, params.clone())
             .await
             .map_err(|error| match error {
                 CallError::Failed(reply) => ("failed", Some(said(&reply))),
@@ -228,7 +269,7 @@ async fn send(job: &Job) -> Result<(), Undone> {
                 CallError::Closed => ("unreachable", None),
             })?;
     }
-    Ok(())
+    Ok(actions.len())
 }
 
 /// 给对方的会话记一块 `reached`：她那句话的开头。核心拒了的记一行，不再试。

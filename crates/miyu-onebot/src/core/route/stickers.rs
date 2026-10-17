@@ -15,7 +15,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
 use super::Route;
-use super::sending::{Image, Piece, What};
+use super::sending::{Body, Image, Piece, What};
 use super::shown::read;
 use crate::TARGET;
 use crate::core::{Gone, reason};
@@ -99,6 +99,7 @@ impl Route {
                 what: What::Image(Box::new(image)),
                 text: String::new(),
                 lead: Lead::default(),
+                body: Body::Text,
             };
             self.enqueue(session, None, piece).await?;
         }
