@@ -1,5 +1,5 @@
 //! 挂接点（施工 O-43 上，`onebot.md` 第一条「挂接点」，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里另装一个
-//! 导出 `qq.event` 的测试包（`miyu-onebot-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "onebot"`），消息不交；
+//! 导出 `chat.event` 的测试包（`miyu-onebot-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "onebot"`），消息不交；
 //! 只导出别的方法的包不收。桥起来以后才打开的包，照推来的 `package.changed` 挂上。
 
 use std::sync::Arc;
@@ -58,8 +58,8 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
                 install(
                     root,
                     "hooky",
-                    &[hooky, "answer:qq.event:{}".to_string()],
-                    &["qq.event"],
+                    &[hooky, "answer:chat.event:{}".to_string()],
+                    &["chat.event"],
                 );
                 let other = format!("record:{}", log_of(root, "other").display());
                 install(
@@ -87,12 +87,12 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     let first = &calls(&hooky)[0];
-    assert_eq!(first["method"], "qq.event");
+    assert_eq!(first["method"], "chat.event");
     assert_eq!(first["from"], "onebot");
     assert_eq!(
         first["params"],
-        json!({"bot": BOT, "event": joined(5)}),
-        "原样"
+        json!({"platform": "qq", "bot": BOT, "event": joined(5)}),
+        "原样，带上平台"
     );
     // 请求也交；消息不交。
     let request = json!({"post_type": "request", "request_type": "friend", "time": TIME, "self_id": BOT, "user_id": 66, "comment": "hi", "flag": "f-1"});
@@ -138,8 +138,8 @@ async fn a_package_switched_on_after_the_bridge_is_hooked_from_the_pushed_change
             &ports_config(listen),
             |root| {
                 let late = format!("record:{}", log_of(root, "late").display());
-                let args = [late, "answer:qq.event:{}".to_string()];
-                install_starting(root, "late", &args, &["qq.event"], "manual");
+                let args = [late, "answer:chat.event:{}".to_string()];
+                install_starting(root, "late", &args, &["chat.event"], "manual");
             },
         );
         let started = cli(&home.root, &["start"]).await;

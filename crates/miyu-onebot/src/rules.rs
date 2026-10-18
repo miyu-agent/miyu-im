@@ -49,7 +49,7 @@ pub use configured::{Configured, key_of};
 use files::Stamp;
 pub use tools::Tools;
 pub(crate) use tools::{
-    AVATAR, FETCH_MEDIA, MEMBERS, MENTION, MUTE, POKE, QQ_SEND, RECALL, SKIP_REPLY,
+    AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, MUTE, POKE, RECALL, SKIP_REPLY,
 };
 
 /// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `system/` 里。

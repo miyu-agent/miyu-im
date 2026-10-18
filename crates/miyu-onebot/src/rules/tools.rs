@@ -45,7 +45,7 @@ pub(crate) const MEMBERS: &str = "members";
 pub(crate) const MENTION: &str = "mention";
 
 /// 主动发消息（施工 O-56）：发给她的好友、她在的群。
-pub(crate) const QQ_SEND: &str = "qq_send";
+pub(crate) const CHAT_SEND: &str = "chat_send";
 
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
@@ -64,7 +64,7 @@ const TOOLS: [(&str, Access, &[&str]); 9] = [
     (AVATAR, Access::Venue, VENUES),
     (MEMBERS, Access::Read, &["group"]),
     (MENTION, Access::Venue, &["group"]),
-    (QQ_SEND, Access::Venue, VENUES),
+    (CHAT_SEND, Access::Venue, VENUES),
 ];
 
 /// 答的那几句在包文件夹的 `data/` 下的哪个目录里（照核心的 `core/tool-results/`）。
@@ -160,7 +160,7 @@ impl Tools {
             AVATAR,
             MEMBERS,
             MENTION,
-            QQ_SEND,
+            CHAT_SEND,
         ]
         .contains(&tool)
     }

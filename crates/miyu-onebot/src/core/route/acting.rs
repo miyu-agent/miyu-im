@@ -18,7 +18,7 @@ use crate::core::{Answerer, Gone};
 use crate::listen::bots::Bots;
 use crate::media::{Missed, message};
 use crate::onebot::{CallError, To, delete_msg, group_ban, person, poke, said};
-use crate::rules::{AVATAR, FETCH_MEDIA, MEMBERS, MENTION, QQ_SEND, Tools};
+use crate::rules::{AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -86,7 +86,7 @@ impl Route {
             return self.mention_called(pushed).await;
         }
         // 主动发消息（施工 O-56，`outreach`）。
-        if tool == QQ_SEND {
+        if tool == CHAT_SEND {
             return self.send_called(pushed).await;
         }
         // 调用所在那条线（`line`）是支线的，照主线找投影、发到哪（施工 O-36）。

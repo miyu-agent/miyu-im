@@ -44,7 +44,7 @@
 - `owner` 是核心认不认这个人是主人本人。
 - 登记成 `venue` 的工具，**核心不替你挡人**：谁能用（只给主人？只给群管理的人？）要你自己照 `by.role`、`owner` 挡，挡下的照工具结果回一句、`error` 写真。
 
-**是哪个群**：`tool.call` 交来的是会话编号。要知道是哪个群、经哪个机器人号，调接入QQ 的 `qq.venue`（见第六节）。
+**是哪个群**：`tool.call` 交来的是会话编号。要知道是哪个群、经哪个机器人号，调接入QQ 的 `chat.venue`（见第六节）。
 
 ### 三、往对话里加提示
 
@@ -95,13 +95,14 @@
 
 **你调接入QQ**（细节在 [`extending.md` 第一条](../blueprint/extending.md#一调接入qq-的方法)）：
 
-- `qq.send {user | group, text}`：以她的名义发一条，过出站链，对方那个会话记一块事实，她知道是自己先找的人。
-- `qq.action {action, params?, bot?}`：替你调一个 OneBot 动作（踢人、查群成员、取图……），NapCat 的回答原样交回。发出去的话她不知道是自己说的。
-- `qq.venue {session}`：会话编号是哪个群、哪个机器人号。
+- 挂接点、方法 2026-10-19 起叫 `chat.*`（原来是 `qq.*`）：接入QQ 交给你的参数、`chat.venue` 的回答都带 `platform`（现在只有 `qq`）；你调方法时可以写 `platform`，不写当 `qq`，写了别的平台的拒 `bad_params`。
+- `chat.send {user | group, text}`：以她的名义发一条，过出站链，对方那个会话记一块事实，她知道是自己先找的人。
+- `chat.action {action, params?, bot?}`：替你调一个 OneBot 动作（踢人、查群成员、取图……），NapCat 的回答原样交回。发出去的话她不知道是自己说的。
+- `chat.venue {session}`：会话编号是哪个群、哪个机器人号。
 
 **接入QQ 调你**：
 
-- **挂接点**（细节在 [`extending.md` 第二条](../blueprint/extending.md#二插进接入qq-里面)）：导出约定名字的方法，装上就挂上。`qq.event`（QQ 的通知、请求原样交你）、`qq.inbound`（群消息判以前问你：照常、只记下、直接回）、`qq.outbound`（她的话发出去以前问你：换掉、不发、照原样）、`qq.score`（判官打完分问你加减分）。`qq.event` 不等你的回答，别的三处最多等 1.5 秒，等不到的照没意见算。
+- **挂接点**（细节在 [`extending.md` 第二条](../blueprint/extending.md#二插进接入qq-里面)）：导出约定名字的方法，装上就挂上。`chat.event`（QQ 的通知、请求原样交你）、`chat.inbound`（群消息判以前问你：照常、只记下、直接回）、`chat.outbound`（她的话发出去以前问你：换掉、不发、照原样）、`chat.score`（判官打完分问你加减分）。`chat.event` 不等你的回答，别的三处最多等 1.5 秒，等不到的照没意见算。
 - **约定的服务**：接入QQ 认得的包编号、方法名，装上就用。现在有一个：`miyu-render` 的 `markdown {markdown}` → `{pages: [{blob, width, height}]}`，接入QQ 把超过阈值的长回话交给它画成图（每张场所卡片的「长文」一格）。你写一个同编号、同方法的包就能换掉画法；调不通、超时（15 秒）的接入QQ 照拆段发。
 
 ### 八、在 QQ 里试
@@ -137,5 +138,5 @@ capabilities = ["tools", "context.inject", "packages.call"]   # 用到哪几样�
 packages = ["onebot"]
 
 [export]
-methods = ["qq.inbound"]
+methods = ["chat.inbound"]
 ```

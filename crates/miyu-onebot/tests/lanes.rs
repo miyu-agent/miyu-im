@@ -430,7 +430,7 @@ async fn what_a_lane_could_not_send_is_noted_where_she_will_see_it() {
 
 #[tokio::test]
 async fn a_lane_names_its_group_to_other_packages() {
-    // 给别的包调的 `qq.venue`（施工 O-42）：支线这一轮还在回的时候（别的包的工具只在这时被调），照它的群答。支线回完就封存、
+    // 给别的包调的 `chat.venue`（施工 O-42）：支线这一轮还在回的时候（别的包的工具只在这时被调），照它的群答。支线回完就封存、
     // 桥不再记着它，所以两条线的回话都卡住。
     let (release_a, hold_a) = oneshot::channel();
     let (release_b, hold_b) = oneshot::channel();
@@ -450,12 +450,12 @@ async fn a_lane_names_its_group_to_other_packages() {
     let reply = head
         .call(
             "package.call",
-            json!({"package": "onebot", "method": "qq.venue", "params": {"session": lanes[0].0}}),
+            json!({"package": "onebot", "method": "chat.venue", "params": {"session": lanes[0].0}}),
         )
         .await;
     assert_eq!(
         reply["result"],
-        json!({"venue": venue(), "bot": BOT}),
+        json!({"platform": "qq", "venue": venue(), "bot": BOT}),
         "{reply}"
     );
     release_b.send(()).expect("还在等");

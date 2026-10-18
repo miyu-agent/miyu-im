@@ -1,10 +1,10 @@
 //! 给别的包调的方法（施工 O-42，`onebot.md` 第一条「给别的包调的方法」，`extending.md`）：真核心照开关拉起真桥，头照别的包
 //! 的样子经核心的 `package.call` 调（核心只多查一道 `[export]`，那一道由清单测试守着）。
 //!
-//! - `qq.action`：NapCat 没连着的 `not_connected`；连着的原样转过去（动作名、参数），NapCat 回什么交回什么（成了的、失败的），
+//! - `chat.action`：NapCat 没连着的 `not_connected`；连着的原样转过去（动作名、参数），NapCat 回什么交回什么（成了的、失败的），
 //!   不带桥编的 `echo`；`bot` 写了连着的号照它，写了没连着的号 `not_connected`；写错的 `bad_params`；NapCat 不回的
 //!   `unanswered`。运行日志记谁调了什么动作，不记参数。
-//! - `qq.venue`：群会话照回场所和机器人号，认不得的 `null`。
+//! - `chat.venue`：群会话照回场所和机器人号，认不得的 `null`。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -57,7 +57,7 @@ fn refused(reply: &Value) -> &str {
 async fn registered(head: &mut Head) {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     loop {
-        let reply = exported(head, "qq.venue", json!({"session": "nope"})).await;
+        let reply = exported(head, "chat.venue", json!({"session": "nope"})).await;
         if reply["result"] == json!({"venue": null}) {
             return;
         }
@@ -75,13 +75,13 @@ async fn actions_go_to_napcat_and_come_back_as_napcat_said() {
     let mut head = Head::connect(&home.root).await;
     registered(&mut head).await;
     let list = json!({"action": "get_group_member_list", "params": {"group_id": SECRET_GROUP}});
-    let early = exported(&mut head, "qq.action", list.clone()).await;
+    let early = exported(&mut head, "chat.action", list.clone()).await;
     assert_eq!(refused(&early), "not_connected", "{early}");
 
     let mut napcat = admin_napcat(listen).await;
     napcat.version().await;
     let (reply, action) = tokio::join!(
-        exported(&mut head, "qq.action", list.clone()),
+        exported(&mut head, "chat.action", list.clone()),
         napcat.action()
     );
     assert_eq!(
@@ -98,24 +98,28 @@ async fn actions_go_to_napcat_and_come_back_as_napcat_said() {
     );
     // 写的动作、写了连着的号：照样转过去；不写参数的是空对象。
     let ban = json!({"action": "set_group_ban", "params": {"group_id": 1, "user_id": 2, "duration": 60}, "bot": BOT});
-    let (reply, action) = tokio::join!(exported(&mut head, "qq.action", ban), napcat.action());
+    let (reply, action) = tokio::join!(exported(&mut head, "chat.action", ban), napcat.action());
     assert_eq!(action["action"], "set_group_ban");
     assert_eq!(reply["result"]["status"], "ok", "{reply}");
     let (_, action) = tokio::join!(
-        exported(&mut head, "qq.action", json!({"action": "_get_model_show"})),
+        exported(
+            &mut head,
+            "chat.action",
+            json!({"action": "_get_model_show"})
+        ),
         napcat.action()
     );
     assert_eq!(action["params"], json!({}));
     // NapCat 回了失败：也是回答，原样交回。
     let fetched = tokio::select! {
-        reply = exported(&mut head, "qq.action", json!({"action": "get_msg", "params": {"message_id": 7}})) => reply,
+        reply = exported(&mut head, "chat.action", json!({"action": "get_msg", "params": {"message_id": 7}})) => reply,
         () = async { napcat.action().await; } => unreachable!("取东西的不交出来"),
     };
     assert_eq!(fetched["result"]["status"], "failed", "{fetched}");
     // 没连着的号。
     let other = json!({"action": "get_group_list", "bot": BOT + 1});
     assert_eq!(
-        refused(&exported(&mut head, "qq.action", other).await),
+        refused(&exported(&mut head, "chat.action", other).await),
         "not_connected"
     );
     // 写错的。
@@ -129,13 +133,37 @@ async fn actions_go_to_napcat_and_come_back_as_napcat_said() {
         json!({"action": "get_group_list", "params": [1]}),
         json!({"action": "get_group_list", "params": "x"}),
         json!({"action": "get_group_list", "bot": "30001"}),
+        // 别的平台的（施工 I-1）：这个驱动只认 `qq`。
+        json!({"action": "get_group_list", "platform": "telegram"}),
+        json!({"action": "get_group_list", "platform": 1}),
     ] {
-        let reply = exported(&mut head, "qq.action", wrong.clone()).await;
+        let reply = exported(&mut head, "chat.action", wrong.clone()).await;
         assert_eq!(refused(&reply), "bad_params", "{wrong} {reply}");
     }
     assert_eq!(
-        refused(&exported(&mut head, "qq.venue", json!({})).await),
+        refused(&exported(&mut head, "chat.venue", json!({})).await),
         "bad_params"
+    );
+    assert_eq!(
+        refused(
+            &exported(
+                &mut head,
+                "chat.venue",
+                json!({"session": "nope", "platform": "telegram"})
+            )
+            .await
+        ),
+        "bad_params"
+    );
+    assert_eq!(
+        exported(
+            &mut head,
+            "chat.venue",
+            json!({"session": "nope", "platform": "qq"})
+        )
+        .await["result"],
+        json!({"venue": null}),
+        "写明是 qq 的照答"
     );
     let log = run_log(&home.root);
     // 答了的那一行：谁调、什么动作、NapCat 回的 `retcode`（`from` 是空的：调的是头，别的包调的带包的编号）。
@@ -160,7 +188,12 @@ async fn a_silent_napcat_is_unanswered() {
     let mut napcat = admin_napcat(listen).await;
     napcat.version().await;
     // 这个假 NapCat 收了不回。
-    let reply = exported(&mut head, "qq.action", json!({"action": "get_group_list"})).await;
+    let reply = exported(
+        &mut head,
+        "chat.action",
+        json!({"action": "get_group_list"}),
+    )
+    .await;
     assert_eq!(refused(&reply), "unanswered", "{reply}");
     napcat.close().await;
     let stopped = cli(&home.root, &["stop"]).await;
@@ -189,13 +222,13 @@ async fn a_group_session_names_its_venue_and_bot() {
     .await;
     let (session, _) = venue_session(&home.root, venue).expect("有会话");
     let mut head = Head::connect(&home.root).await;
-    let reply = exported(&mut head, "qq.venue", json!({"session": session})).await;
+    let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"],
-        json!({"venue": venue, "bot": BOT}),
+        json!({"platform": "qq", "venue": venue, "bot": BOT}),
         "{reply}"
     );
-    let reply = exported(&mut head, "qq.venue", json!({"session": "nope"})).await;
+    let reply = exported(&mut head, "chat.venue", json!({"session": "nope"})).await;
     assert_eq!(reply["result"], json!({"venue": null}));
     stopped(home).await;
 }

@@ -19,20 +19,30 @@ use futures_util::future::join_all;
 use serde_json::{Value, json};
 
 use super::caller::Caller;
+use super::methods::PLATFORM;
 use super::reason;
 use crate::TARGET;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
-pub(crate) const EVENT: &str = "qq.event";
+pub(crate) const EVENT: &str = "chat.event";
 
 /// 进站：群里一条人说的话判以前问，回 `{"route": "pass" | "record" | "reply"}`。
-pub(crate) const INBOUND: &str = "qq.inbound";
+pub(crate) const INBOUND: &str = "chat.inbound";
 
 /// 出站：她的一段话发出去以前问，回 `{"text": <换成的>}`、`{"drop": true}` 或 `{}`。
-pub(crate) const OUTBOUND: &str = "qq.outbound";
+pub(crate) const OUTBOUND: &str = "chat.outbound";
 
 /// 判断打分：判官答了、算分以前问，回 `{"bonus": <-1 到 1 的数>}`。
-pub(crate) const SCORE: &str = "qq.score";
+pub(crate) const SCORE: &str = "chat.score";
+
+/// 交给挂接点的参数 `params`（一个对象）带上平台（施工 I-1）：插件照它知道是哪个平台的。不是对象的照原样。
+fn with_platform(params: &Value) -> Value {
+    let mut params = params.clone();
+    if let Value::Object(fields) = &mut params {
+        fields.insert("platform".into(), Value::from(PLATFORM));
+    }
+    params
+}
 
 /// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
 const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
@@ -157,7 +167,7 @@ impl Hooks {
     pub(crate) fn event(&self, bot: i64, event: &Value) {
         for package in self.at(EVENT) {
             let caller = self.caller.clone();
-            let params = json!({"package": package, "method": EVENT, "params": {"bot": bot, "event": event}});
+            let params = json!({"package": package, "method": EVENT, "params": {"platform": PLATFORM, "bot": bot, "event": event}});
             tokio::spawn(async move {
                 if let Ok(reply) = caller.call("package.call", params).await
                     && let Some(why) = reason(&reply)
@@ -170,13 +180,13 @@ impl Hooks {
     }
 
     /// 问挂在 [`INBOUND`] 的包 `packages`（照编号排）这一条 `params`：并着问，每个最多等 `hook_millis`；等不到的、核心拒了的、答错的
-    /// 照照常算，记一行 `WARN hook failed package=… point=qq.inbound why=…`（`timeout`、核心的原因、`bad_answer`）。交回最重的意见
+    /// 照照常算，记一行 `WARN hook failed package=… point=chat.inbound why=…`（`timeout`、核心的原因、`bad_answer`）。交回最重的意见
     /// 和给出它的头一个包。
     pub(crate) async fn inbound(&self, packages: Vec<String>, params: Value) -> Steered {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": INBOUND, "params": params});
+            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params)});
             async move {
                 let steer = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
@@ -200,7 +210,7 @@ impl Hooks {
 
     /// 问挂在 [`OUTBOUND`] 的包 `packages`（照编号排）她在场所 `venue`（机器人号 `bot`）的一段话 `text`：一个接一个问，前一个
     /// 换了的交给后一个，每个最多等 `hook_millis`；有一个说不发的就停、交回它。等不到的、核心拒了的、答错的（`text` 不是不空的
-    /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=qq.outbound why=…`。
+    /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=chat.outbound why=…`。
     pub(crate) async fn outbound(
         &self,
         packages: Vec<String>,
@@ -210,7 +220,7 @@ impl Hooks {
     ) -> Voiced {
         let mut text = text;
         for package in packages {
-            let call = json!({"package": package, "method": OUTBOUND, "params": {"venue": venue, "bot": bot, "text": text}});
+            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": PLATFORM, "venue": venue, "bot": bot, "text": text}});
             let answered =
                 match tokio::time::timeout(self.wait, self.caller.call("package.call", call)).await
                 {
@@ -236,12 +246,12 @@ impl Hooks {
 
     /// 问挂在 [`SCORE`] 的包 `packages`（照编号排）这一条 `params`：并着问，每个最多等 `hook_millis`；回 `{"bonus": <数>}`，每个
     /// 夹到 -1 到 1，加起来再夹一次。等不到的、核心拒了的、答错的（`bonus` 不是有限的数）照 0 算，记一行 `WARN hook failed
-    /// package=… point=qq.score why=…`。
+    /// package=… point=chat.score why=…`。
     pub(crate) async fn score(&self, packages: Vec<String>, params: Value) -> Nudge {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": SCORE, "params": params});
+            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params)});
             async move {
                 let bonus = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),

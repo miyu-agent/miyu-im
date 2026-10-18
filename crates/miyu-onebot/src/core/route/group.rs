@@ -27,8 +27,8 @@ use crate::TARGET;
 use crate::core::Gone;
 use crate::onebot::{Posted, command_id, person, venue};
 
-/// 问进站挂接点时带上的东西（施工 O-52，`extending.md` 第二条「`qq.inbound`」）：照先后，第几样（从 1 数，同核心的 `#n`）、
-/// 种类、平台的编号（`qq.action` 的 `get_image`、`get_file` 认它）、名字、字节数（有的才写）。别的包（表情包包偷图这类）照它自己去取。
+/// 问进站挂接点时带上的东西（施工 O-52，`extending.md` 第二条「`chat.inbound`」）：照先后，第几样（从 1 数，同核心的 `#n`）、
+/// 种类、平台的编号（`chat.action` 的 `get_image`、`get_file` 认它）、名字、字节数（有的才写）。别的包（表情包包偷图这类）照它自己去取。
 fn inbound_media(posted: &Posted) -> Value {
     let items: Vec<Value> = posted
         .segments

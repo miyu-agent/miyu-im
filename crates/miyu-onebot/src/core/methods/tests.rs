@@ -7,15 +7,15 @@ use super::{Methods, exported, registered};
 
 #[test]
 fn ten_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `qq.send`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）。
+    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `chat.send`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）。
     assert_eq!(
         registered(),
         json!({"methods": [
             {"name": "status"},
             {"name": "connection.token"},
-            {"name": "qq.action"},
-            {"name": "qq.venue"},
-            {"name": "qq.send"},
+            {"name": "chat.action"},
+            {"name": "chat.venue"},
+            {"name": "chat.send"},
             {"name": "cards.get"},
             {"name": "cards.save"},
             {"name": "cards.save_one"},
@@ -30,15 +30,15 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
     let routed: Vec<_> = [
         "status",
         "connection.token",
-        "qq.action",
-        "qq.venue",
-        "qq.send",
+        "chat.action",
+        "chat.venue",
+        "chat.send",
         "cards.get",
         "cards.save",
         "cards.save_one",
         "cards.add",
         "cards.remove",
-        "qq.inbound",
+        "chat.inbound",
         "",
     ]
     .into_iter()
@@ -47,9 +47,9 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
     assert_eq!(
         routed,
         [
-            "qq.action",
-            "qq.venue",
-            "qq.send",
+            "chat.action",
+            "chat.venue",
+            "chat.send",
             "cards.get",
             "cards.save",
             "cards.save_one",

@@ -1,5 +1,5 @@
 //! 判断打分挂接点（施工 O-43 末，`onebot.md` 第一条「挂接点」第 5 条，`extending.md` 第二条）：真核心照开关拉起真桥、判官是本机
-//! 回环上的假服务器（`support::judge`），管理员家目录里另装导出 `qq.score` 的测试包。
+//! 回环上的假服务器（`support::judge`），管理员家目录里另装导出 `chat.score` 的测试包。
 //!
 //! - 判官说不回、包加 1 分：回了；判断的 `score` 写着加了多少、谁加的，`bonus` 里算进去了。问的是场所、平台编号、成立的条件、
 //!   判官的五维和两个真假。
@@ -45,8 +45,8 @@ fn log_of(root: &DataRoot, id: &str) -> std::path::PathBuf {
 /// 测试包 `id`：判断打分挂接点答 `bonus`。
 fn hook(root: &DataRoot, id: &str, bonus: f64) {
     let record = format!("record:{}", log_of(root, id).display());
-    let how = format!("answer:qq.score:{{\"bonus\":{bonus}}}");
-    install(root, id, &[record, how], &["qq.score"]);
+    let how = format!("answer:chat.score:{{\"bonus\":{bonus}}}");
+    install(root, id, &[record, how], &["chat.score"]);
 }
 
 /// 等到挂了 `count` 个包（同 `steering.rs`）。
@@ -106,11 +106,11 @@ async fn a_package_lifts_a_no_into_a_reply_and_is_named() {
     assert_eq!(lifted["score"]["bonus"], json!(1.3));
     let asked = &std::fs::read_to_string(log_of(&home.root, "boost")).expect("记了");
     let asked: Value = serde_json::from_str(asked.lines().next().expect("一次")).expect("JSON");
-    assert_eq!(asked["method"], "qq.score");
+    assert_eq!(asked["method"], "chat.score");
     assert_eq!(
         asked["params"],
         json!({
-            "venue": venue, "msg": "1", "conditions": [{"kind": "direct", "bonus": 0.3}],
+            "platform": "qq", "venue": venue, "msg": "1", "conditions": [{"kind": "direct", "bonus": 0.3}],
             "scores": [1.0, 1.0, 1.0, 1.0, 1.0], "should_reply": false, "to_bot": false,
         })
     );

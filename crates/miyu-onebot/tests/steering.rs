@@ -1,5 +1,5 @@
 //! 进站挂接点（施工 O-43 中，`onebot.md` 第一条「挂接点」第 3 条，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里
-//! 另装导出 `qq.inbound` 的测试包。
+//! 另装导出 `chat.inbound` 的测试包。
 //!
 //! - 回 `record`：别人 @ 她只记下，判断写 `hook`；终端管理员 @ 她照回、不写 `hook`。问的是这一条的场所、号、发的人、正文。
 //! - 回 `reply`：别人随口说的（不 @、不抽样）也直接回，不问判官；两个包一个 `record` 一个 `reply` 照 `record`。
@@ -54,10 +54,10 @@ fn log_of(root: &DataRoot, id: &str) -> std::path::PathBuf {
 fn hook(root: &DataRoot, id: &str, answer: &str) {
     let record = format!("record:{}", log_of(root, id).display());
     let how = match answer {
-        "slow" => "slow:qq.inbound".to_string(),
-        answer => format!("answer:qq.inbound:{answer}"),
+        "slow" => "slow:chat.inbound".to_string(),
+        answer => format!("answer:chat.inbound:{answer}"),
     };
-    install(root, id, &[record, how], &["qq.inbound"]);
+    install(root, id, &[record, how], &["chat.inbound"]);
 }
 
 /// 等到挂了 `count` 个包：桥运行日志最后一行说挂了几个的（订阅的回应 `hooks learned`、推来的变化 `hooks changed`）是它。
@@ -111,11 +111,11 @@ async fn record_holds_her_back_except_for_the_admin() {
         "{held}"
     );
     let asked = &calls(&home.root, "guard")[0];
-    assert_eq!(asked["method"], "qq.inbound");
+    assert_eq!(asked["method"], "chat.inbound");
     assert_eq!(asked["from"], "onebot");
     assert_eq!(
         asked["params"],
-        json!({"venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false, "media": []}),
+        json!({"platform": "qq", "venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false, "media": []}),
     );
     // 终端管理员的照回：挂接点也问了，意见不算。
     napcat.send(says(ADMIN, 2, true));

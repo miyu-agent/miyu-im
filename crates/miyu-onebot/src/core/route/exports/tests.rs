@@ -1,4 +1,4 @@
-//! `qq.action` 的参数怎么读（施工 O-42）：动作名的字符和长度、`params` 不写是空对象、`bot` 只收整数，多写的格不管。
+//! `chat.action` 的参数怎么读（施工 O-42）：动作名的字符和长度、`params` 不写是空对象、`bot` 只收整数，多写的格不管。
 
 use serde_json::json;
 

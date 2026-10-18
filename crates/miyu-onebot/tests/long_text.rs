@@ -3,7 +3,7 @@
 //! `reply`（全文）、第二页记成 `image`；`venue.delivered` 第一页带全文和回的人、第二页都是空的；她 `mention` 的 @ 只在第一页。
 //! 判、画、记照过了出站链的全文（去了末尾的「。」）。不长的照发字；渲染包没装的、交回零页的、这个群写了
 //! `long_text = "split"` 的照发字。合并转发（施工 O-59 下）：她的长回话发成一条、算她的话（入队带 `forward`）；命令回执、别的包
-//! 经 `qq.send` 发的照那个场所的长文办（合并转发一条，转成图一页一条）。
+//! 经 `chat.send` 发的照那个场所的长文办（合并转发一条，转成图一页一条）。
 
 use std::path::PathBuf;
 
@@ -315,7 +315,7 @@ async fn a_long_receipt_follows_the_long_text_setting() {
 
 #[tokio::test]
 async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
-    // 别的包经 `qq.send` 发到群 671（阈值 5）：转成图的一页一条、答两条；合并转发的一条。
+    // 别的包经 `chat.send` 发到群 671（阈值 5）：转成图的一页一条、答两条；合并转发的一条。
     let (dir, _) = temp_root();
     let record = dir.join("calls.jsonl");
     let (home, mut napcat, _) = started_installed(
@@ -326,7 +326,7 @@ async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
     )
     .await;
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let call = json!({"package": "onebot", "method": "qq.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
+    let call = json!({"package": "onebot", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
     let reply = head.call("package.call", call.clone()).await;
     assert_eq!(reply["result"], json!({"sent": 2}), "{reply}");
     is_a_page(&napcat.group_message(GROUP).await);

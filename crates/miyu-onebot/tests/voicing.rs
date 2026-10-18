@@ -1,5 +1,5 @@
 //! 出站挂接点（施工 O-43 下，`onebot.md` 第一条「挂接点」第 4 条，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里
-//! 另装导出 `qq.outbound` 的测试包。
+//! 另装导出 `chat.outbound` 的测试包。
 //!
 //! - 换字的：她的话照换成的发（群里、私聊都是）；问的是场所、号、她这一段的原话。
 //! - 两个包接力：前一个换了的交给后一个。
@@ -32,8 +32,8 @@ fn log_of(root: &DataRoot, id: &str) -> std::path::PathBuf {
 /// 测试包 `id`：出站挂接点照 `answer` 答。
 fn hook(root: &DataRoot, id: &str, answer: &str) {
     let record = format!("record:{}", log_of(root, id).display());
-    let how = format!("answer:qq.outbound:{answer}");
-    install(root, id, &[record, how], &["qq.outbound"]);
+    let how = format!("answer:chat.outbound:{answer}");
+    install(root, id, &[record, how], &["chat.outbound"]);
 }
 
 /// 测试包 `id` 记下的调用。
@@ -98,11 +98,11 @@ async fn her_words_go_out_as_the_package_changed_them_in_groups_and_in_private()
     napcat.send(admin_calls(1));
     assert_eq!(napcat.group_reply(GROUP).await, "换过的");
     let asked = &calls(&home.root, "polish")[0];
-    assert_eq!(asked["method"], "qq.outbound");
+    assert_eq!(asked["method"], "chat.outbound");
     assert_eq!(asked["from"], "onebot");
     assert_eq!(
         asked["params"],
-        json!({"venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在"})
+        json!({"platform": "qq", "venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在"})
     );
     napcat.send(private_frame(ADMIN, 2, json!([plain("在吗")])));
     assert_eq!(private_reply(&mut napcat).await, "换过的");
@@ -188,8 +188,8 @@ async fn a_silent_hook_is_waited_for_then_her_words_go_as_they_were() {
         install(
             root,
             "slow",
-            &[record, "slow:qq.outbound".to_string()],
-            &["qq.outbound"],
+            &[record, "slow:chat.outbound".to_string()],
+            &["chat.outbound"],
         );
     })
     .await;

@@ -7,21 +7,21 @@ use super::*;
 #[test]
 fn only_running_packages_exporting_a_known_point_are_hooked() {
     let packages = json!([
-        {"package": "zeta", "status": "running", "export": {"methods": ["qq.event", "other"]}},
-        {"package": "alpha", "status": "running", "export": {"methods": ["qq.event"]}},
-        {"package": "stopped", "status": "stopped", "export": {"methods": ["qq.event"]}},
-        {"package": "missing", "status": "depends_missing", "export": {"methods": ["qq.event"]}},
+        {"package": "zeta", "status": "running", "export": {"methods": ["chat.event", "other"]}},
+        {"package": "alpha", "status": "running", "export": {"methods": ["chat.event"]}},
+        {"package": "stopped", "status": "stopped", "export": {"methods": ["chat.event"]}},
+        {"package": "missing", "status": "depends_missing", "export": {"methods": ["chat.event"]}},
         {"package": "plain", "status": "running"},
-        {"package": "elsewhere", "status": "running", "export": {"methods": ["qq.action"]}},
-        {"status": "running", "export": {"methods": ["qq.event"]}},
+        {"package": "elsewhere", "status": "running", "export": {"methods": ["chat.action"]}},
+        {"status": "running", "export": {"methods": ["chat.event"]}},
     ]);
     let hooked = table(&packages);
     assert_eq!(hooked_at(&hooked, EVENT), ["alpha", "zeta"]);
-    assert_eq!(hooked_at(&hooked, "qq.action"), Vec::<String>::new());
+    assert_eq!(hooked_at(&hooked, "chat.action"), Vec::<String>::new());
     assert_eq!(hooked.len(), 2);
     assert_eq!(points(&json!(null)), Vec::<&str>::new());
     assert_eq!(
-        points(&json!({"status": "running", "export": {"methods": "qq.event"}})),
+        points(&json!({"status": "running", "export": {"methods": "chat.event"}})),
         Vec::<&str>::new()
     );
 }
@@ -29,16 +29,16 @@ fn only_running_packages_exporting_a_known_point_are_hooked() {
 #[test]
 fn a_pushed_entry_hooks_or_unhooks_that_package_only() {
     let mut hooked = table(&json!([
-        {"package": "alpha", "status": "running", "export": {"methods": ["qq.event"]}},
-        {"package": "beta", "status": "running", "export": {"methods": ["qq.event"]}},
+        {"package": "alpha", "status": "running", "export": {"methods": ["chat.event"]}},
+        {"package": "beta", "status": "running", "export": {"methods": ["chat.event"]}},
     ]));
-    let running = json!({"status": "running", "export": {"methods": ["qq.event"]}});
+    let running = json!({"status": "running", "export": {"methods": ["chat.event"]}});
     change(&mut hooked, "gamma", &running);
     assert_eq!(hooked_at(&hooked, EVENT), ["alpha", "beta", "gamma"]);
     change(
         &mut hooked,
         "alpha",
-        &json!({"status": "stopped", "export": {"methods": ["qq.event"]}}),
+        &json!({"status": "stopped", "export": {"methods": ["chat.event"]}}),
     );
     change(&mut hooked, "gamma", &json!(null));
     assert_eq!(hooked_at(&hooked, EVENT), ["beta"]);

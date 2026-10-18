@@ -1,6 +1,6 @@
-//! 主动发消息（施工 O-56，`onebot.md` 第一条「主动发消息」）：真核心拉起真桥、假 NapCat。她调 `qq_send` 发到别的群、白名单成员、
+//! 主动发消息（施工 O-56，`onebot.md` 第一条「主动发消息」）：真核心拉起真桥、假 NapCat。她调 `chat_send` 发到别的群、白名单成员、
 //! 陌生人：照那个场所的出站链（去末尾句号）发、答 `sent`；对方的场所会话找得到的记一块 `reached`，陌生人的不记。别的包经
-//! `package.call` 调 `qq.send` 一样发，回 `{sent: <几段>}`，写错的 `bad_params`。
+//! `package.call` 调 `chat.send` 一样发，回 `{sent: <几段>}`，写错的 `bad_params`。
 
 use serde_json::{Value, json};
 
@@ -43,10 +43,10 @@ fn reached(root: &miyu_store::root::DataRoot, venue: &str) -> Vec<String> {
 async fn she_messages_another_group_a_friend_and_a_stranger() {
     let lines = Lines::new(
         [
-            uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#),
-            uses("qq_send", r#"{"user":40005,"text":"在吗"}"#),
-            uses("qq_send", r#"{"user":50099,"text":"你好"}"#),
-            uses("qq_send", r#"{"user":1,"group":2,"text":"x"}"#),
+            uses("chat_send", r#"{"group":999,"text":"大家晚上好。"}"#),
+            uses("chat_send", r#"{"user":40005,"text":"在吗"}"#),
+            uses("chat_send", r#"{"user":50099,"text":"你好"}"#),
+            uses("chat_send", r#"{"user":1,"group":2,"text":"x"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -120,7 +120,8 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
 async fn other_packages_send_in_her_name() {
     let (home, mut napcat) = up(&Lines::new([])).await;
     let mut head = Head::connect(&home.root).await;
-    let call = |params: Value| json!({"package": "onebot", "method": "qq.send", "params": params});
+    let call =
+        |params: Value| json!({"package": "onebot", "method": "chat.send", "params": params});
     let reply = head
         .call(
             "package.call",
@@ -135,5 +136,22 @@ async fn other_packages_send_in_her_name() {
     );
     let wrong = head.call("package.call", call(json!({"text": "x"}))).await;
     assert_eq!(wrong["error"]["data"]["message"], "bad_params", "{wrong}");
+    // 别的平台的不发（施工 I-1）；写明是 qq 的照发。
+    let other = head
+        .call(
+            "package.call",
+            call(json!({"group": ELSEWHERE, "text": "x", "platform": "telegram"})),
+        )
+        .await;
+    assert_eq!(other["error"]["data"]["message"], "bad_params", "{other}");
+    let ours = head
+        .call(
+            "package.call",
+            call(json!({"group": ELSEWHERE, "text": "第二条", "platform": "qq"})),
+        )
+        .await;
+    assert_eq!(ours["result"], json!({"sent": 1}), "{ours}");
+    let sent = next_send(&mut napcat, "send_group_msg", "group_id", ELSEWHERE).await;
+    assert_eq!(sent["params"]["message"][0]["data"]["text"], "第二条");
     stopped(home).await;
 }

@@ -2,9 +2,9 @@
 //! 里的两个，别的包经核心的 `package.call` 调，核心反向发 `method.call`（带 `from`：调的包的编号）。读的一头把这两个照推送交到
 //! 这里：会话到场所的表、机器人号的连接都在这一头。
 //!
-//! - `qq.action`：替别的包调一个 OneBot 动作，NapCat 回什么交回什么（拿掉桥自己编的 `echo`）。不挑动作：调得到的包是人批过
+//! - `chat.action`：替别的包调一个 OneBot 动作，NapCat 回什么交回什么（拿掉桥自己编的 `echo`）。不挑动作：调得到的包是人批过
 //!   `packages.call` 的（施工单「要拍板的」第 1 条）。另起任务等 NapCat（`chores`，同平台工具），跟核心的那一头不等。
-//! - `qq.venue`：一个会话是哪个场所、收进它的机器人号；支线照它的群（同平台工具，施工 O-36）。认不得的场所是 `null`。
+//! - `chat.venue`：一个会话是哪个场所、收进它的机器人号；支线照它的群（同平台工具，施工 O-36）。认不得的场所是 `null`。
 
 use std::sync::Arc;
 
@@ -13,14 +13,14 @@ use serde_json::{Map, Value, json};
 use super::Route;
 use crate::TARGET;
 use crate::core::Answerer;
-use crate::core::methods::VENUE;
+use crate::core::methods::{PLATFORM, VENUE, ours};
 use crate::listen::bots::Bots;
 use crate::onebot::CallError;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;
 
-/// 读好的一次 `qq.action`。
+/// 读好的一次 `chat.action`。
 #[derive(Debug, Clone, PartialEq)]
 struct Request {
     /// OneBot 动作名。
@@ -32,7 +32,7 @@ struct Request {
 }
 
 impl Request {
-    /// 读 `qq.action` 的参数：`action` 是小写字母、数字、`_`、`.`，1 到 [`NAME_MAX`] 个（NapCat 的扩展动作有 `.` `_` 开头的）；
+    /// 读 `chat.action` 的参数：`action` 是小写字母、数字、`_`、`.`，1 到 [`NAME_MAX`] 个（NapCat 的扩展动作有 `.` `_` 开头的）；
     /// `params` 不写或是对象；`bot` 不写或是整数。别的格不认，多写的不管。写错的交回空的。
     fn read(args: &Value) -> Option<Request> {
         let action = args["action"].as_str()?;
@@ -61,14 +61,20 @@ impl Request {
 }
 
 impl Route {
-    /// 核心转来的一次 `method.call`（`pushed`），方法是 `qq.action` 或 [`VENUE`]（读的一头只交这两个）：写错的当场拒（`bad_params`），`qq.venue` 当场答，
-    /// `qq.action` 另起任务等 NapCat 再答。
+    /// 核心转来的一次 `method.call`（`pushed`），方法是 `chat.action` 或 [`VENUE`]（读的一头只交这两个）：写错的当场拒（`bad_params`），`chat.venue` 当场答，
+    /// `chat.action` 另起任务等 NapCat 再答。
     pub(super) fn exported(&mut self, pushed: &Value) {
         let id = pushed["id"].clone();
         let params = &pushed["params"];
         let from = params["from"].as_str().unwrap_or_default().to_string();
         let args = &params["params"];
         let answerer = self.core.answerer();
+        // 写了别的平台的不是这个驱动的（施工 I-1）。
+        if !ours(args) {
+            tracing::info!(target: TARGET, from, "export refused, another platform");
+            answerer.refuse(&id, "bad_params");
+            return;
+        }
         if params["method"] == VENUE {
             match args["session"].as_str() {
                 Some(session) => answerer.answer(&id, self.venue_of(session)),
@@ -89,13 +95,15 @@ impl Route {
     fn venue_of(&self, session: &str) -> Value {
         let main = self.main_of(session);
         match self.peers.get(&main) {
-            Some(peer) => json!({"venue": peer.venue.as_str(), "bot": peer.bot}),
+            Some(peer) => {
+                json!({"platform": PLATFORM, "venue": peer.venue.as_str(), "bot": peer.bot})
+            }
             None => json!({"venue": null}),
         }
     }
 }
 
-/// 办一次 `qq.action`：经那个号这时的连接调动作，NapCat 回了的（成没成）原样交回、拿掉 `echo`；没连着的、断了的拒
+/// 办一次 `chat.action`：经那个号这时的连接调动作，NapCat 回了的（成没成）原样交回、拿掉 `echo`；没连着的、断了的拒
 /// `not_connected`，等不到的拒 `unanswered`。运行日志不记参数、不记回答。
 async fn act(id: Value, from: String, request: Request, bots: Arc<Bots>, answerer: Answerer) {
     let link = match request.bot {

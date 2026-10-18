@@ -1,5 +1,5 @@
 //! 主动发消息（施工 O-56，`onebot.md` 第一条「主动发消息」，2026-10-17 项目主人定：她的好友、她在的群她都能发，这是拟人的一种设计）：
-//! 工具 `qq_send`（她自己调）和给别的包调的方法 `qq.send`（以她的名义发，同她自己说话）走同一条路。
+//! 工具 `chat_send`（她自己调）和给别的包调的方法 `chat.send`（以她的名义发，同她自己说话）走同一条路。
 //!
 //! - 发到哪：`user`（QQ 号）、`group`（群号）写一个。发不发、发给谁由她（或者调的包）定，桥不挡；QQ 不让的照 NapCat 的原话回。
 //! - 发什么：照那个场所的出站链过一遍（清理、去末尾句号；不引用、不 @，同私聊），拆好的一段一条，经收进叫她的那个会话的机器人号
@@ -23,6 +23,7 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
+use crate::core::methods::ours;
 use crate::core::{Answerer, Caller, Gone, reason};
 use crate::listen::bots::Bots;
 use crate::onebot::{CallError, Lead, To, forward_to, message_to, person, picture_to, said, venue};
@@ -37,7 +38,7 @@ const HEAD: usize = 30;
 /// 一次最多发多少个字符：拆段以前。
 const MOST: usize = 4000;
 
-/// 读 `qq_send`、`qq.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，正整数，写成字的也认），发什么（去掉首尾
+/// 读 `chat_send`、`chat.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，正整数，写成字的也认），发什么（去掉首尾
 /// 空白不空、不超过 [`MOST`] 个字符）。写错的是空的。
 pub(super) fn request(args: &Value) -> Option<(To, String)> {
     let number = |value: &Value| match value {
@@ -97,7 +98,7 @@ enum Answer {
 }
 
 impl Route {
-    /// 核心转来的一次 `qq_send`（`pushed` 是 `tool.call`）：写错的答 `no-target`，别的起一个任务发。
+    /// 核心转来的一次 `chat_send`（`pushed` 是 `tool.call`）：写错的答 `no-target`，别的起一个任务发。
     ///
     /// # Errors
     ///
@@ -122,7 +123,7 @@ impl Route {
         self.reach(bot, (to, text), answer).await
     }
 
-    /// 别的包经 `package.call` 调的一次 `qq.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
+    /// 别的包经 `package.call` 调的一次 `chat.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
     /// `bot` 写了的照它。
     ///
     /// # Errors
@@ -136,7 +137,7 @@ impl Route {
             .as_str()
             .unwrap_or_default()
             .to_string();
-        let Some(request) = request(args) else {
+        let Some(request) = ours(args).then(|| request(args)).flatten() else {
             tracing::info!(target: TARGET, from, "export send refused");
             answerer.refuse(&id, "bad_params");
             return Ok(());
@@ -299,11 +300,11 @@ async fn note(job: &Job, session: &str) {
 fn finish(answer: Answer, outcome: Result<usize, Undone>) {
     match (answer, outcome) {
         (Answer::Tool(id, tools, answerer), Ok(_)) => {
-            tracing::info!(target: TARGET, tool = "qq_send", "platform tool done");
+            tracing::info!(target: TARGET, tool = "chat_send", "platform tool done");
             answerer.answer(&id, tools.answer("sent", &[], false));
         }
         (Answer::Tool(id, tools, answerer), Err((why, detail))) => {
-            tracing::warn!(target: TARGET, tool = "qq_send", why, "platform tool failed");
+            tracing::warn!(target: TARGET, tool = "chat_send", why, "platform tool failed");
             let fields: Vec<(&str, &str)> = detail
                 .as_deref()
                 .map(|detail| ("detail", detail))

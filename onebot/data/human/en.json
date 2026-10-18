@@ -8,7 +8,7 @@
     "avatar": { "name": "Avatar" },
     "members": { "name": "Group members", "subject": "query" },
     "mention": { "name": "Mention" },
-    "qq_send": { "name": "Send QQ message", "subject": "text" }
+    "chat_send": { "name": "Send message", "subject": "text" }
   },
   "said": {
     "usage": "usage: miyu onebot start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",

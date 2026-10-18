@@ -202,9 +202,9 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         json!({"methods": [
             {"name": "status"},
             {"name": "connection.token"},
-            {"name": "qq.action"},
-            {"name": "qq.venue"},
-            {"name": "qq.send"},
+            {"name": "chat.action"},
+            {"name": "chat.venue"},
+            {"name": "chat.send"},
             {"name": "cards.get"},
             {"name": "cards.save"},
             {"name": "cards.save_one"},

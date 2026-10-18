@@ -25,13 +25,25 @@ const STATUS: &str = "status";
 const TOKEN: &str = "connection.token";
 
 /// 给别的包调的：替它调一个 OneBot 动作（施工 O-42）。
-pub(crate) const ACTION: &str = "qq.action";
+pub(crate) const ACTION: &str = "chat.action";
 
 /// 给别的包调的：一个会话是哪个场所（施工 O-42）。
-pub(crate) const VENUE: &str = "qq.venue";
+pub(crate) const VENUE: &str = "chat.venue";
 
-/// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `qq_send`）。
-pub(crate) const SEND: &str = "qq.send";
+/// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `chat_send`）。
+pub(crate) const SEND: &str = "chat.send";
+
+/// 这个驱动的平台（施工 I-1，设计 01 第四节第 3 条）：挂接点、给别的包调的方法都带上它。只有 OneBot 一个驱动，写死；I-2
+/// 拆出驱动以后由驱动交。
+pub(crate) const PLATFORM: &str = "qq";
+
+/// 别的包调方法时写的 `platform`（施工 I-1）：没写的、写的就是 [`PLATFORM`] 的是这个驱动的；写了别的、不是字的不是。
+pub(crate) fn ours(args: &serde_json::Value) -> bool {
+    match args.get("platform") {
+        None | Some(serde_json::Value::Null) => true,
+        Some(platform) => platform.as_str() == Some(PLATFORM),
+    }
+}
 
 /// 后台页的场所卡片：读（施工 O-58 上）。
 pub(crate) const CARDS_GET: &str = "cards.get";
@@ -44,7 +56,7 @@ use crate::rules::card_page::{
     ADD as CARDS_ADD, REMOVE as CARDS_REMOVE, SAVE_ONE as CARDS_SAVE_ONE,
 };
 
-/// 方法 `method` 是不是交给跟核心的那一头答的：给别的包调的那几个（施工 O-42；O-56 多 `qq.send`），场所卡片的两个（施工 O-58
+/// 方法 `method` 是不是交给跟核心的那一头答的：给别的包调的那几个（施工 O-42；O-56 多 `chat.send`），场所卡片的两个（施工 O-58
 /// 上：卡片、场所规则、连接都在那一头）。
 pub(super) fn exported(method: &str) -> bool {
     matches!(
@@ -107,7 +119,7 @@ fn short_path(paths: &[String]) -> &str {
         .map_or("", String::as_str)
 }
 
-/// `package.methods` 的参数：后台页的两个、给别的包调的两个（施工 O-42），不写时限（照核心的 30 秒：`qq.action` 最多等
+/// `package.methods` 的参数：后台页的两个、给别的包调的两个（施工 O-42），不写时限（照核心的 30 秒：`chat.action` 最多等
 /// `call_timeout_seconds`，比它短）。
 fn registered() -> Value {
     json!({"methods": [

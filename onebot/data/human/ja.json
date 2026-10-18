@@ -8,7 +8,7 @@
     "avatar": { "name": "アイコン" },
     "members": { "name": "グループのメンバー", "subject": "query" },
     "mention": { "name": "メンション" },
-    "qq_send": { "name": "QQ メッセージを送る", "subject": "text" }
+    "chat_send": { "name": "メッセージを送る", "subject": "text" }
   },
   "said": {
     "usage": "使い方：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",

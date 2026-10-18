@@ -44,7 +44,7 @@ When your extension registers tools with `provide`, `venues` says which kinds of
 - `owner` says whether the core recognizes that person as the owner.
 - **The core does not gate people for tools registered as `venue`.** Who may use the tool (only the owner? only the group's managers?) is up to you: check `by.role` and `owner`, and when you refuse, answer with a tool result that says why and set `error` to true.
 
-**Which group it is.** `tool.call` gives you a session id. To learn which group it is and which bot account received it, call the bridge's `qq.venue` (section 7).
+**Which group it is.** `tool.call` gives you a session id. To learn which group it is and which bot account received it, call the bridge's `chat.venue` (section 7).
 
 ### 3. Adding hints to the conversation
 
@@ -95,13 +95,14 @@ Your extension can call the bridge, and the bridge can call you. Both go through
 
 **You call the bridge** (details in [`extending.md` section 1](../blueprint/extending.md)):
 
-- `qq.send {user | group, text}`: send a message in her name. It goes through the outbound chain, and the receiving venue's session gets a fact, so she knows she started the conversation.
-- `qq.action {action, params?, bot?}`: run a OneBot action for you (kick, list group members, fetch an image…). NapCat's answer comes back unchanged. Messages sent this way are not known to her as her own words.
-- `qq.venue {session}`: which group and which bot account a session id belongs to.
+- Hook points and methods are named `chat.*` since 2026-10-19 (they used to be `qq.*`). Every parameter object the bridge hands you, and the answer of `chat.venue`, carries `platform` (only `qq` for now). When you call a method you may pass `platform`: left out means `qq`; any other platform is refused with `bad_params`.
+- `chat.send {user | group, text}`: send a message in her name. It goes through the outbound chain, and the receiving venue's session gets a fact, so she knows she started the conversation.
+- `chat.action {action, params?, bot?}`: run a OneBot action for you (kick, list group members, fetch an image…). NapCat's answer comes back unchanged. Messages sent this way are not known to her as her own words.
+- `chat.venue {session}`: which group and which bot account a session id belongs to.
 
 **The bridge calls you**:
 
-- **Hook points** (details in [`extending.md` section 2](../blueprint/extending.md)): export methods with the agreed names and they are hooked up once your package is installed and running. `qq.event` (QQ notices and requests, passed on as is), `qq.inbound` (asked before a group message is decided: pass, record only, reply), `qq.outbound` (asked before her words go out: replace, drop, keep), `qq.score` (asked after the judge has scored: add or subtract). `qq.event` does not wait for your answer. The other three wait at most 1.5 seconds and treat no answer as no opinion.
+- **Hook points** (details in [`extending.md` section 2](../blueprint/extending.md)): export methods with the agreed names and they are hooked up once your package is installed and running. `chat.event` (QQ notices and requests, passed on as is), `chat.inbound` (asked before a group message is decided: pass, record only, reply), `chat.outbound` (asked before her words go out: replace, drop, keep), `chat.score` (asked after the judge has scored: add or subtract). `chat.event` does not wait for your answer. The other three wait at most 1.5 seconds and treat no answer as no opinion.
 - **Known services**: package ids and method names the bridge knows and uses when installed. There is one now: `miyu-render`'s `markdown {markdown}` → `{pages: [{blob, width, height}]}`. The bridge hands long replies over the threshold to it and sends them as pictures (the "long text" field on each venue card). A package with the same id and method replaces how it is drawn. When the call fails or takes longer than 15 seconds, the bridge splits the text into messages instead.
 
 ### 8. Trying it in QQ
@@ -137,5 +138,5 @@ capabilities = ["tools", "context.inject", "packages.call"]   # only what you us
 packages = ["onebot"]
 
 [export]
-methods = ["qq.inbound"]
+methods = ["chat.inbound"]
 ```

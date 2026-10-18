@@ -53,7 +53,7 @@ impl Route {
             return Ok(());
         }
         if pushed["method"] == "method.call" {
-            // 给别的包调的方法（施工 O-42，`exports`）：读的一头只把那几个交过来；`qq.send` 要找对方的会话（施工 O-56，`outreach`）。
+            // 给别的包调的方法（施工 O-42，`exports`）：读的一头只把那几个交过来；`chat.send` 要找对方的会话（施工 O-56，`outreach`）。
             if pushed["params"]["method"] == SEND {
                 return self.send_exported(&pushed).await;
             }

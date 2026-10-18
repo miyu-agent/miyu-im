@@ -54,7 +54,7 @@ pub(crate) struct Gate {
     pub(crate) serial: AtomicU64,
     /// NapCat 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（`crate::status_file`，施工 O-18）。
     pub(crate) changed: Arc<Notify>,
-    /// 挂接点（施工 O-43 上）：通知、请求原样交给挂在 `qq.event` 的包。
+    /// 挂接点（施工 O-43 上）：通知、请求原样交给挂在 `chat.event` 的包。
     pub(crate) hooks: Arc<crate::core::hooks::Hooks>,
 }
 
