@@ -123,8 +123,8 @@ async fn a_continuation_is_marked_too() {
     assert_eq!(napcat.reacted().await, reaction(2, true));
     assert_eq!(next_words(&mut napcat, CALLED).await, "好的");
     assert_eq!(napcat.reacted().await, reaction(2, false));
-    let events = until_count(&home, CALLED, "ext.onebot.chat.decided", 2).await;
-    let second = &of_kind(&events, "ext.onebot.chat.decided")[1]["body"];
+    let events = until_count(&home, CALLED, "ext.im.chat.decided", 2).await;
+    let second = &of_kind(&events, "ext.im.chat.decided")[1]["body"];
     assert_eq!(
         second["conditions"],
         json!([{"kind": "continuation", "bonus": 0.1}]),
@@ -151,7 +151,7 @@ async fn superseding_moves_the_mark() {
     moved.sort_by_key(|params| params["set"].as_bool());
     assert_eq!(moved, [reaction(1, false), reaction(2, true)]);
     let events = until_count(&home, GROUP, "turn.joined", 1).await;
-    let decided = of_kind(&events, "ext.onebot.chat.decided");
+    let decided = of_kind(&events, "ext.im.chat.decided");
     assert_eq!(
         decided[1]["body"]["supersede"],
         json!({"inherit": said(&events)[0]["seq"]}),
@@ -208,9 +208,9 @@ async fn judged_but_not_called_are_not_marked() {
         ("小林", "lin"),
     ));
     // 判官照连进来的先后回：等这一条判完再发下一条。
-    let events = until_count(&home, GROUP, "ext.onebot.chat.decided", 1).await;
+    let events = until_count(&home, GROUP, "ext.im.chat.decided", 1).await;
     assert_eq!(
-        of_kind(&events, "ext.onebot.chat.decided")[0]["body"]["outcome"],
+        of_kind(&events, "ext.im.chat.decided")[0]["body"]["outcome"],
         "record"
     );
     // 2：抽样中了，判官说回：不贴。3：她刚说过话，阿杰接着说，判官说回：不贴。
@@ -232,8 +232,8 @@ async fn judged_but_not_called_are_not_marked() {
         ("阿杰", "jie"),
     ));
     assert_eq!(next_words(&mut napcat, SAMPLED).await, "对");
-    let events = until_count(&home, SAMPLED, "ext.onebot.chat.decided", 2).await;
-    let primaries: Vec<Value> = of_kind(&events, "ext.onebot.chat.decided")
+    let events = until_count(&home, SAMPLED, "ext.im.chat.decided", 2).await;
+    let primaries: Vec<Value> = of_kind(&events, "ext.im.chat.decided")
         .iter()
         .map(|one| one["body"]["conditions"][0]["kind"].clone())
         .collect();
@@ -279,8 +279,8 @@ async fn a_rejudged_pair_is_marked_on_the_last_only_after_the_judge() {
     assert_eq!(napcat.reacted().await, reaction(2, true), "贴在后一条上");
     assert_eq!(next_words(&mut napcat, GROUP).await, "后天十点");
     assert_eq!(napcat.reacted().await, reaction(2, false));
-    let events = until_count(&home, GROUP, "ext.onebot.chat.decided", 1).await;
-    let together = &of_kind(&events, "ext.onebot.chat.decided")[0]["body"];
+    let events = until_count(&home, GROUP, "ext.im.chat.decided", 1).await;
+    let together = &of_kind(&events, "ext.im.chat.decided")[0]["body"];
     assert_eq!(
         together["msgs"].as_array().map(Vec::len),
         Some(2),

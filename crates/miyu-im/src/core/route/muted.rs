@@ -1,6 +1,6 @@
 //! 她被禁言、解禁（施工 O-25 中，`onebot.md` 第一条「出站队列」第 7 条；施工 O-50 起「禁言」）：NapCat 推来的 `group_ban`（禁的
-//! 是她的）记进这个群的会话：禁言记 `ext.onebot.venues.muted {until, by?}`（`until` 是本机此刻加禁言的秒数，「施工时定的」第 122
-//! 条；`by` 是谁禁的号，O-50），解禁记 `ext.onebot.venues.unmuted {why, by?}`（`why` 是 `lifted`：解禁的通知；`expired`：到点，
+//! 是她的）记进这个群的会话：禁言记 `ext.im.venues.muted {until, by?}`（`until` 是本机此刻加禁言的秒数，「施工时定的」第 122
+//! 条；`by` 是谁禁的号，O-50），解禁记 `ext.im.venues.unmuted {why, by?}`（`why` 是 `lifted`：解禁的通知；`expired`：到点，
 //! QQ 不推通知，桥照投影里禁到的时刻醒了补记，O-50）。记下以后把留着的推送收进投影（进站链的 `Ctx.muted`、出站的门都照投影），
 //! 再看一遍排着的：解禁了的照先后发，禁言改短了的照新的到期时刻醒。会话照群消息一样找（`session`）；命令编号自己编：平台不重发
 //! 通知（同撤回）。
@@ -100,7 +100,7 @@ impl Route {
         self.pump().await
     }
 
-    /// 记解禁：`ext.onebot.venues.unmuted {why, by?}`，收进投影，记一块解禁的事实，回禁言时排着的，再看一遍出站排着的。`session`
+    /// 记解禁：`ext.im.venues.unmuted {why, by?}`，收进投影，记一块解禁的事实，回禁言时排着的，再看一遍出站排着的。`session`
     /// 是群号 `group` 的群会话，`why` 是 `lifted`、`expired`，`operator` 是谁解的。
     async fn unmuted(
         &mut self,

@@ -1,4 +1,4 @@
-//! 一次调用没成（施工 I-2 上从 `onebot/calls.rs` 挪来）：驱动、宿主都认这几种。
+//! 一次调用没成（施工 I-2 上从 `im/calls.rs` 挪来）：驱动、宿主都认这几种。
 
 /// 一次调用没成。
 #[derive(Debug, Clone, PartialEq, Eq)]

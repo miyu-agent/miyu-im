@@ -121,7 +121,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
         of_kind(events, "venue.delivered").len() == 2
     })
     .await;
-    let queued: Vec<Value> = of_kind(&events, "ext.onebot.venues.queued")
+    let queued: Vec<Value> = of_kind(&events, "ext.im.venues.queued")
         .iter()
         .map(|one| one["body"]["kind"].clone())
         .collect();
@@ -151,7 +151,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
         cleaned(),
         "渲染包收到的是过了出站链的全文"
     );
-    assert_eq!(call["from"], "onebot");
+    assert_eq!(call["from"], "im");
     stopped(home).await;
 }
 
@@ -260,7 +260,7 @@ async fn a_long_reply_goes_out_as_one_forwarded_bundle() {
         !of_kind(events, "venue.delivered").is_empty()
     })
     .await;
-    let queued = of_kind(&events, "ext.onebot.venues.queued");
+    let queued = of_kind(&events, "ext.im.venues.queued");
     assert_eq!(queued[0]["body"]["kind"], "reply");
     assert_eq!(queued[0]["body"]["forward"], true);
     assert_eq!(
@@ -326,7 +326,7 @@ async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
     )
     .await;
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let call = json!({"package": "onebot", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
+    let call = json!({"package": "im", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
     let reply = head.call("package.call", call.clone()).await;
     assert_eq!(reply["result"], json!({"sent": 2}), "{reply}");
     is_a_page(&napcat.group_message(GROUP).await);

@@ -1,5 +1,5 @@
 //! 挂接点（施工 O-43 上，`onebot.md` 第一条「挂接点」，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里另装一个
-//! 导出 `chat.event` 的测试包（`miyu-onebot-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "onebot"`），消息不交；
+//! 导出 `chat.event` 的测试包（`miyu-im-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "im"`），消息不交；
 //! 只导出别的方法的包不收。桥起来以后才打开的包，照推来的 `package.changed` 挂上。
 
 use std::sync::Arc;
@@ -88,7 +88,7 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
     }
     let first = &calls(&hooky)[0];
     assert_eq!(first["method"], "chat.event");
-    assert_eq!(first["from"], "onebot");
+    assert_eq!(first["from"], "im");
     assert_eq!(
         first["params"],
         json!({"platform": "qq", "bot": BOT, "event": joined(5)}),

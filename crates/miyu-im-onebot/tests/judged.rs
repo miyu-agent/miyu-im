@@ -2,7 +2,7 @@
 //! 回合照剧本说，判官那一次（`model.call`）发到本机回环上的假服务器（`support::judge`）。别人 @ 她，判官说回就回、说不回就
 //! 不回；抽样中了交判官；只有违规旗的只查违规，严重程度够了照回；判官回的读不出、等不到的记为什么，读不出的再问一次，冲她来
 //! 的照回（O-37；刚说过话的判不了只记下在 `replayed.rs`）；
-//! `ext.onebot.chat.decided` 的格都在；判官在判的时候，别人说的照样记进、判完。判官带人格在 `judged_persona.rs`（施工 O-23 补）。
+//! `ext.im.chat.decided` 的格都在；判官在判的时候，别人说的照样记进、判完。判官带人格在 `judged_persona.rs`（施工 O-23 补）。
 
 use std::time::Duration;
 
@@ -60,8 +60,7 @@ pub(crate) fn decided(events: &[Value], message: i64) -> Option<Value> {
     events
         .iter()
         .find(|event| {
-            event["kind"] == "ext.onebot.chat.decided"
-                && event["cause"] == cause(message, "decided")
+            event["kind"] == "ext.im.chat.decided" && event["cause"] == cause(message, "decided")
         })
         .map(|event| event["body"].clone())
 }
@@ -91,8 +90,7 @@ fn close(value: &Value, expected: f64) -> bool {
 
 /// 资源里判官的一份说明。
 pub(crate) fn judge_text(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/onebot/data/judge").join(name))
-        .expect("读得出")
+    std::fs::read_to_string(resources().join("packages/im/data/judge").join(name)).expect("读得出")
 }
 
 #[tokio::test]
@@ -344,7 +342,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
     assert_eq!(started.len(), 2, "{slow:#?}");
     assert_eq!(started[0]["cause"], cause(3, "respond"));
     assert_eq!(started[1]["cause"], cause(4, "respond"));
-    assert_eq!(of_kind(&slow, "ext.onebot.chat.decided").len(), 2);
+    assert_eq!(of_kind(&slow, "ext.im.chat.decided").len(), 2);
     let log = run_log(&home.root);
     assert!(log.contains("not judged"), "{log}");
     assert!(log.contains("why=timeout"), "{log}");

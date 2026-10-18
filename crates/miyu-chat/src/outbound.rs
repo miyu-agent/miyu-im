@@ -156,7 +156,7 @@ pub struct OutChain {
 }
 
 impl Outbound {
-    /// 去不去掉一条话末尾的一个「。」（施工 O-58 上：接入QQ 的后台页照它说卡片里的默认）。
+    /// 去不去掉一条话末尾的一个「。」（施工 O-58 上：接入通讯平台 的后台页照它说卡片里的默认）。
     #[must_use]
     pub fn strip_period(&self) -> bool {
         self.strip_period

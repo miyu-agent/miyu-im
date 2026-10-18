@@ -1,7 +1,7 @@
 //! 令牌没设（施工 O-16 补、补二，O-28 下改；`onebot.md` 第一条「怎么走」第 1、2 条、「施工时定的」第 3 条；`18-通讯平台.md`
 //! 第三节「还没配好就 `start`」）：桥照样起来，端口开着，说一句怎么办；NapCat 连进来 401。核心推来令牌（施工 O-20：后台页写进
 //! 令牌，核心换上新配置就推），不重启，NapCat 下一次连就通；再换一个，新的进得来、旧的不收，已经连着的那一条照样收发。真的程序
-//! `miyu-onebot serve` 照常起来（施工 O-18 起测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌，
+//! `miyu-im serve` 照常起来（施工 O-18 起测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌，
 //! 后台页的 `status` 的 `token` 跟着变、NapCat 不用重启就连上，`connection.token` 交出值、运行日志里没有它。
 
 use serde_json::{Value, json};
@@ -83,7 +83,7 @@ async fn a_pushed_token_lets_napcat_in_without_a_restart() {
     let bridge = start(serve).await;
     let refused = napcat(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "还没有令牌");
-    push.config(json!({"onebot.token": TOKEN}));
+    push.config(json!({"im.token": TOKEN}));
     admitted(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT))
         .await
         .close()
@@ -97,7 +97,7 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
     let (serve, push) = serve_pushing(home.root.clone(), settings());
     let bridge = start(serve).await;
     let mut open = admin_napcat(bridge.port).await;
-    push.config(json!({"onebot.token": NEW}));
+    push.config(json!({"im.token": NEW}));
     // 不报号：不顶掉连着的那一条。
     let fresh = admitted(bridge.port, "/ws", Auth::Bearer(NEW), None).await;
     let old = napcat(
@@ -127,7 +127,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");
     // 照核心的样子推来令牌（后台页写进令牌，核心换上新配置就推，施工 O-20）。
-    serve.config(json!({"onebot.token": TOKEN})).await;
+    serve.config(json!({"im.token": TOKEN})).await;
     let connected = admitted(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(ask(&mut serve, "core-2", "status").await["token"], "set");
     assert_eq!(
@@ -148,8 +148,8 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
         said.starts_with(&first),
         "标准错误上先说在哪等 NapCat，再说怎么设令牌：{said}"
     );
-    let log = std::fs::read_to_string(root.state().join("logs").join("onebot.log"))
-        .expect("写了运行日志");
+    let log =
+        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("写了运行日志");
     assert!(log.contains("no token yet"), "{log}");
     assert!(log.contains("page token read"), "取过令牌记一行：{log}");
     assert!(!log.contains(TOKEN), "运行日志里没有令牌的值：{log}");

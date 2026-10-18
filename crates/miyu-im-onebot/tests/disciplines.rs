@@ -48,7 +48,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
     events
         .iter()
-        .find(|event| event["kind"] == "ext.onebot.chat.decided" && event["cause"] == cause)
+        .find(|event| event["kind"] == "ext.im.chat.decided" && event["cause"] == cause)
         .map(|event| event["body"].clone())
 }
 
@@ -153,7 +153,7 @@ async fn each_discipline_goes_its_own_way() {
         .expect("是字")
         .to_string();
     let only =
-        std::fs::read_to_string(resources().join("packages/onebot/data/judge/moderation-only.txt"))
+        std::fs::read_to_string(resources().join("packages/im/data/judge/moderation-only.txt"))
             .expect("读得出");
     assert!(system.contains(&only), "只查违规：{system}");
 

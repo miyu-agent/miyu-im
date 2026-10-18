@@ -67,7 +67,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
         json!([{"type": "text", "data": {"text": "大家晚上好"}}])
     );
     assert_eq!(ended(&home, 1).await, done("sent", &[]));
-    let fact = std::fs::read_to_string(resources().join("packages/onebot/data/facts/reached.txt"))
+    let fact = std::fs::read_to_string(resources().join("packages/im/data/facts/reached.txt"))
         .expect("读得出")
         .replace("{text}", "大家晚上好")
         .trim_end()
@@ -120,8 +120,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
 async fn other_packages_send_in_her_name() {
     let (home, mut napcat) = up(&Lines::new([])).await;
     let mut head = Head::connect(&home.root).await;
-    let call =
-        |params: Value| json!({"package": "onebot", "method": "chat.send", "params": params});
+    let call = |params: Value| json!({"package": "im", "method": "chat.send", "params": params});
     let reply = head
         .call(
             "package.call",

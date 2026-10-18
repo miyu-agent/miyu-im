@@ -59,7 +59,7 @@ fn noted(events: &[Value]) -> Vec<String> {
 
 /// 出厂的模板换出来的那一块。
 fn fact(msg: i64, name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/onebot/data/facts/impostor.txt"))
+    std::fs::read_to_string(resources().join("packages/im/data/facts/impostor.txt"))
         .expect("读得出")
         .replace("{msg}", &msg.to_string())
         .replace("{name}", name)

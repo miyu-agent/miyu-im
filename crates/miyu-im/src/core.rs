@@ -54,7 +54,7 @@ pub(crate) struct Core {
     incoming: mpsc::UnboundedReceiver<Value>,
     /// 等回应时来的推送。
     held: VecDeque<Value>,
-    /// 自己编的命令编号的前缀：`onebot-` 加一段随机数。
+    /// 自己编的命令编号的前缀：`im-` 加一段随机数。
     prefix: String,
     /// 下一条自己编的序号。
     next: u64,
@@ -64,7 +64,7 @@ pub(crate) struct Core {
     pub(crate) language: String,
     /// 握手回应交来的配置（施工 O-20）：没带这一格的是 `null`，读的一方照默认值（`crate::settings::Settings::handed`）。
     pub(crate) config: Value,
-    /// 握手回的桥自己的账号（核心 O-4 中以后是系统账号 `onebot`）：`venue.session` 回的会话属主是它的，是陌生人（`route`，
+    /// 握手回的桥自己的账号（核心 O-4 中以后是系统账号 `im`）：`venue.session` 回的会话属主是它的，是陌生人（`route`，
     /// 「施工时定的」第 49 条）。没回的是空的。
     pub(crate) account: Option<String>,
 }
@@ -85,7 +85,7 @@ impl Core {
         methods: Arc<Methods>,
     ) -> Result<Core, Failure> {
         let (sender, incoming) = mpsc::unbounded_channel();
-        let prefix = format!("onebot-{}", prefix());
+        let prefix = format!("im-{}", prefix());
         let waiting = Waiting::new(format!("{prefix}-side-"));
         let writer: Writer = Arc::new(tokio::sync::Mutex::new(pipe.write));
         let asked = Asked {
@@ -113,7 +113,7 @@ impl Core {
         };
         let hello = json!({
             "protocol": [1, 1],
-            "head": {"kind": "onebot", "version": env!("CARGO_PKG_VERSION")},
+            "head": {"kind": "im", "version": env!("CARGO_PKG_VERSION")},
             "locale": locale,
             "caps": {"input": false},
         });

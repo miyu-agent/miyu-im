@@ -45,7 +45,7 @@ pub struct Configured {
     show_ids: bool,
     /// 去掉末尾的句号。
     strip_period: bool,
-    /// 白名单成员的号（`onebot.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
+    /// 白名单成员的号（`im.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
     whitelist: Vec<u64>,
 }
 
@@ -166,7 +166,7 @@ impl Configured {
     }
 }
 
-/// 拼出来的第 `rule` 条规则（从 1 数）是哪一项的：配置项的键（`onebot.sleep`）；不在四条里的是空的。
+/// 拼出来的第 `rule` 条规则（从 1 数）是哪一项的：配置项的键（`im.sleep`）；不在四条里的是空的。
 pub fn key_of(rule: usize) -> Option<String> {
     rule.checked_sub(1)
         .and_then(|index| ORDER.get(index))

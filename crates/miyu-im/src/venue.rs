@@ -1,4 +1,4 @@
-//! `miyu onebot venue show <场所>`（`onebot.md` 第一条「对外的样子」、「场所规则和出厂数据」第 7 条，施工 O-21）：一个场所
+//! `miyu im venue show <场所>`（`onebot.md` 第一条「对外的样子」、「场所规则和出厂数据」第 7 条，施工 O-21）：一个场所
 //! 每一项的值和来处，像 `udevadm info`（18 第四节「看和改」）。照系统的语言说；读的文件和桥一样（[`crate::rules`]）。
 //!
 //! 1. 场所编号照内核的 `VenueId` 再 [`Venue::parse`] 解：解不出的在标准错误上说 [`Shown::BadVenue`]，退出码 2（用法不对）。

@@ -51,7 +51,7 @@ fn log(venue: &str, user: i64) -> Vec<Value> {
     let at = now();
     let policy = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     let created = json!({"seq": 1, "at": at, "kind": "session.created", "by": {"kind": "kernel"},
-        "body": {"owner": "onebot", "venue": venue, "policy": policy,
+        "body": {"owner": "im", "venue": venue, "policy": policy,
             "permission": {"level": "workspace", "read_only": false}}});
     let said = json!({"seq": 2, "at": at, "kind": "message.user",
         "by": {"kind": "external", "venue": venue, "id": format!("qq:{user}")},
@@ -109,8 +109,8 @@ async fn revived(
     let (dir, root) = temp_root();
     let (mut served, listen) = on_free_port(async |listen| {
         let mut config = config.clone();
-        config["onebot.listen"] = json!(listen);
-        config["onebot.token"] = json!(TOKEN);
+        config["im.listen"] = json!(listen);
+        config["im.token"] = json!(TOKEN);
         Ok((served_listening(&root, config, listen).await?, listen))
     })
     .await;
@@ -152,7 +152,7 @@ async fn her_new_words_pushed_before_the_subscribe_reply_reach_the_group() {
 #[tokio::test]
 async fn her_new_words_pushed_before_the_subscribe_reply_reach_a_private_chat() {
     let venue = format!("qq:private:{JIE}");
-    let config = json!({"onebot.whitelist": [format!("qq:{JIE}")]});
+    let config = json!({"im.whitelist": [format!("qq:{JIE}")]});
     let (mut served, mut napcat, _, dir) = revived(config, &venue, log(&venue, JIE)).await;
     appended(&mut served).await;
     let action = napcat.action().await;
@@ -173,7 +173,7 @@ async fn her_words_with_nowhere_to_go_are_logged_not_dropped_silently() {
         (format!("qq:group:{GROUP}"), json!({})),
         (
             format!("qq:private:{JIE}"),
-            json!({"onebot.whitelist": [format!("qq:{JIE}")]}),
+            json!({"im.whitelist": [format!("qq:{JIE}")]}),
         ),
     ] {
         let mut log = log(&venue, JIE);

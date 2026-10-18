@@ -1,4 +1,4 @@
-# 接入QQ
+# 接入通讯平台
 
 Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ 接到 Miyu 上，私聊、群里都能和 AI 说话。它不随 Miyu 的发布包一起装，要用的自己装。
 
@@ -9,43 +9,43 @@ Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ �
 | 目录 | 是什么 |
 |---|---|
 | `crates/miyu-im/` | 接入通讯平台的宿主：场所会话、群聊、插件挂接点、给模型的工具，和平台无关；不依赖驱动 |
-| `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-onebot`：核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
+| `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-im`：核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
 | `crates/miyu-chat/` | 群聊内核：通讯平台里和平台无关的那一层（场所规则、进站链、主动回复判断、判官、出站链），纯逻辑；别的平台要用照 git 依赖它 |
-| `onebot/` | 包文件夹：清单 `package.toml`、后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
+| `im/` | 包文件夹：清单 `package.toml`、后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
 | `docs/blueprint/` | 图纸：`onebot.md`（桥）、`chat.md`（群聊内核） |
-| `docs/ledger.md` | 登记簿：`onebot/data/` 里给模型看的每一份字 |
+| `docs/ledger.md` | 登记簿：`im/data/` 里给模型看的每一份字 |
 | `xtask/` | 门禁：`cargo xtask check` |
 
 ## 装
 
 1. 先装好 Miyu。
-2. 从 [Releases](https://github.com/miyu-agent/miyu-onebot/releases) 下载自己平台的包：`miyu-onebot-<版本>-<平台>.tar.gz`（Windows 是 `.zip`），解开得到一个 `onebot/` 文件夹。
+2. 从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己平台的包：`miyu-im-<版本>-<平台>.tar.gz`（Windows 是 `.zip`），解开得到一个 `im/` 文件夹。
 3. 装上：
 
    ```sh
-   miyu pkg install ./onebot
+   miyu pkg install ./im
    ```
 
    它要的能力（代平台上的人发话、联网、读写会话……）照自己装的包走人批，装的时候核心会问。
-4. 在 Miyu 的接入页里打开「接入QQ」，设好端口和令牌；NapCat 那边的反向 WebSocket 填 `ws://127.0.0.1:<端口>/ws`、同一个令牌。
+4. 在 Miyu 的接入页里打开「接入通讯平台」，设好端口和令牌；NapCat 那边的反向 WebSocket 填 `ws://127.0.0.1:<端口>/ws`、同一个令牌。
 
 ## 从源码编
 
 要 Rust（版本照 `rust-toolchain.toml`，`rustup` 会自己装）和 git（cargo 照 git 依赖取核心）。
 
 ```sh
-cargo build --release -p miyu-onebot
+cargo build --release -p miyu-im
 ```
 
-程序放进包文件夹 `onebot/` 的 `bin/` 里（Windows 上带 `.exe`；`onebot/bin/` 不进 git），再装这个文件夹：
+程序放进包文件夹 `im/` 的 `bin/` 里（Windows 上带 `.exe`；`im/bin/` 不进 git），再装这个文件夹：
 
 ```sh
-mkdir -p onebot/bin
-cp target/release/miyu-onebot onebot/bin/
-miyu pkg install ./onebot
+mkdir -p im/bin
+cp target/release/miyu-im im/bin/
+miyu pkg install ./im
 ```
 
-包的编号照文件夹的名字定：一定要装名叫 `onebot` 的文件夹，配置项的键才是 `onebot.*`。程序不在 `bin/` 里的，核心当这个包没装。
+包的编号照文件夹的名字定：一定要装名叫 `im` 的文件夹，配置项的键才是 `im.*`。程序不在 `bin/` 里的，核心当这个包没装。
 
 ## 门禁
 

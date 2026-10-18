@@ -55,7 +55,7 @@ async fn queued_replies(home: &Home, ended: usize) -> Vec<Value> {
         of_kind(events, "turn.ended").len() >= ended
     })
     .await;
-    of_kind(&events, "ext.onebot.venues.queued")
+    of_kind(&events, "ext.im.venues.queued")
         .iter()
         .map(|one| one["body"]["text"].clone())
         .collect()

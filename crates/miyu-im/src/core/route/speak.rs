@@ -2,7 +2,7 @@
 //! 这里）：群会话推来的事件（订阅时从头补来的、之后推来的）走同一条路收进这个群的投影（`projection`）；补来的她的话交给补来的
 //! 那一段（`backlog`，施工 O-32：期限以内、没入队的由 `revive` 补发），补完以前推来的新的也是（施工 O-32 补）；之后她新说的话
 //! 先过出站链（`outbound`），丢了的记一行，过了的照纯文本拆段，一段一条入队（`sending`，O-25 中：先记
-//! `ext.onebot.venues.queued` 再照先后交 NapCat，群里的成了记 `venue.delivered`），第一段带引用和 @。私聊里她的话也过出站链、
+//! `ext.im.venues.queued` 再照先后交 NapCat，群里的成了记 `venue.delivered`），第一段带引用和 @。私聊里她的话也过出站链、
 //! 拆段、入队，不记 `venue.delivered`。这一轮她调过 `skip_reply` 的（施工 O-26，`quiet`）不过链、不入队，记一行
 //! `reply dropped why=skipped`。支线推来的（施工 O-36）由 `lanes.rs` 收进主线的投影，她在支线说的话也从这里照主线发。
 

@@ -1,4 +1,4 @@
-//! 合并转发里的一条（施工 I-2 上从 `onebot/forwards.rs` 挪来）。
+//! 合并转发里的一条（施工 I-2 上从 `im/forwards.rs` 挪来）。
 
 use super::Segments;
 

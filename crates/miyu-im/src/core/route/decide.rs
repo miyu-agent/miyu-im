@@ -1,7 +1,7 @@
 //! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5、6、10、11、14 条）：过进站链（`Chain::builtin`），放行的
 //! 算加值项（`conditions`），照线路规程留下算数的条件（`discipline`，O-23 下）、看顶替（`supersede`，O-23 下）、定走哪条路，
 //! 得出结论。纯逻辑：要的都由调的一方从场所规则、投影、桥内存里在判的、这一条填好交进来（`called.rs`）。判断写成
-//! `ext.onebot.chat.decided` 的 `body` 在 `body.rs`。
+//! `ext.im.chat.decided` 的 `body` 在 `body.rs`。
 //!
 //! 要问判官的结论是 [`Conclusion::Judge`]：判官回来、算完分才知道回不回（`judged.rs`）。额度满了的这段时间 `chatty` 不抽样、
 //! 不问判官（第 14 条），要问判官的只记下。只有主线，不分派（「施工时定的」第 74 条）。

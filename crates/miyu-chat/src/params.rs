@@ -42,7 +42,7 @@ pub struct Params {
     pub final_only: bool,
 }
 
-/// 长文怎么发（施工 O-59 上，接入QQ 的场所卡片里「长文」那一格）：拆成几条、转成图、合并转发（O-59 下）。
+/// 长文怎么发（施工 O-59 上，接入通讯平台 的场所卡片里「长文」那一格）：拆成几条、转成图、合并转发（O-59 下）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LongText {
     /// 照拆段发，和不长的一样。

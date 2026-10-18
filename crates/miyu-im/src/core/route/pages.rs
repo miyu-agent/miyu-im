@@ -93,7 +93,7 @@ impl Route {
         self.chores.spawn(push(job, bots, caller));
     }
 
-    /// 白名单成员的号（`onebot.whitelist` 里这个平台的）。
+    /// 白名单成员的号（`im.whitelist` 里这个平台的）。
     fn whitelist_numbers(&self) -> Vec<u64> {
         self.whitelist
             .iter()

@@ -15,7 +15,7 @@ fn queued(seq: u64, turn: u64, text: &str) -> miyu_client::events::Event {
         0,
         QUEUED,
         None,
-        json!({"kind": "module", "id": "onebot"}),
+        json!({"kind": "module", "id": "im"}),
         body,
     )
 }
@@ -28,7 +28,7 @@ fn delivered(seq: u64, turn: u64, text: &str) -> miyu_client::events::Event {
         0,
         "venue.delivered",
         None,
-        json!({"kind": "module", "id": "onebot"}),
+        json!({"kind": "module", "id": "im"}),
         body,
     )
 }

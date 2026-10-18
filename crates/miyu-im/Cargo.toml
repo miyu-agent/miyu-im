@@ -9,7 +9,7 @@ publish.workspace = true
 
 [dependencies]
 # 核心里的东西只经门面拿（设计 32 第九节第 1 条，施工 S-6 上；施工 S-6 中起照 git 钉核心的提交，见根目录 Cargo.toml）：数据根、资源目录、系统的语言（`places`）；给人看的字（`texts`）；
-# 运行日志 `state/logs/onebot.log`，满了照核心的换法（`log`）；`start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答
+# 运行日志 `state/logs/im.log`，满了照核心的换法（`log`）；`start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答
 # （`open::Core`，onebot.md「施工时定的」第 166 条）；场所、平台上的人的编号、时刻、事件（`ids`、`time`、`events`）；桥的工具的
 # 说明、答的几句照工具的读法读（`tooltext`，施工 O-26，`providers.md`「给模型看的字」）；令牌是核心交来的密钥（`settings`，`Debug`
 # 只印 `Secret(…)`）；两个端口的默认值照自己的清单读（`manifest`，施工 O-20）；取图、视频、文件照核心的 HTTP 客户端下（`http`，
@@ -40,8 +40,8 @@ workspace = true
 [dev-dependencies]
 # 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
 miyu-ipc = { workspace = true }
-# 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/onebot/`，
-# 把这个仓库的 `onebot/` 放进去，`tests/support/assembled.rs`）。
+# 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/im/`，
+# 把这个仓库的 `im/` 放进去，`tests/support/assembled.rs`）。
 miyu-client = { workspace = true, features = ["testkit"] }
 # 测试里造编号、读会话日志、装记日志的订阅者、拼请求这些门面上没有的（施工 S-6 上以前是正式依赖）。
 miyu-store = { workspace = true }

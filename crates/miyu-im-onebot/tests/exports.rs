@@ -34,11 +34,11 @@ async fn up(tuned: &Value) -> (Home, u16) {
     .await
 }
 
-/// 经 `package.call` 调接入QQ 的 `method`：交回整条回应。
+/// 经 `package.call` 调接入通讯平台 的 `method`：交回整条回应。
 async fn exported(head: &mut Head, method: &str, params: Value) -> Value {
     head.call(
         "package.call",
-        json!({"package": "onebot", "method": method, "params": params}),
+        json!({"package": "im", "method": method, "params": params}),
     )
     .await
 }
@@ -217,7 +217,7 @@ async fn a_group_session_names_its_venue_and_bot() {
     until_events(&home.root, venue, |events| {
         events
             .iter()
-            .any(|event| event["kind"] == "ext.onebot.chat.decided")
+            .any(|event| event["kind"] == "ext.im.chat.decided")
     })
     .await;
     let (session, _) = venue_session(&home.root, venue).expect("有会话");

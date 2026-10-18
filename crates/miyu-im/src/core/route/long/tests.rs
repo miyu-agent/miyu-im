@@ -1,4 +1,4 @@
-//! 长文：照参数判（转成图、合并转发，阈值不是 0、超过阈值才算，正好等于的不算）；合并转发的节点照拆段的长度拆；页的名字照第几页。拼成的动作在 `onebot/send/tests.rs`。
+//! 长文：照参数判（转成图、合并转发，阈值不是 0、超过阈值才算，正好等于的不算）；合并转发的节点照拆段的长度拆；页的名字照第几页。拼成的动作在 `im/send/tests.rs`。
 
 use miyu_chat::{File, LongText, Params, Source};
 
@@ -6,10 +6,7 @@ use super::*;
 
 /// 出厂参数：仓库里的 `defaults.toml`。
 fn factory() -> Params {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../onebot/data/defaults.toml"
-    );
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../im/data/defaults.toml");
     let file = File {
         source: Source::Factory,
         name: "defaults.toml".to_string(),

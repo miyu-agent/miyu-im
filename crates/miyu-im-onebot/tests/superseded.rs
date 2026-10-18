@@ -44,8 +44,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     events
         .iter()
         .find(|event| {
-            event["kind"] == "ext.onebot.chat.decided"
-                && event["cause"] == cause(message, "decided")
+            event["kind"] == "ext.im.chat.decided" && event["cause"] == cause(message, "decided")
         })
         .map(|event| event["body"].clone())
 }
@@ -190,7 +189,7 @@ async fn a_follow_up_while_judging_is_judged_together() {
     .await;
     let events = venue_events(&home.root, &venue());
     assert!(decided(&events, 1).is_none(), "放下的那一次不记判断");
-    assert_eq!(of_kind(&events, "ext.onebot.chat.decided").len(), 1);
+    assert_eq!(of_kind(&events, "ext.im.chat.decided").len(), 1);
     assert_eq!(of_kind(&events, "turn.started").len(), 1);
     assert_eq!(script.requests().len(), 1);
     stopped(home).await;

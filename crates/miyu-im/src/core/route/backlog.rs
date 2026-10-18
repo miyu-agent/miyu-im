@@ -5,7 +5,7 @@
 //! - 发到哪：场所照日志第一条 `session.created` 的 `venue`；机器人号照最近一条人说的话的命令编号（`cause`，
 //!   `qq:<机器人的号>:…`，施工单「要定的」第 3 条）。认不出的等那个场所来一条消息。
 //! - 补发哪几句：补来的她的话（这一轮说了不说话的不算，调的一方认），说的时刻晚于 `since`：还在出站队列的期限里（施工单
-//!   「要定的」第 1 条）。照同一个回合入队了的正文比（`ext.onebot.venues.queued` 里 `kind` 是 `reply` 的，同 O-25 中的去重，
+//!   「要定的」第 1 条）。照同一个回合入队了的正文比（`ext.im.venues.queued` 里 `kind` 是 `reply` 的，同 O-25 中的去重，
 //!   「要定的」第 2 条）：出站链照这一回合入队了的去重，拆出来的每一段入队过的不再发。别的线（支线，施工 O-36）的入队也记在
 //!   主线的日志里，回合编号会和主线的撞上，照 `line` 认、不算。
 //!
@@ -149,7 +149,7 @@ impl Backlog {
     }
 }
 
-/// 一条入队（`ext.onebot.venues.queued`）是她的话的：（回合编号，正文）；别的是空的。
+/// 一条入队（`ext.im.venues.queued`）是她的话的：（回合编号，正文）；别的是空的。
 pub(super) fn queued_reply(event: &Value) -> Option<(u64, String)> {
     let body = &event["body"];
     if event["kind"] != QUEUED || body["kind"] != REPLY {

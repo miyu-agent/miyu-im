@@ -1,9 +1,9 @@
 //! 真核心照开关拉起真的桥（施工 O-18，`onebot.md` 第一条「对外的样子」「怎么走」第 1、11 条，`extensions.md`）：测试程序里的
-//! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
+//! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-im`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
 //! NapCat 连得进来、终端管理员的私聊照旧来回，`status` 说在跑、NapCat 连着；`stop` 以后桥自己退出、端口关了；桥被杀掉，核心拉起新的
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。核心改了桥的
 //! 配置（施工 O-20）：令牌、NapCat 的端口不重启当场换，令牌删了一律 401。`status` 在跑时说 NapCat 那边的地址（施工 O-28 下）；
-//! `start`、`status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 补），`restart` 不说。陌生人的
+//! `start`、`status` 末尾一律接一句设置和状态在网页里、用 `miyu im web` 打开（施工 O-28 补），`restart` 不说。陌生人的
 //! 私聊（「施工时定的」第 49 条，核心 O-4 下合了以后补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧
 //! 不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
 
@@ -89,15 +89,14 @@ async fn until_refused(port: u16, token: &str) {
     }
 }
 
-/// 经核心把 `onebot.listen` 改成挑的一个空端口，等桥当场换上：状态文件里的 `listen` 是它。桥说它被占了（运行日志
+/// 经核心把 `im.listen` 改成挑的一个空端口，等桥当场换上：状态文件里的 `listen` 是它。桥说它被占了（运行日志
 /// `apply port in use port=<它>`：挑来放掉以后被别人先拿走了，`support/ports.rs`）的换一个再来，最多 [`TRIES`] 次。交回换上的
 /// 端口。
 async fn moved(root: &DataRoot) -> u16 {
-    let log = root.state().join("logs").join("onebot.log");
+    let log = root.state().join("logs").join("im.log");
     for _ in 0..TRIES {
         let new = free_port();
-        let change =
-            json!({"layer": "system", "changes": [{"key": "onebot.listen", "value": new}]});
+        let change = json!({"layer": "system", "changes": [{"key": "im.listen", "value": new}]});
         core_call(root, "config.set", change).await;
         let in_use = format!("apply port in use port={new}");
         let deadline = tokio::time::Instant::now() + WAIT;
@@ -119,7 +118,7 @@ async fn moved(root: &DataRoot) -> u16 {
     panic!("试了 {TRIES} 个端口，桥都说被占了");
 }
 
-/// 跑 `miyu-onebot <args>`：退出码是 0，交回标准输出。
+/// 跑 `miyu-im <args>`：退出码是 0，交回标准输出。
 async fn ok(root: &DataRoot, args: &[&str]) -> String {
     let ran = cli(root, args).await;
     assert_eq!(
@@ -185,7 +184,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
         ok(&home.root, &["status"]).await,
         format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page))
     );
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
+    let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");
     assert!(
         log.contains("core closed, stopping"),
@@ -303,7 +302,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     core_call(
         &home.root,
         "secret.set",
-        json!({"name": "onebot", "value": NEW}),
+        json!({"name": "im", "value": NEW}),
     )
     .await;
     until_admitted(listen, NEW).await.close().await;
@@ -318,7 +317,8 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
         json!({"name": "other", "value": OTHER}),
     )
     .await;
-    let other = json!({"layer": "system", "changes": [{"key": "onebot.token", "value": {"secret": "other"}}]});
+    let other =
+        json!({"layer": "system", "changes": [{"key": "im.token", "value": {"secret": "other"}}]});
     core_call(&home.root, "config.set", other).await;
     until_admitted(listen, OTHER).await.close().await;
     let old = napcat(listen, "/ws", Auth::Bearer(NEW), None).await;
@@ -332,7 +332,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let address = zh(&Report::Listen(u64::from(new_listen)));
     until_status(&home.root, |out| out.contains(&address)).await;
     // 删了令牌：以后连进来的一律 401。
-    let unset = json!({"layer": "system", "changes": [{"key": "onebot.token", "unset": true}]});
+    let unset = json!({"layer": "system", "changes": [{"key": "im.token", "unset": true}]});
     core_call(&home.root, "config.set", unset).await;
     until_refused(new_listen, OTHER).await;
     open.close().await;
@@ -359,7 +359,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     assert_eq!(home.said_texts(), ["在吗"]);
     // 核心照 O-4 下把陌生人的私聊归系统账号、造了会话（回应的属主是桥自己，走的正是第 49 条那一处，不是 `no_system_account`）：
     // 两条找的是同一个，里面没有人说的话。
-    let system = AccountId::parse("onebot").expect("合写法");
+    let system = AccountId::parse("im").expect("合写法");
     let theirs = home.root.sessions(&system).expect("列得出");
     assert_eq!(theirs.len(), 1, "{theirs:?}");
     let events: Vec<Value> = read_events(&home.root.session_dir(&system, &theirs[0]))
@@ -373,7 +373,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
         "陌生人的话不进会话：{events:?}"
     );
     // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
+    let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");
     let refused: Vec<&str> = log
         .lines()

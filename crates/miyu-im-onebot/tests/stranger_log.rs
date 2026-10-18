@@ -22,8 +22,8 @@ async fn a_stranger_is_logged_once() {
     .expect("这个测试程序只装这一次");
     let home = Home::new(&Script::new([]));
     let accounts = Accounts {
-        own: "onebot",
-        venue: Some("onebot"),
+        own: "im",
+        venue: Some("im"),
     };
     let (serve, relay) = serve_relayed(home.root.clone(), settings(), Some(accounts));
     let bridge = start(serve).await;

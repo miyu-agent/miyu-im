@@ -8,8 +8,7 @@ struct Scratch(std::path::PathBuf);
 
 impl Scratch {
     fn new(name: &str) -> Scratch {
-        let dir =
-            std::env::temp_dir().join(format!("miyu-onebot-names-{}-{name}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("miyu-im-names-{}-{name}", std::process::id()));
         std::fs::create_dir_all(dir.join(HUMAN)).expect("建得了");
         Scratch(dir)
     }

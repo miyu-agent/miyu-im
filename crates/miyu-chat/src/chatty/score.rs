@@ -1,5 +1,5 @@
 //! 算分（`docs/blueprint/chat.md` 第三条「怎么走」第 9、11 条，18 第七节「算分」）：拿判官的回答，算出 `raw`、调整、加分、
-//! 门槛修正、门槛、总分和结论。每一项都交出去，记进日志（`ext.onebot.chat.decided` 的形状随核心的场所事件）。
+//! 门槛修正、门槛、总分和结论。每一项都交出去，记进日志（`ext.im.chat.decided` 的形状随核心的场所事件）。
 //!
 //! 数都是 `f64`，比较时不另留余量：同一台机器上回放字字相同，跨平台末位的差别只在正好压线时可能翻，接受。
 
@@ -19,7 +19,7 @@ pub struct Judgement {
     pub to_bot: bool,
     /// 违规的严重程度，0 到 10；没查是 `None`。不低于 [`Chatty`] 的违规门槛 `severity_min` 的，不管分数都回。
     pub severity: Option<u8>,
-    /// 判官的一句理由，最多 500 个字符。只进日志（`ext.onebot.chat.decided`），不进她的上下文，算分不看它（18 第七节「两边
+    /// 判官的一句理由，最多 500 个字符。只进日志（`ext.im.chat.decided`），不进她的上下文，算分不看它（18 第七节「两边
     /// 各看各的」）。
     pub reason: String,
 }
@@ -93,7 +93,7 @@ pub fn score(
     }
 }
 
-/// 在算好的分 `score`（[`score`] 照 `judgement`、`conditions`、`chatty` 算的）上再加扩展给的加分 `extra`（施工 O-43 末，接入QQ
+/// 在算好的分 `score`（[`score`] 照 `judgement`、`conditions`、`chatty` 算的）上再加扩展给的加分 `extra`（施工 O-43 末，接入通讯平台
 /// 的判断打分挂接点 `qq.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（总分不低于门槛，或者违规够重）；门槛、修正、
 /// `raw`、`adjust` 不动。只查违规的不打分，原样交回；`extra` 是 0 的也原样交回。
 pub fn nudged(

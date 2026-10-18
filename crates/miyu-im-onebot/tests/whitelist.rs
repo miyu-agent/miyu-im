@@ -1,5 +1,5 @@
 //! 白名单成员（施工 O-27，`onebot.md` 第一条「怎么走」第 7 条、「好友请求」、「群里怎么叫她」第 3、5 条；18 第三节，2026-10-10
-//! 项目主人定）：真核心照开关拉起真桥（系统配置写 `onebot.whitelist`），假 NapCat 发私聊、好友请求、群消息。
+//! 项目主人定）：真核心照开关拉起真桥（系统配置写 `im.whitelist`），假 NapCat 发私聊、好友请求、群消息。
 //!
 //! - 白名单成员私聊她，每一条都开一轮、她的话发回去，会话归系统账号、照场所规则造（规则的预设）；陌生人的照旧不接；终端
 //!   管理员的私聊不照规则；从白名单里删了，下一条就不接。
@@ -28,7 +28,7 @@ const AWAKE: i64 = 777;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统配置的 `[onebot]` 多写的：白名单里只有 [`JIE`]。
+/// 系统配置的 `[im]` 多写的：白名单里只有 [`JIE`]。
 fn whitelist() -> String {
     format!("whitelist = [\"qq:{JIE}\"]\n")
 }
@@ -96,7 +96,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
     events
         .iter()
-        .find(|event| event["kind"] == "ext.onebot.chat.decided" && event["cause"] == cause)
+        .find(|event| event["kind"] == "ext.im.chat.decided" && event["cause"] == cause)
         .map(|event| event["body"].clone())
 }
 
@@ -136,7 +136,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
-    let changes = json!({"layer": "system", "changes": [{"key": "onebot.whitelist", "value": []}]});
+    let changes = json!({"layer": "system", "changes": [{"key": "im.whitelist", "value": []}]});
     let reply = core
         .call("whitelist-1", "config.set", changes)
         .await

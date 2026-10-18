@@ -12,7 +12,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new() -> Scratch {
-        let dir = std::env::temp_dir().join(format!("miyu-onebot-media-{}", unique()));
+        let dir = std::env::temp_dir().join(format!("miyu-im-media-{}", unique()));
         std::fs::create_dir_all(&dir).expect("建得了");
         Scratch(std::fs::canonicalize(&dir).expect("有真实位置"))
     }

@@ -1,12 +1,12 @@
 //! 桥用的配置（`onebot.md` 第一条「对外的样子」「怎么走」第 1、2 条，施工 O-20）：核心拉起桥时，握手的回应里交来这个包自己
-//! 的配置（`config`：`onebot.` 开头的键，最终值，密钥是真值，没设、取不到的那一键不放），之后变了推 `extension.config`
+//! 的配置（`config`：`im.` 开头的键，最终值，密钥是真值，没设、取不到的那一键不放），之后变了推 `extension.config`
 //! （`{"keys": {键: 新值或 null}}`，只放变了的键；`extensions.md`「配置」）。桥不读系统配置、密钥文件，不依赖核心的 crate
 //! （「施工时定的」第 6 条）。
 //!
 //! - 驱动的配置项（施工 I-3，设计 01 第六节）：名字由驱动报（OneBot 是 `listen`、`token`），键照 [`driver_key`] 拼；握手交来的、
 //!   推来的照 [`driver_config`]、[`merge_driver`] 挑出来，没有的、`null` 的照清单 `[settings]` 的默认值（[`Defaults`]，
 //!   「施工时定的」第 38 条），交给驱动读，宿主不认它们是什么。
-//! - 白名单成员 `onebot.whitelist`（施工 O-23；O-27 从 `onebot.trusted` 改名，旧键不认）：跟核心的那一头照 [`whitelist`] 读
+//! - 白名单成员 `im.whitelist`（施工 O-23；O-27 从 `im.trusted` 改名，旧键不认）：跟核心的那一头照 [`whitelist`] 读
 //!   一份、推来的换（「群里怎么叫她」第 3 条）。别的键不认。
 //!
 //! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。驱动的键
@@ -31,7 +31,7 @@ const RECALL_RECEIPTS: &str = "recall_receipts";
 /// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Defaults {
-    /// `onebot.recall_receipts` 的默认值（出厂 `clear`、`clear-memory`，施工 O-47）。
+    /// `im.recall_receipts` 的默认值（出厂 `clear`、`clear-memory`，施工 O-47）。
     pub recall_receipts: Vec<String>,
     /// 驱动的配置项的默认值，照名字（施工 I-3：OneBot 的 `listen` 出厂 8301）；没写默认值的不放。
     pub driver: Map<String, Value>,
@@ -138,8 +138,8 @@ pub fn merge_driver(
     *driver != before
 }
 
-/// 配置项的键 `keys`（`onebot.sleep` 这种）照包文件夹 `package` 里自己的清单换成给人看的名字，照语言 `language` 挑（施工 O-41
-/// 补二：`miyu onebot status` 说没认出来的配置项用名字）。清单读不成的、清单里没有这一项的照键。
+/// 配置项的键 `keys`（`im.sleep` 这种）照包文件夹 `package` 里自己的清单换成给人看的名字，照语言 `language` 挑（施工 O-41
+/// 补二：`miyu im status` 说没认出来的配置项用名字）。清单读不成的、清单里没有这一项的照键。
 pub fn labels(package: &Package, keys: &[String], language: &str) -> Vec<String> {
     let manifest = std::fs::read_to_string(package.dir().join(MANIFEST))
         .ok()
@@ -168,12 +168,12 @@ pub fn labels(package: &Package, keys: &[String], language: &str) -> Vec<String>
         .collect()
 }
 
-/// 白名单成员那一键（`onebot.whitelist`）：握手交来的 `config`、推来的 `keys` 里照它取（施工 O-23）。
+/// 白名单成员那一键（`im.whitelist`）：握手交来的 `config`、推来的 `keys` 里照它取（施工 O-23）。
 pub fn whitelist_key() -> String {
     format!("{PACKAGE}.{WHITELIST}")
 }
 
-/// 白名单成员的平台身份（`onebot.whitelist` 的值，施工 O-23，「群里怎么叫她」第 3 条）：字的列表照收；没有、`null`、不是列表的是
+/// 白名单成员的平台身份（`im.whitelist` 的值，施工 O-23，「群里怎么叫她」第 3 条）：字的列表照收；没有、`null`、不是列表的是
 /// 空的（核心照清单查过类型，照说不会），列表里不是字的不要。
 pub fn whitelist(value: &Value) -> Vec<String> {
     value
@@ -187,12 +187,12 @@ pub fn whitelist(value: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// 撤回回执的命令那一键（`onebot.recall_receipts`，施工 O-47）。
+/// 撤回回执的命令那一键（`im.recall_receipts`，施工 O-47）。
 pub fn recall_receipts_key() -> String {
     format!("{PACKAGE}.{RECALL_RECEIPTS}")
 }
 
-/// 撤回回执的命令（`onebot.recall_receipts` 的值，施工 O-47）：字的列表照收，去掉开头的 `/`（写了也认）；没有、`null`、不是
+/// 撤回回执的命令（`im.recall_receipts` 的值，施工 O-47）：字的列表照收，去掉开头的 `/`（写了也认）；没有、`null`、不是
 /// 列表的是空的（照 `defaults`，交了 `null` 就是回到默认），列表里不是字的不要。
 pub fn recall_receipts(value: &Value, defaults: &[String]) -> Vec<String> {
     match value.as_array() {

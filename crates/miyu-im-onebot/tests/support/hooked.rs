@@ -1,4 +1,4 @@
-//! 测试用的别的包（施工 O-43 上，`extending.md` 第二条）：程序是这个仓库的 `miyu-onebot-test-hook`（链到测试程序旁边，同
+//! 测试用的别的包（施工 O-43 上，`extending.md` 第二条）：程序是这个仓库的 `miyu-im-test-hook`（链到测试程序旁边，同
 //! [`super::spawning::linked`]），清单写进管理员家目录那一层，核心起来时照开关拉起它。
 
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use miyu_tool::Catalog;
 use super::spawning::{self, link_beside};
 use super::{CONFIG, Home, TOKEN, resources};
 
-/// 测试程序旁边的 `miyu-onebot-test-hook`：头一次要的时候链上，之后留着。
+/// 测试程序旁边的 `miyu-im-test-hook`：头一次要的时候链上，之后留着。
 fn linked() -> &'static str {
     static LINKED: OnceLock<PathBuf> = OnceLock::new();
     LINKED.get_or_init(|| {
@@ -23,17 +23,11 @@ fn linked() -> &'static str {
             .parent()
             .expect("有上一级")
             .to_path_buf();
-        let path = dir.join(format!(
-            "miyu-onebot-test-hook{}",
-            std::env::consts::EXE_SUFFIX
-        ));
-        link_beside(
-            Path::new(env!("CARGO_BIN_EXE_miyu-onebot-test-hook")),
-            &path,
-        );
+        let path = dir.join(format!("miyu-im-test-hook{}", std::env::consts::EXE_SUFFIX));
+        link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-im-test-hook")), &path);
         path
     });
-    "miyu-onebot-test-hook"
+    "miyu-im-test-hook"
 }
 
 /// 往数据根 `root` 的管理员家目录装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
@@ -120,7 +114,7 @@ impl Home {
             backoff: Duration::from_millis(20),
             longest: Duration::from_millis(100),
         };
-        let secrets = format!("onebot = \"{TOKEN}\"\n");
+        let secrets = format!("im = \"{TOKEN}\"\n");
         let config = format!("{CONFIG}{more}");
         Home::with_config(
             models,

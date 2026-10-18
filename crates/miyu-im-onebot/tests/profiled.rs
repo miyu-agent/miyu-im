@@ -35,7 +35,7 @@ const BLOCK: &str = "<user>\nname: 小林\nabout: 写 Rust 的独立开发者\n<
 /// 白名单里只有 [`JIE`]（握手交来的配置）。
 fn whitelisted() -> Value {
     let mut config = handed(&settings());
-    config["onebot.whitelist"] = json!([format!("qq:{JIE}")]);
+    config["im.whitelist"] = json!([format!("qq:{JIE}")]);
     config
 }
 
@@ -85,7 +85,7 @@ async fn only_the_admins_private_chat_asks_for_the_profile() {
     bridge.stop().await.expect("停得下");
 }
 
-/// 系统配置的 `[onebot]` 多写的：白名单里只有 [`JIE`]。
+/// 系统配置的 `[im]` 多写的：白名单里只有 [`JIE`]。
 fn whitelist() -> String {
     format!("whitelist = [\"qq:{JIE}\"]\n")
 }

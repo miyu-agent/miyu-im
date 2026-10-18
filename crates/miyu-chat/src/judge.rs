@@ -2,12 +2,12 @@
 //! 施工 O-11）。
 //!
 //! 主动回复判断要问判官的那一次：[`request()`] 照 `model.call` 的形状拼出一条 `system`、一条 `user`，[`read()`] 从回答里
-//! 读出第三条的 [`Judgement`](crate::Judgement)。说明的原文是接入QQ 包文件夹的 `data/judge/` 下的十三份（[`JudgeSources`]，
+//! 读出第三条的 [`Judgement`](crate::Judgement)。说明的原文是接入通讯平台 包文件夹的 `data/judge/` 下的十三份（[`JudgeSources`]，
 //! 查过的是 [`JudgeTexts`]），
 //! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
 //! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）；违规的门槛从算分的参数拿。调用的其余几格（`purpose`、
-//! `model`、`max_tokens`）、超时、重试、记 `ext.onebot.chat.decided`，由桥管（「怎么走」第 3、5 条）。
+//! `model`、`max_tokens`）、超时、重试、记 `ext.im.chat.decided`，由桥管（「怎么走」第 3、5 条）。
 
 mod read;
 mod request;

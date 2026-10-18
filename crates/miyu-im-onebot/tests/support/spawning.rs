@@ -1,5 +1,5 @@
-//! 真的程序（施工 O-18，`onebot.md` 第一条「守着它的」、「施工时定的」第 28 条）：`miyu-onebot` 的子命令照真的跑；核心照开关
-//! 拉起的桥是硬链接在测试程序旁边的 `miyu-onebot`（包的程序只找主程序旁边的，测试里的主程序就是测试程序自己，照核心测扩展
+//! 真的程序（施工 O-18，`onebot.md` 第一条「守着它的」、「施工时定的」第 28 条）：`miyu-im` 的子命令照真的跑；核心照开关
+//! 拉起的桥是硬链接在测试程序旁边的 `miyu-im`（包的程序只找主程序旁边的，测试里的主程序就是测试程序自己，照核心测扩展
 //! 的办法）。不拷：拷的时候开着写的句柄，同一个测试程序里别的测试这时起的子进程会带着它，接着拉起时 Linux 回 `ETXTBSY`。
 //! 等真的程序端口听上照状态文件（[`bridge_up`]、[`served_up`]）：挑的空端口被别人先占了的报出来，换一个再来（`ports.rs`）。
 
@@ -17,7 +17,7 @@ use miyu_store::root::DataRoot;
 use super::ports::{Taken, taken};
 use super::{package, resources, within};
 
-/// 测试程序旁边的 `miyu-onebot`：这个测试程序里头一次要的时候链上（[`link_beside`]）。之后留在那里：别的测试可能正跑着它。
+/// 测试程序旁边的 `miyu-im`：这个测试程序里头一次要的时候链上（[`link_beside`]）。之后留在那里：别的测试可能正跑着它。
 pub fn linked() -> &'static Path {
     static LINKED: OnceLock<PathBuf> = OnceLock::new();
     LINKED.get_or_init(|| {
@@ -27,8 +27,8 @@ pub fn linked() -> &'static Path {
             .parent()
             .expect("有上一级")
             .to_path_buf();
-        let path = dir.join(format!("miyu-onebot{}", std::env::consts::EXE_SUFFIX));
-        link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-onebot")), &path);
+        let path = dir.join(format!("miyu-im{}", std::env::consts::EXE_SUFFIX));
+        link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-im")), &path);
         path
     })
 }
@@ -82,11 +82,11 @@ pub fn free_port() -> u16 {
     free.local_addr().expect("有地址").port()
 }
 
-/// 真的程序 `miyu-onebot`：数据根是 `root`，资源目录是源码树的，包文件夹照核心拉起它时那样交（`MIYU_PACKAGE_DIR`，施工 S-6
+/// 真的程序 `miyu-im`：数据根是 `root`，资源目录是源码树的，包文件夹照核心拉起它时那样交（`MIYU_PACKAGE_DIR`，施工 S-6
 /// 上：走正路，不走没设时的回退）；系统的语言是英文（握手回中文的，说的话换成中文，才看得出照握手回的语言说）。不用
 /// `$XDG_RUNTIME_DIR`、`MIYU_LOG`。
 pub fn program(root: &DataRoot, args: &[&str]) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_miyu-onebot"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_miyu-im"));
     command
         .args(args)
         .env("MIYU_HOME", root.path())
@@ -98,7 +98,7 @@ pub fn program(root: &DataRoot, args: &[&str]) -> Command {
     command
 }
 
-/// 跑一次 `miyu-onebot <args>` 到完（系统的语言是中文：握手照它定中文），交回它的输出。
+/// 跑一次 `miyu-im <args>` 到完（系统的语言是中文：握手照它定中文），交回它的输出。
 pub async fn cli(root: &DataRoot, args: &[&str]) -> Output {
     let mut command = program(root, args);
     command.env("LC_ALL", "zh_CN.UTF-8");
@@ -113,7 +113,7 @@ pub fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
-/// 跑 `miyu-onebot status`，直到标准输出合 `wanted`：交回那一次的标准输出。最多等 60 秒。
+/// 跑 `miyu-im status`，直到标准输出合 `wanted`：交回那一次的标准输出。最多等 60 秒。
 pub async fn until_status(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> String {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     loop {
@@ -145,7 +145,7 @@ pub async fn extension(root: &DataRoot) -> Value {
         .as_array()
         .expect("是数组")
         .iter()
-        .find(|one| one["package"] == "onebot")
+        .find(|one| one["package"] == "im")
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"))
 }
@@ -387,10 +387,10 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
 /// `venue.sessions`（[`Served::listed`]，施工 O-32）。它退了、标准错误
 /// 说的是这个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
 pub async fn served_up(root: &DataRoot, listen: u16) -> Result<Served, Taken> {
-    served_with(root, serde_json::json!({"onebot.listen": listen}), listen).await
+    served_with(root, serde_json::json!({"im.listen": listen}), listen).await
 }
 
-/// 同 [`served_up`]，握手交的配置是 `config`（里面的 `onebot.listen` 是 `listen`）。
+/// 同 [`served_up`]，握手交的配置是 `config`（里面的 `im.listen` 是 `listen`）。
 pub async fn served_with(root: &DataRoot, config: Value, listen: u16) -> Result<Served, Taken> {
     let mut served = served_listening(root, config, listen).await?;
     served.listed().await;
@@ -426,15 +426,15 @@ pub async fn served_listening(
     Err(Taken)
 }
 
-/// 系统配置：端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
+/// 系统配置：端口照写，令牌是 `im.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
 /// `Home` 写在前面。
 pub fn ports_config(listen: u16) -> String {
     ports_config_with(listen, "")
 }
 
-/// 同 [`ports_config`]，`[onebot]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。
+/// 同 [`ports_config`]，`[im]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。
 pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
-        "\n[onebot]\nlisten = {listen}\ntoken = {{ secret = \"onebot\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n"
+        "\n[im]\nlisten = {listen}\ntoken = {{ secret = \"im\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n"
     )
 }

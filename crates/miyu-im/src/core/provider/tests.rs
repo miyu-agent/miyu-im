@@ -11,9 +11,9 @@ use crate::core::methods::Methods;
 use crate::package::Package;
 use crate::rules::{Factory, Tools};
 
-/// 这个仓库的包文件夹 `onebot/`（施工 S-6 中）。
+/// 这个仓库的包文件夹 `im/`（施工 S-6 中）。
 fn package() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../onebot")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im")
 }
 
 /// 出厂的工具。
@@ -138,8 +138,8 @@ fn pushes_and_answers_pass_on_and_cancels_stop_here() {
     for message in [
         json!({"jsonrpc": "2.0", "method": "event", "params": {"session": "s1", "event": {}}}),
         json!({"jsonrpc": "2.0", "method": "extension.config", "params": {"keys": {}}}),
-        json!({"jsonrpc": "2.0", "id": "onebot-1", "result": {}}),
-        json!({"jsonrpc": "2.0", "id": "onebot-2", "error": {"code": -32010}}),
+        json!({"jsonrpc": "2.0", "id": "im-1", "result": {}}),
+        json!({"jsonrpc": "2.0", "id": "im-2", "error": {"code": -32010}}),
     ] {
         match heard(&tools(), &Methods::new(), message.clone()) {
             Heard::Other(passed) => assert_eq!(passed, message),

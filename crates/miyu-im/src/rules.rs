@@ -5,7 +5,7 @@
 //! |---|---|---|
 //! | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml` |
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
-//! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
+//! | 违规词表 | `moderation.txt` | `modules/im/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
 //! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、场所会话 system 尾部的群名（施工 O-49）、附加提示词（施工 O-58 上） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt`、`system/note.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
@@ -58,7 +58,7 @@ const VENUES: &str = "venues.d";
 /// 出厂参数：只有出厂的（`chat.md` 第八条「怎么走」第 3 条）。
 const DEFAULTS: &str = "defaults.toml";
 
-/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在 `system/modules/onebot/` 里。
+/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在 `system/modules/im/` 里。
 const MODERATION: &str = "moderation.txt";
 
 /// 场所卡片两页上给人看的字（施工 O-58 下）：不放进 `human/`，那里只放语言文件（工具说明照语言读整个目录）。
@@ -263,7 +263,7 @@ fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
     }
 }
 
-/// 系统的违规词表：`system/modules/onebot/moderation.txt`。
+/// 系统的违规词表：`system/modules/im/moderation.txt`。
 fn words(root: &DataRoot) -> PathBuf {
     root.system().join(MODULES).join(PACKAGE).join(MODERATION)
 }

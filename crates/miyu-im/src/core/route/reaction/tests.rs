@@ -59,7 +59,7 @@ fn joined(seq: u64, turn: u64, triggers: &[u64]) -> Event {
 fn delivered(seq: u64, turn: u64) -> Event {
     let body = json!({"line": ONE, "turn": turn, "to": [], "msg": "90001", "text": "在。"});
     let mut event = event(seq, "venue.delivered", None, body);
-    event.by = serde_json::from_value(json!({"kind": "module", "id": "onebot"})).expect("合写法");
+    event.by = serde_json::from_value(json!({"kind": "module", "id": "im"})).expect("合写法");
     event
 }
 

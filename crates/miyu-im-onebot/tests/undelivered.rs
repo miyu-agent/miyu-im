@@ -1,5 +1,5 @@
 //! 退信（施工 O-25 下，`onebot.md` 第一条「退信」；18 第十节、Q15）：真核心拉起真桥、假 NapCat，她照台词、剧本说。她的话没发
-//! 出去（NapCat 拒了、排过期了），记了 `ext.onebot.venues.failed` 以后经核心的 `session.note` 给那个会话记一块
+//! 出去（NapCat 拒了、排过期了），记了 `ext.im.venues.failed` 以后经核心的 `session.note` 给那个会话记一块
 //! `context.injected`（`kind` 是 `undelivered`，命令编号是入队那一条的序号加 `/note`），写着为什么和那一段的开头：这一轮还在跑
 //! 的，她下一次请求看到；不在跑的，下一轮开头看到。一段一块、只退一次；提示、回执失败了不退；私聊的也退。
 //! 退信的模板是出厂数据：写坏了、要了别的字段的桥起不来，少要几个照收。
@@ -41,8 +41,8 @@ fn rules() -> String {
 }
 
 /// 入队、失败记成的事件。
-const QUEUED: &str = "ext.onebot.venues.queued";
-const FAILED: &str = "ext.onebot.venues.failed";
+const QUEUED: &str = "ext.im.venues.queued";
+const FAILED: &str = "ext.im.venues.failed";
 
 /// 退信的几块：`context.injected` 里 `kind` 是 `undelivered` 的（核心自己也记事实：时间、权限这些），照先后。
 fn undelivered(events: &[Value]) -> Vec<Value> {
@@ -81,7 +81,7 @@ async fn until_decided(home: &Home, group: i64, message: i64) {
 
 /// 出厂的模板照 `why`、`detail`、`text` 填出来的那一块（字段里没有要转义的字）。
 fn fact(why: &str, detail: &str, text: &str) -> String {
-    let path = resources().join("packages/onebot/data/facts/undelivered.txt");
+    let path = resources().join("packages/im/data/facts/undelivered.txt");
     std::fs::read_to_string(path)
         .expect("读得出")
         .replace("{why}", why)
@@ -234,7 +234,7 @@ async fn expired_words_come_back_at_the_next_turn_once() {
         .await;
     // 禁言着，主线开的一轮她的话排着，过了期限记 `expired`：这一轮早完了，退信不带回合编号。
     napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
-    until_count(&home, QUIET, "ext.onebot.venues.muted", 1).await;
+    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
     napcat.send(group_frame(
         QUIET,
         ADMIN,
@@ -321,7 +321,7 @@ async fn private_words_come_back_too() {
 fn a_broken_undelivered_template_is_a_factory_mistake() {
     // 退信的模板（施工 O-25 下）：写坏了、要了别的字段，记一条 `bad_format`；不在的记一条读不成。文件名带 `facts/`。
     let resources = copied_resources();
-    let facts = resources.join("packages/onebot/data/facts");
+    let facts = resources.join("packages/im/data/facts");
     for (text, wanted) in [
         ("<undelivered why=\"{why}\">{text\n", "{text"),
         ("<undelivered who=\"{who}\">{text}</undelivered>\n", "who"),

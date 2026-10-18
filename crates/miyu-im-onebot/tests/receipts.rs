@@ -1,5 +1,5 @@
 //! 群里的命令回执几秒后撤回（施工 O-25 上，`onebot.md` 第一条「斜杠命令」第 7 条；18 第十节）：真核心拉起真桥、假 NapCat。
-//! 撤不撤照配置项 `onebot.recall_receipts`（施工 O-47：出厂只撤 `clear`、`clear-memory`），被拒的那一句照旧撤，发出去
+//! 撤不撤照配置项 `im.recall_receipts`（施工 O-47：出厂只撤 `clear`、`clear-memory`），被拒的那一句照旧撤，发出去
 //! `receipt_recall_seconds`（出厂 3 秒）以后 `delete_msg` 撤回，撤的是 NapCat 回的那个编号；发命令的那条消息不撤；私聊的回执不撤；
 //! 别人被拒什么都不发。
 
@@ -95,7 +95,7 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
         .await
         .expect("连得上核心");
     let changes =
-        json!({"layer": "system", "changes": [{"key": "onebot.recall_receipts", "value": []}]});
+        json!({"layer": "system", "changes": [{"key": "im.recall_receipts", "value": []}]});
     core.call("recall-1", "config.set", changes)
         .await
         .expect("改得了");
@@ -118,7 +118,7 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
     assert!(napcat.pending().is_none(), "别人被拒的什么都没发");
     // 回执、被拒的那一句都先入队（施工 O-25 中）。
     let queued = |events: &[Value]| -> Vec<Value> {
-        of_kind(events, "ext.onebot.venues.queued")
+        of_kind(events, "ext.im.venues.queued")
             .iter()
             .map(|one| one["body"].clone())
             .collect()

@@ -30,7 +30,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
     events
         .iter()
-        .find(|event| event["kind"] == "ext.onebot.chat.decided" && event["cause"] == cause)
+        .find(|event| event["kind"] == "ext.im.chat.decided" && event["cause"] == cause)
         .map(|event| event["body"].clone())
 }
 
@@ -53,7 +53,7 @@ async fn save(head: &mut Head, cards: Value) -> Value {
 
 /// 盘上的 `cards.json`。
 fn on_disk(home: &Home) -> Value {
-    let path = home.root.state().join("packages/onebot/cards.json");
+    let path = home.root.state().join("packages/im/cards.json");
     serde_json::from_slice(&std::fs::read(path).expect("读得出")).expect("是 JSON")
 }
 

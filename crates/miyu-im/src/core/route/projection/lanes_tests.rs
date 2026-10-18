@@ -46,7 +46,7 @@ fn delivered(seq: u64, line: &str, turn: u64) -> Event {
         0,
         "venue.delivered",
         None,
-        json!({"kind": "module", "id": "onebot"}),
+        json!({"kind": "module", "id": "im"}),
         body,
     )
 }
@@ -59,7 +59,7 @@ fn queued(seq: u64, line: &str, turn: u64, text: &str) -> Event {
         0,
         QUEUED,
         None,
-        json!({"kind": "module", "id": "onebot"}),
+        json!({"kind": "module", "id": "im"}),
         body,
     )
 }

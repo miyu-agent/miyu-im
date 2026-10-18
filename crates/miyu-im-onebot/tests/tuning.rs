@@ -15,8 +15,7 @@ fn resources() -> PathBuf {
 
 /// 一个临时的数据目录（包文件夹的 `data/`），`bridge.json` 写成 `text`：交回目录（用完调的一方删）。
 fn with_file(name: &str, text: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("miyu-onebot-tuning-{}-{name}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("miyu-im-tuning-{}-{name}", std::process::id()));
     let file = dir.join(FILE);
     std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
     std::fs::write(&file, text).expect("写得进");
@@ -25,7 +24,7 @@ fn with_file(name: &str, text: &str) -> PathBuf {
 
 #[test]
 fn the_shipped_numbers_are_the_blueprints() {
-    let tuning = Tuning::load(&resources().join("packages/onebot/data")).expect("出厂的读得出来");
+    let tuning = Tuning::load(&resources().join("packages/im/data")).expect("出厂的读得出来");
     assert_eq!(tuning.paths, ["/onebot/v11/ws", "/ws"]);
     assert_eq!(tuning.call_timeout(), Duration::from_secs(10));
     assert_eq!(tuning.write_queue, 64);
@@ -72,8 +71,8 @@ fn the_shipped_numbers_are_the_blueprints() {
 
 #[test]
 fn a_bad_file_is_not_read_and_named() {
-    let good = std::fs::read_to_string(resources().join("packages/onebot/data").join(FILE))
-        .expect("读得了");
+    let good =
+        std::fs::read_to_string(resources().join("packages/im/data").join(FILE)).expect("读得了");
     for (name, text) in [
         (
             "write-zero",

@@ -89,7 +89,7 @@ impl Head {
         .await
     }
 
-    /// 经 `package.call` 调接入QQ 登记的 `method`：交回整条回应。
+    /// 经 `package.call` 调接入通讯平台 登记的 `method`：交回整条回应。
     pub async fn page_call(&mut self, method: &str) -> Value {
         self.page_call_with(method, json!({})).await
     }
@@ -98,7 +98,7 @@ impl Head {
     pub async fn page_call_with(&mut self, method: &str, params: Value) -> Value {
         self.call(
             "package.call",
-            json!({"package": "onebot", "method": method, "params": params}),
+            json!({"package": "im", "method": method, "params": params}),
         )
         .await
     }

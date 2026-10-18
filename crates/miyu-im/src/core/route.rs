@@ -22,7 +22,7 @@
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发；
 //!   回执交 `receipt`，群里的过几秒撤回（施工 O-25 上）。
 //! - 她在私聊里的回话：`message.assistant` 的文字块接起来，过出站链、拆段（`speak`，施工 O-25 上）。
-//! - 出站队列（施工 O-25 中，「出站队列」）：她的话、提示、回执都先入队（记 `ext.onebot.venues.queued`）再照先后交给收进这个会话
+//! - 出站队列（施工 O-25 中，「出站队列」）：她的话、提示、回执都先入队（记 `ext.im.venues.queued`）再照先后交给收进这个会话
 //!   的那个机器人号现在的连接，等回应的那一步交给别的任务，结局照放进写队列的先后交回来记（`sending`；排着、过期的纯逻辑在
 //!   `queue`）。她被禁言、解禁的通知记下（`muted`），禁言时这个群的出站排着；号连上了、定时醒了再看一遍排着的。她的话没发出去的
 //!   经核心的 `session.note` 退信（施工 O-25 下，「退信」，在 `sending`）。
@@ -34,7 +34,7 @@
 //! - 支线（施工 O-36，「群里怎么叫她」第 6、7 条）：判下来要回的照群聊内核分派（`lanes`），主线忙的分叉一条支线回；支线推来的
 //!   事件收进主线的投影（`projection` 的 `lanes`），她在支线说的话照主线发。私聊在 `private`。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了另起一个任务换（`running::rebind`）
-//!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `onebot.whitelist` 这里记一份（施工 O-23）；换了的，私聊找过的
+//!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `im.whitelist` 这里记一份（施工 O-23）；换了的，私聊找过的
 //!   会话都忘掉，下一条照新的白名单再找（施工 O-27）。
 
 mod acting;
@@ -162,7 +162,7 @@ pub(crate) struct Route {
     refused: HashSet<String>,
     /// 群会话编号 → 这个群的投影（施工 O-23，「群里怎么叫她」第 1、2 条）：订阅了的群才有。
     groups: HashMap<String, Projection>,
-    /// 白名单成员的平台身份（`onebot.whitelist`，施工 O-23）：握手交来的，推来新的就换。
+    /// 白名单成员的平台身份（`im.whitelist`，施工 O-23）：握手交来的，推来新的就换。
     whitelist: Vec<String>,
     /// 出站排着的（施工 O-25 中，「出站队列」）：门关着（她被禁言、号没连着）的照会话排着，过了期作废。
     waiting: Queue<Item>,
@@ -175,9 +175,9 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
-    /// 群里回执要撤回的命令（施工 O-47，`onebot.recall_receipts`；推来的换）。
+    /// 群里回执要撤回的命令（施工 O-47，`im.recall_receipts`；推来的换）。
     recalled: Vec<String>,
-    /// `onebot.recall_receipts` 的默认值：推来 `null` 的回到它。
+    /// `im.recall_receipts` 的默认值：推来 `null` 的回到它。
     recall_default: Vec<String>,
     /// 群里的命令回执发出去几秒后撤回（`bridge.json` 的 `receipt_recall_seconds`）。
     recall: Duration,
@@ -410,7 +410,7 @@ impl Route {
             .retain(|_, session| groups.contains_key(session));
     }
 
-    /// 平台上的 `who` 在不在白名单里（`onebot.whitelist`，施工 O-23、O-27）。
+    /// 平台上的 `who` 在不在白名单里（`im.whitelist`，施工 O-23、O-27）。
     fn whitelisted(&self, who: &ExternalId) -> bool {
         self.whitelist.iter().any(|one| one == who.as_str())
     }

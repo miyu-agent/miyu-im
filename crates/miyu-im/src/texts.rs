@@ -1,4 +1,4 @@
-//! `miyu-onebot` 在标准错误上说给人听的字（`onebot.md` 第一条「样子」「出错」「给人看的字」）：字放在包文件夹的
+//! `miyu-im` 在标准错误上说给人听的字（`onebot.md` 第一条「样子」「出错」「给人看的字」）：字放在包文件夹的
 //! `data/human/{zh,en,ja}.json`（施工 S-6 上从资源目录的 `software/onebot/` 挪来，[`Package`]），核心那一份照 [`Human::load`]
 //! 从资源目录读，桥的这一份照 [`Human::with_dir`] 补读，说法的编号照旧是 `software/onebot/<哪一句>`。这里只管挑哪一句、换进什么字段。`start`、`stop`、`restart`、`status`、`logs` 说的
 //! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）、`web` 找不到

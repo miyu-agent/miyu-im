@@ -6,10 +6,10 @@ use super::{Ask, JudgeSources, JudgeTexts, Mode};
 /// 出厂的 `reason` 上限：500 个字符（图纸 `chat.md` 第六条；代码里不写死，由外面交进来）。
 pub(crate) const REASON_CHARS: usize = 500;
 
-/// 接入QQ 包文件夹的 `data/judge/` 下的一份原文。
+/// 接入通讯平台 包文件夹的 `data/judge/` 下的一份原文。
 macro_rules! judge {
     ($name:literal) => {
-        include_str!(concat!("../../../../onebot/data/judge/", $name))
+        include_str!(concat!("../../../../im/data/judge/", $name))
     };
 }
 pub(crate) use judge;

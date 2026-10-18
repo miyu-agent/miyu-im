@@ -10,9 +10,9 @@
 //! - [`driver`]：宿主和驱动之间（施工 I-2 下）：平台的接法（[`driver::Driver`]）、驱动从宿主拿的（[`driver::Gate`]）。
 //! - [`chat`]：和平台无关的数据（施工 I-2 上）：一条消息、撤回、事件、段、带的东西、发给谁，驱动认出来交给宿主的样子。
 //! - `core`：跟核心的那一头：握手（不带凭据）、`venue.session`、带 `as`、`venue` 的 `session.send`、撤回、订阅、她的回话。
-//! - [`status_file`]：桥的状态文件 `state/packages/onebot/status.json`，`status` 读它（施工 O-18）。
-//! - [`control`]：`miyu onebot start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18）。
-//! - [`logs`]：`miyu onebot logs [-f]`：印运行日志和标准错误（施工 O-18）。
+//! - [`status_file`]：桥的状态文件 `state/packages/im/status.json`，`status` 读它（施工 O-18）。
+//! - [`control`]：`miyu im start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18）。
+//! - [`logs`]：`miyu im logs [-f]`：印运行日志和标准错误（施工 O-18）。
 //! - [`texts`]：说给人听的字（包文件夹的 `data/human/`）。
 //! - `current`：桥手里最新的配置：握手交来的，核心推来新的就换上，改了不用重启（施工 O-20）。
 //! - `running`：桥跑着的样子：实际听的端口、连着的号、最新的配置；后台页的 `status`、状态文件照它说，推来的端口变化照它换
@@ -20,8 +20,8 @@
 //! - [`rules`]：场所规则和出厂数据（施工 O-21）：出厂的起来时读一次，系统的照群聊内核读好、合起来、套到场所上，变了下一次
 //!   用就照新的。
 //! - `media`：取图、视频、文件到手，视频、文件存进会话工作区的 `qq-files/`（施工 O-33）。
-//! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
-//! - [`web`]：`miyu onebot web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补）。
+//! - [`venue`]：`miyu im venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
+//! - [`web`]：`miyu im web`：跑旁边的 `miyu web --package im`，打开网页软件里接入通讯平台 的后台页（施工 O-28 补）。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
@@ -46,10 +46,10 @@ pub mod venue;
 pub mod web;
 
 /// 运行日志的目标。
-pub const TARGET: &str = "miyu::onebot";
+pub const TARGET: &str = "miyu::im";
 
 /// 还没有字可用时印原话的开头，也是程序的名字。
-pub const PROGRAM: &str = "miyu-onebot";
+pub const PROGRAM: &str = "miyu-im";
 
-/// 这个软件包的编号（`onebot/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
-pub const PACKAGE: &str = "onebot";
+/// 这个软件包的编号（`im/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
+pub const PACKAGE: &str = "im";

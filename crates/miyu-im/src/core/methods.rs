@@ -1,5 +1,5 @@
 //! 后台页调的方法（施工 O-28 上，`onebot.md` 第一条「后台页」第 2 条，`package-pages.md`「`package.methods`、`package.call`、
-//! `method.call`」）：桥经 `package.methods` 登记，头在接入QQ 的后台页上经核心的 `package.call` 调，核心反向发 `method.call`。
+//! `method.call`」）：桥经 `package.methods` 登记，头在接入通讯平台 的后台页上经核心的 `package.call` 调，核心反向发 `method.call`。
 //!
 //! - 登记（[`register`]）：开好监听、桥手里的状态造好以后发，写出去就交回等回应、记运行日志的那一段（同 `provide`，「施工时定的」
 //!   第 139、154 条）。被拒了只记一行 `ERROR`，桥照跑。

@@ -2,7 +2,7 @@
 //! 根上，桥自己读的出厂数据、给模型看的字、给人看的字在它的 `data/` 里（原来在资源目录的 `software/onebot/`）。
 //!
 //! 在哪由核心定：核心拉起扩展、转交包的命令时把 `MIYU_PACKAGE_DIR` 设成这个包的文件夹（出厂的在资源目录、自己装的在家目录，
-//! 哪一层就是哪一层）；桥不自己拼家目录的布局。没设的（老核心、人在终端里直接跑）退回资源目录的 `packages/onebot/`。
+//! 哪一层就是哪一层）；桥不自己拼家目录的布局。没设的（老核心、人在终端里直接跑）退回资源目录的 `packages/im/`。
 
 #[cfg(test)]
 mod tests;
@@ -31,7 +31,7 @@ pub struct Package {
 
 impl Package {
     /// 照环境变量 [`VARIABLE`] 的值 `given` 找：设了、不是空的就是它；没设、空的退回资源目录 `resources` 里出厂的那一份
-    /// （`packages/onebot/`）。
+    /// （`packages/im/`）。
     pub fn locate(given: Option<&OsStr>, resources: &ResourceRoot) -> Package {
         match given.filter(|given| !given.is_empty()) {
             Some(given) => Package::at(given),

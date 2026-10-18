@@ -13,7 +13,7 @@ use crate::support::resources;
 
 /// 出厂的后台页目录。
 fn page_dir() -> PathBuf {
-    resources().join("packages/onebot/page")
+    resources().join("packages/im/page")
 }
 
 /// 页面目录里每一份 `.js`：（文件名，内容）。

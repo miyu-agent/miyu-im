@@ -1,4 +1,4 @@
-//! `miyu onebot start`、`stop`、`restart`、`status`（`onebot.md` 第一条「对外的样子」，施工 O-18；18 第三节 Q17）：开关存在
+//! `miyu im start`、`stop`、`restart`、`status`（`onebot.md` 第一条「对外的样子」，施工 O-18；18 第三节 Q17）：开关存在
 //! 核心那边（`extensions.md`），这里只调核心的方法、照回应说。
 //!
 //! 1. 照终端的样子连核心：出示本机令牌，没在跑就拉起（「施工时定的」第 24 条：开关在核心那边，核心不在开不了也关不了），
@@ -8,7 +8,7 @@
 //!    那一个。核心拒绝的照核心的原话说（它已经照连接的语言说了），退出码 1。核心那边没有这个包：[`Report::Missing`]，退出码 1。
 //! 3. 照那一个说（[`describe`]）：`start`、`restart` 先说一句做了什么，再说它这时的样子；`stop` 只说关了；`status` 说它的样子，
 //!    在跑的、状态文件（`crate::status_file`）的进程号对得上的，再说 NapCat、NapCat 那边的地址（施工 O-28 下）。`start`、
-//!    `status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（[`Report::Page`]，施工 O-28 补，「施工时定的」
+//!    `status` 末尾一律接一句设置和状态在网页里、用 `miyu im web` 打开（[`Report::Page`]，施工 O-28 补，「施工时定的」
 //!    第 174 条）：关着、停下了的也说，人要去那里设令牌、改端口；`restart` 不说。
 //!
 //! 说的印在标准输出上，出错的在标准错误上。
@@ -90,7 +90,7 @@ pub enum Report {
     Listen(u64),
     /// 这几项配置没认出来，照旧用规则文件里的（施工 O-41 补）：配置项的键，说的时候换成清单里的名字（O-41 补二）。
     Misread(Vec<String>),
-    /// 设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 下；O-28 补改了说法）：`start`、`status` 说完跟上。
+    /// 设置和状态在网页里、用 `miyu im web` 打开（施工 O-28 下；O-28 补改了说法）：`start`、`status` 说完跟上。
     Page,
 }
 
@@ -129,7 +129,7 @@ pub async fn control(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    let mut core = match Core::connect(root, core, "onebot").await {
+    let mut core = match Core::connect(root, core, "im").await {
         Ok(core) => core,
         Err(reason) => {
             say(err, &texts.failure(&Failure::Core(reason)));
@@ -149,7 +149,7 @@ pub async fn control(
         Control::Restart => ("extension.restart", package, Some(Report::Restarted)),
         Control::Status => ("extension.status", json!({}), None),
     };
-    let answered = match core.call("onebot", method, params).await {
+    let answered = match core.call("im", method, params).await {
         Ok(answered) => answered,
         Err(said) => {
             say(err, &said);

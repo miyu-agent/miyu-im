@@ -30,7 +30,7 @@ pub fn lane_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> 
 
 /// 系统账号 `onebot` 名下、场所是 `venue` 的会话（主线、支线都算）：编号和事件。
 fn venue_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> {
-    let system = AccountId::parse("onebot").expect("合写法");
+    let system = AccountId::parse("im").expect("合写法");
     root.sessions(&system)
         .unwrap_or_default()
         .iter()
@@ -110,7 +110,7 @@ pub fn words(said: &Value) -> &str {
 
 /// 运行日志。
 pub fn run_log(root: &DataRoot) -> String {
-    std::fs::read_to_string(root.state().join("logs").join("onebot.log")).unwrap_or_default()
+    std::fs::read_to_string(root.state().join("logs").join("im.log")).unwrap_or_default()
 }
 
 /// 等到运行日志合 `wanted`，交回那一刻的全文：桥常常先做了事（NapCat 收到了动作）、等回应以后才写日志，测试收到动作就读会

@@ -6,7 +6,7 @@
 //! 运行日志只记正名和原因码，不记原文。
 //!
 //! 施工 O-47（2026-10-17 项目主人定：QQ 里只有管理员跑命令时才出现系统口吻的话）：被拒的那一句只回给终端管理员和场所规则
-//! `managers` 里的人，别人被拒什么都不发；群里成了的回执照 `onebot.recall_receipts` 撤不撤（出厂只撤 `clear`、
+//! `managers` 里的人，别人被拒什么都不发；群里成了的回执照 `im.recall_receipts` 撤不撤（出厂只撤 `clear`、
 //! `clear-memory`），被拒的那一句照旧撤。
 
 use miyu_client::ids::ExternalId;

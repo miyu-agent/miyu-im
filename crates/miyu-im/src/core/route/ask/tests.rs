@@ -17,7 +17,7 @@ use crate::core::caller::{Waiting, Writer};
 use crate::core::{Caller, Gone};
 
 /// 编号的前缀。
-const PREFIX: &str = "onebot-t-side-";
+const PREFIX: &str = "im-t-side-";
 
 /// 一份读得出的回答：理由 `reason`。
 pub(super) fn verdict(reason: &str) -> String {
@@ -28,10 +28,7 @@ pub(super) fn verdict(reason: &str) -> String {
 
 /// 出厂参数。
 fn params() -> Params {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../onebot/data/defaults.toml"
-    );
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../im/data/defaults.toml");
     let file = File {
         source: Source::Factory,
         name: "defaults.toml".to_string(),

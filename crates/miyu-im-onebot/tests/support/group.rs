@@ -122,7 +122,7 @@ pub fn at(qq: impl Into<Value>) -> Value {
     json!({"type": "at", "data": {"qq": qq.into()}})
 }
 
-/// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[onebot]` 多写 `onebot`（白名单成员这类），
+/// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[im]` 多写 `onebot`（白名单成员这类），
 /// 桥起来、假 NapCat 连上交给任务应答，群成员照 `members`。挑的空端口被别人先占了的换一个再来（`ports.rs`）。交回核心、假
 /// NapCat 和 NapCat 的端口（重启以后等桥、再连）。
 pub async fn started(
@@ -146,7 +146,7 @@ pub async fn started_by(
     .await
 }
 
-/// 同 [`started_by`]，系统配置的 `[onebot]` 多写 `onebot`（白名单成员这类），假 NapCat 问群成员时照 `ranks` 回身份（施工
+/// 同 [`started_by`]，系统配置的 `[im]` 多写 `onebot`（白名单成员这类），假 NapCat 问群成员时照 `ranks` 回身份（施工
 /// O-31，[`NapCat::ranked`]）。
 pub async fn started_ranked(
     models: Arc<dyn Models>,
@@ -257,7 +257,7 @@ pub async fn started_with_models(
     .await
 }
 
-/// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[onebot]` 后面再接 `more`，`bridge.json` 照 `tuned`
+/// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[im]` 后面再接 `more`，`bridge.json` 照 `tuned`
 /// 改（[`Home::spawning_tuned`]）；系统的场所规则写成 `rules`，`words` 不空的写成系统的违规词表。
 async fn up(
     models: Arc<dyn Models>,
@@ -295,7 +295,7 @@ pub async fn started_installed_tuned(
     .await
 }
 
-/// 同 [`started_installed`]，系统配置的 `[onebot]` 照 `onebot` 写（施工 O-51：白名单成员的私聊）。
+/// 同 [`started_installed`]，系统配置的 `[im]` 照 `onebot` 写（施工 O-51：白名单成员的私聊）。
 pub async fn started_installed_with(
     script: &Script,
     onebot: &str,
@@ -374,7 +374,7 @@ async fn up_installed(
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
         // 卡片那一层（施工 O-58 上）：出厂「其他群」关着，这里打开，测试的群照老的默认接话；要测「不接话」的规则自己写。群出厂
         // 仅发送最终消息（施工 O-57），这里照老的每一步都发：测这一格的另外写卡片。
-        let cards = home.root.state().join("packages").join("onebot");
+        let cards = home.root.state().join("packages").join("im");
         std::fs::create_dir_all(&cards).expect("建得了目录");
         std::fs::write(
             cards.join("cards.json"),
@@ -382,7 +382,7 @@ async fn up_installed(
         )
         .expect("写得进");
         if !words.is_empty() {
-            let modules = home.root.system().join("modules").join("onebot");
+            let modules = home.root.system().join("modules").join("im");
             std::fs::create_dir_all(&modules).expect("建得了目录");
             std::fs::write(modules.join("moderation.txt"), words).expect("写得进");
         }

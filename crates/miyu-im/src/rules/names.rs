@@ -19,7 +19,7 @@ use super::files;
 const HUMAN: &str = "human";
 
 /// 说法编号的前缀：这里只取工具的名字，用不上，照 `texts.rs` 的写。
-const KEYS: &str = "software/onebot";
+const KEYS: &str = "software/im";
 
 /// 一件工具给人看的样子：每种语言的名字，名字后面跟哪一个参数。
 #[derive(Debug, Default, PartialEq, Eq)]

@@ -1,8 +1,8 @@
-//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `onebot/data/human/`，三种语言里桥说的
+//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `im/data/human/`，三种语言里桥说的
 //! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说；握手以前照系统的
 //! 语言（施工 O-20：不读配置）。O-18 多了 `start`、`stop`、`restart`、`status`、`logs` 说的；O-21 多了 `venue show` 说的、
 //! 出厂的数据有问题、问题说成话；O-23 多了限流满了发进群里的那一句；O-28 下去掉桥自己的网页说的几句，`status` 多了设置在哪
-//! 那一句；O-28 补多了 `web` 找不到 `miyu` 那一句，设置在哪改说 `miyu onebot web`。
+//! 那一句；O-28 补多了 `web` 找不到 `miyu` 那一句，设置在哪改说 `miyu im web`。
 
 use miyu_chat::{Entry, Origin, Problem, Source};
 use miyu_config::Value;
@@ -170,9 +170,9 @@ fn everything(texts: &Texts) -> Vec<String> {
         said.push(texts.report(&report));
     }
     for heading in [
-        Heading::Stderr("state/logs/onebot.stderr".to_string()),
-        Heading::Log("state/logs/onebot.log".to_string()),
-        Heading::None("state/logs/onebot.log".to_string()),
+        Heading::Stderr("state/logs/im.stderr".to_string()),
+        Heading::Log("state/logs/im.log".to_string()),
+        Heading::None("state/logs/im.log".to_string()),
     ] {
         said.push(texts.heading(&heading));
     }
@@ -186,7 +186,7 @@ fn every_sentence_turns_into_words_in_every_language() {
             .expect("出厂的字读得出来");
         for said in everything(&texts) {
             assert!(
-                !said.contains("software/onebot/"),
+                !said.contains("software/im/"),
                 "{language}：换不出来：{said}"
             );
             assert!(!said.trim().is_empty(), "{language}：空的");
@@ -212,15 +212,15 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.notice(&Notice::NoToken),
-        "还没设令牌（onebot.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu onebot web），填进 NapCat，几秒内就连上。"
+        "还没设令牌（im.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu im web），填进 NapCat，几秒内就连上。"
     );
     assert_eq!(
         texts.usage(),
-        "用法：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <场所>（serve 只由核心拉起）"
+        "用法：miyu im start | stop | restart | status | web | logs [-f] | venue show <场所>（serve 只由核心拉起）"
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
-        "没等到核心的握手回应。miyu-onebot serve 只由核心拉起：用 miyu onebot start 打开 QQ 桥。"
+        "没等到核心的握手回应。miyu-im serve 只由核心拉起：用 miyu im start 打开 QQ 桥。"
     );
     assert_eq!(
         texts.report(&Report::Started),
@@ -233,7 +233,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     assert_eq!(texts.report(&Report::Restarted), "QQ 桥重新拉起了。");
     assert_eq!(
         texts.report(&Report::Off),
-        "QQ 桥关着。用 miyu onebot start 打开。"
+        "QQ 桥关着。用 miyu im start 打开。"
     );
     assert_eq!(texts.report(&Report::Starting), "QQ 桥正在起来。");
     assert_eq!(
@@ -249,15 +249,15 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "QQ 桥停下了，核心不再拉起它：配置错了或者端口被占（退出码 1）。改好以后 miyu onebot restart。"
+        "QQ 桥停下了，核心不再拉起它：配置错了或者端口被占（退出码 1）。改好以后 miyu im restart。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::FailedRepeatedly(5))),
-        "QQ 桥停下了，核心不再拉起它：连续失败了 5 次。看 miyu onebot logs，修好以后 miyu onebot restart。"
+        "QQ 桥停下了，核心不再拉起它：连续失败了 5 次。看 miyu im logs，修好以后 miyu im restart。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::NotInstalled)),
-        "QQ 桥停下了，核心不再拉起它：miyu 旁边没有 miyu-onebot 这个程序。"
+        "QQ 桥停下了，核心不再拉起它：miyu 旁边没有 miyu-im 这个程序。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::CannotStart)),
@@ -279,7 +279,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.report(&Report::Missing),
-        "核心那边没有 onebot 这个软件包：清单不在、或者写错了，用 miyu check 查一下。"
+        "核心那边没有 im 这个软件包：清单不在、或者写错了，用 miyu check 查一下。"
     );
     assert_eq!(
         texts.report(&Report::Napcat {
@@ -300,23 +300,23 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.no_miyu("/opt/miyu/miyu", "not found"),
-        "打不开网页：跑不了 /opt/miyu/miyu（not found）。miyu-onebot 在自己旁边找 miyu，两个要放在同一个目录。"
+        "打不开网页：跑不了 /opt/miyu/miyu（not found）。miyu-im 在自己旁边找 miyu，两个要放在同一个目录。"
     );
     assert_eq!(
         texts.report(&Report::Page),
-        "设置和状态在网页里：miyu onebot web"
+        "设置和状态在网页里：miyu im web"
     );
     assert_eq!(
-        texts.heading(&Heading::Stderr("a/onebot.stderr".to_string())),
-        "—— 标准错误 a/onebot.stderr ——"
+        texts.heading(&Heading::Stderr("a/im.stderr".to_string())),
+        "—— 标准错误 a/im.stderr ——"
     );
     assert_eq!(
-        texts.heading(&Heading::Log("a/onebot.log".to_string())),
-        "—— 运行日志 a/onebot.log ——"
+        texts.heading(&Heading::Log("a/im.log".to_string())),
+        "—— 运行日志 a/im.log ——"
     );
     assert_eq!(
-        texts.heading(&Heading::None("a/onebot.log".to_string())),
-        "还没有运行日志：a/onebot.log"
+        texts.heading(&Heading::None("a/im.log".to_string())),
+        "还没有运行日志：a/im.log"
     );
 }
 
@@ -334,11 +334,11 @@ fn japanese_is_its_own_and_the_language_can_change() {
     assert_eq!(same, Vec::<String>::new(), "和英文一样的");
     assert_eq!(
         texts.usage(),
-        "使い方：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）"
+        "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "QQ接続は止まっていて、コアはもう起動しません：設定の誤りか、ポートが使われています（終了コード 1）。直してから miyu onebot restart を実行してください。"
+        "メッセージング接続は止まっていて、コアはもう起動しません：設定の誤りか、ポートが使われています（終了コード 1）。直してから miyu im restart を実行してください。"
     );
     texts.speak("zh").expect("读得出来");
     assert_eq!(texts.report(&Report::NoNapcat), "NapCat 还没连上。");

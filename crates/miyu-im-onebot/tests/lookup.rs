@@ -27,7 +27,7 @@ fn serving(bytes: &[u8]) -> Reply {
 
 /// 系统账号的工作区下的 `qq-files/`（真实位置）。
 fn qq_files(home: &Home) -> PathBuf {
-    let onebot = AccountId::parse("onebot").expect("合写法");
+    let onebot = AccountId::parse("im").expect("合写法");
     std::fs::canonicalize(home.root.workspace(&onebot))
         .expect("工作区在")
         .join("qq-files")

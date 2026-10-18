@@ -1,23 +1,23 @@
-# 接入QQ 的软件包清单（名字 2026-10-09 项目主人定，原来叫 QQ 桥；施工 O-18，docs/blueprint/onebot.md 第一条、packages.md）：核心照开关拉起桥、经标准输入输出说协议；
-# miyu onebot … 转交给 miyu-onebot …。给人看的字，不发给模型。
+# 接入通讯平台 的软件包清单（名字 2026-10-09 项目主人定，原来叫 QQ 桥；施工 O-18，docs/blueprint/onebot.md 第一条、packages.md）：核心照开关拉起桥、经标准输入输出说协议；
+# miyu im … 转交给 miyu-im …。给人看的字，不发给模型。
 
 [package]
 protocol = [1, 1]
-name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
+name = { en = "Connect Messaging", zh = "接入通讯平台", ja = "メッセージング接続" }
 summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }
 # 软件包页上的图标（Lucide 的名字，施工 O-28 上，docs/blueprint/package-pages.md「清单多的几格」）。
 icon = "message-circle"
 
 [command]
-name = "onebot"
-program = "miyu-onebot"
-about = { en = "Start, stop and look at Connect QQ", zh = "开、关、查看接入QQ", ja = "QQ接続を起動・停止・確認する" }
+name = "im"
+program = "miyu-im"
+about = { en = "Start, stop and look at Connect Messaging", zh = "开、关、查看接入通讯平台", ja = "メッセージング接続を起動・停止・確認する" }
 
 [process]
 args = ["serve"]
 start = "manual"
 # 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send、session.respond 是操作会话，带 as 是代
-# 平台上的人发话，subscribe 是读会话，events.append 记 ext.onebot.*、venue.* 是写事件（施工 O-23），开本机的两个端口、NapCat
+# 平台上的人发话，subscribe 是读会话，events.append 记 ext.im.*、venue.* 是写事件（施工 O-23），开本机的两个端口、NapCat
 # 连进来是联网；provide 是提供工具：桥给场所会话登记 skip_reply 这些平台工具（施工 O-26，docs/blueprint/onebot.md 第一条
 # 「提供者和不说话」）；packages.call 是调别的包导出的方法：挂接点（施工 O-43 上，docs/blueprint/extending.md 第二条）；widgets 是终端、
 # 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。
@@ -38,7 +38,7 @@ name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
 [export]
 methods = ["chat.action", "chat.venue", "chat.send"]
 
-# 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/onebot/ 下的 page/，入口 index.html；网页把它
+# 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/im/ 下的 page/，入口 index.html；网页把它
 # 放在隔离的框里，它读写这个包的设置项、调桥登记的方法（status、connection.token）。
 # 场所卡片的两页（施工 O-58 下，docs/blueprint/onebot.md「场所卡片的两页」）：终端、网页里的整页，内容由桥经 widget.set 推，
 # 改了经 package.call 调 cards.save_one、cards.add、cards.remove。
@@ -75,7 +75,7 @@ type = "secret"
 layers = ["system"]
 applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
-description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。QQ接続の Web ページで生成できます。" }
+description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect Messaging web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入通讯平台的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。メッセージング接続の Web ページで生成できます。" }
 
 # 白名单成员（施工 O-27，2026-10-10 项目主人定：原来的键叫 trusted，旧键不认）。
 [settings.whitelist]

@@ -65,7 +65,7 @@ fn calls(napcat: &Answering, user: i64, message: i64, text: &str, more: &[i64]) 
 
 /// 出厂的「另一条线正在回」那一块：别的线在回第 `message` 条、这条线回第 `aim` 条，去掉行尾。
 fn another_line(message: i64, aim: i64) -> String {
-    let path = resources().join("packages/onebot/data/facts/another-line.txt");
+    let path = resources().join("packages/im/data/facts/another-line.txt");
     std::fs::read_to_string(path)
         .expect("读得出")
         .replace("{msg}", &message.to_string())
@@ -325,10 +325,9 @@ async fn tools_on_a_lane_look_at_its_own_trigger() {
     let fetched = results[1]["body"]["blocks"][0]["text"]
         .as_str()
         .unwrap_or_default();
-    let not_found = std::fs::read_to_string(
-        resources().join("packages/onebot/data/tool-results/not-found.txt"),
-    )
-    .expect("读得出");
+    let not_found =
+        std::fs::read_to_string(resources().join("packages/im/data/tool-results/not-found.txt"))
+            .expect("读得出");
     assert_eq!(
         fetched.trim_end(),
         not_found.trim_end(),
@@ -355,8 +354,8 @@ async fn turns_opened_on_a_lane_count_toward_the_rate() {
     until_requests(&lines, 2).await;
     // 两轮了（一条主线、一条支线）：C 再叫她，满了。
     calls(&napcat, C, 301, "在吗", &[]);
-    let events = until_main(&home, "ext.onebot.chat.decided", 3).await;
-    let decided = &of_kind(&events, "ext.onebot.chat.decided")[2]["body"];
+    let events = until_main(&home, "ext.im.chat.decided", 3).await;
+    let decided = &of_kind(&events, "ext.im.chat.decided")[2]["body"];
     assert_eq!(decided["inbound"], "record_only", "{decided}");
     assert_eq!(decided["why"], "rate_limited", "{decided}");
     release_a.send(()).expect("还在等");
@@ -450,7 +449,7 @@ async fn a_lane_names_its_group_to_other_packages() {
     let reply = head
         .call(
             "package.call",
-            json!({"package": "onebot", "method": "chat.venue", "params": {"session": lanes[0].0}}),
+            json!({"package": "im", "method": "chat.venue", "params": {"session": lanes[0].0}}),
         )
         .await;
     assert_eq!(

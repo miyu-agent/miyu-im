@@ -39,7 +39,7 @@ fn queued(seq: u64, turn: u64, text: &str) -> Value {
 /// 入队了她在线 `line` 回合 `turn` 的一段 `text`。
 fn queued_on(line: &str, seq: u64, turn: u64, text: &str) -> Value {
     let body = json!({"kind": "reply", "text": text, "line": line, "turn": turn});
-    event(seq, 0, "ext.onebot.venues.queued", body, json!({}))
+    event(seq, 0, "ext.im.venues.queued", body, json!({}))
 }
 
 /// 一条机器人号 `bot` 收进来的人话。
@@ -69,13 +69,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
     backlog.take(&user(2, 30003));
     backlog.take(&user(3, 30004));
     // 命令编号不是 `qq:<号>:…` 的（自己编的）不改。
-    let made = event(
-        4,
-        0,
-        "message.user",
-        json!({}),
-        json!({"cause": "onebot-1"}),
-    );
+    let made = event(4, 0, "message.user", json!({}), json!({"cause": "im-1"}));
     backlog.take(&made);
     let (bot, to, venue) = backlog.peer().expect("认得出");
     assert_eq!(
@@ -137,7 +131,7 @@ fn pieces_queued_in_the_same_turn_are_not_sent_again() {
     backlog.take(&queued(1, 2, "第一段"));
     backlog.take(&queued(2, 3, "别的回合的"));
     let notice = json!({"kind": "notice", "reason": "rate_limited", "text": "第二段"});
-    backlog.take(&event(3, 0, "ext.onebot.venues.queued", notice, json!({})));
+    backlog.take(&event(3, 0, "ext.im.venues.queued", notice, json!({})));
     assert_eq!(backlog.sent(2), ["第一段"], "提示不算");
     let pieces = ["第一段", "第二段", "别的回合的"]
         .map(String::from)
@@ -160,7 +154,7 @@ fn pieces_queued_on_another_line_do_not_count_for_this_one() {
     let mut backlog = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     backlog.take(&queued_on("lane", 1, 2, "支线的"));
     let old = json!({"kind": "reply", "text": "以前的", "turn": 2});
-    backlog.take(&event(2, 0, "ext.onebot.venues.queued", old, json!({})));
+    backlog.take(&event(2, 0, "ext.im.venues.queued", old, json!({})));
     assert_eq!(
         backlog.sent(2),
         ["以前的"],

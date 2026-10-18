@@ -140,13 +140,13 @@ pub(super) fn assistant(seq: u64, turn: u64) -> Event {
 fn delivered(seq: u64, seconds: i64, turn: u64, to: &[i64], msg: &str) -> Event {
     let to: Vec<String> = to.iter().map(|user| format!("qq:{user}")).collect();
     let body = json!({"line": LINE, "turn": turn, "to": to, "msg": msg, "text": "在。"});
-    let by = json!({"kind": "module", "id": "onebot"});
+    let by = json!({"kind": "module", "id": "im"});
     event(seq, seconds, "venue.delivered", None, by, body)
 }
 
 /// 第 `seconds` 秒记的一条桥的事件：种类 `kind`，`body` 照给的。
 fn ext(seq: u64, seconds: i64, kind: &str, body: Value) -> Event {
-    let by = json!({"kind": "module", "id": "onebot"});
+    let by = json!({"kind": "module", "id": "im"});
     event(seq, seconds, kind, None, by, body)
 }
 
@@ -314,7 +314,7 @@ fn her_replies_are_one_per_turn_and_her_ids_are_kept() {
 fn old_rate_limit_notices_are_taken_quietly() {
     // 施工 O-47 起不发限流提示；以前的日志里的照收（编号往后挪），不算她的话、不算回合。
     let mut projection = Projection::new(LINE, 0);
-    let queued = "ext.onebot.venues.queued";
+    let queued = "ext.im.venues.queued";
     take_all(
         &mut projection,
         vec![

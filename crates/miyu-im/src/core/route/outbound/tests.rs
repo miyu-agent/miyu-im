@@ -12,10 +12,7 @@ use crate::chat::Lead;
 
 /// 出厂参数。
 fn params() -> Params {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../onebot/data/defaults.toml"
-    );
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../im/data/defaults.toml");
     let file = File {
         source: Source::Factory,
         name: "defaults.toml".to_string(),

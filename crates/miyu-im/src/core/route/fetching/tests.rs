@@ -85,7 +85,7 @@ fn fetched(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
 }
 
 /// 核对归属（施工 O-35）：群里只认这个群的；私聊只认私聊里这个人发的，这个人在群里说的、别人的私聊、她自己发的都不认。号写成字
-/// 的由驱动读（`onebot/replies/tests.rs`）。
+/// 的由驱动读（`im/replies/tests.rs`）。
 #[test]
 fn only_a_message_from_this_venue_is_owned() {
     let group = To::Group(31);

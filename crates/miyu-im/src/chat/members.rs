@@ -1,4 +1,4 @@
-//! 群里的身份和群成员名字、身份的缓存（施工 I-2 上从 `onebot/members.rs` 挪来）：按群、按号记，记多久由用的一方定。
+//! 群里的身份和群成员名字、身份的缓存（施工 I-2 上从 `im/members.rs` 挪来）：按群、按号记，记多久由用的一方定。
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

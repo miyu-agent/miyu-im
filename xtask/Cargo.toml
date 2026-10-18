@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "接入QQ 仓库的门禁：cargo xtask check（照核心仓库的 xtask，施工 S-6 中）"
+description = "接入通讯平台 仓库的门禁：cargo xtask check（照核心仓库的 xtask，施工 S-6 中）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

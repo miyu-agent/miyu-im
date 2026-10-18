@@ -36,7 +36,7 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
 const SPLIT_RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\noutbound = { split_chars = 4 }\n";
 
 /// 入队记成的事件。
-const QUEUED: &str = "ext.onebot.venues.queued";
+const QUEUED: &str = "ext.im.venues.queued";
 
 /// 群的场所编号。
 fn group_venue() -> String {
@@ -48,7 +48,7 @@ fn private_venue() -> String {
     format!("qq:private:{JIE}")
 }
 
-/// 系统配置的 `[onebot]` 多写的：白名单里只有 [`JIE`]。
+/// 系统配置的 `[im]` 多写的：白名单里只有 [`JIE`]。
 fn whitelist() -> String {
     format!("whitelist = [\"qq:{JIE}\"]\n")
 }
@@ -272,7 +272,7 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
         .expect("连得上核心");
     let changes = json!({"layer": "system", "changes": [
         {"key": format!("external.bindings.\"qq:{JIE}\""), "value": "admin"},
-        {"key": "onebot.whitelist", "value": [format!("qq:{JIE}"), "qq:20099"]},
+        {"key": "im.whitelist", "value": [format!("qq:{JIE}"), "qq:20099"]},
     ]});
     let reply = core
         .call("rebind-1", "config.set", changes)
@@ -310,7 +310,7 @@ async fn a_private_chat_dropped_from_the_whitelist_is_not_followed() {
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
-    let changes = json!({"layer": "system", "changes": [{"key": "onebot.whitelist", "value": []}]});
+    let changes = json!({"layer": "system", "changes": [{"key": "im.whitelist", "value": []}]});
     let reply = core
         .call("whitelist-1", "config.set", changes)
         .await

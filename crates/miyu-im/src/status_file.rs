@@ -1,4 +1,4 @@
-//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：`<数据根>/state/packages/onebot/status.json`，一行 JSON：
+//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：`<数据根>/state/packages/im/status.json`，一行 JSON：
 //!
 //! ```json
 //! {"pid": 12345, "listen": 8301, "napcat": {"connected": true, "self_id": "30003"}}
@@ -10,7 +10,7 @@
 //!   一样的不写，先写临时文件再改名盖上（`miyu_client::places::write`）：读的人看不到写了一半的。写不进记一行，桥照跑。
 //! - 照数据根算位置，不照工作目录的相对路径：核心给的工作目录就是这个目录（`extensions.md`「怎么走」第 1 条），在进程里跑的
 //!   测试也不会写进源码树（「施工时定的」第 23 条）。
-//! - 桥退出不删：`miyu onebot status` 只在核心说桥在跑、进程号对得上时用它（`crate::control`）。
+//! - 桥退出不删：`miyu im status` 只在核心说桥在跑、进程号对得上时用它（`crate::control`）。
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,7 +54,7 @@ pub(crate) async fn keep(
         for (key, value) in running.reported.get() {
             now[key] = value;
         }
-        // 没认出来的配置项（施工 O-41 补）：`miyu onebot status` 照它说一句；空的不带。
+        // 没认出来的配置项（施工 O-41 补）：`miyu im status` 照它说一句；空的不带。
         let misread = running.current.misread();
         if !misread.is_empty() {
             now["misread"] = json!(misread);

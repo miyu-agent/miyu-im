@@ -143,7 +143,7 @@ pub struct Conditions {
 }
 
 impl Chatty {
-    /// 抽样的千分比（施工 O-58 上：接入QQ 的后台页照它说卡片里「插嘴」的默认是哪一档）。
+    /// 抽样的千分比（施工 O-58 上：接入通讯平台 的后台页照它说卡片里「插嘴」的默认是哪一档）。
     #[must_use]
     pub fn probability(&self) -> u16 {
         self.probability

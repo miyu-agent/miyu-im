@@ -39,7 +39,7 @@ fn delivered(seq: u64, msg: &str) -> miyu_client::events::Event {
         0,
         "venue.delivered",
         None,
-        json!({"kind": "module", "id": "onebot"}),
+        json!({"kind": "module", "id": "im"}),
         body,
     )
 }

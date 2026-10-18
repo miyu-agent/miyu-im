@@ -1,17 +1,17 @@
-//! 程序 `miyu-onebot`（`onebot.md` 第一条「对外的样子」）。`miyu onebot …` 经核心的子命令转交到这里（9-2）。
+//! 程序 `miyu-im`（`onebot.md` 第一条「对外的样子」）。`miyu im …` 经核心的子命令转交到这里（9-2）。
 //!
 //! - `serve`：只由核心拉起（施工 O-18，`extensions.md`）：标准输入输出是跟核心说协议的管道（[`Pipe`]），标准输出上只有
 //!   协议；说给人听的在标准错误上，核心收进 `state/logs/onebot.stderr`。核心关了标准输入、Ctrl+C、SIGTERM 好好停下。
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
-//! - `web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补，[`web`]）：不连核心、不读
+//! - `web`：跑旁边的 `miyu web --package im`，打开网页软件里接入通讯平台 的后台页（施工 O-28 补，[`web`]）：不连核心、不读
 //!   数据根，照系统的语言说。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
 //! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份，施工 S-6 上），
 //! 读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
-//! `state/logs/onebot.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
+//! `state/logs/im.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
 //! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
 //! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
 //! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`
@@ -155,7 +155,7 @@ fn main() -> ExitCode {
 async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Texts) -> u8 {
     let log = miyu_client::log::install(
         &root.state().join("logs"),
-        "onebot",
+        "im",
         miyu_client::log::LevelFilter::INFO,
         env.home.as_deref(),
     );

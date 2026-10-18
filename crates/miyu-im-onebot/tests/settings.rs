@@ -1,8 +1,8 @@
 //! 桥用的配置（施工 O-20，`onebot.md` 第一条「怎么走」第 1 条、「施工时定的」第 38 条）：握手交来的 `config` 读成 NapCat 的
 //! 端口、令牌；没交的、`null` 的、不是 0 到 65535 的整数的端口照清单的默认值；令牌是字的照它（去掉前后空白），别的是没有；推来
 //! 的只换带了的键，别的键不认。清单的默认值照出厂的清单读（8301），读不出来的说是哪个文件。白名单成员（施工 O-23）：
-//! `onebot.whitelist`（施工 O-27 改名，旧键 `onebot.trusted` 不认）字的列表照收，别的是空的。原来桥自己的网页的端口
-//! `onebot.web` 随施工 O-28 下去掉：桥不认，照出厂的清单拼的配置项里写它报不认识的键（「施工时定的」第 170 条）。
+//! `im.whitelist`（施工 O-27 改名，旧键 `im.trusted` 不认）字的列表照收，别的是空的。原来桥自己的网页的端口
+//! `im.web` 随施工 O-28 下去掉：桥不认，照出厂的清单拼的配置项里写它报不认识的键（「施工时定的」第 170 条）。
 
 use serde_json::{Map, Value, json};
 
@@ -61,33 +61,29 @@ fn the_shipped_manifest_gives_the_default_port() {
 
 #[test]
 fn a_missing_manifest_or_default_is_named() {
-    let dir = std::env::temp_dir().join(format!("miyu-onebot-defaults-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("miyu-im-defaults-{}", std::process::id()));
     let packages = dir.join("packages");
     std::fs::create_dir_all(&packages).expect("建得了");
     let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没有清单");
-    assert!(error.contains("onebot"), "{error}");
-    // 照出厂的清单写一份，去掉 `onebot.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
-    let shipped = std::fs::read_to_string(
-        resources()
-            .join("packages")
-            .join("onebot")
-            .join("package.toml"),
-    )
-    .expect("读得到出厂的清单");
+    assert!(error.contains("im"), "{error}");
+    // 照出厂的清单写一份，去掉 `im.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
+    let shipped =
+        std::fs::read_to_string(resources().join("packages").join("im").join("package.toml"))
+            .expect("读得到出厂的清单");
     let without = shipped.replace("default = [\"clear\", \"clear-memory\"]\n", "");
     assert_ne!(without, shipped, "真的去掉了");
-    std::fs::create_dir_all(packages.join("onebot")).expect("建得了");
-    std::fs::write(packages.join("onebot").join("package.toml"), without).expect("写得进");
+    std::fs::create_dir_all(packages.join("im")).expect("建得了");
+    std::fs::write(packages.join("im").join("package.toml"), without).expect("写得进");
     let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没写默认值");
-    let file = std::path::Path::new("onebot")
+    let file = std::path::Path::new("im")
         .join("package.toml")
         .display()
         .to_string();
     assert!(
-        error.contains(&file) && error.contains("onebot.recall_receipts"),
+        error.contains(&file) && error.contains("im.recall_receipts"),
         "{error}"
     );
-    std::fs::write(packages.join("onebot").join("package.toml"), "not toml [").expect("写得进");
+    std::fs::write(packages.join("im").join("package.toml"), "not toml [").expect("写得进");
     let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("读不成");
     assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -97,8 +93,7 @@ fn a_missing_manifest_or_default_is_named() {
 
 #[test]
 fn the_handed_config_is_taken_as_it_comes() {
-    let config =
-        json!({"onebot.listen": 9000, "onebot.token": TOKEN, "onebot.whitelist": ["qq:20017"]});
+    let config = json!({"im.listen": 9000, "im.token": TOKEN, "im.whitelist": ["qq:20017"]});
     assert_eq!(
         handed(&config, &fallback()),
         Settings {
@@ -107,21 +102,17 @@ fn the_handed_config_is_taken_as_it_comes() {
         }
     );
     assert_eq!(
-        handed(
-            &json!({"onebot.token": format!("  {TOKEN}\n")}),
-            &fallback()
-        )
-        .token,
+        handed(&json!({"im.token": format!("  {TOKEN}\n")}), &fallback()).token,
         secret(TOKEN),
         "前后的空白去掉"
     );
     assert_eq!(
-        handed(&json!({"onebot.listen": 0}), &fallback()).port,
+        handed(&json!({"im.listen": 0}), &fallback()).port,
         0,
         "0 也照它"
     );
     assert_eq!(
-        handed(&json!({"onebot.listen": 65535}), &fallback()).port,
+        handed(&json!({"im.listen": 65535}), &fallback()).port,
         65535,
         "65535 也照它"
     );
@@ -137,14 +128,14 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
         json!({}),
         Value::Null,
         json!("not an object"),
-        json!({"onebot.listen": null, "onebot.token": null}),
-        json!({"onebot.listen": 65536, "onebot.token": ""}),
-        json!({"onebot.listen": -1}),
-        json!({"onebot.listen": "8301", "onebot.token": 42}),
-        json!({"onebot.listen": 8302.5}),
+        json!({"im.listen": null, "im.token": null}),
+        json!({"im.listen": 65536, "im.token": ""}),
+        json!({"im.listen": -1}),
+        json!({"im.listen": "8301", "im.token": 42}),
+        json!({"im.listen": 8302.5}),
         json!({"listen": 9000, "web.port": 9001, "onebotx.token": TOKEN, "onebot.tokens": TOKEN}),
         // 原来桥自己的网页的端口（施工 O-28 下去掉）：不认。
-        json!({"onebot.web": 9001}),
+        json!({"im.web": 9001}),
     ] {
         assert_eq!(handed(&config, &fallback()), nothing, "{config}");
     }
@@ -161,7 +152,7 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
     );
     assert_eq!(
         driver_config(
-            &json!({"onebot.listen": null, "onebot.token": TOKEN, "onebot.whitelist": ["qq:1"]}),
+            &json!({"im.listen": null, "im.token": TOKEN, "im.whitelist": ["qq:1"]}),
             NAMES,
             &defaults.driver
         ),
@@ -174,14 +165,14 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
 fn a_push_changes_only_the_keys_it_carries() {
     let defaults = fallback();
     let mut driver = driver_config(
-        &json!({"onebot.listen": 9000, "onebot.token": TOKEN}),
+        &json!({"im.listen": 9000, "im.token": TOKEN}),
         NAMES,
         &defaults.driver,
     );
     let pushed = |value: Value, driver: &mut Map<String, Value>| {
         merge_driver(driver, &keys(value), NAMES, &defaults.driver)
     };
-    assert!(pushed(json!({"onebot.token": "new"}), &mut driver));
+    assert!(pushed(json!({"im.token": "new"}), &mut driver));
     assert_eq!(
         read(&driver, &defaults),
         Settings {
@@ -189,9 +180,9 @@ fn a_push_changes_only_the_keys_it_carries() {
             token: secret("new")
         }
     );
-    pushed(json!({"onebot.listen": 9100}), &mut driver);
+    pushed(json!({"im.listen": 9100}), &mut driver);
     assert_eq!(read(&driver, &defaults).port, 9100);
-    pushed(json!({"onebot.token": null}), &mut driver);
+    pushed(json!({"im.token": null}), &mut driver);
     assert_eq!(
         read(&driver, &defaults),
         Settings {
@@ -200,7 +191,7 @@ fn a_push_changes_only_the_keys_it_carries() {
         },
         "null 当没有：令牌没了"
     );
-    pushed(json!({"onebot.listen": null}), &mut driver);
+    pushed(json!({"im.listen": null}), &mut driver);
     assert_eq!(
         read(&driver, &defaults).port,
         18301,
@@ -208,7 +199,7 @@ fn a_push_changes_only_the_keys_it_carries() {
     );
     assert!(
         !pushed(
-            json!({"onebot.whitelist": ["qq:1"], "web.port": 1, "onebot.web": 9001}),
+            json!({"im.whitelist": ["qq:1"], "web.port": 1, "im.web": 9001}),
             &mut driver
         ),
         "别的键不认，没变"
@@ -224,8 +215,8 @@ fn a_push_changes_only_the_keys_it_carries() {
 
 #[test]
 fn whitelist_is_a_list_of_text() {
-    assert_eq!(whitelist_key(), "onebot.whitelist");
-    let handed = json!({"onebot.whitelist": ["qq:20003", 7, null, "qq:20005"]});
+    assert_eq!(whitelist_key(), "im.whitelist");
+    let handed = json!({"im.whitelist": ["qq:20003", 7, null, "qq:20005"]});
     assert_eq!(
         whitelist(&handed[whitelist_key()]),
         ["qq:20003", "qq:20005"],
@@ -233,9 +224,9 @@ fn whitelist_is_a_list_of_text() {
     );
     for nothing in [
         json!({}),
-        json!({"onebot.whitelist": null}),
-        json!({"onebot.whitelist": "qq:1"}),
-        json!({"onebot.trusted": ["qq:20003"]}),
+        json!({"im.whitelist": null}),
+        json!({"im.whitelist": "qq:1"}),
+        json!({"im.trusted": ["qq:20003"]}),
     ] {
         assert!(whitelist(&nothing[whitelist_key()]).is_empty(), "{nothing}");
     }
@@ -244,7 +235,7 @@ fn whitelist_is_a_list_of_text() {
 #[test]
 fn the_web_port_is_an_unknown_key_now() {
     // 照真核心起来时那样把出厂的包的配置项拼进来（`Packaged`，同 `support::Home`）。包的程序不在主程序旁边的当没装、配置项不拼
-    // （`package-pages.md`「程序不在就当没装」）：先把 `miyu-onebot` 链到测试程序旁边（同 `Home::spawning`）。
+    // （`package-pages.md`「程序不在就当没装」）：先把 `miyu-im` 链到测试程序旁边（同 `Home::spawning`）。
     crate::support::spawning::linked();
     let (dir, root) = temp_root();
     let shipped = ResourceRoot::at(resources());
@@ -259,13 +250,13 @@ fn the_web_port_is_an_unknown_key_now() {
             .collect()
     };
     assert_eq!(
-        codes("[onebot]\nlisten = 8301\n"),
+        codes("[im]\nlisten = 8301\n"),
         Vec::<(Code, Option<String>)>::new(),
         "NapCat 的端口照旧认"
     );
     assert_eq!(
-        codes("[onebot]\nweb = 8302\n"),
-        [(Code::UnknownKey, Some("onebot.web".to_string()))],
+        codes("[im]\nweb = 8302\n"),
+        [(Code::UnknownKey, Some("im.web".to_string()))],
         "原来桥自己的网页的端口不认（施工 O-28 下）"
     );
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -284,11 +275,11 @@ fn the_manifest_exports_only_the_methods_for_other_packages() {
 
 #[test]
 fn setting_keys_read_as_their_names_in_the_language() {
-    // 施工 O-41 补二：`miyu onebot status` 说没认出来的配置项用名字；清单里没有的照键。
+    // 施工 O-41 补二：`miyu im status` 说没认出来的配置项用名字；清单里没有的照键。
     let package = package_in(resources());
     let keys = [
-        "onebot.sleep".to_string(),
-        "onebot.keywords".to_string(),
+        "im.sleep".to_string(),
+        "im.keywords".to_string(),
         "onebot.nope".to_string(),
         "other.sleep".to_string(),
     ];
@@ -300,10 +291,10 @@ fn setting_keys_read_as_their_names_in_the_language() {
         miyu_im::settings::labels(&package, &keys[..1], "en"),
         ["Sleep hours"]
     );
-    let missing = package_in(std::env::temp_dir().join("miyu-onebot-no-such-resources"));
+    let missing = package_in(std::env::temp_dir().join("miyu-im-no-such-resources"));
     assert_eq!(
         miyu_im::settings::labels(&missing, &keys[..1], "zh"),
-        ["onebot.sleep"]
+        ["im.sleep"]
     );
 }
 

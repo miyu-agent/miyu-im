@@ -1,5 +1,5 @@
 //! 出站队列（施工 O-25 中，`onebot.md` 第一条「出站队列」）：真核心拉起真桥、假 NapCat，她照剧本、台词说。群里她的每一段先记
-//! `ext.onebot.venues.queued` 再发，日志里入队在送达前面；NapCat 回失败的记 `failed {why: rejected, detail}`；她被禁言（假
+//! `ext.im.venues.queued` 再发，日志里入队在送达前面；NapCat 回失败的记 `failed {why: rejected, detail}`；她被禁言（假
 //! NapCat 推 `group_ban`）记 `muted {until, by}`，禁言以后不久终端管理员 @ 她排着（施工 O-50），主线开的一轮她的话排着，解禁的
 //! 通知来了照先后发、记 `unmuted {why: lifted, by}`，`until` 到了自己发、补记 `unmuted {why: expired}`；别人被禁言、全员禁言不认；
 //! 去重照入队算（排着的也算）。要等过期、断开再连、桥重启、私聊的在 `queue_waits.rs`；禁言的事实、排着的怎么回在 `muted.rs`。
@@ -33,10 +33,10 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
     [[rule]]\nmatch = { kind = \"group\", group = [666] }\noutbound = { split_chars = 4 }\n";
 
 /// 入队、失败、禁言、解禁记成的事件。
-const QUEUED: &str = "ext.onebot.venues.queued";
-const FAILED: &str = "ext.onebot.venues.failed";
-const MUTED: &str = "ext.onebot.venues.muted";
-const UNMUTED: &str = "ext.onebot.venues.unmuted";
+const QUEUED: &str = "ext.im.venues.queued";
+const FAILED: &str = "ext.im.venues.failed";
+const MUTED: &str = "ext.im.venues.muted";
+const UNMUTED: &str = "ext.im.venues.unmuted";
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {

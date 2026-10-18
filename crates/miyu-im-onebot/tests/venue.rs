@@ -1,4 +1,4 @@
-//! `miyu onebot venue show <场所>`（施工 O-21，`onebot.md` 第一条「场所规则和出厂数据」第 7 条）：读的文件和桥一样，配置项
+//! `miyu im venue show <场所>`（施工 O-21，`onebot.md` 第一条「场所规则和出厂数据」第 7 条）：读的文件和桥一样，配置项
 //! 那一层向核心要（施工 O-41：来处印配置项的键；要不到的说连不上核心）；规则设到的一项一行印值和来处，接一句没列出的参数照出厂的，问题印在后面；场所编号认不出是用法不对，出厂的写错说
 //! 是哪些问题。真的程序照系统的语言说；`serve` 出厂的写错握手以前就退，系统的写错照常起来、问题进运行日志。
 
@@ -65,7 +65,7 @@ fn test_rules(root: &DataRoot) {
 
 /// 数据根 `root` 里的卡片写成 `json`（施工 O-58 上）。
 fn write_cards(root: &DataRoot, json: &str) {
-    let dir = root.state().join("packages").join("onebot");
+    let dir = root.state().join("packages").join("im");
     std::fs::create_dir_all(&dir).expect("建得了目录");
     std::fs::write(dir.join("cards.json"), json).expect("写得进");
 }
@@ -118,7 +118,7 @@ fn a_venue_nothing_sets_says_so() {
     let (dir, root) = temp_root();
     // 同名的空文件替换出厂的那一份：什么规则都没有（白名单成员的私聊：卡片「其他群」只管群，「其他私聊」不管白名单成员）。
     system_rule(&root, "50-defaults.toml", "");
-    let listed = Configured::handed(&serde_json::json!({"onebot.whitelist": ["qq:1"]}));
+    let listed = Configured::handed(&serde_json::json!({"im.whitelist": ["qq:1"]}));
     assert_eq!(
         shown_with(&root, "qq:private:1", &zh(&resources()), Ok(listed)),
         (
@@ -160,7 +160,7 @@ fn a_bad_venue_id_is_a_usage_error() {
 fn broken_factory_data_is_said_with_every_problem() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
-    let defaults = resources.join("packages/onebot/data/defaults.toml");
+    let defaults = resources.join("packages/im/data/defaults.toml");
     let good = std::fs::read_to_string(&defaults).expect("读得了");
     let line = good
         .lines()
@@ -189,8 +189,8 @@ fn broken_factory_data_is_said_with_every_problem() {
 fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
     let (dir, root) = temp_root();
     let configured = Configured::handed(&serde_json::json!({
-        "onebot.show_ids": true,
-        "onebot.sleep": "abc",
+        "im.show_ids": true,
+        "im.sleep": "abc",
     }));
     // 卡片那一层照数据根里的（施工 O-58 上）：群 2 有卡、设了限流。
     write_cards(
@@ -206,10 +206,10 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
              outbound.final_only = true（出厂 50-defaults.toml 第 1 条规则，第 17 行）\n\
              parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
              rate = \"7/60s\"（群 2 的卡片）\n\
-             show_ids = true（配置项 onebot.show_ids）\n\
+             show_ids = true（配置项 im.show_ids）\n\
              没列出的参数照出厂的 defaults.toml。\n\
              读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：\n  \
-             配置项 onebot.sleep：sleep 写法不对：\"abc\"\n"
+             配置项 im.sleep：sleep 写法不对：\"abc\"\n"
                 .to_string(),
             String::new()
         )
@@ -225,7 +225,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
     clean(&dir);
 }
 
-/// 跑一次真的程序 `miyu-onebot <args>` 到完（系统的语言是英文），不占着测试的异步线程。
+/// 跑一次真的程序 `miyu-im <args>` 到完（系统的语言是英文），不占着测试的异步线程。
 async fn ran(root: &DataRoot, args: &[&str]) -> std::process::Output {
     let mut command = program(root, args);
     tokio::task::spawn_blocking(move || command.output())
@@ -236,7 +236,7 @@ async fn ran(root: &DataRoot, args: &[&str]) -> std::process::Output {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_program_shows_in_the_system_language() {
-    // 配置项那一层向真核心要（施工 O-41）：核心照系统配置交 `onebot.show_ids`；卡片照数据根里的（施工 O-58 上）。
+    // 配置项那一层向真核心要（施工 O-41）：核心照系统配置交 `im.show_ids`；卡片照数据根里的（施工 O-58 上）。
     let home = Home::spawning(
         &Script::new([]),
         &crate::support::spawning::ports_config_with(
@@ -257,7 +257,7 @@ async fn the_program_shows_in_the_system_language() {
          discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\noutbound.final_only = true (factory 50-defaults.toml, rule 1, line 17)\n\
          parallel = 1 (factory 50-defaults.toml, rule 1, line 16)\n\
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\
-         show_ids = true (setting onebot.show_ids)\n\
+         show_ids = true (setting im.show_ids)\n\
          Parameters not listed follow the factory defaults.toml.\n\
          Problems found while reading (the wrong item, rule or file is not used; the rest is):\n  \
          system 90-bad.toml, rule 2, line 6: rate is not written right: \"abc\"\n"
@@ -285,7 +285,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
     std::fs::write(
-        resources.join("packages/onebot/data/venues.d/50-defaults.toml"),
+        resources.join("packages/im/data/venues.d/50-defaults.toml"),
         "[[rule]]\nrate = \"abc\"\n",
     )
     .expect("写得进");
@@ -323,7 +323,7 @@ async fn serve_with_a_system_mistake_starts_and_logs_it() {
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
     let log =
-        std::fs::read_to_string(root.state().join("logs").join("onebot.log")).expect("有运行日志");
+        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("有运行日志");
     let problem = log
         .lines()
         .find(|line| line.contains("venue rules problem"))

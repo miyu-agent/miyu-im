@@ -1,5 +1,5 @@
 /target/
 /.worktrees/
 # 本机照 README 放进包文件夹的程序、照 release.yml 打的包。
-/onebot/bin/
+/im/bin/
 /dist/

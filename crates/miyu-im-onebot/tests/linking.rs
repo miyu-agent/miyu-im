@@ -1,4 +1,4 @@
-//! 测试程序旁边链 `miyu-onebot`（`support/spawning.rs` 的 [`link_beside`]，「施工时定的」第 28 条）：几份测试程序同时去链
+//! 测试程序旁边链 `miyu-im`（`support/spawning.rs` 的 [`link_beside`]，「施工时定的」第 28 条）：几份测试程序同时去链
 //! 同一个（并着跑同一个测试程序，O-23 下撞过 `File exists`），都当成功，链出来的是同一个文件。
 
 use std::path::PathBuf;
@@ -14,7 +14,7 @@ const ROUNDS: usize = 20;
 
 #[test]
 fn several_linking_at_once_all_succeed() {
-    let dir = std::env::temp_dir().join(format!("miyu-onebot-linking-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("miyu-im-linking-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let source = dir.join("source");
     std::fs::write(&source, b"the program").expect("写得进");

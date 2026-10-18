@@ -9,7 +9,7 @@ use super::*;
 fn words() -> Words {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../onebot/data/cards/human/page.json"
+        "/../../im/data/cards/human/page.json"
     );
     Words::parse(&std::fs::read_to_string(path).expect("读得到")).expect("写法对")
 }

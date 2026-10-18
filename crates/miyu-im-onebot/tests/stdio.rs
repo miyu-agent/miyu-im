@@ -1,7 +1,7 @@
 //! 真的程序 `serve` 经标准输入输出说协议（施工 O-18，`onebot.md` 第一条「对外的样子」「怎么走」第 1、11 条）：测试当核心。
 //! 握手报 `onebot`、不带凭据；标准输出上只有协议，说给人听的在标准错误上；关了标准输入（核心请它退出）5 秒内退出、退出码 0，
 //! 运行日志记一行。`-h`、`--help` 印用法到标准输出、退出码 0；`web` 后面多带的照用法不对（施工 O-28 补）。握手交的端口
-//! 被占：握手以前不说话，被占那一句照握手回的语言说（施工 O-20）。握手交来 `onebot.web` 的不认：只开 NapCat 的端口，状态文件
+//! 被占：握手以前不说话，被占那一句照握手回的语言说（施工 O-20）。握手交来 `im.web` 的不认：只开 NapCat 的端口，状态文件
 //! 里没有 `web`，标准错误上不说网页（施工 O-28 下）。给人看的字照核心交来的包文件夹读：资源目录里没有桥的字时照样读得到；
 //! 没交的退回资源目录（施工 S-6 上）。
 
@@ -25,7 +25,7 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
     let hello = &served.hello;
     assert_eq!(hello["method"], "hello", "{hello}");
-    assert_eq!(hello["params"]["head"]["kind"], "onebot", "{hello}");
+    assert_eq!(hello["params"]["head"]["kind"], "im", "{hello}");
     assert_eq!(hello["params"]["caps"], json!({"input": false}), "{hello}");
     for credential in ["token", "code", "login", "user", "password"] {
         assert!(
@@ -66,7 +66,7 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
         "说给人听的在标准错误上：{said}"
     );
     let log =
-        std::fs::read_to_string(root.state().join("logs").join("onebot.log")).expect("有运行日志");
+        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("有运行日志");
     assert!(log.contains("core closed, stopping"), "{log}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
@@ -80,7 +80,7 @@ async fn a_port_in_use_is_said_in_the_language_of_the_handshake() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
     let port = taken.local_addr().expect("有地址").port();
     // 系统的语言是英文（`program`），握手回中文：照中文说才是照握手回的语言。
-    let served = served(&root, json!({"onebot.listen": port})).await;
+    let served = served(&root, json!({"im.listen": port})).await;
     let exited = within("桥退出", served.child.wait_with_output())
         .await
         .expect("等得到");
@@ -144,7 +144,7 @@ async fn a_web_port_in_the_handshake_is_not_opened() {
     // 原来桥自己的网页的端口：握手交来了也不认（施工 O-28 下，「施工时定的」第 170 条）。
     let web = free_port();
     let (mut served, listen) = on_free_port(async |listen| {
-        let config = json!({"onebot.listen": listen, "onebot.web": web, "onebot.token": TOKEN});
+        let config = json!({"im.listen": listen, "im.web": web, "im.token": TOKEN});
         Ok((served_with(&root, config, listen).await?, listen))
     })
     .await;
@@ -182,7 +182,7 @@ async fn texts_come_from_the_package_folder_it_is_handed() {
     // 施工 S-6 上：资源目录是空的（没有 `software/onebot/`，也没有出厂的包），包文件夹在别处，只带给人看的字。
     let (dir, root) = temp_root();
     let empty = dir.join("resources");
-    let folder = dir.join("own").join("onebot");
+    let folder = dir.join("own").join("im");
     let human = folder.join("data").join("human");
     std::fs::create_dir_all(&empty).expect("建得了");
     std::fs::create_dir_all(&human).expect("建得了");

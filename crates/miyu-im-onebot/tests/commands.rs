@@ -248,7 +248,7 @@ async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
     assert_eq!(napcat.reply().await, STOPPED);
     napcat.admin_says(2, "/remember 喜欢猫").await;
     assert_eq!(napcat.reply().await, NO_MEMORY);
-    let file = home.root.state().join("logs").join("onebot.log");
+    let file = home.root.state().join("logs").join("im.log");
     let log = within("运行日志写下被拒的那一行", async {
         loop {
             let log = std::fs::read_to_string(&file).unwrap_or_default();

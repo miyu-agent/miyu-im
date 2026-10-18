@@ -10,7 +10,7 @@ use tokio::io::{AsyncBufReadExt, BufReader, DuplexStream};
 use super::{Caller, Gone, Waiting};
 
 /// 编号的前缀。
-const PREFIX: &str = "onebot-ab-side-";
+const PREFIX: &str = "im-ab-side-";
 
 /// 一个调用口，写的一头接在内存里的管道上：交回它、等着的表、核心那一头读请求的一行行。
 fn caller() -> (Caller, Waiting, BufReader<DuplexStream>) {
@@ -69,7 +69,7 @@ async fn other_messages_pass_through_and_late_answers_are_dropped() {
     let (_, waiting, _) = caller();
     let pushed = json!({"jsonrpc": "2.0", "method": "event", "params": {"session": "s"}});
     assert_eq!(waiting.sort(pushed.clone()), Some(pushed), "推送原样交回");
-    let route = reply(&json!("onebot-ab-7"), json!({}));
+    let route = reply(&json!("im-ab-7"), json!({}));
     assert_eq!(
         waiting.sort(route.clone()),
         Some(route),

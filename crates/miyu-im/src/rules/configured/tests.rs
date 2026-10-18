@@ -48,19 +48,18 @@ fn text(value: &str) -> Value {
 /// 三项都设了的一份；去掉的四项（O-58 上挪进卡片）写着也不认。
 fn everything() -> Json {
     json!({
-        "onebot.groups": [10, 11],
-        "onebot.other_groups": false,
-        "onebot.group_rate": "30/60s",
-        "onebot.sleep": "23:00-07:00",
-        "onebot.keywords": ["miyu", "小羽"],
-        "onebot.show_ids": true,
+        "im.groups": [10, 11],
+        "im.other_groups": false,
+        "im.group_rate": "30/60s",
+        "im.sleep": "23:00-07:00",
+        "im.keywords": ["miyu", "小羽"],
+        "im.show_ids": true,
     })
 }
 
 #[test]
 fn nothing_set_or_defaults_set_nothing() {
-    let defaults =
-        json!({"onebot.show_ids": false, "onebot.keywords": [], "onebot.strip_period": true});
+    let defaults = json!({"im.show_ids": false, "im.keywords": [], "im.strip_period": true});
     for config in [json!({}), json!(null), defaults] {
         let rules = rules(config);
         for venue in [group("10"), private("10")] {
@@ -93,7 +92,7 @@ fn each_item_lands_on_its_venues() {
 #[test]
 fn awkward_words_come_back_as_written() {
     let words = ["a\"b", "c\\d", "'g'", "h = 1", "]]", "#x", "小羽"];
-    let rules = rules(json!({ "onebot.keywords": words }));
+    let rules = rules(json!({ "im.keywords": words }));
     let got = values(&rules, &group("1"));
     assert_eq!(
         got,
@@ -105,7 +104,7 @@ fn awkward_words_come_back_as_written() {
     );
     // 带控制字符的（换行也算）照规则的规矩整项不收，说是哪一项的。
     for bad in ["e\nf", "\u{1}"] {
-        let config = json!({ "onebot.keywords": ["ok", bad] });
+        let config = json!({ "im.keywords": ["ok", bad] });
         let parsed = Rules::parse(&[Configured::handed(&config).file()]);
         let named: Vec<_> = parsed
             .problems
@@ -114,7 +113,7 @@ fn awkward_words_come_back_as_written() {
             .collect();
         assert_eq!(
             named,
-            [(Code::BadFormat, Some("onebot.keywords".to_string()))],
+            [(Code::BadFormat, Some("im.keywords".to_string()))],
             "{bad:?}"
         );
     }
@@ -123,7 +122,7 @@ fn awkward_words_come_back_as_written() {
 #[test]
 fn a_bad_value_drops_only_that_item_and_names_the_setting() {
     let mut config = everything();
-    config["onebot.sleep"] = json!("abc");
+    config["im.sleep"] = json!("abc");
     let parsed = Rules::parse(&[Configured::handed(&config).file()]);
     let seen: Vec<_> = parsed
         .problems
@@ -142,7 +141,7 @@ fn a_bad_value_drops_only_that_item_and_names_the_setting() {
         [(
             Code::BadFormat,
             Source::Settings,
-            Some("onebot.sleep".to_string()),
+            Some("im.sleep".to_string()),
             Some("sleep".to_string())
         )]
     );
@@ -159,10 +158,10 @@ fn rules_name_their_settings_in_order() {
         keys,
         [
             None,
-            Some("onebot.keywords".to_string()),
-            Some("onebot.sleep".to_string()),
-            Some("onebot.show_ids".to_string()),
-            Some("onebot.strip_period".to_string()),
+            Some("im.keywords".to_string()),
+            Some("im.sleep".to_string()),
+            Some("im.show_ids".to_string()),
+            Some("im.strip_period".to_string()),
             None,
         ]
     );
@@ -172,14 +171,14 @@ fn rules_name_their_settings_in_order() {
 fn pushed_changes_merge_and_say_whether_anything_moved() {
     let mut configured = Configured::handed(&everything());
     // 别的包的、端口、去掉的四项都不算变。
-    let unchanged = json!({"onebot.listen": 9000, "onebot.sleep": "23:00-07:00", "other.sleep": "off", "onebot.groups": [1]});
+    let unchanged = json!({"im.listen": 9000, "im.sleep": "23:00-07:00", "other.sleep": "off", "im.groups": [1]});
     assert!(!configured.change(unchanged.as_object().expect("对象")));
     // `null` 回到默认：不看 QQ 号。
-    assert!(configured.change(json!({"onebot.show_ids": null}).as_object().expect("对象")));
+    assert!(configured.change(json!({"im.show_ids": null}).as_object().expect("对象")));
     let rules = Rules::parse(&[configured.file()]).rules;
     assert!(!rules.resolve(&group("10")).entries.contains_key("show_ids"));
     // 空的字当没设：不拼进去，也不报写错。
-    assert!(configured.change(json!({"onebot.sleep": ""}).as_object().expect("对象")));
+    assert!(configured.change(json!({"im.sleep": ""}).as_object().expect("对象")));
     let parsed = Rules::parse(&[configured.file()]);
     assert_eq!(parsed.problems, []);
     assert!(
@@ -199,18 +198,18 @@ fn misread_names_each_bad_setting_once_in_order() {
         Vec::<String>::new()
     );
     let mut config = everything();
-    config["onebot.sleep"] = json!("25:00-26:00");
-    config["onebot.keywords"] = json!(["a\nb", "c\u{1}"]);
+    config["im.sleep"] = json!("25:00-26:00");
+    config["im.keywords"] = json!(["a\nb", "c\u{1}"]);
     assert_eq!(
         Configured::handed(&config).misread(),
-        ["onebot.keywords", "onebot.sleep"]
+        ["im.keywords", "im.sleep"]
     );
 }
 
 #[test]
 fn turning_off_the_final_period_reaches_every_venue() {
     // 去句号（施工 O-58 补二，从卡片挪来）：开着是出厂的样子、不写；关了的群和私聊都拼进出站表。
-    let rules = rules(json!({"onebot.strip_period": false}));
+    let rules = rules(json!({"im.strip_period": false}));
     let off = ("outbound.strip_period".to_string(), Value::Bool(false), 4);
     for venue in [group("10"), private("10")] {
         assert_eq!(values(&rules, &venue), std::slice::from_ref(&off));

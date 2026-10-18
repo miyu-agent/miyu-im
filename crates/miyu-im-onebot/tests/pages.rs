@@ -25,7 +25,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 订阅整页 `widget`，交回第一份有内容的。
 async fn open(head: &mut Head, widget: &str) -> Value {
-    let page = json!({"package": "onebot", "widget": widget});
+    let page = json!({"package": "im", "widget": widget});
     let reply = head
         .call(
             "subscribe",
@@ -35,7 +35,7 @@ async fn open(head: &mut Head, widget: &str) -> Value {
     let listed = reply["result"]["widgets"].as_array().expect("几块").clone();
     if let Some(content) = listed
         .iter()
-        .find(|one| one["package"] == "onebot" && one["id"] == widget)
+        .find(|one| one["package"] == "im" && one["id"] == widget)
         .map(|one| one["content"].clone())
         .filter(Value::is_array)
     {
@@ -88,7 +88,7 @@ fn value_of(content: &Value, item: &str, key: &str) -> Value {
 
 /// 盘上的 `cards.json`。
 fn on_disk(home: &Home) -> Value {
-    let path = home.root.state().join("packages/onebot/cards.json");
+    let path = home.root.state().join("packages/im/cards.json");
     serde_json::from_slice(&std::fs::read(path).expect("读得出")).expect("是 JSON")
 }
 
@@ -255,7 +255,7 @@ async fn a_whitelist_changed_elsewhere_reaches_the_friends_page() {
     // 白名单在别处改了（终端里改系统配置）：私聊页推出他那一项；他还没有卡，存一张表单就建上。
     let (home, _napcat, mut head) = up().await;
     assert_eq!(ids(&open(&mut head, "friends").await), ["other"]);
-    let change = json!({"key": "onebot.whitelist", "value": [format!("qq:{LIN}")]});
+    let change = json!({"key": "im.whitelist", "value": [format!("qq:{LIN}")]});
     let set = head
         .call(
             "config.set",

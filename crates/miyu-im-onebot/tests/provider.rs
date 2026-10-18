@@ -17,7 +17,7 @@ use crate::support::*;
 
 /// 出厂的资源 `software/onebot/<name>` 原样。
 fn shipped(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/onebot/data").join(name)).expect("读得出")
+    std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
 }
 
 /// 照核心反向调用的样子拼一次 `tool.call`：编号 `id`，工具 `tool`。
@@ -117,7 +117,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
 fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     assert!(Factory::load(&package_in(resources())).is_ok());
     let resources = copied_resources();
-    let software = resources.join("packages/onebot/data");
+    let software = resources.join("packages/im/data");
     for (file, text, wanted) in [
         (
             "tools/skip_reply.json",

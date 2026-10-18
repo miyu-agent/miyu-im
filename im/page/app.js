@@ -1,4 +1,4 @@
-// 接入QQ 的后台页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上；docs/blueprint/package-pages.md「框和网页之间
+// 接入通讯平台 的后台页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上；docs/blueprint/package-pages.md「框和网页之间
 // 怎么说」）：通道、字、颜色和明暗、页签、两页共用的状态。「连接」页在 connection.js，「白名单成员」页在 whitelist.js，换页时交给
 // 它们要用的几样（`ui`）。都是原生的模块，index.html 照 type="module" 载这一个。
 //

@@ -1,5 +1,5 @@
 //! 她发出去的图（施工 O-51，`onebot.md` 第一条「发图」；核心 X-19、设计 34 第二节第 5 条）：真核心拉起真桥、假 NapCat，另装一个
-//! 测试包（`miyu-onebot-test-hook` 带 `sticker:`）登记一件工具 `sticker`，她调了答 `sent` 里一张表情包。群里、私聊里照她调的先后
+//! 测试包（`miyu-im-test-hook` 带 `sticker:`）登记一件工具 `sticker`，她调了答 `sent` 里一张表情包。群里、私聊里照她调的先后
 //! 发：先甩图再说字；图是带 `sub_type=1`、`subType=1` 的图片段，内容是那张图；群里发出去了记 `venue.delivered`（`images`）。
 
 use std::path::PathBuf;
@@ -91,7 +91,7 @@ async fn a_sticker_she_sends_reaches_the_group_before_the_words_after_it() {
         "图记进 venue.delivered"
     );
     assert_eq!(delivered[0]["body"]["text"], "");
-    let queued: Vec<Value> = of_kind(&events, "ext.onebot.venues.queued")
+    let queued: Vec<Value> = of_kind(&events, "ext.im.venues.queued")
         .iter()
         .map(|one| one["body"]["kind"].clone())
         .collect();
@@ -134,7 +134,7 @@ async fn a_sticker_that_never_got_out_is_noted_for_her() {
     let venue = format!("qq:group:{GROUP}");
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
     until_events(&home.root, &venue, |events| {
-        !of_kind(events, "ext.onebot.venues.muted").is_empty()
+        !of_kind(events, "ext.im.venues.muted").is_empty()
     })
     .await;
     // 禁言时有人说一句，照判官点了头的样子开一轮：她调 `sticker`、再说一句，都排着，过期作废。

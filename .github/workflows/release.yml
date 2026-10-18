@@ -1,6 +1,6 @@
-# 发包（施工 S-6 中，设计 32 第九节第 4 条）：推 `v*` 标签时三个平台各编 release 的 `miyu-onebot`，拼成 `onebot/` 文件夹
-# （`package.toml`、`page/`、`data/`、`bin/miyu-onebot`，Windows 带 `.exe`），打成 `miyu-onebot-<版本>-<平台>.tar.gz`
-# （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./onebot`。
+# 发包（施工 S-6 中，设计 32 第九节第 4 条）：推 `v*` 标签时三个平台各编 release 的 `miyu-im`，拼成 `im/` 文件夹
+# （`package.toml`、`page/`、`data/`、`bin/miyu-im`，Windows 带 `.exe`），打成 `miyu-im-<版本>-<平台>.tar.gz`
+# （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./im`。
 #
 # 手动跑（workflow_dispatch，在 `step/**` 上试打）只编、打包、传成这一次跑的产物，不建 Release；版本写 `dev-<提交前 8 位>`。
 name: Release
@@ -52,17 +52,17 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "版本：$version"
       - name: 编 release
-        run: cargo build --release --locked -p miyu-im-onebot --bin miyu-onebot
-      - name: 拼 onebot/ 文件夹
+        run: cargo build --release --locked -p miyu-im-onebot --bin miyu-im
+      - name: 拼 im/ 文件夹
         run: |
           exe=""
           if [ "$RUNNER_OS" = "Windows" ]; then exe=".exe"; fi
-          rm -rf dist && mkdir -p dist/onebot/bin
-          cp -R onebot/. dist/onebot/
-          cp "target/release/miyu-onebot$exe" "dist/onebot/bin/miyu-onebot$exe"
+          rm -rf dist && mkdir -p dist/im/bin
+          cp -R im/. dist/im/
+          cp "target/release/miyu-im$exe" "dist/im/bin/miyu-im$exe"
           # 结构不对就不发：清单、后台页、数据、程序都要在。
-          for need in package.toml page/index.html data/bridge.json "bin/miyu-onebot$exe"; do
-            [ -f "dist/onebot/$need" ] || { echo "包里少了 onebot/$need"; exit 1; }
+          for need in package.toml page/index.html data/bridge.json "bin/miyu-im$exe"; do
+            [ -f "dist/im/$need" ] || { echo "包里少了 im/$need"; exit 1; }
           done
       - name: 打包
         id: pack
@@ -70,13 +70,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           TARGET: ${{ matrix.target }}
         run: |
-          name="miyu-onebot-$VERSION-$TARGET"
+          name="miyu-im-$VERSION-$TARGET"
           cd dist
           if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a -tzip "$name.zip" onebot >/dev/null
+            7z a -tzip "$name.zip" im >/dev/null
             file="$name.zip"
           else
-            tar -czf "$name.tar.gz" onebot
+            tar -czf "$name.tar.gz" im
             file="$name.tar.gz"
           fi
           echo "file=dist/$file" >> "$GITHUB_OUTPUT"
@@ -105,4 +105,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "接入QQ $GITHUB_REF_NAME：下载自己平台的包，解开以后 miyu pkg install ./onebot。"
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "接入通讯平台 $GITHUB_REF_NAME：下载自己平台的包，解开以后 miyu pkg install ./im。"

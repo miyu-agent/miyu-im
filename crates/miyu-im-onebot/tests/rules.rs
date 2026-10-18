@@ -29,9 +29,9 @@ pub fn system_rule(root: &DataRoot, name: &str, text: impl AsRef<[u8]>) -> PathB
     path
 }
 
-/// 系统的违规词表 `modules/onebot/moderation.txt` 写成 `text`（字节）。
+/// 系统的违规词表 `modules/im/moderation.txt` 写成 `text`（字节）。
 pub fn system_words(root: &DataRoot, text: impl AsRef<[u8]>) -> PathBuf {
-    let dir = root.system().join("modules").join("onebot");
+    let dir = root.system().join("modules").join("im");
     std::fs::create_dir_all(&dir).expect("建得了");
     let path = dir.join("moderation.txt");
     std::fs::write(&path, text).expect("写得进");
@@ -69,15 +69,15 @@ pub fn copied_resources() -> PathBuf {
     let (dir, _) = temp_root();
     let copy = dir.join("resources");
     for file in [
-        "packages/onebot/package.toml",
-        "packages/onebot/data/bridge.json",
-        "packages/onebot/data/human/en.json",
-        "packages/onebot/data/human/zh.json",
-        "packages/onebot/data/human/ja.json",
-        "packages/onebot/data/venues.d/50-defaults.toml",
-        "packages/onebot/data/defaults.toml",
-        "packages/onebot/data/moderation.txt",
-        "packages/onebot/data/cards/human/page.json",
+        "packages/im/package.toml",
+        "packages/im/data/bridge.json",
+        "packages/im/data/human/en.json",
+        "packages/im/data/human/zh.json",
+        "packages/im/data/human/ja.json",
+        "packages/im/data/venues.d/50-defaults.toml",
+        "packages/im/data/defaults.toml",
+        "packages/im/data/moderation.txt",
+        "packages/im/data/cards/human/page.json",
     ] {
         let to = copy.join(file);
         std::fs::create_dir_all(to.parent().expect("有上一级")).expect("建得了");
@@ -86,11 +86,11 @@ pub fn copied_resources() -> PathBuf {
     // 判官的说明（施工 O-23 下）、给她看的事实的模板（施工 O-25 下）、群名那一段（施工 O-49）、桥的工具的说明和答的两句（施工 O-26）：
     // 整个目录抄过去。
     for dir in [
-        "packages/onebot/data/judge",
-        "packages/onebot/data/facts",
-        "packages/onebot/data/system",
-        "packages/onebot/data/tools",
-        "packages/onebot/data/tool-results",
+        "packages/im/data/judge",
+        "packages/im/data/facts",
+        "packages/im/data/system",
+        "packages/im/data/tools",
+        "packages/im/data/tool-results",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");
@@ -369,7 +369,7 @@ fn venues_d_that_cannot_be_listed_is_a_problem() {
 #[test]
 fn factory_mistakes_are_all_reported() {
     let resources = copied_resources();
-    let factory = resources.join("packages/onebot/data");
+    let factory = resources.join("packages/im/data");
     std::fs::write(
         factory.join("venues.d/50-defaults.toml"),
         "[[rule]]\nrate = \"abc\"\n",
@@ -419,7 +419,7 @@ fn factory_mistakes_are_all_reported() {
 fn broken_judge_texts_are_factory_mistakes() {
     // 判官的说明（施工 O-23 下）：`violations.txt` 的模板写坏了、要了别的字段，记一条 `bad_format`；少了一份记一条读不成。
     let resources = copied_resources();
-    let judge = resources.join("packages/onebot/data/judge");
+    let judge = resources.join("packages/im/data/judge");
     std::fs::write(judge.join("violations.txt"), "Severity {nope}.\n").expect("写得进");
     let problems = Factory::load(&package_in(&resources)).expect_err("模板写坏了");
     assert_eq!(
@@ -437,7 +437,7 @@ fn broken_judge_texts_are_factory_mistakes() {
         "{problems:?}"
     );
     std::fs::copy(
-        resources_file("packages/onebot/data/judge/violations.txt"),
+        resources_file("packages/im/data/judge/violations.txt"),
         judge.join("violations.txt"),
     )
     .expect("抄得了");
@@ -461,7 +461,7 @@ fn resources_file(path: &str) -> PathBuf {
 #[test]
 fn a_factory_warning_or_a_missing_directory_is_a_mistake_too() {
     let resources = copied_resources();
-    let rules = resources.join("packages/onebot/data/venues.d");
+    let rules = resources.join("packages/im/data/venues.d");
     std::fs::write(rules.join("60-extra.toml"), "nonsense = 1\n").expect("写得进");
     let problems = Factory::load(&package_in(&resources)).expect_err("警告也算");
     assert_eq!(problems.len(), 1);

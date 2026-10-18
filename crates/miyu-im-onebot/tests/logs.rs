@@ -1,4 +1,4 @@
-//! `miyu onebot logs`（施工 O-18，`onebot.md` 第一条「对外的样子」、「施工时定的」第 26 条）：只有运行日志的原样印；标准错误
+//! `miyu im logs`（施工 O-18，`onebot.md` 第一条「对外的样子」、「施工时定的」第 26 条）：只有运行日志的原样印；标准错误
 //! 那一份有内容的先印它，两段各带一行标题；还没有运行日志的在标准错误上说一句；`-f` 接着印新写的，文件换了从头读。
 
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ use crate::support::*;
 fn files(root: &DataRoot) -> (PathBuf, PathBuf) {
     let dir = root.state().join("logs");
     std::fs::create_dir_all(&dir).expect("建得了");
-    (dir.join("onebot.log"), dir.join("onebot.stderr"))
+    (dir.join("im.log"), dir.join("im.stderr"))
 }
 
 /// 印一次（不跟着看）：交回退出码、标准输出、标准错误。

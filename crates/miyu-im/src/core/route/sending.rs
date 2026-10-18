@@ -1,6 +1,6 @@
 //! 出站队列的那一头（施工 O-25 中，`onebot.md` 第一条「出站队列」；18 第十节、Q15）：她要说出去的一切（群里她的话、限流的
-//! 提示、命令回执，私聊的回话）先记 `ext.onebot.venues.queued`、拿到序号，再照先后交 NapCat；结局记下：群里她的话记
-//! `venue.delivered`，群里的回执回了编号的交 `receipt` 撤，没成、过期的记 `ext.onebot.venues.failed`。
+//! 提示、命令回执，私聊的回话）先记 `ext.im.venues.queued`、拿到序号，再照先后交 NapCat；结局记下：群里她的话记
+//! `venue.delivered`，群里的回执回了编号的交 `receipt` 撤，没成、过期的记 `ext.im.venues.failed`。
 //!
 //! - 门开着（这个群没被禁言，照投影；收进这个会话的那个机器人号连着）的照先后放进那个号现在的连接的写队列，前一段放进去了才
 //!   放下一段；等回应交给别的任务，结局照放进写队列的先后交回来（`Route` 的 `sending`，「施工时定的」第 10、84 条）。
@@ -27,15 +27,15 @@ use crate::chat::{CallError, Lead, Outgoing, To};
 use crate::core::{Gone, reason};
 
 /// 失败记成的事件（第 4 条）。
-const FAILED: &str = "ext.onebot.venues.failed";
+const FAILED: &str = "ext.im.venues.failed";
 
 /// 发出去了记成的事件（`venues.md`「桥记的事件」第 3 条）。
 const DELIVERED: &str = "venue.delivered";
 
-/// `ext.onebot.venues.queued` 的 `kind`：命令回执、被拒的那一句。
+/// `ext.im.venues.queued` 的 `kind`：命令回执、被拒的那一句。
 const RECEIPT: &str = "receipt";
 
-/// `ext.onebot.venues.queued` 的 `kind`：她发出去的一张图（施工 O-51）。
+/// `ext.im.venues.queued` 的 `kind`：她发出去的一张图（施工 O-51）。
 const IMAGE: &str = "image";
 
 /// 门关着：她被禁言着。
@@ -63,7 +63,7 @@ pub(super) enum What {
     Image(Box<Image>),
     /// 她的一句长文画成的一页（施工 O-59 上，`long`）：第一页的正文是全文，算她的话；后面几页正文是空的。
     Page(Box<Page>),
-    /// 命令回执、被拒的那一句：`recall` 是群里回了编号的要不要过几秒撤回（施工 O-47：照 `onebot.recall_receipts`）。
+    /// 命令回执、被拒的那一句：`recall` 是群里回了编号的要不要过几秒撤回（施工 O-47：照 `im.recall_receipts`）。
     Receipt {
         /// 撤不撤。
         recall: bool,
@@ -131,7 +131,7 @@ pub(super) enum Body {
 /// 排着的一段：入队那一条的序号和这一段。
 #[derive(Debug)]
 pub(super) struct Item {
-    /// 入队那一条（`ext.onebot.venues.queued`）的序号：`failed` 的 `queued` 照它写。
+    /// 入队那一条（`ext.im.venues.queued`）的序号：`failed` 的 `queued` 照它写。
     queued: u64,
     /// 这一段。
     piece: Piece,
@@ -151,7 +151,7 @@ pub(super) struct Answered {
 }
 
 impl Route {
-    /// 会话 `session` 要说一段 `piece`（第 2 条）：先记 `ext.onebot.venues.queued`（命令编号是 `id`，空的自己编），记成了排进
+    /// 会话 `session` 要说一段 `piece`（第 2 条）：先记 `ext.im.venues.queued`（命令编号是 `id`，空的自己编），记成了排进
     /// 队、算进这一回合发出去的（她的话），再看一遍排着的。去掉首尾空白是空的不入队（第 1 条）；不知道发到哪的、本机的钟读不出的
     /// （照说不会）、核心拒了的（照说不会，`append` 记了一行）不发。
     ///
@@ -362,7 +362,7 @@ impl Route {
                 let body = json!({"line": image.line, "turn": image.turn, "to": [], "msg": msg.to_string(), "text": "", "images": [image.blob]});
                 self.append(&session, None, DELIVERED, body).await.map(drop)
             }
-            // 不撤的回执（施工 O-47，`onebot.recall_receipts` 里没有的命令）发了就完。
+            // 不撤的回执（施工 O-47，`im.recall_receipts` 里没有的命令）发了就完。
             (What::Receipt { recall: false }, _) => Ok(()),
             (What::Receipt { recall: true }, Some(msg)) => {
                 let bots = Arc::clone(&self.bots);

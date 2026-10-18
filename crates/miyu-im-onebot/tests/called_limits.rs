@@ -1,7 +1,7 @@
 //! 群里的限流和桥重启（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2、5、7 条）：真核心照开关拉起真桥，假 NapCat 发群
 //! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），终端管理员照样回；白名单成员
-//! （握手交来的 `onebot.whitelist`）不受限流，冲她来的不过判官、照样回（施工 O-27，「群里怎么叫她」第 14 条）；别人冲她来回一句
-//! 提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
+//! （握手交来的 `im.whitelist`）不受限流，冲她来的不过判官、照样回（施工 O-27，「群里怎么叫她」第 14 条）；别人冲她来回一句
+//! 提示、记 `ext.im.venues.queued`，再来只记下。桥重启以后照日志
 //! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了白名单成员，推来就照新的认。
 
 use serde_json::{Value, json};
@@ -45,7 +45,7 @@ fn noted(events: &[Value], kind: &str, message: i64, what: &str) -> Option<Value
 
 /// 第 `message` 条消息的那一笔判断。
 fn decided(events: &[Value], message: i64) -> Option<Value> {
-    noted(events, "ext.onebot.chat.decided", message, "decided")
+    noted(events, "ext.im.chat.decided", message, "decided")
 }
 
 /// 等到第 `message` 条消息的判断记下了：交回那时的全部事件。
@@ -155,7 +155,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         "头一回冲她来也只记下：{limited}"
     );
     assert!(
-        of_kind(&events, "ext.onebot.venues.queued")
+        of_kind(&events, "ext.im.venues.queued")
             .iter()
             .all(|queued| queued["body"]["kind"] == "reply"),
         "不发限流提示（施工 O-47）"
@@ -216,7 +216,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     assert_eq!(of_kind(&events, "turn.started").len(), 4);
     // 改了白名单成员（核心推来 `extension.config`）：不重启，老王从下一条起不受限流、冲她来的照回。
     let changes = json!({"layer": "system", "changes": [
-        {"key": "onebot.whitelist", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
+        {"key": "im.whitelist", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
     ]});
     core.call("whitelist-1", "config.set", changes)
         .await

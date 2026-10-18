@@ -1,9 +1,9 @@
-//! `miyu onebot web`（施工 O-28 补，`onebot.md` 第一条「对外的样子」）：跑 `miyu-onebot` 旁边的 `miyu`，参数是
-//! `web --package onebot`，标准输入输出照原样接着，退出码照它的；跑不了的照人的语言说、退出码 1。
+//! `miyu im web`（施工 O-28 补，`onebot.md` 第一条「对外的样子」）：跑 `miyu-im` 旁边的 `miyu`，参数是
+//! `web --package im`，标准输入输出照原样接着，退出码照它的；跑不了的照人的语言说、退出码 1。
 //!
 //! `miyu` 是测试放的替身：Unix 上是一段 shell，Windows 上是一份 `.cmd`，都把参数写进旁边的 `seen`、在标准输出上印一行、照
 //! 要求的退出码退出。真的程序找的是自己旁边的 `miyu`（Windows 上带 `.exe`，替身写不出来），那一条只在 Unix 上跑：把
-//! `miyu-onebot` 硬链接进 `target/tmp` 里的一个目录，替身放在它旁边。
+//! `miyu-im` 硬链接进 `target/tmp` 里的一个目录，替身放在它旁边。
 
 use std::path::{Path, PathBuf};
 
@@ -104,7 +104,7 @@ fn miyu_gets_web_package_onebot_and_its_exit_code_comes_back() {
         let miyu = stand_in(&dir.0, "miyu", code);
         let mut err = Vec::new();
         assert_eq!(web(&miyu, &zh(), &mut err), code, "照它的退出码");
-        assert_eq!(dir.seen().as_deref(), Some("web --package onebot"));
+        assert_eq!(dir.seen().as_deref(), Some("web --package im"));
         assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
     }
 }
@@ -135,12 +135,12 @@ fn a_miyu_stopped_by_a_signal_counts_as_failed() {
     assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
 }
 
-/// 跑 `dir` 里的 `miyu-onebot web`（数据根是临时的，说中文；包文件夹照核心拉起它时那样交，施工 S-6 上），交回它的输出。
+/// 跑 `dir` 里的 `miyu-im web`（数据根是临时的，说中文；包文件夹照核心拉起它时那样交，施工 S-6 上），交回它的输出。
 #[cfg(unix)]
 fn run_web(dir: &Dir, args: &[&str]) -> std::process::Output {
     let (home, root) = crate::support::temp_root();
-    let program = dir.0.join("miyu-onebot");
-    crate::support::spawning::link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-onebot")), &program);
+    let program = dir.0.join("miyu-im");
+    crate::support::spawning::link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-im")), &program);
     let output = std::process::Command::new(&program)
         .args(args)
         .env("MIYU_HOME", root.path())
@@ -168,7 +168,7 @@ fn the_program_runs_the_miyu_beside_it_and_passes_its_output_through() {
         "{}",
         String::from_utf8_lossy(&ran.stderr)
     );
-    assert_eq!(dir.seen().as_deref(), Some("web --package onebot"));
+    assert_eq!(dir.seen().as_deref(), Some("web --package im"));
     assert_eq!(
         String::from_utf8_lossy(&ran.stdout),
         "opened\n",

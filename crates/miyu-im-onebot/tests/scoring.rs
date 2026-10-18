@@ -33,7 +33,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
     events
         .iter()
-        .find(|event| event["kind"] == "ext.onebot.chat.decided" && event["cause"] == cause)
+        .find(|event| event["kind"] == "ext.im.chat.decided" && event["cause"] == cause)
         .map(|event| event["body"].clone())
 }
 

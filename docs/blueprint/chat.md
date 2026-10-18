@@ -4,7 +4,7 @@
 
 ### 是什么
 
-通讯平台里和平台无关的那一层：场所规则、进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派（核心的 `docs/designs/18-通讯平台.md` 第一节）。它是第 2 层的纯逻辑，进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟，不用遍历顺序会变的容器：门禁的「纯逻辑」一项扫 `src/`（`xtask/src/purity.rs`），依赖只有内核、配置（`crates/miyu-im-onebot/tests/dependencies.rs`，施工 O-40）。软件包 `miyu-onebot` 链接它；以后别的平台的桥也链接同一个库。
+通讯平台里和平台无关的那一层：场所规则、进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派（核心的 `docs/designs/18-通讯平台.md` 第一节）。它是第 2 层的纯逻辑，进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟，不用遍历顺序会变的容器：门禁的「纯逻辑」一项扫 `src/`（`xtask/src/purity.rs`），依赖只有内核、配置（`crates/miyu-im-onebot/tests/dependencies.rs`，施工 O-40）。软件包 `miyu-im` 链接它；以后别的平台的桥也链接同一个库。
 
 状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10），第六条判官的请求和回答（O-11），第七条和核心的接口（2026-10-07，O 线自查以后定）；O-12（上）照第七条把第一到第六条的编号和类型统一成内核的；O-12（下）交出「冲她来」和 base64 解出来的字，场所、限流、睡眠只能经构造函数或读造，插槽的名字删掉；O-15（上）加第八条出厂参数和按场所改：五张表只声明一次，出厂文件 `defaults.toml` 照它读、照它查，场所规则写同名的表只改写了的几项，第二到第六条的参数类型只能经它造；O-15（下）给名单做出厂数据：违规词表 `moderation.txt` 和它的读法（第二条），清理的两份名单挪进 `[outbound]`（第五条、第八条），出厂的场所规则 `venues.d/50-defaults.toml`（第一条）；O-23 补给 `[judge]` 加一项 `persona`：判官带不带人格的说明（第八条，2026-10-09）；其余各条随后面的步子补。
 
@@ -28,12 +28,12 @@
 | `crates/miyu-chat/src/chatty/supersede.rs`、`chatty/dispatch.rs` | 顶替、分派，各一个文件（施工 O-9，O-12 下分开） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带四条（清理、去末尾句号、去重、引用和 @）；按段拆开（施工 O-10；去句号 O-47 加，Markdown 转纯文本 O-47 去掉） |
 | `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
-| `onebot/data/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `docs/ledger.md`） |
+| `im/data/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `docs/ledger.md`） |
 | `crates/miyu-chat/src/params.rs` | 出厂参数：`Params`、读出厂文件、套上场所规则改的几项（第八条，施工 O-15） |
 | `crates/miyu-chat/src/params/items.rs` | 参数的声明：五张表、每一项的名字、类型、范围、落在 `Params` 的哪一格，只此一份 |
-| `onebot/data/defaults.toml` | 出厂参数的数据（数据，不发给模型，不进登记簿；门禁的登记簿豁免它，`xtask/src/ledger.rs`） |
-| `onebot/data/moderation.txt` | 违规关键词的出厂词表（第二条「怎么走」第 12 条，施工 O-15 下；数据，不发给模型，登记簿豁免它） |
-| `onebot/data/venues.d/50-defaults.toml` | 出厂的场所规则（第一条「怎么走」第 7 条，施工 O-15 下；数据，登记簿豁免它） |
+| `im/data/defaults.toml` | 出厂参数的数据（数据，不发给模型，不进登记簿；门禁的登记簿豁免它，`xtask/src/ledger.rs`） |
+| `im/data/moderation.txt` | 违规关键词的出厂词表（第二条「怎么走」第 12 条，施工 O-15 下；数据，不发给模型，登记簿豁免它） |
+| `im/data/venues.d/50-defaults.toml` | 出厂的场所规则（第一条「怎么走」第 7 条，施工 O-15 下；数据，登记簿豁免它） |
 | 核心的 `crates/miyu-config/src/parse.rs` | `read`：照配置清单的类型认一个 TOML 值，O-1 开成公开的，场所规则复用它；`why`：`toml_edit` 的原话取哪一行，O-12 开成公开的 |
 | 核心的 `crates/miyu-config/src/problem.rs` | `nearest`：离得最近的名字，O-12 改成收一串名字，场所规则和配置共用 |
 
@@ -58,7 +58,7 @@ managers = ["qq:10002"]
 | `kind` | 选项 `group`、`private` | 群还是私聊 |
 | `group` | 编号的列表 | 场所是群，并且群号在列表里 |
 | `user` | 编号的列表 | 场所是私聊，并且对方的号在列表里 |
-| `not_group` | 编号的列表 | 场所不是群号在列表里的群（施工 O-58 上：接入QQ「其他群」卡排除名单里的群）；空的列表什么都不排除 |
+| `not_group` | 编号的列表 | 场所不是群号在列表里的群（施工 O-58 上：接入通讯平台「其他群」卡排除名单里的群）；空的列表什么都不排除 |
 | `not_user` | 编号的列表 | 场所不是对方的号在列表里的私聊；空的列表什么都不排除 |
 
 - 编号写成整数或者字都行，一律照十进制的字比较：`123456` 和 `"123456"` 是同一个。编号是平台里的，不带平台前缀。
@@ -80,7 +80,7 @@ managers = ["qq:10002"]
 | `managers` | 带平台前缀的身份的列表，例如 `qq:10002` | 谁能用管理命令 |
 | `show_ids` | 开关 | 她看不看得到发送者的号码 |
 | `workspace` | 文字，最多 4096 个字符 | 场所会话的工作区 |
-| `extra_prompt` | 几行字，最多 2000 个字符（施工 O-58 上从一行改成几行） | 场所的附加说明（核心的 `docs/designs/26-提示词.md` 第五节）；接入QQ 照模板裹好经 `system.append` 放进这个场所会话的 system 尾部 |
+| `extra_prompt` | 几行字，最多 2000 个字符（施工 O-58 上从一行改成几行） | 场所的附加说明（核心的 `docs/designs/26-提示词.md` 第五节）；接入通讯平台 照模板裹好经 `system.append` 放进这个场所会话的 system 尾部 |
 | `inbound`、`chatty`、`dispatch`、`judge`、`outbound` | 表，每一项照第八条的声明 | 插件参数的表（第八条，施工 O-15）：只改写了的几项，例如 `chatty = { probability = 80 }` |
 
 - **参数的表**：写成行内表、`[rule.chatty]` 表头、点号连着的键（`chatty.probability = 80`）都行，TOML 里是一回事。读的时候展开成一项一项，键是 `表.项`（`chatty.probability`），每一项照第八条的声明查、各自盖。
@@ -116,7 +116,7 @@ Rust 这一边：
    - 值写错了：照配置的原因码（`wrong_type`、`not_an_option`、`out_of_range`、`bad_format`）报，只丢这一项，别的照收（核心的 `docs/designs/14-配置.md` G8）。
    - 参数的表（第八条）：不是表的 `wrong_type`，整张表不收；表里不认识的项 `unknown_key`，给这张表里离得最近的项，写成 `表.项`；每一项照声明查，写错的只丢那一项。表名拼错的，最近的名字从属性名和表名里一起找。
 6. **套到一个场所上**：照第 1 条的先后，一个文件一个文件、一条规则一条规则地看；匹配的规则，它写的每一项都盖掉之前的，来处跟着换。参数的表展开以后每一项各自盖：一条规则写 `chatty = { probability = 80 }`，后面一条写 `chatty = { base = 0.9 }`，两项都在，没写的照出厂（第八条）。
-7. **没有规则设到的项**不在结果里。出厂的规则文件（软件包资源目录里的 `venues.d/`）就是软件包的默认值，代码里不写死；参数的出厂值在第八条的出厂文件里，规则里只有改了的几项。出厂的规则文件是 `onebot/data/venues.d/50-defaults.toml`（O-15 下），内容照 18 第四节：群走 `chatty`、私聊走 `every-message`，限流都是 `5/300s`，并行群 `1`、私聊 `0`；不写 `persona`、`preset`（施工时定的第 16 条）。`miyu onebot venue show` 照来处写「出厂」或「系统」和文件名，参数照 `chatty.probability` 印。
+7. **没有规则设到的项**不在结果里。出厂的规则文件（软件包资源目录里的 `venues.d/`）就是软件包的默认值，代码里不写死；参数的出厂值在第八条的出厂文件里，规则里只有改了的几项。出厂的规则文件是 `im/data/venues.d/50-defaults.toml`（O-15 下），内容照 18 第四节：群走 `chatty`、私聊走 `every-message`，限流都是 `5/300s`，并行群 `1`、私聊 `0`；不写 `persona`、`preset`（施工时定的第 16 条）。`miyu im venue show` 照来处写「出厂」或「系统」和文件名，参数照 `chatty.probability` 印。
 8. **问题的先后**：照文件的先后，同一个文件里照行、列。
 
 **守着它的**（`crates/miyu-chat/src/rules/tests.rs` 等，O-1）
@@ -159,7 +159,7 @@ Rust 这一边：
 
 | 名字 | 是什么 |
 |---|---|
-| `Standing::{Admin, Whitelisted, Member}` | 发的人是谁：终端管理员（核心照 `external.bindings` 认出来的）、白名单成员（桥照 `onebot.whitelist` 认）、别的人 |
+| `Standing::{Admin, Whitelisted, Member}` | 发的人是谁：终端管理员（核心照 `external.bindings` 认出来的）、白名单成员（桥照 `im.whitelist` 认）、别的人 |
 | `Said { sender, standing, addressed }` | 一条消息的事实，进站链和第三条的 `Facts` 共用：发的人（平台上的人，内核的 `ExternalId`）、他是谁、是不是冲她来的（外面用 `addressed` 算好） |
 | `addressed(kind, mentions_me, quotes_me, text, keywords) -> bool` | 是不是冲她来的（「怎么走」第 11 条）：场所是群还是私聊、@ 了她没有、引用的是不是她的消息、正文、场所规则的触发词 `keywords` |
 | `Inbound { kind, said, text }` | 一条进来的消息：场所是群还是私聊（`VenueKind`）、`Said`、正文 |
@@ -202,7 +202,7 @@ Rust 这一边：
     - 私聊：一律是。私聊里每一条都是对她说的；旧版私聊不看唤醒词。
     - 群：@ 了她（`mentions_me`）是；引用的是她的消息（`quotes_me`）是；正文去掉开头的空白以后，以某个触发词开头是（场所规则的 `keywords`；空的不算；区分大小写）。
     - 触发词只认开头，不认中间：中间出现就算，「为什么」这类词会误叫（旧版 `group_trigger_text`，08-29 实测）。名字也算触发词，写在 `keywords` 里，出厂是空的。
-12. **违规词表**（`Moderation::parse_keywords`，O-15 下）：开头的 BOM 去掉；一行一个；每一行去掉首尾的空白（`\r` 也去）；去完是空的、以 `#` 开头的不要；一字不差重复的只留第一个，照出现的先后。不会失败：一行一个字，没什么能写错的。出厂的词表是 `onebot/data/moderation.txt`：旧版的 153 个词（旧版 `real_context.rs` 的 `default_real_context_moderation_keywords`）照原样搬，一个不改；开头几行 `#` 写着这是什么、改了要拿真实聊天记录审一遍（旧版 `OD` 一个词 7 天误报 447 次）。读文件、系统里放同名的文件 `system/modules/onebot/moderation.txt` 替换出厂的那一份，由桥读（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21；第七条第 5 条）。
+12. **违规词表**（`Moderation::parse_keywords`，O-15 下）：开头的 BOM 去掉；一行一个；每一行去掉首尾的空白（`\r` 也去）；去完是空的、以 `#` 开头的不要；一字不差重复的只留第一个，照出现的先后。不会失败：一行一个字，没什么能写错的。出厂的词表是 `im/data/moderation.txt`：旧版的 153 个词（旧版 `real_context.rs` 的 `default_real_context_moderation_keywords`）照原样搬，一个不改；开头几行 `#` 写着这是什么、改了要拿真实聊天记录审一遍（旧版 `OD` 一个词 7 天误报 447 次）。读文件、系统里放同名的文件 `system/modules/onebot/moderation.txt` 替换出厂的那一份，由桥读（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21；第七条第 5 条）。
 
 **守着它的**（`crates/miyu-chat/src/inbound/tests.rs` 等，O-5）
 
@@ -265,7 +265,7 @@ Rust 这一边：
 | `Lift` | 门槛修正的插槽：`lift` 给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, &replies, clock, &chatty) -> Score` | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
-| `nudged(&score, extra, &judgement, &conditions, &chatty) -> Score` | 在算好的分上再加扩展给的加分（O-43 末，接入QQ 的判断打分挂接点 `chat.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（不低于门槛，或者违规够重）；门槛、修正、`raw`、`adjust` 不动；只查违规的、`extra` 是 0 的原样交回 |
+| `nudged(&score, extra, &judgement, &conditions, &chatty) -> Score` | 在算好的分上再加扩展给的加分（O-43 末，接入通讯平台 的判断打分挂接点 `chat.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（不低于门槛，或者违规够重）；门槛、修正、`raw`、`adjust` 不动；只查违规的、`extra` 是 0 的原样交回 |
 
 **怎么走**
 
@@ -447,7 +447,7 @@ Rust 这一边：
 
 | 名字 | 是什么 |
 |---|---|
-| `JudgeSources` | `onebot/data/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
+| `JudgeSources` | `im/data/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
 | `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十三份：`violations.txt` 读成模板，拿一个门槛试换一次，写坏了、要了 `severity_min` 以外的字段都在这里报错。字段不公开，只能这样造 |
 | `Ask { persona, records, current, decoded, mode }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，条数从第八条的 `Params::judge.records` 拿，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（第二条的 `Base64::reveal` 解的，没有是 `None`）、`Mode::{Reply, ModerationOnly}` |
 | `request(&texts, &ask, &chatty) -> Vec<JudgeMessage>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`JudgeMessage { role, text }`，`JudgeRole::{System, User}`；不会失败（`JudgeTexts` 造的时候查过） |
@@ -464,8 +464,8 @@ Rust 这一边：
    - `should_reply`、`to_bot` 是布尔，少了当假。
    - `severity` 是数，0 到 10，夹住，四舍五入成整数；少了当没查（`None`）。只查违规的那一次少了 `severity`：`Unreadable`。
    - `reason` 是字，少了当空；超过 `reason_chars`（出厂 500）个字符的截到这个数，进 `Judgement::reason`。
-   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.onebot.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
-5. **读不出来、超时、出错的**，当判不了：主触发（第三条第 7 条）是冲她来的照回，别的照不回算（18 第七节；冲她来的照回是 2026-10-11 项目主人看了回放定的，照旧版，O-37）；记一笔 `ext.onebot.chat.decided`，写明为什么。重试、超时由桥管，数照第八条的 `Params::judge`（出厂 60 秒，只查违规的 120 秒，重试 1 次）；全局并发（4）、排队等多久（15 秒）是桥这个进程的，不在参数里。
+   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.im.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
+5. **读不出来、超时、出错的**，当判不了：主触发（第三条第 7 条）是冲她来的照回，别的照不回算（18 第七节；冲她来的照回是 2026-10-11 项目主人看了回放定的，照旧版，O-37）；记一笔 `ext.im.chat.decided`，写明为什么。重试、超时由桥管，数照第八条的 `Params::judge`（出厂 60 秒，只查违规的 120 秒，重试 1 次）；全局并发（4）、排队等多久（15 秒）是桥这个进程的，不在参数里。
 6. **违规时给她看的那句预检结论**、回合开头那句「为什么叫你」：随桥接群的那一步，另放资源、另登记。
 
 **守着它的**（`crates/miyu-chat/src/judge/tests.rs` 等，O-11）
@@ -482,7 +482,7 @@ Rust 这一边：
 | 2 | 违规的回答只要 `severity` 和 `reason`；旧版的类别、证据、相关的人和消息不要 | 只有门槛和给她看的那句预检结论用得上；别的只进过旧版的日志 | 照旧版全要 |
 | 3 | 群聊记录、这一条、base64 解出来的字用标签包起来，标签的开头和收尾各是一份资源 | 给模型看的字都在资源里、都登记；照 `core/jobs` 开头收尾分开的先例 | 写在代码里 |
 | 4 | 判官看的事件元数据（旧版的 `mentioned_bot` 那一段 JSON）不另给 | @ 了谁、引用了谁在渲染器一行一条的格式里已经有 | 另给一段 JSON |
-| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.onebot.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
+| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.im.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
 | 6 | `read` 另收 `Mode` | 只查违规的少了 `severity` 判不了，这条规矩只写在读回答这一处 | 桥自己再查一遍 |
 | 7 | 除了五维，类型不对的格照少了算；`severity` 四舍五入成整数 | 五维是算分离不开的，别的格都有不出错的默认；`Judgement::severity` 是 `u8` | 类型不对一律判不了 |
 | 8 | 夹进标签的字末尾没有换行的补一个，空的不补 | 收尾的标签落在自己那一行；空的补了会在标签中间多一个空行 | 只给人格、群聊记录补 |
@@ -518,14 +518,14 @@ Rust 这一边：
 | `venue.recalled` | 桥 | 核心（标明撤回、谁撤的）、桥 | 被撤的平台编号、谁撤的。不叫 `withdrawn`：内核的 `message.withdrawn` 是排着队的消息退回给头，挨得太近 |
 | `venue.delivered` | 桥 | 核心（`[you]` 行：这条线历史里没有的才渲染，18 第八节）、桥 | 哪条线（主线或支线的会话编号）、哪一轮、回的是谁（平台身份的列表）、平台的编号、正文、图的哈希。和 `message.assistant` 重的正文以谁为准：`[you]` 行照它（实际发出去的、出站链洗过的），她自己的上下文照 `message.assistant` |
 | `turn.started` 多一格 `triggers` | 核心，由下面第 3 条的原语开回合时记 | 桥 | 这一轮由哪几条旁听消息触发（序号的列表）；原来的 `trigger` 照旧是最后一条，旧日志照读。账本查：每一条都是这个会话里旁听的 `message.user`，还没被别的轮当过触发 |
-| `ext.onebot.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
-| `ext.onebot.venues.queued`、`ext.onebot.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么。O-25 中定了 `body`（`onebot.md` 第一条「出站队列」第 2、4 条）：`queued` 是 `{kind, text}`，`kind` 取 `reply`（另带 `line`、`turn`）、`notice`（另带 `reason`）、`receipt`；`failed` 是 `{queued: <入队那一条的序号>, why, detail?}`，`why` 取 `rejected`、`timeout`、`disconnected`、`expired` |
-| `ext.onebot.venues.muted`、`ext.onebot.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了：`muted` 是 `{until}`（收到通知时本机此刻加禁言的秒数，写法同事件的 `at`），`unmuted` 是 `{}`（O-25 中，`onebot.md` 第一条「出站队列」第 7 条） |
+| `ext.im.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
+| `ext.im.venues.queued`、`ext.im.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么。O-25 中定了 `body`（`onebot.md` 第一条「出站队列」第 2、4 条）：`queued` 是 `{kind, text}`，`kind` 取 `reply`（另带 `line`、`turn`）、`notice`（另带 `reason`）、`receipt`；`failed` 是 `{queued: <入队那一条的序号>, why, detail?}`，`why` 取 `rejected`、`timeout`、`disconnected`、`expired` |
+| `ext.im.venues.muted`、`ext.im.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了：`muted` 是 `{until}`（收到通知时本机此刻加禁言的秒数，写法同事件的 `at`），`unmuted` 是 `{}`（O-25 中，`onebot.md` 第一条「出站队列」第 7 条） |
 
 **3. 核心要多给的三样**（在核心第二批的五项以外）
 
 1. **照已经记下的几条开一轮**：`session.respond {session, to, facts}`，内核里的新命令 `Respond`。它不新记消息，是拿已经记下的几条（`to`，序号的列表）当触发开一轮，所以不是 `session.send` 多一格；名字也不带 `venue`：以后定时、跨会话也可能用。`facts` 是几块事实，照 `context.injected` 的格（`kind`、`text`，`text` 是带好标签外壳的原文），排在触发前面（`08-上下文投影.md` C2），`by` 是桥这个模块；每块最多 4 KiB。它们是给模型看的字：模板在桥的资源里、登记进 `docs/ledger.md`，核心只原样记、不拼。会话正在跑一轮的，`to` 在下一步的边界并进去（分派里的「并进主线」），和回合中途来的回报排队同一个办法。桥自己判过了，不再过回合闸。
-2. **写自己命名空间的事件**：`events.append {session, kind, body}`。`kind` 必须是 `ext.<包>.<名字>`：核心拉起的扩展 `<包>` 必须是它自己的包编号（桥是 `onebot`），本机的头 `ext.` 开头的都收；`<名字>` 可以有几段、用点连着，每段照短名字的写法，整个 `kind` 最多 128 个字符，所以桥的是 `ext.onebot.chat.decided`、`ext.onebot.venues.queued` 这样（2026-10-09 和核心的主会话定，原来写的 `ext.chat.*`、`ext.venues.*` 和这条规矩对不上）；`body` 是 JSON 对象，最多 16 KiB。记成不带回合编号的事件，不渲染，撤销、压缩都不动它，回应交回序号。要 `events.write` 能力（`05-内核接口.md` 第三节）。
+2. **写自己命名空间的事件**：`events.append {session, kind, body}`。`kind` 必须是 `ext.<包>.<名字>`：核心拉起的扩展 `<包>` 必须是它自己的包编号（桥是 `onebot`），本机的头 `ext.` 开头的都收；`<名字>` 可以有几段、用点连着，每段照短名字的写法，整个 `kind` 最多 128 个字符，所以桥的是 `ext.im.chat.decided`、`ext.im.venues.queued` 这样（2026-10-09 和核心的主会话定，原来写的 `ext.chat.*`、`ext.venues.*` 和这条规矩对不上）；`body` 是 JSON 对象，最多 16 KiB。记成不带回合编号的事件，不渲染，撤销、压缩都不动它，回应交回序号。要 `events.write` 能力（`05-内核接口.md` 第三节）。
 3. **核心认识的场所格和种类**：上面表里 `message.user.venue`、`venue.recalled`、`venue.delivered`、`turn.started.triggers`；组装群聊近况时照它们渲染（18 第九节）。
 
 核心那一半并进它的第二批，拆两步：先做事件的格和 `events.append`（只是记录），再做 `session.respond`（碰回合状态机）。
@@ -535,24 +535,24 @@ Rust 这一边：
 | 输入 | 从哪几种事件 | 怎么算 |
 |---|---|---|
 | 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是终端管理员或白名单成员的；没有 `triggers` 的（回报、后台命令、定时）照算 |
-| （施工 O-47 去掉）进站链原来的 `Ctx.notices` | `ext.onebot.venues.queued` | 不再算：旧日志里的提示照收、不算什么 |
-| 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 `muted` 的 `until` 晚于此刻、之后没有 `unmuted`（O-25 中） |
-| 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：终端管理员；编号在 `onebot.whitelist` 里：白名单成员；别的：别人 |
+| （施工 O-47 去掉）进站链原来的 `Ctx.notices` | `ext.im.venues.queued` | 不再算：旧日志里的提示照收、不算什么 |
+| 进站链 `Ctx.muted` | `ext.im.venues.muted`、`unmuted` | 最后一条 `muted` 的 `until` 晚于此刻、之后没有 `unmuted`（O-25 中） |
+| 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：终端管理员；编号在 `im.whitelist` 里：白名单成员；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
-| 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
+| 顶替 `Pending` | `ext.im.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.im.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线照桥订阅的子会话推来的 `turn.*`、`session.sealed`，触发换回主线序号（O-36，`onebot.md`「群里怎么叫她」第 2 条「支线」） |
-| 出站 `Sent` | `ext.onebot.venues.queued` | 这一轮入队了的她的话（`kind` 是 `reply`，照 `turn` 认是哪一轮）的正文；桥入队记成了就先算上，日志推来的同一段不重复算（O-25 中，原来照 `venue.delivered`）。图的哈希随她的图那一步 |
+| 出站 `Sent` | `ext.im.venues.queued` | 这一轮入队了的她的话（`kind` 是 `reply`，照 `turn` 认是哪一轮）的正文；桥入队记成了就先算上，日志推来的同一段不重复算（O-25 中，原来照 `venue.delivered`）。图的哈希随她的图那一步 |
 | 出站 `Since` | `message.user`、`message.assistant`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
 
 **5. 参数和数据**
 
-- **出厂参数和按场所改**：第八条（施工 O-15）。出厂的数在 `onebot/data/defaults.toml`，五张表：`[inbound]`（base64 的三个数）、`[chatty]`（第三条的全部）、`[dispatch]`（顶替窗口）、`[judge]`（用哪个模型、看几条记录、最多输出、超时、重试、理由最长几个字）、`[outbound]`（第五条的四个数、清理的两份名单、拆段的长度）；读进来时照类型校验，校验不过的报出来、不用（自查第 14 条）。场所规则里写同名的表只覆盖写了的几项（18 Q26）。表的名字和每一项的类型只在群聊内核里声明一次，出厂文件、场所规则都照它查。
-- **违规关键词**：第二条（「怎么走」第 5、12 条，施工 O-15 下）。出厂的词表 `onebot/data/moderation.txt`，一行一个，读法在第二条第 12 条；系统里放同名的文件 `system/modules/onebot/moderation.txt` 替换出厂的（和场所规则一个办法；包自己的系统数据放 `system/modules/<包编号>/`，2026-10-09 核心的主会话定），由桥读（施工 O-21）。
-- **白名单成员**：系统配置的 `onebot.whitelist`（原来叫 `onebot.trusted`，O-27 改名，2026-10-10 项目主人定），平台身份的列表，只能写在系统配置（2026-10-07 项目主人定）。随第一个用到它的那一步声明：O-17 的「终端管理员与白名单成员」页（施工单 O-15 上「要定的」第 5 条）。
-- **给人看的字**：`onebot/data/human/{zh,en,ja}.json`，照软件包的规矩（`store/resources.md`）；桥里不写死。
-- **判官的说明**：`onebot/data/judge/`（O-11）。以后别的平台的桥要用时，再挪到群聊内核自己的资源目录。
+- **出厂参数和按场所改**：第八条（施工 O-15）。出厂的数在 `im/data/defaults.toml`，五张表：`[inbound]`（base64 的三个数）、`[chatty]`（第三条的全部）、`[dispatch]`（顶替窗口）、`[judge]`（用哪个模型、看几条记录、最多输出、超时、重试、理由最长几个字）、`[outbound]`（第五条的四个数、清理的两份名单、拆段的长度）；读进来时照类型校验，校验不过的报出来、不用（自查第 14 条）。场所规则里写同名的表只覆盖写了的几项（18 Q26）。表的名字和每一项的类型只在群聊内核里声明一次，出厂文件、场所规则都照它查。
+- **违规关键词**：第二条（「怎么走」第 5、12 条，施工 O-15 下）。出厂的词表 `im/data/moderation.txt`，一行一个，读法在第二条第 12 条；系统里放同名的文件 `system/modules/onebot/moderation.txt` 替换出厂的（和场所规则一个办法；包自己的系统数据放 `system/modules/<包编号>/`，2026-10-09 核心的主会话定），由桥读（施工 O-21）。
+- **白名单成员**：系统配置的 `im.whitelist`（原来叫 `im.trusted`，O-27 改名，2026-10-10 项目主人定），平台身份的列表，只能写在系统配置（2026-10-07 项目主人定）。随第一个用到它的那一步声明：O-17 的「终端管理员与白名单成员」页（施工单 O-15 上「要定的」第 5 条）。
+- **给人看的字**：`im/data/human/{zh,en,ja}.json`，照软件包的规矩（`store/resources.md`）；桥里不写死。
+- **判官的说明**：`im/data/judge/`（O-11）。以后别的平台的桥要用时，再挪到群聊内核自己的资源目录。
 
-**6. 已知的代价**：`ext.onebot.chat.decided` 一条群消息记一条，场所会话的日志会长得快；压缩照样不删日志。可以接受，写进 18 第七节。
+**6. 已知的代价**：`ext.im.chat.decided` 一条群消息记一条，场所会话的日志会长得快；压缩照样不删日志。可以接受，写进 18 第七节。
 
 **7. 不在这一条里的**：桥接群、贴表情、出站队列的实现、WebUI。
 
@@ -562,7 +562,7 @@ Rust 这一边：
 
 **对外的样子**
 
-出厂文件 `onebot/data/defaults.toml`，五张表，每一项都得写（`judge.model` 除外）：
+出厂文件 `im/data/defaults.toml`，五张表，每一项都得写（`judge.model` 除外）：
 
 ```toml
 [chatty]
@@ -609,7 +609,7 @@ restraint_half_life = "3m"
 | `outbound.split_chars` | 整数 0 到 100000 | 3000 | `Params::split_chars`：交给第五条的 `split`，`0` 是不拆 |
 | `outbound.long_text` | 选项 `split`、`image`、`forward` | `image` | `Params::long_text`（`LongText`，施工 O-59 上；`forward` O-59 下）：超过 `long_chars` 的一句怎么发，桥照它拆段、画成图或者打成合并转发 |
 | `outbound.long_chars` | 整数 0 到 100000 | 300 | `Params::long_chars`：超过几个字算长文，`0` 是不算 |
-| `outbound.final_only` | 开关 | `false` | `Params::final_only`（施工 O-57）：仅发送最终消息，桥照它扣着她调工具时说的话（接入QQ 的出厂场所规则给群打开） |
+| `outbound.final_only` | 开关 | `false` | `Params::final_only`（施工 O-57）：仅发送最终消息，桥照它扣着她调工具时说的话（接入通讯平台 的出厂场所规则给群打开） |
 | `outbound.invisible` | 文字的列表，每项正好一个字符，可以是空的列表 | U+200B 到 U+200F、U+2060 到 U+2064、U+FEFF、U+00AD、U+180E、U+2028、U+2029，十五个，一个一项（O-15 下） | `Outbound::invisible`：清理判空时和空白一样算 |
 | `outbound.leak_open` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | `<tool_call>`、`<function=`（O-15 下） | `Outbound::leak_open`：漏进来的工具调用从哪开始 |
 | `outbound.leak_close` | 同 `leak_open`，和它一样长（「怎么走」第 7 条） | `</tool_call>`、`</function>`（O-15 下） | `Outbound::leak_close`：照位置和 `leak_open` 一一对上 |
@@ -674,7 +674,7 @@ Rust 这一边：
 | 1 | 五维的权重五项各一个名字 | 配置的类型没有「定长的小数列表」；分开写，按场所改一维也只写一项 | 一个五个数的列表 |
 | 2 | 时长照配置的时长写（`15s`、`3m`），交出来换成毫秒。时长不收 0，`mention_after` 最少 1 秒 | 和配置一样的写法；出厂的窗口都是整秒 | 毫秒数 |
 | 3 | 出厂参数没有系统那一份，改用场所规则 | 一份数据一个改法：不写 `match` 的场所规则就是「所有场所」 | 系统里放同名的 `defaults.toml` 替换 |
-| 4 | `onebot.trusted`（O-27 改名 `onebot.whitelist`）随第一个用到它的那一步：O-17 的「终端管理员与白名单成员」页 | 这一步没人读它；它是桥的系统配置，跟群聊内核的参数不在一处 | 这一步就加 |
+| 4 | `im.trusted`（O-27 改名 `im.whitelist`）随第一个用到它的那一步：O-17 的「终端管理员与白名单成员」页 | 这一步没人读它；它是桥的系统配置，跟群聊内核的参数不在一处 | 这一步就加 |
 | 5 | 判官的全局并发（4）、排队等多久（15 秒）不进表，随桥 | 是桥这个进程的，不是一个场所的；按场所改没有意义 | 放进 `[judge]` |
 | 6 | `judge.model` 出厂不写，是唯一一项可以不写的：不写照 `models.chat`；类型是配置的引用，指的在不在由桥调用时照核心的回答说 | 出厂不知道用户配了哪家的哪个模型；配置里没有「便宜的那档」这种键 | 出厂写一个池的名字 |
 | 7 | 范围照「能算出有意义的结果」定：小数（分、权重、加分、门槛、冷静的上限和 `k`）0 到 10，分的量级是 0 到 1、加起来能过 1，负的没有意义；窗口、半衰期、@ 的间隔 1 秒到 1 天（同 `rate` 的时长），判官的超时 1 秒到 1 小时；字符数、条数的上限是只防写错的整数。0 算得出意思的收 0（总引用、不拆、不重试、理由不留、可打印的比例不筛），算不出的不收：`similar` 是 0 什么都算重复，`min_bigrams` 是 0 拿空集比相似度，`severity_min` 是 0 判官一报严重程度就回，base64 看 0 个字符什么都留不下 | 范围只挡算不出意思的、会算坏的，不替人挑值 | 照出厂值上下浮几倍 |
@@ -686,12 +686,12 @@ Rust 这一边：
 | 13 | `Params::at` 照声明再查，不合的跳过 | `Resolved` 的格公开，手造得出 `restraint_k = 0`；照配置 `Setting`：校验过的值里没有不合的，只有手写的有 | 不查；报错 |
 | 14 | `Params`、`Judge` 的格公开 | 桥要读：顶替窗口、拆段长度、判官的几项都是桥用，或者交给只收数的函数；要守住的五样，格收进 crate | 全收起来、另写读的方法 |
 | 15 | 拆段的长度出厂 3000，`0` 是不拆 | 旧版 QQ 的 `max_reply_chars` 默认 3000、`0` 不拆（旧版 核心的 `crates/miyu-base/src/config/platform.rs`） | — |
-| 16 | `defaults.toml` 不进登记簿：门禁的登记簿豁免 `onebot/data/defaults.toml` 这一份（照人格目录的 `persona.toml` 豁免一份文件的先例） | 是数据，不发给模型（登记簿 `docs/ledger.md` 只登记发给模型的字） | 登记 |
+| 16 | `defaults.toml` 不进登记簿：门禁的登记簿豁免 `im/data/defaults.toml` 这一份（照人格目录的 `persona.toml` 豁免一份文件的先例） | 是数据，不发给模型（登记簿 `docs/ledger.md` 只登记发给模型的字） | 登记 |
 | 17 | 清理的名单放在 `[outbound]` 的三项：`invisible`、`leak_open`、`leak_close`（O-15 下） | 和出站的别的参数放在一起，照同一份声明查；按场所改也就跟着有了（施工单 O-15 下「要定的」第 1 条） | 另起一个文件 |
 | 18 | 漏进来的工具调用写成两份照位置对上的列表，查法见「怎么走」第 7 条：同一张表里一起写、一样长，只写一份也报（O-15 下） | 配置的类型没有「一对字的列表」，两份字的列表最省（「要定的」第 2 条）。读场所规则时不知道出厂的有几对，只写一份对不对得上判断不了；要求一起写，套出来的一定成对 | 一份写成「开头…结尾」的字再切；场所规则只写一份照收、`at` 不成对的悄悄跳过 |
 | 19 | 不可见字符一个字一项，范围展开写；类型是最多 1 个字符的文字（配置的文字不收空的、不收控制字符），也就是正好一个（O-15 下） | 一眼看得出有哪几个；配置的类型现成（「要定的」第 3 条）。那十五个都不是控制字符 | 写成范围 `U+200B-U+200F` 再解析 |
 | 20 | 标记每项 1 到 64 个字符（O-15 下） | 空的开头、收尾会让清理停不下来，配置的文字本来不收空的；64 同触发词的上限，只防写错 | 不设上限 |
-| 21 | 违规词表、出厂的场所规则也不进登记簿：豁免 `onebot/data/moderation.txt`、`onebot/data/venues.d/50-defaults.toml`，只豁免这几份（O-15 下，照第 16 条） | 是数据，不发给模型：违规词只拿来比子串，判官看不到 | 登记；豁免整个 `onebot/data/` |
+| 21 | 违规词表、出厂的场所规则也不进登记簿：豁免 `im/data/moderation.txt`、`im/data/venues.d/50-defaults.toml`，只豁免这几份（O-15 下，照第 16 条） | 是数据，不发给模型：违规词只拿来比子串，判官看不到 | 登记；豁免整个 `im/data/` |
 | 22 | 缺不缺照文件里写没写算：表在、项没写的，或者整张表没写的，是缺；表写成别的（不是表）的已经报过（O-15 下改） | 原来照「读对了没有、再除掉报过的」算；长度不同只报收尾，开头那一份写了、没报过、被拿掉，照原来的算法会被报成缺 | 长度不同两份都报 |
 | 23 | `judge.records` 的范围改成 1 到 100（O-23 下，2026-10-09 主会话定） | 核心的 `venue.records` 只收 1 到 100 条（`venues.md`「判官看的群聊记录」第 1 条）；范围宽了，桥就得另写一段截到核心收的，参数写的和判官实际看的对不上 | 照旧 0 到 1000、桥里截 |
 | 24 | `[judge]` 加一项 `persona`，开关，出厂 `true`：判官带这个群会话所用的人格的说明，场所规则写 `judge = { persona = false }` 按场所关（O-23 补，2026-10-09 项目主人定：判官也带人格，给一个开关，默认开） | 判官判的是「这个人格愿不愿意开口」，看不到她是谁就只能照通用的口味判；人格的说明每次判官请求都多一份，某个群想省 token 要关得掉（量出来多多少见 `onebot.md`「施工时定的」第 102 条）。和别的几项一样按场所改，不另起配置 | 不给开关；写成系统配置的一项 |

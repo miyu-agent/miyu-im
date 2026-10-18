@@ -1,4 +1,4 @@
-//! 后台页的场所卡片（施工 O-58 上）：几个号回的群、好友的表怎么并。表怎么从 NapCat 的回应读在 `onebot/replies/tests.rs`；
+//! 后台页的场所卡片（施工 O-58 上）：几个号回的群、好友的表怎么并。表怎么从 NapCat 的回应读在 `im/replies/tests.rs`；
 //! 整条路（存、读、当场换上）在 `tests/cards.rs`。
 
 use serde_json::{Value, json};

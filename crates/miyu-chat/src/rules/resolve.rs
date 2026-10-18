@@ -32,7 +32,7 @@ pub struct Entry {
     pub origin: Origin,
 }
 
-/// 来处：一项是哪一条规则设的（`miyu onebot venue show` 照它写「出厂」或「系统」和文件名）。
+/// 来处：一项是哪一条规则设的（`miyu im venue show` 照它写「出厂」或「系统」和文件名）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Origin {
     /// 哪一份：出厂还是系统。
@@ -56,7 +56,7 @@ pub(super) struct Match {
     group: Option<Vec<String>>,
     /// 对方的号的列表：场所是私聊，并且对方的号在里面。
     user: Option<Vec<String>>,
-    /// 不配的群号（施工 O-58 上，接入QQ 的「其他群」卡）：场所是群、群号在里面的不配，别的照旧。
+    /// 不配的群号（施工 O-58 上，接入通讯平台 的「其他群」卡）：场所是群、群号在里面的不配，别的照旧。
     not_group: Option<Vec<String>>,
     /// 不配的对方的号：场所是私聊、对方的号在里面的不配，别的照旧。
     not_user: Option<Vec<String>>,

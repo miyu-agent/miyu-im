@@ -1,9 +1,9 @@
-// 接入QQ 后台页的字（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」第 4 条）：框里连不了网，读不到桥的 human/*.json，
+// 接入通讯平台 后台页的字（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」第 4 条）：框里连不了网，读不到桥的 human/*.json，
 // 三种语言放在这里，照 context 的 language 挑（app.js）。说法 O-28 上从桥自己的网页的 web/ 那几句搬来，那几句 O-28 下删了，字只在这里；ja 是日文（施工 O-45，2026-10-17 项目主人定，原来照英文写）。
 // 字段写 {名字}。
 //
 // 写法要守（「施工时定的」第 159 条）：`export const TEXTS = ` 后面到最后的 `;` 是一段 JSON：不写注释、不写结尾的逗号，键用双引号。
-// 测试（crates/miyu-onebot/tests/page.rs）照它读，比三种语言的键。
+// 测试（crates/miyu-im/tests/page.rs）照它读，比三种语言的键。
 export const TEXTS = {
   "zh": {
     "cancel": "取消",
@@ -20,7 +20,7 @@ export const TEXTS = {
     "guide/title": "先做这三步",
     "guide/token": "生成令牌：按下面「访问令牌」那一行的「生成」。",
     "guide/wait": "等几秒，下面 NapCat 那一行变成「已连上」。",
-    "loading": "正在连接入QQ…",
+    "loading": "正在连接入通讯平台…",
     "napcat": "NapCat",
     "napcat/bot": "机器人 {bot}",
     "napcat/connected": "已连上",
@@ -71,7 +71,7 @@ export const TEXTS = {
     "guide/title": "Three steps to connect",
     "guide/token": "Generate a token: press Generate in the Access token row below.",
     "guide/wait": "Wait a few seconds until NapCat below shows Connected.",
-    "loading": "Connecting to Connect QQ…",
+    "loading": "Connecting to Connect Messaging…",
     "napcat": "NapCat",
     "napcat/bot": "bot {bot}",
     "napcat/connected": "Connected",
@@ -122,7 +122,7 @@ export const TEXTS = {
     "guide/title": "まずは次の3ステップ",
     "guide/token": "トークンを生成：下の「アクセストークン」の行の「生成」を押します。",
     "guide/wait": "数秒待つと、下の NapCat の行が「接続済み」になります。",
-    "loading": "QQ接続につないでいます…",
+    "loading": "メッセージング接続につないでいます…",
     "napcat": "NapCat",
     "napcat/bot": "ボット {bot}",
     "napcat/connected": "接続済み",

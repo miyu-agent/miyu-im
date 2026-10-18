@@ -11,7 +11,7 @@ Working examples: the memes package [`miyu-memes`](https://github.com/miyu-agent
 1. **A QQ conversation is a session too.** Each group has one session and each private chat has one, called venue sessions. In a venue session she talks and calls tools just as in the terminal. The people on the other side are on QQ, and the bridge sends her replies back to QQ.
 2. **Venue sessions belong to the system account**, not to the admin. The bridge creates and drives them, and the admin never sees a tool confirmation prompt for them: nobody can confirm anything in a venue session.
 3. **Who can talk to her**:
-   - Private chats: only the terminal admin and whitelisted members (`onebot.whitelist`). She answers every message in a private chat.
+   - Private chats: only the terminal admin and whitelisted members (`im.whitelist`). She answers every message in a private chat.
    - Groups: only groups on the whitelist (the venue cards on the bridge's settings page). "Other groups" are off by default. She listens to everything in a group, and the bridge decides whether she answers (an @ mention, a quote of her, a trigger word, the judge's score).
 4. **Whether your tool exists in a venue session depends on the `venues` you register it with.** The bridge does not pick tools for you. The core puts each tool into the sessions its `venues` name.
 
@@ -107,13 +107,13 @@ Your extension can call the bridge, and the bridge can call you. Both go through
 
 ### 8. Trying it in QQ
 
-1. Get the bridge running: install NapCat and log in the bot account, run `miyu onebot start`, open the settings page with `miyu onebot web`, put its token into NapCat, and set the terminal admin and whitelisted members there. `miyu onebot status` tells you whether it is connected.
+1. Get the bridge running: install NapCat and log in the bot account, run `miyu im start`, open the settings page with `miyu im web`, put its token into NapCat, and set the terminal admin and whitelisted members there. `miyu im status` tells you whether it is connected.
 2. Install your package: `miyu pkg install ./your-package`, answer "turn it on" and approve the capabilities (core author guide, ["Install, try, check"](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md#install-try-check)). Venue sessions follow package changes: sessions already open get your tools on their next turn.
 3. Send a private message to the bot account from the terminal admin's QQ account and ask her to use your tool. To try a group, add a group to the whitelist on the settings page, turn it on and @ her.
 4. See what happened:
-   - `miyu onebot logs -f`: the bridge's log (decisions, queueing, whether messages went out, whether hooks answered).
+   - `miyu im logs -f`: the bridge's log (decisions, queueing, whether messages went out, whether hooks answered).
    - `<data root>/state/logs/<your package>.stderr`: your program's standard error.
-   - `miyu onebot venue show qq:group:<group number>`: every setting of that group with its value and where it came from.
+   - `miyu im venue show qq:group:<group number>`: every setting of that group with its value and where it came from.
 5. When the preset has your package turned off, venue sessions do not have your tools. Check which persona and preset the venue card uses.
 
 ### 9. Manifest
@@ -135,7 +135,7 @@ capabilities = ["tools", "context.inject", "packages.call"]   # only what you us
 
 # Only if you hook into the bridge:
 [depends]
-packages = ["onebot"]
+packages = ["im"]
 
 [export]
 methods = ["chat.inbound"]

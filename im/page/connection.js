@@ -1,11 +1,11 @@
-// 接入QQ 后台页的「连接」页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）：没令牌时的三步、NapCat 的状态、
+// 接入通讯平台 后台页的「连接」页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）：没令牌时的三步、NapCat 的状态、
 // NapCat 那边要填的（地址、令牌、消息格式）、NapCat 的端口。照原来桥自己的网页的「连接」页（O-28 下去掉了），换成经网页的
 // 通道说：状态、令牌的值调桥登记的 status、connection.token，令牌、端口经 settings.set 写。
 //
 // 骨架、字、通道都在 app.js，经 connectionView 的参数交过来；这里不碰全局的东西。
 
 /** 「连接」页读写的两项设置。 */
-const KEYS = { listen: 'onebot.listen', token: 'onebot.token' };
+const KEYS = { listen: 'im.listen', token: 'im.token' };
 
 /** 生成令牌：多少个随机字节，写成十六进制（同桥自己的网页，施工单「要定的」第 1 条）。 */
 const TOKEN_BYTES = 32;
@@ -140,7 +140,7 @@ export function connectionView(ui) {
   };
 }
 
-/** NapCat 的端口：写 onebot.listen，写错的照网页交回的原话说。存好了桥收到推送当场换，再照 status 看实际听的（「施工时定的」
+/** NapCat 的端口：写 im.listen，写错的照网页交回的原话说。存好了桥收到推送当场换，再照 status 看实际听的（「施工时定的」
  *  第 156 条）。交回 `{el, changed}`：设置项变了、格里没改过的跟着换。 */
 function portsCard(ui) {
   const { h, say } = ui;

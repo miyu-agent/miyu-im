@@ -267,7 +267,7 @@ async fn files_she_shows_while_muted_are_noted_not_sent() {
     // 她这一轮开了、还没调 `show`，被禁言了：禁言记下以后再放行。
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
     until_event(&home.root, &venue(), |event| {
-        event["kind"] == "ext.onebot.venues.muted"
+        event["kind"] == "ext.im.venues.muted"
     })
     .await;
     release.send(()).expect("还在等");

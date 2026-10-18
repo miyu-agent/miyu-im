@@ -99,7 +99,7 @@ async fn her_words_go_out_as_the_package_changed_them_in_groups_and_in_private()
     assert_eq!(napcat.group_reply(GROUP).await, "换过的");
     let asked = &calls(&home.root, "polish")[0];
     assert_eq!(asked["method"], "chat.outbound");
-    assert_eq!(asked["from"], "onebot");
+    assert_eq!(asked["from"], "im");
     assert_eq!(
         asked["params"],
         json!({"platform": "qq", "venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在"})

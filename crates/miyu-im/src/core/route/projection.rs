@@ -8,13 +8,13 @@
 //!   指向那条 `turn.joined`：照那条的 `triggers` 找回触发的人（O-23 下）。
 //! - 主线这一轮：回合编号、回的人（`turn.started`、`turn.joined` 的 `triggers` 的发的人）；`turn.ended` 这一轮完了。
 //! - 她的回复（`venue.delivered`）：一轮一笔，回的人取并集；她发过的平台编号（认「引用她」）。
-//! - 限流提示过的时刻（`ext.onebot.venues.queued`，种类是提示、原因是限流的）。
-//! - 她被禁言到什么时候（O-25 中，「出站队列」第 7 条）：最后一条 `ext.onebot.venues.muted` 的 `until`，之后有 `unmuted` 的不算。
-//! - 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条，「施工时定的」第 91 条）：判断（`ext.onebot.chat.decided`）
+//! - 限流提示过的时刻（`ext.im.venues.queued`，种类是提示、原因是限流的）。
+//! - 她被禁言到什么时候（O-25 中，「出站队列」第 7 条）：最后一条 `ext.im.venues.muted` 的 `until`，之后有 `unmuted` 的不算。
+//! - 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条，「施工时定的」第 91 条）：判断（`ext.im.chat.decided`）
 //!   的结论是回的那几条，到收了它们的那一轮 `turn.ended` 为止；顶替看它们（`Status::Committed`）。
 //! - 她说的话（`message.assistant`；序号不大于订阅时的 `upto` 的标上补来的，O-32）：交出回合编号和这一轮回的人，调的一方发回群里。O-25 上连同
 //!   出站链要的（「群里怎么叫她」第 2、9 条）：她回的那一条（这一轮触发里最后一条，并进来的换成并进来的最后一条），那之后
-//!   别人说了几条，群里最后一条是不是她的，这一轮已经发出去的：O-25 中照入队的（`ext.onebot.venues.queued` 里 `kind` 是
+//!   别人说了几条，群里最后一条是不是她的，这一轮已经发出去的：O-25 中照入队的（`ext.im.venues.queued` 里 `kind` 是
 //!   `reply` 的正文），桥入队记成了先算进来（[`Projection::queued`]），日志推来的同一段不重复算（「施工时定的」第 112 条）。
 //! - 叫她做的那条（施工 O-31，「平台工具（一）」第 3 条）：人说的话另记引用、@ 了谁；调用所在那条线这一轮她回的那一条交给平台
 //!   工具（`origin.rs` 的 `Projection::origin`），引用的是她的、是谁的照这里认。
@@ -37,19 +37,19 @@ use lanes::{Kept, Lane};
 use track::Track;
 
 /// 提示记成的事件（「群里怎么叫她」第 7 条）：出站队列的入队（`chat.md` 第七条第 2 条）。
-pub(super) const QUEUED: &str = "ext.onebot.venues.queued";
+pub(super) const QUEUED: &str = "ext.im.venues.queued";
 
 /// 判断记成的事件（`chat.md` 第七条第 2 条）。
-pub(super) const DECIDED: &str = "ext.onebot.chat.decided";
+pub(super) const DECIDED: &str = "ext.im.chat.decided";
 
-/// `ext.onebot.venues.queued` 的 `kind`：她的话（O-25 中，「出站队列」第 2 条）。
+/// `ext.im.venues.queued` 的 `kind`：她的话（O-25 中，「出站队列」第 2 条）。
 pub(super) const REPLY: &str = "reply";
 
 /// 她被禁言记成的事件（O-25 中，「出站队列」第 7 条）：`body` 是 `{until}`。
-pub(super) const MUTED: &str = "ext.onebot.venues.muted";
+pub(super) const MUTED: &str = "ext.im.venues.muted";
 
 /// 她被解禁记成的事件（O-25 中）：`body` 是 `{}`。
-pub(super) const UNMUTED: &str = "ext.onebot.venues.unmuted";
+pub(super) const UNMUTED: &str = "ext.im.venues.unmuted";
 
 /// 说过话的一个人。
 #[derive(Debug, Clone, PartialEq, Eq)]

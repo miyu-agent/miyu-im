@@ -31,12 +31,12 @@ async fn set(root: &DataRoot, changes: Value) {
 
 #[tokio::test]
 async fn a_misread_setting_is_shown_until_it_is_fixed() {
-    // 施工 O-41 补：睡觉时间写错了，后台页的 `status` 带 `misread`，`miyu onebot status` 说一句；改对了两边都没了。
+    // 施工 O-41 补：睡觉时间写错了，后台页的 `status` 带 `misread`，`miyu im status` 说一句；改对了两边都没了。
     let script = Script::new([]);
     let (home, _napcat, _) = started(&script, RULES, "sleep = \"abc\"\n", MEMBERS).await;
     let mut head = crate::support::head::Head::connect(&home.root).await;
     let status = head.until("status", |result| result.is_object()).await;
-    assert_eq!(status["misread"], json!(["onebot.sleep"]), "{status}");
+    assert_eq!(status["misread"], json!(["im.sleep"]), "{status}");
     // 命令行说清单里的名字（施工 O-41 补二）。
     let said =
         crate::support::spawning::until_status(&home.root, |out| out.contains("睡觉时间")).await;
@@ -46,7 +46,7 @@ async fn a_misread_setting_is_shown_until_it_is_fixed() {
     );
     set(
         &home.root,
-        json!([{"key": "onebot.sleep", "value": "23:00-07:00"}]),
+        json!([{"key": "im.sleep", "value": "23:00-07:00"}]),
     )
     .await;
     let status = head

@@ -29,8 +29,8 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
 
 /// 入队、失败记成的事件。
-const QUEUED: &str = "ext.onebot.venues.queued";
-const FAILED: &str = "ext.onebot.venues.failed";
+const QUEUED: &str = "ext.im.venues.queued";
+const FAILED: &str = "ext.im.venues.failed";
 
 /// 群的场所编号。
 fn venue() -> String {
@@ -90,7 +90,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
         started_tuned(models, RULES, &tuned, |napcat| napcat.answering(MEMBERS)).await;
     // 禁言着排过了期限：记 `expired`，解禁以后不发。
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
-    until_count(&home, "ext.onebot.venues.muted", 1).await;
+    until_count(&home, "ext.im.venues.muted", 1).await;
     admin_calls(&napcat, 1);
     let events = until_count(&home, "message.user", 1).await;
     respond(
@@ -199,7 +199,7 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
         json!([plain("随便聊聊")]),
         ("小林", "lin"),
     ));
-    until_count(&home, "ext.onebot.chat.decided", 2).await;
+    until_count(&home, "ext.im.chat.decided", 2).await;
     // 她接着说差个标点的一句：照日志重建的投影里这一回合入队过第一句，不发；最后一句照发。
     second.send(()).expect("她在等");
     assert_eq!(next_words(&mut napcat).await, "看完了");

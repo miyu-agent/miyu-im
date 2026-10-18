@@ -84,17 +84,17 @@ pub fn admin() -> AccountId {
     AccountId::parse("admin").expect("账号合写法")
 }
 
-/// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `onebot/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
+/// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `im/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
 pub fn resources() -> PathBuf {
     assembled::resources()
 }
 
-/// 资源目录 `resources` 里出厂的那一份包文件夹（`packages/onebot/`，施工 S-6 上）。
+/// 资源目录 `resources` 里出厂的那一份包文件夹（`packages/im/`，施工 S-6 上）。
 pub fn package_in(resources: impl AsRef<Path>) -> Package {
-    Package::at(resources.as_ref().join("packages").join("onebot"))
+    Package::at(resources.as_ref().join("packages").join("im"))
 }
 
-/// 这个仓库的包文件夹 `onebot/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
+/// 这个仓库的包文件夹 `im/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
 pub fn package() -> Package {
     Package::at(assembled::package_dir())
 }
@@ -122,7 +122,7 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| since.as_nanos());
     let dir = std::env::temp_dir().join(format!(
-        "miyu-onebot-{}-{nanos}-{}",
+        "miyu-im-{}-{nanos}-{}",
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
@@ -189,7 +189,7 @@ impl Home {
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是终端管理员对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
     /// [`TOKEN`]（[`spawning::ports_config`] 引用它；核心起来以前写好：核心握手时交的是它起来时读到的，施工 O-20），退避从
     /// 20 毫秒起、最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序
-    /// 旁边的 `miyu-onebot`（[`spawning::linked`]）。
+    /// 旁边的 `miyu-im`（[`spawning::linked`]）。
     pub fn spawning(script: &Script, more: &str) -> Home {
         Home::spawning_with(Arc::new(script.clone()), more)
     }
@@ -382,9 +382,9 @@ pub fn no_token() -> Notice {
 
 /// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：端口、令牌的真值；没有令牌的不放这一键。
 pub fn handed(settings: &Settings) -> Value {
-    let mut config = json!({"onebot.listen": settings.port});
+    let mut config = json!({"im.listen": settings.port});
     if let Some(token) = &settings.token {
-        config["onebot.token"] = json!(token.expose());
+        config["im.token"] = json!(token.expose());
     }
     config
 }
@@ -400,7 +400,7 @@ pub fn serve_relayed(
     serve_handed(root, handed(&settings), accounts)
 }
 
-/// 同 [`serve_relayed`]，握手交的配置是 `config`（施工 O-39：多交 `onebot.whitelist`）。
+/// 同 [`serve_relayed`]，握手交的配置是 `config`（施工 O-39：多交 `im.whitelist`）。
 pub fn serve_handed(root: DataRoot, config: Value, accounts: Option<Accounts>) -> (Serve, Relay) {
     let (pipe, relay) = pipe::pipe_to(&root, config, accounts);
     let serve = Serve {

@@ -11,7 +11,7 @@ use miyu_session::testkit::{Play, Script};
 use crate::support::*;
 
 /// 核心 O-4 中以后，核心拉起的桥握手回的账号：系统账号。
-const SYSTEM: &str = "onebot";
+const SYSTEM: &str = "im";
 
 /// 起一个桥：握手回的账号是 [`SYSTEM`]，`venue.session` 回的属主是 `venue`（空的不带这一格）。交回桥和转接。
 async fn owned_by(home: &Home, venue: Option<&'static str>) -> (Bridge, Relay) {
@@ -238,7 +238,7 @@ async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
 async fn an_open_strangers_card_without_an_answer_on_the_binding_takes_nobody() {
     // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（这里的假核心不认它）：问不到的照原来办，陌生人不接。
     let home = Home::new(&Script::new([Play::Says("不该说话")]));
-    let cards = home.root.state().join("packages").join("onebot");
+    let cards = home.root.state().join("packages").join("im");
     std::fs::create_dir_all(&cards).expect("建得了目录");
     std::fs::write(
         cards.join("cards.json"),

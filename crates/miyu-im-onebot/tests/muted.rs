@@ -64,7 +64,7 @@ fn facts(events: &[Value], kind: &str) -> Vec<String> {
 
 /// 出厂的事实模板 `name`，字段照 `fields` 换，去掉行尾。
 fn fact(name: &str, fields: &[(&str, &str)]) -> String {
-    let path = resources().join(format!("packages/onebot/data/facts/{name}.txt"));
+    let path = resources().join(format!("packages/im/data/facts/{name}.txt"));
     let mut text = std::fs::read_to_string(path).expect("读得出");
     for (key, value) in fields {
         text = text.replace(&format!("{{{key}}}"), value);
@@ -145,7 +145,7 @@ async fn the_mute_and_the_lift_are_noted_with_who_and_how_long() {
     napcat.send(group_ban(GROUP, BOT, "lift_ban", Some(0)));
     until_log(&home, "unmute ignored").await;
     let events = venue_events(&home.root, &venue());
-    assert_eq!(of_kind(&events, "ext.onebot.venues.unmuted").len(), 1);
+    assert_eq!(of_kind(&events, "ext.im.venues.unmuted").len(), 1);
     assert_eq!(facts(&events, "unmuted").len(), 1);
     stopped(home).await;
 }
@@ -159,7 +159,7 @@ async fn deferred_calls_merge_per_person_and_only_so_many_are_answered() {
     })
     .await;
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
-    until_count(&home, "ext.onebot.venues.muted", 1).await;
+    until_count(&home, "ext.im.venues.muted", 1).await;
     // 终端管理员两次、小林一次：都排着。
     calls(&napcat, ADMIN, 1);
     calls(&napcat, LIN, 2);
@@ -195,7 +195,7 @@ async fn calls_after_the_window_are_only_recorded() {
     })
     .await;
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
-    until_count(&home, "ext.onebot.venues.muted", 1).await;
+    until_count(&home, "ext.im.venues.muted", 1).await;
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
     calls(&napcat, ADMIN, 1);
     let body = decided(&home, 1).await;
@@ -216,7 +216,7 @@ async fn the_rate_limit_counts_when_deferred_calls_are_answered() {
     let script = Script::new([Play::Says("小林好"), Play::Says("老板好")]);
     let (home, mut napcat, _) = started(&script, &rules, "", MEMBERS).await;
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
-    until_count(&home, "ext.onebot.venues.muted", 1).await;
+    until_count(&home, "ext.im.venues.muted", 1).await;
     calls(&napcat, LIN, 1);
     calls(&napcat, WANG, 2);
     calls(&napcat, ADMIN, 3);
@@ -264,7 +264,7 @@ async fn a_ban_that_runs_out_is_noted_even_with_nothing_waiting() {
         [fact("unmuted", &[("why", "expired"), ("by", "")])]
     );
     assert_eq!(
-        of_kind(&events, "ext.onebot.venues.unmuted")[0]["body"],
+        of_kind(&events, "ext.im.venues.unmuted")[0]["body"],
         json!({"why": "expired"})
     );
     stopped(home).await;

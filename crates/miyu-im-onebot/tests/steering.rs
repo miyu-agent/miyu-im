@@ -31,7 +31,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
     events
         .iter()
-        .find(|event| event["kind"] == "ext.onebot.chat.decided" && event["cause"] == cause)
+        .find(|event| event["kind"] == "ext.im.chat.decided" && event["cause"] == cause)
         .map(|event| event["body"].clone())
 }
 
@@ -112,7 +112,7 @@ async fn record_holds_her_back_except_for_the_admin() {
     );
     let asked = &calls(&home.root, "guard")[0];
     assert_eq!(asked["method"], "chat.inbound");
-    assert_eq!(asked["from"], "onebot");
+    assert_eq!(asked["from"], "im");
     assert_eq!(
         asked["params"],
         json!({"platform": "qq", "venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false, "media": []}),

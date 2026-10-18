@@ -1,5 +1,5 @@
 //! 后台页（施工 O-28 上，`onebot.md` 第一条「后台页」，`package-pages.md`）：真核心照开关拉起真桥，头照网页给后台页转的样子经
-//! 核心走一遍：`package.list` 里接入QQ 带图标和后台页；`package.call` 调桥登记的 `status`、`connection.token`，答的是桥手里
+//! 核心走一遍：`package.list` 里接入通讯平台 带图标和后台页；`package.call` 调桥登记的 `status`、`connection.token`，答的是桥手里
 //! 最新的（NapCat 连上、令牌去掉都跟着变），没登记的核心不转；`package.file` 读得到页面目录里的每一份文件，字节和出厂的一样。
 //! 运行日志记登记成了、取过令牌，不记令牌的值。桥认不出的方法（核心不会转，测试当核心直接发）回 -32601。
 
@@ -17,7 +17,7 @@ use crate::support::*;
 
 /// 出厂的后台页目录。
 fn page_dir() -> PathBuf {
-    resources().join("packages/onebot/page")
+    resources().join("packages/im/page")
 }
 
 impl Head {
@@ -28,7 +28,7 @@ impl Head {
             let reply = self
                 .call(
                     "package.file",
-                    json!({"package": "onebot", "path": path, "offset": all.len()}),
+                    json!({"package": "im", "path": path, "offset": all.len()}),
                 )
                 .await;
             let data = reply["result"]["data"]
@@ -94,7 +94,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         .as_array()
         .unwrap_or_else(|| panic!("{listed}"))
         .iter()
-        .find(|one| one["package"] == "onebot")
+        .find(|one| one["package"] == "im")
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"));
     assert_eq!(onebot["icon"], "message-circle", "{onebot}");
@@ -140,7 +140,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     let unset = head
         .call(
             "config.set",
-            json!({"layer": "system", "changes": [{"key": "onebot.token", "unset": true}]}),
+            json!({"layer": "system", "changes": [{"key": "im.token", "unset": true}]}),
         )
         .await;
     assert!(unset.get("result").is_some(), "{unset}");
@@ -165,7 +165,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         "空的路径是入口"
     );
 
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
+    let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");
     assert!(log.contains("methods registered count=10"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
@@ -252,7 +252,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
     let log =
-        std::fs::read_to_string(root.state().join("logs").join("onebot.log")).expect("有运行日志");
+        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("有运行日志");
     assert!(
         log.contains("page method not understood method=apply"),
         "{log}"

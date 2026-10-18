@@ -20,7 +20,7 @@ async fn when_the_core_closes_the_pipe_the_bridge_stops_quietly() {
         let line = lines.next_line().await.expect("读得了").expect("有一行");
         let hello: Value = serde_json::from_str(&line).expect("是 JSON");
         // 照核心拉起扩展的样子交端口（施工 O-20）：0 让系统挑，不碰出厂的 8301。
-        let config = json!({"onebot.listen": 0});
+        let config = json!({"im.listen": 0});
         let reply = json!({"jsonrpc": "2.0", "id": hello["id"], "result": {"protocol": 1, "language": "zh", "config": config}});
         writer
             .write_all(format!("{reply}\n").as_bytes())
@@ -35,7 +35,7 @@ async fn when_the_core_closes_the_pipe_the_bridge_stops_quietly() {
     .await;
     let (hello, lines, writer) = within("握手", core).await.expect("没崩");
     assert_eq!(hello["method"], "hello", "{hello}");
-    assert_eq!(hello["params"]["head"]["kind"], "onebot", "{hello}");
+    assert_eq!(hello["params"]["head"]["kind"], "im", "{hello}");
     assert_eq!(hello["params"]["protocol"], json!([1, 1]), "{hello}");
     for credential in ["token", "code", "login", "user", "password"] {
         assert!(

@@ -43,7 +43,7 @@ pub fn rules() -> String {
     )
 }
 
-/// 系统配置的 `[onebot]`：[`FRIEND`] 是白名单成员。
+/// 系统配置的 `[im]`：[`FRIEND`] 是白名单成员。
 pub fn onebot() -> String {
     format!("whitelist = [\"qq:{FRIEND}\"]\n")
 }
@@ -163,7 +163,7 @@ pub async fn ended(home: &Home, turn: usize) -> (String, String) {
 
 /// 出厂的那一句 `tool-results/<name>.txt`，字段照 `fields` 换，去掉行尾。
 pub fn sentence(name: &str, fields: &[(&str, &str)]) -> String {
-    let path = resources().join(format!("packages/onebot/data/tool-results/{name}.txt"));
+    let path = resources().join(format!("packages/im/data/tool-results/{name}.txt"));
     let mut text = std::fs::read_to_string(path).expect("读得出");
     for (key, value) in fields {
         text = text.replace(&format!("{{{key}}}"), value);

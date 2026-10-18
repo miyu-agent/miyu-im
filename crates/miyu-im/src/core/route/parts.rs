@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-/// 群里的回执怎么撤（施工 O-25 上、O-47）：发出去几秒后撤，`onebot.recall_receipts` 的默认值（推来 `null` 的回到它）。
+/// 群里的回执怎么撤（施工 O-25 上、O-47）：发出去几秒后撤，`im.recall_receipts` 的默认值（推来 `null` 的回到它）。
 pub(crate) struct Recalling {
     /// 发出去几秒后撤（`bridge.json` 的 `receipt_recall_seconds`）。
     pub(crate) after: Duration,

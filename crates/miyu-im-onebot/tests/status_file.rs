@@ -33,10 +33,7 @@ async fn the_status_file_follows_napcat() {
     let _core = fake_core(&root);
     assert_eq!(
         status_file::path(&root),
-        root.state()
-            .join("packages")
-            .join("onebot")
-            .join("status.json"),
+        root.state().join("packages").join("im").join("status.json"),
         "在核心给的工作目录里"
     );
     let bridge = start(serve(root.clone(), settings())).await;
