@@ -5,15 +5,13 @@ use serde_json::{Value, json};
 
 use miyu_chat::{Venue, VenueKind};
 use miyu_kernel::id::VenueId;
-use miyu_onebot::onebot::{
-    Event, Frame, PLATFORM, To, bot_of, command_id, person, private_venue, read, to_of,
-};
+use miyu_onebot::onebot::{Event, Frame, PLATFORM, To, read};
 
 #[test]
 fn venue_and_person_are_made_by_the_chat_kernel() {
-    let venue = private_venue(10001).expect("号是整数，拼得出");
+    let venue = PLATFORM.private_venue(10001).expect("号是整数，拼得出");
     assert_eq!(venue.as_str(), "qq:private:10001");
-    let made = Venue::new(PLATFORM, VenueKind::Private, "10001").expect("拼得出");
+    let made = Venue::new(PLATFORM.name(), VenueKind::Private, "10001").expect("拼得出");
     assert_eq!(&venue, made.id(), "和群聊内核拼的是同一个");
     let parsed = Venue::parse(&venue).expect("群聊内核解得回");
     assert_eq!(
@@ -21,7 +19,7 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
         ("qq", VenueKind::Private, "10001")
     );
 
-    let who = person(10001).expect("号是整数，拼得出");
+    let who = PLATFORM.person(10001).expect("号是整数，拼得出");
     assert_eq!(who.as_str(), "qq:10001");
     assert_eq!(
         miyu_chat::parse_person(&who),
@@ -30,9 +28,12 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
     );
 
     // 号照十进制写，负的也照写（照说不会有）。
-    assert_eq!(private_venue(-5).expect("拼得出").as_str(), "qq:private:-5");
     assert_eq!(
-        person(i64::MAX).expect("拼得出").as_str(),
+        PLATFORM.private_venue(-5).expect("拼得出").as_str(),
+        "qq:private:-5"
+    );
+    assert_eq!(
+        PLATFORM.person(i64::MAX).expect("拼得出").as_str(),
         "qq:9223372036854775807"
     );
 }
@@ -40,31 +41,34 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
 #[test]
 fn the_command_id_carries_the_platforms_time() {
     assert_eq!(
-        command_id(30003, 501, 1_759_800_000),
+        PLATFORM.command_id(30003, 501, 1_759_800_000),
         "qq:30003:501:1759800000"
     );
     assert_ne!(
-        command_id(30003, 7, 1_759_800_000),
-        command_id(30003, 7, 1_759_886_400),
+        PLATFORM.command_id(30003, 7, 1_759_800_000),
+        PLATFORM.command_id(30003, 7, 1_759_886_400),
         "同一个消息编号、时刻不同，是两条"
     );
-    assert_eq!(command_id(30003, 7, 0), "qq:30003:7:0");
+    assert_eq!(PLATFORM.command_id(30003, 7, 0), "qq:30003:7:0");
 }
 
 #[test]
 fn the_bot_and_the_place_are_read_back() {
-    assert_eq!(bot_of(&command_id(30003, 501, 1_759_800_000)), Some(30003));
     assert_eq!(
-        bot_of("qq:30003:501:1759800000/decided"),
+        PLATFORM.bot_of(&PLATFORM.command_id(30003, 501, 1_759_800_000)),
+        Some(30003)
+    );
+    assert_eq!(
+        PLATFORM.bot_of("qq:30003:501:1759800000/decided"),
         Some(30003),
         "加了后缀的也认"
     );
     for other in ["onebot-1a2b-3", "tg:30003:1:0", "qq:x:1:0", "qq", ""] {
-        assert_eq!(bot_of(other), None, "{other}");
+        assert_eq!(PLATFORM.bot_of(other), None, "{other}");
     }
     let place = |venue: &str| {
         let id = VenueId::parse(venue).expect("合写法");
-        to_of(&Venue::parse(&id).expect("解得出"))
+        PLATFORM.to_of(&Venue::parse(&id).expect("解得出"))
     };
     assert_eq!(place("qq:group:668"), Some(To::Group(668)));
     assert_eq!(place("qq:private:20003"), Some(To::Private(20003)));

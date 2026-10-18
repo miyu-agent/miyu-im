@@ -19,14 +19,16 @@ use miyu_client::time::Timestamp;
 use serde_json::Value;
 
 use super::projection::{QUEUED, REPLY, Speaking};
+use crate::chat::Platform;
 use crate::chat::To;
-use crate::onebot::{bot_of, to_of};
 
 /// 订阅补来的那一段。
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(super) struct Backlog {
     /// 这个会话的编号：入队的 `line` 不是它的（支线的，施工 O-36）不算这个会话的回合。
     line: String,
+    /// 平台：照它认命令编号里的机器人号、场所发到哪。
+    platform: Platform,
     /// 补到哪（`subscribe` 回应的 `upto`）：序号不大于它的是补来的。
     upto: u64,
     /// 说的时刻晚于它（毫秒）的还在期限里。
@@ -53,13 +55,17 @@ pub(super) struct Said {
 }
 
 impl Backlog {
-    /// 会话 `line` 补到 `upto`，说的时刻晚于 `since`（毫秒）的还在期限里。
-    pub(super) fn new(line: &str, upto: u64, since: i64) -> Backlog {
+    /// 平台 `platform` 上的会话 `line` 补到 `upto`，说的时刻晚于 `since`（毫秒）的还在期限里。
+    pub(super) fn new(platform: Platform, line: &str, upto: u64, since: i64) -> Backlog {
         Backlog {
             line: line.to_string(),
+            platform,
             upto,
             since,
-            ..Backlog::default()
+            venue: None,
+            bot: None,
+            queued: HashMap::new(),
+            said: Vec::new(),
         }
     }
 
@@ -77,7 +83,10 @@ impl Backlog {
                     .and_then(|venue| VenueId::parse(venue).ok());
             }
             Some("message.user") => {
-                if let Some(bot) = event["cause"].as_str().and_then(bot_of) {
+                if let Some(bot) = event["cause"]
+                    .as_str()
+                    .and_then(|id| self.platform.bot_of(id))
+                {
                     self.bot = Some(bot);
                 }
             }
@@ -113,7 +122,7 @@ impl Backlog {
     /// 发到哪：机器人号、发给谁、场所。场所、机器人号有一样认不出的是空的。
     pub(super) fn peer(&self) -> Option<(i64, To, VenueId)> {
         let venue = self.venue.clone()?;
-        let to = to_of(&Venue::parse(&venue)?)?;
+        let to = self.platform.to_of(&Venue::parse(&venue)?)?;
         Some((self.bot?, to, venue))
     }
 

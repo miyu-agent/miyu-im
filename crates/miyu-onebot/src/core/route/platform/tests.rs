@@ -6,7 +6,10 @@ use miyu_client::ids::ExternalId;
 use serde_json::json;
 
 use super::{Arg, Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
-use crate::chat::{Fetched, To};
+use crate::chat::{Fetched, Platform, To};
+
+/// 测试用的平台。
+const QQ: Platform = Platform::new("qq");
 
 /// 平台上号是 `number` 的人。
 fn qq(number: i64) -> ExternalId {
@@ -53,6 +56,7 @@ fn in_group(order: Order, caller: &Caller, origin: Option<&Origin>) -> Plan {
         &Scene {
             peer: None,
             me: &me,
+            platform: QQ,
         },
     )
 }
@@ -312,6 +316,7 @@ fn a_private_chat_recalls_any_quote_and_pokes_the_peer() {
     let scene = Scene {
         peer: Some(&peer),
         me: &me,
+        platform: QQ,
     };
     let anyone = caller(BOSS);
     let quoted = origin(BOSS, quote("77", None), &[40002]);

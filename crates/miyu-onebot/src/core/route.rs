@@ -108,7 +108,7 @@ use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
 
 use crate::TARGET;
-use crate::chat::Bots;
+use crate::chat::{Bots, Platform};
 use crate::chat::{Event, Members, To};
 use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
@@ -147,6 +147,8 @@ struct Peer {
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
+    /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
+    platform: Platform,
     bots: Arc<Bots>,
     /// 场所规则和出厂数据（施工 O-21）：每一条消息照它套场所（施工 O-22）。
     rules: Venues,
@@ -232,7 +234,7 @@ impl Route {
     /// O-31）。取图、视频、文件照 `fetching`（施工 O-33），合并转发照 `forwarding` 展开（施工 O-34）。
     pub(crate) fn new(
         core: Core,
-        bots: Arc<Bots>,
+        (platform, bots): (Platform, Arc<Bots>),
         rules: Venues,
         members: Members,
         (slots, personas, recall, expire, reactions, asking, fetching, forwarding): (
@@ -263,6 +265,7 @@ impl Route {
         let tools = rules.tools();
         Route {
             core,
+            platform,
             bots,
             rules,
             members,

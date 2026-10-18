@@ -15,7 +15,7 @@ use crate::TARGET;
 use crate::chat::Bots;
 use crate::chat::CallError;
 use crate::core::Answerer;
-use crate::core::methods::{PLATFORM, VENUE, ours};
+use crate::core::methods::VENUE;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;
@@ -70,7 +70,7 @@ impl Route {
         let args = &params["params"];
         let answerer = self.core.answerer();
         // 写了别的平台的不是这个驱动的（施工 I-1）。
-        if !ours(args) {
+        if !self.platform.ours(args) {
             tracing::info!(target: TARGET, from, "export refused, another platform");
             answerer.refuse(&id, "bad_params");
             return;
@@ -96,7 +96,7 @@ impl Route {
         let main = self.main_of(session);
         match self.peers.get(&main) {
             Some(peer) => {
-                json!({"platform": PLATFORM, "venue": peer.venue.as_str(), "bot": peer.bot})
+                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot})
             }
             None => json!({"venue": null}),
         }

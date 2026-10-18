@@ -19,7 +19,6 @@ use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
-use crate::onebot::venue;
 use crate::rules::{Card, Cards, card_defaults, save_cards};
 use miyu_chat::VenueKind;
 
@@ -72,7 +71,7 @@ impl Route {
     pub(super) fn group_defaults(&self, group: u64) -> Value {
         match i64::try_from(group)
             .ok()
-            .and_then(|number| venue(VenueKind::Group, number).ok())
+            .and_then(|number| self.platform.venue(VenueKind::Group, number).ok())
         {
             Some(venue) => card_defaults::group(&self.rules.beneath(&venue)),
             None => Value::Null,
@@ -81,7 +80,7 @@ impl Route {
 
     /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
     pub(super) fn other_private_defaults(&self) -> Value {
-        match venue(VenueKind::Private, 0) {
+        match self.platform.venue(VenueKind::Private, 0) {
             Ok(venue) => card_defaults::other_private(&self.rules.beneath(&venue)),
             Err(_) => Value::Null,
         }
@@ -91,7 +90,7 @@ impl Route {
     pub(super) fn private_defaults(&self, user: u64) -> Value {
         match i64::try_from(user)
             .ok()
-            .and_then(|number| venue(VenueKind::Private, number).ok())
+            .and_then(|number| self.platform.venue(VenueKind::Private, number).ok())
         {
             Some(venue) => card_defaults::private(&self.rules.beneath(&venue)),
             None => Value::Null,

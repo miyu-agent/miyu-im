@@ -19,7 +19,6 @@ use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::{Lead, To};
 use crate::core::{Gone, reason};
-use crate::onebot::{person, to_of};
 
 impl Route {
     /// 起来时订阅名下的场所会话（见模块开头）。核心拒了的（进程里的测试不是系统账号，回 `no_system_account`）记一行，照旧等
@@ -47,7 +46,7 @@ impl Route {
             let Some(venue) = VenueId::parse(venue).ok().and_then(|id| Venue::parse(&id)) else {
                 continue;
             };
-            let followed = match to_of(&venue) {
+            let followed = match self.platform.to_of(&venue) {
                 Some(To::Group(_)) => {
                     let followed = self.follow(session, 0).await?;
                     if followed {
@@ -56,7 +55,7 @@ impl Route {
                     }
                     followed
                 }
-                Some(To::Private(user)) => match person(user) {
+                Some(To::Private(user)) => match self.platform.person(user) {
                     Ok(peer) if self.taken(&peer).await? => {
                         self.subscribe(session, Some(0)).await?
                     }
@@ -112,8 +111,10 @@ impl Route {
     /// 写不出去、等的时候核心断开。
     pub(super) async fn replay(&mut self, session: &str, upto: u64) -> Result<(), Gone> {
         let since = applied::clock().map_or(i64::MAX, |clock| self.waiting.since(clock.now));
-        self.backlogs
-            .insert(session.to_string(), Backlog::new(session, upto, since));
+        self.backlogs.insert(
+            session.to_string(),
+            Backlog::new(self.platform, session, upto, since),
+        );
         self.gather(session).await?;
         match self.backlogs.remove(session) {
             Some(backlog) => self.resend(session, backlog).await,

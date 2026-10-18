@@ -7,6 +7,7 @@ mod event;
 mod forwards;
 mod link;
 mod members;
+mod platform;
 mod segments;
 mod source;
 
@@ -18,5 +19,6 @@ pub use link::{
     Fetched, Friend, Group, Implementation, Link, Located, Member, Msg, Outgoing, Pending, Reply,
 };
 pub use members::{Members, Rank};
+pub use platform::Platform;
 pub use segments::{CARD, FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments};
 pub use source::Source;

@@ -12,8 +12,8 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
 use crate::chat::Bots;
+use crate::chat::Platform;
 use crate::current::Current;
-use crate::onebot::PLATFORM;
 use crate::tuning::Tuning;
 
 /// 跑着的桥，几样共用。
@@ -24,6 +24,8 @@ pub(crate) struct Running {
     pub(crate) tuning: Tuning,
     /// 连着的机器人号：`status`、状态文件照它说 NapCat 连没连上。
     pub(crate) bots: Arc<Bots>,
+    /// 平台（施工 I-2 下：驱动给的）。
+    pub(crate) platform: Platform,
     /// 桥手里最新的配置（和 NapCat 的监听共用，施工 O-20）。
     pub(crate) current: Arc<Current>,
     /// 上一次照的 NapCat 端口，照配置里写的（写 0 的就是 0）：换端口照它看变了没有。锁着它办：同时来的几次一个一个办。
@@ -39,7 +41,7 @@ impl Running {
     /// - `napcat`：连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`；没连着的只有
     ///   `connected: false`（`Bots::napcat`，状态文件也照它）。
     /// - `token`：桥手里有令牌的 `set`，没有的 `none`。没写引用、引用取不到，核心都不交，分不出（「施工时定的」第 41 条）。
-    /// - `platform`：桥的平台名（[`PLATFORM`]），白名单成员页照它拼 `qq:<号>`（第 151 条）。
+    /// - `platform`：桥的平台名（驱动给的），白名单成员页照它拼 `qq:<号>`（第 151 条）。
     /// - `misread`：没认出来的配置项（施工 O-41 补，`Current::misread`），空的不带这一格。
     pub(crate) fn status(&self) -> Map<String, Value> {
         let token = match self.current.token() {
@@ -50,7 +52,7 @@ impl Running {
         status.insert("napcat".into(), self.bots.napcat());
         status.insert("listen".into(), json!(self.listen.load(Ordering::Relaxed)));
         status.insert("token".into(), json!(token));
-        status.insert("platform".into(), json!(PLATFORM));
+        status.insert("platform".into(), json!(self.platform.name()));
         let misread = self.current.misread();
         if !misread.is_empty() {
             status.insert("misread".into(), json!(misread));

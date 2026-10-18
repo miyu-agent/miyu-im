@@ -4,8 +4,10 @@
 use serde_json::json;
 
 use super::{Flags, MEDIA_NAME, NAME, fields, shown};
-use crate::chat::{Fetch, Media, MediaKind, Posted, Segments};
-use crate::onebot::person;
+use crate::chat::{Fetch, Media, MediaKind, Platform, Posted, Segments};
+
+/// 测试用的平台。
+const QQ: Platform = Platform::new("qq");
 
 /// 一条消息：名字是 `name`，认出来的段是 `segments`。
 fn posted(name: Option<&str>, segments: Segments) -> Posted {
@@ -77,7 +79,7 @@ fn only_what_is_there_is_written() {
         media: vec![media("f-1", Some("a.pdf"))],
         ..Segments::default()
     };
-    let mentions = [person(20003).expect("拼得出")];
+    let mentions = [QQ.person(20003).expect("拼得出")];
     assert_eq!(
         fields(&posted(Some("小林"), segments), &mentions, all),
         json!({

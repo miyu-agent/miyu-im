@@ -4,6 +4,7 @@
 use serde_json::{Value, json};
 
 use super::{Backlog, Said};
+use crate::chat::Platform;
 use crate::chat::To;
 
 /// 这个会话（主线）的编号。
@@ -60,7 +61,7 @@ fn assistant(seq: u64, seconds: i64, turn: u64) -> Value {
 
 #[test]
 fn the_peer_comes_from_the_venue_and_the_last_message() {
-    let mut backlog = Backlog::new(LINE, 9, 0);
+    let mut backlog = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     assert_eq!(backlog.peer(), None);
     let created = json!({"venue": "qq:group:668"});
     backlog.take(&event(1, 0, "session.created", created, json!({})));
@@ -82,7 +83,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
         (30004, To::Group(668), "qq:group:668")
     );
 
-    let mut private = Backlog::new(LINE, 9, 0);
+    let mut private = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     let created = json!({"venue": "qq:private:20003"});
     private.take(&event(1, 0, "session.created", created, json!({})));
     private.take(&user(2, 30003));
@@ -90,7 +91,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
         private.peer().map(|(bot, to, _)| (bot, to)),
         Some((30003, To::Private(20003)))
     );
-    let mut other = Backlog::new(LINE, 9, 0);
+    let mut other = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     let created = json!({"venue": "tg:group:1"});
     other.take(&event(1, 0, "session.created", created, json!({})));
     other.take(&user(2, 30003));
@@ -99,7 +100,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
 
 #[test]
 fn only_events_up_to_upto_are_replayed() {
-    let backlog = Backlog::new(LINE, 5, 0);
+    let backlog = Backlog::new(Platform::new("qq"), LINE, 5, 0);
     assert!(backlog.replayed(&assistant(5, 0, 1)), "正好是 upto 的也是");
     assert!(!backlog.replayed(&assistant(6, 0, 1)));
     assert!(
@@ -110,7 +111,7 @@ fn only_events_up_to_upto_are_replayed() {
 
 #[test]
 fn only_words_said_within_the_deadline_are_kept() {
-    let mut backlog = Backlog::new(LINE, 9, millis(10));
+    let mut backlog = Backlog::new(Platform::new("qq"), LINE, 9, millis(10));
     backlog.said(&assistant(1, 10, 2), "正好压线".to_string(), None);
     backlog.said(&assistant(2, 11, 2), "还在期限里".to_string(), None);
     let mut turnless = assistant(3, 12, 2);
@@ -132,7 +133,7 @@ fn only_words_said_within_the_deadline_are_kept() {
 
 #[test]
 fn pieces_queued_in_the_same_turn_are_not_sent_again() {
-    let mut backlog = Backlog::new(LINE, 9, 0);
+    let mut backlog = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     backlog.take(&queued(1, 2, "第一段"));
     backlog.take(&queued(2, 3, "别的回合的"));
     let notice = json!({"kind": "notice", "reason": "rate_limited", "text": "第二段"});
@@ -156,7 +157,7 @@ fn pieces_queued_in_the_same_turn_are_not_sent_again() {
 
 #[test]
 fn pieces_queued_on_another_line_do_not_count_for_this_one() {
-    let mut backlog = Backlog::new(LINE, 9, 0);
+    let mut backlog = Backlog::new(Platform::new("qq"), LINE, 9, 0);
     backlog.take(&queued_on("lane", 1, 2, "支线的"));
     let old = json!({"kind": "reply", "text": "以前的", "turn": 2});
     backlog.take(&event(2, 0, "ext.onebot.venues.queued", old, json!({})));

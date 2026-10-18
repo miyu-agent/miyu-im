@@ -18,7 +18,6 @@ use crate::chat::Bots;
 use crate::chat::{CallError, Msg, To};
 use crate::core::{Answerer, Gone};
 use crate::media::{Missed, message};
-use crate::onebot::person;
 use crate::rules::{AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
@@ -142,19 +141,20 @@ impl Route {
         order: Order,
         caller: &Caller,
     ) -> Option<Plan> {
-        let me = person(peer.bot).ok()?;
+        let me = self.platform.person(peer.bot).ok()?;
         match peer.to {
             To::Group(_) => {
                 let scene = Scene {
                     peer: None,
                     me: &me,
+                    platform: self.platform,
                 };
                 let origin = self.groups.get(session).and_then(|one| one.origin(line));
                 Some(plan(order, caller, origin.as_ref(), &scene))
             }
             To::Private(_) if matches!(order, Order::Mute { .. }) => None,
             To::Private(user) => {
-                let other = person(user).ok()?;
+                let other = self.platform.person(user).ok()?;
                 let quote = self.quotes.get(session).cloned().flatten();
                 let origin = Origin {
                     sender: other.clone(),
@@ -164,6 +164,7 @@ impl Route {
                 let scene = Scene {
                     peer: Some(&other),
                     me: &me,
+                    platform: self.platform,
                 };
                 Some(plan(order, caller, Some(&origin), &scene))
             }

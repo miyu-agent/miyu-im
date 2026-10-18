@@ -9,8 +9,7 @@
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
-//! 平台的名字 [`PLATFORM`] 只写在这里：场所、平台上的人、命令编号都照它拼（第 7、8 条）。场所、平台上的人经群聊内核拼，
-//! 桥不手拼（`chat.md` 第七条第 1 条）。
+//! 平台的名字 [`PLATFORM`] 只写在这里：场所、平台上的人、命令编号都照它拼（第 7、8 条，拼法在宿主的 [`Platform`]）。
 
 mod calls;
 mod forwards;
@@ -22,12 +21,9 @@ mod send;
 mod text;
 mod wire;
 
-use miyu_chat::{Venue, VenueKind};
-use miyu_client::events::FormatError;
-use miyu_client::ids::{ExternalId, VenueId};
 use serde_json::{Value, json};
 
-pub use crate::chat::{Event, Lead, Posted, Recall, To};
+pub use crate::chat::{Event, Lead, Platform, Posted, Recall, To};
 pub use calls::{CallError, Calls, DETAIL, Pending, failed, said};
 pub use forwards::{Node, forward_messages, get_forward_msg, node};
 pub use members::{MEMBER_INFO, Members, Rank, display_name, member_info, rank_of};
@@ -36,67 +32,8 @@ pub use send::{forward_to, image_to, message_to, picture_to};
 pub use text::text_of;
 pub use wire::Wire;
 
-/// 平台的名字：场所、平台上的人、命令编号的头一段（第 7、8 条）。
-pub const PLATFORM: &str = "qq";
-
-/// 和号 `user` 的私聊这个场所：经群聊内核的 [`Venue::new`] 拼成 `qq:private:<号>`（第 7 条，`chat.md` 第七条第 1 条）。
-///
-/// # Errors
-///
-/// 群聊内核拼不出来，报它的 [`FormatError`]。号是整数，照说不会；用的一方照实记下，不 `unwrap`。
-pub fn private_venue(user: i64) -> Result<VenueId, FormatError> {
-    Ok(venue(VenueKind::Private, user)?.id().clone())
-}
-
-/// 种类是 `kind`、号是 `number`（私聊的对方、群号）的场所：经群聊内核的 [`Venue::new`] 拼（施工 O-22：套场所规则要
-/// [`Venue`]，编号是它的 [`Venue::id`]）。
-///
-/// # Errors
-///
-/// 同 [`private_venue`]。
-pub fn venue(kind: VenueKind, number: i64) -> Result<Venue, FormatError> {
-    Venue::new(PLATFORM, kind, &number.to_string())
-}
-
-/// 平台上号是 `user` 的那个人：经群聊内核的 [`miyu_chat::person`] 拼成 `qq:<号>`（第 7、8 条：`venue.session` 的
-/// `peer`、`session.send` 的 `as.external`）。
-///
-/// # Errors
-///
-/// 同 [`private_venue`]。
-pub fn person(user: i64) -> Result<ExternalId, FormatError> {
-    miyu_chat::person(PLATFORM, &user.to_string())
-}
-
-/// 机器人号 `bot` 收进来的第 `message_id` 条消息、平台给的时刻是 `time`，发进去用的命令编号：
-/// `qq:<机器人的号>:<消息编号>:<时刻>`（第 8 条，`chat.md` 第七条第 1 条）。带上时刻：NapCat 重置本地库以后消息编号会重号，
-/// 同一个编号、不同的时刻是两条，新消息不会被当成重发吞掉。斜杠命令交 `command.run` 也用它（O-19，「斜杠命令」第 1 条）：
-/// 一条消息要么是命令、要么是话，编号只用一次。
-pub fn command_id(bot: i64, message_id: i64, time: i64) -> String {
-    format!("{PLATFORM}:{bot}:{message_id}:{time}")
-}
-
-/// 命令编号 `id` 是哪个机器人号收进来的：[`command_id`] 拼的 `qq:<机器人的号>:…` 的第二段（施工 O-32：桥起来时照日志里最近一条
-/// 人话认，「群里怎么叫她」第 1 条）。后面加了 `/decided` 这类的也认。别的平台、不是这样拼的（自己编的）是空的。
-pub fn bot_of(id: &str) -> Option<i64> {
-    let mut parts = id.split(':');
-    if parts.next()? != PLATFORM {
-        return None;
-    }
-    parts.next()?.parse().ok()
-}
-
-/// 场所 `venue` 发到哪（施工 O-32）：平台是 [`PLATFORM`] 的，私聊发给对方、群发进群；别的平台、号不是整数的是空的。
-pub fn to_of(venue: &Venue) -> Option<To> {
-    if venue.platform() != PLATFORM {
-        return None;
-    }
-    let number = venue.number().parse().ok()?;
-    Some(match venue.kind() {
-        VenueKind::Private => To::Private(number),
-        VenueKind::Group => To::Group(number),
-    })
-}
+/// 平台：场所、平台上的人、命令编号的头一段是 `qq`（第 7、8 条，拼法在 [`Platform`]）。
+pub const PLATFORM: Platform = Platform::new("qq");
 
 /// NapCat 发来的一帧。
 #[derive(Debug, Clone, PartialEq)]

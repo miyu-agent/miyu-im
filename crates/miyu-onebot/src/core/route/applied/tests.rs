@@ -6,8 +6,11 @@ use std::path::Path;
 use miyu_chat::{File, Params, Rules, Source, Venue, VenueKind};
 
 use super::{asleep, opening, role, show_ids};
-use crate::onebot::person;
+use crate::chat::Platform;
 use crate::rules::{Applied, Loaded};
+
+/// 测试用的平台。
+const QQ: Platform = Platform::new("qq");
 
 /// 只有一份系统的规则文件 `text` 时，套到群 555 上的样子；参数照出厂的 `defaults.toml`。
 fn applied(text: &str) -> Applied {
@@ -67,15 +70,15 @@ fn the_opening_carries_what_the_rules_set() {
 #[test]
 fn managers_and_show_ids_follow_the_rules() {
     let set = applied("managers = [\"qq:40004\", \"tg:20002\"]\nshow_ids = true\n");
-    assert_eq!(role(&set, &person(40004).expect("拼得出")), "manager");
+    assert_eq!(role(&set, &QQ.person(40004).expect("拼得出")), "manager");
     assert_eq!(
-        role(&set, &person(20002).expect("拼得出")),
+        role(&set, &QQ.person(20002).expect("拼得出")),
         "member",
         "别的平台的同一个号不算"
     );
     assert!(show_ids(&set));
     let unset = applied("rate = \"0\"\n");
-    assert_eq!(role(&unset, &person(40004).expect("拼得出")), "member");
+    assert_eq!(role(&unset, &QQ.person(40004).expect("拼得出")), "member");
     assert!(!show_ids(&unset));
     assert!(!show_ids(&applied("show_ids = false\n")));
 }

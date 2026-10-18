@@ -11,7 +11,6 @@ use super::session::Place;
 use crate::TARGET;
 use crate::chat::Recall;
 use crate::core::{Gone, reason};
-use crate::onebot::{person, venue};
 
 impl Route {
     /// 一次撤回 `recall`。
@@ -20,8 +19,13 @@ impl Route {
             Some(group) => (VenueKind::Group, group),
             None => (VenueKind::Private, recall.user),
         };
-        let made = venue(kind, number)
-            .and_then(|venue| Ok((venue, person(recall.user)?, person(recall.by)?)));
+        let made = self.platform.venue(kind, number).and_then(|venue| {
+            Ok((
+                venue,
+                self.platform.person(recall.user)?,
+                self.platform.person(recall.by)?,
+            ))
+        });
         let (venue, user, by) = match made {
             Ok(made) => made,
             Err(error) => {

@@ -19,9 +19,9 @@ use futures_util::future::join_all;
 use serde_json::{Value, json};
 
 use super::caller::Caller;
-use super::methods::PLATFORM;
 use super::reason;
 use crate::TARGET;
+use crate::chat::Platform;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
 pub(crate) const EVENT: &str = "chat.event";
@@ -36,10 +36,10 @@ pub(crate) const OUTBOUND: &str = "chat.outbound";
 pub(crate) const SCORE: &str = "chat.score";
 
 /// 交给挂接点的参数 `params`（一个对象）带上平台（施工 I-1）：插件照它知道是哪个平台的。不是对象的照原样。
-fn with_platform(params: &Value) -> Value {
+fn with_platform(params: &Value, platform: Platform) -> Value {
     let mut params = params.clone();
     if let Value::Object(fields) = &mut params {
-        fields.insert("platform".into(), Value::from(PLATFORM));
+        fields.insert("platform".into(), Value::from(platform.name()));
     }
     params
 }
@@ -125,16 +125,19 @@ pub(crate) struct Hooks {
     caller: Caller,
     /// 问进站挂接点的包每一次最多等多久（`bridge.json` 的 `hook_millis`，施工 O-43 中）。
     wait: Duration,
+    /// 交给挂接点的参数带的平台（施工 I-1）。
+    platform: Platform,
     /// 在跑、导出了挂接点的包，照编号排。
     hooked: Mutex<BTreeMap<String, Vec<&'static str>>>,
 }
 
 impl Hooks {
-    /// 还没看过软件包列表的一份：哪一处都没挂；问进站挂接点每个最多等 `wait`。
-    pub(crate) fn new(caller: Caller, wait: Duration) -> Hooks {
+    /// 还没看过软件包列表的一份：哪一处都没挂；问进站挂接点每个最多等 `wait`；参数带的平台是 `platform`。
+    pub(crate) fn new(caller: Caller, wait: Duration, platform: Platform) -> Hooks {
         Hooks {
             caller,
             wait,
+            platform,
             hooked: Mutex::new(BTreeMap::new()),
         }
     }
@@ -167,7 +170,7 @@ impl Hooks {
     pub(crate) fn event(&self, bot: i64, event: &Value) {
         for package in self.at(EVENT) {
             let caller = self.caller.clone();
-            let params = json!({"package": package, "method": EVENT, "params": {"platform": PLATFORM, "bot": bot, "event": event}});
+            let params = json!({"package": package, "method": EVENT, "params": {"platform": self.platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {
                 if let Ok(reply) = caller.call("package.call", params).await
                     && let Some(why) = reason(&reply)
@@ -186,7 +189,7 @@ impl Hooks {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params)});
+            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params, self.platform)});
             async move {
                 let steer = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
@@ -220,7 +223,7 @@ impl Hooks {
     ) -> Voiced {
         let mut text = text;
         for package in packages {
-            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": PLATFORM, "venue": venue, "bot": bot, "text": text}});
+            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": self.platform.name(), "venue": venue, "bot": bot, "text": text}});
             let answered =
                 match tokio::time::timeout(self.wait, self.caller.call("package.call", call)).await
                 {
@@ -251,7 +254,7 @@ impl Hooks {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params)});
+            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params, self.platform)});
             async move {
                 let bonus = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),

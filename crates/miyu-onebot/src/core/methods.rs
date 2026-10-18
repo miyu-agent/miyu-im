@@ -33,18 +33,6 @@ pub(crate) const VENUE: &str = "chat.venue";
 /// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `chat_send`）。
 pub(crate) const SEND: &str = "chat.send";
 
-/// 这个驱动的平台（施工 I-1，设计 01 第四节第 3 条）：挂接点、给别的包调的方法都带上它。只有 OneBot 一个驱动，写死；I-2
-/// 拆出驱动以后由驱动交。
-pub(crate) const PLATFORM: &str = "qq";
-
-/// 别的包调方法时写的 `platform`（施工 I-1）：没写的、写的就是 [`PLATFORM`] 的是这个驱动的；写了别的、不是字的不是。
-pub(crate) fn ours(args: &serde_json::Value) -> bool {
-    match args.get("platform") {
-        None | Some(serde_json::Value::Null) => true,
-        Some(platform) => platform.as_str() == Some(PLATFORM),
-    }
-}
-
 /// 后台页的场所卡片：读（施工 O-58 上）。
 pub(crate) const CARDS_GET: &str = "cards.get";
 

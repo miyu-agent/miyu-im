@@ -13,13 +13,14 @@ use super::{Message, Route, applied};
 use crate::TARGET;
 use crate::chat::Posted;
 use crate::core::Gone;
-use crate::onebot::{command_id, person, venue};
 
 impl Route {
     /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
     pub(super) async fn private(&mut self, posted: Posted) -> Result<(), Gone> {
-        let made = venue(VenueKind::Private, posted.user)
-            .and_then(|venue| Ok((venue, person(posted.user)?)));
+        let made = self
+            .platform
+            .venue(VenueKind::Private, posted.user)
+            .and_then(|venue| Ok((venue, self.platform.person(posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
@@ -70,7 +71,9 @@ impl Route {
         // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
         let message = Message {
-            id: command_id(posted.bot, posted.message_id, posted.time),
+            id: self
+                .platform
+                .command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             text,
             acting: json!({"external": external}),

@@ -25,7 +25,6 @@ use super::session::Place;
 use crate::TARGET;
 use crate::chat::To;
 use crate::core::{Gone, reason};
-use crate::onebot::venue;
 
 /// 禁言的事实的 `kind`。
 const MUTED_FACT: &str = "muted";
@@ -45,7 +44,7 @@ impl Route {
         seconds: Option<u64>,
         operator: Option<i64>,
     ) -> Result<(), Gone> {
-        let venue = match venue(VenueKind::Group, group) {
+        let venue = match self.platform.venue(VenueKind::Group, group) {
             Ok(venue) => venue,
             Err(error) => {
                 tracing::warn!(target: TARGET, group, error = %error, "venue not made, mute not noted");

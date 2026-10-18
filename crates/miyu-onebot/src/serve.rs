@@ -44,6 +44,7 @@ use crate::core::route::{
 use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::{self, Gate};
+use crate::onebot::PLATFORM;
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};
@@ -172,7 +173,7 @@ pub async fn run(
     }
     let bots = Arc::new(Bots::default());
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
-    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook()));
+    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), PLATFORM));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
     let applied = settings.port;
@@ -186,6 +187,7 @@ pub async fn run(
         listen: AtomicU16::new(listen),
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
+        platform: PLATFORM,
         current: Arc::clone(&current),
         applied: tokio::sync::Mutex::new(applied),
         swap,
@@ -256,7 +258,15 @@ pub async fn run(
             chars: gate.tuning.forward_chars,
         },
     );
-    let route = Route::new(core, bots, venues, members, parts, configured, hooks);
+    let route = Route::new(
+        core,
+        (PLATFORM, bots),
+        venues,
+        members,
+        parts,
+        configured,
+        hooks,
+    );
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),

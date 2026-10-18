@@ -26,9 +26,7 @@ use crate::TARGET;
 use crate::chat::Bots;
 use crate::chat::Outgoing;
 use crate::chat::{CallError, Lead, To};
-use crate::core::methods::ours;
 use crate::core::{Answerer, Caller, Gone, reason};
-use crate::onebot::{person, venue};
 use crate::rules::Tools;
 
 /// `reached` 事实的 `kind`。
@@ -139,7 +137,7 @@ impl Route {
             .as_str()
             .unwrap_or_default()
             .to_string();
-        let Some(request) = ours(args).then(|| request(args)).flatten() else {
+        let Some(request) = self.platform.ours(args).then(|| request(args)).flatten() else {
             tracing::info!(target: TARGET, from, "export send refused");
             answerer.refuse(&id, "bad_params");
             return Ok(());
@@ -159,8 +157,8 @@ impl Route {
             .filter(|bot| self.bots.get(*bot).is_some())
             .or_else(|| self.bots.first().map(|(bot, _)| bot));
         let made = match to {
-            To::Group(group) => venue(VenueKind::Group, group),
-            To::Private(user) => venue(VenueKind::Private, user),
+            To::Group(group) => self.platform.venue(VenueKind::Group, group),
+            To::Private(user) => self.platform.venue(VenueKind::Private, user),
         };
         let (Some(bot), Ok(target)) = (bot, made) else {
             finish(answer, Err(("unreachable", None)));
@@ -212,7 +210,7 @@ impl Route {
         let place = match to {
             To::Group(group) => Place::group(target, &applied, bot, group),
             To::Private(user) => {
-                let Ok(external) = person(user) else {
+                let Ok(external) = self.platform.person(user) else {
                     return Ok(None);
                 };
                 let listed = self.whitelisted(&external).then_some(&applied);

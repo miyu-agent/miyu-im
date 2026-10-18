@@ -10,8 +10,7 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::fetching::msg_id;
-use crate::chat::{Fetched, To};
-use crate::onebot::person;
+use crate::chat::{Fetched, Platform, To};
 use crate::rules::{MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
@@ -131,6 +130,8 @@ pub(super) struct Scene<'a> {
     pub(super) peer: Option<&'a ExternalId>,
     /// 她自己（收进这个会话的机器人号）。
     pub(super) me: &'a ExternalId,
+    /// 平台：她给的号照它拼成平台上的人。
+    pub(super) platform: Platform,
 }
 
 /// 定下来的。
@@ -216,7 +217,7 @@ fn mute(seconds: Option<u64>, user: Arg<i64>, origin: Option<&Origin>, scene: &S
         return Plan::Refuse(Why::BadSeconds);
     };
     let user = match user {
-        Arg::Given(number) => person(number).map_err(|_| Why::NoTarget),
+        Arg::Given(number) => scene.platform.person(number).map_err(|_| Why::NoTarget),
         Arg::Bad => Err(Why::NoTarget),
         Arg::Absent => {
             // 她的那一条没有发的人（她说的不是人说的话），去掉她的那一步在 `one` 里。

@@ -26,7 +26,6 @@ use super::{Message, Route, applied};
 use crate::TARGET;
 use crate::chat::Posted;
 use crate::core::Gone;
-use crate::onebot::{command_id, person, venue};
 
 /// 问进站挂接点时带上的东西（施工 O-52，`extending.md` 第二条「`chat.inbound`」）：照先后，第几样（从 1 数，同核心的 `#n`）、
 /// 种类、平台的编号（`chat.action` 的 `get_image`、`get_file` 认它）、名字、字节数（有的才写）。别的包（表情包包偷图这类）照它自己去取。
@@ -53,8 +52,10 @@ fn inbound_media(posted: &Posted) -> Value {
 impl Route {
     /// 群号是 `group` 的群里的一条消息 `posted`（「群消息」第 3 到 7 条）。
     pub(super) async fn group(&mut self, group: i64, posted: Posted) -> Result<(), Gone> {
-        let made =
-            venue(VenueKind::Group, group).and_then(|venue| Ok((venue, person(posted.user)?)));
+        let made = self
+            .platform
+            .venue(VenueKind::Group, group)
+            .and_then(|venue| Ok((venue, self.platform.person(posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
@@ -82,7 +83,7 @@ impl Route {
         let mentions: Vec<_> = at
             .iter()
             .filter(|user| **user != posted.bot)
-            .filter_map(|user| person(*user).ok())
+            .filter_map(|user| self.platform.person(*user).ok())
             .collect();
         let flags = Flags {
             mentions_me: at.contains(&posted.bot),
@@ -106,7 +107,9 @@ impl Route {
             &keywords,
         );
         let message = Message {
-            id: command_id(posted.bot, posted.message_id, posted.time),
+            id: self
+                .platform
+                .command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             acting: json!({"external": external, "role": applied::role(&applied, &external)}),
             fields: fields(&posted, &mentions, flags),
