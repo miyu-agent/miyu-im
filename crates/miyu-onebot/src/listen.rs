@@ -17,6 +17,8 @@ mod connection;
 mod tests;
 
 use std::convert::Infallible;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use http_body_util::Empty;
@@ -26,39 +28,36 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
-use tokio::sync::{Notify, mpsc};
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::TARGET;
-use crate::chat::Bots;
-use crate::current::Current;
-use crate::onebot::{Event, number};
-use crate::serve::Notice;
-use crate::tuning::Tuning;
+use crate::chat::Platform;
+use crate::driver::{Driver, Gate};
+use crate::onebot::{PLATFORM, number};
 
-/// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的消息和撤回交给谁、说给人听的。
-pub(crate) struct Gate {
-    /// NapCat 要出示的令牌在这里（和后台页的方法共用，核心推来新的就换上，施工 O-20）。
-    pub(crate) current: Arc<Current>,
-    /// 认哪几个路径、调用等多久、写队列多长（`bridge.json`）。
-    pub(crate) tuning: Tuning,
-    /// 连着的号。
-    pub(crate) bots: Arc<Bots>,
-    /// 读出来的消息、撤回（施工 O-22 起群的也算）、禁言和解禁、认出来的号（施工 O-25 中）交给跟核心的那一头（`core/route.rs`）。
-    pub(crate) inbound: mpsc::Sender<Event>,
-    /// 连上、断开各说一行（「样子」）。
-    pub(crate) tell: Arc<dyn Fn(Notice) + Send + Sync>,
-    /// NapCat 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（`crate::status_file`，施工 O-18）。
-    pub(crate) changed: Arc<Notify>,
-    /// 挂接点（施工 O-43 上）：通知、请求原样交给挂在 `chat.event` 的包。
-    pub(crate) hooks: Arc<crate::core::hooks::Hooks>,
+/// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct OneBot;
+
+impl Driver for OneBot {
+    fn platform(&self) -> Platform {
+        PLATFORM
+    }
+
+    fn accept(
+        &self,
+        stream: TcpStream,
+        gate: Arc<Gate>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        Box::pin(accept(stream, gate))
+    }
 }
 
 /// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。
 type Upgrade = (OnUpgrade, Option<i64>);
 
 /// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。
-pub(crate) async fn accept(stream: TcpStream, gate: Arc<Gate>) {
+async fn accept(stream: TcpStream, gate: Arc<Gate>) {
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
     let service = {
         let slot = Arc::clone(&slot);
@@ -92,7 +91,7 @@ async fn handle(
     slot: &Mutex<Option<Upgrade>>,
 ) -> Response<Empty<Bytes>> {
     let path = request.uri().path();
-    if !gate.tuning.paths.iter().any(|known| known == path) {
+    if !gate.tuning().paths.iter().any(|known| known == path) {
         return empty(StatusCode::NOT_FOUND);
     }
     let presented = presented(&request).map(str::to_string);
@@ -143,7 +142,7 @@ fn switching(accept: &str) -> Response<Empty<Bytes>> {
 
 /// 出示的 `presented` 对得上桥手里最新的令牌。手里没有、没出示的对不上。
 fn admitted(gate: &Gate, presented: Option<&str>) -> bool {
-    match (presented, gate.current.token()) {
+    match (presented, gate.token()) {
         (Some(presented), Some(token)) => same(presented.as_bytes(), token.expose().as_bytes()),
         _ => false,
     }

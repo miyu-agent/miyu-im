@@ -408,6 +408,7 @@ pub fn serve_handed(root: DataRoot, config: Value, accounts: Option<Accounts>) -
         tuning: tuning(),
         defaults: defaults(),
         factory: factory(),
+        driver: std::sync::Arc::new(miyu_onebot::OneBot),
     };
     (serve, relay)
 }

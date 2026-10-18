@@ -11,14 +11,14 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::sync::{Notify, mpsc};
+use tokio::sync::mpsc;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::Role;
 
-use super::Gate;
 use crate::TARGET;
 use crate::chat::{Implementation, Link};
+use crate::driver::Gate;
 use crate::onebot::{self, Event, Frame, Wire};
 use crate::serve::Notice;
 
@@ -29,7 +29,7 @@ where
 {
     let ws = WebSocketStream::from_raw_socket(io, Role::Server, None).await;
     let (mut sink, mut frames) = ws.split();
-    let (out, mut outgoing) = mpsc::channel::<Message>(gate.tuning.write_queue);
+    let (out, mut outgoing) = mpsc::channel::<Message>(gate.tuning().write_queue);
     // 写的任务：发的一头都放下了（连接断了、被顶掉了），或者写了关闭帧，就停。
     tokio::spawn(async move {
         while let Some(message) = outgoing.recv().await {
@@ -42,7 +42,7 @@ where
             tracing::debug!(target: TARGET, error = %error, "websocket not closed cleanly");
         }
     });
-    let wire = Arc::new(Wire::new(out, gate.tuning.call_timeout()));
+    let wire = Arc::new(Wire::new(out, gate.tuning().call_timeout()));
     let link: Arc<dyn Link> = wire.clone();
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot {
@@ -50,8 +50,8 @@ where
         None => true,
     };
     tracing::info!(target: TARGET, bot, "napcat connected");
-    (gate.tell)(Notice::Connected { bot });
-    let probe = version(&wire, Arc::clone(&gate.changed));
+    gate.tell(Notice::Connected { bot });
+    let probe = version(&wire, gate);
     tokio::pin!(probe);
     let mut probed = false;
     while reading {
@@ -68,11 +68,11 @@ where
     }
     wire.calls.close();
     if let Some(bot) = bot {
-        gate.bots.remove(bot, &link);
-        gate.changed.notify_one();
+        gate.bots().remove(bot, &link);
+        gate.changed();
     }
     tracing::info!(target: TARGET, bot, "napcat disconnected");
-    (gate.tell)(Notice::Disconnected { bot });
+    gate.tell(Notice::Disconnected { bot });
 }
 
 /// 一帧文字。跟核心的那一头不收了（桥在停）交回假。
@@ -101,7 +101,7 @@ async fn frame_in(
     if matches!(frame["post_type"].as_str(), Some("notice" | "request"))
         && let Some(id) = onebot::self_id(&frame)
     {
-        gate.hooks.event(id, &frame);
+        gate.event(id, &frame);
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
@@ -111,7 +111,7 @@ async fn frame_in(
         }
         Frame::Event(event) => {
             noted(&event);
-            return gate.inbound.send(event).await.is_ok();
+            return gate.inbound(event).await;
         }
         Frame::Other(kind) => tracing::debug!(target: TARGET, kind, "event ignored"),
     }
@@ -158,16 +158,16 @@ fn noted(event: &Event) {
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
 /// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
 async fn register(gate: &Gate, bot: i64, link: &Arc<dyn Link>) -> bool {
-    if let Some(old) = gate.bots.insert(bot, Arc::clone(link)) {
+    if let Some(old) = gate.bots().insert(bot, Arc::clone(link)) {
         old.close();
         tracing::info!(target: TARGET, bot, "napcat connection replaced");
     }
-    gate.changed.notify_one();
-    gate.inbound.send(Event::Connected { bot }).await.is_ok()
+    gate.changed();
+    gate.inbound(Event::Connected { bot }).await
 }
 
 /// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进这条连接，叫一声 `changed`。
-async fn version(wire: &Wire, changed: Arc<Notify>) {
+async fn version(wire: &Wire, gate: &Gate) {
     match wire
         .calls
         .call(&wire.out, "get_version_info", json!({}))
@@ -182,7 +182,7 @@ async fn version(wire: &Wire, changed: Arc<Notify>) {
             if wire.implementation.set(known).is_err() {
                 // 一条连接只问一次：不会已经有了。
             }
-            changed.notify_one();
+            gate.changed();
             tracing::info!(
                 target: TARGET,
                 app_name = data["app_name"].as_str().unwrap_or_default(),

@@ -43,8 +43,7 @@ use crate::core::route::{
 };
 use crate::core::{Core, provide};
 use crate::current::Current;
-use crate::listen::{self, Gate};
-use crate::onebot::PLATFORM;
+use crate::driver::{Driver, Gate};
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};
@@ -86,6 +85,8 @@ pub struct Serve {
     pub defaults: Defaults,
     /// 出厂的场所规则、出厂参数、违规词表：握手以前读好、查过（施工 O-21，[`Factory::load`]）。
     pub factory: Factory,
+    /// 平台的接法（施工 I-2 下）：监听到的连接交给它。
+    pub driver: Arc<dyn Driver>,
 }
 
 /// 说给人听的（「样子」）：怎么说照 `texts`。
@@ -172,8 +173,9 @@ pub async fn run(
         tell(Notice::NoToken);
     }
     let bots = Arc::new(Bots::default());
+    let platform = serve.driver.platform();
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
-    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), PLATFORM));
+    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), platform));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
     let applied = settings.port;
@@ -187,7 +189,7 @@ pub async fn run(
         listen: AtomicU16::new(listen),
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
-        platform: PLATFORM,
+        platform,
         current: Arc::clone(&current),
         applied: tokio::sync::Mutex::new(applied),
         swap,
@@ -196,15 +198,14 @@ pub async fn run(
     methods.ready(Arc::clone(&running));
     let registered = register(&core.caller()).await;
     let changed = Arc::new(Notify::new());
-    let gate = Arc::new(Gate {
-        current: Arc::clone(&current),
-        tuning: serve.tuning,
-        bots: Arc::clone(&bots),
+    let gate = Arc::new(Gate::new(
+        (Arc::clone(&current), serve.tuning.clone()),
+        Arc::clone(&bots),
         inbound,
         tell,
-        changed: Arc::clone(&changed),
-        hooks: Arc::clone(&hooks),
-    });
+        Arc::clone(&changed),
+        Arc::clone(&hooks),
+    ));
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
     if let Some(provided) = provided {
@@ -220,47 +221,47 @@ pub async fn run(
         });
     }
     let (configured, mut configs) = mpsc::unbounded_channel();
-    let members = Members::new(gate.tuning.member_names());
-    let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
-    let personas = Personas::new(gate.tuning.judge_persona());
+    let members = Members::new(serve.tuning.member_names());
+    let slots = Slots::new(serve.tuning.judge_concurrency, serve.tuning.judge_queue());
+    let personas = Personas::new(serve.tuning.judge_persona());
     let recall = Recalling {
-        after: gate.tuning.receipt_recall(),
+        after: serve.tuning.receipt_recall(),
         default: recall_default,
     };
-    let reactions = Reactions::new(gate.tuning.reaction_emoji.clone(), gate.tuning.reaction());
+    let reactions = Reactions::new(serve.tuning.reaction_emoji.clone(), serve.tuning.reaction());
     let parts = (
         slots,
         personas,
         recall,
-        gate.tuning.queue_expire(),
+        serve.tuning.queue_expire(),
         reactions,
         Asking {
-            binding: gate.tuning.binding(),
-            group_info: gate.tuning.group_info(),
-            mute_window: gate.tuning.mute_window(),
-            mute_replies: gate.tuning.mute_replies,
+            binding: serve.tuning.binding(),
+            group_info: serve.tuning.group_info(),
+            mute_window: serve.tuning.mute_window(),
+            mute_replies: serve.tuning.mute_replies,
         },
         Fetching {
-            images: gate.tuning.message_images,
-            per_turn: gate.tuning.fetch_per_turn,
-            wait: gate.tuning.fetch(),
-            quick: gate.tuning.call_timeout(),
+            images: serve.tuning.message_images,
+            per_turn: serve.tuning.fetch_per_turn,
+            wait: serve.tuning.fetch(),
+            quick: serve.tuning.call_timeout(),
             avatars: (
-                gate.tuning.avatar_user_url.clone(),
-                gate.tuning.avatar_group_url.clone(),
+                serve.tuning.avatar_user_url.clone(),
+                serve.tuning.avatar_group_url.clone(),
             ),
-            members: gate.tuning.members_shown,
+            members: serve.tuning.members_shown,
         },
         Forwarding {
-            per_message: gate.tuning.message_forwards,
-            depth: gate.tuning.forward_depth,
-            nodes: gate.tuning.forward_nodes,
-            chars: gate.tuning.forward_chars,
+            per_message: serve.tuning.message_forwards,
+            depth: serve.tuning.forward_depth,
+            nodes: serve.tuning.forward_nodes,
+            chars: serve.tuning.forward_chars,
         },
     );
     let route = Route::new(
         core,
-        (PLATFORM, bots),
+        (platform, bots),
         venues,
         members,
         parts,
@@ -278,9 +279,9 @@ pub async fn run(
         tokio::select! {
             accepted = napcat.accept() => match accepted {
                 Ok((stream, _)) => {
-                    let gate = Arc::clone(&gate);
+                    let accepted = serve.driver.accept(stream, Arc::clone(&gate));
                     tasks.spawn(async move {
-                        listen::accept(stream, gate).await;
+                        accepted.await;
                         None
                     });
                 }

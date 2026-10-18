@@ -32,6 +32,7 @@ pub mod chat;
 pub mod control;
 mod core;
 mod current;
+pub mod driver;
 mod listen;
 pub mod logs;
 mod media;
@@ -46,6 +47,8 @@ pub mod texts;
 pub mod tuning;
 pub mod venue;
 pub mod web;
+
+pub use listen::OneBot;
 
 /// 运行日志的目标。
 pub const TARGET: &str = "miyu::onebot";
