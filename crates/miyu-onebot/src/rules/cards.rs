@@ -7,7 +7,7 @@
 //!   每个私聊一条。
 //! - 每一格可选，没写的照下面几层（配置项、出厂、系统的规则）。群卡没写 `on` 的接话（在白名单里），「其他群」没写的不接。
 //! - 插嘴四档：`never` 拼成 `discipline = "when-called"`，别的三档拼成 `discipline = "chatty"` 加 `chatty.probability`
-//!   （[`PROBABILITY`]，「施工时定的」）。去句号、长文（施工 O-59 上）拼进同一张 `outbound` 表。
+//!   （[`PROBABILITY`]，「施工时定的」）。去句号、长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
 pub mod defaults;
@@ -106,6 +106,9 @@ pub struct GroupSet {
     /// 超过几个字算长文，0 是不算。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_chars: Option<u32>,
+    /// 仅发送最终消息（施工 O-57）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub final_only: Option<bool>,
 }
 
 /// 私聊卡能设的几格：睡觉、限流本来就不管白名单成员，不给。
@@ -127,6 +130,9 @@ pub struct PrivateSet {
     /// 超过几个字算长文，0 是不算。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_chars: Option<u32>,
+    /// 仅发送最终消息（施工 O-57）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub final_only: Option<bool>,
 }
 
 /// 一个群的卡。
@@ -305,7 +311,7 @@ fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     }
     push_outbound(
         &mut lines,
-        set.strip_period,
+        (set.strip_period, set.final_only),
         (set.long_text, set.long_chars),
     );
     lines
@@ -318,7 +324,7 @@ fn private_lines(set: &PrivateSet) -> Vec<String> {
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
     push_outbound(
         &mut lines,
-        set.strip_period,
+        (set.strip_period, set.final_only),
         (set.long_text, set.long_chars),
     );
     lines
@@ -331,15 +337,18 @@ fn push_text(lines: &mut Vec<String>, key: &str, value: Option<&str>) {
     }
 }
 
-/// 去句号、长文写成出站参数的一张表（设了才写，一格都没设的不写这一行）。
+/// 去句号、仅发送最终消息、长文写成出站参数的一张表（设了才写，一格都没设的不写这一行）。
 fn push_outbound(
     lines: &mut Vec<String>,
-    strip: Option<bool>,
+    (strip, final_only): (Option<bool>, Option<bool>),
     (long_text, long_chars): (Option<LongText>, Option<u32>),
 ) {
     let mut items = Vec::new();
     if let Some(strip) = strip {
         items.push(format!("strip_period = {strip}"));
+    }
+    if let Some(final_only) = final_only {
+        items.push(format!("final_only = {final_only}"));
     }
     if let Some(long_text) = long_text {
         items.push(format!("long_text = \"{}\"", long_text.name()));

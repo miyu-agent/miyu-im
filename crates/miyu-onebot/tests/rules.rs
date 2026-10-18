@@ -145,8 +145,8 @@ fn the_factory_data_is_read_clean() {
     );
     assert_eq!(
         applied.resolved.entries.len(),
-        4,
-        "出厂的只写了三项，卡片一项"
+        5,
+        "出厂的写了四项（施工 O-57 多仅发送最终消息），卡片一项"
     );
     assert_eq!(
         applied.params.judge.retries, 1,

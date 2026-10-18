@@ -9,6 +9,7 @@
 //! - `slow:<方法>`：这个方法收了不答。
 //! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
 //!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
+//! - `sticker-end`：`sticker` 的回答带 `end_turn`（施工 O-57：她最后一步带着工具调用、这一轮到此结束，表情包包的 `meme_send` 那样）。
 //! - `render:<路径>`：扮渲染包（施工 O-59 上）：把这个图经 `blob.put` 传上去，`markdown` 答两页、都是它。清单要导出 `markdown`。
 //!
 //! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法（有 `sticker:` 的另经 `provide` 登记那件
@@ -33,6 +34,7 @@ fn main() {
     let mut answers: BTreeMap<String, Answer> = BTreeMap::new();
     let mut sticker: Option<String> = None;
     let mut render: Option<String> = None;
+    let mut end = false;
     for arg in std::env::args().skip(1) {
         if let Some(path) = arg.strip_prefix("record:") {
             record = Some(
@@ -52,6 +54,8 @@ fn main() {
             sticker = Some(path.to_string());
         } else if let Some(path) = arg.strip_prefix("render:") {
             render = Some(path.to_string());
+        } else if arg == "sticker-end" {
+            end = true;
         }
     }
     let stdin = io::stdin();
@@ -95,7 +99,7 @@ fn main() {
         if line.is_empty() {
             return;
         }
-        serve(&line, &answers, &mut record, sent.as_ref());
+        serve(&line, &answers, &mut record, (sent.as_ref(), end));
     }
 }
 
@@ -118,7 +122,7 @@ fn serve(
     line: &str,
     answers: &BTreeMap<String, Answer>,
     record: &mut Option<File>,
-    sent: Option<&Value>,
+    (sent, end): (Option<&Value>, bool),
 ) {
     let Ok(message) = serde_json::from_str::<Value>(line) else {
         return;
@@ -126,7 +130,10 @@ fn serve(
     if message["method"] == "tool.call"
         && let Some(sent) = sent
     {
-        let result = json!({"blocks": [{"type": "text", "text": "Sent."}], "sent": sent});
+        let mut result = json!({"blocks": [{"type": "text", "text": "Sent."}], "sent": sent});
+        if end {
+            result["end_turn"] = json!(true);
+        }
         send(&json!({"jsonrpc": "2.0", "id": message["id"], "result": result}));
         return;
     }

@@ -90,3 +90,34 @@ fn events_without_a_turn_are_not_looked_at() {
     assert!(!quiet.heard("s1", &lone));
     assert!(!quiet.heard("s1", &reply(5, json!([text("x")]))));
 }
+
+#[test]
+fn held_words_are_kept_per_line_and_turn_and_dropped_when_she_stays_quiet() {
+    // 仅发送最终消息（施工 O-57）：扣着的照（线，回合）放、取；同一回合再扣的换掉；这一轮不说话了的丢掉。
+    use super::super::voicing::Voice;
+    use super::{Held, has_calls};
+    let held = |text: &str| Held {
+        session: "s".into(),
+        voice: Voice::Private { turn: 1 },
+        text: text.into(),
+    };
+    let mut quiet = Quiet::default();
+    quiet.hold("s", 1, held("一"));
+    quiet.hold("s", 1, held("二"));
+    quiet.hold("lane", 1, held("支线的"));
+    assert_eq!(
+        quiet.release("s", 1).map(|held| held.text),
+        Some("二".into())
+    );
+    assert!(quiet.release("s", 1).is_none(), "取了就不再扣着");
+    assert_eq!(
+        quiet.release("lane", 1).map(|held| held.text),
+        Some("支线的".into())
+    );
+    quiet.hold("s", 2, held("三"));
+    quiet.heard("s", &reply(2, json!([call("skip_reply")])));
+    assert!(quiet.release("s", 2).is_none(), "不说话了：扣着的丢掉");
+    assert!(has_calls(&reply(3, json!([text("a"), call("search")]))));
+    assert!(!has_calls(&reply(3, json!([text("a")]))));
+    assert!(!has_calls(&ended(3)));
+}

@@ -14,6 +14,7 @@ use serde_json::Value;
 use super::backlog::queued_reply;
 use super::outbound::{Passed, group_ctx, pass, private_ctx, why_name};
 use super::projection::{Aim, Speaking};
+use super::quiet::{Held, has_calls};
 use super::sending::{Body, Piece, What};
 use super::voicing::Voice;
 use super::{Route, applied, reply_text};
@@ -65,8 +66,11 @@ impl Route {
             Some(speaking)
                 if speaking.replayed || (self.backlogs.contains_key(session) && !quiet) =>
             {
+                // 仅发送最终消息的场所（施工 O-57）：中间那几步不补。
+                let middle = has_calls(raw) && self.final_only(session);
                 if let Some(backlog) = self.backlogs.get_mut(session)
                     && !quiet
+                    && !middle
                 {
                     backlog.said(raw, reply_text(raw), Some(speaking));
                 }
@@ -76,9 +80,79 @@ impl Route {
                 self.hushed(session, &reply_text(raw));
                 Ok(())
             }
-            Some(speaking) => self.speak(session, speaking, &reply_text(raw)).await,
+            Some(speaking) => {
+                let voice = Voice::Group(speaking);
+                self.say_or_hold((session, session), raw, voice, reply_text(raw))
+                    .await
+            }
+            None if !replayed => self.turn_closed(session, raw).await,
             None => Ok(()),
         }
+    }
+
+    /// 场所会话 `session` 仅发送最终消息（施工 O-57，场所规则的 `outbound.final_only`：群出厂开、私聊出厂关）。
+    pub(super) fn final_only(&mut self, session: &str) -> bool {
+        let Some(venue) = self
+            .peers
+            .get(session)
+            .and_then(|peer| Venue::parse(&peer.venue))
+        else {
+            return false;
+        };
+        self.applied(&venue).params.final_only
+    }
+
+    /// 她在线 `line`（主线、支线、私聊）说的一段 `text`，发回会话 `session`（施工 O-57）：仅发送最终消息的场所里，带工具调用的
+    /// 回复先扣着（同一回合后面再扣的换掉它，空的不扣），不带工具调用的当场发、扣着的丢掉（它没有字的发扣着的）；别的场所当场发。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Route::voice`]。
+    pub(super) async fn say_or_hold(
+        &mut self,
+        (session, line): (&str, &str),
+        raw: &Value,
+        voice: Voice,
+        text: String,
+    ) -> Result<(), Gone> {
+        if let Some(turn) = raw["turn"].as_u64()
+            && self.final_only(session)
+        {
+            if has_calls(raw) {
+                if !text.trim().is_empty() {
+                    let held = Held {
+                        session: session.to_string(),
+                        voice,
+                        text,
+                    };
+                    self.quiet.hold(line, turn, held);
+                }
+                return Ok(());
+            }
+            // 不带工具调用的是最后那段：扣着的丢掉；这一段没有字的（字都在前一步里），照扣着的发。
+            if let Some(held) = self.quiet.release(line, turn)
+                && text.trim().is_empty()
+            {
+                return self.voice(&held.session, held.voice, held.text).await;
+            }
+        }
+        self.voice(session, voice, text).await
+    }
+
+    /// 线 `line` 推来的一条是回合结束（`turn.ended`）的：仅发送最终消息时扣着的那段（她最后一步带着工具调用，例如发表情包结束
+    /// 这一轮）这时发出去（施工 O-57）。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Route::voice`]。
+    pub(super) async fn turn_closed(&mut self, line: &str, raw: &Value) -> Result<(), Gone> {
+        if raw["kind"] == "turn.ended"
+            && let Some(turn) = raw["turn"].as_u64()
+            && let Some(held) = self.quiet.release(line, turn)
+        {
+            return self.voice(&held.session, held.voice, held.text).await;
+        }
+        Ok(())
     }
 
     /// 会话 `session` 这一轮不说话了，她说的 `text` 不发：记一行 `reply dropped`（`why=skipped`，不记原文，施工 O-26）。
@@ -113,22 +187,6 @@ impl Route {
             }
         }
         Ok(())
-    }
-
-    /// 她在群会话 `session` 里（主线或者它的一条支线，照 `speaking` 的 `line`，施工 O-36）新说的一段话 `text`（第 9 条）：先问出站
-    /// 挂接点（施工 O-43 下，`voicing`），再 [`Route::speak_now`]。
-    ///
-    /// # Errors
-    ///
-    /// 入队时写不出去、核心断开。
-    pub(super) async fn speak(
-        &mut self,
-        session: &str,
-        speaking: Speaking,
-        text: &str,
-    ) -> Result<(), Gone> {
-        self.voice(session, Voice::Group(speaking), text.to_string())
-            .await
     }
 
     /// 群里她的一段话 `text` 过出站链（情形照投影交出的 `speaking`、本机此刻、这个群此刻的参数），过了的一段一条入队。本机的钟读
@@ -186,6 +244,8 @@ impl Route {
                 .map(str::to_string);
             self.quotes.insert(session.to_string(), quote);
         }
+        // 仅发送最终消息的私聊（施工 O-57）：补来的中间那几步不补。
+        let middle = has_calls(event) && self.final_only(session);
         if let Some(backlog) = self.backlogs.get_mut(session)
             && event["seq"].as_u64().is_some()
         {
@@ -201,7 +261,7 @@ impl Route {
                         .add(turn, text);
                 }
             }
-            if event["kind"] == "message.assistant" && !quiet {
+            if event["kind"] == "message.assistant" && !quiet && !middle {
                 backlog.said(event, reply_text(event), None);
             }
             return Ok(());
@@ -212,15 +272,16 @@ impl Route {
             self.stickers((session, session), event).await?;
         }
         if event["kind"] != "message.assistant" {
-            return Ok(());
+            return self.turn_closed(session, event).await;
         }
         if quiet {
             self.hushed(session, &reply_text(event));
             return Ok(());
         }
-        // 先问出站挂接点（施工 O-43 下，`voicing`），再 `say_privately_now`。
+        // 先问出站挂接点（施工 O-43 下，`voicing`），再 `say_privately_now`；仅发送最终消息的先扣着中间那几步（施工 O-57）。
         let turn = event["turn"].as_u64().unwrap_or(0);
-        self.voice(session, Voice::Private { turn }, reply_text(event))
+        let voice = Voice::Private { turn };
+        self.say_or_hold((session, session), event, voice, reply_text(event))
             .await
     }
 

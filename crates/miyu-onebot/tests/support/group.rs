@@ -313,6 +313,24 @@ pub async fn started_installed_with(
     .await
 }
 
+/// 同 [`started_installed_with`]，请求模型照 `models`（施工 O-57：她照台词边说边调工具，[`super::speaking::Lines`]）。
+pub async fn started_installed_by(
+    models: Arc<dyn Models>,
+    (rules, onebot): (&str, &str),
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
+    up_installed(
+        models,
+        ("", &Value::Null),
+        (rules, ""),
+        onebot,
+        |napcat| napcat.answering(members),
+        (install, Catalog::default()),
+    )
+    .await
+}
+
 /// 同 [`started`]，核心起来以前照 `install` 往数据根里装别的包（施工 O-43 中：挂进站挂接点的测试包，`hooked::install`）。
 pub async fn started_installed(
     script: &Script,
@@ -354,12 +372,13 @@ async fn up_installed(
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
-        // 卡片那一层（施工 O-58 上）：出厂「其他群」关着，这里打开，测试的群照老的默认接话；要测「不接话」的规则自己写。
+        // 卡片那一层（施工 O-58 上）：出厂「其他群」关着，这里打开，测试的群照老的默认接话；要测「不接话」的规则自己写。群出厂
+        // 仅发送最终消息（施工 O-57），这里照老的每一步都发：测这一格的另外写卡片。
         let cards = home.root.state().join("packages").join("onebot");
         std::fs::create_dir_all(&cards).expect("建得了目录");
         std::fs::write(
             cards.join("cards.json"),
-            r#"{"other_groups": {"on": true}}"#,
+            r#"{"other_groups": {"on": true, "final_only": false}}"#,
         )
         .expect("写得进");
         if !words.is_empty() {

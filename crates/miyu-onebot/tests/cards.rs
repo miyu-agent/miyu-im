@@ -206,6 +206,11 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         group["long_chars"],
         json!({"value": 5000, "from": "system"})
     );
+    // 仅发送最终消息（施工 O-57）：群出厂开，来处是出厂的规则。
+    assert_eq!(
+        group["final_only"],
+        json!({"value": true, "from": "factory"})
+    );
     assert_eq!(got["defaults"]["other_groups"]["rate"]["value"], "5/300s");
     let private = &got["defaults"]["privates"][LIN.to_string()];
     assert_eq!(private["strip_period"]["value"], true, "{private}");

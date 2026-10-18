@@ -81,6 +81,7 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
             "allow = false（卡片「其他群」）\n\
              chatty.probability = 80（系统 80-test.toml 第 1 条规则，第 4 行）\n\
              discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
+             outbound.final_only = true（出厂 50-defaults.toml 第 1 条规则，第 17 行）\n\
              parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
              rate = \"30/60s\"（系统 80-test.toml 第 1 条规则，第 3 行）\n\
              没列出的参数照出厂的 defaults.toml。\n\
@@ -100,9 +101,9 @@ fn without_system_rules_the_factory_ones_are_shown() {
         shown(&root, "qq:private:5", &zh(&resources())),
         (
             0,
-            "discipline = \"every-message\"（出厂 50-defaults.toml 第 2 条规则，第 20 行）\n\
-             parallel = 0（出厂 50-defaults.toml 第 2 条规则，第 22 行）\n\
-             rate = \"5/300s\"（出厂 50-defaults.toml 第 2 条规则，第 21 行）\n\
+            "discipline = \"every-message\"（出厂 50-defaults.toml 第 2 条规则，第 21 行）\n\
+             parallel = 0（出厂 50-defaults.toml 第 2 条规则，第 23 行）\n\
+             rate = \"5/300s\"（出厂 50-defaults.toml 第 2 条规则，第 22 行）\n\
              没列出的参数照出厂的 defaults.toml。\n"
                 .to_string(),
             String::new()
@@ -200,6 +201,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
             0,
             "allow = true（群 2 的卡片）\n\
              discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
+             outbound.final_only = true（出厂 50-defaults.toml 第 1 条规则，第 17 行）\n\
              parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
              rate = \"7/60s\"（群 2 的卡片）\n\
              show_ids = true（配置项 onebot.show_ids）\n\
@@ -250,7 +252,7 @@ async fn the_program_shows_in_the_system_language() {
         text(&shown.stdout),
         "allow = true (card of group 1)\n\
          chatty.probability = 80 (system 80-test.toml, rule 1, line 4)\n\
-         discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\n\
+         discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\noutbound.final_only = true (factory 50-defaults.toml, rule 1, line 17)\n\
          parallel = 1 (factory 50-defaults.toml, rule 1, line 16)\n\
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\
          show_ids = true (setting onebot.show_ids)\n\

@@ -87,7 +87,7 @@ fn strip_period(applied: &Applied) -> Value {
     json!({"value": applied.params.outbound.strip_period(), "from": from})
 }
 
-/// 长文的两格：出厂参数套上规则改的（施工 O-59 上）。
+/// 长文的两格（施工 O-59 上）、仅发送最终消息（施工 O-57）：出厂参数套上规则改的。
 fn long_text(applied: &Applied, set: &mut Map<String, Value>) {
     let from = |key: &str| {
         applied
@@ -103,6 +103,10 @@ fn long_text(applied: &Applied, set: &mut Map<String, Value>) {
     set.insert(
         "long_chars".into(),
         json!({"value": applied.params.long_chars, "from": from("outbound.long_chars")}),
+    );
+    set.insert(
+        "final_only".into(),
+        json!({"value": applied.params.final_only, "from": from("outbound.final_only")}),
     );
 }
 

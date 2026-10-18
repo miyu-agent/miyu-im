@@ -19,6 +19,7 @@ mod dependencies;
 mod disciplines;
 mod display_names;
 mod exports;
+mod final_only;
 mod followed;
 mod forwards;
 mod frames;

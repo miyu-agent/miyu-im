@@ -47,6 +47,7 @@ fn factory() -> Params {
         split_chars: 3000,
         long_text: crate::LongText::Image,
         long_chars: 300,
+        final_only: false,
     }
 }
 

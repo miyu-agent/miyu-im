@@ -282,3 +282,18 @@ fn defaults_carry_their_value_when_the_control_can_take_it() {
             .is_none()
     );
 }
+
+#[test]
+fn both_kinds_of_card_have_the_final_only_toggle() {
+    let set = cards(json!({"groups": [{"id": 7, "set": {"final_only": false}}]}));
+    let page = groups_page(&set, &known(), &words(), "zh");
+    let toggle = field(&page[1]["items"][1], "final_only");
+    assert_eq!(toggle["control"], "toggle");
+    assert_eq!(toggle["value"], false);
+    assert_eq!(toggle["label"]["zh"], "仅发送最终消息");
+    let friends = friends_page(&Cards::default(), &known(), &words(), "zh");
+    assert_eq!(
+        field(&friends[1]["items"][0], "final_only")["value"],
+        Value::Null
+    );
+}

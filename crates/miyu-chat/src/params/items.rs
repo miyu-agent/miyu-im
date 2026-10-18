@@ -225,6 +225,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.long_chars", CHARS_OR_NONE, |p, v| {
         p.long_chars = count(v)
     }),
+    // 仅发送最终消息（施工 O-57）。
+    item("outbound.final_only", Kind::Bool, |p, v| {
+        p.final_only = flag(v)
+    }),
     // 清理的两份名单（O-15 下）。两份标记照位置对上（[`PAIRED`]）。
     item("outbound.invisible", ONE_CHAR_EACH, |p, v| {
         p.outbound.invisible = texts(v).iter().filter_map(|c| c.chars().next()).collect()

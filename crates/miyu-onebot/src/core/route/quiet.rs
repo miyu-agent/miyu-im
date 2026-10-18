@@ -7,18 +7,31 @@
 //!
 //! 只记在内存里（「施工时定的」第 142 条）：（会话，回合编号）的一张表，推来那一轮的 `turn.ended` 清掉。群里桥重启照日志从头补，
 //! 那一轮还在跑的照样认得出；私聊不补从前的。事件照原样的 JSON 看，群里、私聊一个看法。
+//!
+//! 仅发送最终消息（施工 O-57，`speak.rs` 的 `say_or_hold`）也记在这里：她带工具调用的回复里的字先扣着（[`Quiet::hold`]），同
+//! 一回合后面说了不带工具调用的话、回合结束了再交出来（[`Quiet::release`]）；这一轮不说话了的，扣着的丢掉。
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
+use super::voicing::Voice;
 use crate::rules::SKIP_REPLY;
 
-/// 这一轮不说话了的会话和回合。
-#[derive(Debug, Default)]
+/// 这一轮不说话了的会话和回合；仅发送最终消息的场所里扣着的那段话。
+#[derive(Default)]
 pub(super) struct Quiet {
     /// （会话编号，回合编号）。
     turns: HashSet<(String, u64)>,
+    /// 扣着的：（她说话的那条线，回合编号）到那段话。
+    held: HashMap<(String, u64), Held>,
+}
+
+/// 扣着的一段话：发回哪个会话、哪一种、字。
+pub(super) struct Held {
+    pub(super) session: String,
+    pub(super) voice: Voice,
+    pub(super) text: String,
 }
 
 impl Quiet {
@@ -32,6 +45,8 @@ impl Quiet {
         match event["kind"].as_str() {
             Some("message.assistant") => {
                 if skips(event) {
+                    // 这一轮不说话了：仅发送最终消息时扣着的也不发。
+                    self.held.remove(&key);
                     self.turns.insert(key.clone());
                 }
                 self.turns.contains(&key)
@@ -43,6 +58,25 @@ impl Quiet {
             _ => false,
         }
     }
+}
+
+impl Quiet {
+    /// 扣着线 `line` 第 `turn` 回合的一段话（仅发送最终消息）：同一回合扣过的换成它。
+    pub(super) fn hold(&mut self, line: &str, turn: u64, held: Held) {
+        self.held.insert((line.to_string(), turn), held);
+    }
+
+    /// 交出线 `line` 第 `turn` 回合扣着的那段话（没有的是空的），不再扣着。
+    pub(super) fn release(&mut self, line: &str, turn: u64) -> Option<Held> {
+        self.held.remove(&(line.to_string(), turn))
+    }
+}
+
+/// 回复 `event` 里有没有工具调用块（仅发送最终消息：有的是中间那几步）。
+pub(super) fn has_calls(event: &Value) -> bool {
+    event["body"]["blocks"]
+        .as_array()
+        .is_some_and(|blocks| blocks.iter().any(|block| block["type"] == "tool_call"))
 }
 
 /// 回复 `event` 里有没有 `skip_reply` 的工具调用块。

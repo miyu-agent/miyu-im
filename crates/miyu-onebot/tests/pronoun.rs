@@ -1,5 +1,5 @@
 //! 给人看的字不写「她」（施工 O-29，`onebot.md` 第一条「给人看的字」；项目主人 2026-10-10 定）：接入QQ 的清单（名字、说明、
-//! 配置项的字）、后台页的字、桥说给人听的字、出厂参数文件里的说明，都不用「她」「彼女」「she」「her」，写「AI」或者换个说法。
+//! 配置项的字）、后台页的字、桥说给人听的字、出厂参数文件和出厂场所规则里的说明、场所卡片两页的字（施工 O-58 下），都不用「她」「彼女」「she」「her」，写「AI」或者换个说法。
 //! 给模型看的字（判官的模板、事实、工具说明）不在这一条里。
 
 /// 出厂的资源目录（拼成的，施工 S-6 中）。
@@ -8,13 +8,15 @@ fn resources() -> std::path::PathBuf {
 }
 
 /// 给人看的那几份，相对资源目录。
-const HUMAN_FACING: [&str; 6] = [
+const HUMAN_FACING: [&str; 8] = [
     "packages/onebot/package.toml",
     "packages/onebot/page/texts.js",
     "packages/onebot/data/human/zh.json",
     "packages/onebot/data/human/en.json",
     "packages/onebot/data/human/ja.json",
     "packages/onebot/data/defaults.toml",
+    "packages/onebot/data/venues.d/50-defaults.toml",
+    "packages/onebot/data/cards/human/page.json",
 ];
 
 /// 一行里有没有用代词说 AI：中文、日文照字，英文照整词（不分大小写）。

@@ -38,6 +38,8 @@ pub struct Params {
     pub long_text: LongText,
     /// 超过几个字算长文（`[outbound]` 的 `long_chars`）：`0` 是不算。
     pub long_chars: usize,
+    /// 仅发送最终消息（`[outbound]` 的 `final_only`，施工 O-57）：她这一轮调工具时说的话不发，只发最后那段。
+    pub final_only: bool,
 }
 
 /// 长文怎么发（施工 O-59 上，接入QQ 的场所卡片里「长文」那一格）：拆成几条、转成图、合并转发（O-59 下）。
@@ -180,6 +182,7 @@ fn blank() -> Params {
         split_chars: 0,
         long_text: LongText::Split,
         long_chars: 0,
+        final_only: false,
     }
 }
 

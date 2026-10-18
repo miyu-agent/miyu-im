@@ -71,6 +71,7 @@ fn every_group_field_lands_on_its_attribute() {
         "strip_period": false,
         "long_text": "split",
         "long_chars": 500,
+        "final_only": true,
     }}]}));
     assert_eq!(
         values(&full, &group("7")),
@@ -84,6 +85,7 @@ fn every_group_field_lands_on_its_attribute() {
                 Value::List(vec![text("miyu"), text("小羽")])
             ),
             ("managers".to_string(), Value::List(vec![text("qq:1001")])),
+            ("outbound.final_only".to_string(), Value::Bool(true)),
             ("outbound.long_chars".to_string(), Value::Int(500)),
             ("outbound.long_text".to_string(), text("split")),
             ("outbound.strip_period".to_string(), Value::Bool(false)),

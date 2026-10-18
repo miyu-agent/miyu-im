@@ -257,6 +257,7 @@ fn the_repository_factory_rules_set_groups_and_private_chats() {
     };
     let group_set = [
         ("discipline", text("chatty")),
+        ("outbound.final_only", Value::Bool(true)),
         ("parallel", Value::Int(1)),
         ("rate", text("5/300s")),
     ];
@@ -265,7 +266,8 @@ fn the_repository_factory_rules_set_groups_and_private_chats() {
         ("parallel", Value::Int(0)),
         ("rate", text("5/300s")),
     ];
-    // 不写 `persona`、`preset`、参数：跟着核心的默认和出厂参数走（第一条施工时定的第 16 条）。平台不挑。
+    // 不写 `persona`、`preset`、参数：跟着核心的默认和出厂参数走（第一条施工时定的第 16 条）；群的仅发送最终消息例外（施工 O-57：
+    // 群、私聊出厂不一样）。平台不挑。
     for platform in ["qq", "tg"] {
         assert_eq!(set(&on(platform, group("1"))), group_set);
         assert_eq!(set(&on(platform, private("1"))), private_set);

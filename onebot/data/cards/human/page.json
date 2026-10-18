@@ -45,9 +45,9 @@
     "ja": "会話"
   },
   "heading.call": {
-    "zh": "群里怎么叫她",
-    "en": "How she is called",
-    "ja": "呼びかけ"
+    "zh": "触发和插嘴",
+    "en": "Triggers and joining in",
+    "ja": "呼びかけと割り込み"
   },
   "heading.pace": {
     "zh": "节奏",
@@ -258,5 +258,15 @@
     "zh": "合并转发",
     "en": "As a forwarded bundle",
     "ja": "まとめて転送"
+  },
+  "field.final_only": {
+    "zh": "仅发送最终消息",
+    "en": "Only the final message",
+    "ja": "最終メッセージのみ送信"
+  },
+  "hint.final_only": {
+    "zh": "调工具时说的话不发，只发这一轮最后那段",
+    "en": "Words said while using tools are not sent, only the last reply of a turn",
+    "ja": "ツール使用中の発言は送らず、そのターン最後の返信だけを送る"
   }
 }

@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 
 use super::judges::Tag;
 use super::projection::{Carry, Seen};
+use super::voicing::Voice;
 use super::{Route, applied, reply_text};
 use crate::TARGET;
 use crate::core::{Gone, reason};
@@ -356,9 +357,17 @@ impl Route {
         };
         match group.lane_take(lane, &event) {
             Seen::Took { turn, msgs } => self.reactions.taken(session, lane, &msgs, turn),
-            Seen::Ended(turn) => self.reactions.done(session, lane, turn),
+            Seen::Ended(turn) => {
+                self.reactions.done(session, lane, turn);
+                // 仅发送最终消息时扣着的那段（施工 O-57）。
+                self.turn_closed(lane, raw).await?;
+            }
             Seen::Spoke(_) if quiet => self.hushed(session, &reply_text(raw)),
-            Seen::Spoke(speaking) => self.speak(session, speaking, &reply_text(raw)).await?,
+            Seen::Spoke(speaking) => {
+                let voice = Voice::Group(speaking);
+                self.say_or_hold((session, lane), raw, voice, reply_text(raw))
+                    .await?;
+            }
             Seen::Sealed => {
                 tracing::info!(target: TARGET, session, lane, "lane sealed");
                 // 这条支线取了几次（`fetch_media`）不用再记。

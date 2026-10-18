@@ -1,10 +1,10 @@
 # 群聊桥的出厂场所规则（docs/blueprint/chat.md 第一条，docs/designs/18-通讯平台.md 第四节）。
 #
 # 这份是软件包的默认值：群走主动回复判断（chatty），私聊每条都回（every-message）；限流都是 5 分钟 5 个回合；群里最多
-# 一条支线，私聊串行。
+# 一条支线，私聊串行。群里仅发送最终消息（调工具时说的话不发，施工 O-57），私聊每一步都发（出厂参数 final_only = false）。
 #
 # 不写 persona、preset：跟着核心的默认走（核心的 persona.default，预设以后照 preset.default）；写了反而把终端管理员改的默认
-# 盖掉。参数（chatty = { … } 这类）也不写，照出厂参数 defaults.toml。
+# 盖掉。参数（chatty = { … } 这类）也不写，照出厂参数 defaults.toml；群的仅发送最终消息是例外（群、私聊出厂不一样）。
 #
 # 不要改这份：要改，在系统的 venues.d/ 里写自己的规则文件，文件名排在后面的盖前面的（例如 80-my-groups.toml）；
 # 放一份同名的 50-defaults.toml，整份替换这一份。
@@ -14,6 +14,7 @@ match = { kind = "group" }
 discipline = "chatty"
 rate = "5/300s"
 parallel = 1
+outbound = { final_only = true }
 
 [[rule]]
 match = { kind = "private" }
