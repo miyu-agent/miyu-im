@@ -60,6 +60,7 @@
     "venue/system": "system",
     "venue/setting": "setting {key}",
     "venue/card-other-groups": "card \"Other groups\"",
+    "venue/card-other-privates": "card \"Other private chats\"",
     "venue/card-group": "card of group {id}",
     "venue/card-private": "card of private chat {id}",
     "venue/none": "No rule sets anything for this venue.",

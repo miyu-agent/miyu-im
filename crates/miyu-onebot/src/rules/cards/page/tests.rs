@@ -30,6 +30,7 @@ fn known() -> Known {
         whitelist: vec![9],
         defaults: json!({
             "other_groups": {"on": {"value": false, "from": null}},
+            "other_privates": {"on": {"value": false, "from": null}, "rate": {"value": "5/300s", "from": "factory"}},
             "groups": {"7": {"chatty": {"value": "some", "from": "factory"}, "managers": {"value": ["qq:1001"], "from": "setting"}, "persona": {"value": "miyu", "from": "system"}}},
             "privates": {"9": {"long_chars": {"value": 300, "from": "factory"}}},
         }),
@@ -135,12 +136,20 @@ fn the_friends_page_lists_the_whitelist_and_offers_other_friends() {
     let set = cards(json!({"privates": [{"id": 9, "set": {"long_text": "split"}}, {"id": 11}]}));
     let page = friends_page(&set, &known(), &words(), "zh");
     let items = page[1]["items"].as_array().expect("几项");
-    assert_eq!(items.len(), 1, "只列白名单成员：不在白名单里的卡不列");
-    assert_eq!(items[0]["title"], "lin");
-    assert!(items[0].get("state").is_none());
-    assert_eq!(field(&items[0], "long_text")["value"], "split");
     assert_eq!(
-        field(&items[0], "long_chars")["default"]["text"]["zh"],
+        items.len(),
+        2,
+        "「其他私聊」加白名单成员：不在白名单里的卡不列"
+    );
+    assert_eq!(items[0]["id"], "other", "「其他私聊」在最前面（施工 O-60）");
+    assert_eq!(items[0]["state"], "off", "出厂不回复");
+    assert!(!items[0]["blocks"].to_string().contains(REMOVE), "删不掉");
+    assert_eq!(field(&items[0], "rate")["control"], "text");
+    assert_eq!(items[1]["title"], "lin");
+    assert!(items[1].get("state").is_none());
+    assert_eq!(field(&items[1], "long_text")["value"], "split");
+    assert_eq!(
+        field(&items[1], "long_chars")["default"]["text"]["zh"],
         "默认 · 300"
     );
     assert_eq!(
@@ -158,7 +167,7 @@ fn the_friends_page_lists_the_whitelist_and_offers_other_friends() {
     );
     assert!(empty[1].get("add").is_none(), "没有可加的不写 add");
     assert_eq!(
-        empty[1]["items"][0]["blocks"][1]["fields"][0]["value"],
+        empty[1]["items"][1]["blocks"][1]["fields"][0]["value"],
         Value::Null,
         "没有卡的照空卡画"
     );
@@ -261,7 +270,7 @@ fn defaults_carry_their_value_when_the_control_can_take_it() {
     assert_eq!(field(other, "on")["default"]["value"], false, "开关是布尔");
     let friends = friends_page(&set, &known(), &words(), "zh");
     assert_eq!(
-        field(&friends[1]["items"][0], "long_chars")["default"]["value"],
+        field(&friends[1]["items"][1], "long_chars")["default"]["value"],
         300,
         "数字是数"
     );
@@ -293,7 +302,7 @@ fn both_kinds_of_card_have_the_final_only_toggle() {
     assert_eq!(toggle["label"]["zh"], "仅发送最终消息");
     let friends = friends_page(&Cards::default(), &known(), &words(), "zh");
     assert_eq!(
-        field(&friends[1]["items"][0], "final_only")["value"],
+        field(&friends[1]["items"][1], "final_only")["value"],
         Value::Null
     );
 }

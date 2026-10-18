@@ -59,7 +59,7 @@ enum Langs<'a> {
 }
 
 /// 拼的时候要的：她在的群、好友（号、名字）、人格（编号、名字）、白名单成员的号、卡片下面几层的默认值（`cards.get` 的
-/// `defaults` 的样子：`{"other_groups": {格: {value, from}}, "groups": {号: …}, "privates": {号: …}}`）。
+/// `defaults` 的样子：`{"other_groups": {格: {value, from}}, "other_privates": {…}, "groups": {号: …}, "privates": {号: …}}`）。
 #[derive(Debug, Clone, Default)]
 pub struct Known {
     /// 她在的群：号、群名。
@@ -110,6 +110,27 @@ const GROUP_FORMS: [Form; 4] = [
         ],
     ),
     ("pace", &[("sleep", Control::Text), ("rate", Control::Text)]),
+    (
+        "out",
+        &[
+            ("final_only", Control::Toggle),
+            ("long_text", Control::LongText),
+            ("long_chars", Control::Number),
+        ],
+    ),
+];
+
+/// 「其他私聊」卡的三组（施工 O-60）：对话多回复，另有节奏（限流）。
+const OTHER_PRIVATE_FORMS: [Form; 3] = [
+    (
+        "chat",
+        &[
+            ("on", Control::Toggle),
+            ("persona", Control::Persona),
+            ("extra_prompt", Control::Textarea),
+        ],
+    ),
+    ("pace", &[("rate", Control::Text)]),
     (
         "out",
         &[
@@ -199,10 +220,23 @@ pub fn friends_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> 
             langs,
             known,
         };
-        let items: Vec<Value> = known
+        // 「其他私聊」在最前面（施工 O-60），没有删掉。
+        let other = ink.item(
+            Item {
+                id: "other".into(),
+                title: ink.word("other_privates"),
+                subtitle: ink.word("other_privates_sub"),
+                card: json!({"kind": "other_privates"}),
+                removable: false,
+            },
+            &to_object(&cards.other_privates),
+            &known.defaults["other_privates"],
+            &OTHER_PRIVATE_FORMS,
+        );
+        let members = known
             .whitelist
             .iter()
-            .take(count.min(MAX_ITEMS))
+            .take(count.min(MAX_ITEMS).saturating_sub(1))
             .map(|id| {
                 let number = id.to_string();
                 let set = cards
@@ -224,8 +258,8 @@ pub fn friends_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> 
                     &known.defaults["privates"][&number],
                     &PRIVATE_FORMS,
                 )
-            })
-            .collect();
+            });
+        let items: Vec<Value> = std::iter::once(other).chain(members).collect();
         let options = choices(&known.friends, &known.whitelist, FRIEND_PREFIX);
         let sections = sections(items, ink.word("add_friend"), options);
         json!([{"type": "buttons", "items": [{"label": ink.word("to_groups"), "action": {"open": GROUPS}}]}, sections])
@@ -338,7 +372,11 @@ impl Ink<'_> {
             blocks.push(json!({"type": "buttons", "items": [{"label": self.word("remove"), "action": {"call": REMOVE, "params": {"card": item.card}}}]}));
         }
         let mut section = json!({"id": item.id, "title": item.title, "subtitle": item.subtitle, "blocks": blocks});
-        if forms.len() == GROUP_FORMS.len() {
+        // 有「回复」这一格的卡（群卡、两张「其他」）画状态点。
+        if forms
+            .iter()
+            .any(|(_, fields)| fields.iter().any(|(key, _)| *key == "on"))
+        {
             let on = set
                 .get("on")
                 .or(defaults["on"].get("value"))

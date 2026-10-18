@@ -1,5 +1,5 @@
 //! 卡片拼出来的规则（施工 O-58 上）：交群聊内核读得出、零问题；每一格落到对的属性；「其他群」不漏进名单里的群；没写的格什么
-//! 都不设；字照原样读回；文件名认得出是哪一张卡；读卡片的样子只认这几格。
+//! 都不设；字照原样读回；文件名认得出是哪一张卡；读卡片的样子只认这几格；「其他私聊」管陌生人、排开白名单成员和终端管理员。
 
 use serde_json::json;
 
@@ -23,9 +23,10 @@ fn cards(json: serde_json::Value) -> Cards {
     serde_json::from_value(json).expect("卡片的样子")
 }
 
-/// 拼好、读出来，断定没有问题；交回套到 `venue` 上每一项的值。
+/// 拼好、读出来，断定没有问题；交回套到 `venue` 上每一项的值。私聊卡的号当白名单成员：「其他私聊」不管他们（施工 O-60）。
 fn values(cards: &Cards, venue: &Venue) -> Vec<(String, Value)> {
-    let parsed = Rules::parse(&cards.files());
+    let listed: Vec<u64> = cards.privates.iter().map(|card| card.id).collect();
+    let parsed = Rules::parse(&cards.files_except(&listed));
     assert_eq!(parsed.problems, []);
     parsed
         .rules
@@ -48,12 +49,16 @@ fn text(value: &str) -> Value {
 fn without_cards_other_groups_are_off_and_private_chats_untouched() {
     let empty = Cards::default();
     let names: Vec<String> = empty.files().into_iter().map(|file| file.name).collect();
-    assert_eq!(names, ["70-card-a.toml"]);
+    assert_eq!(names, ["70-card-a.toml", "70-card-b.toml"]);
     assert_eq!(
         values(&empty, &group("1")),
         [("allow".to_string(), Value::Bool(false))]
     );
-    assert_eq!(values(&empty, &private("1")), []);
+    // 「其他私聊」出厂不回复（施工 O-60）。
+    assert_eq!(
+        values(&empty, &private("1")),
+        [("allow".to_string(), Value::Bool(false))]
+    );
 }
 
 #[test]
@@ -151,7 +156,11 @@ fn private_cards_set_only_their_own_chat() {
             ("persona".to_string(), text("engineer")),
         ]
     );
-    assert_eq!(values(&set, &private("10")), []);
+    assert_eq!(
+        values(&set, &private("10")),
+        [("allow".to_string(), Value::Bool(false))],
+        "陌生人照「其他私聊」"
+    );
     assert_eq!(
         values(&set, &group("9")),
         [("allow".to_string(), Value::Bool(false))]
@@ -163,7 +172,7 @@ fn a_number_written_twice_keeps_the_first_card() {
     let twice = cards(
         json!({"groups": [{"id": 7, "set": {"rate": "1/60s"}}, {"id": 7, "set": {"rate": "2/60s"}}]}),
     );
-    assert_eq!(twice.files().len(), 2);
+    assert_eq!(twice.files().len(), 3);
     let rate = values(&twice, &group("7"))
         .into_iter()
         .find(|(key, _)| key == "rate");
@@ -228,7 +237,7 @@ fn only_known_fields_are_read_and_unset_ones_are_not_written() {
     let some = cards(json!({"groups": [{"id": 1, "set": {"rate": "1/60s"}}]}));
     assert_eq!(
         serde_json::to_value(&some).expect("写得出"),
-        json!({"other_groups": {}, "groups": [{"id": 1, "set": {"rate": "1/60s"}}], "privates": []})
+        json!({"other_groups": {}, "groups": [{"id": 1, "set": {"rate": "1/60s"}}], "privates": [], "other_privates": {}})
     );
 }
 
@@ -267,5 +276,55 @@ fn the_final_period_is_no_longer_a_card_field() {
             json!({"groups": [{"id": 7, "set": {"strip_period": false}}]})
         )
         .is_err()
+    );
+}
+
+#[test]
+fn other_private_chats_have_their_own_card_that_leaves_known_people_alone() {
+    // 「其他私聊」（施工 O-60）：回复、人格、附加提示词、限流、出站的几格；白名单成员和认出来的终端管理员排开。
+    let set = cards(json!({"other_privates": {
+        "on": true,
+        "persona": "engineer",
+        "extra_prompt": "陌生人",
+        "rate": "3/60s",
+        "final_only": true,
+        "long_text": "split",
+    }}));
+    let parsed = Rules::parse(&set.files_except(&[20, 30]));
+    assert_eq!(parsed.problems, []);
+    let strangers: Vec<String> = parsed
+        .rules
+        .resolve(&private("10"))
+        .entries
+        .into_keys()
+        .map(|key| key.to_string())
+        .collect();
+    assert_eq!(
+        strangers,
+        [
+            "allow",
+            "extra_prompt",
+            "outbound.final_only",
+            "outbound.long_text",
+            "persona",
+            "rate"
+        ]
+    );
+    assert!(
+        parsed.rules.resolve(&private("20")).entries.is_empty(),
+        "白名单成员不套"
+    );
+    assert!(
+        parsed.rules.resolve(&private("30")).entries.is_empty(),
+        "终端管理员不套"
+    );
+    assert_eq!(Card::parse("70-card-b.toml"), Some(Card::OtherPrivates));
+    assert_eq!(
+        Card::OtherPrivates.json(),
+        json!({"kind": "other_privates"})
+    );
+    assert!(
+        serde_json::from_value::<Cards>(json!({"other_privates": {"keywords": ["x"]}})).is_err(),
+        "触发词是群的"
     );
 }

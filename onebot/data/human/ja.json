@@ -60,6 +60,7 @@
     "venue/system": "システム",
     "venue/setting": "設定 {key}",
     "venue/card-other-groups": "カード「ほかのグループ」",
+    "venue/card-other-privates": "カード「ほかの個人チャット」",
     "venue/card-group": "グループ {id} のカード",
     "venue/card-private": "個別チャット {id} のカード",
     "venue/none": "この場所に設定しているルールはありません。",

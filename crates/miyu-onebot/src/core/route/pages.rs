@@ -74,7 +74,12 @@ impl Route {
         }
         let known = Known {
             whitelist,
-            defaults: json!({"other_groups": self.group_defaults(0), "groups": groups, "privates": privates}),
+            defaults: json!({
+                "other_groups": self.group_defaults(0),
+                "other_privates": self.other_private_defaults(),
+                "groups": groups,
+                "privates": privates,
+            }),
             ..Known::default()
         };
         let job = Job {
@@ -130,7 +135,7 @@ impl Route {
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
         Some(match card_edit::update(&cards, card, &values) {
-            Edit::Done(next) => self.store(next, &words, &lang),
+            Edit::Done(next) => self.store(*next, &words, &lang),
             Edit::Missing => json!({"saved": false, "message": words.get("missing", &lang)}),
             Edit::Problems(problems) => {
                 let problems: Vec<Value> = problems
@@ -199,6 +204,7 @@ impl Route {
         }
         tracing::info!(target: TARGET, groups = cards.groups.len(), privates = cards.privates.len(), "venue cards saved");
         self.rules.set_cards(cards);
+        self.forget_privates();
         self.repush_pages();
         json!({"saved": true})
     }

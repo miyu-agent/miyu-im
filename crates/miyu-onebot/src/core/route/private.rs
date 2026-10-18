@@ -1,8 +1,8 @@
 //! 一条私聊（`onebot.md` 第一条「怎么走」第 6 到 8 条，中间是「斜杠命令」；施工 O-36 从 `route.rs` 挪出来，那一份行数到了上限）：
 //! 场所、平台上的人经群聊内核拼，拼不出来的记一行、这条不送；带上场所的格，`show_ids` 照这个私聊套出来的场所规则；白名单成员的
-//! 私聊照场所规则带人格、预设、工作区（施工 O-27）；只有图、引用的照取图（施工 O-33），合并转发照群消息的写法（施工 O-34）。
+//! 私聊照场所规则带人格、预设、工作区（施工 O-27）；陌生人照「其他私聊」卡过进站链（施工 O-60，`strangers`）；只有图、引用的照取图（施工 O-33），合并转发照群消息的写法（施工 O-34）。
 
-use miyu_chat::VenueKind;
+use miyu_chat::{Outcome, VenueKind, Why};
 use serde_json::json;
 
 use super::fields::{Flags, fields};
@@ -34,14 +34,40 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
-        // 私聊每一条都开回合：不写 `ambient`、`asleep`（「施工时定的」第 68 条）。
+        // 陌生人（施工 O-60，`strangers`）：不在白名单里、「其他私聊」卡让接的才问是不是终端管理员（卡关着的照原来办，不多问一趟），
+        // 是的这张卡不再管他；不是的照这张卡过进站链。
+        let stranger = !self.whitelisted(&external)
+            && applied::allow(&self.applied(&venue)) == Some(true)
+            && match self.terminal_admin(external.as_str()).await? {
+                Some(true) => {
+                    self.rules.add_admin(posted.user.unsigned_abs());
+                    false
+                }
+                Some(false) => true,
+                // 问不到的照原来办：核心那头不接陌生人。
+                None => false,
+            };
+        // 私聊每一条都开回合：不写 `ambient`、`asleep`（「施工时定的」第 68 条）；陌生人睡觉时间、限流满了的只记下（施工 O-60）。
         let applied = self.applied(&venue);
-        let flags = Flags {
+        let mut flags = Flags {
             show_ids: applied::show_ids(&applied),
             ..Flags::default()
         };
-        // 白名单成员的私聊会话归系统账号、照场所规则造（施工 O-27，同群）。
-        let listed = self.whitelisted(&external).then_some(&applied);
+        let mut taken = self.whitelisted(&external);
+        if stranger {
+            match self.stranger(&venue, &external, &text) {
+                Outcome::Pass => taken = true,
+                Outcome::RecordOnly(Why::NotAllowed) => {}
+                Outcome::RecordOnly(why) => {
+                    taken = true;
+                    flags.ambient = true;
+                    flags.asleep = why == Why::Asleep;
+                    tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "stranger recorded only");
+                }
+            }
+        }
+        // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
+        let listed = taken.then_some(&applied);
         let message = Message {
             id: command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
@@ -53,12 +79,12 @@ impl Route {
             forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),
         };
         // 附加提示词放进 system（施工 O-58 上，`titled`）：先找到会话、放好，这一条开的轮就带上。找过的会话照新的换；没找过的
-        // 只为白名单成员的提示词先找（陌生人、管理员照旧交的时候才找，不多问一次）。
+        // 照规则接的（白名单成员、照卡片接的陌生人）先找：交的时候本来也要找，找到的记着，不多问一次；没有提示词的也放（交 `null`
+        // 去掉卡片存了以后忘掉的会话上留着的那一层，O-60）。终端管理员照旧交的时候才找。
         let note = applied::extra_prompt(&applied).map(str::to_string);
         let venue = message.place.peer.venue.to_string();
         let known = self.venues.contains_key(&venue);
-        if (known
-            || (note.is_some() && message.place.listed() && self.found(&message.place).await?))
+        if (known || (message.place.listed() && self.found(&message.place).await?))
             && let Some(session) = self.venues.get(&venue).cloned()
         {
             self.noted(&session, note.as_deref()).await?;

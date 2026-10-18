@@ -221,6 +221,7 @@ impl Texts {
             Source::Settings => {
                 return match Card::parse(file) {
                     Some(Card::OtherGroups) => self.say("venue/card-other-groups", &[]),
+                    Some(Card::OtherPrivates) => self.say("venue/card-other-privates", &[]),
                     Some(Card::Group(id)) => {
                         self.say("venue/card-group", &[("id", id.to_string())])
                     }

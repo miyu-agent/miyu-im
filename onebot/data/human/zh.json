@@ -60,6 +60,7 @@
     "venue/system": "系统",
     "venue/setting": "配置项 {key}",
     "venue/card-other-groups": "卡片「其他群」",
+    "venue/card-other-privates": "卡片「其他私聊」",
     "venue/card-group": "群 {id} 的卡片",
     "venue/card-private": "私聊 {id} 的卡片",
     "venue/none": "没有规则设到这个场所。",

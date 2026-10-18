@@ -42,6 +42,17 @@ pub fn private(applied: &Applied) -> Value {
     Value::Object(set)
 }
 
+/// 「其他私聊」卡的默认值（施工 O-60）：私聊卡的几格，另有回复（没有规则设到的不回复）、限流。
+pub fn other_private(applied: &Applied) -> Value {
+    let mut set = private(applied);
+    if let Value::Object(set) = &mut set {
+        let on = entry(applied, "allow").unwrap_or_else(|| json!({"value": false, "from": null}));
+        set.insert("on".into(), on);
+        set.insert("rate".into(), plain(applied, "rate"));
+    }
+    set
+}
+
 /// 规则设到的一格；没设的 `{value: null, from: null}`。
 fn plain(applied: &Applied, key: &str) -> Value {
     entry(applied, key).unwrap_or_else(|| json!({"value": null, "from": null}))

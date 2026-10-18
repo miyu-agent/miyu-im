@@ -14,7 +14,7 @@ use super::{Card, Cards, GroupCard, GroupSet, PrivateCard, PrivateSet};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Edit {
     /// 改好了的全部卡片：调的一方存盘、换上。
-    Done(Cards),
+    Done(Box<Cards>),
     /// 有问题，什么都不改：哪一格、原因码（群聊内核的，或者读不出的 `value`）。
     Problems(Vec<(String, String)>),
     /// 那张卡不在。
@@ -26,6 +26,7 @@ pub fn card_of(value: &Value) -> Option<Card> {
     let id = || value["id"].as_u64();
     match value["kind"].as_str()? {
         "other_groups" => Some(Card::OtherGroups),
+        "other_privates" => Some(Card::OtherPrivates),
         "group" => Some(Card::Group(id()?)),
         "private" => Some(Card::Private(id()?)),
         _ => None,
@@ -37,6 +38,7 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
     let merged = match card {
         Card::OtherGroups => merge(&mut next.other_groups, values),
+        Card::OtherPrivates => merge(&mut next.other_privates, values),
         Card::Group(id) => match next.groups.iter_mut().find(|one| one.id == id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
@@ -66,17 +68,17 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
         })
         .collect();
     if problems.is_empty() {
-        Edit::Done(next)
+        Edit::Done(Box::new(next))
     } else {
         Edit::Problems(problems)
     }
 }
 
-/// 加一张空卡：已经有的照旧（交回原样）。「其他群」本来就有。
+/// 加一张空卡：已经有的照旧（交回原样）。「其他群」「其他私聊」本来就有。
 pub fn add(cards: &Cards, card: Card) -> Cards {
     let mut next = cards.clone();
     match card {
-        Card::OtherGroups => {}
+        Card::OtherGroups | Card::OtherPrivates => {}
         Card::Group(id) if !next.groups.iter().any(|one| one.id == id) => {
             next.groups.push(GroupCard {
                 id,
@@ -94,11 +96,11 @@ pub fn add(cards: &Cards, card: Card) -> Cards {
     next
 }
 
-/// 删一张：「其他群」删不掉（交回空的），没有的照旧。
+/// 删一张：「其他群」「其他私聊」删不掉（交回空的），没有的照旧。
 pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
     let mut next = cards.clone();
     match card {
-        Card::OtherGroups => return None,
+        Card::OtherGroups | Card::OtherPrivates => return None,
         Card::Group(id) => next.groups.retain(|one| one.id != id),
         Card::Private(id) => next.privates.retain(|one| one.id != id),
     }

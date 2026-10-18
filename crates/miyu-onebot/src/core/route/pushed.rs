@@ -26,9 +26,7 @@ impl Route {
             self.rules.configure(keys);
             if let Some(value) = keys.get(&whitelist_key()) {
                 self.whitelist = whitelist(value);
-                let groups = &self.groups;
-                self.venues
-                    .retain(|_, session| groups.contains_key(session));
+                self.forget_privates();
                 tracing::info!(target: TARGET, count = self.whitelist.len(), "whitelist changed");
                 // 私聊页照新的白名单推（施工 O-58 下）。
                 self.repush_pages();

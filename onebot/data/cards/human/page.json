@@ -263,5 +263,15 @@
     "zh": "调工具时说的话不发，只发这一轮最后那段",
     "en": "Words said while using tools are not sent, only the last reply of a turn",
     "ja": "ツール使用中の発言は送らず、そのターン最後の返信だけを送る"
+  },
+  "other_privates": {
+    "zh": "其他私聊",
+    "en": "Other private chats",
+    "ja": "ほかの個人チャット"
+  },
+  "other_privates_sub": {
+    "zh": "白名单以外的人",
+    "en": "People not on the whitelist",
+    "ja": "ホワイトリスト外の人"
   }
 }

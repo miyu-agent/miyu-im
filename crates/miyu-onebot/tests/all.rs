@@ -73,6 +73,7 @@ mod status_file;
 mod stdio;
 mod steering;
 mod stickers;
+mod strangers;
 mod superseded;
 mod text;
 mod texts;

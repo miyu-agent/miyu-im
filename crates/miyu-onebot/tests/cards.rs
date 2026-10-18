@@ -71,7 +71,7 @@ async fn saved_cards_decide_where_she_talks_at_once() {
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     assert_eq!(
         on_disk(&home),
-        json!({"other_groups": {}, "groups": [{"id": LISTED, "set": {"long_text": "forward", "long_chars": 1}}], "privates": []})
+        json!({"other_groups": {}, "groups": [{"id": LISTED, "set": {"long_text": "forward", "long_chars": 1}}], "privates": [], "other_privates": {}})
     );
     napcat.send(called(OTHER, 1));
     let other = format!("qq:group:{OTHER}");
@@ -228,6 +228,18 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         "去句号不在卡片上：{private}"
     );
     assert!(private.get("rate").is_none(), "私聊卡没有限流：{private}");
+    // 「其他私聊」（施工 O-60）：测具没写这张卡，出厂不回复；限流照出厂规则私聊的那一档。
+    let others = &got["defaults"]["other_privates"];
+    assert_eq!(
+        others["on"],
+        json!({"value": false, "from": null}),
+        "{others}"
+    );
+    assert_eq!(
+        others["rate"],
+        json!({"value": "5/300s", "from": "factory"}),
+        "{others}"
+    );
     stopped(home).await;
 }
 

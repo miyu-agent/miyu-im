@@ -101,7 +101,8 @@ fn without_system_rules_the_factory_ones_are_shown() {
         shown(&root, "qq:private:5", &zh(&resources())),
         (
             0,
-            "discipline = \"every-message\"（出厂 50-defaults.toml 第 2 条规则，第 21 行）\n\
+            "allow = false（卡片「其他私聊」）\n\
+             discipline = \"every-message\"（出厂 50-defaults.toml 第 2 条规则，第 21 行）\n\
              parallel = 0（出厂 50-defaults.toml 第 2 条规则，第 23 行）\n\
              rate = \"5/300s\"（出厂 50-defaults.toml 第 2 条规则，第 22 行）\n\
              没列出的参数照出厂的 defaults.toml。\n"
@@ -115,10 +116,11 @@ fn without_system_rules_the_factory_ones_are_shown() {
 #[test]
 fn a_venue_nothing_sets_says_so() {
     let (dir, root) = temp_root();
-    // 同名的空文件替换出厂的那一份：什么规则都没有（私聊：卡片「其他群」只管群）。
+    // 同名的空文件替换出厂的那一份：什么规则都没有（白名单成员的私聊：卡片「其他群」只管群，「其他私聊」不管白名单成员）。
     system_rule(&root, "50-defaults.toml", "");
+    let listed = Configured::handed(&serde_json::json!({"onebot.whitelist": ["qq:1"]}));
     assert_eq!(
-        shown(&root, "qq:private:1", &zh(&resources())),
+        shown_with(&root, "qq:private:1", &zh(&resources()), Ok(listed)),
         (
             0,
             "没有规则设到这个场所。\n没列出的参数照出厂的 defaults.toml。\n".to_string(),

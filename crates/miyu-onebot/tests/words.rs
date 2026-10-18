@@ -13,7 +13,12 @@ fn the_system_word_list_replaces_the_factory_one() {
     let (dir, root) = temp_root();
     let factory = factory();
     let path = system_words(&root, "# 我们群的\nfoo\n\n  bar  \nfoo\n");
-    let loaded = load(&factory, &root, &Configured::default(), &Cards::default());
+    let loaded = load(
+        &factory,
+        &root,
+        &Configured::default(),
+        (&Cards::default(), &[]),
+    );
     assert_eq!(
         loaded.keywords,
         ["foo", "bar"],
@@ -21,7 +26,12 @@ fn the_system_word_list_replaces_the_factory_one() {
     );
     assert_eq!(loaded.problems, []);
     std::fs::write(&path, b"foo\n\xff\n").expect("写得进");
-    let loaded = load(&factory, &root, &Configured::default(), &Cards::default());
+    let loaded = load(
+        &factory,
+        &root,
+        &Configured::default(),
+        (&Cards::default(), &[]),
+    );
     assert_eq!(loaded.keywords, Vec::<String>::new(), "读不成的照空的用");
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];
@@ -31,9 +41,14 @@ fn the_system_word_list_replaces_the_factory_one() {
     );
     std::fs::remove_file(&path).expect("删得了");
     assert_eq!(
-        load(&factory, &root, &Configured::default(), &Cards::default())
-            .keywords
-            .len(),
+        load(
+            &factory,
+            &root,
+            &Configured::default(),
+            (&Cards::default(), &[])
+        )
+        .keywords
+        .len(),
         FACTORY_WORDS
     );
     clean(&dir);
@@ -44,11 +59,16 @@ fn word_list_problems_come_after_the_rule_files() {
     let (dir, root) = temp_root();
     system_words(&root, b"\xff");
     system_rule(&root, "99-bad.toml", "nonsense = 1\n");
-    let files: Vec<String> = load(&factory(), &root, &Configured::default(), &Cards::default())
-        .problems
-        .into_iter()
-        .map(|problem| problem.file)
-        .collect();
+    let files: Vec<String> = load(
+        &factory(),
+        &root,
+        &Configured::default(),
+        (&Cards::default(), &[]),
+    )
+    .problems
+    .into_iter()
+    .map(|problem| problem.file)
+    .collect();
     assert_eq!(files, ["99-bad.toml", "moderation.txt"]);
     clean(&dir);
 }

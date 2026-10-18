@@ -5,7 +5,8 @@
 //! - 一张卡拼成一份规则文件、一条规则（[`Cards::files`]）：文件名里写着是哪一张卡（[`Card::parse`]），问题、来处照它说成
 //!   「哪一张卡」。先后照文件名：「其他群」在最前面（匹配名单以外的群：`not_group`，名单里的群不继承它设的格），每个群一条，
 //!   每个私聊一条。
-//! - 每一格可选，没写的照下面几层（配置项、出厂、系统的规则）。群卡没写 `on` 的接话（在白名单里），「其他群」没写的不接。
+//! - 每一格可选，没写的照下面几层（配置项、出厂、系统的规则）。群卡没写 `on` 的回复（在白名单里），「其他群」「其他私聊」（施工
+//!   O-60：陌生人的私聊，不管白名单成员和认出来的终端管理员）没写的不回复。
 //! - 插嘴四档：`never` 拼成 `discipline = "when-called"`，别的三档拼成 `discipline = "chatty"` 加 `chatty.probability`
 //!   （[`PROBABILITY`]，「施工时定的」）。长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。去句号
 //!   O-58 补二挪成配置项（`configured`）：是通用的，不进卡片。
@@ -130,6 +131,33 @@ pub struct PrivateSet {
     pub final_only: Option<bool>,
 }
 
+/// 「其他私聊」卡能设的几格（施工 O-60）：陌生人（不是终端管理员、不在白名单里的人）的私聊。回复没写的不回复。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct OtherPrivateSet {
+    /// 回复不回复：拼成 `allow`。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on: Option<bool>,
+    /// 人格。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persona: Option<String>,
+    /// 附加提示词。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra_prompt: Option<String>,
+    /// 限流：写法同规则的 `rate`。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate: Option<String>,
+    /// 长文怎么发。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub long_text: Option<LongText>,
+    /// 超过几个字算长文，0 是不算。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub long_chars: Option<u32>,
+    /// 仅发送最终消息。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub final_only: Option<bool>,
+}
+
 /// 一个群的卡。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -162,6 +190,8 @@ pub struct Cards {
     pub groups: Vec<GroupCard>,
     /// 白名单成员，一人一张。
     pub privates: Vec<PrivateCard>,
+    /// 「其他私聊」：陌生人的私聊（施工 O-60）。
+    pub other_privates: OtherPrivateSet,
 }
 
 /// 一张卡是哪一张：拼出来的文件名里写着。
@@ -169,6 +199,8 @@ pub struct Cards {
 pub enum Card {
     /// 「其他群」。
     OtherGroups,
+    /// 「其他私聊」（施工 O-60）。
+    OtherPrivates,
     /// 群号是它的那个群。
     Group(u64),
     /// 对方的号是它的那个私聊。
@@ -176,10 +208,12 @@ pub enum Card {
 }
 
 impl Card {
-    /// 拼出来的文件名：`70-card-a.toml`、`70-card-g-<群号>.toml`、`70-card-p-<号>.toml`，照字排就是「其他群」、群、私聊。
+    /// 拼出来的文件名：`70-card-a.toml`、`70-card-b.toml`、`70-card-g-<群号>.toml`、`70-card-p-<号>.toml`，照字排就是「其他群」、
+    /// 「其他私聊」、群、私聊。
     fn file_name(self) -> String {
         match self {
             Card::OtherGroups => format!("{PREFIX}a.toml"),
+            Card::OtherPrivates => format!("{PREFIX}b.toml"),
             Card::Group(id) => format!("{PREFIX}g-{id}.toml"),
             Card::Private(id) => format!("{PREFIX}p-{id}.toml"),
         }
@@ -188,8 +222,10 @@ impl Card {
     /// 照文件名认是哪一张卡：不是卡片拼的文件的是空的。
     pub fn parse(file: &str) -> Option<Card> {
         let rest = file.strip_prefix(PREFIX)?.strip_suffix(".toml")?;
-        if rest == "a" {
-            return Some(Card::OtherGroups);
+        match rest {
+            "a" => return Some(Card::OtherGroups),
+            "b" => return Some(Card::OtherPrivates),
+            _ => {}
         }
         let (kind, id) = rest.split_once('-')?;
         let id = id.parse().ok()?;
@@ -204,6 +240,7 @@ impl Card {
     pub fn json(self) -> Value {
         match self {
             Card::OtherGroups => serde_json::json!({"kind": "other_groups"}),
+            Card::OtherPrivates => serde_json::json!({"kind": "other_privates"}),
             Card::Group(id) => serde_json::json!({"kind": "group", "id": id}),
             Card::Private(id) => serde_json::json!({"kind": "private", "id": id}),
         }
@@ -212,14 +249,28 @@ impl Card {
 
 impl Cards {
     /// 拼成规则文件：一张卡一份、一条规则，照文件名的先后（[`Card::parse`] 认得回来）。同一个号写了两张的只拼第一张。
+    /// 「其他私聊」不管的号一个都不排（查写法用；场所规则那一层照 [`Cards::files_except`]）。
     pub fn files(&self) -> Vec<File> {
+        self.files_except(&[])
+    }
+
+    /// 同 [`Cards::files`]，「其他私聊」不管 `known` 这几个号（白名单成员、认出来的终端管理员，施工 O-60）。
+    pub fn files_except(&self, known: &[u64]) -> Vec<File> {
         let listed: Vec<String> = self.groups.iter().map(|card| card.id.to_string()).collect();
         let others = Matcher::Others(listed.join(", "));
-        let mut files = vec![file(
-            Card::OtherGroups,
-            &others,
-            &group_lines(&self.other_groups, false),
-        )];
+        let known: Vec<String> = known.iter().map(u64::to_string).collect();
+        let mut files = vec![
+            file(
+                Card::OtherGroups,
+                &others,
+                &group_lines(&self.other_groups, false),
+            ),
+            file(
+                Card::OtherPrivates,
+                &Matcher::Strangers(known.join(", ")),
+                &other_private_lines(&self.other_privates),
+            ),
+        ];
         let mut seen = std::collections::BTreeSet::new();
         for card in &self.groups {
             if seen.insert(Card::Group(card.id)) {
@@ -254,15 +305,19 @@ enum Matcher {
     Others(String),
     /// 群卡、私聊卡：只配它自己。
     Own,
+    /// 「其他私聊」：私聊，但不是这几个号（白名单成员、认出来的终端管理员，照 `, ` 连好，施工 O-60）。
+    Strangers(String),
 }
 
 /// 一张卡的那一份：`[[rule]]`、匹配条件、设的几格。
 fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
     let matcher = match (card, matcher) {
         (_, Matcher::Others(listed)) => format!("{{ kind = \"group\", not_group = [{listed}] }}"),
+        (_, Matcher::Strangers(known)) => format!("{{ kind = \"private\", not_user = [{known}] }}"),
         (Card::Group(id), Matcher::Own) => format!("{{ kind = \"group\", group = [{id}] }}"),
         (Card::Private(id), Matcher::Own) => format!("{{ kind = \"private\", user = [{id}] }}"),
         (Card::OtherGroups, Matcher::Own) => "{ kind = \"group\" }".to_string(),
+        (Card::OtherPrivates, Matcher::Own) => "{ kind = \"private\" }".to_string(),
     };
     let mut text = format!("[[rule]]\nmatch = {matcher}\n");
     for line in lines {
@@ -313,6 +368,16 @@ fn private_lines(set: &PrivateSet) -> Vec<String> {
     let mut lines = Vec::new();
     push_text(&mut lines, "persona", set.persona.as_deref());
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
+    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
+    lines
+}
+
+/// 「其他私聊」的几行（施工 O-60）：`allow` 一定写（没写的不回复），别的设了才写。
+fn other_private_lines(set: &OtherPrivateSet) -> Vec<String> {
+    let mut lines = vec![format!("allow = {}", set.on.unwrap_or(false))];
+    push_text(&mut lines, "persona", set.persona.as_deref());
+    push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
+    push_text(&mut lines, "rate", set.rate.as_deref());
     push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
     lines
 }

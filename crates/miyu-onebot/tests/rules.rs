@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use miyu_chat::{Entry, Origin, Source, Venue, VenueKind};
 use miyu_config::Value;
 use miyu_config::problem::Code;
-use miyu_onebot::rules::{Cards, Configured, Factory, load};
+use miyu_onebot::rules::{Cards, Configured, Factory, Loaded, load};
 use miyu_store::root::DataRoot;
 
 use crate::support::*;
@@ -112,10 +112,20 @@ fn beneath_cards(
         .collect()
 }
 
+/// 只有出厂的、系统的规则文件，没有设置、卡片、管理员。
+fn plain(root: &DataRoot) -> Loaded {
+    load(
+        &factory(),
+        root,
+        &Configured::default(),
+        (&Cards::default(), &[]),
+    )
+}
+
 #[test]
 fn the_factory_data_is_read_clean() {
     let (dir, root) = temp_root();
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     assert_eq!(loaded.problems, [], "出厂的、没有系统的：零问题");
     assert_eq!(loaded.keywords.len(), FACTORY_WORDS);
     let applied = loaded.at(&group("1"));
@@ -170,7 +180,7 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
         "80-late.toml",
         "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { probability = 80 }\njudge = { retries = 3 }\n",
     );
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     assert_eq!(loaded.problems, []);
     let one = loaded.at(&group("1"));
     let late = |value, line| entry(value, Source::System, "80-late.toml", 1, line);
@@ -217,10 +227,7 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
 fn a_system_file_with_the_same_name_replaces_the_factory_one() {
     let (dir, root) = temp_root();
     system_rule(&root, "50-defaults.toml", "[[rule]]\nparallel = 2\n");
-    let entries = load(&factory(), &root, &Configured::default(), &Cards::default())
-        .at(&group("1"))
-        .resolved
-        .entries;
+    let entries = plain(&root).at(&group("1")).resolved.entries;
     assert_eq!(
         beneath_cards(entries),
         [(
@@ -242,7 +249,7 @@ fn only_rule_files_are_read() {
     system_rule(&root, "80-backup.toml~", rule);
     system_rule(&root, ".#80-lock.toml", rule);
     std::fs::create_dir_all(root.system().join("venues.d").join("80-dir.toml")).expect("建得了");
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     assert_eq!(loaded.problems, [], "不是规则文件的不读，也不报");
     assert_eq!(
         loaded.at(&group("1")).resolved.entries.get("show_ids"),
@@ -250,11 +257,7 @@ fn only_rule_files_are_read() {
     );
     system_rule(&root, "90-real.toml", rule);
     assert_eq!(
-        load(&factory(), &root, &Configured::default(), &Cards::default())
-            .at(&group("1"))
-            .resolved
-            .entries["show_ids"]
-            .value,
+        plain(&root).at(&group("1")).resolved.entries["show_ids"].value,
         Value::Bool(true)
     );
     clean(&dir);
@@ -280,7 +283,7 @@ fn a_system_mistake_drops_only_that_part_and_is_reported() {
         "95-gbk.toml",
         b"[[rule]]\nparallel = 2\n# \xc4\xe3\n",
     );
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     let entries = loaded.at(&group("1")).resolved.entries;
     assert_eq!(entries["parallel"].value, Value::Int(3), "别的照收");
     assert_eq!(
@@ -331,7 +334,7 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
         "50-defaults.toml",
         b"[[rule]]\nparallel = 2 # \xff\n",
     );
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     assert_eq!(
         beneath_cards(loaded.at(&group("1")).resolved.entries),
         [],
@@ -347,7 +350,7 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
 fn venues_d_that_cannot_be_listed_is_a_problem() {
     let (dir, root) = temp_root();
     std::fs::write(root.system().join("venues.d"), "not a directory").expect("写得进");
-    let loaded = load(&factory(), &root, &Configured::default(), &Cards::default());
+    let loaded = plain(&root);
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];
     assert_eq!(

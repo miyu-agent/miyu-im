@@ -28,6 +28,9 @@ const KEYWORDS: &str = "keywords";
 /// 她看得到发话人的 QQ 号：开关，默认关。
 const SHOW_IDS: &str = "show_ids";
 
+/// 白名单成员（施工 O-60）：不拼进规则，「其他私聊」卡照它排开。
+const WHITELIST: &str = "whitelist";
+
 /// 去掉末尾的句号（施工 O-58 补二，从卡片挪来：项目主人 10-19 定是通用配置）：开关，默认开（同出厂参数），关了的拼进规则。
 const STRIP_PERIOD: &str = "strip_period";
 
@@ -42,6 +45,8 @@ pub struct Configured {
     show_ids: bool,
     /// 去掉末尾的句号。
     strip_period: bool,
+    /// 白名单成员的号（`onebot.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
+    whitelist: Vec<u64>,
 }
 
 impl Default for Configured {
@@ -51,6 +56,7 @@ impl Default for Configured {
             keywords: Vec::new(),
             show_ids: false,
             strip_period: true,
+            whitelist: Vec::new(),
         }
     }
 }
@@ -83,6 +89,12 @@ impl Configured {
                 SHOW_IDS => self.show_ids = value.as_bool().unwrap_or(fallback.show_ids),
                 STRIP_PERIOD => {
                     self.strip_period = value.as_bool().unwrap_or(fallback.strip_period);
+                }
+                WHITELIST => {
+                    self.whitelist = texts(value)
+                        .iter()
+                        .filter_map(|one| one.strip_prefix("qq:")?.parse().ok())
+                        .collect();
                 }
                 _ => {}
             }
@@ -137,6 +149,11 @@ impl Configured {
 }
 
 impl Configured {
+    /// 白名单成员的号（施工 O-60：「其他私聊」卡不管他们）。
+    pub fn whitelisted(&self) -> &[u64] {
+        &self.whitelist
+    }
+
     /// 没认出来的配置项（施工 O-41 补）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项，配置项的键照拼的先后。
     /// 只看这一份：规则文件写错的不算。后台页的 `status`、状态文件照它说。一条规则只设一项、一项写错只报一处（列表里坏了几个
     /// 也是一处），不用去重。

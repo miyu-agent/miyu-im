@@ -235,6 +235,47 @@ async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
 }
 
 #[tokio::test]
+async fn an_open_strangers_card_without_an_answer_on_the_binding_takes_nobody() {
+    // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（这里的假核心不认它）：问不到的照原来办，陌生人不接。
+    let home = Home::new(&Script::new([Play::Says("不该说话")]));
+    let cards = home.root.state().join("packages").join("onebot");
+    std::fs::create_dir_all(&cards).expect("建得了目录");
+    std::fs::write(
+        cards.join("cards.json"),
+        r#"{"other_privates": {"on": true}}"#,
+    )
+    .expect("写得进");
+    let (bridge, relay) = owned_by(&home, Some(SYSTEM)).await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
+    napcat.admin_says(2, "在吗").await;
+    // 一条条照先后办：第二条也去问会话的时候，第一条已经办完了（接了的会话记着，不会再问）。
+    within("两条都问过会话", async {
+        while relay
+            .asked()
+            .iter()
+            .filter(|method| *method == "venue.session")
+            .count()
+            < 2
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+    assert!(
+        relay.asked().iter().any(|method| method == "venue.binding"),
+        "卡打开了才问"
+    );
+    assert!(
+        !relay.asked().iter().any(|method| method == "session.send"),
+        "{:?}",
+        relay.asked()
+    );
+    assert!(home.said().is_empty(), "不进任何会话：{:?}", home.said());
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
 async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
     for venue in [Some("admin"), None] {
         let home = Home::new(&Script::new([Play::Says("在")]));

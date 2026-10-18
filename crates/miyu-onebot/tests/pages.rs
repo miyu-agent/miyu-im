@@ -204,7 +204,7 @@ async fn the_groups_page_edits_adds_and_removes_group_cards() {
 async fn the_friends_page_adds_and_removes_whitelist_members() {
     let (home, _napcat, mut head) = up().await;
     let content = open(&mut head, "friends").await;
-    assert_eq!(ids(&content), Vec::<String>::new(), "白名单是空的");
+    assert_eq!(ids(&content), ["other"], "白名单是空的：只有「其他私聊」");
     let options = content[1]["add"]["options"]
         .as_array()
         .expect("可加的")
@@ -220,8 +220,11 @@ async fn the_friends_page_adds_and_removes_whitelist_members() {
     let config =
         std::fs::read_to_string(home.root.path().join("system/config.toml")).expect("读得出");
     assert!(config.contains("qq:20004"), "写进了白名单：{config}");
-    let content = pushed(&mut head, "friends", |content| ids(content) == ["20004"]).await;
-    assert_eq!(content[1]["items"][0]["title"], "lin");
+    let content = pushed(&mut head, "friends", |content| {
+        ids(content) == ["other", "20004"]
+    })
+    .await;
+    assert_eq!(content[1]["items"][1]["title"], "lin");
     // 白名单成员还没有设过的格：存一张表单就建上他的卡。
     let card = json!({"kind": "private", "id": LIN});
     let saved = head
@@ -243,7 +246,7 @@ async fn the_friends_page_adds_and_removes_whitelist_members() {
         std::fs::read_to_string(home.root.path().join("system/config.toml")).expect("读得出");
     assert!(!config.contains("qq:20004"), "移出了白名单：{config}");
     assert_eq!(on_disk(&home)["privates"], json!([]));
-    pushed(&mut head, "friends", |content| ids(content).is_empty()).await;
+    pushed(&mut head, "friends", |content| ids(content) == ["other"]).await;
     stopped(home).await;
 }
 
@@ -251,7 +254,7 @@ async fn the_friends_page_adds_and_removes_whitelist_members() {
 async fn a_whitelist_changed_elsewhere_reaches_the_friends_page() {
     // 白名单在别处改了（终端里改系统配置）：私聊页推出他那一项；他还没有卡，存一张表单就建上。
     let (home, _napcat, mut head) = up().await;
-    assert_eq!(ids(&open(&mut head, "friends").await), Vec::<String>::new());
+    assert_eq!(ids(&open(&mut head, "friends").await), ["other"]);
     let change = json!({"key": "onebot.whitelist", "value": [format!("qq:{LIN}")]});
     let set = head
         .call(
@@ -260,7 +263,10 @@ async fn a_whitelist_changed_elsewhere_reaches_the_friends_page() {
         )
         .await;
     assert!(set.get("result").is_some(), "{set}");
-    pushed(&mut head, "friends", |content| ids(content) == ["20004"]).await;
+    pushed(&mut head, "friends", |content| {
+        ids(content) == ["other", "20004"]
+    })
+    .await;
     let card = json!({"kind": "private", "id": LIN});
     let saved = head
         .page_call_with(

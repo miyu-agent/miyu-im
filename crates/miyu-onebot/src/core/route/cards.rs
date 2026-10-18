@@ -50,6 +50,7 @@ impl Route {
         let defaults = json!({
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
             "other_groups": self.group_defaults(0),
+            "other_privates": self.other_private_defaults(),
             "groups": groups,
             "privates": privates,
         });
@@ -75,6 +76,14 @@ impl Route {
         {
             Some(venue) => card_defaults::group(&self.rules.beneath(&venue)),
             None => Value::Null,
+        }
+    }
+
+    /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
+    pub(super) fn other_private_defaults(&self) -> Value {
+        match venue(VenueKind::Private, 0) {
+            Ok(venue) => card_defaults::other_private(&self.rules.beneath(&venue)),
+            Err(_) => Value::Null,
         }
     }
 
@@ -126,6 +135,7 @@ impl Route {
             "venue cards saved"
         );
         self.rules.set_cards(cards);
+        self.forget_privates();
         answerer.answer(id, json!({"saved": true}));
         // 在看两页的照新的推（施工 O-58 下，`pages`）。
         self.repush_pages();

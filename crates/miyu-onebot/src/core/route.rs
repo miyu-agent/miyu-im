@@ -61,6 +61,7 @@ mod lanes;
 mod long;
 mod lookup;
 mod mentions;
+mod message;
 mod muted;
 mod names;
 mod outbound;
@@ -87,11 +88,13 @@ mod shown;
 mod speak;
 mod steering;
 mod stickers;
+mod strangers;
 #[cfg(test)]
 mod tests;
 mod titled;
 mod voicing;
 
+use message::Message;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -118,20 +121,17 @@ use bindings::Bindings;
 use deferred::Deferred;
 pub(crate) use fetching::Fetching;
 pub(crate) use forwards::Forwarding;
-use forwards::Forwards;
 use impostor::Noted;
 use judges::Judges;
 use mentions::Mentions;
 use outbound::Spoken;
 pub(crate) use parts::{Asking, Recalling};
 pub(crate) use persona::Personas;
-use pictures::Pictures;
 use projection::Projection;
 use queue::Queue;
 use quiet::Quiet;
 pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
-use session::Place;
 use steering::Steering;
 use titled::Titles;
 use voicing::Voicing;
@@ -142,26 +142,6 @@ struct Peer {
     bot: i64,
     to: To,
     venue: VenueId,
-}
-
-/// 一条要交给核心的消息（私聊的、群的）。
-struct Message {
-    /// 命令编号（第 8 条）。
-    id: String,
-    /// 平台的消息编号：只记运行日志。
-    number: i64,
-    /// 交给核心的正文。
-    text: String,
-    /// `as`：发的人的平台身份，群里另带 `role`（「群消息」第 4 条）。
-    acting: Value,
-    /// `session.send` 的 `venue`（施工 O-22，`fields`）。
-    fields: Value,
-    /// 它的场所：怎么找会话、回执发到哪。
-    place: Place,
-    /// 交以前要取的图（施工 O-33，`pictures`）：群里冲她来的、私聊收下的才有。
-    pictures: Option<Pictures>,
-    /// 交以前要展开的合并转发（施工 O-34，`forwards`）：没有转发的是空的。
-    forwards: Option<Forwards>,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -241,6 +221,8 @@ pub(crate) struct Route {
     voicing: FuturesOrdered<JoinHandle<Voicing>>,
     /// 场所卡片的两页在看的（施工 O-58 下，`pages`）。
     pages: pages::Pages,
+    /// 陌生人的私聊开过的回合（施工 O-60，`strangers`）：限流照它数。
+    strangers: strangers::Strangers,
 }
 
 impl Route {
@@ -317,6 +299,7 @@ impl Route {
             steering: FuturesOrdered::new(),
             voicing: FuturesOrdered::new(),
             pages: pages::Pages::default(),
+            strangers: strangers::Strangers::default(),
         }
     }
 
@@ -415,6 +398,13 @@ impl Route {
                 Ok(())
             }
         }
+    }
+
+    /// 私聊找过的会话都忘掉，下一条照这一刻的白名单、卡片再找（施工 O-27；O-60：「其他私聊」卡关了的陌生人不再接）。群的留着。
+    fn forget_privates(&mut self) {
+        let groups = &self.groups;
+        self.venues
+            .retain(|_, session| groups.contains_key(session));
     }
 
     /// 平台上的 `who` 在不在白名单里（`onebot.whitelist`，施工 O-23、O-27）。
