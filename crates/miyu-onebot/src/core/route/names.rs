@@ -8,7 +8,8 @@ use std::time::Instant;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::onebot::{MEMBER_INFO, Piece, Posted, display_name, member_info, rank_of};
+use crate::chat::{Piece, Posted};
+use crate::onebot::{MEMBER_INFO, display_name, member_info, rank_of};
 
 impl Route {
     /// 群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。

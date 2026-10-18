@@ -34,6 +34,7 @@ use miyu_chat::Problem;
 use miyu_client::places::DataRoot;
 
 use crate::TARGET;
+use crate::chat::Members;
 use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
 use crate::core::route::{
@@ -43,7 +44,6 @@ use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
-use crate::onebot::Members;
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};

@@ -7,6 +7,7 @@
 //! - [`tuning`]：桥自己的数（包文件夹的 `data/bridge.json`）：路径、等回应多久、队列多长。
 //! - [`serve`]：在核心亲手给的管道（标准输入输出，施工 O-18）上握手、开监听，把下面几样接起来；核心关了管道就停。
 //! - `listen`：NapCat 反连进来的反向 WebSocket：只听本机、令牌、一个机器人号一条连接。
+//! - [`chat`]：和平台无关的数据（施工 I-2 上）：一条消息、撤回、事件、段、带的东西、发给谁，驱动认出来交给宿主的样子。
 //! - [`onebot`]：OneBot v11 的事件和动作：读私聊、群消息、撤回（施工 O-22）、认消息段、群成员的名字，写 `send_private_msg`、
 //!   `send_group_msg`，调用和回应照 `echo` 配对。
 //! - `core`：跟核心的那一头：握手（不带凭据）、`venue.session`、带 `as`、`venue` 的 `session.send`、撤回、订阅、她的回话。
@@ -27,6 +28,7 @@
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
 //! （施工 O-20）。核心里别的 crate 只经门面 `miyu-client` 拿（设计 32 第九节第 1 条，施工 S-6 上）。
 
+pub mod chat;
 pub mod control;
 mod core;
 mod current;

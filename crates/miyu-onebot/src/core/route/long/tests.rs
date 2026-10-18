@@ -3,7 +3,8 @@
 use miyu_chat::{File, LongText, Params, Source};
 
 use super::*;
-use crate::onebot::{Lead, To, picture_to};
+use crate::chat::{Lead, To};
+use crate::onebot::picture_to;
 
 /// 出厂参数：仓库里的 `defaults.toml`。
 fn factory() -> Params {

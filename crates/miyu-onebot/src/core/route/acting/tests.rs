@@ -4,7 +4,7 @@
 use serde_json::json;
 
 use super::{Undone, undone};
-use crate::onebot::CallError;
+use crate::chat::CallError;
 
 /// 回了失败、原话照 `reply` 的。
 fn failed(reply: serde_json::Value) -> Undone {

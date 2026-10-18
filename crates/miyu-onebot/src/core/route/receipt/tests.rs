@@ -12,8 +12,9 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::super::Peer;
 use super::recall;
+use crate::chat::To;
 use crate::listen::bots::{Bots, Link};
-use crate::onebot::{Calls, To};
+use crate::onebot::Calls;
 
 /// 机器人的号。
 const BOT: i64 = 30003;

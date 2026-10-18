@@ -23,8 +23,9 @@ use super::projection::{MUTED, UNMUTED};
 use super::queue::until;
 use super::session::Place;
 use crate::TARGET;
+use crate::chat::To;
 use crate::core::{Gone, reason};
-use crate::onebot::{To, venue};
+use crate::onebot::venue;
 
 /// 禁言的事实的 `kind`。
 const MUTED_FACT: &str = "muted";

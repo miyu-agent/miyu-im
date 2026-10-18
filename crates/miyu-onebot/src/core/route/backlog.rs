@@ -19,7 +19,8 @@ use miyu_client::time::Timestamp;
 use serde_json::Value;
 
 use super::projection::{QUEUED, REPLY, Speaking};
-use crate::onebot::{To, bot_of, to_of};
+use crate::chat::To;
+use crate::onebot::{bot_of, to_of};
 
 /// 订阅补来的那一段。
 #[derive(Debug, Default)]

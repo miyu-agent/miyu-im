@@ -8,7 +8,7 @@ use miyu_client::time::Timestamp;
 
 use super::super::projection::{Aim, Speaking};
 use super::{Spoken, group_ctx, pass, private_ctx, why_name};
-use crate::onebot::Lead;
+use crate::chat::Lead;
 
 /// 出厂参数。
 fn params() -> Params {

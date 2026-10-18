@@ -4,7 +4,8 @@
 use serde_json::json;
 
 use super::{Flags, MEDIA_NAME, NAME, fields, shown};
-use crate::onebot::{Fetch, Media, MediaKind, Posted, Segments, person};
+use crate::chat::{Fetch, Media, MediaKind, Posted, Segments};
+use crate::onebot::person;
 
 /// 一条消息：名字是 `name`，认出来的段是 `segments`。
 fn posted(name: Option<&str>, segments: Segments) -> Posted {

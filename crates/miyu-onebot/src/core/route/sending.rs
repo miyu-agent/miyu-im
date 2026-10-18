@@ -23,8 +23,9 @@ use super::queue::{DISCONNECTED, EXPIRED, Ending, ending};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
+use crate::chat::{CallError, Lead, To};
 use crate::core::{Gone, reason};
-use crate::onebot::{CallError, Lead, To, forward_to, image_to, message_to, picture_to};
+use crate::onebot::{forward_to, image_to, message_to, picture_to};
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.onebot.venues.failed";

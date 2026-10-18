@@ -18,8 +18,8 @@ use super::Route;
 use super::sending::{Body, Image, Piece, What};
 use super::shown::read;
 use crate::TARGET;
+use crate::chat::Lead;
 use crate::core::{Gone, reason};
-use crate::onebot::Lead;
 
 /// 没发出去那一块事实的 `kind`（同展示）。
 const UNSHOWN: &str = "unshown";

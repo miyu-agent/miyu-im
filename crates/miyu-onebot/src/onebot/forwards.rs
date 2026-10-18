@@ -5,7 +5,8 @@
 
 use serde_json::{Value, json};
 
-use super::{Segments, display_name, number, segments};
+use super::{display_name, number, segments};
+pub use crate::chat::Node;
 
 /// 取合并转发里的消息的动作和参数：`get_forward_msg {id}`，编号原样写成字（NapCat 认 `id`、`message_id`，数字的照消息编号找，
 /// 别的照转发的资源编号找）。
@@ -16,17 +17,6 @@ pub fn get_forward_msg(id: &str) -> (&'static str, Value) {
 /// `get_forward_msg` 回应的 `data` 里的消息：`messages` 是数组的才有。
 pub fn forward_messages(data: &Value) -> Option<Vec<Value>> {
     data["messages"].as_array().cloned()
-}
-
-/// 合并转发里的一条。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Node {
-    /// 发的人的号：`sender.user_id`，没有的照 `user_id`；都没有、读不出的是空的。
-    pub user: Option<i64>,
-    /// 发的人当时叫什么：`sender` 的群名片、昵称（同群消息的 `name`），没有的照节点自己的 `card`、`nickname`；照原样，没洗。
-    pub name: Option<String>,
-    /// 认出来的段，同一条消息的认法（`segments`）：`message`，没有的照 `content`。
-    pub segments: Segments,
 }
 
 /// 读一条：`value` 是 NapCat 交的节点。

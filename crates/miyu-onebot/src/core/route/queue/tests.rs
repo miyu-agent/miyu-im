@@ -8,7 +8,7 @@ use miyu_client::time::Timestamp;
 use serde_json::{Value, json};
 
 use super::{DISCONNECTED, EXPIRED, Ending, Queue, REJECTED, TIMEOUT, ending, until};
-use crate::onebot::CallError;
+use crate::chat::CallError;
 
 /// 期限：一分钟。
 const EXPIRE: Duration = Duration::from_secs(60);

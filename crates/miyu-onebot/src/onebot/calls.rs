@@ -13,17 +13,7 @@ use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 
-/// 一次调用没成。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CallError {
-    /// 等了 [`Calls::new`] 给的那么久，没等到回应。
-    Timeout,
-    /// 连接断了：发不出去，或者等的时候断了。
-    Closed,
-    /// 回了，`status` 不是 `ok`：交回回应原文（施工 O-25 中：出站队列取它的 `message` 记进 `failed`，`onebot.md`「施工时定的」
-    /// 第 120 条）。
-    Failed(Value),
-}
+pub use crate::chat::{CallError, DETAIL};
 
 /// NapCat 回失败时说的为什么（施工 O-31 起平台工具、O-33 取东西照它答）：`message` 去掉首尾空白，空的换 `wording`，再空的写
 /// `retcode`；截到 [`DETAIL`] 个字符。
@@ -36,10 +26,6 @@ pub fn said(reply: &Value) -> String {
         .map_or_else(|| reply["retcode"].to_string(), str::to_string);
     said.chars().take(DETAIL).collect()
 }
-
-/// 回失败时说的为什么最多留几个字符：出站队列 `failed` 的 `detail`（`onebot.md`「出站队列」第 4 条）、平台工具答的原话（施工
-/// O-31）、取东西答的原话（施工 O-33）都照它。
-pub const DETAIL: usize = 200;
 
 /// 一条连接上在等回应的调用。
 #[derive(Debug)]

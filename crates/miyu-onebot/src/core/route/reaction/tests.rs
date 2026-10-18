@@ -15,8 +15,9 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::super::Peer;
 use super::{Mark, Reactions, mark};
+use crate::chat::To;
 use crate::listen::bots::{Bots, Link};
-use crate::onebot::{Calls, To};
+use crate::onebot::Calls;
 
 /// 两个群会话的编号。
 const ONE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";

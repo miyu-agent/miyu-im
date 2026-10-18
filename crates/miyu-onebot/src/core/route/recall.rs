@@ -9,8 +9,9 @@ use serde_json::json;
 use super::Route;
 use super::session::Place;
 use crate::TARGET;
+use crate::chat::Recall;
 use crate::core::{Gone, reason};
-use crate::onebot::{Recall, person, venue};
+use crate::onebot::{person, venue};
 
 impl Route {
     /// 一次撤回 `recall`。

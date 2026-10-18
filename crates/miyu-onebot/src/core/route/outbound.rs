@@ -11,7 +11,7 @@ use miyu_chat::{Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, 
 use miyu_client::time::Timestamp;
 
 use super::projection::{Aim, Speaking};
-use crate::onebot::Lead;
+use crate::chat::Lead;
 
 /// 过了链、要发的一句。
 #[derive(Debug, Clone, PartialEq, Eq)]

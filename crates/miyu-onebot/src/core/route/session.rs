@@ -19,8 +19,8 @@ use serde_json::{Value, json};
 use super::projection::Projection;
 use super::{Message, Peer, Route};
 use crate::TARGET;
+use crate::chat::To;
 use crate::core::{Gone, reason};
-use crate::onebot::To;
 use crate::rules::Applied;
 
 /// 发消息的方法：只有它带场所的格（`command.run` 不收这一格）。

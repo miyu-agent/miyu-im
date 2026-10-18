@@ -18,12 +18,13 @@ use serde_json::{Value, json};
 use super::pictures::kept;
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::{DETAIL, Fetch, To};
 use crate::core::blobs::{Unstored, put};
 use crate::core::{Answerer, Caller, Gone};
 use crate::listen::bots::Bots;
 use crate::media::{Missed, QQ_FILES, file_name, message, save, take};
 use crate::onebot::media::file_name as napcat_name;
-use crate::onebot::{DETAIL, Fetch, To, segments};
+use crate::onebot::segments;
 use crate::rules::Tools;
 
 /// 取东西的几个数（`bridge.json`，施工 O-33）。

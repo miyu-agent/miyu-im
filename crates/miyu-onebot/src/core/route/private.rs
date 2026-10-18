@@ -11,8 +11,9 @@ use super::pictures::Pictures;
 use super::session::Place;
 use super::{Message, Route, applied};
 use crate::TARGET;
+use crate::chat::Posted;
 use crate::core::Gone;
-use crate::onebot::{Posted, command_id, person, venue};
+use crate::onebot::{command_id, person, venue};
 
 impl Route {
     /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。

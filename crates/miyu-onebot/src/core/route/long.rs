@@ -20,8 +20,8 @@ use super::sending::{Body, Image, Page, Piece, What};
 use super::shown::read;
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::{Lead, To};
 use crate::core::{Caller, Gone, reason};
-use crate::onebot::{Lead, To};
 
 /// 渲染包的编号、方法。
 const RENDER: (&str, &str) = ("miyu-render", "markdown");

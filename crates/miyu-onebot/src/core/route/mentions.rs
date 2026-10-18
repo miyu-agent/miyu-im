@@ -10,8 +10,8 @@ use serde_json::Value;
 
 use super::Route;
 use crate::TARGET;
+use crate::chat::To;
 use crate::core::Gone;
-use crate::onebot::To;
 
 /// 她要 @ 的：按线（主线、支线的会话编号）记（回合编号，号）。
 #[derive(Debug, Default)]

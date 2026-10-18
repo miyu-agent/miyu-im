@@ -17,9 +17,10 @@ use serde_json::{Value, json};
 
 use super::{Peer, Route, applied};
 use crate::TARGET;
+use crate::chat::CallError;
 use crate::core::{Caller, reason};
 use crate::listen::bots::Bots;
-use crate::onebot::{CallError, image_to, said, upload_to};
+use crate::onebot::{image_to, said, upload_to};
 
 /// 发成图片段的媒体类型：QQ 画得出的四种；别的图（svg 这类）传成文件。
 const IMAGES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];

@@ -22,8 +22,9 @@ use tokio::sync::oneshot;
 use super::decide::Decision;
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::CallError;
 use crate::listen::bots::Bots;
-use crate::onebot::{CallError, emoji_like};
+use crate::onebot::emoji_like;
 
 /// 贴着的几条，和贴什么、多久摘。
 pub(crate) struct Reactions {

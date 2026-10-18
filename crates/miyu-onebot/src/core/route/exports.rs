@@ -12,10 +12,10 @@ use serde_json::{Map, Value, json};
 
 use super::Route;
 use crate::TARGET;
+use crate::chat::CallError;
 use crate::core::Answerer;
 use crate::core::methods::{PLATFORM, VENUE, ours};
 use crate::listen::bots::Bots;
-use crate::onebot::CallError;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;

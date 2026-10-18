@@ -8,7 +8,7 @@
 use miyu_client::ids::ExternalId;
 use serde_json::{Map, Value, json};
 
-use crate::onebot::{Media, Posted};
+use crate::chat::{Media, Posted};
 
 /// 平台的编号最长几个字符（`venues.md`「场所的格」的 `msg`、`reply_to`，带的东西的 `id`）。
 const ID: usize = 128;

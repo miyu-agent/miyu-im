@@ -17,8 +17,9 @@ use super::projection::Speaking;
 use super::sending::What;
 use super::{Peer, Route, applied};
 use crate::TARGET;
+use crate::chat::{Lead, To};
 use crate::core::{Gone, reason};
-use crate::onebot::{Lead, To, person, to_of};
+use crate::onebot::{person, to_of};
 
 impl Route {
     /// 起来时订阅名下的场所会话（见模块开头）。核心拒了的（进程里的测试不是系统账号，回 `no_system_account`）记一行，照旧等

@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use super::request;
-use crate::onebot::To;
+use crate::chat::To;
 
 #[test]
 fn where_and_what_are_read() {

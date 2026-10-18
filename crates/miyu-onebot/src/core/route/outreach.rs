@@ -23,10 +23,11 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
+use crate::chat::{CallError, Lead, To};
 use crate::core::methods::ours;
 use crate::core::{Answerer, Caller, Gone, reason};
 use crate::listen::bots::Bots;
-use crate::onebot::{CallError, Lead, To, forward_to, message_to, person, picture_to, said, venue};
+use crate::onebot::{forward_to, message_to, person, picture_to, said, venue};
 use crate::rules::Tools;
 
 /// `reached` 事实的 `kind`。

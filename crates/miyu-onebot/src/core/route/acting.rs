@@ -14,10 +14,11 @@ use super::fields::{NAME, clean};
 use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::{CallError, To};
 use crate::core::{Answerer, Gone};
 use crate::listen::bots::Bots;
 use crate::media::{Missed, message};
-use crate::onebot::{CallError, To, delete_msg, group_ban, person, poke, said};
+use crate::onebot::{delete_msg, group_ban, person, poke, said};
 use crate::rules::{AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。

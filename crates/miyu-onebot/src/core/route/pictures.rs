@@ -16,11 +16,12 @@ use serde_json::{Value, json};
 use super::Route;
 use super::fields::fits;
 use crate::TARGET;
+use crate::chat::{Fetch, Media, Segments};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
 use crate::listen::bots::Link;
 use crate::media::{Missed, message, take};
-use crate::onebot::{Fetch, Media, Segments, segments};
+use crate::onebot::segments;
 
 /// 一条要带图的消息：收进它的机器人号、平台编号、带的东西、引用的那一条。
 pub(super) struct Pictures {

@@ -10,7 +10,8 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::fetching::msg_id;
-use crate::onebot::{To, person};
+use crate::chat::To;
+use crate::onebot::person;
 use crate::rules::{MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。

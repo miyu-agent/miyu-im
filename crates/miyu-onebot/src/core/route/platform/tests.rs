@@ -6,7 +6,7 @@ use miyu_client::ids::ExternalId;
 use serde_json::json;
 
 use super::{Arg, Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
-use crate::onebot::To;
+use crate::chat::To;
 
 /// 平台上号是 `number` 的人。
 fn qq(number: i64) -> ExternalId {

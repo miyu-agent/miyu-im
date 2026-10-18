@@ -10,7 +10,8 @@ use std::time::Duration;
 use miyu_client::time::Timestamp;
 use serde_json::Value;
 
-use crate::onebot::{CallError, DETAIL, number};
+use crate::chat::{CallError, DETAIL};
+use crate::onebot::number;
 
 /// `failed` 的 `why`：NapCat 回了失败。
 pub(super) const REJECTED: &str = "rejected";

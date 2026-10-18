@@ -16,9 +16,10 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::sending::{Body, Piece, What};
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::Lead;
 use crate::core::Gone;
 use crate::listen::bots::Bots;
-use crate::onebot::{Lead, delete_msg};
+use crate::onebot::delete_msg;
 
 impl Route {
     /// 把斜杠命令的回执、被拒的那一句 `said` 发回会话 `session` 的那个私聊、群（「斜杠命令」第 2、4、7 条）：去掉首尾空白，空的

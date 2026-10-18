@@ -23,11 +23,10 @@ use serde_json::{Value, json};
 use super::fields::{NAME, clean, media};
 use super::{Message, Route};
 use crate::TARGET;
+use crate::chat::{CallError, FORWARD, Forwarded, Piece, Segments};
 use crate::core::Gone;
 use crate::listen::bots::Link;
-use crate::onebot::{
-    CallError, FORWARD, Forwarded, Piece, Segments, forward_messages, get_forward_msg, node,
-};
+use crate::onebot::{forward_messages, get_forward_msg, node};
 
 /// 核心的整条上限（`venues.md`「场所的格」的 `forwards`）：一条场所消息里所有转发合起来最多几条。
 const ALL_NODES: usize = 100;

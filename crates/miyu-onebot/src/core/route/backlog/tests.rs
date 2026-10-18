@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 
 use super::{Backlog, Said};
-use crate::onebot::To;
+use crate::chat::To;
 
 /// 这个会话（主线）的编号。
 const LINE: &str = "l";
