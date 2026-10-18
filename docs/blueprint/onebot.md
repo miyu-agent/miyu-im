@@ -89,7 +89,7 @@
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
 | `crates/miyu-onebot/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`）；`cards/store.rs` 存在 `state/packages/onebot/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
 | `crates/miyu-onebot/src/core/route/cards.rs`（O-58 上） | 后台页的 `cards.get`、`cards.save`：读的一头照推送交到跟核心的那一头答（「场所卡片」第 4、5 条） |
-| `crates/miyu-onebot/src/rules/configured.rs`（O-41） | 配置项那一层：群的三项配置（O-58 上从七项减成三项）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
+| `crates/miyu-onebot/src/rules/configured.rs`（O-41） | 配置项那一层：群的四项配置（O-58 上从七项减成三项，O-58 补二多去句号）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
 | `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：照 `rules.rs` 读同样的文件，配置项那一层向核心要（`configured`，O-41），一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
 | `crates/miyu-onebot/src/rules/names.rs`（施工 S-6 上） | 桥的工具给人看的名字：照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name` 读，`provide` 时每件带 `display_name`（「提供者和不说话」第 4 条） |
@@ -626,7 +626,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：
      系统 90-bad.toml 第 2 条规则，第 6 行：rate 写法不对："abc"
    ```
-8. **配置项那一层**（O-41，`rules/configured.rs`；O-58 上群白名单、白名单以外的群、两档限流挪进卡片，剩睡觉时间、触发词、看得到 QQ 号三项，卡片没设的照它们）：群的三项配置（第一条「对外的样子」的配置表）拼成一份规则文件，交群聊内核和别的一起读（第 2 条），写法、怎么套、写错了丢哪一项都照规则文件的规矩。
+8. **配置项那一层**（O-41，`rules/configured.rs`；O-58 上群白名单、白名单以外的群、两档限流挪进卡片，剩睡觉时间、触发词、看得到 QQ 号三项，O-58 补二多去句号，卡片没设的照它们）：群的四项配置（第一条「对外的样子」的配置表）拼成一份规则文件，交群聊内核和别的一起读（第 2 条），写法、怎么套、写错了丢哪一项都照规则文件的规矩。
    - 名字是 `60-settings.toml`，来处 `Source::Settings`：照文件名排，排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的规则文件盖它，排在前面的被它盖；系统里放一份同名的整份替换它（同名的照「出厂、配置项、系统」的先后，`chat.md` 第一条「怎么走」第 1 条）。
    - 一项一条规则，先后固定：群里的触发词、睡觉时间、看得到 QQ 号（O-58 上以前是七条：其他群的限流、白名单以外的群不接话、白名单群接话、白名单群的限流挪进卡片）。没设、等于默认的那一项，规则照写、只有 `match`，什么都不设。规则的先后固定，第几条规则就是哪一项：问题、来处照它说成配置项的键（`key_of`）。
    - 睡觉时间、触发词照原文写进去：字照 JSON 的写法加引号、转义（JSON 的转义都是 TOML 基本字符串认的），不另加依赖。写错的（`onebot.sleep = "abc"`、带换行的触发词）照规则的规矩只丢那一项：运行日志那一行多一格 `setting=onebot.sleep`，`venue show` 印「配置项 onebot.sleep：sleep 写法不对」。
