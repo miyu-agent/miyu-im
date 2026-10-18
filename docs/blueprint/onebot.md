@@ -89,6 +89,7 @@
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
 | `crates/miyu-onebot/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`）；`cards/store.rs` 存在 `state/packages/onebot/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
 | `crates/miyu-onebot/src/core/route/cards.rs`（O-58 上） | 后台页的 `cards.get`、`cards.save`：读的一头照推送交到跟核心的那一头答（「场所卡片」第 4、5 条） |
+| `crates/miyu-onebot/src/core/route/strangers.rs`（O-60） | 陌生人的私聊照「其他私聊」卡过进站链，开过的回合记在内存里（「陌生人的私聊」）；认陌生人在 `private.rs` |
 | `crates/miyu-onebot/src/rules/configured.rs`（O-41） | 配置项那一层：群的四项配置（O-58 上从七项减成三项，O-58 补二多去句号）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
 | `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：照 `rules.rs` 读同样的文件，配置项那一层向核心要（`configured`，O-41），一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
