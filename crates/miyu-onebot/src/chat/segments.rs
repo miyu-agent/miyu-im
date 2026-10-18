@@ -1,8 +1,6 @@
 //! 一条消息认出来的段（施工 I-2 上从 `onebot/segments.rs` 挪来）：正文、引用、@全体、带的东西、合并转发。怎么认是驱动的事，
 //! 认出来的样子各个平台一样。
 
-use serde_json::Value;
-
 /// 合并转发的占位：照核心渲染带的东西的写法 `[种类]`（「施工时定的」第 61 条）。展开的内容另交（施工 O-34），占位照旧写：
 /// O-34 以前造的会话只看得到它。
 pub const FORWARD: &str = "[forward]";
@@ -33,8 +31,8 @@ pub struct Segments {
 pub struct Forwarded {
     /// `data.id`：交 `get_forward_msg` 取里面的消息；没有的、空的是空的。
     pub id: Option<String>,
-    /// `data.content`：NapCat 开了解析合并转发的，里面的消息直接内联在段里（套在里面的同样内联），是消息的数组；没有的是空的。
-    pub content: Option<Vec<Value>>,
+    /// 段里直接带着的里面的消息（NapCat 开了解析合并转发的，套在里面的同样带着）：驱动认好了的节点；没带的是空的。
+    pub content: Option<Vec<super::Node>>,
 }
 
 /// 正文的一块。

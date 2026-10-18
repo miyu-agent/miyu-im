@@ -17,10 +17,10 @@ use serde_json::{Value, json};
 
 use super::{Peer, Route, applied};
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::CallError;
+use crate::chat::Outgoing;
 use crate::core::{Caller, reason};
-use crate::listen::bots::Bots;
-use crate::onebot::{image_to, said, upload_to};
 
 /// 发成图片段的媒体类型：QQ 画得出的四种；别的图（svg 这类）传成文件。
 const IMAGES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -152,13 +152,19 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
         .await
         .map_err(|why| ("unreadable", why))?;
     let file = format!("base64://{}", STANDARD.encode(bytes));
-    let (action, params) = match job.file.is_image() {
-        true => image_to(job.peer.to, &file, false),
-        false => upload_to(job.peer.to, &file, &job.file.name),
+    let outgoing = match job.file.is_image() {
+        true => Outgoing::Image {
+            file: &file,
+            sticker: false,
+        },
+        false => Outgoing::Upload {
+            file: &file,
+            name: &job.file.name,
+        },
     };
-    match link.calls.call(&link.out, action, params).await {
+    match link.send(job.peer.to, outgoing).await {
         Ok(_) => Ok(()),
-        Err(CallError::Failed(reply)) => Err(("failed", said(&reply))),
+        Err(CallError::Failed { said, .. }) => Err(("failed", said)),
         Err(CallError::Timeout) => Err(("unanswered", String::new())),
         Err(CallError::Closed) => Err(("unreachable", String::new())),
     }

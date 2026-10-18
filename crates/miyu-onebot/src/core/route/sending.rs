@@ -23,9 +23,8 @@ use super::queue::{DISCONNECTED, EXPIRED, Ending, ending};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
-use crate::chat::{CallError, Lead, To};
+use crate::chat::{CallError, Lead, Outgoing, To};
 use crate::core::{Gone, reason};
-use crate::onebot::{forward_to, image_to, message_to, picture_to};
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.onebot.venues.failed";
@@ -148,7 +147,7 @@ pub(super) struct Answered {
     /// 这一段。
     item: Item,
     /// 调用的结果。
-    result: Result<Value, CallError>,
+    result: Result<Option<i64>, CallError>,
 }
 
 impl Route {
@@ -267,20 +266,28 @@ impl Route {
         };
         let begun = match self.bots.get(peer.bot) {
             Some(link) => {
-                let (action, params) = match (&item.piece.body, &item.piece.what) {
-                    (Body::Picture(file), _) => picture_to(peer.to, file, &item.piece.lead),
-                    (Body::Forward { nodes, nickname }, _) => {
-                        forward_to(peer.to, peer.bot, nickname, nodes)
-                    }
-                    (Body::Text, What::Image(image)) => {
-                        image_to(peer.to, &image.file, image.sticker)
-                    }
-                    (Body::Text, What::Page(page)) => {
-                        picture_to(peer.to, &page.image.file, &item.piece.lead)
-                    }
-                    (Body::Text, _) => message_to(peer.to, &item.piece.text, &item.piece.lead),
+                let lead = &item.piece.lead;
+                let outgoing = match (&item.piece.body, &item.piece.what) {
+                    (Body::Picture(file), _) => Outgoing::Picture { file, lead },
+                    (Body::Forward { nodes, nickname }, _) => Outgoing::Forward {
+                        bot: peer.bot,
+                        nickname,
+                        nodes,
+                    },
+                    (Body::Text, What::Image(image)) => Outgoing::Image {
+                        file: &image.file,
+                        sticker: image.sticker,
+                    },
+                    (Body::Text, What::Page(page)) => Outgoing::Picture {
+                        file: &page.image.file,
+                        lead,
+                    },
+                    (Body::Text, _) => Outgoing::Text {
+                        text: &item.piece.text,
+                        lead,
+                    },
                 };
-                link.calls.begin(&link.out, action, params).await
+                link.begin(peer.to, outgoing).await
             }
             None => Err(CallError::Closed),
         };
@@ -288,7 +295,7 @@ impl Route {
         match begun {
             Ok(pending) => {
                 self.sending.push_back(tokio::spawn(async move {
-                    let result = pending.wait().await;
+                    let result = pending.await;
                     Answered {
                         session,
                         peer,

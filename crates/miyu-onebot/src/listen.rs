@@ -12,13 +12,11 @@
 //! 升级好的连接不另起任务：在接这个 TCP 连接的任务里跑（hyper 的连接在交出升级以后就结束了）。接连接的任务都在
 //! `serve` 的一组里，桥停下时一起停。
 
-pub(crate) mod bots;
 mod connection;
 #[cfg(test)]
 mod tests;
 
 use std::convert::Infallible;
-use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use http_body_util::Empty;
@@ -32,11 +30,11 @@ use tokio::sync::{Notify, mpsc};
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::current::Current;
 use crate::onebot::{Event, number};
 use crate::serve::Notice;
 use crate::tuning::Tuning;
-use bots::Bots;
 
 /// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的消息和撤回交给谁、说给人听的。
 pub(crate) struct Gate {
@@ -50,8 +48,6 @@ pub(crate) struct Gate {
     pub(crate) inbound: mpsc::Sender<Event>,
     /// 连上、断开各说一行（「样子」）。
     pub(crate) tell: Arc<dyn Fn(Notice) + Send + Sync>,
-    /// 下一条连接的序号（`bots::Link::serial`）。
-    pub(crate) serial: AtomicU64,
     /// NapCat 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（`crate::status_file`，施工 O-18）。
     pub(crate) changed: Arc<Notify>,
     /// 挂接点（施工 O-43 上）：通知、请求原样交给挂在 `chat.event` 的包。

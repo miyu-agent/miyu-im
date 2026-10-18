@@ -16,12 +16,11 @@ use serde_json::{Value, json};
 use super::Route;
 use super::fields::fits;
 use crate::TARGET;
+use crate::chat::Link;
 use crate::chat::{Fetch, Media, Segments};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
-use crate::listen::bots::Link;
 use crate::media::{Missed, message, take};
-use crate::onebot::segments;
 
 /// 一条要带图的消息：收进它的机器人号、平台编号、带的东西、引用的那一条。
 pub(super) struct Pictures {
@@ -79,12 +78,8 @@ impl Route {
         };
         let mut lists = Vec::new();
         if let Some(quoted) = &wanted.quoted {
-            match message(&link, quoted).await {
-                Ok(data) => lists.push((
-                    quoted.clone(),
-                    kept(&segments(&data["message"]).media),
-                    false,
-                )),
+            match message(link.as_ref(), quoted).await {
+                Ok(fetched) => lists.push((quoted.clone(), kept(&fetched.segments.media), false)),
                 Err(missed) => {
                     tracing::warn!(target: TARGET, venue, message = quoted, why = missed.name(), "picture not fetched");
                 }
@@ -98,7 +93,12 @@ impl Route {
                 .filter(|(_, item)| item.fetch == Some(Fetch::Image))
                 .take(self.fetching.images)
                 .collect();
-            let taken = join_all(picked.iter().map(|(_, item)| self.quick(&link, item))).await;
+            let taken = join_all(
+                picked
+                    .iter()
+                    .map(|(_, item)| self.quick(link.as_ref(), item)),
+            )
+            .await;
             for ((index, _), taken) in picked.into_iter().zip(taken) {
                 let name = format!("msg-{msg}-{index}");
                 let stored = match taken {
@@ -131,7 +131,7 @@ impl Route {
     }
 
     /// 取一张图，等多久照一次 OneBot 调用（`call_timeout_seconds`）：交消息以前取，不能等太久。
-    async fn quick(&self, link: &Link, item: &Media) -> Result<Vec<u8>, Missed> {
+    async fn quick(&self, link: &dyn Link, item: &Media) -> Result<Vec<u8>, Missed> {
         take(link, Fetch::Image, &item.id, self.fetching.quick)
             .await
             .map(|(bytes, _)| bytes)

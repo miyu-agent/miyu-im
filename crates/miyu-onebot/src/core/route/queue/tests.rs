@@ -5,7 +5,6 @@
 use std::time::Duration;
 
 use miyu_client::time::Timestamp;
-use serde_json::{Value, json};
 
 use super::{DISCONNECTED, EXPIRED, Ending, Queue, REJECTED, TIMEOUT, ending, until};
 use crate::chat::CallError;
@@ -105,42 +104,30 @@ fn a_mute_lasts_from_now() {
     assert_eq!(until(at(0), u64::MAX), None, "算出来超出范围的没有");
 }
 
-/// NapCat 回了 `status` 是 `ok`，`data` 照给的。
-fn ok(data: Value) -> Result<Value, CallError> {
-    Ok(json!({"status": "ok", "retcode": 0, "data": data, "echo": "e"}))
-}
-
-/// NapCat 回了失败，`message` 照给的（`null` 的不写这一格）。
-fn failed(message: Value) -> Result<Value, CallError> {
-    let mut reply = json!({"status": "failed", "retcode": 1200, "data": null, "echo": "e"});
-    if !message.is_null() {
-        reply["message"] = message;
-    }
-    Err(CallError::Failed(reply))
+/// 平台回了没成，它自己那句话是 `message`（驱动去掉了首尾空白，`onebot::failed`）。
+fn failed(message: &str) -> Result<Option<i64>, CallError> {
+    Err(CallError::Failed {
+        said: "said".to_string(),
+        message: message.to_string(),
+    })
 }
 
 #[test]
 fn a_reply_ends_as_sent_or_failed_and_why() {
-    assert_eq!(ending(&ok(json!({"message_id": 7}))), Ending::Sent(Some(7)));
+    assert_eq!(ending(&Ok(Some(7))), Ending::Sent(Some(7)));
+    assert_eq!(ending(&Ok(None)), Ending::Sent(None));
     assert_eq!(
-        ending(&ok(json!({"message_id": "8"}))),
-        Ending::Sent(Some(8)),
-        "写成整数的字也认"
-    );
-    assert_eq!(ending(&ok(Value::Null)), Ending::Sent(None));
-    assert_eq!(
-        ending(&failed(json!("  风控拦了  "))),
+        ending(&failed("风控拦了")),
         Ending::Failed(REJECTED, Some("风控拦了".to_string())),
-        "去掉首尾空白"
+        "照它自己那句话，不照 said"
     );
     let long = "失".repeat(250);
     assert_eq!(
-        ending(&failed(json!(long))),
+        ending(&failed(&long)),
         Ending::Failed(REJECTED, Some("失".repeat(200))),
         "截到 200 个字符"
     );
-    assert_eq!(ending(&failed(json!(" "))), Ending::Failed(REJECTED, None));
-    assert_eq!(ending(&failed(Value::Null)), Ending::Failed(REJECTED, None));
+    assert_eq!(ending(&failed("")), Ending::Failed(REJECTED, None));
     assert_eq!(
         ending(&Err(CallError::Timeout)),
         Ending::Failed(TIMEOUT, None)

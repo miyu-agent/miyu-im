@@ -22,9 +22,8 @@ use tokio::sync::oneshot;
 use super::decide::Decision;
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::CallError;
-use crate::listen::bots::Bots;
-use crate::onebot::emoji_like;
 
 /// 贴着的几条，和贴什么、多久摘。
 pub(crate) struct Reactions {
@@ -186,9 +185,8 @@ pub(super) async fn mark(
 
 /// 在 `target` 上贴（`on`）、摘一次，记一行运行日志；成了交回真。那时没连着的照断了算（`Closed`）。
 async fn put(target: &Mark, bots: &Bots, on: bool) -> bool {
-    let (action, params) = emoji_like(&target.message, &target.emoji, on);
     let result = match bots.get(target.peer.bot) {
-        Some(link) => link.calls.call(&link.out, action, params).await,
+        Some(link) => link.react(&target.message, &target.emoji, on).await,
         None => Err(CallError::Closed),
     };
     let (venue, message) = (&target.peer.venue, &target.message);

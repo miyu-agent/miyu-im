@@ -3,7 +3,7 @@
 //! 或者到了时候摘一次，经那时的连接，贴不上的不摘，信号的一头放下了（桥在停）不摘。钟是停住的（`start_paused`）。支线（施工
 //! O-36）照 `(line, turn)` 认，回合编号撞上了也不串。
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_client::events::Event;
@@ -16,8 +16,8 @@ use tokio_tungstenite::tungstenite::Message;
 use super::super::Peer;
 use super::{Mark, Reactions, mark};
 use crate::chat::To;
-use crate::listen::bots::{Bots, Link};
-use crate::onebot::Calls;
+use crate::chat::{Bots, Link};
+use crate::onebot::Wire;
 
 /// 两个群会话的编号。
 const ONE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -190,17 +190,11 @@ fn taking_one_off_signals_it_once() {
 }
 
 /// 一条连着的机器人号：交回号到连接、在等的调用、写出去的帧。
-fn connected() -> (Arc<Bots>, Arc<Calls>, mpsc::Receiver<Message>) {
+fn connected() -> (Arc<Bots>, Arc<Wire>, mpsc::Receiver<Message>) {
     let (out, frames) = mpsc::channel(8);
-    let calls = Arc::new(Calls::new(Duration::from_secs(10)));
+    let calls = Arc::new(Wire::new(out, Duration::from_secs(10)));
     let bots = Arc::new(Bots::default());
-    let link = Link {
-        serial: 0,
-        out,
-        calls: Arc::clone(&calls),
-        peer: Arc::new(OnceLock::new()),
-    };
-    assert!(bots.insert(BOT, link).is_none());
+    assert!(bots.insert(BOT, calls.clone()).is_none());
     (bots, calls, frames)
 }
 
@@ -229,10 +223,10 @@ async fn frame(frames: &mut mpsc::Receiver<Message>) -> Value {
 }
 
 /// 回一帧 `sent`：成了的照 `ok`，不成的回失败。
-fn answer(calls: &Calls, sent: &Value, ok: bool) {
+fn answer(wire: &Wire, sent: &Value, ok: bool) {
     let status = if ok { "ok" } else { "failed" };
     let reply = json!({"status": status, "retcode": 0, "data": null, "echo": sent["echo"]});
-    assert!(calls.answer(reply), "有人在等");
+    assert!(wire.calls.answer(reply), "有人在等");
 }
 
 /// 一帧是 `set_msg_emoji_like`，`set` 照给的。
@@ -309,7 +303,8 @@ async fn the_connection_of_that_moment_is_used() {
     let put = frame(&mut frames).await;
     answer(&calls, &put, true);
     tokio::time::sleep(Duration::from_secs(1)).await;
-    bots.remove(BOT, 0);
+    let link: Arc<dyn Link> = calls.clone();
+    bots.remove(BOT, &link);
     signal.send(()).expect("还在等");
     task.await.expect("没崩");
     assert!(frames.try_recv().is_err(), "那时没连着的摘不了");

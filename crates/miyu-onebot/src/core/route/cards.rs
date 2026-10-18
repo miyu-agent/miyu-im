@@ -14,11 +14,11 @@ use serde_json::{Map, Value, json};
 
 use super::Route;
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
-use crate::listen::bots::Bots;
 use crate::onebot::venue;
 use crate::rules::{Card, Cards, card_defaults, save_cards};
 use miyu_chat::VenueKind;
@@ -164,24 +164,18 @@ pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
     let mut groups = Vec::new();
     let mut friends = Vec::new();
     for (_, link) in bots.all() {
-        if let Ok(reply) = link
-            .calls
-            .call(&link.out, "get_group_list", json!({}))
-            .await
-        {
-            groups.extend(entries(
-                &reply["data"],
-                "group_id",
-                "group_name",
-                Some("member_count"),
-            ));
+        if let Ok(list) = link.groups().await {
+            let rows = list.into_iter().map(|group| {
+                let row = json!({"id": group.id, "name": group.name, "members": group.members});
+                (group.id, row)
+            });
+            groups.extend(entries(rows));
         }
-        if let Ok(reply) = link
-            .calls
-            .call(&link.out, "get_friend_list", json!({}))
-            .await
-        {
-            friends.extend(entries(&reply["data"], "user_id", "nickname", None));
+        if let Ok(list) = link.friends().await {
+            let rows = list
+                .into_iter()
+                .map(|friend| (friend.id, json!({"id": friend.id, "name": friend.name})));
+            friends.extend(entries(rows));
         }
     }
     let personas = match caller.call("persona.list", json!({})).await {
@@ -203,25 +197,12 @@ pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
     }
 }
 
-/// NapCat 回的一张表里每一行的号、名字（和人数）：号不是整数的不要；同一个号只留第一行（几个号都在一个群里）。
-fn entries(data: &Value, id: &str, name: &str, count: Option<&str>) -> Vec<Value> {
+/// 一张表里每一行（号、交出去的样子）：同一个号只留第一行。
+fn entries(rows: impl Iterator<Item = (i64, Value)>) -> Vec<Value> {
     let mut seen = std::collections::BTreeSet::new();
-    data.as_array()
-        .map(|rows| {
-            rows.iter()
-                .filter_map(|row| {
-                    let number = row[id].as_u64()?;
-                    seen.insert(number).then(|| {
-                        let mut entry = json!({"id": number, "name": row[name]});
-                        if let Some(count) = count {
-                            entry["members"] = row[count].clone();
-                        }
-                        entry
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    rows.filter(|(id, _)| seen.insert(*id))
+        .map(|(_, entry)| entry)
+        .collect()
 }
 
 #[cfg(test)]

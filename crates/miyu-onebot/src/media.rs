@@ -16,11 +16,8 @@ use std::time::Duration;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use miyu_client::http::{Get, Got, Proxy};
-use serde_json::Value;
 
-use crate::listen::bots::Link;
-use crate::onebot::media::{Source, get_media, get_msg, sources};
-use crate::onebot::{CallError, Fetch, said};
+use crate::chat::{CallError, Fetch, Fetched, Link, Source};
 
 /// 没取到。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,51 +47,38 @@ impl Missed {
 /// NapCat 那一次调用没成算成哪一种。
 fn missed(error: CallError) -> Missed {
     match error {
-        CallError::Failed(reply) => Missed::Failed(said(&reply)),
+        CallError::Failed { said, .. } => Missed::Failed(said),
         CallError::Timeout => Missed::Unanswered,
         CallError::Closed => Missed::Unreachable,
     }
 }
 
-/// 经连接 `link` 取平台编号是 `msg` 的那一条消息（`get_msg`），交回回应的 `data`；等多久照一次 OneBot 调用。
+/// 经连接 `link` 取平台编号是 `msg` 的那一条消息（[`Link::message`]）；等多久照一次调用。
 ///
 /// # Errors
 ///
-/// NapCat 回了失败（没有这一条、过期了）、等不到、没连着。
-pub(crate) async fn message(link: &Link, msg: &str) -> Result<Value, Missed> {
-    let (action, params) = get_msg(msg);
-    let reply = link
-        .calls
-        .call(&link.out, action, params)
-        .await
-        .map_err(missed)?;
-    Ok(reply["data"].clone())
+/// 平台回了失败（没有这一条、过期了）、等不到、没连着。
+pub(crate) async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
+    link.message(msg).await.map_err(missed)
 }
 
-/// 经连接 `link` 照 `fetch` 取编号是 `id` 的那一样（`get_image`、`get_file`），再照回应说的地方拿到字节（[`bytes`]）。NapCat
-/// 回应、下载各最多等 `wait`。交回字节和回应的 `data`（文件名在里面）。
+/// 经连接 `link` 照 `fetch` 取编号是 `id` 的那一样（[`Link::fetch`]），再照平台说的地方拿到字节（[`bytes`]）。平台回应、下载
+/// 各最多等 `wait`。交回字节和平台说的文件名。
 ///
 /// # Errors
 ///
-/// NapCat 回了失败、等不到、没连着；回了但哪儿都拿不到。
+/// 平台回了失败、等不到、没连着；回了但哪儿都拿不到。
 pub(crate) async fn take(
-    link: &Link,
+    link: &dyn Link,
     fetch: Fetch,
     id: &str,
     wait: Duration,
-) -> Result<(Vec<u8>, Value), Missed> {
-    let (action, params) = get_media(fetch, id);
-    let pending = link
-        .calls
-        .begin(&link.out, action, params)
-        .await
-        .map_err(missed)?;
-    let reply = pending.wait_for(wait).await.map_err(missed)?;
-    let data = reply["data"].clone();
-    let bytes = bytes(&sources(&data), wait)
+) -> Result<(Vec<u8>, Option<String>), Missed> {
+    let located = link.fetch(fetch, id, wait).await.map_err(missed)?;
+    let bytes = bytes(&located.sources, wait)
         .await
         .map_err(Missed::Unfetched)?;
-    Ok((bytes, data))
+    Ok((bytes, located.name))
 }
 
 /// 工作区里放取来的视频、文件的目录（施工单「要定的」第 3 条）。

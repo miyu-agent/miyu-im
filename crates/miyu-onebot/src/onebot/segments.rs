@@ -41,7 +41,9 @@ fn take(segments: &mut Segments, kind: &str, data: &Value) {
             segments.pieces.push(Piece::Text(FORWARD.to_string()));
             segments.forwards.push(Forwarded {
                 id: id(&data["id"]),
-                content: data["content"].as_array().cloned(),
+                content: data["content"]
+                    .as_array()
+                    .map(|messages| messages.iter().map(super::node).collect()),
             });
         }
         "json" | "xml" => segments.pieces.push(Piece::Text(CARD.to_string())),

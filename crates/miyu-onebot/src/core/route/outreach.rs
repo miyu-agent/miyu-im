@@ -23,11 +23,12 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
+use crate::chat::Bots;
+use crate::chat::Outgoing;
 use crate::chat::{CallError, Lead, To};
 use crate::core::methods::ours;
 use crate::core::{Answerer, Caller, Gone, reason};
-use crate::listen::bots::Bots;
-use crate::onebot::{forward_to, message_to, person, picture_to, said, venue};
+use crate::onebot::{person, venue};
 use crate::rules::Tools;
 
 /// `reached` 事实的 `kind`。
@@ -244,34 +245,41 @@ async fn send(job: &Job) -> Result<usize, Undone> {
     let Some(link) = job.bots.get(job.bot) else {
         return Err(("unreachable", None));
     };
-    let words = || -> Vec<(&'static str, Value)> {
-        job.pieces
+    let lead = Lead::default();
+    let drawn = match &job.long {
+        Long::Image(venue, text) => draw(&job.caller, venue, text, WAIT).await,
+        Long::Split | Long::Forward(..) => None,
+    };
+    let outgoing: Vec<Outgoing<'_>> = match (&job.long, &drawn) {
+        (Long::Forward(nodes, nickname), _) => vec![Outgoing::Forward {
+            bot: job.bot,
+            nickname,
+            nodes,
+        }],
+        (Long::Image(..), Some(drawn)) => drawn
             .iter()
-            .map(|piece| message_to(job.to, piece, &Lead::default()))
-            .collect()
+            .map(|page| Outgoing::Picture {
+                file: &page.file,
+                lead: &lead,
+            })
+            .collect(),
+        (Long::Split | Long::Image(..), _) => job
+            .pieces
+            .iter()
+            .map(|piece| Outgoing::Text {
+                text: piece,
+                lead: &lead,
+            })
+            .collect(),
     };
-    let actions = match &job.long {
-        Long::Split => words(),
-        Long::Image(venue, text) => match draw(&job.caller, venue, text, WAIT).await {
-            Some(drawn) => drawn
-                .iter()
-                .map(|page| picture_to(job.to, &page.file, &Lead::default()))
-                .collect(),
-            None => words(),
-        },
-        Long::Forward(nodes, nickname) => vec![forward_to(job.to, job.bot, nickname, nodes)],
-    };
-    for (action, params) in &actions {
-        link.calls
-            .call(&link.out, action, params.clone())
-            .await
-            .map_err(|error| match error {
-                CallError::Failed(reply) => ("failed", Some(said(&reply))),
-                CallError::Timeout => ("unanswered", None),
-                CallError::Closed => ("unreachable", None),
-            })?;
+    for one in &outgoing {
+        link.send(job.to, *one).await.map_err(|error| match error {
+            CallError::Failed { said, .. } => ("failed", Some(said)),
+            CallError::Timeout => ("unanswered", None),
+            CallError::Closed => ("unreachable", None),
+        })?;
     }
-    Ok(actions.len())
+    Ok(outgoing.len())
 }
 
 /// 给对方的会话记一块 `reached`：她那句话的开头。核心拒了的记一行，不再试。

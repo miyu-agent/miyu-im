@@ -6,7 +6,7 @@ use miyu_client::ids::ExternalId;
 use serde_json::json;
 
 use super::{Arg, Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
-use crate::chat::To;
+use crate::chat::{Fetched, To};
 
 /// 平台上号是 `number` 的人。
 fn qq(number: i64) -> ExternalId {
@@ -332,52 +332,34 @@ fn a_private_chat_recalls_any_quote_and_pokes_the_peer() {
 
 #[test]
 fn a_given_msg_is_recallable_only_in_this_chat() {
-    let group = To::Group(888);
-    assert!(recallable(
-        &json!({"group_id": 888, "user_id": 40001}),
+    let one = |private, group, user| Fetched {
+        private,
         group,
-        ME
-    ));
+        user,
+        segments: Default::default(),
+    };
+    let group = To::Group(888);
+    assert!(recallable(&one(false, Some(888), Some(40001)), group, ME));
     assert!(
-        recallable(&json!({"group_id": "888", "user_id": ME}), group, ME),
+        recallable(&one(false, Some(888), Some(ME)), group, ME),
         "她自己的也算"
     );
     assert!(
-        !recallable(&json!({"group_id": 999}), group, ME),
+        !recallable(&one(false, Some(999), None), group, ME),
         "别的群的"
     );
-    assert!(!recallable(
-        &json!({"message_type": "private", "user_id": 40001}),
-        group,
-        ME
-    ));
+    assert!(!recallable(&one(true, None, Some(40001)), group, ME));
     let private = To::Private(BOSS);
-    assert!(recallable(
-        &json!({"message_type": "private", "user_id": BOSS}),
-        private,
-        ME
-    ));
+    assert!(recallable(&one(true, None, Some(BOSS)), private, ME));
     assert!(
-        recallable(
-            &json!({"message_type": "private", "user_id": ME}),
-            private,
-            ME
-        ),
+        recallable(&one(true, None, Some(ME)), private, ME),
         "她发给他的"
     );
     assert!(
-        !recallable(
-            &json!({"message_type": "private", "user_id": 40001}),
-            private,
-            ME
-        ),
+        !recallable(&one(true, None, Some(40001)), private, ME),
         "别人的私聊"
     );
-    assert!(!recallable(
-        &json!({"message_type": "group", "group_id": 888, "user_id": BOSS}),
-        private,
-        ME
-    ));
+    assert!(!recallable(&one(false, Some(888), Some(BOSS)), private, ME));
 }
 
 #[test]

@@ -14,15 +14,12 @@
 use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
 
-use serde_json::{Value, json};
+use serde_json::json;
 
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
 use crate::core::{Gone, reason};
-
-/// 问群名的动作。
-const GROUP_INFO: &str = "get_group_info";
 
 /// 附加提示词的模板先填这一段占位，再换成原文（施工 O-58 上）：只有字母和下划线，模板的填法不会改它。
 const SLOT: &str = "VENUE_NOTE_TEXT";
@@ -77,11 +74,9 @@ impl Titles {
     }
 }
 
-/// `get_group_info` 回的 `data` 里的群名：洗过（同发的人的名字），空的、没有的是空的。
-pub(super) fn group_name(data: &Value) -> Option<String> {
-    data["group_name"]
-        .as_str()
-        .and_then(|name| clean(name, NAME))
+/// 平台给的群名洗过（同发的人的名字），洗完空的是空的。
+pub(super) fn group_name(name: &str) -> Option<String> {
+    clean(name, NAME)
 }
 
 impl Route {
@@ -96,8 +91,7 @@ impl Route {
         }
         let asked = match self.bots.get(bot) {
             Some(link) => link
-                .calls
-                .call(&link.out, GROUP_INFO, json!({"group_id": group}))
+                .group_name(group)
                 .await
                 .map_err(|error| format!("{error:?}")),
             None => Err("bot not connected".to_string()),
@@ -105,7 +99,7 @@ impl Route {
         let Some(name) = asked
             .as_ref()
             .ok()
-            .and_then(|reply| group_name(&reply["data"]))
+            .and_then(|name| name.as_deref().and_then(group_name))
         else {
             let error = asked.err().unwrap_or_default();
             tracing::debug!(target: TARGET, group, error, "group name unknown");

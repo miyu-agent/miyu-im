@@ -108,10 +108,10 @@ use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
 
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::{Event, Members, To};
 use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
-use crate::listen::bots::Bots;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};

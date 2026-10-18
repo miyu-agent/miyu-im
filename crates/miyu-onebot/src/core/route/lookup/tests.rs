@@ -3,6 +3,7 @@
 use serde_json::json;
 
 use super::{Whose, avatar_of, extension, listed, whose};
+use crate::chat::{Member, Rank};
 
 #[test]
 fn whose_avatar_is_read_from_the_arguments_or_the_caller() {
@@ -59,12 +60,16 @@ fn the_extension_is_read_from_the_bytes() {
 
 #[test]
 fn members_are_filtered_and_listed() {
-    let data = json!([
-        {"user_id": 40001, "card": "小明", "nickname": "ming", "role": "owner"},
-        {"user_id": 40002, "card": "", "nickname": "Hong", "role": "admin"},
-        {"user_id": 40003, "card": "  ", "nickname": "小明的朋友"},
-        {"nickname": "no id"},
-    ]);
+    let member = |user, name: &str, rank| Member {
+        user,
+        name: Some(name.to_string()),
+        rank,
+    };
+    let data = [
+        member(40001, "小明", Some(Rank::Owner)),
+        member(40002, "Hong", Some(Rank::Admin)),
+        member(40003, "小明的朋友", None),
+    ];
     assert_eq!(
         listed(&data, None, 30),
         (

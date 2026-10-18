@@ -4,7 +4,7 @@
 
 use serde_json::{Value, json};
 
-use miyu_onebot::onebot::{Fetch, Forwarded, Media, MediaKind, Piece, Segments, segments};
+use miyu_onebot::onebot::{Fetch, Forwarded, Media, MediaKind, Node, Piece, Segments, segments};
 
 /// 一样带的东西：没有大小；怎么取照种类（图 `get_image`，视频、文件 `get_file`，别的取不了）。
 fn media(kind: MediaKind, id: &str, name: Option<&str>) -> Media {
@@ -233,7 +233,8 @@ fn sizes_and_how_to_fetch_are_read() {
     }
 }
 
-/// 施工 O-34：合并转发正文里照旧写占位，另记下编号和段里内联的消息（NapCat 开了解析合并转发的才有）；编号是整数的写成字。
+/// 施工 O-34：合并转发正文里照旧写占位，另记下编号和段里内联的消息（NapCat 开了解析合并转发的才有，施工 I-2 上起认成节点）；
+/// 编号是整数的写成字。
 #[test]
 fn a_forward_keeps_its_id_and_inline_content() {
     let inline = json!([{"sender": {"user_id": 1, "nickname": "阿杰"}, "message": [{"type": "text", "data": {"text": "嗯"}}]}]);
@@ -248,7 +249,11 @@ fn a_forward_keeps_its_id_and_inline_content() {
         [
             Forwarded {
                 id: Some("7495".to_string()),
-                content: inline.as_array().cloned(),
+                content: Some(vec![Node {
+                    user: Some(1),
+                    name: Some("阿杰".to_string()),
+                    segments: segments(&json!([{"type": "text", "data": {"text": "嗯"}}])),
+                }]),
             },
             Forwarded {
                 id: Some("42".to_string()),

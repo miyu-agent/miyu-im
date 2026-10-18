@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use super::Route;
 use crate::TARGET;
-use crate::listen::bots::Bots;
-use crate::onebot::{friend_add, person};
+use crate::chat::Bots;
+use crate::onebot::person;
 
 impl Route {
     /// 机器人号 `bot` 收到号 `user` 加好友的请求，标记是 `flag`：`user` 在白名单里的另起任务同意，别的记一行、放着。
@@ -35,8 +35,7 @@ async fn approve(bots: Arc<Bots>, bot: i64, user: i64, flag: String) {
         tracing::warn!(target: TARGET, bot, user, "friend request not approved, bot not connected");
         return;
     };
-    let (action, params) = friend_add(&flag);
-    match link.calls.call(&link.out, action, params).await {
+    match link.befriend(&flag).await {
         Ok(_) => tracing::info!(target: TARGET, bot, user, "friend request approved"),
         Err(error) => {
             tracing::warn!(target: TARGET, bot, user, error = ?error, "friend request not approved");

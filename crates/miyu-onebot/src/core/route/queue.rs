@@ -8,10 +8,8 @@ use std::collections::{BTreeMap, VecDeque};
 use std::time::Duration;
 
 use miyu_client::time::Timestamp;
-use serde_json::Value;
 
 use crate::chat::{CallError, DETAIL};
-use crate::onebot::number;
 
 /// `failed` 的 `why`：NapCat 回了失败。
 pub(super) const REJECTED: &str = "rejected";
@@ -148,11 +146,10 @@ pub(super) enum Ending {
 /// 一次调用的结果算成什么（第 4 条，「施工时定的」第 120 条）：回了 `ok` 的成了，带回的 `message_id`；回了失败的是
 /// [`REJECTED`]，原因照回应的 `message` 去掉首尾空白、截到 [`DETAIL`] 个字符，空的、没有的不带；等不到是 [`TIMEOUT`]；
 /// 连接断了是 [`DISCONNECTED`]。
-pub(super) fn ending(result: &Result<Value, CallError>) -> Ending {
+pub(super) fn ending(result: &Result<Option<i64>, CallError>) -> Ending {
     match result {
-        Ok(reply) => Ending::Sent(number(&reply["data"]["message_id"])),
-        Err(CallError::Failed(reply)) => {
-            let message = reply["message"].as_str().unwrap_or_default().trim();
+        Ok(msg) => Ending::Sent(*msg),
+        Err(CallError::Failed { message, .. }) => {
             let detail = (!message.is_empty()).then(|| message.chars().take(DETAIL).collect());
             Ending::Failed(REJECTED, detail)
         }

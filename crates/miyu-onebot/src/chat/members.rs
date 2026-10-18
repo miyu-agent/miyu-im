@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-/// 一个人在群里的身份（OneBot 的 `role`，施工 O-31）。
+/// 一个人在群里的身份（施工 O-31）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rank {
     /// 群主：`owner`。
@@ -12,6 +12,17 @@ pub enum Rank {
     Admin,
     /// 普通成员：`member`。
     Member,
+}
+
+impl Rank {
+    /// 给模型看的写法：`owner`、`admin`、`member`（群成员列表照它写，施工 O-54）。
+    pub fn word(self) -> &'static str {
+        match self {
+            Rank::Owner => "owner",
+            Rank::Admin => "admin",
+            Rank::Member => "member",
+        }
+    }
 }
 
 /// 群成员的名字缓存。

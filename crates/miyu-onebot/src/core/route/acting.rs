@@ -14,11 +14,11 @@ use super::fields::{NAME, clean};
 use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::chat::{CallError, To};
+use crate::chat::Bots;
+use crate::chat::{CallError, Msg, To};
 use crate::core::{Answerer, Gone};
-use crate::listen::bots::Bots;
 use crate::media::{Missed, message};
-use crate::onebot::{delete_msg, group_ban, person, poke, said};
+use crate::onebot::person;
 use crate::rules::{AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
@@ -262,40 +262,36 @@ async fn act(job: &Job) -> Result<(), Undone> {
     let Some(link) = job.bots.get(job.peer.bot) else {
         return Err(Undone("unreachable", None));
     };
-    let (action, params) = match &job.act {
+    let done = match &job.act {
         Act::Recall { msg, check } => {
             if *check {
-                let data = match message(&link, msg).await {
-                    Ok(data) => data,
+                let fetched = match message(link.as_ref(), msg).await {
+                    Ok(fetched) => fetched,
                     Err(Missed::Failed(_)) => return Err(Undone("not-found", None)),
                     Err(Missed::Unanswered) => return Err(Undone("unanswered", None)),
                     Err(_) => return Err(Undone("unreachable", None)),
                 };
-                if !recallable(&data, job.peer.to, job.peer.bot) {
+                if !recallable(&fetched, job.peer.to, job.peer.bot) {
                     return Err(Undone("not-found", None));
                 }
             }
-            delete_msg(msg.as_str())
+            link.recall(Msg::Text(msg)).await
         }
         Act::Mute {
             group,
             user,
             seconds,
-        } => group_ban(*group, *user, *seconds),
-        Act::Poke(user) => poke(job.peer.to, *user),
+        } => link.mute(*group, *user, *seconds).await,
+        Act::Poke(user) => link.poke(job.peer.to, *user).await,
     };
-    link.calls
-        .call(&link.out, action, params)
-        .await
-        .map(|_| ())
-        .map_err(undone)
+    done.map_err(undone)
 }
 
 /// NapCat 没成算成哪一句：回了失败的是 `failed`，原因照它说的（`onebot::said`：`message`，空的换 `wording`，再空的写 `retcode`，
 /// 去掉首尾空白、截到 200 个字符）；等不到是 `unanswered`；没连着、断了是 `unreachable`。
 fn undone(error: CallError) -> Undone {
     match error {
-        CallError::Failed(reply) => Undone("failed", Some(said(&reply))),
+        CallError::Failed { said, .. } => Undone("failed", Some(said)),
         CallError::Timeout => Undone("unanswered", None),
         CallError::Closed => Undone("unreachable", None),
     }

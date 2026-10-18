@@ -9,7 +9,6 @@ use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
 use crate::chat::{Piece, Posted};
-use crate::onebot::{MEMBER_INFO, display_name, member_info, rank_of};
 
 impl Route {
     /// 群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。
@@ -48,28 +47,19 @@ impl Route {
         }
         let asked = match self.bots.get(bot) {
             Some(link) => link
-                .calls
-                .call(&link.out, MEMBER_INFO, member_info(group, user))
+                .member(group, user)
                 .await
                 .map_err(|error| format!("{error:?}")),
             None => Err("bot not connected".to_string()),
         };
-        let Some(name) = asked
-            .as_ref()
-            .ok()
-            .and_then(|reply| display_name(&reply["data"]))
-        else {
+        let Some(name) = asked.as_ref().ok().and_then(|member| member.name.clone()) else {
             *asking = false;
             let error = asked.err().unwrap_or_default();
             tracing::debug!(target: TARGET, group, user, error, "member name unknown");
             return None;
         };
         let cleaned = clean(&name, NAME);
-        if let Some(rank) = asked
-            .as_ref()
-            .ok()
-            .and_then(|reply| rank_of(&reply["data"]))
-        {
+        if let Some(rank) = asked.as_ref().ok().and_then(|member| member.rank) {
             // 问到了名字顺手记下身份（施工 O-31，「平台工具（一）」第 7 条）。
             self.members.ranked(group, user, rank, Instant::now());
         }

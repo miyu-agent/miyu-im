@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
-use miyu_onebot::onebot::{CallError, Calls};
+use miyu_onebot::onebot::{CallError, Calls, failed};
 
 /// 测试里给的时限：故意和出厂的（`bridge.json`，`tests/tuning.rs` 守着）不一样，看得出 [`Calls`] 照给的等。
 const TIMEOUT: Duration = Duration::from_secs(3);
@@ -87,12 +87,38 @@ async fn answers_are_paired_by_echo() {
         )
     );
     assert_eq!(second.await.expect("没崩").expect("成了")["data"]["n"], 2);
-    assert!(matches!(
+    assert_eq!(
         first.await.expect("没崩"),
-        Err(CallError::Failed(_))
-    ));
+        Err(CallError::Failed {
+            said: "no".to_string(),
+            message: "no".to_string(),
+        })
+    );
     assert!(
         !calls.answer(json!({"status": "ok", "echo": "nobody"})),
         "没人等的回应不认"
+    );
+}
+
+#[test]
+fn a_failed_reply_keeps_what_napcat_said_and_its_own_message() {
+    let reply =
+        json!({"status": "failed", "retcode": 1200, "message": "  风控拦了  ", "wording": "x"});
+    assert_eq!(
+        failed(&reply),
+        CallError::Failed {
+            said: "风控拦了".to_string(),
+            message: "风控拦了".to_string(),
+        },
+        "去掉首尾空白"
+    );
+    let wording = json!({"status": "failed", "retcode": 1200, "wording": "不让发"});
+    assert_eq!(
+        failed(&wording),
+        CallError::Failed {
+            said: "不让发".to_string(),
+            message: String::new(),
+        },
+        "message 空的：said 换 wording，出站队列不带"
     );
 }

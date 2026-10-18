@@ -16,10 +16,9 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::sending::{Body, Piece, What};
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::chat::Lead;
+use crate::chat::Bots;
+use crate::chat::{Lead, Msg};
 use crate::core::Gone;
-use crate::listen::bots::Bots;
-use crate::onebot::delete_msg;
 
 impl Route {
     /// 把斜杠命令的回执、被拒的那一句 `said` 发回会话 `session` 的那个私聊、群（「斜杠命令」第 2、4、7 条）：去掉首尾空白，空的
@@ -91,8 +90,7 @@ pub(super) async fn recall(message: i64, peer: Peer, bots: Arc<Bots>, after: Dur
         tracing::warn!(target: TARGET, venue = %venue, message, bot = peer.bot, "receipt not recalled, bot not connected");
         return;
     };
-    let (action, params) = delete_msg(message);
-    match link.calls.call(&link.out, action, params).await {
+    match link.recall(Msg::Number(message)).await {
         Ok(_) => tracing::info!(target: TARGET, venue = %venue, message, "receipt recalled"),
         Err(error) => {
             tracing::warn!(target: TARGET, venue = %venue, message, error = ?error, "receipt not recalled");

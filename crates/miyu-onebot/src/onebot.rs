@@ -16,9 +16,11 @@ mod calls;
 mod forwards;
 pub mod media;
 mod members;
+mod replies;
 mod segments;
 mod send;
 mod text;
+mod wire;
 
 use miyu_chat::{Venue, VenueKind};
 use miyu_client::events::FormatError;
@@ -26,12 +28,13 @@ use miyu_client::ids::{ExternalId, VenueId};
 use serde_json::{Value, json};
 
 pub use crate::chat::{Event, Lead, Posted, Recall, To};
-pub use calls::{CallError, Calls, DETAIL, Pending, said};
+pub use calls::{CallError, Calls, DETAIL, Pending, failed, said};
 pub use forwards::{Node, forward_messages, get_forward_msg, node};
 pub use members::{MEMBER_INFO, Members, Rank, display_name, member_info, rank_of};
 pub use segments::{FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments, segments};
 pub use send::{forward_to, image_to, message_to, picture_to};
 pub use text::text_of;
+pub use wire::Wire;
 
 /// 平台的名字：场所、平台上的人、命令编号的头一段（第 7、8 条）。
 pub const PLATFORM: &str = "qq";

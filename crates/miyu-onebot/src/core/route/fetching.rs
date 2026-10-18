@@ -18,13 +18,11 @@ use serde_json::{Value, json};
 use super::pictures::kept;
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::chat::{DETAIL, Fetch, To};
+use crate::chat::Bots;
+use crate::chat::{DETAIL, Fetch, Fetched, To};
 use crate::core::blobs::{Unstored, put};
 use crate::core::{Answerer, Caller, Gone};
-use crate::listen::bots::Bots;
 use crate::media::{Missed, QQ_FILES, file_name, message, save, take};
-use crate::onebot::media::file_name as napcat_name;
-use crate::onebot::segments;
 use crate::rules::Tools;
 
 /// 取东西的几个数（`bridge.json`，施工 O-33）。
@@ -214,17 +212,12 @@ async fn run(job: Job) {
     job.answerer.answer(&job.id, answer);
 }
 
-/// `get_msg` 回的那一条 `data` 在不在会话 `to` 里（纯逻辑，施工 O-35 核对归属；群里的 O-33 起就查）：群里是这个群的
-/// （`group_id`），私聊里是这个人在私聊里发的（`message_type` 是 `private`、`user_id` 是他）。编号是她给的，人打得出假的
-/// `[msg=…]`：这个人在群里说的、别人的私聊、她自己发的都当没有。号写成整数的字也认（同 NapCat 别处）。
-pub(super) fn owned(data: &Value, to: To) -> bool {
-    let is = |key: &str, number: i64| {
-        data[key].as_i64() == Some(number)
-            || data[key].as_str() == Some(number.to_string().as_str())
-    };
+/// 取回来的那一条在不在会话 `to` 里（纯逻辑，施工 O-35 核对归属；群里的 O-33 起就查）：群里是这个群的，私聊里是这个人在
+/// 私聊里发的。编号是她给的，人打得出假的 `[msg=…]`：这个人在群里说的、别人的私聊、她自己发的都当没有。
+pub(super) fn owned(fetched: &Fetched, to: To) -> bool {
     match to {
-        To::Group(group) => is("group_id", group),
-        To::Private(user) => data["message_type"] == "private" && is("user_id", user),
+        To::Group(group) => fetched.group == Some(group),
+        To::Private(user) => fetched.private && fetched.user == Some(user),
     }
 }
 
@@ -237,15 +230,15 @@ async fn fetch(job: &Job) -> Option<Result<Value, Undone>> {
         return Some(Err(("unreachable", Vec::new())));
     };
     let msg = &job.wanted.msg;
-    let data = match message(&link, msg).await {
-        Ok(data) => data,
+    let fetched = match message(link.as_ref(), msg).await {
+        Ok(fetched) => fetched,
         Err(Missed::Failed(_)) => return Some(Err(("not-found", Vec::new()))),
         Err(missed) => return Some(Err(undone(missed))),
     };
-    if !owned(&data, job.peer.to) {
+    if !owned(&fetched, job.peer.to) {
         return Some(Err(("not-found", Vec::new())));
     }
-    let media = kept(&segments(&data["message"]).media);
+    let media = kept(&fetched.segments.media);
     let index = job.wanted.index;
     let Some(item) = index.checked_sub(1).and_then(|at| media.get(at)) else {
         return Some(Err(("no-item", vec![("count", media.len().to_string())])));
@@ -253,7 +246,7 @@ async fn fetch(job: &Job) -> Option<Result<Value, Undone>> {
     let Some(how) = item.fetch else {
         return Some(Err(("not-fetchable", Vec::new())));
     };
-    let (bytes, data) = match take(&link, how, &item.id, job.wait).await {
+    let (bytes, named) = match take(link.as_ref(), how, &item.id, job.wait).await {
         Ok(taken) => taken,
         Err(missed) => return Some(Err(undone(missed))),
     };
@@ -274,7 +267,7 @@ async fn fetch(job: &Job) -> Option<Result<Value, Undone>> {
     let name = item
         .name
         .as_deref()
-        .or(napcat_name(&data))
+        .or(named.as_deref())
         .or(Some(item.id.as_str()));
     let name = file_name(msg, index, name);
     let (cwd, home) = (job.cwd.clone(), job.home.clone());

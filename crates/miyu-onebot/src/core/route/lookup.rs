@@ -10,21 +10,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::fields::{NAME, clean};
 use super::{Peer, Route};
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::Source;
-use crate::chat::{CallError, To};
+use crate::chat::{CallError, Member, Rank, To};
 use crate::core::{Answerer, Gone};
-use crate::listen::bots::Bots;
 use crate::media::{QQ_FILES, bytes, save};
-use crate::onebot::said;
 use crate::rules::{AVATAR, Tools};
-
-/// 列群成员的动作。
-const MEMBER_LIST: &str = "get_group_member_list";
 
 /// 答的话里的原因最多几个字符（同取图）。
 const DETAIL: usize = 200;
@@ -84,20 +80,22 @@ pub(super) fn extension(bytes: &[u8]) -> &'static str {
 /// 群成员列表 `data`（`get_group_member_list` 的回答）照 `query` 筛、列成一行（纯逻辑）：交回（列的几个、一共几个、那一行）。
 /// 名字照群名片，空的照昵称（洗过）；`query` 照名字、号找，不分大小写；身份没写的当 `member`；一个一段 `<号> <名字> (<身份>)`，
 /// `; ` 隔开；最多 `shown` 个。
-pub(super) fn listed(data: &Value, query: Option<&str>, shown: usize) -> (usize, usize, String) {
+pub(super) fn listed(
+    members: &[Member],
+    query: Option<&str>,
+    shown: usize,
+) -> (usize, usize, String) {
     let query = query
         .map(|query| query.trim().to_lowercase())
         .filter(|query| !query.is_empty());
-    let found: Vec<String> = data
-        .as_array()
-        .into_iter()
-        .flatten()
+    let found: Vec<String> = members
+        .iter()
         .filter_map(|member| {
-            let user = member["user_id"].as_i64()?;
-            let name = [&member["card"], &member["nickname"]]
-                .into_iter()
-                .filter_map(Value::as_str)
-                .find_map(|name| clean(name, NAME))
+            let user = member.user;
+            let name = member
+                .name
+                .as_deref()
+                .and_then(|name| clean(name, NAME))
                 .unwrap_or_default();
             if let Some(query) = &query
                 && !name.to_lowercase().contains(query.as_str())
@@ -105,7 +103,7 @@ pub(super) fn listed(data: &Value, query: Option<&str>, shown: usize) -> (usize,
             {
                 return None;
             }
-            let role = member["role"].as_str().unwrap_or("member");
+            let role = member.rank.map_or("member", Rank::word);
             Some(format!("{user} {name} ({role})"))
         })
         .collect();
@@ -299,16 +297,12 @@ async fn members(
     let Some(link) = job.bots.get(job.peer.bot) else {
         return Err(("unreachable", None));
     };
-    let reply = link
-        .calls
-        .call(&link.out, MEMBER_LIST, json!({"group_id": group}))
-        .await
-        .map_err(|error| match error {
-            CallError::Failed(reply) => ("failed", Some(said(&reply))),
-            CallError::Timeout => ("unanswered", None),
-            CallError::Closed => ("unreachable", None),
-        })?;
-    let (count, total, list) = listed(&reply["data"], query, shown);
+    let list = link.members(group).await.map_err(|error| match error {
+        CallError::Failed { said, .. } => ("failed", Some(said)),
+        CallError::Timeout => ("unanswered", None),
+        CallError::Closed => ("unreachable", None),
+    })?;
+    let (count, total, list) = listed(&list, query, shown);
     if count == 0 {
         return Ok(job.tools.answer("no-members", &[], false));
     }

@@ -22,7 +22,7 @@
 //!    （第 14 条）。NapCat 断了不退。
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU16, AtomicU64};
+use std::sync::atomic::AtomicU16;
 use std::time::Instant;
 
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -34,6 +34,7 @@ use miyu_chat::Problem;
 use miyu_client::places::DataRoot;
 
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::Members;
 use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
@@ -42,7 +43,6 @@ use crate::core::route::{
 };
 use crate::core::{Core, provide};
 use crate::current::Current;
-use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, rebind};
@@ -200,7 +200,6 @@ pub async fn run(
         bots: Arc::clone(&bots),
         inbound,
         tell,
-        serial: AtomicU64::new(0),
         changed: Arc::clone(&changed),
         hooks: Arc::clone(&hooks),
     });

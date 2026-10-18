@@ -12,10 +12,10 @@ use serde_json::{Map, Value, json};
 
 use super::Route;
 use crate::TARGET;
+use crate::chat::Bots;
 use crate::chat::CallError;
 use crate::core::Answerer;
 use crate::core::methods::{PLATFORM, VENUE, ours};
-use crate::listen::bots::Bots;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;
@@ -116,17 +116,17 @@ async fn act(id: Value, from: String, request: Request, bots: Arc<Bots>, answere
         return;
     };
     let called = link
-        .calls
-        .call(&link.out, &request.action, Value::Object(request.params))
+        .raw(&request.action, Value::Object(request.params))
         .await;
     let mut reply = match called {
-        Ok(reply) | Err(CallError::Failed(reply)) => reply,
+        Ok(reply) => reply,
         Err(CallError::Timeout) => {
             tracing::info!(target: TARGET, from, action = request.action, why = "unanswered", "export action failed");
             answerer.refuse(&id, "unanswered");
             return;
         }
-        Err(CallError::Closed) => {
+        // 原样的调用不会回 `Failed`（`Link::raw`）：照断了答。
+        Err(CallError::Closed | CallError::Failed { .. }) => {
             tracing::info!(target: TARGET, from, action = request.action, why = "not_connected", "export action failed");
             answerer.refuse(&id, "not_connected");
             return;

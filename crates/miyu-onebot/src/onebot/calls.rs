@@ -61,7 +61,7 @@ impl Calls {
     ///
     /// # Errors
     ///
-    /// 连接断了（之前、等的时候）；等了 [`Calls::new`] 给的那么久没回；回的 `status` 不是 `ok`。
+    /// 连接断了（之前、等的时候）；等了 [`Calls::new`] 给的那么久没回；回的 `status` 不是 `ok`（[`failed`]）。
     pub async fn call(
         &self,
         out: &mpsc::Sender<Message>,
@@ -158,7 +158,33 @@ impl Pending {
             Err(_) => Err(CallError::Timeout),
             Ok(Err(_)) => Err(CallError::Closed),
             Ok(Ok(reply)) if reply["status"] == "ok" => Ok(reply),
-            Ok(Ok(reply)) => Err(CallError::Failed(reply)),
+            Ok(Ok(reply)) => Err(failed(&reply)),
         }
+    }
+
+    /// 等回应，最多 [`Calls::new`] 给的那么久；回了的不管成没成都原样交回（`chat.action`，施工 O-29）。
+    ///
+    /// # Errors
+    ///
+    /// 等的时候连接断了；过了时。
+    pub async fn reply(self) -> Result<Value, CallError> {
+        match tokio::time::timeout(self.timeout, self.answer).await {
+            Err(_) => Err(CallError::Timeout),
+            Ok(Err(_)) => Err(CallError::Closed),
+            Ok(Ok(reply)) => Ok(reply),
+        }
+    }
+}
+
+/// 回了没成（`status` 不是 `ok`）的那一个回应读成 [`CallError::Failed`]：`said` 照 [`said`]，`message` 是它的 `message`
+/// 去掉首尾空白。
+pub fn failed(reply: &Value) -> CallError {
+    CallError::Failed {
+        said: said(reply),
+        message: reply["message"]
+            .as_str()
+            .unwrap_or_default()
+            .trim()
+            .to_string(),
     }
 }

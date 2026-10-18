@@ -6,9 +6,9 @@ use serde_json::json;
 use super::{Undone, undone};
 use crate::chat::CallError;
 
-/// 回了失败、原话照 `reply` 的。
+/// 回了失败、原话照 `reply` 的：驱动读成 [`CallError::Failed`]（`onebot::failed`），这里照它答。
 fn failed(reply: serde_json::Value) -> Undone {
-    undone(CallError::Failed(reply))
+    undone(crate::onebot::failed(&reply))
 }
 
 #[test]

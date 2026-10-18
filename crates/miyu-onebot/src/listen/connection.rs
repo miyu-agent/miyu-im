@@ -7,8 +7,7 @@
 //! 往 NapCat 写的都经一个写的任务（回话、`get_version_info`、被顶掉时的关闭帧）。断开时：在等的调用都算失败，号还是这一条
 //! 的拿掉，说一行；桥不退，等 NapCat 自己重连（第 11 条）。
 
-use std::sync::atomic::Ordering;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -18,9 +17,9 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::Role;
 
 use super::Gate;
-use super::bots::{Link, Peer};
 use crate::TARGET;
-use crate::onebot::{self, Calls, Event, Frame};
+use crate::chat::{Implementation, Link};
+use crate::onebot::{self, Event, Frame, Wire};
 use crate::serve::Notice;
 
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
@@ -43,13 +42,8 @@ where
             tracing::debug!(target: TARGET, error = %error, "websocket not closed cleanly");
         }
     });
-    let calls = Arc::new(Calls::new(gate.tuning.call_timeout()));
-    let link = Link {
-        serial: gate.serial.fetch_add(1, Ordering::Relaxed),
-        out: out.clone(),
-        calls: Arc::clone(&calls),
-        peer: Arc::new(OnceLock::new()),
-    };
+    let wire = Arc::new(Wire::new(out, gate.tuning.call_timeout()));
+    let link: Arc<dyn Link> = wire.clone();
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot {
         Some(bot) => register(gate, bot, &link).await,
@@ -57,19 +51,14 @@ where
     };
     tracing::info!(target: TARGET, bot, "napcat connected");
     (gate.tell)(Notice::Connected { bot });
-    let probe = version(
-        Arc::clone(&calls),
-        out.clone(),
-        Arc::clone(&link.peer),
-        Arc::clone(&gate.changed),
-    );
+    let probe = version(&wire, Arc::clone(&gate.changed));
     tokio::pin!(probe);
     let mut probed = false;
     while reading {
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    reading = frame_in(gate, &text, &mut bot, &link).await;
+                    reading = frame_in(gate, &text, &mut bot, (&wire, &link)).await;
                 }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
@@ -77,9 +66,9 @@ where
             () = &mut probe, if !probed => probed = true,
         }
     }
-    calls.close();
+    wire.calls.close();
     if let Some(bot) = bot {
-        gate.bots.remove(bot, link.serial);
+        gate.bots.remove(bot, &link);
         gate.changed.notify_one();
     }
     tracing::info!(target: TARGET, bot, "napcat disconnected");
@@ -87,7 +76,12 @@ where
 }
 
 /// 一帧文字。跟核心的那一头不收了（桥在停）交回假。
-async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -> bool {
+async fn frame_in(
+    gate: &Gate,
+    text: &str,
+    bot: &mut Option<i64>,
+    (wire, link): (&Wire, &Arc<dyn Link>),
+) -> bool {
     let frame: Value = match serde_json::from_str(text) {
         Ok(frame) => frame,
         Err(error) => {
@@ -111,7 +105,7 @@ async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
-            if !link.calls.answer(reply) {
+            if !wire.calls.answer(reply) {
                 tracing::debug!(target: TARGET, "reply nobody waits for");
             }
         }
@@ -163,34 +157,29 @@ fn noted(event: &Event) {
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
 /// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
-async fn register(gate: &Gate, bot: i64, link: &Link) -> bool {
-    if let Some(old) = gate.bots.insert(bot, link.clone()) {
-        old.calls.close();
-        if old.out.try_send(Message::Close(None)).is_err() {
-            // 旧的那一条已经断了，或者写队列满了：它的写的一头随连接一起放下。
-            tracing::debug!(target: TARGET, bot, "old connection not told to close");
-        }
+async fn register(gate: &Gate, bot: i64, link: &Arc<dyn Link>) -> bool {
+    if let Some(old) = gate.bots.insert(bot, Arc::clone(link)) {
+        old.close();
         tracing::info!(target: TARGET, bot, "napcat connection replaced");
     }
     gate.changed.notify_one();
     gate.inbound.send(Event::Connected { bot }).await.is_ok()
 }
 
-/// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进 `peer`，叫一声 `changed`。
-async fn version(
-    calls: Arc<Calls>,
-    out: mpsc::Sender<Message>,
-    peer: Arc<OnceLock<Peer>>,
-    changed: Arc<Notify>,
-) {
-    match calls.call(&out, "get_version_info", json!({})).await {
+/// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进这条连接，叫一声 `changed`。
+async fn version(wire: &Wire, changed: Arc<Notify>) {
+    match wire
+        .calls
+        .call(&wire.out, "get_version_info", json!({}))
+        .await
+    {
         Ok(reply) => {
             let data = &reply["data"];
-            let known = Peer {
-                implementation: data["app_name"].as_str().unwrap_or_default().to_string(),
+            let known = Implementation {
+                name: data["app_name"].as_str().unwrap_or_default().to_string(),
                 version: data["app_version"].as_str().unwrap_or_default().to_string(),
             };
-            if peer.set(known).is_err() {
+            if wire.implementation.set(known).is_err() {
                 // 一条连接只问一次：不会已经有了。
             }
             changed.notify_one();

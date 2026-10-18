@@ -10,7 +10,7 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::fetching::msg_id;
-use crate::chat::To;
+use crate::chat::{Fetched, To};
 use crate::onebot::person;
 use crate::rules::{MUTE, POKE, RECALL};
 
@@ -271,17 +271,13 @@ fn one<'a>(
     }
 }
 
-/// 她给的编号 `get_msg` 回的那一条 `data` 撤不撤得到（施工 O-48，同取图核对归属）：群里是这个群的（`group_id`），她的、别人的
-/// 都算；私聊里是私聊的（`message_type` 是 `private`），发的人是对方或者她（机器人号 `bot`）。号写成整数的字也认。
-pub(super) fn recallable(data: &Value, to: To, bot: i64) -> bool {
-    let is = |key: &str, number: i64| {
-        data[key].as_i64() == Some(number)
-            || data[key].as_str() == Some(number.to_string().as_str())
-    };
+/// 她给的编号取回来的那一条撤不撤得到（施工 O-48，同取图核对归属）：群里是这个群的，她的、别人的都算；私聊里是私聊的，发的人
+/// 是对方或者她（机器人号 `bot`）。
+pub(super) fn recallable(fetched: &Fetched, to: To, bot: i64) -> bool {
     match to {
-        To::Group(group) => is("group_id", group),
+        To::Group(group) => fetched.group == Some(group),
         To::Private(user) => {
-            data["message_type"] == "private" && (is("user_id", user) || is("user_id", bot))
+            fetched.private && (fetched.user == Some(user) || fetched.user == Some(bot))
         }
     }
 }

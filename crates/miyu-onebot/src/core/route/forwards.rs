@@ -15,6 +15,7 @@
 //!   另照核心的整条上限（所有转发合起来 100 条、名字和正文 16 KiB）一条条放，放不下的算进 `more`：超了核心整条拒，这条消息就丢了。
 //!   一条都放不进的转发不交。
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use futures_util::future::BoxFuture;
@@ -23,10 +24,9 @@ use serde_json::{Value, json};
 use super::fields::{NAME, clean, media};
 use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::{CallError, FORWARD, Forwarded, Piece, Segments};
+use crate::chat::Link;
+use crate::chat::{CallError, FORWARD, Forwarded, Node, Piece, Segments};
 use crate::core::Gone;
-use crate::listen::bots::Link;
-use crate::onebot::{forward_messages, get_forward_msg, node};
 
 /// 核心的整条上限（`venues.md`「场所的格」的 `forwards`）：一条场所消息里所有转发合起来最多几条。
 const ALL_NODES: usize = 100;
@@ -86,7 +86,7 @@ struct Budget {
 
 /// 取的那一头：连接、群号、记运行日志的场所和编号。
 struct At<'a> {
-    link: Option<Link>,
+    link: Option<Arc<dyn Link>>,
     group: Option<i64>,
     venue: &'a str,
     msg: i64,
@@ -149,11 +149,10 @@ impl Route {
                     continue;
                 };
                 let mut nodes = Vec::new();
-                for message in messages.iter().take(limits.nodes) {
+                for read in messages.iter().take(limits.nodes) {
                     if budget.nodes == 0 {
                         break;
                     }
-                    let read = node(message);
                     let Some(name) = read
                         .name
                         .as_deref()
@@ -222,7 +221,7 @@ impl Route {
 
 /// 一个转发里的消息：内联的照它；没有的、`budget` 还让问的调 `get_forward_msg`。取不到的记一行运行日志、交回空的，调不成的
 /// 以后不再调。
-async fn messages(at: &At<'_>, forwarded: &Forwarded, budget: &mut Budget) -> Option<Vec<Value>> {
+async fn messages(at: &At<'_>, forwarded: &Forwarded, budget: &mut Budget) -> Option<Vec<Node>> {
     if let Some(content) = &forwarded.content {
         return Some(content.clone());
     }
@@ -230,18 +229,13 @@ async fn messages(at: &At<'_>, forwarded: &Forwarded, budget: &mut Budget) -> Op
         (None, _) => "no-id",
         (Some(_), _) if !budget.asking => "skipped",
         (Some(_), None) => "unreachable",
-        (Some(id), Some(link)) => {
-            let (action, params) = get_forward_msg(id);
-            match link.calls.call(&link.out, action, params).await {
-                Ok(reply) => match forward_messages(&reply["data"]) {
-                    Some(messages) => return Some(messages),
-                    None => "unreadable",
-                },
-                Err(CallError::Failed(_)) => "failed",
-                Err(CallError::Timeout) => "unanswered",
-                Err(CallError::Closed) => "unreachable",
-            }
-        }
+        (Some(id), Some(link)) => match link.forwarded(id).await {
+            Ok(Some(messages)) => return Some(messages),
+            Ok(None) => "unreadable",
+            Err(CallError::Failed { .. }) => "failed",
+            Err(CallError::Timeout) => "unanswered",
+            Err(CallError::Closed) => "unreachable",
+        },
     };
     if why != "no-id" {
         budget.asking = false;
