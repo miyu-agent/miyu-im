@@ -121,4 +121,23 @@ fn a_failed_reply_keeps_what_napcat_said_and_its_own_message() {
         },
         "message 空的：said 换 wording，出站队列不带"
     );
+    let said = |reply: Value| match failed(&reply) {
+        CallError::Failed { said, .. } => said,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(
+        said(json!({"status": "failed", "retcode": 200, "message": " ", "wording": " 没有权限 "})),
+        "没有权限"
+    );
+    assert_eq!(
+        said(json!({"status": "failed", "retcode": 1200, "message": ""})),
+        "1200",
+        "都空的写 retcode"
+    );
+    let long = "撤".repeat(240);
+    assert_eq!(
+        said(json!({"status": "failed", "message": long})),
+        "撤".repeat(200),
+        "截到 200 个字符"
+    );
 }

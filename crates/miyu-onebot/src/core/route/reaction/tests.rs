@@ -11,13 +11,12 @@ use miyu_client::ids::VenueId;
 use miyu_client::time::Timestamp;
 use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
-use tokio_tungstenite::tungstenite::Message;
 
 use super::super::Peer;
 use super::{Mark, Reactions, mark};
 use crate::chat::To;
+use crate::chat::fake::{Asked, Did, Fake, fake, next};
 use crate::chat::{Bots, Link};
-use crate::onebot::Wire;
 
 /// 两个群会话的编号。
 const ONE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -189,13 +188,12 @@ fn taking_one_off_signals_it_once() {
     assert_eq!(signalled(&mut other), Some(true), "别的照旧");
 }
 
-/// 一条连着的机器人号：交回号到连接、在等的调用、写出去的帧。
-fn connected() -> (Arc<Bots>, Arc<Wire>, mpsc::Receiver<Message>) {
-    let (out, frames) = mpsc::channel(8);
-    let calls = Arc::new(Wire::new(out, Duration::from_secs(10)));
+/// 一条连着的机器人号：交回号到连接、假连接、它收到的要做的事。
+fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
+    let (link, asked) = fake();
     let bots = Arc::new(Bots::default());
-    assert!(bots.insert(BOT, calls.clone()).is_none());
-    (bots, calls, frames)
+    assert!(bots.insert(BOT, link.clone()).is_none());
+    (bots, link, asked)
 }
 
 /// 在群 5 里平台编号是 77 的那一条上贴 289。
@@ -211,105 +209,90 @@ fn target() -> Mark {
     }
 }
 
-/// 写出去的下一帧。钟停着：一直没有的，过一小时（停住的钟上的）就算没有，不卡住。
-async fn frame(frames: &mut mpsc::Receiver<Message>) -> Value {
-    let frame = tokio::time::timeout(Duration::from_secs(3600), frames.recv())
-        .await
-        .expect("写出了一帧");
-    match frame {
-        Some(Message::Text(text)) => serde_json::from_str(&text).expect("是 JSON"),
-        other => panic!("不是一帧文字：{other:?}"),
-    }
-}
-
-/// 回一帧 `sent`：成了的照 `ok`，不成的回失败。
-fn answer(wire: &Wire, sent: &Value, ok: bool) {
-    let status = if ok { "ok" } else { "failed" };
-    let reply = json!({"status": status, "retcode": 0, "data": null, "echo": sent["echo"]});
-    assert!(wire.calls.answer(reply), "有人在等");
-}
-
-/// 一帧是 `set_msg_emoji_like`，`set` 照给的。
-fn assert_reaction(frame: &Value, set: bool) {
-    assert_eq!(frame["action"], "set_msg_emoji_like", "{frame}");
+/// 要做的一件是在那一条上贴（`on`）、摘 289。
+fn assert_reaction(asked: &Asked, on: bool) {
     assert_eq!(
-        frame["params"],
-        json!({"message_id": "77", "emoji_id": "289", "set": set})
+        asked.did,
+        Did::React {
+            message: "77".to_string(),
+            emoji: "289".to_string(),
+            on,
+        }
     );
 }
 
 #[tokio::test(start_paused = true)]
 async fn the_signal_takes_it_off_once() {
-    let (bots, calls, mut frames) = connected();
+    let (bots, _link, mut asked) = connected();
     let (signal, off) = oneshot::channel();
     let task = tokio::spawn(mark(target(), off, bots, AFTER));
-    let put = frame(&mut frames).await;
+    let put = next(&mut asked).await;
     assert_reaction(&put, true);
-    answer(&calls, &put, true);
+    put.answer(true);
     tokio::time::sleep(Duration::from_secs(1)).await;
-    assert!(frames.try_recv().is_err(), "没有信号、没到时候不摘");
+    assert!(asked.try_recv().is_err(), "没有信号、没到时候不摘");
     signal.send(()).expect("还在等");
-    let taken = frame(&mut frames).await;
+    let taken = next(&mut asked).await;
     assert_reaction(&taken, false);
-    answer(&calls, &taken, true);
+    taken.answer(true);
     task.await.expect("没崩");
-    assert!(frames.try_recv().is_err(), "只摘一次");
+    assert!(asked.try_recv().is_err(), "只摘一次");
 }
 
 #[tokio::test(start_paused = true)]
 async fn without_a_signal_it_comes_off_in_time() {
-    let (bots, calls, mut frames) = connected();
+    let (bots, _link, mut asked) = connected();
     let (_signal, off) = oneshot::channel();
     let task = tokio::spawn(mark(target(), off, bots, AFTER));
-    let put = frame(&mut frames).await;
-    answer(&calls, &put, true);
+    let put = next(&mut asked).await;
+    put.answer(true);
     tokio::time::sleep(AFTER - Duration::from_millis(1)).await;
-    assert!(frames.try_recv().is_err(), "还没到时候");
-    let taken = frame(&mut frames).await;
+    assert!(asked.try_recv().is_err(), "还没到时候");
+    let taken = next(&mut asked).await;
     assert_reaction(&taken, false);
-    answer(&calls, &taken, false);
+    taken.answer(false);
     task.await.expect("没崩");
 }
 
 #[tokio::test(start_paused = true)]
 async fn what_was_not_put_on_is_not_taken_off() {
-    let (bots, calls, mut frames) = connected();
+    let (bots, _link, mut asked) = connected();
     let (signal, off) = oneshot::channel();
     let task = tokio::spawn(mark(target(), off, bots, AFTER));
-    let put = frame(&mut frames).await;
-    answer(&calls, &put, false);
+    let put = next(&mut asked).await;
+    put.answer(false);
     task.await.expect("没崩");
     assert!(signal.send(()).is_err(), "任务已经完了");
-    assert!(frames.try_recv().is_err(), "贴不上的不摘");
+    assert!(asked.try_recv().is_err(), "贴不上的不摘");
 }
 
 #[tokio::test(start_paused = true)]
 async fn a_dropped_signal_leaves_it_on() {
-    let (bots, calls, mut frames) = connected();
+    let (bots, _link, mut asked) = connected();
     let (signal, off) = oneshot::channel::<()>();
     let task = tokio::spawn(mark(target(), off, bots, AFTER));
-    let put = frame(&mut frames).await;
-    answer(&calls, &put, true);
+    let put = next(&mut asked).await;
+    put.answer(true);
     drop(signal);
     task.await.expect("没崩");
-    assert!(frames.try_recv().is_err(), "桥在停：不摘");
+    assert!(asked.try_recv().is_err(), "桥在停：不摘");
 }
 
 #[tokio::test(start_paused = true)]
 async fn the_connection_of_that_moment_is_used() {
-    let (bots, calls, mut frames) = connected();
+    let (bots, link, mut asked) = connected();
     let (signal, off) = oneshot::channel();
     let task = tokio::spawn(mark(target(), off, Arc::clone(&bots), AFTER));
-    let put = frame(&mut frames).await;
-    answer(&calls, &put, true);
+    let put = next(&mut asked).await;
+    put.answer(true);
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let link: Arc<dyn Link> = calls.clone();
+    let link: Arc<dyn Link> = link;
     bots.remove(BOT, &link);
     signal.send(()).expect("还在等");
     task.await.expect("没崩");
-    assert!(frames.try_recv().is_err(), "那时没连着的摘不了");
+    assert!(asked.try_recv().is_err(), "那时没连着的摘不了");
     // 一开始就没连着的也不贴。
     let (_signal, off) = oneshot::channel();
     mark(target(), off, bots, AFTER).await;
-    assert!(frames.try_recv().is_err());
+    assert!(asked.try_recv().is_err());
 }

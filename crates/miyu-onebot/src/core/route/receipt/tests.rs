@@ -6,15 +6,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_client::ids::VenueId;
-use serde_json::{Value, json};
 use tokio::sync::mpsc;
-use tokio_tungstenite::tungstenite::Message;
 
 use super::super::Peer;
 use super::recall;
 use crate::chat::To;
+use crate::chat::fake::{Asked, Did, Fake, fake, next};
 use crate::chat::{Bots, Link};
-use crate::onebot::Wire;
 
 /// 机器人的号。
 const BOT: i64 = 30003;
@@ -22,18 +20,12 @@ const BOT: i64 = 30003;
 /// 测试里给的：等 3 秒再撤。
 const AFTER: Duration = Duration::from_secs(3);
 
-/// 一条连着的机器人号：交回号到连接、在等的调用、写出去的帧。
-fn connected() -> (
-    Arc<Bots>,
-    Arc<Wire>,
-    mpsc::Receiver<Message>,
-    mpsc::Sender<Message>,
-) {
-    let (out, frames) = mpsc::channel(8);
-    let calls = Arc::new(Wire::new(out.clone(), Duration::from_secs(10)));
+/// 一条连着的机器人号：交回号到连接、假连接、它收到的要做的事。
+fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
+    let (link, asked) = fake();
     let bots = Arc::new(Bots::default());
-    assert!(bots.insert(BOT, calls.clone()).is_none());
-    (bots, calls, frames, out)
+    assert!(bots.insert(BOT, link.clone()).is_none());
+    (bots, link, asked)
 }
 
 /// 发到群 5 的那个场所。
@@ -45,46 +37,28 @@ fn peer() -> Peer {
     }
 }
 
-/// 写出去的下一帧。钟停着：一直没有的，过一分钟（停住的钟上的）就算没有，不卡住。
-async fn frame(frames: &mut mpsc::Receiver<Message>) -> Value {
-    let frame = tokio::time::timeout(Duration::from_secs(60), frames.recv())
-        .await
-        .expect("写出了一帧");
-    match frame {
-        Some(Message::Text(text)) => serde_json::from_str(&text).expect("是 JSON"),
-        other => panic!("不是一帧文字：{other:?}"),
-    }
-}
-
-/// 回一帧 `sent`：成了，`data` 照给的。
-fn answer(wire: &Wire, sent: &Value, data: Value) {
-    let reply = json!({"status": "ok", "retcode": 0, "data": data, "echo": sent["echo"]});
-    assert!(wire.calls.answer(reply), "有人在等");
-}
-
 #[tokio::test(start_paused = true)]
 async fn the_receipt_is_recalled_only_after_the_wait() {
-    let (bots, calls, mut frames, _out) = connected();
+    let (bots, _link, mut asked) = connected();
     let task = tokio::spawn(recall(77, peer(), bots, AFTER));
     tokio::time::sleep(AFTER - Duration::from_millis(1)).await;
-    assert!(frames.try_recv().is_err(), "还没到时候");
-    let deleted = frame(&mut frames).await;
-    assert_eq!(deleted["action"], "delete_msg");
+    assert!(asked.try_recv().is_err(), "还没到时候");
+    let deleted = next(&mut asked).await;
     assert_eq!(
-        deleted["params"],
-        json!({"message_id": 77}),
-        "撤的是回的那个编号"
+        deleted.did,
+        Did::Recall("Number(77)".to_string()),
+        "撤的是回的那个编号，照整数"
     );
-    answer(&calls, &deleted, Value::Null);
+    deleted.answer(true);
     task.await.expect("没崩");
 }
 
 #[tokio::test(start_paused = true)]
 async fn without_a_connection_then_nothing_is_recalled() {
-    let (bots, calls, mut frames, _out) = connected();
+    let (bots, link, mut asked) = connected();
     let task = tokio::spawn(recall(78, peer(), Arc::clone(&bots), AFTER));
-    let link: Arc<dyn Link> = calls.clone();
+    let link: Arc<dyn Link> = link;
     bots.remove(BOT, &link);
     task.await.expect("没崩");
-    assert!(frames.try_recv().is_err(), "那时没连着的不撤");
+    assert!(asked.try_recv().is_err(), "那时没连着的不撤");
 }

@@ -4,6 +4,8 @@
 mod bots;
 mod calls;
 mod event;
+#[cfg(test)]
+pub(crate) mod fake;
 mod forwards;
 mod link;
 mod members;

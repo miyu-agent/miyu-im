@@ -1,10 +1,8 @@
-//! 长文：照参数判（转成图、合并转发，阈值不是 0、超过阈值才算，正好等于的不算）；合并转发的节点照拆段的长度拆、拼成转发的动作；画成的一页带引用和 @ 拼在图前面；页的名字照第几页。
+//! 长文：照参数判（转成图、合并转发，阈值不是 0、超过阈值才算，正好等于的不算）；合并转发的节点照拆段的长度拆；页的名字照第几页。拼成的动作在 `onebot/send/tests.rs`。
 
 use miyu_chat::{File, LongText, Params, Source};
 
 use super::*;
-use crate::chat::{Lead, To};
-use crate::onebot::picture_to;
 
 /// 出厂参数：仓库里的 `defaults.toml`。
 fn factory() -> Params {
@@ -53,32 +51,7 @@ fn only_image_mode_over_the_threshold_is_drawn() {
 }
 
 #[test]
-fn a_page_carries_the_quote_and_mentions_before_the_image() {
-    let lead = Lead {
-        reply: Some("77".into()),
-        at: Some("1001".into()),
-        more: vec!["1001".into(), "1002".into()],
-    };
-    let (action, params) = picture_to(To::Group(5), "base64://AA==", &lead);
-    assert_eq!(action, "send_group_msg");
-    assert_eq!(
-        params["message"],
-        serde_json::json!([
-            {"type": "reply", "data": {"id": "77"}},
-            {"type": "at", "data": {"qq": "1001"}},
-            {"type": "text", "data": {"text": " "}},
-            {"type": "at", "data": {"qq": "1002"}},
-            {"type": "text", "data": {"text": " "}},
-            {"type": "image", "data": {"file": "base64://AA=="}},
-        ])
-    );
-    let (action, params) = picture_to(To::Private(9), "base64://AA==", &Lead::default());
-    assert_eq!(action, "send_private_msg");
-    assert_eq!(params["user_id"], 9);
-    assert_eq!(
-        params["message"],
-        serde_json::json!([{"type": "image", "data": {"file": "base64://AA=="}}])
-    );
+fn pages_are_named_by_their_number() {
     assert_eq!(page_name(1), "long-text-2.png");
 }
 
@@ -95,12 +68,5 @@ fn forward_mode_is_long_text_too_and_its_nodes_follow_split_chars() {
         nodes(&small, &text),
         ["一".repeat(200), "二".repeat(200)],
         "照拆成几条的长度拆节点"
-    );
-    let (action, params) =
-        crate::onebot::forward_to(To::Private(9), 42, "米尤", &["甲".to_string()]);
-    assert_eq!(action, "send_private_forward_msg");
-    assert_eq!(
-        params,
-        serde_json::json!({"user_id": 9, "messages": [{"type": "node", "data": {"user_id": "42", "nickname": "米尤", "content": [{"type": "text", "data": {"text": "甲"}}]}}]})
     );
 }

@@ -91,3 +91,6 @@ pub fn forward_to(to: To, bot: i64, nickname: &str, nodes: &[String]) -> (&'stat
         ),
     }
 }
+
+#[cfg(test)]
+mod tests;
