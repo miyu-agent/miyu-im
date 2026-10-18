@@ -1440,6 +1440,67 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-im"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "futures-util",
+ "getrandom 0.4.3",
+ "jiff",
+ "miyu-basesystem",
+ "miyu-chat",
+ "miyu-client",
+ "miyu-config",
+ "miyu-core",
+ "miyu-endpoint",
+ "miyu-http",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-log",
+ "miyu-models",
+ "miyu-session",
+ "miyu-store",
+ "miyu-tool",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "miyu-im-onebot"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "jiff",
+ "miyu-basesystem",
+ "miyu-chat",
+ "miyu-client",
+ "miyu-config",
+ "miyu-core",
+ "miyu-endpoint",
+ "miyu-http",
+ "miyu-im",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-log",
+ "miyu-models",
+ "miyu-session",
+ "miyu-store",
+ "miyu-tool",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
 name = "miyu-ipc"
 version = "0.0.0"
 source = "git+https://github.com/miyu-agent/miyu?rev=43248a08bc9423a3540aa6568e683e2247d980fc#43248a08bc9423a3540aa6568e683e2247d980fc"
@@ -1521,38 +1582,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "toml_edit",
-]
-
-[[package]]
-name = "miyu-onebot"
-version = "0.0.0"
-dependencies = [
- "base64 0.22.1",
- "futures-util",
- "getrandom 0.4.3",
- "http-body-util",
- "hyper",
- "hyper-util",
- "jiff",
- "miyu-basesystem",
- "miyu-chat",
- "miyu-client",
- "miyu-config",
- "miyu-core",
- "miyu-endpoint",
- "miyu-http",
- "miyu-ipc",
- "miyu-kernel",
- "miyu-log",
- "miyu-models",
- "miyu-session",
- "miyu-store",
- "miyu-tool",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
 ]
 
 [[package]]

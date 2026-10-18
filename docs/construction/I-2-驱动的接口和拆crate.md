@@ -19,7 +19,7 @@
    - `Link`（一个机器人号的一条连接）：`call(调用) → 回应`、`begin(调用) → 等着的一次`（照先后进写队列，出站队列要它）；`Call` 是驱动拼好的一次调用，宿主不看里面。
    - `Driver`：平台名、能力表；把宿主要做的事（发一段字、发图、长文的一页、合并转发、传文件、撤回、禁言、戳、贴表情、同意加好友、取一条消息、取东西、取转发、群成员、一个成员、群列表、好友列表、群资料、原样的动作）拼成 `Call`；把回应读成宿主认的结果（发出去那条的编号、成员、名字和身份、东西在哪、转发的节点、失败时说的为什么）。
    - 那 18 处和 4 处动作名改成经 `Driver`、`Link`；`Bots` 存 `Arc<dyn Link>`。OneBot 先在原地实现这两样。
-3. **I-2 下：拆 crate**：`onebot/`、`listen/` 和 OneBot 的 `Driver`、`Link`（`Wire`）搬进 `crates/miyu-im-onebot`；`crates/miyu-onebot` 改名 `crates/miyu-im`（库名 `miyu_im`，程序名照旧 `miyu-onebot` 到 I-4）；程序的 `main` 把 OneBot 驱动交给宿主。门禁加一条：宿主的 crate 不依赖驱动的 crate，宿主的源码里不出现 OneBot 的动作名、`napcat`。
+3. **I-2 下：拆 crate**：`onebot/`、`listen/` 和 OneBot 的 `Driver`、`Link`（`Wire`）搬进 `crates/miyu-im-onebot`；`crates/miyu-onebot` 改名 `crates/miyu-im`（库名 `miyu_im`，程序名照旧 `miyu-onebot` 到 I-4）；程序的 `main` 把 OneBot 驱动交给宿主。门禁加一条：宿主的 crate 不依赖驱动的 crate，宿主的源码里不出现 OneBot 的动作名。
 
 ### 施工时定的
 
@@ -33,8 +33,11 @@
 - `media.rs` 里只有取消息、取东西那两步是 OneBot 的（挪进 `Link::message`、`Link::fetch`）；下载、存进工作区留在宿主。
 - 段里内联的合并转发（`Forwarded::content`）由驱动认成节点（`Node`），宿主不再碰 NapCat 的节点原文。
 - 行为上有三处极边的差别，测试都不碰：群成员列表的名字照「群名片不是空白就用它，不然昵称」取（原来是哪个洗完不空用哪个）；认不出的身份写 `member`（原来照原样写）；群、好友、成员列表里写成整数的字的号也认（原来只认整数）。
-- 宿主的测试里还有四处用 OneBot 的（`acting/tests.rs` 照 `onebot::failed` 读失败、`receipt`、`reaction` 的测试用 `Wire` 接假连接、`long/tests.rs` 看拼出的动作）：I-2 下拆 crate 时换成宿主自己的假 `Link`，或者挪进驱动的测试。
-- 拼场所、平台上的人、命令编号的几个函数（`venue`、`person`、`command_id`、`bot_of`、`to_of`）和 `PLATFORM` 还在 `onebot`：它们只是照平台名拼，I-2 下改成照驱动给的平台名、挪进 `chat`。
+- 宿主的测试里原来有四处用 OneBot 的：回执、贴表情的测试换成宿主自己的假连接（`chat/fake.rs`，要它做的事放进一条队，测试取出来看、答成没成）；拼动作、读失败原话的挪进驱动（`onebot/send/tests.rs`、`tests/calls.rs`）。
+- 拼场所、平台上的人、命令编号、认机器人号和场所、认冲不冲这个平台来的，挪进宿主的 `chat::Platform`（一个名字，`Copy`），名字由驱动给（`Driver::platform`，OneBot 是 `qq`）；`Route`、`Hooks`、`Running`、补消息记录的 `Backlog`、平台工具的 `Scene` 带着它。宿主的测试用自己写的 `Platform::new("qq")`。
+- `Driver` 只有两样：平台名、接一个连进来的 TCP 连接。端口照旧由宿主开（`serve.rs` 换端口那一套不动），换端口、令牌这些 OneBot 的配置怎么分给驱动是 I-3 分配置的事。驱动从宿主拿的几样收在 `Gate`（`driver.rs`）：字段私有、给方法（令牌、桥自己的数、连着的号、认出来的事交给谁、说给人听的、状态变了、平台事件交给挂接点），挂接点、配置这些宿主的模块不用为驱动放开。
+- 程序 `miyu-onebot`（`main.rs`）、测试用的别的包的程序、集成测试跟驱动 crate 走：程序要同时链宿主和驱动；集成测试要拉起这个程序。以后多一个驱动时另起一个程序 crate 把几个驱动交给宿主，宿主照旧不依赖它们。
+- 门禁在 `tests/dependencies.rs`：宿主只依赖 `miyu-chat`、`miyu-client`；驱动依赖宿主；宿主的代码（注释不算）里不出现 OneBot 的动作名。`napcat` 这个词暂时不扫：后台页的 `status` 里那一格叫 `napcat`，是页面认的，改名随 I-4、I-5。
 
 ### 不做什么
 

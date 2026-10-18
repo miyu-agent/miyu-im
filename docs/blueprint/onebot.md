@@ -12,89 +12,93 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-onebot/`（第 5 层，头） | 桥 |
-| `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里 NapCat 端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`web`（O-28 补）交给 `web.rs`，找的是自己真实位置旁边的 `miyu`（和拉起核心找的同一个），不读数据根；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
+| `crates/miyu-im/`（第 5 层，头） | 宿主：和平台无关的那些（施工 I-2 下拆出来）；不依赖驱动 |
+| `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-onebot`（施工 I-2 下）：程序把驱动交给宿主；集成测试也在这里 |
+| `crates/miyu-im/src/chat.rs`、`chat/`（I-2 上） | 和平台无关的数据：一条消息、事件、段、发给谁；一个机器人号的一条连接 `Link`（`chat/link.rs`，宿主只经它碰平台）、连着的号 `Bots`、平台名和照它拼的编号 `Platform`（I-2 下）；宿主测试用的假连接 `chat/fake.rs` |
+| `crates/miyu-im/src/driver.rs`（I-2 下） | 宿主和驱动之间：`Driver`（平台名、接一个连接）、`Gate`（驱动从宿主拿的几样） |
+| `crates/miyu-im-onebot/src/onebot/wire.rs`、`onebot/replies.rs`（I-2 上） | OneBot 的一条连接 `Wire`：宿主要做的事照 OneBot 拼动作、回应读成宿主认的样子 |
+| `crates/miyu-im-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里 NapCat 端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`web`（O-28 补）交给 `web.rs`，找的是自己真实位置旁边的 `miyu`（和拉起核心找的同一个），不读数据根；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
 | `onebot/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`、O-43 上多 `packages.call`（挂接点）；O-42 多 `[export]`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
 | `onebot/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
-| `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成 NapCat 的端口、令牌（`Settings`；网页的端口 O-28 下去掉），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照包文件夹里自己的清单 `package.toml` 读，施工 S-6 上），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
-| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-33 多取东西三格；O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
-| `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开 NapCat 的监听（O-28 下起只开这一个），把几样接起来；推来的配置交给 `current.rs`，端口变了另起一个任务当场换（O-20，`running/rebind.rs`），开好的新监听换掉旧的；状态文件跟着写（O-18）；桥手里的状态（`running.rs`）造好以后交给后台页的方法、发 `package.methods`（O-28 上）；核心关了管道就停，跟核心的那一头崩了就退 |
-| `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的）照这一刻写（「状态文件」） |
-| `crates/miyu-onebot/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说，`start`、`status` 末尾接设置在哪那一句（O-28 补） |
-| `crates/miyu-onebot/src/web.rs`（O-28 补） | `web`：跑交进来的 `miyu`，参数 `web --package onebot`，标准输入输出照原样接着，退出码照它的；跑不了的说 `web/no-miyu`、退出码 1 |
-| `crates/miyu-onebot/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
-| `crates/miyu-onebot/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、后台页的方法、换端口共用 |
-| `crates/miyu-onebot/src/running.rs`（O-28 下，从 `web.rs` 挪出来） | 桥跑着的样子（`Running`）：实际听的 NapCat 端口、连着的机器人号、桥手里最新的配置、桥自己的数；后台页 `status` 的数据（`Running::status`），状态文件、换端口都照它 |
-| `crates/miyu-onebot/src/running/rebind.rs`（O-28 下，从 `web/apply.rs` 挪出来） | 推来的端口变化：照桥手里最新的配置开新的监听、交给 `serve` 换上；开不了的不换，旧的照旧（「怎么走」第 1 条） |
-| `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
-| `crates/miyu-onebot/src/listen/connection.rs`、`listen/bots.rs` | 一条 NapCat 的连接：回应、消息（私聊、群，O-22）和撤回（O-22）、别的事件各交给谁，连上就问 `get_version_info`（回的实现、版本记在这条连接上，后台页的 `status`、状态文件用）；一个机器人号一条连接，新的顶掉旧的；号认出来了（`X-Self-ID` 或第一条事件）告诉跟核心的那一头（`Event::Connected`，O-25 中：这个号排着的照先后发） |
-| `crates/miyu-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊、群消息带上事件的 `time`、发的人的名字和认出来的段，撤回，O-22；她被禁言、解禁的 `group_ban`，O-25 中；好友请求、群邀请，O-27）、读出私聊的文字、写 `send_private_msg`、`send_group_msg`（O-22；O-25 上第一段能带引用和 @：`Lead`）、`delete_msg`（O-25 上）、`set_msg_emoji_like`（O-25 下）、`set_friend_add_request`（O-27）、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。几个小函数照它拼编号：`venue(种类, 号) -> Result<Venue, FormatError>`（O-22）、`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条）；反过来认的两个（O-32）：`bot_of(命令编号) -> Option<i64>`（`qq:<机器人的号>:…` 的第二段）、`to_of(&Venue) -> Option<To>`（场所发到哪） |
-| `crates/miyu-onebot/src/onebot/segments.rs`（O-22） | 认消息段：正文（字、@、占位）、引用、@全体、带的东西（「群消息」第 2 条）；合并转发的编号和内联的消息（O-34） |
-| `crates/miyu-onebot/src/onebot/forwards.rs`（O-34） | 合并转发里的消息：`get_forward_msg {id}`、回应的 `data.messages`；一条（节点）是谁发的、段是哪些（NapCat 回的完整消息和发合并转发那种 `node` 写法都认） |
-| `crates/miyu-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条）；O-31 多记身份（群主、管理员，「平台工具（一）」第 7 条） |
-| `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`onebot.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条）；O-36 起 `core.rs` 能一起交出一个群的主线连同它几条支线留着的推送，`route.rs` 把子会话推来的交给 `route/lanes.rs`（「群里怎么叫她」第 1 条） |
-| `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
-| `crates/miyu-onebot/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`chat.event` 原样交通知、请求（「挂接点」） |
-| `crates/miyu-onebot/src/bin/miyu-onebot-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
-| `crates/miyu-onebot/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」） |
-| `crates/miyu-onebot/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
-| `crates/miyu-onebot/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
-| `crates/miyu-onebot/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」） |
-| `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
-| `crates/miyu-onebot/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
-| `crates/miyu-onebot/src/core/route/private.rs`（O-36 从 `route.rs` 挪出来） | 一条私聊：拼场所、套规则、带上场所的格，交 `submit`（「怎么走」第 6 到 8 条） |
-| `crates/miyu-onebot/src/core/route/session.rs`（O-22 从 `route.rs` 挪出来） | 找会话：`venue.session`（私聊认陌生人，白名单成员的照接、照场所规则带人格、预设、工作区（O-27），别的私聊带 `profile: true`（O-39）；群的规则写错只记一行）、订阅私聊的、群的从头订阅（O-23）、会话不在了再找一次 |
-| `crates/miyu-onebot/src/core/route/revive.rs`（O-32） | 起来就订阅：握手以后经 `venue.sessions` 列出名下的场所会话和终端管理员的私聊，群的从头订阅，白名单成员的、终端管理员的私聊（`venue.binding` 认）从头订阅一次；订阅补来的那一段补完了，认出发到哪，期限以内、没入队的她的话补发（「群里怎么叫她」第 1 条、「出站队列」第 6 条） |
-| `crates/miyu-onebot/src/core/route/backlog.rs`（O-32） | 订阅补来的那一段（纯逻辑，期限由调的一方算好交进来）：场所照 `session.created`、机器人号照最近一条人话的命令编号；期限以内的她的话；同一回合入队了的正文（O-36：别的线的不算），拆出来的段入队过的不再发 |
-| `crates/miyu-onebot/src/core/route/group.rs`、`route/names.rs`（O-22） | 群消息：套场所规则、找会话、正文里的 @ 写成名字（缓存里没有的问 NapCat）、记成旁听（「群消息」），记下了交给 `called.rs` 判（O-23） |
-| `crates/miyu-onebot/src/core/route/projection.rs`（O-23） | 从日志投影一个群（纯逻辑）：人说的话谁发的、是不是终端管理员、什么时刻，开过的回合，主线这一轮回的是谁，她的回复，她发过的平台编号，判过要回、她还没回完的（O-23 下），她被禁言到什么时候（O-25 中）；她新说的话交出来，O-25 上连同出站链要的：她回的那一条、那之后的动静、这一轮入队了的（O-25 中照 `ext.onebot.venues.queued`，桥入队记成了先算进去）（「群里怎么叫她」第 1、2、9、11 条）；O-36 多记主线自己的会话编号，照 `(line, turn)` 认是哪条线的哪一轮 |
-| `crates/miyu-onebot/src/core/route/projection/track.rs`（O-36，从 `projection.rs` 挪出来） | 一条线这一轮的样子（纯逻辑）：在跑的那一轮（回合编号、回的人、她回的那一条、在回的几条）、并进来的几条、这一轮入队了的；主线、每条支线各一份，开一轮、并进、完了同一个算法（「群里怎么叫她」第 2 条） |
-| `crates/miyu-onebot/src/core/route/projection/lanes.rs`（O-36） | 主线投影里的支线（纯逻辑）：分叉记一条、抄进去的记进序号对照表、支线推来的事件换回主线序号收进来、封存了去掉；分派要的 `Lines`；开轮带的事实指哪几条；抄进支线用的人话留到用不着为止（「群里怎么叫她」第 2 条「支线」） |
-| `crates/miyu-onebot/src/core/route/lanes.rs`（O-36） | 分派和支线的那一头：判下来要回的照 `dispatch` 做（开主线带事实、并进主线、抄进支线并进、分叉、订阅、抄、带事实开支线），支线刚封存的重新分派一次；子会话推来的事件交给投影、表情、「不说话」，她在支线说的话照主线发；封存了退订（「群里怎么叫她」第 1、7 条） |
-| `crates/miyu-onebot/src/core/route/decide.rs`（O-23） | 判一条（纯逻辑）：过进站链、加值项，O-23 下多线路规程、顶替、额度满了，走哪条路、结论（第 5、6、10、11、14 条） |
-| `crates/miyu-onebot/src/core/route/discipline.rs`（O-23 下） | 线路规程（纯逻辑）：四种各留下哪些条件、看不看顶替、走哪条路（第 10 条） |
-| `crates/miyu-onebot/src/core/route/body.rs`（O-23 下，从 `decide.rs` 挪出来） | `ext.onebot.chat.decided` 的 `body`（纯逻辑，第 7 条那张表） |
-| `crates/miyu-onebot/src/core/route/called.rs`（O-23） | 叫她：群消息记下以后，照场所规则、投影、这一条填好交 `decide.rs`，记判断，开一轮（限流提示 O-47 去掉）；要问判官的交给 `judges.rs`（第 3 到 8、11 条）；`Ctx.muted` 照投影（O-25 中） |
-| `crates/miyu-onebot/src/core/route/judges.rs`（O-23 下） | 在判的：桥内存里的 `Judging`、问判官的任务、全局的名额（第 11、12 条）；群会话用的人格（O-23 补，第 1 条） |
-| `crates/miyu-onebot/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、带上人格（O-23 补）、拼请求、`model.call`、读回答、重试（第 12、13 条） |
-| `crates/miyu-onebot/src/core/route/persona.rs`（O-23 补） | 判官带的人格的原文：`persona.read` 读，读到的记一阵，几个问判官的任务共用（第 12 条第 3 款） |
-| `crates/miyu-onebot/src/core/route/judged.rs`（O-23 下） | 判官回来了：算分、记判断、回的开一轮；被放下的丢掉（第 7、11、13 条） |
-| `crates/miyu-onebot/src/core/route/speak.rs`（O-23） | 群会话推来的事件：收进投影，她新说的话过出站链（O-25 上，`outbound.rs`）、照纯文本拆段，一段一条入队（O-25 中，`sending.rs`），第一段带引用和 @，NapCat 回了成功的记 `venue.delivered`（第 1、9 条）；私聊里她的话也从这里过出站链、入队（「怎么走」第 10 条，O-25 上）；这一轮不说话了的不发（O-26，`quiet.rs`）；补完以前推来的她的话照补发那条路发，不知道发到哪的记一行（O-32 补） |
-| `crates/miyu-onebot/src/core/route/platform.rs`（O-31） | 平台工具（一）做不做、对谁做（纯逻辑）：叫她做的那条、谁叫的，撤回、禁言、戳一戳的目标和不做的那一句（「平台工具（一）」第 3、4 条） |
-| `crates/miyu-onebot/src/core/route/bindings.rs`（O-31） | 问到的「是不是终端管理员」：按号记 `binding_seconds`（纯逻辑，钟由调的一方交；「平台工具（一）」第 3 条） |
-| `crates/miyu-onebot/src/core/route/projection/origin.rs`（O-31） | 投影交给平台工具的两样（纯逻辑）：叫她做的那条连同引用、@，某人是不是终端管理员（「平台工具（一）」第 3、4 条） |
-| `crates/miyu-onebot/src/core/route/acting.rs`（O-31） | 平台工具（一）的那一头：核心转来的 `tool.call` 收投影、交 `platform.rs` 定，不做的当场答；做的另起任务问身份、调 NapCat、答核心（「平台工具（一）」第 2、5、6 条） |
-| `crates/miyu-onebot/src/core/route/pictures.rs`（O-33） | 冲她来的那条给原图：群里冲她来的、私聊收下的，这一条和它引用的那一条（`get_msg` 现认段）里的图取来、存成 blob，`session.send` 的 `attachments` 带上（「平台工具（二）」第 3 条） |
-| `crates/miyu-onebot/src/core/route/forwards.rs`（O-34） | 合并转发的展开：群消息、私聊交 `session.send` 以前，照内联的或者 `get_forward_msg` 取出来，照限额和核心的整条上限写进场所的格的 `forwards`（「群消息」第 2 条） |
-| `crates/miyu-onebot/src/core/route/fetching.rs`（O-33） | `fetch_media` 的那一头：读参数、数一轮几次、核对那一条在不在这个会话里（O-35，纯逻辑）；找到会话发到哪，另起任务 `get_msg` 认段、取、图存成 blob 交回图片块，视频、文件写进 `qq-files/` 回路径（「平台工具（二）」第 4 到 7 条） |
-| `crates/miyu-onebot/src/core/blobs.rs`（O-33） | 取来的字节经 `blob.open`、`blob.write`、`blob.close` 分块存成 blob（「平台工具（二）」第 3、4 条） |
-| `crates/miyu-onebot/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
-| `crates/miyu-onebot/src/onebot/media.rs`（O-33） | 取东西的 OneBot 动作：`get_msg`、`get_image`、`get_file` 的参数，回应里东西在哪（「平台工具（二）」第 2 条） |
-| `crates/miyu-onebot/src/core/route/quiet.rs`（O-26） | 这一轮不说话了的（纯逻辑）：推来的她的回复里有 `skip_reply` 的调用块的，记下这个会话这一轮；`turn.ended` 清掉（「提供者和不说话」第 3 条） |
-| `crates/miyu-onebot/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所会话一条先进先出的队，排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
-| `crates/miyu-onebot/src/core/route/sending.rs`（O-25 中） | 出站队列的那一头：入队先记 `ext.onebot.venues.queued`、拿到序号，门开着（没被禁言、号连着）的照先后放进写队列、回应交给别的任务等；结局照放进写队列的先后交回来，群里她的话记 `venue.delivered`、群里的回执交 `receipt.rs` 撤，失败的记 `ext.onebot.venues.failed`，她的话失败了经 `session.note` 退信（O-25 下，「退信」）；连上了、解禁了、定时醒了把排着的再看一遍（「出站队列」） |
-| `crates/miyu-onebot/src/core/route/muted.rs`（O-25 中） | 她被禁言、解禁：记 `ext.onebot.venues.muted {until}`、`unmuted`，收进投影，排着的再看一遍（「出站队列」第 7 条） |
-| `crates/miyu-onebot/src/core/route/outbound.rs`（O-25 上） | 出站（纯逻辑）：她的一条话过群聊内核的出站链，群里的情形照投影填，私聊的照桥这一轮自己入队了的（`Spoken`，O-25 中改成入队时记）；过了的照 `split` 拆段（O-47 起不转纯文本），交出几段和第一段带的引用、@；丢了的原因写成什么（第 9 条） |
-| `crates/miyu-onebot/src/core/route/receipt.rs`（O-25 上） | 命令回执：入队（O-25 中）；群里的 NapCat 回了编号，`receipt_recall_seconds` 秒后经那时的连接 `delete_msg` 撤回，撤不成的记一行（「斜杠命令」第 7 条） |
-| `crates/miyu-onebot/src/core/route/reaction.rs`（O-25 下） | 贴表情：判下来要回、主触发是冲她来或续聊的群消息，`session.respond` 成了以后在她要回的那一条上贴；记着贴着的几条各进了哪一轮，推来的 `venue.delivered`、`turn.ended` 发摘的信号；一条一个另起的任务：贴、等信号或到时候、摘，只摘一次（「贴表情」） |
-| `crates/miyu-onebot/src/core/route/applied.rs`（O-22） | 场所规则套到这一条上：`venue.session` 带的人格、预设、工作区，`managers` 认的身份，`show_ids`，此刻睡没睡；O-23 多进站链要的 `rate`、`sleep`、`allow`、`keywords` 和此刻（本机的钟、时区） |
-| `crates/miyu-onebot/src/core/route/fields.rs`（O-22） | `session.send` 的 `venue` 格：照核心的写法洗名字、编号（「群消息」第 6 条） |
-| `crates/miyu-onebot/src/core/route/recall.rs`（O-22） | 撤回记 `venue.recalled`（「撤回」） |
-| `crates/miyu-onebot/src/core/route/request.rs`（O-27） | 好友请求：白名单成员的另起任务经那个机器人号的连接 `set_friend_add_request` 同意，别的记一行、放着；群邀请记一行（「好友请求」） |
-| `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去（群里的发回群里，O-22；交 `receipt.rs`，群里的过几秒撤回，O-25 上），认不出的交回去照普通的话发（「斜杠命令」） |
-| `crates/miyu-onebot/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的、配置项那一层合起来（`load`、`Loaded`，O-41），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志；推来群的配置项变了当场重读，`Venues::configure`，O-41） |
-| `crates/miyu-onebot/src/rules/judge.rs`（O-23 下） | 读判官的说明：`onebot/data/judge/` 的十三份，交 `JudgeTexts::new` 查（「场所规则和出厂数据」第 2 条） |
-| `crates/miyu-onebot/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：`onebot/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msg`、`aim`（「群里怎么叫她」第 7 条） |
-| `crates/miyu-onebot/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照`onebot/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `onebot/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
-| `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
-| `crates/miyu-onebot/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`）；`cards/store.rs` 存在 `state/packages/onebot/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
-| `crates/miyu-onebot/src/core/route/cards.rs`（O-58 上） | 后台页的 `cards.get`、`cards.save`：读的一头照推送交到跟核心的那一头答（「场所卡片」第 4、5 条） |
-| `crates/miyu-onebot/src/core/route/strangers.rs`（O-60） | 陌生人的私聊照「其他私聊」卡过进站链，开过的回合记在内存里（「陌生人的私聊」）；认陌生人在 `private.rs` |
-| `crates/miyu-onebot/src/rules/configured.rs`（O-41） | 配置项那一层：群的四项配置（O-58 上从七项减成三项，O-58 补二多去句号）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
-| `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：照 `rules.rs` 读同样的文件，配置项那一层向核心要（`configured`，O-41），一项一行印值和来处，问题印在后面 |
-| `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
-| `crates/miyu-onebot/src/rules/names.rs`（施工 S-6 上） | 桥的工具给人看的名字：照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name` 读，`provide` 时每件带 `display_name`（「提供者和不说话」第 4 条） |
-| `crates/miyu-onebot/src/package.rs`（施工 S-6 上） | 桥自己的包文件夹：照核心交来的 `MIYU_PACKAGE_DIR`，没设、空的照资源目录的 `packages/onebot/`；出厂数据、给模型看的字、给人看的字都在它的 `data/` 里 |
+| `crates/miyu-im/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成 NapCat 的端口、令牌（`Settings`；网页的端口 O-28 下去掉），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照包文件夹里自己的清单 `package.toml` 读，施工 S-6 上），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
+| `crates/miyu-im/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-33 多取东西三格；O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
+| `crates/miyu-im/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开 NapCat 的监听（O-28 下起只开这一个），把几样接起来；推来的配置交给 `current.rs`，端口变了另起一个任务当场换（O-20，`running/rebind.rs`），开好的新监听换掉旧的；状态文件跟着写（O-18）；桥手里的状态（`running.rs`）造好以后交给后台页的方法、发 `package.methods`（O-28 上）；核心关了管道就停，跟核心的那一头崩了就退 |
+| `crates/miyu-im/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的）照这一刻写（「状态文件」） |
+| `crates/miyu-im/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说，`start`、`status` 末尾接设置在哪那一句（O-28 补） |
+| `crates/miyu-im/src/web.rs`（O-28 补） | `web`：跑交进来的 `miyu`，参数 `web --package onebot`，标准输入输出照原样接着，退出码照它的；跑不了的说 `web/no-miyu`、退出码 1 |
+| `crates/miyu-im/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
+| `crates/miyu-im/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、后台页的方法、换端口共用 |
+| `crates/miyu-im/src/running.rs`（O-28 下，从 `web.rs` 挪出来） | 桥跑着的样子（`Running`）：实际听的 NapCat 端口、连着的机器人号、桥手里最新的配置、桥自己的数；后台页 `status` 的数据（`Running::status`），状态文件、换端口都照它 |
+| `crates/miyu-im/src/running/rebind.rs`（O-28 下，从 `web/apply.rs` 挪出来） | 推来的端口变化：照桥手里最新的配置开新的监听、交给 `serve` 换上；开不了的不换，旧的照旧（「怎么走」第 1 条） |
+| `crates/miyu-im-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
+| `crates/miyu-im-onebot/src/listen/connection.rs` | 一条 NapCat 的连接：回应、消息（私聊、群，O-22）和撤回（O-22）、别的事件各交给谁，连上就问 `get_version_info`（回的实现、版本记在这条连接上，后台页的 `status`、状态文件用）；一个机器人号一条连接，新的顶掉旧的；号认出来了（`X-Self-ID` 或第一条事件）告诉跟核心的那一头（`Event::Connected`，O-25 中：这个号排着的照先后发） |
+| `crates/miyu-im-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊、群消息带上事件的 `time`、发的人的名字和认出来的段，撤回，O-22；她被禁言、解禁的 `group_ban`，O-25 中；好友请求、群邀请，O-27）、读出私聊的文字、写 `send_private_msg`、`send_group_msg`（O-22；O-25 上第一段能带引用和 @：`Lead`）、`delete_msg`（O-25 上）、`set_msg_emoji_like`（O-25 下）、`set_friend_add_request`（O-27）、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。几个小函数照它拼编号：`venue(种类, 号) -> Result<Venue, FormatError>`（O-22）、`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条）；反过来认的两个（O-32）：`bot_of(命令编号) -> Option<i64>`（`qq:<机器人的号>:…` 的第二段）、`to_of(&Venue) -> Option<To>`（场所发到哪） |
+| `crates/miyu-im-onebot/src/onebot/segments.rs`（O-22） | 认消息段：正文（字、@、占位）、引用、@全体、带的东西（「群消息」第 2 条）；合并转发的编号和内联的消息（O-34） |
+| `crates/miyu-im-onebot/src/onebot/forwards.rs`（O-34） | 合并转发里的消息：`get_forward_msg {id}`、回应的 `data.messages`；一条（节点）是谁发的、段是哪些（NapCat 回的完整消息和发合并转发那种 `node` 写法都认） |
+| `crates/miyu-im-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条）；O-31 多记身份（群主、管理员，「平台工具（一）」第 7 条） |
+| `crates/miyu-im/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`onebot.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条）；O-36 起 `core.rs` 能一起交出一个群的主线连同它几条支线留着的推送，`route.rs` 把子会话推来的交给 `route/lanes.rs`（「群里怎么叫她」第 1 条） |
+| `crates/miyu-im/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
+| `crates/miyu-im/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`chat.event` 原样交通知、请求（「挂接点」） |
+| `crates/miyu-im-onebot/src/bin/miyu-onebot-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
+| `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」） |
+| `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
+| `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
+| `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」） |
+| `crates/miyu-im/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
+| `crates/miyu-im/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
+| `crates/miyu-im/src/core/route/private.rs`（O-36 从 `route.rs` 挪出来） | 一条私聊：拼场所、套规则、带上场所的格，交 `submit`（「怎么走」第 6 到 8 条） |
+| `crates/miyu-im/src/core/route/session.rs`（O-22 从 `route.rs` 挪出来） | 找会话：`venue.session`（私聊认陌生人，白名单成员的照接、照场所规则带人格、预设、工作区（O-27），别的私聊带 `profile: true`（O-39）；群的规则写错只记一行）、订阅私聊的、群的从头订阅（O-23）、会话不在了再找一次 |
+| `crates/miyu-im/src/core/route/revive.rs`（O-32） | 起来就订阅：握手以后经 `venue.sessions` 列出名下的场所会话和终端管理员的私聊，群的从头订阅，白名单成员的、终端管理员的私聊（`venue.binding` 认）从头订阅一次；订阅补来的那一段补完了，认出发到哪，期限以内、没入队的她的话补发（「群里怎么叫她」第 1 条、「出站队列」第 6 条） |
+| `crates/miyu-im/src/core/route/backlog.rs`（O-32） | 订阅补来的那一段（纯逻辑，期限由调的一方算好交进来）：场所照 `session.created`、机器人号照最近一条人话的命令编号；期限以内的她的话；同一回合入队了的正文（O-36：别的线的不算），拆出来的段入队过的不再发 |
+| `crates/miyu-im/src/core/route/group.rs`、`route/names.rs`（O-22） | 群消息：套场所规则、找会话、正文里的 @ 写成名字（缓存里没有的问 NapCat）、记成旁听（「群消息」），记下了交给 `called.rs` 判（O-23） |
+| `crates/miyu-im/src/core/route/projection.rs`（O-23） | 从日志投影一个群（纯逻辑）：人说的话谁发的、是不是终端管理员、什么时刻，开过的回合，主线这一轮回的是谁，她的回复，她发过的平台编号，判过要回、她还没回完的（O-23 下），她被禁言到什么时候（O-25 中）；她新说的话交出来，O-25 上连同出站链要的：她回的那一条、那之后的动静、这一轮入队了的（O-25 中照 `ext.onebot.venues.queued`，桥入队记成了先算进去）（「群里怎么叫她」第 1、2、9、11 条）；O-36 多记主线自己的会话编号，照 `(line, turn)` 认是哪条线的哪一轮 |
+| `crates/miyu-im/src/core/route/projection/track.rs`（O-36，从 `projection.rs` 挪出来） | 一条线这一轮的样子（纯逻辑）：在跑的那一轮（回合编号、回的人、她回的那一条、在回的几条）、并进来的几条、这一轮入队了的；主线、每条支线各一份，开一轮、并进、完了同一个算法（「群里怎么叫她」第 2 条） |
+| `crates/miyu-im/src/core/route/projection/lanes.rs`（O-36） | 主线投影里的支线（纯逻辑）：分叉记一条、抄进去的记进序号对照表、支线推来的事件换回主线序号收进来、封存了去掉；分派要的 `Lines`；开轮带的事实指哪几条；抄进支线用的人话留到用不着为止（「群里怎么叫她」第 2 条「支线」） |
+| `crates/miyu-im/src/core/route/lanes.rs`（O-36） | 分派和支线的那一头：判下来要回的照 `dispatch` 做（开主线带事实、并进主线、抄进支线并进、分叉、订阅、抄、带事实开支线），支线刚封存的重新分派一次；子会话推来的事件交给投影、表情、「不说话」，她在支线说的话照主线发；封存了退订（「群里怎么叫她」第 1、7 条） |
+| `crates/miyu-im/src/core/route/decide.rs`（O-23） | 判一条（纯逻辑）：过进站链、加值项，O-23 下多线路规程、顶替、额度满了，走哪条路、结论（第 5、6、10、11、14 条） |
+| `crates/miyu-im/src/core/route/discipline.rs`（O-23 下） | 线路规程（纯逻辑）：四种各留下哪些条件、看不看顶替、走哪条路（第 10 条） |
+| `crates/miyu-im/src/core/route/body.rs`（O-23 下，从 `decide.rs` 挪出来） | `ext.onebot.chat.decided` 的 `body`（纯逻辑，第 7 条那张表） |
+| `crates/miyu-im/src/core/route/called.rs`（O-23） | 叫她：群消息记下以后，照场所规则、投影、这一条填好交 `decide.rs`，记判断，开一轮（限流提示 O-47 去掉）；要问判官的交给 `judges.rs`（第 3 到 8、11 条）；`Ctx.muted` 照投影（O-25 中） |
+| `crates/miyu-im/src/core/route/judges.rs`（O-23 下） | 在判的：桥内存里的 `Judging`、问判官的任务、全局的名额（第 11、12 条）；群会话用的人格（O-23 补，第 1 条） |
+| `crates/miyu-im/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、带上人格（O-23 补）、拼请求、`model.call`、读回答、重试（第 12、13 条） |
+| `crates/miyu-im/src/core/route/persona.rs`（O-23 补） | 判官带的人格的原文：`persona.read` 读，读到的记一阵，几个问判官的任务共用（第 12 条第 3 款） |
+| `crates/miyu-im/src/core/route/judged.rs`（O-23 下） | 判官回来了：算分、记判断、回的开一轮；被放下的丢掉（第 7、11、13 条） |
+| `crates/miyu-im/src/core/route/speak.rs`（O-23） | 群会话推来的事件：收进投影，她新说的话过出站链（O-25 上，`outbound.rs`）、照纯文本拆段，一段一条入队（O-25 中，`sending.rs`），第一段带引用和 @，NapCat 回了成功的记 `venue.delivered`（第 1、9 条）；私聊里她的话也从这里过出站链、入队（「怎么走」第 10 条，O-25 上）；这一轮不说话了的不发（O-26，`quiet.rs`）；补完以前推来的她的话照补发那条路发，不知道发到哪的记一行（O-32 补） |
+| `crates/miyu-im/src/core/route/platform.rs`（O-31） | 平台工具（一）做不做、对谁做（纯逻辑）：叫她做的那条、谁叫的，撤回、禁言、戳一戳的目标和不做的那一句（「平台工具（一）」第 3、4 条） |
+| `crates/miyu-im/src/core/route/bindings.rs`（O-31） | 问到的「是不是终端管理员」：按号记 `binding_seconds`（纯逻辑，钟由调的一方交；「平台工具（一）」第 3 条） |
+| `crates/miyu-im/src/core/route/projection/origin.rs`（O-31） | 投影交给平台工具的两样（纯逻辑）：叫她做的那条连同引用、@，某人是不是终端管理员（「平台工具（一）」第 3、4 条） |
+| `crates/miyu-im/src/core/route/acting.rs`（O-31） | 平台工具（一）的那一头：核心转来的 `tool.call` 收投影、交 `platform.rs` 定，不做的当场答；做的另起任务问身份、调 NapCat、答核心（「平台工具（一）」第 2、5、6 条） |
+| `crates/miyu-im/src/core/route/pictures.rs`（O-33） | 冲她来的那条给原图：群里冲她来的、私聊收下的，这一条和它引用的那一条（`get_msg` 现认段）里的图取来、存成 blob，`session.send` 的 `attachments` 带上（「平台工具（二）」第 3 条） |
+| `crates/miyu-im/src/core/route/forwards.rs`（O-34） | 合并转发的展开：群消息、私聊交 `session.send` 以前，照内联的或者 `get_forward_msg` 取出来，照限额和核心的整条上限写进场所的格的 `forwards`（「群消息」第 2 条） |
+| `crates/miyu-im/src/core/route/fetching.rs`（O-33） | `fetch_media` 的那一头：读参数、数一轮几次、核对那一条在不在这个会话里（O-35，纯逻辑）；找到会话发到哪，另起任务 `get_msg` 认段、取、图存成 blob 交回图片块，视频、文件写进 `qq-files/` 回路径（「平台工具（二）」第 4 到 7 条） |
+| `crates/miyu-im/src/core/blobs.rs`（O-33） | 取来的字节经 `blob.open`、`blob.write`、`blob.close` 分块存成 blob（「平台工具（二）」第 3、4 条） |
+| `crates/miyu-im/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
+| `crates/miyu-im-onebot/src/onebot/media.rs`（O-33） | 取东西的 OneBot 动作：`get_msg`、`get_image`、`get_file` 的参数，回应里东西在哪（「平台工具（二）」第 2 条） |
+| `crates/miyu-im/src/core/route/quiet.rs`（O-26） | 这一轮不说话了的（纯逻辑）：推来的她的回复里有 `skip_reply` 的调用块的，记下这个会话这一轮；`turn.ended` 清掉（「提供者和不说话」第 3 条） |
+| `crates/miyu-im/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所会话一条先进先出的队，排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
+| `crates/miyu-im/src/core/route/sending.rs`（O-25 中） | 出站队列的那一头：入队先记 `ext.onebot.venues.queued`、拿到序号，门开着（没被禁言、号连着）的照先后放进写队列、回应交给别的任务等；结局照放进写队列的先后交回来，群里她的话记 `venue.delivered`、群里的回执交 `receipt.rs` 撤，失败的记 `ext.onebot.venues.failed`，她的话失败了经 `session.note` 退信（O-25 下，「退信」）；连上了、解禁了、定时醒了把排着的再看一遍（「出站队列」） |
+| `crates/miyu-im/src/core/route/muted.rs`（O-25 中） | 她被禁言、解禁：记 `ext.onebot.venues.muted {until}`、`unmuted`，收进投影，排着的再看一遍（「出站队列」第 7 条） |
+| `crates/miyu-im/src/core/route/outbound.rs`（O-25 上） | 出站（纯逻辑）：她的一条话过群聊内核的出站链，群里的情形照投影填，私聊的照桥这一轮自己入队了的（`Spoken`，O-25 中改成入队时记）；过了的照 `split` 拆段（O-47 起不转纯文本），交出几段和第一段带的引用、@；丢了的原因写成什么（第 9 条） |
+| `crates/miyu-im/src/core/route/receipt.rs`（O-25 上） | 命令回执：入队（O-25 中）；群里的 NapCat 回了编号，`receipt_recall_seconds` 秒后经那时的连接 `delete_msg` 撤回，撤不成的记一行（「斜杠命令」第 7 条） |
+| `crates/miyu-im/src/core/route/reaction.rs`（O-25 下） | 贴表情：判下来要回、主触发是冲她来或续聊的群消息，`session.respond` 成了以后在她要回的那一条上贴；记着贴着的几条各进了哪一轮，推来的 `venue.delivered`、`turn.ended` 发摘的信号；一条一个另起的任务：贴、等信号或到时候、摘，只摘一次（「贴表情」） |
+| `crates/miyu-im/src/core/route/applied.rs`（O-22） | 场所规则套到这一条上：`venue.session` 带的人格、预设、工作区，`managers` 认的身份，`show_ids`，此刻睡没睡；O-23 多进站链要的 `rate`、`sleep`、`allow`、`keywords` 和此刻（本机的钟、时区） |
+| `crates/miyu-im/src/core/route/fields.rs`（O-22） | `session.send` 的 `venue` 格：照核心的写法洗名字、编号（「群消息」第 6 条） |
+| `crates/miyu-im/src/core/route/recall.rs`（O-22） | 撤回记 `venue.recalled`（「撤回」） |
+| `crates/miyu-im/src/core/route/request.rs`（O-27） | 好友请求：白名单成员的另起任务经那个机器人号的连接 `set_friend_add_request` 同意，别的记一行、放着；群邀请记一行（「好友请求」） |
+| `crates/miyu-im/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去（群里的发回群里，O-22；交 `receipt.rs`，群里的过几秒撤回，O-25 上），认不出的交回去照普通的话发（「斜杠命令」） |
+| `crates/miyu-im/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的、配置项那一层合起来（`load`、`Loaded`，O-41），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志；推来群的配置项变了当场重读，`Venues::configure`，O-41） |
+| `crates/miyu-im/src/rules/judge.rs`（O-23 下） | 读判官的说明：`onebot/data/judge/` 的十三份，交 `JudgeTexts::new` 查（「场所规则和出厂数据」第 2 条） |
+| `crates/miyu-im/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：`onebot/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msg`、`aim`（「群里怎么叫她」第 7 条） |
+| `crates/miyu-im/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照`onebot/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `onebot/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
+| `crates/miyu-im/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
+| `crates/miyu-im/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`）；`cards/store.rs` 存在 `state/packages/onebot/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
+| `crates/miyu-im/src/core/route/cards.rs`（O-58 上） | 后台页的 `cards.get`、`cards.save`：读的一头照推送交到跟核心的那一头答（「场所卡片」第 4、5 条） |
+| `crates/miyu-im/src/core/route/strangers.rs`（O-60） | 陌生人的私聊照「其他私聊」卡过进站链，开过的回合记在内存里（「陌生人的私聊」）；认陌生人在 `private.rs` |
+| `crates/miyu-im/src/rules/configured.rs`（O-41） | 配置项那一层：群的四项配置（O-58 上从七项减成三项，O-58 补二多去句号）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
+| `crates/miyu-im/src/venue.rs`（O-21） | `venue show <场所>`：照 `rules.rs` 读同样的文件，配置项那一层向核心要（`configured`，O-41），一项一行印值和来处，问题印在后面 |
+| `crates/miyu-im/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，核心那一份照 `Human::load` 读、桥的这一份照 `Human::with_dir` 从包文件夹的 `data/` 补读（「给人看的字」，施工 S-6 上）；O-23 多发进群里的限流提示 |
+| `crates/miyu-im/src/rules/names.rs`（施工 S-6 上） | 桥的工具给人看的名字：照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name` 读，`provide` 时每件带 `display_name`（「提供者和不说话」第 4 条） |
+| `crates/miyu-im/src/package.rs`（施工 S-6 上） | 桥自己的包文件夹：照核心交来的 `MIYU_PACKAGE_DIR`，没设、空的照资源目录的 `packages/onebot/`；出厂数据、给模型看的字、给人看的字都在它的 `data/` 里 |
 | `onebot/data/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）、冲她来的那条带几张图、一轮取几次、取一次等多久（O-33）（「对外的样子」） |
 | `onebot/data/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
 | `onebot/data/facts/undelivered.txt`（O-25 下） | 退信那一块事实的模板（给模型看的字，登记在 `docs/ledger.md`；「退信」第 3 条） |
@@ -729,7 +733,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 号没认出来的（没带 `X-Self-ID`、还没来事件）用不带 `-as` 的那一句，不写括号那一段。
 
-**守着它的**（`crates/miyu-onebot/tests/`，O-8；假的 NapCat 是测试里的一个 WebSocket 客户端，核心照别的头的测试起一个真的。O-18 起在进程里跑的桥经内存里的管道连核心：测试那一头把握手补上本机令牌、经本机套接字交给核心，核心那一头照常是 `miyu_endpoint::serve`。O-20 起测试那一头还在握手的回应里填上 `config`（照核心拉起扩展时交的样子），要改配置的照推送的样子往桥那一头写 `extension.config`；测试里的核心照出厂的清单拼进包的配置项，和真核心起来时一样）
+**守着它的**（`crates/miyu-im-onebot/tests/`，O-8；假的 NapCat 是测试里的一个 WebSocket 客户端，核心照别的头的测试起一个真的。O-18 起在进程里跑的桥经内存里的管道连核心：测试那一头把握手补上本机令牌、经本机套接字交给核心，核心那一头照常是 `miyu_endpoint::serve`。O-20 起测试那一头还在握手的回应里填上 `config`（照核心拉起扩展时交的样子），要改配置的照推送的样子往桥那一头写 `extension.config`；测试里的核心照出厂的清单拼进包的配置项，和真核心起来时一样）
 
 - 令牌：三种出示法都认；不对 401（差一个字、多一个字、空的也算）；没出示 401。路径不对 404。端口被占了说是哪个端口。（`listen.rs`）
 - 算出来的 `Sec-WebSocket-Accept` 放不进头的回 400、不说升级；放得进的回 101，值照 RFC 6455 的例子。（`src/listen/tests.rs`）

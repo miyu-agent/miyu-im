@@ -52,7 +52,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "版本：$version"
       - name: 编 release
-        run: cargo build --release --locked -p miyu-onebot
+        run: cargo build --release --locked -p miyu-im-onebot --bin miyu-onebot
       - name: 拼 onebot/ 文件夹
         run: |
           exe=""

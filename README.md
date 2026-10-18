@@ -8,7 +8,8 @@ Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ �
 
 | 目录 | 是什么 |
 |---|---|
-| `crates/miyu-onebot/` | 桥：程序 `miyu-onebot`，核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
+| `crates/miyu-im/` | 接入通讯平台的宿主：场所会话、群聊、插件挂接点、给模型的工具，和平台无关；不依赖驱动 |
+| `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-onebot`：核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
 | `crates/miyu-chat/` | 群聊内核：通讯平台里和平台无关的那一层（场所规则、进站链、主动回复判断、判官、出站链），纯逻辑；别的平台要用照 git 依赖它 |
 | `onebot/` | 包文件夹：清单 `package.toml`、后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
 | `docs/blueprint/` | 图纸：`onebot.md`（桥）、`chat.md`（群聊内核） |

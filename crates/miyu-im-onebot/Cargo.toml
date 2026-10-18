@@ -1,0 +1,81 @@
+[package]
+name = "miyu-im-onebot"
+description = "接入通讯平台的 OneBot v11 驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket；带程序 miyu-onebot，把驱动交给宿主 miyu-im"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[bin]]
+name = "miyu-onebot"
+path = "src/main.rs"
+
+# 测试用的别的包的程序（施工 O-43 上，`extending.md` 第二条）：集成测试当成另一个扩展包让核心拉起，导出挂接点、照参数答。只用
+# 门面以外已有的依赖；发版只打 `miyu-onebot`，不带它（`.github/workflows/release.yml`）。
+[[bin]]
+name = "miyu-onebot-test-hook"
+path = "src/bin/miyu-onebot-test-hook.rs"
+
+[dependencies]
+# 宿主（施工 I-2 下）：驱动只经它的 `chat`、`driver` 碰宿主；宿主不依赖驱动（`tests/dependencies.rs` 守着）。
+miyu-im = { path = "../miyu-im" }
+# 门面：程序的入口（`main.rs`）读数据根、语言、连核心。
+miyu-client = { workspace = true }
+# 群聊内核：场所的种类。
+miyu-chat = { workspace = true }
+# HTTP/1 的服务端：NapCat 反连进来的那一下是 HTTP 升级（照网页软件，本来就在依赖图里）。MIT。
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+http-body-util = "0.1"
+# WebSocket：一帧一条 OneBot 的事件或动作。只开握手（算 Sec-WebSocket-Accept），连接由 hyper 升级好交给它。MIT。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
+miyu-ipc = { workspace = true }
+# 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/onebot/`，
+# 把这个仓库的 `onebot/` 放进去，`tests/support/assembled.rs`）。
+miyu-client = { workspace = true, features = ["testkit"] }
+# 测试里造编号、读会话日志、装记日志的订阅者、拼请求这些门面上没有的（施工 S-6 上以前是正式依赖）。
+miyu-store = { workspace = true }
+miyu-log = { workspace = true }
+miyu-kernel = { workspace = true }
+miyu-tool = { workspace = true }
+miyu-config = { workspace = true }
+# 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
+# （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
+miyu-core = { workspace = true }
+# 测试里的核心只装基础系统的 `show` 一件（施工 O-46：她给人看文件，桥发进 QQ），别的测试照旧不装工具。
+miyu-basesystem = { workspace = true }
+miyu-endpoint = { workspace = true }
+miyu-session = { workspace = true, features = ["testkit"] }
+# 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。
+miyu-http = { workspace = true, features = ["testkit"] }
+miyu-models = { workspace = true }
+# 测试里拼图、文件的 base64，算当地时间（同宿主用的那两份）。
+base64 = "0.22"
+jiff = "0.2"
+# 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+# `process`：测试当核心跑真的 `serve`、`logs -f`（施工 O-18）。
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "test-util", "process"] }
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+# 陌生人的私聊只记一行运行日志（施工时定的第 49 条）：装着日志订阅者。
+[[test]]
+name = "stranger_log"
+path = "tests/stranger_log.rs"

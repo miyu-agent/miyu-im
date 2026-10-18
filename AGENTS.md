@@ -4,7 +4,7 @@
 
 ## 这个仓库是什么
 
-Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot`）、群聊内核 `crates/miyu-chat`、包文件夹 `onebot/`。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install ./onebot`。
+Miyu 的「接入QQ」软件包（正在改成「接入通讯平台」`im`）：宿主 `crates/miyu-im`、OneBot 驱动 `crates/miyu-im-onebot`（程序 `miyu-onebot`；宿主不依赖驱动）、群聊内核 `crates/miyu-chat`、包文件夹 `onebot/`。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install ./onebot`。
 
 ## 先读什么
 
@@ -24,7 +24,7 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 
 ## 和核心的边界
 
-- 桥、群聊内核只经门面 `miyu-client` 用核心的代码（设计 32 第九节第 1 条）；群聊内核另外直接用 `miyu-kernel`、`miyu-config` 的类型。缺的告诉核心的主会话加进门面，不直接依赖核心里别的 crate（`crates/miyu-onebot/tests/dependencies.rs` 守着）。测试可以用核心的别的 crate（开发依赖），钉同一个提交。
+- 桥、群聊内核只经门面 `miyu-client` 用核心的代码（设计 32 第九节第 1 条）；群聊内核另外直接用 `miyu-kernel`、`miyu-config` 的类型。缺的告诉核心的主会话加进门面，不直接依赖核心里别的 crate（`crates/miyu-im-onebot/tests/dependencies.rs` 守着）。测试可以用核心的别的 crate（开发依赖），钉同一个提交。
 - 协议、事件的形状以核心仓库的 `docs/blueprint/protocol.md`、`docs/designs/samples/` 为准；改到协议的事先找核心。
 - 升级核心：改根目录 `Cargo.toml` 的 `[workspace.dependencies]` 里钉住的提交（核心的几个 crate 都在那里，一个 `rev`），刷 `Cargo.lock`，过三台 CI。
 - 桥的文件从包文件夹读（核心拉起它时交 `MIYU_PACKAGE_DIR`），不读核心资源目录里的 `software/onebot/`。
@@ -32,7 +32,7 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 ## 代码的规矩
 
 - 先读懂，再动手：说得清它现在做什么、为什么这样做、改了会影响谁。照周围的写法。
-- 依赖只朝一个方向：群聊内核是第 2 层的纯逻辑，只依赖 `miyu-kernel`、`miyu-config`，不碰磁盘、网络、时钟，不用遍历顺序会变的容器（门禁的「纯逻辑」一项、`crates/miyu-onebot/tests/dependencies.rs` 守着）；读文件、联网、计时都是桥的事。
+- 依赖只朝一个方向：群聊内核是第 2 层的纯逻辑，只依赖 `miyu-kernel`、`miyu-config`，不碰磁盘、网络、时钟，不用遍历顺序会变的容器（门禁的「纯逻辑」一项、`crates/miyu-im-onebot/tests/dependencies.rs` 守着）；读文件、联网、计时都是桥的事。
 - 不为以后写代码：这一步用不到的类型、字段、配置项不写。
 - 代码要少：同样的功能，代码越少越好；少不是挤，两者冲突时易理解优先。朴素优先于巧妙，只有被测量证明是瓶颈的地方才允许技巧，并写清原因。
 - 只解决真实存在的问题：花的力气配不上好处的代码不写。
@@ -53,7 +53,7 @@ Miyu 的「接入QQ」软件包：桥 `crates/miyu-onebot`（程序 `miyu-onebot
 
 - 测试一律把 `MIYU_HOME` 指到临时目录，绝不碰真实数据。
 - 往坏里测：边界情况、奇怪的组合、故意去弄坏它。修 bug 先复现，修完照原步骤再验证，相近的情况也测一遍。
-- 要出厂资源的测试照钉住的那份核心检出（门面 `testkit` 的 `WORKSPACE_ROOT`）拼一个临时资源目录，把这个仓库的 `onebot/` 放成它的 `packages/onebot/`（`crates/miyu-onebot/tests/support/assembled.rs`）；直接拉桥的设 `MIYU_PACKAGE_DIR` 指 `onebot/`。
+- 要出厂资源的测试照钉住的那份核心检出（门面 `testkit` 的 `WORKSPACE_ROOT`）拼一个临时资源目录，把这个仓库的 `onebot/` 放成它的 `packages/onebot/`（`crates/miyu-im-onebot/tests/support/assembled.rs`）；直接拉桥的设 `MIYU_PACKAGE_DIR` 指 `onebot/`。
 - 每个 crate 的集成测试并成一个程序 `tests/all.rs`，一个文件一个模块；装日志订阅者的自己一个程序，在 `Cargo.toml` 另列 `[[test]]`。门禁查漏掉的文件。
 - 量尺类的测试标 `#[ignore]`；断言结果，不断言耗时。
 
