@@ -1,6 +1,6 @@
 //! 场所卡片（施工 O-58 上，`onebot.md` 第一条「场所卡片」）：真核心照开关拉起真桥、假 NapCat，经网页的样子调 `cards.get`、
-//! `cards.save`。存了的卡当场套：名单里的群接话、「其他群」关着时名单以外的只记下，去句号、附加提示词照卡片；写错的卡不存、
-//! 交回问题；`cards.get` 交卡片、默认值和来处、她在的群、好友、人格、白名单成员。
+//! `cards.save`。存了的卡当场套：名单里的群回复、「其他群」关着时名单以外的只记下，长文、附加提示词照卡片；写错的卡不存、
+//! 交回问题；去句号照通用的配置项（O-58 补二），关了的哪里都留着句号；`cards.get` 交卡片、默认值和来处、她在的群、好友、人格、白名单成员。
 
 use serde_json::{Value, json};
 
@@ -23,7 +23,7 @@ const OTHER: i64 = 666;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\noutbound = { long_chars = 5000 }\n";
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
 
 /// 平台编号是 `message` 的那一条判下来的样子。
 fn decided(events: &[Value], message: i64) -> Option<Value> {
@@ -64,13 +64,14 @@ async fn saved_cards_decide_where_she_talks_at_once() {
     let mut head = Head::connect(&home.root).await;
     head.until("status", |status| status["napcat"]["connected"] == true)
         .await;
-    // 名单里一个群、留着句号；「其他群」没写：关着。
-    let cards = json!({"groups": [{"id": LISTED, "set": {"strip_period": false}}]});
+    // 名单里一个群，长文照合并转发、阈值 1（回话就打成合并转发，看得出卡片当场生效）；「其他群」没写：关着。
+    let cards =
+        json!({"groups": [{"id": LISTED, "set": {"long_text": "forward", "long_chars": 1}}]});
     let saved = save(&mut head, cards.clone()).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     assert_eq!(
         on_disk(&home),
-        json!({"other_groups": {}, "groups": [{"id": LISTED, "set": {"strip_period": false}}], "privates": []})
+        json!({"other_groups": {}, "groups": [{"id": LISTED, "set": {"long_text": "forward", "long_chars": 1}}], "privates": []})
     );
     napcat.send(called(OTHER, 1));
     let other = format!("qq:group:{OTHER}");
@@ -82,7 +83,15 @@ async fn saved_cards_decide_where_she_talks_at_once() {
         "{refused}"
     );
     napcat.send(called(LISTED, 2));
-    assert_eq!(napcat.group_reply(LISTED).await, "在的。", "卡片关了去句号");
+    let forwarded = napcat.action().await;
+    assert_eq!(
+        forwarded["action"], "send_group_forward_msg",
+        "卡片的长文照合并转发：{forwarded}"
+    );
+    assert_eq!(
+        forwarded["params"]["messages"][0]["data"]["content"][0]["data"]["text"], "在的",
+        "去句号照通用的配置项"
+    );
     // 打开「其他群」：存了就算，不重启。
     let opened = json!({"other_groups": {"on": true}, "groups": cards["groups"]});
     assert_eq!(
@@ -183,7 +192,7 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         json!([{"id": BOT, "name": "miyu"}, {"id": LIN, "name": "lin"}])
     );
     assert!(got["personas"].is_array(), "{got}");
-    // 默认值照卡片下面几层：限流是出厂的，插嘴照系统的规则（千分比 0 是少插嘴），群卡没写的接话。
+    // 默认值照卡片下面几层：限流是出厂的，插嘴照系统的规则（千分比 0 是少插嘴），群卡没写的回复。
     let group = &got["defaults"]["groups"][LISTED.to_string()];
     assert_eq!(
         group["rate"],
@@ -192,19 +201,15 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
     );
     assert_eq!(group["chatty"], json!({"value": "few", "from": "system"}));
     assert_eq!(group["on"], json!({"value": true, "from": null}));
-    assert_eq!(
-        group["strip_period"],
-        json!({"value": true, "from": "factory"})
-    );
     assert_eq!(group["persona"], json!({"value": null, "from": null}));
-    // 长文（施工 O-59 上）：转成图是出厂的，阈值照系统的规则。
+    // 长文（施工 O-59 上）：转成图、300 个字都是出厂的。
     assert_eq!(
         group["long_text"],
         json!({"value": "image", "from": "factory"})
     );
     assert_eq!(
         group["long_chars"],
-        json!({"value": 5000, "from": "system"})
+        json!({"value": 300, "from": "factory"})
     );
     // 仅发送最终消息（施工 O-57）：群出厂开，来处是出厂的规则。
     assert_eq!(
@@ -213,7 +218,15 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
     );
     assert_eq!(got["defaults"]["other_groups"]["rate"]["value"], "5/300s");
     let private = &got["defaults"]["privates"][LIN.to_string()];
-    assert_eq!(private["strip_period"]["value"], true, "{private}");
+    assert_eq!(
+        private["final_only"],
+        json!({"value": false, "from": "factory"}),
+        "私聊出厂每一步都发：{private}"
+    );
+    assert!(
+        private.get("strip_period").is_none(),
+        "去句号不在卡片上：{private}"
+    );
     assert!(private.get("rate").is_none(), "私聊卡没有限流：{private}");
     stopped(home).await;
 }
@@ -281,5 +294,15 @@ async fn the_extra_prompt_goes_to_the_end_of_system_and_leaves_when_removed() {
         run_log(&home.root).contains("venue tail set"),
         "去掉也记一行"
     );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn the_final_period_setting_applies_to_every_venue() {
+    // 去句号是通用的配置项（施工 O-58 补二）：关了以后群里的回话留着「。」。
+    let script = Script::new([Play::Says("在的。")]);
+    let (home, mut napcat, _) = started(&script, RULES, "strip_period = false\n", MEMBERS).await;
+    napcat.send(called(OTHER, 1));
+    assert_eq!(napcat.group_reply(OTHER).await, "在的。");
     stopped(home).await;
 }

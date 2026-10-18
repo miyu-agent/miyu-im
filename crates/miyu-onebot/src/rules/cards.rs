@@ -7,7 +7,8 @@
 //!   每个私聊一条。
 //! - 每一格可选，没写的照下面几层（配置项、出厂、系统的规则）。群卡没写 `on` 的接话（在白名单里），「其他群」没写的不接。
 //! - 插嘴四档：`never` 拼成 `discipline = "when-called"`，别的三档拼成 `discipline = "chatty"` 加 `chatty.probability`
-//!   （[`PROBABILITY`]，「施工时定的」）。去句号、长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。
+//!   （[`PROBABILITY`]，「施工时定的」）。长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。去句号
+//!   O-58 补二挪成配置项（`configured`）：是通用的，不进卡片。
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
 pub mod defaults;
@@ -97,9 +98,6 @@ pub struct GroupSet {
     /// 她看得到 QQ 号。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub show_ids: Option<bool>,
-    /// 去掉一条话末尾的一个「。」。
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub strip_period: Option<bool>,
     /// 长文怎么发（施工 O-59 上）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_text: Option<LongText>,
@@ -121,9 +119,6 @@ pub struct PrivateSet {
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
-    /// 去掉一条话末尾的一个「。」。
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub strip_period: Option<bool>,
     /// 长文怎么发（施工 O-59 上）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_text: Option<LongText>,
@@ -309,11 +304,7 @@ fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     if let Some(show) = set.show_ids {
         lines.push(format!("show_ids = {show}"));
     }
-    push_outbound(
-        &mut lines,
-        (set.strip_period, set.final_only),
-        (set.long_text, set.long_chars),
-    );
+    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
     lines
 }
 
@@ -322,11 +313,7 @@ fn private_lines(set: &PrivateSet) -> Vec<String> {
     let mut lines = Vec::new();
     push_text(&mut lines, "persona", set.persona.as_deref());
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
-    push_outbound(
-        &mut lines,
-        (set.strip_period, set.final_only),
-        (set.long_text, set.long_chars),
-    );
+    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
     lines
 }
 
@@ -337,16 +324,13 @@ fn push_text(lines: &mut Vec<String>, key: &str, value: Option<&str>) {
     }
 }
 
-/// 去句号、仅发送最终消息、长文写成出站参数的一张表（设了才写，一格都没设的不写这一行）。
+/// 仅发送最终消息、长文写成出站参数的一张表（设了才写，一格都没设的不写这一行）。去句号是通用的配置项（O-58 补二）。
 fn push_outbound(
     lines: &mut Vec<String>,
-    (strip, final_only): (Option<bool>, Option<bool>),
+    final_only: Option<bool>,
     (long_text, long_chars): (Option<LongText>, Option<u32>),
 ) {
     let mut items = Vec::new();
-    if let Some(strip) = strip {
-        items.push(format!("strip_period = {strip}"));
-    }
     if let Some(final_only) = final_only {
         items.push(format!("final_only = {final_only}"));
     }

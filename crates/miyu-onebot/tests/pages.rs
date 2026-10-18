@@ -265,13 +265,13 @@ async fn a_whitelist_changed_elsewhere_reaches_the_friends_page() {
     let saved = head
         .page_call_with(
             "cards.save_one",
-            json!({"card": card, "values": {"strip_period": false}}),
+            json!({"card": card, "values": {"final_only": true}}),
         )
         .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     assert_eq!(
         on_disk(&home)["privates"],
-        json!([{"id": LIN, "set": {"strip_period": false}}])
+        json!([{"id": LIN, "set": {"final_only": true}}])
     );
     stopped(home).await;
 }

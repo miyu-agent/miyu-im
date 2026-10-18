@@ -60,7 +60,7 @@
     "ja": "送信"
   },
   "field.on": {
-    "zh": "接话",
+    "zh": "回复",
     "en": "Replies",
     "ja": "返信する"
   },
@@ -103,11 +103,6 @@
     "zh": "限流",
     "en": "Rate limit",
     "ja": "レート制限"
-  },
-  "field.strip_period": {
-    "zh": "去句号",
-    "en": "Drop final period",
-    "ja": "句点を外す"
   },
   "field.long_text": {
     "zh": "长文",

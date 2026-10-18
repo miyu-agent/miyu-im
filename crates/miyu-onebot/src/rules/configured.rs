@@ -1,5 +1,5 @@
 //! 配置项那一层（`onebot.md` 第一条「场所规则和出厂数据」第 8 条，施工 O-41；O-58 上群白名单、白名单以外的群、两档限流挪进
-//! 卡片，`super::cards`）：睡觉时间、群里的触发词、看不看得到 QQ 号这三项是包的配置项，网页、终端的设置页照清单自己画，卡片里
+//! 卡片，`super::cards`）：睡觉时间、群里的触发词、看不看得到 QQ 号、去句号（O-58 补二从卡片挪来）这四项是包的配置项，网页、终端的设置页照清单自己画，卡片里
 //! 没设的照它们。桥照它们拼一份规则文件
 //! [`FILE`]，来处是 [`Source::Settings`]，和出厂的、系统的一起交群聊内核读：写法、怎么套、写错了丢哪一项都照规则文件的规矩。
 //!
@@ -16,8 +16,8 @@ use crate::PACKAGE;
 /// 拼出来的那一份的文件名：排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的盖它，同名的整份替换它。
 pub const FILE: &str = "60-settings.toml";
 
-/// 三项在清单里的名字，照拼出来的规则的先后：第 n 条规则是第 n 项。
-const ORDER: [&str; 3] = [KEYWORDS, SLEEP, SHOW_IDS];
+/// 四项在清单里的名字，照拼出来的规则的先后：第 n 条规则是第 n 项。
+const ORDER: [&str; 4] = [KEYWORDS, SLEEP, SHOW_IDS, STRIP_PERIOD];
 
 /// 睡觉时间：写法同规则的 `sleep`，群和私聊都算。
 const SLEEP: &str = "sleep";
@@ -28,8 +28,11 @@ const KEYWORDS: &str = "keywords";
 /// 她看得到发话人的 QQ 号：开关，默认关。
 const SHOW_IDS: &str = "show_ids";
 
-/// 三项这一刻的值：握手交来的，推来变了的照换。
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 去掉末尾的句号（施工 O-58 补二，从卡片挪来：项目主人 10-19 定是通用配置）：开关，默认开（同出厂参数），关了的拼进规则。
+const STRIP_PERIOD: &str = "strip_period";
+
+/// 四项这一刻的值：握手交来的，推来变了的照换。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Configured {
     /// 睡觉时间，原文；没设的是空的。
     sleep: Option<String>,
@@ -37,6 +40,19 @@ pub struct Configured {
     keywords: Vec<String>,
     /// 她看得到 QQ 号。
     show_ids: bool,
+    /// 去掉末尾的句号。
+    strip_period: bool,
+}
+
+impl Default for Configured {
+    fn default() -> Configured {
+        Configured {
+            sleep: None,
+            keywords: Vec::new(),
+            show_ids: false,
+            strip_period: true,
+        }
+    }
 }
 
 impl Configured {
@@ -50,7 +66,7 @@ impl Configured {
     }
 
     /// 推来的变化 `keys` 合进来：带了的键照新值，`null`、类型不对的当没设（核心照清单查过类型，照说不会）；没带的不动，别的
-    /// 键不认。交回三项变了没有。
+    /// 键不认。交回四项变了没有。
     pub fn change(&mut self, keys: &Map<String, Value>) -> bool {
         let before = self.clone();
         let fallback = Configured::default();
@@ -65,13 +81,16 @@ impl Configured {
                 SLEEP => self.sleep = text(value),
                 KEYWORDS => self.keywords = texts(value),
                 SHOW_IDS => self.show_ids = value.as_bool().unwrap_or(fallback.show_ids),
+                STRIP_PERIOD => {
+                    self.strip_period = value.as_bool().unwrap_or(fallback.strip_period);
+                }
                 _ => {}
             }
         }
         *self != before
     }
 
-    /// 拼成规则文件（来处 [`Source::Settings`]，名字 `60-settings.toml`），三条规则照固定的先后（[`key_of`]）。
+    /// 拼成规则文件（来处 [`Source::Settings`]，名字 `60-settings.toml`），四条规则照固定的先后（[`key_of`]）。
     pub fn file(&self) -> File {
         let all_groups = "{ kind = \"group\" }".to_string();
         let mut text = String::new();
@@ -89,9 +108,15 @@ impl Configured {
                     None,
                     self.sleep.as_deref().map(|sleep| ("sleep", quoted(sleep))),
                 ),
-                _ => (
+                SHOW_IDS => (
                     None,
                     self.show_ids.then(|| ("show_ids", "true".to_string())),
+                ),
+                // 开着是出厂参数本来的样子：关了才写。
+                _ => (
+                    None,
+                    (!self.strip_period)
+                        .then(|| ("outbound", "{ strip_period = false }".to_string())),
                 ),
             };
             text.push_str("[[rule]]\n");
@@ -124,7 +149,7 @@ impl Configured {
     }
 }
 
-/// 拼出来的第 `rule` 条规则（从 1 数）是哪一项的：配置项的键（`onebot.sleep`）；不在三条里的是空的。
+/// 拼出来的第 `rule` 条规则（从 1 数）是哪一项的：配置项的键（`onebot.sleep`）；不在四条里的是空的。
 pub fn key_of(rule: usize) -> Option<String> {
     rule.checked_sub(1)
         .and_then(|index| ORDER.get(index))

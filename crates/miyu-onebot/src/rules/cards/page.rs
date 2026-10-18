@@ -114,7 +114,6 @@ const GROUP_FORMS: [Form; 4] = [
         "out",
         &[
             ("final_only", Control::Toggle),
-            ("strip_period", Control::Toggle),
             ("long_text", Control::LongText),
             ("long_chars", Control::Number),
         ],
@@ -134,7 +133,6 @@ const PRIVATE_FORMS: [Form; 2] = [
         "out",
         &[
             ("final_only", Control::Toggle),
-            ("strip_period", Control::Toggle),
             ("long_text", Control::LongText),
             ("long_chars", Control::Number),
         ],

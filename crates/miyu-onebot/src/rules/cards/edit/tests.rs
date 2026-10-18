@@ -100,7 +100,7 @@ fn rule_problems_come_back_as_card_fields() {
     assert_eq!(field_of("allow"), "on");
     assert_eq!(field_of("chatty.probability"), "chatty");
     assert_eq!(field_of("discipline"), "chatty");
-    assert_eq!(field_of("outbound.strip_period"), "strip_period");
+    assert_eq!(field_of("outbound.final_only"), "final_only");
     assert_eq!(field_of("sleep"), "sleep");
 }
 

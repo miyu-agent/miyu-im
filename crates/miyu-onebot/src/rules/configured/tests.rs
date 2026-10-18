@@ -59,7 +59,8 @@ fn everything() -> Json {
 
 #[test]
 fn nothing_set_or_defaults_set_nothing() {
-    let defaults = json!({"onebot.show_ids": false, "onebot.keywords": []});
+    let defaults =
+        json!({"onebot.show_ids": false, "onebot.keywords": [], "onebot.strip_period": true});
     for config in [json!({}), json!(null), defaults] {
         let rules = rules(config);
         for venue in [group("10"), private("10")] {
@@ -153,7 +154,7 @@ fn a_bad_value_drops_only_that_item_and_names_the_setting() {
 
 #[test]
 fn rules_name_their_settings_in_order() {
-    let keys: Vec<_> = (0..=4).map(key_of).collect();
+    let keys: Vec<_> = (0..=5).map(key_of).collect();
     assert_eq!(
         keys,
         [
@@ -161,6 +162,7 @@ fn rules_name_their_settings_in_order() {
             Some("onebot.keywords".to_string()),
             Some("onebot.sleep".to_string()),
             Some("onebot.show_ids".to_string()),
+            Some("onebot.strip_period".to_string()),
             None,
         ]
     );
@@ -203,4 +205,14 @@ fn misread_names_each_bad_setting_once_in_order() {
         Configured::handed(&config).misread(),
         ["onebot.keywords", "onebot.sleep"]
     );
+}
+
+#[test]
+fn turning_off_the_final_period_reaches_every_venue() {
+    // 去句号（施工 O-58 补二，从卡片挪来）：开着是出厂的样子、不写；关了的群和私聊都拼进出站表。
+    let rules = rules(json!({"onebot.strip_period": false}));
+    let off = ("outbound.strip_period".to_string(), Value::Bool(false), 4);
+    for venue in [group("10"), private("10")] {
+        assert_eq!(values(&rules, &venue), std::slice::from_ref(&off));
+    }
 }

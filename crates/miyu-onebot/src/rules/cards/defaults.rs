@@ -28,7 +28,6 @@ pub fn group(applied: &Applied) -> Value {
         set.insert(key.into(), plain(applied, key));
     }
     set.insert("chatty".into(), chatty(applied));
-    set.insert("strip_period".into(), strip_period(applied));
     long_text(applied, &mut set);
     Value::Object(set)
 }
@@ -39,7 +38,6 @@ pub fn private(applied: &Applied) -> Value {
     for key in ["persona", "extra_prompt"] {
         set.insert(key.into(), plain(applied, key));
     }
-    set.insert("strip_period".into(), strip_period(applied));
     long_text(applied, &mut set);
     Value::Object(set)
 }
@@ -75,16 +73,6 @@ fn chatty(applied: &Applied) -> Value {
         .get("chatty.probability")
         .map_or("factory", |entry| layer(entry.origin.source));
     json!({"value": level, "from": from})
-}
-
-/// 去不去句号：出厂参数套上规则改的。
-fn strip_period(applied: &Applied) -> Value {
-    let from = applied
-        .resolved
-        .entries
-        .get("outbound.strip_period")
-        .map_or("factory", |entry| layer(entry.origin.source));
-    json!({"value": applied.params.outbound.strip_period(), "from": from})
 }
 
 /// 长文的两格（施工 O-59 上）、仅发送最终消息（施工 O-57）：出厂参数套上规则改的。

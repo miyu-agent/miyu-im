@@ -119,6 +119,14 @@ applies = "now"
 name = { en = "Trigger words", zh = "群里的触发词", ja = "グループの呼び出し語" }
 description = { en = "A group message that starts with one of these counts as calling the AI, like an @. Case-sensitive; put its name here too.", zh = "群里的话以其中一个词开头，算叫 AI，和 @ 一样。区分大小写；名字也写在这里。", ja = "グループの発言がこのどれかで始まると、@ と同じく AI を呼んだことになります。大文字と小文字を区別します。名前もここに書きます。" }
 
+[settings.strip_period]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+name = { en = "Drop the final period", zh = "去掉末尾的句号", ja = "末尾の句点を外す" }
+description = { en = "On: a reply ending in a single 。 is sent without it, like people type in chats. Applies to every group and private chat.", zh = "开着的，回话末尾的一个「。」去掉再发，像平常聊天那样。管所有群和私聊。", ja = "オン：返信の末尾の「。」を一つ外して送ります。普段のチャットと同じです。すべてのグループと個人チャットに効きます。" }
+
 [settings.show_ids]
 type = "bool"
 default = false

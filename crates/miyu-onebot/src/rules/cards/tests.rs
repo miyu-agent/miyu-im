@@ -68,7 +68,6 @@ fn every_group_field_lands_on_its_attribute() {
         "sleep": "23:00-07:00",
         "rate": "3/60s",
         "show_ids": true,
-        "strip_period": false,
         "long_text": "split",
         "long_chars": 500,
         "final_only": true,
@@ -88,7 +87,6 @@ fn every_group_field_lands_on_its_attribute() {
             ("outbound.final_only".to_string(), Value::Bool(true)),
             ("outbound.long_chars".to_string(), Value::Int(500)),
             ("outbound.long_text".to_string(), text("split")),
-            ("outbound.strip_period".to_string(), Value::Bool(false)),
             ("persona".to_string(), text("engineer")),
             ("rate".to_string(), text("3/60s")),
             ("show_ids".to_string(), Value::Bool(true)),
@@ -144,13 +142,12 @@ fn a_listed_group_does_not_inherit_the_other_groups_card() {
 #[test]
 fn private_cards_set_only_their_own_chat() {
     let set = cards(
-        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "strip_period": true, "long_text": "image"}}]}),
+        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "long_text": "image"}}]}),
     );
     assert_eq!(
         values(&set, &private("9")),
         [
             ("outbound.long_text".to_string(), text("image")),
-            ("outbound.strip_period".to_string(), Value::Bool(true)),
             ("persona".to_string(), text("engineer")),
         ]
     );
@@ -257,6 +254,17 @@ fn long_text_alone_is_one_outbound_table_and_forward_is_taken() {
     assert!(
         serde_json::from_value::<Cards>(
             json!({"groups": [{"id": 7, "set": {"long_text": "fax"}}]})
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn the_final_period_is_no_longer_a_card_field() {
+    // 去句号是通用的配置项（施工 O-58 补二）：卡片不收。
+    assert!(
+        serde_json::from_value::<Cards>(
+            json!({"groups": [{"id": 7, "set": {"strip_period": false}}]})
         )
         .is_err()
     );
