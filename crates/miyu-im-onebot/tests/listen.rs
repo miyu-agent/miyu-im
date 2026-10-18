@@ -2,7 +2,7 @@
 //! 只认 `/onebot/v11/ws` 和 `/ws`，别的 404。端口被占了说是哪个端口（第 1 条）。
 
 use miyu_im::serve::{Failure, Notice, run};
-use miyu_im::settings::Settings;
+use miyu_im_onebot::settings::Settings;
 use miyu_session::testkit::Script;
 
 use crate::support::*;

@@ -29,7 +29,8 @@
 | `crates/miyu-im/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
 | `crates/miyu-im/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、后台页的方法、换端口共用 |
 | `crates/miyu-im/src/running.rs`（O-28 下，从 `web.rs` 挪出来） | 桥跑着的样子（`Running`）：实际听的 NapCat 端口、连着的机器人号、桥手里最新的配置、桥自己的数；后台页 `status` 的数据（`Running::status`），状态文件、换端口都照它 |
-| `crates/miyu-im/src/running/rebind.rs`（O-28 下，从 `web/apply.rs` 挪出来） | 推来的端口变化：照桥手里最新的配置开新的监听、交给 `serve` 换上；开不了的不换，旧的照旧（「怎么走」第 1 条） |
+| `crates/miyu-im-onebot/src/listen/accepting.rs`（I-3，从宿主的 `serve.rs`、`running/rebind.rs` 挪来） | 驱动起来：开端口、说听上了、接连接；推来的端口变化开新的换掉旧的，开不了的不换；端口、有没有令牌报给宿主 |
+| `crates/miyu-im-onebot/src/settings.rs`（I-3，从宿主的 `settings.rs` 挪来） | OneBot 驱动自己的配置项（`listen`、`token`）：宿主挑出来交过来的读成端口、令牌 |
 | `crates/miyu-im-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
 | `crates/miyu-im-onebot/src/listen/connection.rs` | 一条 NapCat 的连接：回应、消息（私聊、群，O-22）和撤回（O-22）、别的事件各交给谁，连上就问 `get_version_info`（回的实现、版本记在这条连接上，后台页的 `status`、状态文件用）；一个机器人号一条连接，新的顶掉旧的；号认出来了（`X-Self-ID` 或第一条事件）告诉跟核心的那一头（`Event::Connected`，O-25 中：这个号排着的照先后发） |
 | `crates/miyu-im-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊、群消息带上事件的 `time`、发的人的名字和认出来的段，撤回，O-22；她被禁言、解禁的 `group_ban`，O-25 中；好友请求、群邀请，O-27）、读出私聊的文字、写 `send_private_msg`、`send_group_msg`（O-22；O-25 上第一段能带引用和 @：`Lead`）、`delete_msg`（O-25 上）、`set_msg_emoji_like`（O-25 下）、`set_friend_add_request`（O-27）、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。几个小函数照它拼编号：`venue(种类, 号) -> Result<Venue, FormatError>`（O-22）、`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条）；反过来认的两个（O-32）：`bot_of(命令编号) -> Option<i64>`（`qq:<机器人的号>:…` 的第二段）、`to_of(&Venue) -> Option<To>`（场所发到哪） |

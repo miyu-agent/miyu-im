@@ -12,13 +12,12 @@
 //! 升级好的连接不另起任务：在接这个 TCP 连接的任务里跑（hyper 的连接在交出升级以后就结束了）。接连接的任务都在
 //! `serve` 的一组里，桥停下时一起停。
 
+mod accepting;
 mod connection;
 #[cfg(test)]
 mod tests;
 
 use std::convert::Infallible;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use http_body_util::Empty;
@@ -31,9 +30,10 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::onebot::{PLATFORM, number};
+use crate::settings::{NAMES, token};
 use miyu_im::TARGET;
 use miyu_im::chat::Platform;
-use miyu_im::driver::{Driver, Gate};
+use miyu_im::driver::{Driver, Gate, Started};
 
 /// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
 #[derive(Debug, Clone, Copy, Default)]
@@ -44,12 +44,12 @@ impl Driver for OneBot {
         PLATFORM
     }
 
-    fn accept(
-        &self,
-        stream: TcpStream,
-        gate: Arc<Gate>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        Box::pin(accept(stream, gate))
+    fn settings(&self) -> &'static [&'static str] {
+        NAMES
+    }
+
+    fn start(&self, gate: Arc<Gate>) -> Started {
+        Box::pin(accepting::start(gate))
     }
 }
 
@@ -140,9 +140,9 @@ fn switching(accept: &str) -> Response<Empty<Bytes>> {
     response
 }
 
-/// 出示的 `presented` 对得上桥手里最新的令牌。手里没有、没出示的对不上。
+/// 出示的 `presented` 对得上桥手里最新的令牌（宿主交来的配置里的，施工 I-3）。手里没有、没出示的对不上。
 fn admitted(gate: &Gate, presented: Option<&str>) -> bool {
-    match (presented, gate.token()) {
+    match (presented, token(&gate.config().borrow())) {
         (Some(presented), Some(token)) => same(presented.as_bytes(), token.expose().as_bytes()),
         _ => false,
     }

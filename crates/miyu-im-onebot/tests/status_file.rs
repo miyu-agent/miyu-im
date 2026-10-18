@@ -44,7 +44,8 @@ async fn the_status_file_follows_napcat() {
     let first = until_file(&root, |file| file["pid"] == pid).await;
     assert_eq!(
         first,
-        json!({"pid": pid, "listen": bridge.port, "napcat": {"connected": false}})
+        json!({"pid": pid, "listen": bridge.port, "token": "set", "napcat": {"connected": false}}),
+        "驱动报的几格照原样并进来（施工 I-3）"
     );
     let mut napcat = admitted(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     napcat.version().await;

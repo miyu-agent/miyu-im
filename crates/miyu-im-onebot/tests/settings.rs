@@ -7,7 +7,10 @@
 use serde_json::{Map, Value, json};
 
 use miyu_config::secret::Secret;
-use miyu_im::settings::{Defaults, Settings, recall_receipts, whitelist, whitelist_key};
+use miyu_im::settings::{
+    Defaults, driver_config, merge_driver, recall_receipts, whitelist, whitelist_key,
+};
+use miyu_im_onebot::settings::{NAMES, Settings};
 use miyu_store::resources::ResourceRoot;
 
 use miyu_config::Layer;
@@ -18,9 +21,19 @@ use crate::support::{TOKEN, admin, defaults, package_in, resources, temp_root};
 /// 测试用的默认值：和出厂的不一样，看得出照的是它。
 fn fallback() -> Defaults {
     Defaults {
-        listen: 18301,
         recall_receipts: vec!["x".to_string()],
+        driver: keys(json!({"listen": 18301})),
     }
+}
+
+/// 宿主挑、驱动读的整条路（施工 I-3）：握手交来的 `config` 里驱动的那几项照 `defaults` 补齐，读成 OneBot 的两项。
+fn handed(config: &Value, defaults: &Defaults) -> Settings {
+    read(&driver_config(config, NAMES, &defaults.driver), defaults)
+}
+
+/// 驱动读宿主交来的那几项：端口读不出的照默认值。
+fn read(driver: &Map<String, Value>, defaults: &Defaults) -> Settings {
+    Settings::read(driver, defaults.driver.get("listen")).expect("有端口")
 }
 
 /// 令牌 `token`。
@@ -39,9 +52,10 @@ fn the_shipped_manifest_gives_the_default_port() {
     assert_eq!(
         defaults(),
         Defaults {
-            listen: 8301,
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
-        }
+            driver: keys(json!({"listen": 8301})),
+        },
+        "令牌没写默认值，不放"
     );
 }
 
@@ -50,9 +64,9 @@ fn a_missing_manifest_or_default_is_named() {
     let dir = std::env::temp_dir().join(format!("miyu-onebot-defaults-{}", std::process::id()));
     let packages = dir.join("packages");
     std::fs::create_dir_all(&packages).expect("建得了");
-    let error = Defaults::load(&package_in(dir.clone())).expect_err("没有清单");
+    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没有清单");
     assert!(error.contains("onebot"), "{error}");
-    // 照出厂的清单写一份，去掉 `onebot.listen` 的默认值。
+    // 照出厂的清单写一份，去掉 `onebot.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
     let shipped = std::fs::read_to_string(
         resources()
             .join("packages")
@@ -60,21 +74,21 @@ fn a_missing_manifest_or_default_is_named() {
             .join("package.toml"),
     )
     .expect("读得到出厂的清单");
-    let without = shipped.replace("default = 8301\n", "");
+    let without = shipped.replace("default = [\"clear\", \"clear-memory\"]\n", "");
     assert_ne!(without, shipped, "真的去掉了");
     std::fs::create_dir_all(packages.join("onebot")).expect("建得了");
     std::fs::write(packages.join("onebot").join("package.toml"), without).expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone())).expect_err("没写默认值");
+    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没写默认值");
     let file = std::path::Path::new("onebot")
         .join("package.toml")
         .display()
         .to_string();
     assert!(
-        error.contains(&file) && error.contains("onebot.listen"),
+        error.contains(&file) && error.contains("onebot.recall_receipts"),
         "{error}"
     );
     std::fs::write(packages.join("onebot").join("package.toml"), "not toml [").expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone())).expect_err("读不成");
+    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("读不成");
     assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
@@ -83,17 +97,17 @@ fn a_missing_manifest_or_default_is_named() {
 
 #[test]
 fn the_handed_config_is_taken_as_it_comes() {
-    let handed =
+    let config =
         json!({"onebot.listen": 9000, "onebot.token": TOKEN, "onebot.whitelist": ["qq:20017"]});
     assert_eq!(
-        Settings::handed(&handed, &fallback()),
+        handed(&config, &fallback()),
         Settings {
             port: 9000,
             token: secret(TOKEN)
         }
     );
     assert_eq!(
-        Settings::handed(
+        handed(
             &json!({"onebot.token": format!("  {TOKEN}\n")}),
             &fallback()
         )
@@ -102,12 +116,12 @@ fn the_handed_config_is_taken_as_it_comes() {
         "前后的空白去掉"
     );
     assert_eq!(
-        Settings::handed(&json!({"onebot.listen": 0}), &fallback()).port,
+        handed(&json!({"onebot.listen": 0}), &fallback()).port,
         0,
         "0 也照它"
     );
     assert_eq!(
-        Settings::handed(&json!({"onebot.listen": 65535}), &fallback()).port,
+        handed(&json!({"onebot.listen": 65535}), &fallback()).port,
         65535,
         "65535 也照它"
     );
@@ -132,48 +146,79 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
         // 原来桥自己的网页的端口（施工 O-28 下去掉）：不认。
         json!({"onebot.web": 9001}),
     ] {
-        assert_eq!(Settings::handed(&config, &fallback()), nothing, "{config}");
+        assert_eq!(handed(&config, &fallback()), nothing, "{config}");
     }
+}
+
+/// 宿主交给驱动的那一份（施工 I-3）：只有驱动的那几项，照名字放；没交的、`null` 的照默认值补上，默认值也没有的不放。
+#[test]
+fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
+    let defaults = fallback();
+    assert_eq!(
+        driver_config(&json!({}), NAMES, &defaults.driver),
+        keys(json!({"listen": 18301})),
+        "没交的端口照默认值，令牌没有默认值不放"
+    );
+    assert_eq!(
+        driver_config(
+            &json!({"onebot.listen": null, "onebot.token": TOKEN, "onebot.whitelist": ["qq:1"]}),
+            NAMES,
+            &defaults.driver
+        ),
+        keys(json!({"listen": 18301, "token": TOKEN})),
+        "别的键不给驱动"
+    );
 }
 
 #[test]
 fn a_push_changes_only_the_keys_it_carries() {
-    let mut settings = Settings::handed(
+    let defaults = fallback();
+    let mut driver = driver_config(
         &json!({"onebot.listen": 9000, "onebot.token": TOKEN}),
-        &fallback(),
+        NAMES,
+        &defaults.driver,
     );
-    settings.change(&keys(json!({"onebot.token": "new"})), &fallback());
+    let pushed = |value: Value, driver: &mut Map<String, Value>| {
+        merge_driver(driver, &keys(value), NAMES, &defaults.driver)
+    };
+    assert!(pushed(json!({"onebot.token": "new"}), &mut driver));
     assert_eq!(
-        settings,
+        read(&driver, &defaults),
         Settings {
             port: 9000,
             token: secret("new")
         }
     );
-    settings.change(&keys(json!({"onebot.listen": 9100})), &fallback());
-    assert_eq!(settings.port, 9100);
-    settings.change(&keys(json!({"onebot.token": null})), &fallback());
+    pushed(json!({"onebot.listen": 9100}), &mut driver);
+    assert_eq!(read(&driver, &defaults).port, 9100);
+    pushed(json!({"onebot.token": null}), &mut driver);
     assert_eq!(
-        settings,
+        read(&driver, &defaults),
         Settings {
             port: 9100,
             token: None
         },
         "null 当没有：令牌没了"
     );
-    settings.change(&keys(json!({"onebot.listen": null})), &fallback());
-    assert_eq!(settings.port, 18301, "null 当没有：端口照默认值");
-    settings.change(
-        &keys(json!({"onebot.whitelist": ["qq:1"], "web.port": 1, "onebot.web": 9001})),
-        &fallback(),
+    pushed(json!({"onebot.listen": null}), &mut driver);
+    assert_eq!(
+        read(&driver, &defaults).port,
+        18301,
+        "null 当没有：端口照默认值"
+    );
+    assert!(
+        !pushed(
+            json!({"onebot.whitelist": ["qq:1"], "web.port": 1, "onebot.web": 9001}),
+            &mut driver
+        ),
+        "别的键不认，没变"
     );
     assert_eq!(
-        settings,
+        read(&driver, &defaults),
         Settings {
             port: 18301,
             token: None
-        },
-        "别的键不认"
+        }
     );
 }
 

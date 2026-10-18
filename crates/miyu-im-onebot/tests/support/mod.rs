@@ -37,8 +37,9 @@ use miyu_endpoint::extensions::Timing;
 use miyu_im::package::Package;
 use miyu_im::rules::Factory;
 use miyu_im::serve::{Failure, Notice, Serve, run};
-use miyu_im::settings::{Defaults, Settings};
+use miyu_im::settings::Defaults;
 use miyu_im::tuning::Tuning;
+use miyu_im_onebot::settings::Settings;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::Models;
 use miyu_session::testkit::Script;
@@ -105,7 +106,8 @@ pub fn tuning() -> Tuning {
 
 /// 出厂的清单里 NapCat 端口的默认值（施工 O-20）。
 pub fn defaults() -> Defaults {
-    Defaults::load(&package_in(resources())).expect("出厂的清单读得出来")
+    Defaults::load(&package_in(resources()), miyu_im_onebot::settings::NAMES)
+        .expect("出厂的清单读得出来")
 }
 
 /// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。

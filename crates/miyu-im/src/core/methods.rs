@@ -85,9 +85,15 @@ impl Methods {
                 Value::Object(status)
             }
             (Some(running), TOKEN) => {
-                let token = running.current.token();
+                // 驱动配置里的令牌（施工 I-3；后台页随 I-5 重做，这一处跟着走）：照原样交，去掉前后空白，空的当没有。
+                let token = running.current.driver_value("token");
+                let token = token
+                    .as_ref()
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|token| !token.is_empty());
                 tracing::info!(target: TARGET, "page token read");
-                json!({"token": token.as_ref().map(miyu_client::settings::Secret::expose)})
+                json!({"token": token})
             }
             _ => {
                 tracing::warn!(target: TARGET, method, "page method not understood");

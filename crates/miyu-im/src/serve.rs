@@ -3,30 +3,25 @@
 //!
 //! 1. 在 [`Pipe`] 上握手（`core`）：程序里是标准输入输出，核心拉起桥时接好的（施工 O-18，`extensions.md`），不带凭据。等不到
 //!    回应：[`Failure::NotSpawned`]；被拒、管道关了：[`Failure::Core`]。握手回了语言先告诉调的一方（之后说的都照它，端口被占
-//!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成 NapCat 的端口、令牌（[`Settings::handed`]，没交的
-//!    端口照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
+//!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 里驱动的那几项（施工 I-3：`Driver::settings`）挑出来交给驱动
+//!    （没交的照清单的默认值），别的照宿主的读。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
 //!    消息照它套场所（施工 O-22）。限流满了发进群里的提示照握手回的语言说（施工 O-23，「群里怎么叫她」第 7 条）；那种语言的
 //!    字读不懂的照系统的语言（`main.rs` 那一头也是照原来的说，「施工时定的」第 80 条）。握手以后、开监听以前登记桥的工具
 //!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。开好监听、桥手里
 //!    的状态（`crate::running`）造好以后，把它交给答后台页方法的那一头、登记方法（施工 O-28 上，`core/methods.rs`）：同样写
 //!    出去就接着起来。
-//! 2. 只听 `127.0.0.1` 的 `onebot.listen`（施工 O-28 下起只开这一个：桥自己的网页去掉了）。被占了：[`Failure::PortInUse`]。
-//!    听上了说一行（[`Notice::Listening`]）。令牌没设的也照开，NapCat 连进来一律 401，人在后台页上生成令牌，NapCat 下一次连
-//!    就通（O-16 补、补二，18 第三节「还没配好就 `start`」）：接着说 [`Notice::NoToken`]，记一行运行日志。
-//! 3. 每个 NapCat 的 TCP 连接一个任务（交给 `listen`），跟核心的那一头一个任务（`core/route.rs`），写状态文件的一个任务
+//! 2. 叫驱动起来（[`Driver::start`]，施工 I-3）：OneBot 开好端口、说听上了；端口被占了：[`Failure::PortInUse`]，桥起不来。
+//! 3. 驱动跑着的那一段（接连接、换端口）、跟核心的那一头一个任务（`core/route.rs`）、写状态文件的一个任务
 //!    （`crate::status_file`，施工 O-18），都在一组里：停下时一起停。核心推来的配置（`extension.config`，施工 O-20）由跟核心的
-//!    那一头交过来：换上桥手里的那一份（`crate::current`），端口变了的另起一个任务换（`running::rebind`，「施工时定的」第 45、
-//!    167 条）；开好的新监听送过来，换掉旧的，旧的随之关掉，状态文件跟着写；已经接进来的连接不断。
+//!    那一头交过来：换上桥手里的那一份（`crate::current`），驱动的那几项变了驱动自己换（施工 I-3）。
 //! 4. 核心关了管道（标准输入读到头：核心请它退出，或者核心不在了）：好好停下，交回 `Ok`，退出码 0（第 11 条，「施工时定的」
 //!    第 5、21 条：崩了由核心退避重启，桥里不另写一套重连）。跟核心的那一头、发回话的任务崩了：[`Failure::Crashed`]，退出
 //!    （第 14 条）。NapCat 断了不退。
 
 use std::sync::Arc;
-use std::sync::atomic::AtomicU16;
 use std::time::Instant;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::TcpListener;
 use tokio::sync::{Notify, mpsc};
 use tokio::task::JoinSet;
 
@@ -43,10 +38,10 @@ use crate::core::route::{
 };
 use crate::core::{Core, provide};
 use crate::current::Current;
-use crate::driver::{Driver, Gate};
+use crate::driver::{Driver, Gate, Reported};
 use crate::rules::{Configured, Factory, Venues};
-use crate::running::{Running, rebind};
-use crate::settings::{Defaults, Settings};
+use crate::running::Running;
+use crate::settings::Defaults;
 use crate::status_file;
 use crate::tuning::Tuning;
 
@@ -161,53 +156,52 @@ pub async fn run(
         serve.tuning.rules_check(),
         Instant::now(),
     );
-    let settings = Settings::handed(&core.config, &serve.defaults);
     // 撤回回执的命令的默认值（施工 O-47）：跟核心的那一头照它读握手交来的、推来的。
     let recall_default = serve.defaults.recall_receipts.clone();
-    let (mut napcat, listen) = bind(settings.port).await?;
+    // 驱动的配置项挑出来交给驱动（施工 I-3），群的几项照旧。
+    let current = Arc::new(Current::new(
+        &core.config,
+        (serve.driver.settings(), serve.defaults.driver),
+        Configured::handed(&core.config),
+    ));
+    let reported = Arc::new(Reported::default());
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
-    tracing::info!(target: TARGET, port = listen, "listening");
-    tell(Notice::Listening { port: listen });
-    if settings.token.is_none() {
-        tracing::warn!(target: TARGET, "no token yet");
-        tell(Notice::NoToken);
-    }
     let bots = Arc::new(Bots::default());
     let platform = serve.driver.platform();
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
     let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), platform));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
-    let retry = serve.tuning.accept_retry();
-    let applied = settings.port;
-    let current = Arc::new(Current::new(
-        settings,
-        Configured::handed(&core.config),
-        serve.defaults,
-    ));
-    let (swap, mut swaps) = mpsc::unbounded_channel();
-    let running = Arc::new(Running {
-        listen: AtomicU16::new(listen),
-        tuning: serve.tuning.clone(),
-        bots: Arc::clone(&bots),
-        platform,
-        current: Arc::clone(&current),
-        applied: tokio::sync::Mutex::new(applied),
-        swap,
-    });
-    // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
-    methods.ready(Arc::clone(&running));
-    let registered = register(&core.caller()).await;
     let changed = Arc::new(Notify::new());
     let gate = Arc::new(Gate::new(
-        (Arc::clone(&current), serve.tuning.clone()),
+        (
+            Arc::clone(&current),
+            Arc::clone(&reported),
+            serve.tuning.clone(),
+        ),
         Arc::clone(&bots),
         inbound,
         tell,
         Arc::clone(&changed),
         Arc::clone(&hooks),
     ));
+    // 驱动起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）。
+    let accepting = serve.driver.start(Arc::clone(&gate)).await?;
+    let running = Arc::new(Running {
+        tuning: serve.tuning.clone(),
+        bots: Arc::clone(&bots),
+        platform,
+        current: Arc::clone(&current),
+        reported,
+    });
+    // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
+    methods.ready(Arc::clone(&running));
+    let registered = register(&core.caller()).await;
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
+    tasks.spawn(async move {
+        accepting.await;
+        None
+    });
     if let Some(provided) = provided {
         tasks.spawn(async move {
             provided.await;
@@ -277,40 +271,13 @@ pub async fn run(
     tokio::pin!(stop);
     loop {
         tokio::select! {
-            accepted = napcat.accept() => match accepted {
-                Ok((stream, _)) => {
-                    let accepted = serve.driver.accept(stream, Arc::clone(&gate));
-                    tasks.spawn(async move {
-                        accepted.await;
-                        None
-                    });
-                }
-                Err(error) => {
-                    // 接不了（打开的文件太多这类）：歇一下再接，不空转（照核心的规矩）。
-                    tracing::warn!(target: TARGET, error = %error, "accept failed");
-                    tokio::time::sleep(retry).await;
-                }
-            },
-            // 核心推来的配置（施工 O-20）：令牌当场换上；端口变了另起一个任务换，换的时候不耽误接连接（换不成的记了运行
-            // 日志，旧的照旧，「施工时定的」第 167 条）。发的一头在跟核心的那一头里，它停了收到空的，这一支不再看。
+            // 核心推来的配置（施工 O-20）：换上桥手里的那一份；驱动的那几项变了驱动自己换（施工 I-3）。发的一头在跟核心的那一头
+            // 里，它停了收到空的，这一支不再看。
             Some(keys) = configs.recv() => {
-                let changed_now = current.change(&keys);
                 // 没认出来的配置项变了（施工 O-41 补）：状态文件跟着写，`miyu onebot status` 照它说。
-                if changed_now.misread {
+                if current.change(&keys) {
                     changed.notify_one();
                 }
-                if changed_now.port {
-                    let running = Arc::clone(&running);
-                    tasks.spawn(async move {
-                        rebind::latest(&running).await;
-                        None
-                    });
-                }
-            },
-            // 发的一头在 `running` 里，跑着时一直在：收不到空的。
-            Some(listener) = swaps.recv() => {
-                napcat = listener;
-                changed.notify_one();
             },
             Some(ended) = tasks.join_next_with_id() => match ended {
                 Ok((_, Some(failure))) => {
@@ -336,21 +303,4 @@ pub async fn run(
             }
         }
     }
-}
-
-/// 只听 `127.0.0.1` 的 `wanted`：交回监听和实际的端口（`0` 是系统挑的那一个）。被占了的说是哪个端口（[`Failure::PortInUse`]）。起来时、
-/// 推来的端口变化换端口时用（`running::rebind`）。
-pub(crate) async fn bind(wanted: u16) -> Result<(TcpListener, u16), Failure> {
-    let listener = match TcpListener::bind(("127.0.0.1", wanted)).await {
-        Ok(listener) => listener,
-        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
-            return Err(Failure::PortInUse(wanted));
-        }
-        Err(error) => return Err(Failure::Start(error.to_string())),
-    };
-    let port = listener
-        .local_addr()
-        .map_err(|error| Failure::Start(error.to_string()))?
-        .port();
-    Ok((listener, port))
 }

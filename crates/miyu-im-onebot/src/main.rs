@@ -162,8 +162,9 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
     // 运行日志装不上的那一句先欠着：握手回了语言照它说；握手以前就起不来的，说起不来的原因以前先说（「施工时定的」第 42 条）。
     let owed = Arc::new(Mutex::new(log.err().map(|error| error.to_string())));
     let package = texts.package().clone();
-    let loaded = Tuning::load(&package.data())
-        .and_then(|tuning| Defaults::load(&package).map(|defaults| (tuning, defaults)));
+    let loaded = Tuning::load(&package.data()).and_then(|tuning| {
+        Defaults::load(&package, miyu_im_onebot::settings::NAMES).map(|defaults| (tuning, defaults))
+    });
     let (tuning, defaults) = match loaded {
         Ok(loaded) => loaded,
         Err(reason) => {

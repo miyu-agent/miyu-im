@@ -3,20 +3,18 @@
 //! （`{"keys": {键: 新值或 null}}`，只放变了的键；`extensions.md`「配置」）。桥不读系统配置、密钥文件，不依赖核心的 crate
 //! （「施工时定的」第 6 条）。
 //!
-//! - NapCat 的端口 `onebot.listen`：0 到 65535 的整数照它（核心只收 1024 到 65535；0 是测试让系统挑）；没有的、`null` 的、
-//!   不是的，照清单 `[settings]` 的默认值（[`Defaults`]，「施工时定的」第 38 条）。原来桥自己的网页的端口 `onebot.web` 随施工
-//!   O-28 下去掉：交来了也不认（第 170 条）。
-//! - 令牌 `onebot.token`：是字的照它，去掉前后空白（[`Secret::new`]）；没有的、`null`、空的、不是字的就是没有：桥照样起来，
-//!   NapCat 连进来一律 401（第 1、2 条）。核心不交取不到的引用，桥分不出「没写引用」和「取不到」（「施工时定的」第 41 条）。
+//! - 驱动的配置项（施工 I-3，设计 01 第六节）：名字由驱动报（OneBot 是 `listen`、`token`），键照 [`driver_key`] 拼；握手交来的、
+//!   推来的照 [`driver_config`]、[`merge_driver`] 挑出来，没有的、`null` 的照清单 `[settings]` 的默认值（[`Defaults`]，
+//!   「施工时定的」第 38 条），交给驱动读，宿主不认它们是什么。
 //! - 白名单成员 `onebot.whitelist`（施工 O-23；O-27 从 `onebot.trusted` 改名，旧键不认）：跟核心的那一头照 [`whitelist`] 读
-//!   一份、推来的换（「群里怎么叫她」第 3 条），不进 [`Settings`]：NapCat 的监听、后台页的方法用不上它。别的键不认。
+//!   一份、推来的换（「群里怎么叫她」第 3 条）。别的键不认。
 //!
-//! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。
+//! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。驱动的键
+//! 以后是 `<包的编号>.<平台>.<名字>`（2026-10-19 项目主人定，等核心的设置名能带一层前缀，随 I-4 改），只改 [`driver_key`]。
 
 use serde_json::{Map, Value};
 
 use miyu_client::manifest::{self, read};
-use miyu_client::settings::Secret;
 
 use crate::PACKAGE;
 use crate::package::Package;
@@ -24,58 +22,33 @@ use crate::package::Package;
 /// 包文件夹里的清单。
 const MANIFEST: &str = "package.toml";
 
-/// NapCat 反连进来的端口：清单里的名字。
-const LISTEN: &str = "listen";
-
-/// NapCat 要出示的令牌：清单里的名字。
-const TOKEN: &str = "token";
-
 /// 白名单成员：清单里的名字（施工 O-23；O-27 从 `trusted` 改名，旧键不认）。
 const WHITELIST: &str = "whitelist";
 
 /// 群里回执要撤回的命令：清单里的名字（施工 O-47）。
 const RECALL_RECEIPTS: &str = "recall_receipts";
 
-/// 桥用的两项。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Settings {
-    /// NapCat 反连进来的端口，只听 `127.0.0.1`；`0` 是让系统挑一个（测试用）。
-    pub port: u16,
-    /// NapCat 连进来时要出示的访问令牌；没有的是空的。`Debug` 只印 `Secret(…)`。
-    pub token: Option<Secret>,
-}
-
 /// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Defaults {
-    /// `onebot.listen` 的默认值（出厂 8301）。
-    pub listen: u16,
     /// `onebot.recall_receipts` 的默认值（出厂 `clear`、`clear-memory`，施工 O-47）。
     pub recall_receipts: Vec<String>,
+    /// 驱动的配置项的默认值，照名字（施工 I-3：OneBot 的 `listen` 出厂 8301）；没写默认值的不放。
+    pub driver: Map<String, Value>,
 }
 
 impl Defaults {
-    /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取 NapCat
-    /// 端口、撤回回执的命令（施工 O-47）的默认值。
+    /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取撤回回执的
+    /// 命令（施工 O-47）、驱动的配置项 `driver`（施工 I-3）的默认值。
     ///
     /// # Errors
     ///
-    /// 清单不在、读不成、写错了，端口没声明、没写默认值、默认值不是端口，撤回回执的命令没声明、默认值不是字的列表：原话里说是
-    /// 哪个文件。
-    pub fn load(package: &Package) -> Result<Defaults, String> {
+    /// 清单不在、读不成、写错了，撤回回执的命令没声明、默认值不是字的列表：原话里说是哪个文件。
+    pub fn load(package: &Package, driver: &[&str]) -> Result<Defaults, String> {
         let path = package.dir().join(MANIFEST);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
         let manifest = read(&text).map_err(|problem| bad(problem.message))?;
-        let listen = manifest
-            .settings
-            .iter()
-            .find(|setting| setting.name == LISTEN)
-            .and_then(|setting| match setting.default {
-                Some(manifest::Value::Int(port)) => u16::try_from(port).ok(),
-                _ => None,
-            })
-            .ok_or_else(|| bad(format!("no port default for {PACKAGE}.{LISTEN}")))?;
         let recall_receipts = manifest
             .settings
             .iter()
@@ -91,43 +64,78 @@ impl Defaults {
                 _ => None,
             })
             .ok_or_else(|| bad(format!("no list default for {PACKAGE}.{RECALL_RECEIPTS}")))?;
+        let driver = manifest
+            .settings
+            .iter()
+            .filter(|setting| driver.contains(&setting.name.as_str()))
+            .filter_map(|setting| Some((setting.name.clone(), json(setting.default.as_ref()?)?)))
+            .collect();
         Ok(Defaults {
-            listen,
             recall_receipts,
+            driver,
         })
     }
 }
 
-impl Settings {
-    /// 握手的回应交来的 `config`（第 1 条）：没交的、读不出来的端口照 `defaults`，没交令牌的没有令牌。`config` 不是对象的
-    /// （没带这一格）当什么都没交。
-    pub fn handed(config: &Value, defaults: &Defaults) -> Settings {
-        let mut settings = Settings {
-            port: defaults.listen,
-            token: None,
-        };
-        if let Some(config) = config.as_object() {
-            settings.change(config, defaults);
+/// 清单里的一个默认值写成 JSON（同握手交来的值的样子）；密钥这类写不出的是空的。
+fn json(value: &manifest::Value) -> Option<Value> {
+    Some(match value {
+        manifest::Value::Bool(on) => Value::from(*on),
+        manifest::Value::Int(number) => Value::from(*number),
+        manifest::Value::Text(text) => Value::from(text.to_string()),
+        manifest::Value::List(items) => {
+            Value::Array(items.iter().map(json).collect::<Option<_>>()?)
         }
-        settings
-    }
+        _ => return None,
+    })
+}
 
-    /// 推来的变化 `keys` 合进来（`extension.config` 的 `keys`）：带了的键照新值，`null` 的当没有（端口照 `defaults`，令牌
-    /// 没了）；没带的不动；别的键不认。
-    pub fn change(&mut self, keys: &Map<String, Value>, defaults: &Defaults) {
-        for (key, value) in keys {
-            let name = key
-                .strip_prefix(PACKAGE)
-                .and_then(|rest| rest.strip_prefix('.'));
-            match name {
-                Some(LISTEN) => self.port = port(value).unwrap_or(defaults.listen),
-                Some(TOKEN) => {
-                    self.token = value.as_str().and_then(|token| Secret::new(token).ok())
-                }
-                _ => {}
-            }
+/// 驱动的配置项 `name` 的键（施工 I-3）。
+pub fn driver_key(name: &str) -> String {
+    format!("{PACKAGE}.{name}")
+}
+
+/// 握手交来的 `config` 里驱动的那几项 `names`（施工 I-3）：照名字放，没交的、`null` 的照 `defaults`，默认值也没有的不放。
+/// `config` 不是对象的当什么都没交。
+pub fn driver_config(
+    config: &Value,
+    names: &[&str],
+    defaults: &Map<String, Value>,
+) -> Map<String, Value> {
+    let mut driver = Map::new();
+    for name in names {
+        let value = config
+            .get(driver_key(name))
+            .filter(|value| !value.is_null());
+        if let Some(value) = value.or_else(|| defaults.get(*name)) {
+            driver.insert((*name).to_string(), value.clone());
         }
     }
+    driver
+}
+
+/// 推来的变化 `keys` 里驱动的那几项 `names` 合进 `driver`：带了的照新值，`null` 的照 `defaults`（没有默认值的拿掉）；没带的不动。
+/// 交回变没变。
+pub fn merge_driver(
+    driver: &mut Map<String, Value>,
+    keys: &Map<String, Value>,
+    names: &[&str],
+    defaults: &Map<String, Value>,
+) -> bool {
+    let before = driver.clone();
+    for name in names {
+        let Some(value) = keys.get(&driver_key(name)) else {
+            continue;
+        };
+        match Some(value)
+            .filter(|value| !value.is_null())
+            .or_else(|| defaults.get(*name))
+        {
+            Some(value) => driver.insert((*name).to_string(), value.clone()),
+            None => driver.remove(*name),
+        };
+    }
+    *driver != before
 }
 
 /// 配置项的键 `keys`（`onebot.sleep` 这种）照包文件夹 `package` 里自己的清单换成给人看的名字，照语言 `language` 挑（施工 O-41
@@ -195,9 +203,4 @@ pub fn recall_receipts(value: &Value, defaults: &[String]) -> Vec<String> {
             .collect(),
         None => defaults.to_vec(),
     }
-}
-
-/// 一个端口：0 到 65535 的整数；别的是空的。
-fn port(value: &Value) -> Option<u16> {
-    value.as_u64().and_then(|port| u16::try_from(port).ok())
 }

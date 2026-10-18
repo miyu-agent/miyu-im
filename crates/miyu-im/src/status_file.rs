@@ -14,7 +14,6 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use serde_json::{Value, json};
 use tokio::sync::Notify;
@@ -49,9 +48,12 @@ pub(crate) async fn keep(
     loop {
         let mut now = json!({
             "pid": std::process::id(),
-            "listen": running.listen.load(Ordering::Relaxed),
             "napcat": running.bots.napcat(),
         });
+        // 驱动报的几格（施工 I-3：OneBot 的 `listen`）照原样并进来。
+        for (key, value) in running.reported.get() {
+            now[key] = value;
+        }
         // 没认出来的配置项（施工 O-41 补）：`miyu onebot status` 照它说一句；空的不带。
         let misread = running.current.misread();
         if !misread.is_empty() {
