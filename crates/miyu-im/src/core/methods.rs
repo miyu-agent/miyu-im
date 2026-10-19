@@ -42,6 +42,9 @@ pub(crate) const CARDS_GET: &str = "cards.get";
 /// 后台页的场所卡片：存（施工 O-58 上）。
 pub(crate) const CARDS_SAVE: &str = "cards.save";
 
+/// 会话浮窗的「概况」：一张卡今天的数、最近判断（施工 I-7 上补）。
+pub(crate) const CARDS_OVERVIEW: &str = "cards.overview";
+
 /// 场所卡片两页的三个方法（施工 O-58 下，`rules::card_page`）：页面上存一张表单、加一项、删一项。
 use crate::rules::card_page::{
     ADD as CARDS_ADD, REMOVE as CARDS_REMOVE, SAVE_ONE as CARDS_SAVE_ONE,
@@ -61,6 +64,7 @@ pub(super) fn exported(method: &str) -> bool {
             | CARDS_SAVE_ONE
             | CARDS_ADD
             | CARDS_REMOVE
+            | CARDS_OVERVIEW
     )
 }
 
@@ -139,6 +143,7 @@ fn registered() -> Value {
         {"name": CARDS_SAVE_ONE},
         {"name": CARDS_ADD},
         {"name": CARDS_REMOVE},
+        {"name": CARDS_OVERVIEW},
     ]})
 }
 

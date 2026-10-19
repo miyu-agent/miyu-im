@@ -42,6 +42,7 @@ use crate::counters::{self, Counters};
 use crate::current::Current;
 use crate::driver::{Driver, Gate, Reported};
 use crate::package::Package;
+use crate::recent::{self, Recent};
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::Running;
 use crate::settings::Defaults;
@@ -221,6 +222,12 @@ pub async fn run(
         status_file::path(&serve.root).with_file_name("stats"),
         Arc::clone(&changed),
     ));
+    // 最近判断（施工 I-7 上补）：路由记、页面读、另起的任务写盘。
+    let recent = Arc::new(Recent::load(
+        status_file::path(&serve.root)
+            .with_file_name("stats")
+            .join("recent.json"),
+    ));
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
@@ -308,10 +315,16 @@ pub async fn run(
         members,
         parts,
         configured,
-        (hooks, Arc::clone(&counters), Arc::clone(&cards)),
+        (
+            hooks,
+            Arc::clone(&counters),
+            Arc::clone(&cards),
+            Arc::clone(&recent),
+        ),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(counters::keep(counters));
+    tasks.spawn(recent::keep(recent));
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),
         Arc::clone(&running),

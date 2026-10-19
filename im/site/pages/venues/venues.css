@@ -84,3 +84,18 @@
   .d-tab { flex: none; }
   .d-tab .soon { display: none; }
 }
+
+/* 概况里今天的数和最近判断（施工 I-7 上补），照样板 d-im.html。 */
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+.fact { padding: 12px 14px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.fact b { display: block; font-size: 22px; }
+.fact span { color: var(--text-soft); }
+.group-name { margin: 18px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
+.why { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.why:last-child { border-bottom: 0; }
+.why .mark { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; }
+.why .yes { background: color-mix(in srgb, var(--online) 18%, transparent); color: var(--online); }
+.why .no { background: var(--surface-2); color: var(--text-faint); }
+.why .grow { flex: 1; min-width: 0; }
+.why q { display: block; quotes: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.why small { color: var(--text-faint); }

@@ -124,6 +124,7 @@ impl Route {
             number: message.number,
             venue,
             sender: external,
+            name: posted.name.clone(),
             text: message.text.clone(),
             mentions_me: flags.mentions_me,
             mentions_others: !mentions.is_empty(),

@@ -6,11 +6,14 @@
 //!   任务照着写（[`keep`]，先写临时文件再改名盖上），写不进记一行运行日志，照数。
 //! - 每数一下叫一声 `crate::changed`：开着的页面照它再问（不轮询），状态文件照它比一比、一样的不写。
 //!
-//! 统计页要的分会话、分判断结果、分小时随统计那一步加。
+//! - 每个场所另有一份（施工 I-7 上补：会话浮窗「概况」的今天收到、回复、只记录）：同一个文件里的 `venues`，场所编号 → 几个数。
+//!
+//! 统计页要的分判断结果、分小时随统计那一步加。
 
 #[cfg(test)]
 mod tests;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -44,12 +47,43 @@ pub(crate) struct Day {
     pub(crate) undelivered: u64,
 }
 
+/// 存的一天：合计（写在最外层，同施工 I-6 下的写法）和每个场所的。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct Daily {
+    #[serde(flatten)]
+    total: Day,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    venues: BTreeMap<String, Day>,
+}
+
+impl Day {
+    /// 数一下 `count`。
+    fn add(&mut self, count: Count) {
+        match count {
+            Count::Received => self.received += 1,
+            Count::Replied => self.replied += 1,
+            Count::Recorded => self.recorded += 1,
+            Count::Undelivered => self.undelivered += 1,
+        }
+    }
+
+    /// 加上 `other`。
+    fn plus(self, other: Day) -> Day {
+        Day {
+            received: self.received + other.received,
+            replied: self.replied + other.replied,
+            recorded: self.recorded + other.recorded,
+            undelivered: self.undelivered + other.undelivered,
+        }
+    }
+}
+
 /// 今天的几个数，几处共用。
 pub(crate) struct Counters {
     /// 每天一份的目录。
     dir: PathBuf,
     /// 哪一天、那一天的数。
-    held: Mutex<(String, Day)>,
+    held: Mutex<(String, Daily)>,
     /// 变了叫一声（页面、状态文件）。
     changed: Arc<Changed>,
     /// 变了叫写盘的那个任务。
@@ -72,25 +106,25 @@ impl Counters {
         }
     }
 
-    /// 数一下 `count`。
-    pub(crate) fn bump(&self, count: Count) {
-        self.bump_on(count, &today());
+    /// 场所 `venue` 上数一下 `count`（合计也数）。
+    pub(crate) fn bump(&self, count: Count, venue: &str) {
+        self.bump_on(count, venue, &today());
     }
 
     /// 同 [`Counters::bump`]，今天是 `date`（测试照它跨天）。
-    fn bump_on(&self, count: Count, date: &str) {
+    fn bump_on(&self, count: Count, venue: &str, date: &str) {
         {
             let mut held = lock(&self.held);
             if held.0 != date {
-                *held = (date.to_string(), Day::default());
+                *held = (date.to_string(), Daily::default());
             }
-            let day = &mut held.1;
-            match count {
-                Count::Received => day.received += 1,
-                Count::Replied => day.replied += 1,
-                Count::Recorded => day.recorded += 1,
-                Count::Undelivered => day.undelivered += 1,
-            }
+            let daily = &mut held.1;
+            daily.total.add(count);
+            daily
+                .venues
+                .entry(venue.to_string())
+                .or_default()
+                .add(count);
         }
         self.dirty.notify_one();
         self.changed.notify();
@@ -101,14 +135,32 @@ impl Counters {
         self.on(&today())
     }
 
+    /// 今天合 `wanted` 的几个场所的数加起来（施工 I-7 上补：「陌生群」是名单以外的群并起来）。
+    pub(crate) fn today_of(&self, wanted: impl Fn(&str) -> bool) -> Day {
+        self.of_on(wanted, &today())
+    }
+
     /// 同 [`Counters::today`]，今天是 `date`。
     fn on(&self, date: &str) -> Day {
         let held = lock(&self.held);
         if held.0 == date {
-            held.1
+            held.1.total
         } else {
             Day::default()
         }
+    }
+
+    /// 同 [`Counters::today_of`]，今天是 `date`。
+    fn of_on(&self, wanted: impl Fn(&str) -> bool, date: &str) -> Day {
+        let held = lock(&self.held);
+        if held.0 != date {
+            return Day::default();
+        }
+        held.1
+            .venues
+            .iter()
+            .filter(|(venue, _)| wanted(venue))
+            .fold(Day::default(), |sum, (_, day)| sum.plus(*day))
     }
 }
 

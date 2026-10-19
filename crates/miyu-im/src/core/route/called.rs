@@ -25,12 +25,13 @@ use super::deferred::Deferred;
 use super::discipline::Discipline;
 use super::judges::{Judging, Tag};
 use super::projection::DECIDED;
-use super::{Route, applied};
+use super::{Route, applied, noted};
 use crate::TARGET;
 use crate::chat::MediaKind;
 use crate::core::hooks::{Steer, Steered};
 use crate::core::{Gone, reason};
 use crate::counters::Count;
+use crate::recent::Note;
 
 /// 禁言时判了要回、排着的那一次，判断的 `outcome` 记成它（施工 O-50）：投影不把它算进判过要回、还没回完的。
 const DEFERRED: &str = "deferred";
@@ -45,6 +46,8 @@ pub(super) struct Heard {
     pub(super) venue: Venue,
     /// 发的人。
     pub(super) sender: ExternalId,
+    /// 发的人的名字（群名片、昵称；施工 I-7 上补：最近判断写是谁）。
+    pub(super) name: Option<String>,
     /// 正文：交给核心的那一份（@ 已经写成名字）。
     pub(super) text: String,
     /// @ 了她。
@@ -147,10 +150,19 @@ impl Route {
         let decided = format!("{}/decided", tag.id);
         let mut written = body(decision, standing, judged);
         written["outcome"] = json!(outcome);
+        // 会话浮窗的最近判断（施工 I-7 上补）。
+        let note = Note {
+            at: crate::recent::now(),
+            who: tag.who.clone(),
+            text: tag.text.clone(),
+            outcome: outcome.to_string(),
+            why: noted::why(&written),
+        };
+        self.recent.note(&tag.venue, note);
         self.append(session, Some(&decided), DECIDED, written)
             .await?;
         if finale == Finale::Record {
-            self.counters.bump(Count::Recorded);
+            self.counters.bump(Count::Recorded, &tag.venue);
         }
         match finale {
             Finale::Reply if deferring => {
@@ -353,10 +365,13 @@ impl Route {
 
 /// 这一条的命令编号、平台编号、场所：判断、开一轮的命令编号照它拼，运行日志照它记。
 fn tag(heard: &Heard) -> Tag {
+    let who = Note::who(heard.name.as_deref(), heard.sender.as_str());
     Tag {
         id: heard.id.clone(),
         number: heard.number,
         venue: heard.venue.id().to_string(),
+        who,
+        text: Note::excerpt(&heard.text),
     }
 }
 

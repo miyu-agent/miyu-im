@@ -26,7 +26,7 @@ fn each_count_goes_to_its_own_number_and_a_new_day_starts_at_zero() {
         Count::Recorded,
         Count::Undelivered,
     ] {
-        counters.bump_on(count, "2026-10-19");
+        counters.bump_on(count, "qq:group:1", "2026-10-19");
     }
     assert_eq!(
         counters.on("2026-10-19"),
@@ -38,7 +38,7 @@ fn each_count_goes_to_its_own_number_and_a_new_day_starts_at_zero() {
         }
     );
     assert_eq!(counters.on("2026-10-20"), Day::default(), "别的一天当零");
-    counters.bump_on(Count::Received, "2026-10-20");
+    counters.bump_on(Count::Received, "qq:group:1", "2026-10-20");
     assert_eq!(
         counters.on("2026-10-20"),
         Day {
@@ -47,6 +47,50 @@ fn each_count_goes_to_its_own_number_and_a_new_day_starts_at_zero() {
         }
     );
     assert_eq!(counters.on("2026-10-19"), Day::default(), "跨了天的从零数");
+}
+
+#[test]
+fn each_venue_has_its_own_numbers_and_some_add_up() {
+    let dir = temp("venues");
+    let counters = counters(&dir);
+    let day = "2026-10-20";
+    counters.bump_on(Count::Received, "qq:group:1", day);
+    counters.bump_on(Count::Received, "qq:group:1", day);
+    counters.bump_on(Count::Replied, "qq:group:1", day);
+    counters.bump_on(Count::Received, "qq:group:2", day);
+    counters.bump_on(Count::Recorded, "qq:group:2", day);
+    counters.bump_on(Count::Received, "qq:private:3", day);
+    let one = counters.of_on(|venue| venue == "qq:group:1", day);
+    assert_eq!(
+        one,
+        Day {
+            received: 2,
+            replied: 1,
+            ..Day::default()
+        }
+    );
+    let groups = counters.of_on(|venue| venue.starts_with("qq:group:"), day);
+    assert_eq!(
+        groups,
+        Day {
+            received: 3,
+            replied: 1,
+            recorded: 1,
+            undelivered: 0
+        }
+    );
+    assert_eq!(counters.on(day).received, 4, "合计照数");
+    assert_eq!(
+        counters.of_on(|_| true, "2026-10-21"),
+        Day::default(),
+        "别的一天当零"
+    );
+    counters.bump_on(Count::Received, "qq:group:2", "2026-10-21");
+    assert_eq!(
+        counters.of_on(|venue| venue == "qq:group:1", "2026-10-21"),
+        Day::default(),
+        "跨了天的从零数"
+    );
 }
 
 #[test]
@@ -68,6 +112,12 @@ fn todays_file_is_read_back() {
     assert_eq!(counters(&dir).today(), written, "照今天那一份接着数");
     std::fs::write(dir.join(format!("{}.json", today())), b"not json").expect("写得进");
     assert_eq!(counters(&dir).today(), Day::default(), "读不懂的从零数");
+    // 带场所的那一份（施工 I-7 上补）：合计、场所的都读回来。
+    let with = r#"{"received": 2, "venues": {"qq:group:1": {"received": 2}}}"#;
+    std::fs::write(dir.join(format!("{}.json", today())), with).expect("写得进");
+    let again = counters(&dir);
+    assert_eq!(again.today().received, 2);
+    assert_eq!(again.today_of(|venue| venue == "qq:group:1").received, 2);
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里。
     }

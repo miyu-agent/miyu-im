@@ -1,4 +1,5 @@
-//! 一条要交给核心的消息（从 `route.rs` 挪出来，施工 O-60：那一份行数到了上限）。
+//! 一条要交给核心的消息（从 `route.rs` 挪出来，施工 O-60：那一份行数到了上限）；她一条回话里的文字（施工 I-7 上补挪过来，同一个
+//! 原因）。
 
 use serde_json::Value;
 
@@ -24,4 +25,18 @@ pub(super) struct Message {
     pub(super) pictures: Option<Pictures>,
     /// 交以前要展开的合并转发（施工 O-34，`forwards`）：没有转发的是空的。
     pub(super) forwards: Option<Forwards>,
+}
+
+/// 她一条回话里的文字：`text` 块依次接起来，思考、工具调用不要（第 10 条）。
+pub(super) fn reply_text(event: &Value) -> String {
+    event["body"]["blocks"]
+        .as_array()
+        .map(|blocks| {
+            blocks
+                .iter()
+                .filter(|block| block["type"] == "text")
+                .filter_map(|block| block["text"].as_str())
+                .collect()
+        })
+        .unwrap_or_default()
 }

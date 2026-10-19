@@ -341,7 +341,7 @@ impl Route {
         let (venue, chars) = (&peer.venue, item.piece.text.chars().count());
         tracing::info!(target: TARGET, venue = %venue, chars, "reply sent");
         if said(&item.piece.what) {
-            self.counters.bump(Count::Replied);
+            self.counters.bump(Count::Replied, &venue.to_string());
         }
         if !matches!(peer.to, To::Group(_)) {
             return Ok(());
@@ -394,7 +394,7 @@ impl Route {
         let chars = item.piece.text.chars().count();
         tracing::warn!(target: TARGET, venue = %venue, why, chars, "reply not sent");
         if said(&item.piece.what) {
-            self.counters.bump(Count::Undelivered);
+            self.counters.bump(Count::Undelivered, &venue);
         }
         let mut body = json!({"queued": item.queued, "why": why});
         if let Some(detail) = &detail {

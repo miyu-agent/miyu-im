@@ -31,8 +31,12 @@ pub(super) struct Tag {
     pub(super) id: String,
     /// 平台的消息编号：只记运行日志。
     pub(super) number: i64,
-    /// 场所编号：只记运行日志。
+    /// 场所编号：记运行日志、最近判断（施工 I-7 上补）。
     pub(super) venue: String,
+    /// 发的人的名字（没有的是平台上的身份）：最近判断写是谁。
+    pub(super) who: String,
+    /// 正文的开头：最近判断。
+    pub(super) text: String,
 }
 
 /// 交给判官的一条：判官回来时算分、记判断要的，都在交出去的那一刻定下（「施工时定的」第 100 条）。

@@ -64,9 +64,11 @@ mod mentions;
 mod message;
 mod muted;
 mod names;
+mod noted;
 mod notes;
 mod outbound;
 mod outreach;
+mod overview;
 mod packages;
 mod pages;
 mod parts;
@@ -96,7 +98,7 @@ mod tests;
 mod titled;
 mod voicing;
 
-use message::Message;
+use message::{Message, reply_text};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -117,6 +119,7 @@ use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
 use crate::counters::{Count, Counters};
 use crate::plugins::Toggles;
+use crate::recent::Recent;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
@@ -156,6 +159,8 @@ pub(crate) struct Route {
     counters: Arc<Counters>,
     /// 卡片、白名单变了叫一声（施工 I-7 上：im 的会话页照它再问）。
     cards_changed: Arc<Changed>,
+    /// 最近判断（施工 I-7 上补，`crate::recent`）。
+    recent: Arc<Recent>,
     /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
     platform: Platform,
     bots: Arc<Bots>,
@@ -257,7 +262,12 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters, cards_changed): (Arc<Hooks>, Arc<Counters>, Arc<Changed>),
+        (hooks, counters, cards_changed, recent): (
+            Arc<Hooks>,
+            Arc<Counters>,
+            Arc<Changed>,
+            Arc<Recent>,
+        ),
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -277,6 +287,7 @@ impl Route {
             core,
             counters,
             cards_changed,
+            recent,
             platform,
             bots,
             rules,
@@ -456,7 +467,7 @@ impl Route {
             None => {
                 let chars = message.text.chars().count();
                 tracing::info!(target: TARGET, venue = %venue, message = number, chars, "message sent in");
-                self.counters.bump(Count::Received);
+                self.counters.bump(Count::Received, &venue.to_string());
             }
             Some(other) => {
                 tracing::warn!(target: TARGET, venue = %venue, message = number, reason = other, "message refused");
@@ -478,18 +489,4 @@ fn sent<T>(joined: Result<T, JoinError>) -> Result<T, Failure> {
         tracing::error!(target: TARGET, error = %error, "reply task crashed");
         Failure::Crashed(error.to_string())
     })
-}
-
-/// 她一条回话里的文字：`text` 块依次接起来，思考、工具调用不要（第 10 条）。
-fn reply_text(event: &Value) -> String {
-    event["body"]["blocks"]
-        .as_array()
-        .map(|blocks| {
-            blocks
-                .iter()
-                .filter(|block| block["type"] == "text")
-                .filter_map(|block| block["text"].as_str())
-                .collect()
-        })
-        .unwrap_or_default()
 }

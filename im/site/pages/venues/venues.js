@@ -203,6 +203,8 @@ export function mountVenues(view, { request }) {
         drawHead();
         drawWall();
       }
+      // 宿主推了变了（来了消息）：开着的浮窗再问今天的数和最近判断。
+      open?.dialog.refresh();
     },
     event(name) {
       if (name === 'cards') load();

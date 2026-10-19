@@ -62,7 +62,10 @@ impl Route {
                 return self.note_exported(&pushed).await;
             }
             // 后台页的场所卡片（施工 O-58 上，`cards`）、两页的三个方法（施工 O-58 下，`pages`）。
-            if self.cards_called(&pushed) || self.page_called(&pushed).await? {
+            if self.cards_called(&pushed)
+                || self.overview_called(&pushed)
+                || self.page_called(&pushed).await?
+            {
                 return Ok(());
             }
             self.exported(&pushed);
