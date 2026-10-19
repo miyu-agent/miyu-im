@@ -73,6 +73,7 @@ fn every_group_field_lands_on_its_attribute() {
         "sleep": "23:00-07:00",
         "rate": "3/60s",
         "show_ids": true,
+        "recent": 30,
         "long_text": "split",
         "long_chars": 500,
         "final_only": true,
@@ -94,6 +95,7 @@ fn every_group_field_lands_on_its_attribute() {
             ("outbound.long_text".to_string(), text("split")),
             ("persona".to_string(), text("engineer")),
             ("rate".to_string(), text("3/60s")),
+            ("recent".to_string(), Value::Int(30)),
             ("show_ids".to_string(), Value::Bool(true)),
             ("sleep".to_string(), text("23:00-07:00")),
         ]

@@ -57,6 +57,7 @@ mod queue;
 mod queue_waits;
 mod reactions;
 mod receipts;
+mod recent;
 mod reload;
 mod replaced_bridge;
 mod replayed;

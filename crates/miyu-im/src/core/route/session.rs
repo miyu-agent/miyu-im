@@ -73,6 +73,10 @@ impl Place {
         for (key, value) in super::applied::opening(applied) {
             opening[key] = json!(value);
         }
+        // 群聊近况带多少条（施工 O-62）：核心只收群的，造会话时钉进快照。
+        if let Some(recent) = super::applied::recent(applied) {
+            opening["recent"] = json!(recent);
+        }
         Place {
             opening,
             peer: Peer {

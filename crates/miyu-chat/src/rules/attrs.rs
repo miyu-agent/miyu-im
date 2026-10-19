@@ -11,6 +11,9 @@ use toml_edit::Value as TomlValue;
 
 use super::forms;
 
+#[cfg(test)]
+mod tests;
+
 /// 线路规程的几种（`18-通讯平台.md` 第七节）。
 const DISCIPLINES: &[&str] = &["every-message", "when-called", "chatty", "wake"];
 
@@ -41,6 +44,7 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("show_ids", Form::Kind(Kind::Bool)),
     ("workspace", Form::Kind(Kind::Text { max: 4096 })),
     ("extra_prompt", Form::Kind(Kind::Lines { max: 2000 })),
+    ("recent", Form::Kind(Kind::Int { min: 1, max: 1000 })),
 ];
 
 /// 照名字找一项属性：交回表里的名字（活得和程序一样长，结果的键用它）和写法。

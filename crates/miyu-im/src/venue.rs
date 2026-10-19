@@ -51,8 +51,13 @@ pub enum Shown {
 ///
 /// 连不上核心、核心拒了：原话。
 pub async fn configured(root: &DataRoot, core: &CoreCommand) -> Result<Configured, String> {
-    let mut core = Core::connect(root, core, PACKAGE).await?;
-    let answered = core.call(PACKAGE, "config.get", json!({})).await?;
+    let mut core = Core::connect(root, core, PACKAGE)
+        .await
+        .map_err(|refused| refused.to_string())?;
+    let answered = core
+        .call(PACKAGE, "config.get", json!({}))
+        .await
+        .map_err(|refused| refused.to_string())?;
     // `items` 是键到 `{value, origin}`：照握手交的样子摊成键到值，别的包的键 `Configured` 不认。
     let values: Map<String, Value> = answered["items"]
         .as_object()

@@ -101,6 +101,9 @@ pub struct GroupSet {
     /// 她看得到 QQ 号。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub show_ids: Option<bool>,
+    /// 回复时带多少条群聊记录（施工 O-62）：拼成 `recent`，1 到 1000。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recent: Option<u32>,
     /// 长文怎么发（施工 O-59 上）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_text: Option<LongText>,
@@ -369,6 +372,9 @@ fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     push_text(&mut lines, "rate", set.rate.as_deref());
     if let Some(show) = set.show_ids {
         lines.push(format!("show_ids = {show}"));
+    }
+    if let Some(recent) = set.recent {
+        lines.push(format!("recent = {recent}"));
     }
     push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
     lines

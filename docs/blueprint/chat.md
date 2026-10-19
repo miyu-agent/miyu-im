@@ -80,6 +80,7 @@ managers = ["qq:10002"]
 | `managers` | 带平台前缀的身份的列表，例如 `qq:10002` | 谁能用管理命令 |
 | `show_ids` | 开关 | 她看不看得到发送者的号码 |
 | `workspace` | 文字，最多 4096 个字符 | 场所会话的工作区 |
+| `recent` | 整数 1 到 1000 | 群会话里她回话时带多少条群聊近况（施工 O-62，核心 `venue.session` 的 `recent`）：只管群、只对新造的会话生效（核心造会话时钉进快照）；不写的只照核心的字节预算 |
 | `extra_prompt` | 几行字，最多 2000 个字符（施工 O-58 上从一行改成几行） | 场所的附加说明（核心的 `docs/designs/26-提示词.md` 第五节）；接入通讯平台 照模板裹好经 `system.append` 放进这个场所会话的 system 尾部 |
 | `inbound`、`chatty`、`dispatch`、`judge`、`outbound` | 表，每一项照第八条的声明 | 插件参数的表（第八条，施工 O-15）：只改写了的几项，例如 `chatty = { probability = 80 }` |
 

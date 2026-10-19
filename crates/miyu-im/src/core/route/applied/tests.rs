@@ -5,7 +5,7 @@ use std::path::Path;
 
 use miyu_chat::{File, Params, Rules, Source, Venue, VenueKind};
 
-use super::{asleep, opening, role, show_ids};
+use super::{asleep, opening, recent, role, show_ids};
 use crate::chat::Platform;
 use crate::rules::{Applied, Loaded};
 
@@ -65,6 +65,17 @@ fn the_opening_carries_what_the_rules_set() {
         [("preset", "chat")]
     );
     assert!(opening(&applied("rate = \"0\"\n")).is_empty(), "没设的不带");
+}
+
+#[test]
+fn recent_is_read_from_the_rules() {
+    // 施工 O-62：群聊近况带多少条。
+    assert_eq!(recent(&applied("recent = 40\n")), Some(40));
+    assert_eq!(recent(&applied("rate = \"0\"\n")), None, "没设的不带");
+    assert!(
+        opening(&applied("recent = 40\n")).is_empty(),
+        "私聊也照的几格里没有它：只给群带"
+    );
 }
 
 #[test]

@@ -131,8 +131,8 @@ pub async fn control(
 ) -> u8 {
     let mut core = match Core::connect(root, core, "im").await {
         Ok(core) => core,
-        Err(reason) => {
-            say(err, &texts.failure(&Failure::Core(reason)));
+        Err(refused) => {
+            say(err, &texts.failure(&Failure::Core(refused.to_string())));
             return FAILED;
         }
     };
@@ -152,7 +152,7 @@ pub async fn control(
     let answered = match core.call("im", method, params).await {
         Ok(answered) => answered,
         Err(said) => {
-            say(err, &said);
+            say(err, &said.to_string());
             return FAILED;
         }
     };
