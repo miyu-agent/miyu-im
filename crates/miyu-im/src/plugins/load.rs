@@ -1,4 +1,4 @@
-//! 读插件（施工 I-8 上）：经核心的 `content.list` 列出给 im 带了内容的包，`content.read` 读每个包目录根上的 `plugin.toml`
+//! 读插件（施工 I-8 上）：经核心的 `content.list` 列出给 im 带了内容的包（请求由调的一方当场写出去，跟别的请求的先后一定），`content.read` 读每个包目录根上的 `plugin.toml`
 //! （一次最多 512 KiB，接着读到头；`data` 是 base64）。读不成的（没有这个文件、不是 UTF-8、写错了）记下为什么、记一行运行日志，
 //! 别的照读。核心拒了 `content.list` 的当一个插件都没有。
 
@@ -10,19 +10,19 @@ use serde_json::{Value, json};
 
 use super::{Plugins, declared};
 use crate::TARGET;
-use crate::core::caller::Caller;
+use crate::core::caller::{Answer, Caller};
 use crate::core::{Gone, reason};
 
 /// 插件的声明在它目录里的路径。
 const DECLARED: &str = "plugin.toml";
 
-/// 读一遍。
+/// 照 `content.list` 的回应 `listed`（已经写出去的那一次）读一遍。
 ///
 /// # Errors
 ///
 /// 等的时候核心断开。
-pub(crate) async fn load(caller: &Caller) -> Result<Plugins, Gone> {
-    let listed = caller.call("content.list", json!({})).await?;
+pub(crate) async fn load(caller: &Caller, listed: Answer) -> Result<Plugins, Gone> {
+    let listed = listed.wait().await?;
     if let Some(why) = reason(&listed) {
         tracing::warn!(target: TARGET, why, "plugins not listed");
         return Ok(Plugins::default());

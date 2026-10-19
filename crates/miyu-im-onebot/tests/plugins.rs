@@ -179,10 +179,19 @@ async fn a_plugin_notes_a_fact_into_the_venue_session() {
         Some("<moderated>小周 was muted by 阿杰 for 10 minutes.</moderated>"),
         "套上外壳：种类当标签"
     );
-    let noted: Vec<Value> = calls(&home.root, "admin")
-        .into_iter()
-        .filter_map(|line| line.get("noted").cloned())
-        .collect();
+    // 事实先记进会话，测试包收到回应、记下来要晚一点：等它记下。
+    let deadline = tokio::time::Instant::now() + WAIT;
+    let noted = loop {
+        let noted: Vec<Value> = calls(&home.root, "admin")
+            .into_iter()
+            .filter_map(|line| line.get("noted").cloned())
+            .collect();
+        if !noted.is_empty() {
+            break noted;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "测试包没记下回应");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
     assert_eq!(noted.len(), 1, "{noted:?}");
     assert_eq!(noted[0]["result"], json!({"noted": true}), "{noted:?}");
     assert!(run_log(&home.root).contains("plugin noted"));

@@ -41,15 +41,23 @@ impl Route {
         Ok(())
     }
 
-    /// 读一遍 im 的插件（`crate::plugins::load`），读完交给挂接点：在小任务（`chores`）里读，跟核心的那一头不等它。
-    pub(super) fn reload_plugins(&mut self) {
-        let (caller, hooks) = (self.core.caller(), Arc::clone(&self.hooks));
+    /// 读一遍 im 的插件（`crate::plugins::load`），读完交给挂接点：`content.list` 当场写出去（跟别的请求的先后一定），等回应、读
+    /// 文件在小任务（`chores`）里，跟核心的那一头不等它（核心的替身不答也不卡）。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去（核心断开）。
+    pub(super) async fn reload_plugins(&mut self) -> Result<(), Gone> {
+        let caller = self.core.caller();
+        let listed = caller.send("content.list", json!({})).await?;
+        let hooks = Arc::clone(&self.hooks);
         self.chores.spawn(async move {
             // 等的时候核心断开：跟核心的那一头会读到头、桥停下，这里没有别的要做。
-            if let Ok(plugins) = load(&caller).await {
+            if let Ok(plugins) = load(&caller, listed).await {
                 hooks.set_plugins(plugins);
             }
         });
+        Ok(())
     }
 
     /// 核心推来的一条 `pushed` 是不是软件包列表的：`package.changed` 照换那一项，`resync`（`packages`）重新订阅。是的交回真。
@@ -68,7 +76,7 @@ impl Route {
             }
             // 给 im 带内容的包装、卸、升级了（施工 I-8 上）：插件再读一遍。
             Some("content.changed") => {
-                self.reload_plugins();
+                self.reload_plugins().await?;
                 Ok(true)
             }
             Some("resync") if params["stream"] == "packages" => {
