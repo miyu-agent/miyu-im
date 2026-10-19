@@ -1,5 +1,5 @@
 // 会话卡上的小标签（施工 I-7 上，设计 01 第八节第 3 条「几个说明它怎么设的小标签」）：只说卡上写了的（和默认不一样的），一样都没写
-// 的写「照默认」；关着的先写「只记录」。最多 MOST 个，多的写「+N」。
+// 的不写（I-7 上修，项目主人 10-20：去掉「照默认」）；关着的先写「只记录」。最多 MOST 个，多的写「+N」。
 import { say } from '../../shell/i18n.js';
 
 const MOST = 4;
@@ -23,8 +23,6 @@ export function chips(one, personas) {
   if (set.recent) all.push({ text: say('chip/recent', { count: set.recent }) });
   if (set.long_text) all.push({ text: say(`chip/long-${set.long_text}`) });
   if (set.final_only !== undefined) all.push({ text: say(set.final_only ? 'chip/final-only' : 'chip/every-step') });
-  const written = Object.keys(set).some((key) => key !== 'on' && key !== 'plugins');
-  if (!written && all.length === 0) all.push({ text: say('chip/default') });
   if (all.length <= MOST) return all;
   return [...all.slice(0, MOST - 1), { text: `+${all.length - MOST + 1}` }];
 }
