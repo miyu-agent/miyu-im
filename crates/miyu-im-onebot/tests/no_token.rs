@@ -136,9 +136,17 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     // 照核心的样子推来令牌（后台页写进令牌，核心换上新配置就推，施工 O-20）。
     serve.config(json!({"im.qq.token": TOKEN})).await;
     let connected = admitted(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
-    assert_eq!(ask(&mut serve, "core-2", "status").await["token"], "set");
+    // 驱动照新令牌收连接、把「有令牌」报进状态是两步（报的那一步在接连接的任务里），等它报上（I-6 补二：CI 上偶发先问到 none）。
+    within("状态里令牌设了", async {
+        let mut asked = 2;
+        while ask(&mut serve, &format!("core-{asked}"), "status").await["token"] != "set" {
+            asked += 1;
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
     assert_eq!(
-        ask(&mut serve, "core-3", "connection.token").await,
+        ask(&mut serve, "core-token", "connection.token").await,
         json!({"token": TOKEN})
     );
     connected.close().await;

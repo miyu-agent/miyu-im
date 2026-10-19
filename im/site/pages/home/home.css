@@ -68,3 +68,8 @@
   .log { grid-template-columns: 58px minmax(0, 1fr); }
   .log .lv { display: none; }
 }
+
+/* 平台的标志（施工 I-6 补二）：白色的图形，大小照它所在的块；等连上的那个节点里照平台的颜色。 */
+.logo { width: 62%; height: 62%; fill: currentColor; color: #fff; }
+.pf-badge .logo { width: 70%; height: 70%; }
+.node .logo { width: 26px; height: 26px; color: inherit; }

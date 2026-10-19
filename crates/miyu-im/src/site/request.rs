@@ -72,7 +72,12 @@ pub(super) async fn handle(
             None => empty(StatusCode::PAYLOAD_TOO_LARGE),
         },
         (Method::POST, "/logout") => {
-            if let Some(login) = bearer(&request).and_then(|session| site.logins.remove(session)) {
+            let login = bearer(&request).and_then(|session| site.logins.remove(session));
+            // 正文不用，也读掉再回（同 `refused`：不读就关连接，macOS 回 RST）。
+            if body(request).await.is_none() {
+                // 正文太大：照样登出。
+            }
+            if let Some(login) = login {
                 let revoked = login
                     .person
                     .lock()

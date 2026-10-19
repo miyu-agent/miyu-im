@@ -3,7 +3,7 @@
 // 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面「今天」四个数（收到、回复、只记录、没发出去）和最近
 // 的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久每分钟照本机的钟重画一次（不问宿主）。
 import { element, icon, say } from '../../shell/i18n.js';
-import { platform } from './platforms.js';
+import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
 import { openWizard } from './wizard.js';
 
@@ -125,14 +125,20 @@ function tile(one, request) {
   const shown = platform(one.platform);
   const card = element('div', one.connected ? 'conn-tile' : 'conn-tile off');
   const bot = element('span', 'bot');
-  const face = element('span', 'avatar', shown.badge);
+  const face = element('span', `avatar pf-face pf-${one.platform}`);
+  face.append(mark(shown));
   if (one.avatar) {
     const picture = element('img');
     picture.alt = '';
     picture.src = one.avatar;
-    picture.addEventListener('load', () => face.replaceChildren(picture));
+    picture.addEventListener('load', () => {
+      face.className = 'avatar';
+      face.replaceChildren(picture);
+    });
   }
-  bot.append(face, element('span', `pf-badge pf-${one.platform}`, shown.badge));
+  const badge = element('span', `pf-badge pf-${one.platform}`);
+  badge.append(mark(shown));
+  bot.append(face, badge);
   const grow = element('div', 'grow');
   const line = one.implementation
     ? say('conn/line', { platform: shown.name(), implementation: one.implementation, version: one.version })

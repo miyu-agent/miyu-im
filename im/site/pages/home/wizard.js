@@ -3,7 +3,7 @@
 // 存设置经宿主的 connection.save（人的连接替人存）；等的时候照外壳推来的连接看，有连着的就算连上。
 import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
-import { PLATFORMS, platform } from './platforms.js';
+import { PLATFORMS, mark, platform } from './platforms.js';
 
 /** 开新建连接的浮窗：`request` 调宿主的方法。交回 update(connections)（外壳推来的连接，等连上用）。 */
 export function openWizard(request) {
@@ -36,7 +36,9 @@ export function openWizard(request) {
     const list = element('div', 'platforms');
     for (const [id, shown] of Object.entries(PLATFORMS)) {
       const choice = element('button', `pf${chosen === id ? ' on' : ''}`);
-      choice.append(element('span', `pi pf-${id}`, shown.badge), element('b', null, shown.name()), element('small', 'faint', shown.driver()));
+      const tile = element('span', `pi pf-${id}`);
+      tile.append(mark(shown));
+      choice.append(tile, element('b', null, shown.name()), element('small', 'faint', shown.driver()));
       choice.addEventListener('click', () => {
         chosen = id;
         pick();
@@ -109,7 +111,9 @@ export function openWizard(request) {
     const wire = element('div', 'wire');
     wire.append(element('i'));
     const theirs = element('div', 'node-wrap');
-    theirs.append(element('span', `node pf-text-${chosen}`, shown.badge), document.createTextNode(shown.node()));
+    const node = element('span', `node pf-text-${chosen}`);
+    node.append(mark(shown));
+    theirs.append(node, document.createTextNode(shown.node()));
     link.append(ours, wire, theirs);
     const box = element('div', 'center');
     box.append(link, element('p', 'soft', shown.waiting()));
