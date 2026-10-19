@@ -80,6 +80,9 @@ pub struct GroupSet {
     /// 人格。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
+    /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
@@ -125,6 +128,9 @@ pub struct PrivateSet {
     /// 人格。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
+    /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
@@ -152,6 +158,9 @@ pub struct OtherPrivateSet {
     /// 人格。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
+    /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
@@ -349,6 +358,7 @@ fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
 fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     let mut lines = vec![format!("allow = {}", set.on.unwrap_or(listed))];
     push_text(&mut lines, "persona", set.persona.as_deref());
+    push_text(&mut lines, "model", set.model.as_deref());
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
     if let Some(words) = &set.keywords {
         lines.push(format!("keywords = {}", texts(words)));
@@ -384,6 +394,7 @@ fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
 fn private_lines(set: &PrivateSet) -> Vec<String> {
     let mut lines = Vec::new();
     push_text(&mut lines, "persona", set.persona.as_deref());
+    push_text(&mut lines, "model", set.model.as_deref());
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
     push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
     lines
@@ -393,6 +404,7 @@ fn private_lines(set: &PrivateSet) -> Vec<String> {
 fn other_private_lines(set: &OtherPrivateSet) -> Vec<String> {
     let mut lines = vec![format!("allow = {}", set.on.unwrap_or(false))];
     push_text(&mut lines, "persona", set.persona.as_deref());
+    push_text(&mut lines, "model", set.model.as_deref());
     push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
     push_text(&mut lines, "rate", set.rate.as_deref());
     push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use miyu_chat::{File, Params, Rules, Source, Venue, VenueKind};
 
-use super::{asleep, opening, recent, role, show_ids};
+use super::{asleep, model, opening, recent, role, show_ids};
 use crate::chat::Platform;
 use crate::rules::{Applied, Loaded};
 
@@ -65,6 +65,17 @@ fn the_opening_carries_what_the_rules_set() {
         [("preset", "chat")]
     );
     assert!(opening(&applied("rate = \"0\"\n")).is_empty(), "没设的不带");
+}
+
+#[test]
+fn the_model_is_read_from_the_rules() {
+    // 施工 O-58 补三：找到会话以后钉，不进 `venue.session` 的几格。
+    assert_eq!(
+        model(&applied("model = \"deepseek/v4\"\n")),
+        Some("deepseek/v4")
+    );
+    assert_eq!(model(&applied("rate = \"0\"\n")), None);
+    assert!(opening(&applied("model = \"deepseek/v4\"\n")).is_empty());
 }
 
 #[test]

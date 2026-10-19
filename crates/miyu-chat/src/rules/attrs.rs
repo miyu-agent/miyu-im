@@ -45,6 +45,7 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("workspace", Form::Kind(Kind::Text { max: 4096 })),
     ("extra_prompt", Form::Kind(Kind::Lines { max: 2000 })),
     ("recent", Form::Kind(Kind::Int { min: 1, max: 1000 })),
+    ("model", Form::Kind(Kind::Reference)),
 ];
 
 /// 照名字找一项属性：交回表里的名字（活得和程序一样长，结果的键用它）和写法。

@@ -62,6 +62,7 @@ mod long;
 mod lookup;
 mod mentions;
 mod message;
+mod models;
 mod muted;
 mod names;
 mod notes;

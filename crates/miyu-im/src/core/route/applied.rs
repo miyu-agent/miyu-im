@@ -9,6 +9,7 @@
 //! - 进站链要的（施工 O-23，「群里怎么叫她」第 4、5 条）：限流、睡眠、能不能叫她、触发词，此刻（本机的钟和时区）。
 //! - 线路规程（施工 O-23 下，第 10 条）：`discipline` 的写法，没设的是空的。
 //! - 最多几条支线（施工 O-36，第 6 条）：`parallel`，没设的是 0。
+//! - 对话模型（施工 O-58 补三）：`model`，找到会话以后经 `session.configure` 钉（`models`）。
 //! - 群聊近况带多少条（施工 O-62）：`recent`，只给群的 `venue.session` 带，没设的不带。
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -122,6 +123,11 @@ pub(super) fn parallel(applied: &Applied) -> u8 {
         Some(Value::Int(count)) => u8::try_from(*count).unwrap_or(0),
         _ => 0,
     }
+}
+
+/// 对话模型（施工 O-58 补三）：规则的 `model`，没设的是空的。
+pub(super) fn model(applied: &Applied) -> Option<&str> {
+    text(applied, "model")
 }
 
 /// 群聊近况带多少条（施工 O-62）：规则的 `recent`，没设的是空的（核心只照字节预算）。

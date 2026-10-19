@@ -134,7 +134,9 @@ impl Route {
             privates = cards.privates.len(),
             "venue cards saved"
         );
+        let before = self.models();
         self.rules.set_cards(cards);
+        self.repin(&before);
         self.hooks
             .set_toggles(Toggles::from_cards(self.rules.cards()));
         self.forget_privates();

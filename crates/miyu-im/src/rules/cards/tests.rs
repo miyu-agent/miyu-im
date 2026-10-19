@@ -66,6 +66,7 @@ fn every_group_field_lands_on_its_attribute() {
     let full = cards(json!({"groups": [{"id": 7, "set": {
         "on": false,
         "persona": "engineer",
+        "model": "deepseek/v4",
         "extra_prompt": "第一行\n\"第二行\"",
         "keywords": ["miyu", "小羽"],
         "chatty": "many",
@@ -90,6 +91,7 @@ fn every_group_field_lands_on_its_attribute() {
                 Value::List(vec![text("miyu"), text("小羽")])
             ),
             ("managers".to_string(), Value::List(vec![text("qq:1001")])),
+            ("model".to_string(), text("deepseek/v4")),
             ("outbound.final_only".to_string(), Value::Bool(true)),
             ("outbound.long_chars".to_string(), Value::Int(500)),
             ("outbound.long_text".to_string(), text("split")),
@@ -149,11 +151,12 @@ fn a_listed_group_does_not_inherit_the_other_groups_card() {
 #[test]
 fn private_cards_set_only_their_own_chat() {
     let set = cards(
-        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "long_text": "image"}}]}),
+        json!({"privates": [{"id": 9, "set": {"persona": "engineer", "long_text": "image", "model": "@fast"}}]}),
     );
     assert_eq!(
         values(&set, &private("9")),
         [
+            ("model".to_string(), text("@fast")),
             ("outbound.long_text".to_string(), text("image")),
             ("persona".to_string(), text("engineer")),
         ]
@@ -287,6 +290,7 @@ fn other_private_chats_have_their_own_card_that_leaves_known_people_alone() {
     let set = cards(json!({"other_privates": {
         "on": true,
         "persona": "engineer",
+        "model": "deepseek/v4",
         "extra_prompt": "陌生人",
         "rate": "3/60s",
         "final_only": true,
@@ -306,6 +310,7 @@ fn other_private_chats_have_their_own_card_that_leaves_known_people_alone() {
         [
             "allow",
             "extra_prompt",
+            "model",
             "outbound.final_only",
             "outbound.long_text",
             "persona",

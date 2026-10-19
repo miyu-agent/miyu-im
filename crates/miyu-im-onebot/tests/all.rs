@@ -11,6 +11,7 @@ mod budget;
 mod called;
 mod called_limits;
 mod calls;
+mod card_model;
 mod cards;
 mod commands;
 mod control;
