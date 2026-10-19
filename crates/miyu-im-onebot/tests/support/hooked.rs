@@ -132,6 +132,7 @@ impl Home {
             stable: Duration::from_secs(60),
             backoff: Duration::from_millis(20),
             longest: Duration::from_millis(100),
+            ..Timing::default()
         };
         let secrets = format!("im = \"{TOKEN}\"\n");
         let config = format!("{CONFIG}{more}");

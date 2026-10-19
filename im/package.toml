@@ -77,6 +77,18 @@ applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
 description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect Messaging web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入通讯平台的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。メッセージング接続の Web ページで生成できます。" }
 
+# 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。设计里的键是 im.web.port，核心的设置名
+# 能带一层前缀以后改。
+[settings.web_port]
+type = "int"
+min = 1024
+max = 65535
+default = 8302
+layers = ["system"]
+applies = "now"
+name = { en = "Web page port", zh = "网页服务端口", ja = "Web ページのポート" }
+description = { en = "The port of the Connect Messaging web page, local only.", zh = "接入通讯平台的网页开在这个端口，只给本机访问。", ja = "メッセージング接続の Web ページを開くポートです。このマシンからだけアクセスできます。" }
+
 # 白名单成员（施工 O-27，2026-10-10 项目主人定：原来的键叫 trusted，旧键不认）。
 [settings.whitelist]
 type = "list"

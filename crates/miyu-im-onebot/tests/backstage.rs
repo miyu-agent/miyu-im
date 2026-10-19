@@ -101,7 +101,12 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     assert_eq!(onebot["page"], true, "{onebot}");
 
     // 桥起来、开好监听以后才登记：等到调得到。
-    let status = head.until("status", |result| result.is_object()).await;
+    let mut status = head.until("status", |result| result.is_object()).await;
+    // 页面服务的端口（施工 I-5 上）：测试的配置另挑的那一个。
+    let web = status
+        .as_object_mut()
+        .and_then(|status| status.remove("web"));
+    assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
         status,
         json!({
@@ -232,9 +237,14 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         refused["error"],
         json!({"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}})
     );
-    // 测试当的核心握手时没交令牌。
+    // 测试当的核心握手时没交令牌。页面服务的端口（施工 I-5 上）是系统挑的那一个。
+    let mut status = served.answer("core-2").await["result"].clone();
+    let web = status
+        .as_object_mut()
+        .and_then(|status| status.remove("web"));
+    assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
-        served.answer("core-2").await["result"],
+        status,
         json!({
             "napcat": {"connected": false},
             "listen": listen,

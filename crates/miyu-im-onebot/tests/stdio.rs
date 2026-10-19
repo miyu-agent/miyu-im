@@ -139,9 +139,10 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
 }
 
 #[tokio::test]
-async fn a_web_port_in_the_handshake_is_not_opened() {
+async fn the_old_web_port_in_the_handshake_is_not_opened() {
     let (dir, root) = temp_root();
-    // 原来桥自己的网页的端口：握手交来了也不认（施工 O-28 下，「施工时定的」第 170 条）。
+    // 原来桥自己的网页的端口：握手交来了也不认（施工 O-28 下，「施工时定的」第 170 条）。im 自己的页面照 `im.web_port`
+    // （施工 I-5 上，`served` 交 0：系统挑）。
     let web = free_port();
     let (mut served, listen) = on_free_port(async |listen| {
         let config = json!({"im.listen": listen, "im.web": web, "im.token": TOKEN});
@@ -152,14 +153,15 @@ async fn a_web_port_in_the_handshake_is_not_opened() {
         tokio::net::TcpStream::connect(("127.0.0.1", web))
             .await
             .is_err(),
-        "只开 NapCat 的端口"
+        "不开原来那一键的端口"
     );
     let board = miyu_im::status_file::read(&root).expect("写了状态文件");
     assert_eq!(board["listen"], listen, "{board}");
-    assert!(
-        board.get("web").is_none(),
-        "状态文件里没有网页的端口：{board}"
-    );
+    let page = board["web"]
+        .as_u64()
+        .and_then(|port| u16::try_from(port).ok())
+        .unwrap_or_else(|| panic!("状态文件里有页面服务的端口：{board}"));
+    assert_ne!(page, web, "{board}");
     drop(served.stdin.take());
     let exited = within("桥退出", served.child.wait_with_output())
         .await
@@ -169,8 +171,12 @@ async fn a_web_port_in_the_handshake_is_not_opened() {
         .expect("读得出来");
     assert_eq!(
         text(&exited.stderr),
-        format!("{}\n", zh.notice(&Notice::Listening { port: listen })),
-        "标准错误上只说在哪等 NapCat，不说网页"
+        format!(
+            "{}\n{}\n",
+            zh.notice(&Notice::Listening { port: listen }),
+            zh.notice(&Notice::Page { port: page })
+        ),
+        "标准错误上先说在哪等 NapCat，再说页面在哪"
     );
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。

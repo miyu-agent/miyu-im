@@ -23,6 +23,7 @@ fn fallback() -> Defaults {
     Defaults {
         recall_receipts: vec!["x".to_string()],
         driver: keys(json!({"listen": 18301})),
+        site: keys(json!({"web_port": 18302})),
     }
 }
 
@@ -54,8 +55,9 @@ fn the_shipped_manifest_gives_the_default_port() {
         Defaults {
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
             driver: keys(json!({"listen": 8301})),
+            site: keys(json!({"web_port": 8302})),
         },
-        "令牌没写默认值，不放"
+        "令牌没写默认值，不放；页面服务的端口出厂 8302（施工 I-5 上）"
     );
 }
 

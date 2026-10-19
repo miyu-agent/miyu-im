@@ -7,6 +7,7 @@
 
 pub mod answering;
 pub mod assembled;
+pub mod browser;
 pub mod events;
 pub mod fake_core;
 pub mod group;
@@ -408,9 +409,10 @@ pub fn serve_handed(root: DataRoot, config: Value, accounts: Option<Accounts>) -
         root,
         locale: Some("zh_CN.UTF-8".to_string()),
         tuning: tuning(),
-        defaults: defaults(),
+        defaults: browser::any_page_port(defaults()),
         factory: factory(),
         driver: std::sync::Arc::new(miyu_im_onebot::OneBot),
+        package: package(),
     };
     (serve, relay)
 }

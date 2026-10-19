@@ -1,0 +1,75 @@
+/* 接入通讯平台页面（施工 I-5 上）：这一步只有登录的一页。外壳、主题随 I-6；深浅先跟随系统，从 WebUI 跳过来的照网址片段的 scheme
+   （<html data-theme>）。控件不画描边。 */
+
+:root {
+  color-scheme: light;
+  --surface: #faf9f7;
+  --surface-2: #efece7;
+  --text: #1d1c1a;
+  --text-soft: #625d56;
+  --accent: #3a63c9;
+  --sans: Inter, "Adwaita Sans", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #1a1b26;
+    --surface-2: #262a3d;
+    --text: #c0caf5;
+    --text-soft: #9aa3c7;
+    --accent: #7aa2f7;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1b26;
+  --surface-2: #262a3d;
+  --text: #c0caf5;
+  --text-soft: #9aa3c7;
+  --accent: #7aa2f7;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+main {
+  max-width: 480px;
+  margin: 18vh auto 0;
+  padding: 0 16px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+p {
+  color: var(--text-soft);
+  margin: 0 0 20px;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, var(--text));
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}

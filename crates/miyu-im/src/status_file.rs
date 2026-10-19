@@ -4,8 +4,8 @@
 //! {"pid": 12345, "listen": 8301, "napcat": {"connected": true, "self_id": "30003"}}
 //! ```
 //!
-//! - 桥的进程号、实际听的 NapCat 端口（推来的换过的照换过的；施工 O-28 下去掉了网页的 `web`）、NapCat 的样子（同后台页的
-//!   `status`，`Bots::napcat`）。
+//! - 桥的进程号、实际听的 NapCat 端口（推来的换过的照换过的）、页面服务实际听的端口 `web`（施工 I-5 上；O-28 下去掉的是桥原来
+//!   自己的网页，I-5 上回来的是 im 自己的页面）、NapCat 的样子（同后台页的 `status`，`Bots::napcat`）。
 //! - 端口听上以后写一次；之后有人叫一声（NapCat 连上、断开、认出号、问到实现，推来的换了端口）就照这一刻再写。和磁盘上
 //!   一样的不写，先写临时文件再改名盖上（`miyu_client::places::write`）：读的人看不到写了一半的。写不进记一行，桥照跑。
 //! - 照数据根算位置，不照工作目录的相对路径：核心给的工作目录就是这个目录（`extensions.md`「怎么走」第 1 条），在进程里跑的
@@ -55,6 +55,10 @@ pub(crate) async fn keep(
             now[key] = value;
         }
         // 没认出来的配置项（施工 O-41 补）：`miyu im status` 照它说一句；空的不带。
+        // 页面服务实际听的端口（施工 I-5 上）：没听上的不带。
+        if let Some(port) = running.page.get() {
+            now["web"] = json!(port);
+        }
         let misread = running.current.misread();
         if !misread.is_empty() {
             now["misread"] = json!(misread);

@@ -189,6 +189,7 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         defaults,
         factory,
         driver: std::sync::Arc::new(miyu_im_onebot::OneBot),
+        package,
     };
     let speaking = Arc::new(Mutex::new(texts.clone()));
     let shaken = {

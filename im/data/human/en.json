@@ -15,6 +15,8 @@
     "no-log": "The run log cannot be written: {reason}",
     "web/no-miyu": "Could not open the web app: cannot run {path} ({reason}). miyu-im looks for miyu in its own directory; keep the two together.",
     "notice/listening": "Waiting for NapCat on 127.0.0.1:{port}.",
+    "notice/page": "Web page: http://127.0.0.1:{port}/",
+    "notice/page-in-use": "Web page port {port} is in use, so the page won't open. Pick another port (im.web_port); NapCat keeps working.",
     "notice/connected": "NapCat connected.",
     "notice/connected-as": "NapCat connected ({bot}).",
     "notice/disconnected": "NapCat disconnected; waiting for it to reconnect.",

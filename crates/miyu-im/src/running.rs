@@ -10,6 +10,7 @@ use crate::chat::Bots;
 use crate::chat::Platform;
 use crate::current::Current;
 use crate::driver::Reported;
+use crate::site::Port;
 use crate::tuning::Tuning;
 
 /// 跑着的桥，几样共用。
@@ -24,6 +25,8 @@ pub(crate) struct Running {
     pub(crate) current: Arc<Current>,
     /// 驱动报的状态（施工 I-3）。
     pub(crate) reported: Arc<Reported>,
+    /// 页面服务实际听的端口（施工 I-5 上）。
+    pub(crate) page: Arc<Port>,
 }
 
 impl Running {
@@ -34,6 +37,7 @@ impl Running {
     ///   `connected: false`（`Bots::napcat`，状态文件也照它）。
     /// - 驱动报的：OneBot 是 `listen`（实际听的端口）、`token`（有令牌的 `set`，没有的 `none`；没写引用、引用取不到，核心都不交，
     ///   分不出，「施工时定的」第 41 条）。
+    /// - `web`：页面服务实际听的端口（施工 I-5 上），没听上的不带。
     /// - `platform`：桥的平台名（驱动给的），白名单成员页照它拼 `qq:<号>`（第 151 条）。
     /// - `misread`：没认出来的配置项（施工 O-41 补，`Current::misread`），空的不带这一格。
     pub(crate) fn status(&self) -> Map<String, Value> {
@@ -41,6 +45,9 @@ impl Running {
         status.insert("napcat".into(), self.bots.napcat());
         status.extend(self.reported.get());
         status.insert("platform".into(), json!(self.platform.name()));
+        if let Some(port) = self.page.get() {
+            status.insert("web".into(), json!(port));
+        }
         let misread = self.current.misread();
         if !misread.is_empty() {
             status.insert("misread".into(), json!(misread));

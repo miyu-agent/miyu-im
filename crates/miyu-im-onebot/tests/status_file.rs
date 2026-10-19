@@ -38,11 +38,12 @@ async fn the_status_file_follows_napcat() {
     );
     let bridge = start(serve(root.clone(), settings())).await;
     let pid = std::process::id();
+    let web = crate::support::browser::page_port(&bridge, 1).await;
     let first = until_file(&root, |file| file["pid"] == pid).await;
     assert_eq!(
         first,
-        json!({"pid": pid, "listen": bridge.port, "token": "set", "napcat": {"connected": false}}),
-        "驱动报的几格照原样并进来（施工 I-3）"
+        json!({"pid": pid, "listen": bridge.port, "token": "set", "web": web, "napcat": {"connected": false}}),
+        "驱动报的几格照原样并进来（施工 I-3），页面服务的端口（施工 I-5 上）"
     );
     let mut napcat = admitted(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     napcat.version().await;

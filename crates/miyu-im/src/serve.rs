@@ -39,9 +39,11 @@ use crate::core::route::{
 use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::driver::{Driver, Gate, Reported};
+use crate::package::Package;
 use crate::rules::{Configured, Factory, Venues};
 use crate::running::Running;
 use crate::settings::Defaults;
+use crate::site::{self, Port, Site};
 use crate::status_file;
 use crate::tuning::Tuning;
 
@@ -82,6 +84,8 @@ pub struct Serve {
     pub factory: Factory,
     /// 平台的接法（施工 I-2 下）：监听到的连接交给它。
     pub driver: Arc<dyn Driver>,
+    /// 包文件夹：页面服务给它的 `site/` 里的文件（施工 I-5 上）。
+    pub package: Package,
 }
 
 /// 说给人听的（「样子」）：怎么说照 `texts`。
@@ -104,6 +108,16 @@ pub enum Notice {
     },
     /// 令牌没设：NapCat 连进来会被拒，说怎么设。跟在 [`Notice::Listening`] 后面说。
     NoToken,
+    /// 页面服务听上了（施工 I-5 上）：实际的端口。跟在驱动说的后面说。
+    Page {
+        /// 实际听的端口。
+        port: u16,
+    },
+    /// 页面服务的端口开不了（被占了这类，施工 I-5 上）：页面打不开，桥照跑。
+    PageInUse {
+        /// 要听的端口。
+        port: u16,
+    },
 }
 
 /// 起不来、跑着跑着停了的（「出错」，退出码都是 1）。
@@ -162,10 +176,12 @@ pub async fn run(
     let current = Arc::new(Current::new(
         &core.config,
         (serve.driver.settings(), serve.defaults.driver),
+        serve.defaults.site,
         Configured::handed(&core.config),
     ));
     let reported = Arc::new(Reported::default());
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
+    let told = Arc::clone(&tell);
     let bots = Arc::new(Bots::default());
     let platform = serve.driver.platform();
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
@@ -190,12 +206,22 @@ pub async fn run(
     ));
     // 驱动起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）。
     let accepting = serve.driver.start(Arc::clone(&gate)).await?;
+    // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。
+    let page = Arc::new(Port::new(Arc::clone(&changed)));
+    let site = Site::new(
+        serve.root.clone(),
+        serve.package.dir().join("site"),
+        core.caller(),
+        serve.tuning.clone(),
+    );
+    let serving = site::start(Arc::new(site), current.site(), told, Arc::clone(&page)).await;
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
         platform,
         current: Arc::clone(&current),
         reported,
+        page,
     });
     // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
     methods.ready(Arc::clone(&running));
@@ -204,6 +230,10 @@ pub async fn run(
     let mut tasks = JoinSet::new();
     tasks.spawn(async move {
         accepting.await;
+        None
+    });
+    tasks.spawn(async move {
+        serving.await;
         None
     });
     if let Some(provided) = provided {

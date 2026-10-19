@@ -21,6 +21,7 @@
 //!   用就照新的。
 //! - `media`：取图、视频、文件到手，视频、文件存进会话工作区的 `qq-files/`（施工 O-33）。
 //! - [`venue`]：`miyu im venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
+//! - `site`：im 自己的页面服务（施工 I-5 上）：只听本机，给页面的文件、交接票换登录、页面和宿主说话的通道。
 //! - [`web`]：`miyu im web`：跑旁边的 `miyu web --package im`，打开网页软件里接入通讯平台 的后台页（施工 O-28 补）。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
@@ -40,6 +41,7 @@ pub mod rules;
 mod running;
 pub mod serve;
 pub mod settings;
+mod site;
 pub mod status_file;
 pub mod texts;
 pub mod tuning;

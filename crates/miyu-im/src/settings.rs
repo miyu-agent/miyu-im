@@ -28,6 +28,9 @@ const WHITELIST: &str = "whitelist";
 /// 群里回执要撤回的命令：清单里的名字（施工 O-47）。
 const RECALL_RECEIPTS: &str = "recall_receipts";
 
+/// 页面服务的配置项的名字（施工 I-5 上）：端口。设计里的键是 `im.web.port`，核心的设置名能带一层前缀以后和驱动的键一起改。
+pub const SITE: &[&str] = &["web_port"];
+
 /// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Defaults {
@@ -35,11 +38,13 @@ pub struct Defaults {
     pub recall_receipts: Vec<String>,
     /// 驱动的配置项的默认值，照名字（施工 I-3：OneBot 的 `listen` 出厂 8301）；没写默认值的不放。
     pub driver: Map<String, Value>,
+    /// 页面服务的配置项（[`SITE`]）的默认值，照名字（施工 I-5 上：`web_port` 出厂 8302）。
+    pub site: Map<String, Value>,
 }
 
 impl Defaults {
     /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取撤回回执的
-    /// 命令（施工 O-47）、驱动的配置项 `driver`（施工 I-3）的默认值。
+    /// 命令（施工 O-47）、驱动的配置项 `driver`（施工 I-3）、页面服务的配置项（施工 I-5 上）的默认值。
     ///
     /// # Errors
     ///
@@ -64,15 +69,20 @@ impl Defaults {
                 _ => None,
             })
             .ok_or_else(|| bad(format!("no list default for {PACKAGE}.{RECALL_RECEIPTS}")))?;
-        let driver = manifest
-            .settings
-            .iter()
-            .filter(|setting| driver.contains(&setting.name.as_str()))
-            .filter_map(|setting| Some((setting.name.clone(), json(setting.default.as_ref()?)?)))
-            .collect();
+        let defaults = |names: &[&str]| {
+            manifest
+                .settings
+                .iter()
+                .filter(|setting| names.contains(&setting.name.as_str()))
+                .filter_map(|setting| {
+                    Some((setting.name.clone(), json(setting.default.as_ref()?)?))
+                })
+                .collect()
+        };
         Ok(Defaults {
             recall_receipts,
-            driver,
+            driver: defaults(driver),
+            site: defaults(SITE),
         })
     }
 }
@@ -95,6 +105,11 @@ pub fn driver_key(name: &str) -> String {
     format!("{PACKAGE}.{name}")
 }
 
+/// 页面服务的配置项 `name` 的键（施工 I-5 上）。
+pub fn site_key(name: &str) -> String {
+    format!("{PACKAGE}.{name}")
+}
+
 /// 握手交来的 `config` 里驱动的那几项 `names`（施工 I-3）：照名字放，没交的、`null` 的照 `defaults`，默认值也没有的不放。
 /// `config` 不是对象的当什么都没交。
 pub fn driver_config(
@@ -102,11 +117,18 @@ pub fn driver_config(
     names: &[&str],
     defaults: &Map<String, Value>,
 ) -> Map<String, Value> {
+    pick(config, (names, driver_key), defaults)
+}
+
+/// 同 [`driver_config`]，键照 `key` 拼（施工 I-5 上：驱动、页面服务各一组）。
+pub(crate) fn pick(
+    config: &Value,
+    (names, key): (&[&str], fn(&str) -> String),
+    defaults: &Map<String, Value>,
+) -> Map<String, Value> {
     let mut driver = Map::new();
     for name in names {
-        let value = config
-            .get(driver_key(name))
-            .filter(|value| !value.is_null());
+        let value = config.get(key(name)).filter(|value| !value.is_null());
         if let Some(value) = value.or_else(|| defaults.get(*name)) {
             driver.insert((*name).to_string(), value.clone());
         }
@@ -122,9 +144,19 @@ pub fn merge_driver(
     names: &[&str],
     defaults: &Map<String, Value>,
 ) -> bool {
+    merge(driver, keys, (names, driver_key), defaults)
+}
+
+/// 同 [`merge_driver`]，键照 `key` 拼（施工 I-5 上）。
+pub(crate) fn merge(
+    driver: &mut Map<String, Value>,
+    keys: &Map<String, Value>,
+    (names, key): (&[&str], fn(&str) -> String),
+    defaults: &Map<String, Value>,
+) -> bool {
     let before = driver.clone();
     for name in names {
-        let Some(value) = keys.get(&driver_key(name)) else {
+        let Some(value) = keys.get(&key(name)) else {
             continue;
         };
         match Some(value)

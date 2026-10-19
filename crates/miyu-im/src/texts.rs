@@ -122,6 +122,10 @@ impl Texts {
             }
             Notice::Disconnected { bot: None } => self.say("notice/disconnected", &[]),
             Notice::NoToken => self.say("notice/no-token", &[]),
+            Notice::Page { port } => self.say("notice/page", &[("port", port.to_string())]),
+            Notice::PageInUse { port } => {
+                self.say("notice/page-in-use", &[("port", port.to_string())])
+            }
         }
     }
 

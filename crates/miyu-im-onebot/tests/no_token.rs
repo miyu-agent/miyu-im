@@ -57,7 +57,7 @@ async fn without_a_token_the_port_listens_and_napcat_is_refused() {
     .await;
     assert!(
         matches!(
-            &notices[..],
+            &notices[..2],
             [Notice::Listening { port }, Notice::NoToken] if *port == bridge.port
         ),
         "先说在哪等 NapCat，再说怎么设令牌：{notices:?}"
@@ -66,9 +66,10 @@ async fn without_a_token_the_port_listens_and_napcat_is_refused() {
         let refused = napcat(bridge.port, "/ws", auth, Some(BOT)).await;
         assert_eq!(refused.err(), Some(401), "{auth:?}：端口开着，没令牌一律拒");
     }
+    let web = crate::support::browser::page_port(&bridge, 1).await;
     assert_eq!(
         page_status(&push, "core-1").await,
-        json!({"napcat": {"connected": false}, "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq"})
+        json!({"napcat": {"connected": false}, "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq", "web": web})
     );
     bridge.stop().await.expect("停得下");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -120,8 +121,14 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     // 挑的空端口被别人先占了的换一个再来（`support/ports.rs`）；回来的时候端口听上了。握手交端口、没有令牌。
     let (mut serve, listen) =
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
+    let mut status = ask(&mut serve, "core-1", "status").await;
+    // 页面服务的端口（施工 I-5 上）：让系统挑的那一个。
+    let web = status
+        .as_object_mut()
+        .and_then(|status| status.remove("web"));
+    assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
-        ask(&mut serve, "core-1", "status").await,
+        status,
         json!({"napcat": {"connected": false}, "listen": listen, "path": "/ws", "token": "none", "platform": "qq"})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
