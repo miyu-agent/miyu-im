@@ -9,7 +9,7 @@
 //! - 进站链要的（施工 O-23，「群里怎么叫她」第 4、5 条）：限流、睡眠、能不能叫她、触发词，此刻（本机的钟和时区）。
 //! - 线路规程（施工 O-23 下，第 10 条）：`discipline` 的写法，没设的是空的。
 //! - 最多几条支线（施工 O-36，第 6 条）：`parallel`，没设的是 0。
-//! - 对话模型（施工 O-58 补三）：`model`，找到会话以后经 `session.configure` 钉（`models`）。
+//! - 对话模型（施工 O-58 补三）：`model`，找到会话以后经 `session.configure` 钉（`policy`，补四起人格、预设也照它换）。
 //! - 群聊近况带多少条（施工 O-62）：`recent`，只给群的 `venue.session` 带，没设的不带。
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -151,6 +151,11 @@ fn entry<'a>(applied: &'a Applied, key: &str) -> Option<&'a Value> {
     applied.resolved.entries.get(key).map(|entry| &entry.value)
 }
 
+/// 规则设到的一项字 `key`（施工 O-58 补四：`policy` 照它取人格、预设）。
+pub(super) fn text_of<'a>(applied: &'a Applied, key: &str) -> Option<&'a str> {
+    text(applied, key)
+}
+
 /// 规则设到的一项字（名字、文字、睡眠的写法）。
 fn text<'a>(applied: &'a Applied, key: &str) -> Option<&'a str> {
     match entry(applied, key) {
@@ -172,4 +177,4 @@ fn offset() -> UtcOffset {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

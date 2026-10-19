@@ -204,7 +204,7 @@ impl Route {
             return json!({"saved": false, "message": words.get("not_saved", lang)});
         }
         tracing::info!(target: TARGET, groups = cards.groups.len(), privates = cards.privates.len(), "venue cards saved");
-        let before = self.models();
+        let before = self.wanted();
         self.rules.set_cards(cards);
         self.repin(&before);
         self.hooks

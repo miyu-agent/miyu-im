@@ -31,7 +31,9 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
 fn pinned(events: &[Value]) -> Vec<Value> {
     events
         .iter()
-        .filter(|event| event["kind"] == "session.policy_changed")
+        .filter(|event| {
+            event["kind"] == "session.policy_changed" && event["body"].get("model").is_some()
+        })
         .map(|event| event["body"]["model"].clone())
         .collect()
 }
@@ -115,5 +117,63 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
     // 卡片没设的群，存了几次卡也不碰：照旧是人换的那一个。
     let (_, events) = venue_session(&home.root, &manual).expect("有会话");
     assert_eq!(pinned(&events), [json!("judge/manual")]);
+    stopped(home).await;
+}
+
+/// 会话日志里换人格的几条：照先后的人格。
+fn personas(events: &[Value]) -> Vec<Value> {
+    events
+        .iter()
+        .filter(|event| {
+            event["kind"] == "session.policy_changed" && event["body"].get("persona").is_some()
+        })
+        .map(|event| event["body"]["persona"].clone())
+        .collect()
+}
+
+#[tokio::test]
+async fn a_card_persona_switches_the_existing_session() {
+    // 施工 O-58 补四：已经造好的场所会话，卡片换了人格就换（核心先压缩，下一轮换上）；清掉的不发（核心的 null 是无人格）。
+    let server = judge(vec![]).await;
+    let (home, napcat, _) =
+        started_judged(&Script::new([]), &server, (RULES, ""), "", MEMBERS).await;
+    miyu_session::testkit::install_sample_persona(&home.root);
+    let other = home.root.system().join("personas").join("other");
+    std::fs::create_dir_all(other.join("prompts")).expect("建得了目录");
+    let sample = miyu_session::testkit::sample_persona_dir();
+    for file in ["persona.toml", "prompts/persona.md"] {
+        std::fs::copy(sample.join(file), other.join(file)).expect("复制得了");
+    }
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let first = miyu_session::testkit::SAMPLE_PERSONA;
+    save(&mut head, json!({"persona": first})).await;
+    napcat.send(group_frame(
+        GROUP,
+        LIN,
+        1,
+        json!([plain("大家好")]),
+        ("小林", "lin"),
+    ));
+    let venue = format!("qq:group:{GROUP}");
+    let events = until_events(&home.root, &venue, |events| {
+        events.iter().any(|event| event["kind"] == "message.user")
+    })
+    .await;
+    assert_eq!(
+        events[0]["body"]["persona"], first,
+        "造会话时带上：{}",
+        events[0]
+    );
+    assert!(personas(&events).is_empty(), "一样的不再换：{events:?}");
+    save(&mut head, json!({"persona": "other"})).await;
+    let events = until_events(&home.root, &venue, |events| !personas(events).is_empty()).await;
+    assert_eq!(personas(&events), [json!("other")]);
+    // 清掉人格、换模型：只换模型（等到它，人格那一条照旧只有一条）。
+    save(&mut head, json!({"model": "judge/big"})).await;
+    let events = until_events(&home.root, &venue, |events| !pinned(events).is_empty()).await;
+    assert_eq!(pinned(&events), [json!("judge/big")]);
+    assert_eq!(personas(&events), [json!("other")], "清掉的人格不发");
     stopped(home).await;
 }

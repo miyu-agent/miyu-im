@@ -10,13 +10,15 @@
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
 //!   问到了从头订阅（`after: 0`，施工 O-23，「群里怎么叫她」第 1 条）：补来的收进这个群的投影；会话不在了连投影一起忘掉。
 //!   订阅回应的 `persona`（这个群会话用的人格）交给判官那边记下（施工 O-23 补）。
-//! - 场所规则设了对话模型（`model`）的，订阅上了以后先钉上（`session.configure`，施工 O-58 补三，`models`）。
+//! - 场所规则设了模型、人格、预设的，订阅上了以后先发（`session.configure`，施工 O-58 补三、补四，`policy`）：找回的已有
+//!   会话也照这时的规则对上。
 //! - 不接的同一个场所只记一行运行日志（桥起来以后；「施工时定的」第 66 条）。
 
 use miyu_chat::Venue;
 use miyu_client::ids::ExternalId;
 use serde_json::{Value, json};
 
+use super::policy::Wanted;
 use super::projection::Projection;
 use super::{Message, Peer, Route};
 use crate::TARGET;
@@ -35,8 +37,8 @@ pub(super) struct Place {
     pub(super) peer: Peer,
     /// 私聊的对方在白名单里（施工 O-27）：会话归系统账号的也接。群的是假（群的会话本来就归系统账号，不照属主认）。
     listed: bool,
-    /// 场所规则设的对话模型（施工 O-58 补三）：找到会话以后钉上；没设的不碰。
-    model: Option<String>,
+    /// 场所规则设的模型、人格、预设（施工 O-58 补三、补四）：找到会话以后发；没设的不碰。
+    wanted: Wanted,
 }
 
 impl Place {
@@ -67,7 +69,7 @@ impl Place {
                 venue: venue.id().clone(),
             },
             listed: listed.is_some(),
-            model: listed.and_then(super::applied::model).map(str::to_string),
+            wanted: listed.map(Wanted::of).unwrap_or_default(),
         }
     }
 
@@ -83,7 +85,7 @@ impl Place {
         }
         Place {
             opening,
-            model: super::applied::model(applied).map(str::to_string),
+            wanted: Wanted::of(applied),
             peer: Peer {
                 bot,
                 to: To::Group(group),
@@ -233,10 +235,8 @@ impl Route {
         if !subscribed {
             return Ok(None);
         }
-        // 规则设了对话模型的先钉上，第一轮就照它（施工 O-58 补三）。
-        if let Some(model) = &place.model {
-            super::models::pin(&self.core.caller(), &session, Some(model)).await;
-        }
+        // 规则设了模型、人格、预设的先发，第一轮就照它（施工 O-58 补三、补四）。
+        self.pin_found(&session, &place.wanted).await;
         self.venues.insert(venue.to_string(), session.clone());
         Ok(Some(session))
     }

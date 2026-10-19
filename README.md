@@ -34,7 +34,7 @@ Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ �
 要 Rust（版本照 `rust-toolchain.toml`，`rustup` 会自己装）和 git（cargo 照 git 依赖取核心）。
 
 ```sh
-cargo build --release -p miyu-im
+cargo build --release -p miyu-im-onebot
 ```
 
 程序放进包文件夹 `im/` 的 `bin/` 里（Windows 上带 `.exe`；`im/bin/` 不进 git），再装这个文件夹：

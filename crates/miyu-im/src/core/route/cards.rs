@@ -134,7 +134,7 @@ impl Route {
             privates = cards.privates.len(),
             "venue cards saved"
         );
-        let before = self.models();
+        let before = self.wanted();
         self.rules.set_cards(cards);
         self.repin(&before);
         self.hooks
