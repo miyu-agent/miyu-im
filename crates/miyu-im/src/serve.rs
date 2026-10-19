@@ -22,13 +22,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::{Notify, mpsc};
+use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 use miyu_chat::Problem;
 use miyu_client::places::DataRoot;
 
 use crate::TARGET;
+use crate::changed::Changed;
 use crate::chat::Bots;
 use crate::chat::Members;
 use crate::core::hooks::Hooks;
@@ -191,7 +192,7 @@ pub async fn run(
         (platform, serve.driver.caps()),
     ));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
-    let changed = Arc::new(Notify::new());
+    let changed = Arc::new(Changed::new());
     let gate = Arc::new(Gate::new(
         (
             Arc::clone(&current),
@@ -209,10 +210,11 @@ pub async fn run(
     // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。
     let page = Arc::new(Port::new(Arc::clone(&changed)));
     let site = Site::new(
-        serve.root.clone(),
-        serve.package.dir().join("site"),
+        (serve.root.clone(), serve.package.dir().join("site")),
         core.caller(),
         serve.tuning.clone(),
+        (Arc::clone(&bots), platform),
+        Arc::clone(&changed),
     );
     let serving = site::start(Arc::new(site), current.site(), told, Arc::clone(&page)).await;
     let running = Arc::new(Running {
@@ -310,7 +312,7 @@ pub async fn run(
             Some(keys) = configs.recv() => {
                 // 没认出来的配置项变了（施工 O-41 补）：状态文件跟着写，`miyu im status` 照它说。
                 if current.change(&keys) {
-                    changed.notify_one();
+                    changed.notify();
                 }
             },
             Some(ended) = tasks.join_next_with_id() => match ended {

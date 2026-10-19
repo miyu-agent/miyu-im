@@ -13,7 +13,10 @@
   "said": {
     "usage": "usage: miyu im start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",
     "no-log": "The run log cannot be written: {reason}",
-    "web/no-miyu": "Could not open the web app: cannot run {path} ({reason}). miyu-im looks for miyu in its own directory; keep the two together.",
+    "web/failed": "Could not open the page: {reason}",
+    "web/not-running": "Connect Messaging isn't running. Run miyu im start first.",
+    "web/open-by-hand": "Open this in a browser (valid for 1 minute): {url}",
+    "web/opened": "Opened in the browser: {url}",
     "notice/listening": "Waiting for NapCat on 127.0.0.1:{port}.",
     "notice/page": "Web page: http://127.0.0.1:{port}/",
     "notice/page-in-use": "Web page port {port} is in use, so the page won't open. Pick another port (im.web_port); NapCat keeps working.",

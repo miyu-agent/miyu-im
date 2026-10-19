@@ -204,3 +204,60 @@ async fn a_new_page_port_replaces_the_old_one_and_a_taken_one_keeps_it() {
     drop(taken);
     bridge.stop().await.expect("停得下");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_channel_lists_connections_and_says_when_they_change() {
+    // 施工 I-6 上：连着的机器人（页面的连接卡），NapCat 连上、问到实现都推一帧 `changed`，页面照它再问。
+    let home = Home::new(&Script::new([]));
+    let bridge = bridge(&home).await;
+    let port = page_port(&bridge, 1).await;
+    let mut head = Head::connect(&home.root).await;
+    let ticket = head.call("login.ticket", json!({})).await["result"]["ticket"].clone();
+    let session = post(port, "/login/ticket", &[], &json!({"ticket": ticket}))
+        .await
+        .json()["session"]
+        .as_str()
+        .expect("登录了")
+        .to_string();
+    let mut open = channel(port, None).await;
+    say(&mut open, &json!({"session": session})).await;
+    assert!(heard(&mut open).await.is_ok());
+    say(&mut open, &json!({"id": 1, "method": "connections"})).await;
+    assert_eq!(
+        heard(&mut open).await,
+        Ok(json!({"id": 1, "result": {"connections": []}}))
+    );
+    let before = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("在 1970 年以后")
+        .as_millis();
+    let mut napcat = crate::support::napcat::admin_napcat(bridge.port).await;
+    napcat.version().await;
+    let listed = within("连接卡带上实现", async {
+        let mut asked = 1;
+        let mut pushed = 0;
+        loop {
+            let frame = heard(&mut open).await.expect("通道开着");
+            if frame == json!({"event": "changed"}) {
+                // 变了：再问一遍。
+                pushed += 1;
+                asked += 1;
+                say(&mut open, &json!({"id": asked, "method": "connections"})).await;
+                continue;
+            }
+            let connections = frame["result"]["connections"].clone();
+            if connections[0]["implementation"].is_string() {
+                assert!(pushed > 0, "是推了变了才问到的");
+                return connections;
+            }
+        }
+    })
+    .await;
+    let since = listed[0]["since"].as_u64().expect("连上的时刻");
+    assert!(u128::from(since) + 1000 >= before, "{listed}");
+    assert_eq!(
+        listed,
+        json!([{"platform": "qq", "bot": BOT.to_string(), "since": since, "implementation": "NapCat.Onebot", "version": "4.8.0"}])
+    );
+    bridge.stop().await.expect("停得下");
+}

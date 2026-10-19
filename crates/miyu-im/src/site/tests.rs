@@ -42,10 +42,17 @@ fn file_names_stay_in_the_directory() {
     assert_eq!(name("/"), Some("index.html"));
     assert_eq!(name("/app.js"), Some("app.js"));
     assert_eq!(name("/a-b_c.2.css"), Some("a-b_c.2.css"));
+    assert_eq!(name("/shell/app.js"), Some("shell/app.js"));
+    assert_eq!(name("/pages/home/home.js"), Some("pages/home/home.js"));
+    assert_eq!(name("/a/b/c/d.js"), Some("a/b/c/d.js"));
     for path in [
         "/.hidden",
         "/../secret",
-        "/a/b.js",
+        "/a/../b.js",
+        "/a/.git/config",
+        "/a//b.js",
+        "/a/",
+        "/a/b/c/d/e.js",
         "/a%2Fb",
         "/a b",
         "app.js",

@@ -22,23 +22,31 @@ fn page_dir() -> PathBuf {
     page_dirs()[0].clone()
 }
 
-/// 页面目录 `dir` 里每一份 `.js`：（文件名，内容）。
+/// 页面目录 `dir` 里（连子目录，施工 I-6 上：外壳、一页一个文件夹）每一份 `.js`：（相对 `dir` 的路径，内容）。
 fn scripts_in(dir: &Path) -> Vec<(String, String)> {
-    let mut found: Vec<(String, String)> = std::fs::read_dir(dir)
-        .expect("有页面目录")
-        .map(|entry| entry.expect("读得了").path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "js"))
-        .map(|path| {
-            let name = path
-                .file_name()
-                .expect("有名字")
-                .to_string_lossy()
-                .into_owned();
-            (name, std::fs::read_to_string(&path).expect("读得了"))
-        })
-        .collect();
+    let mut found = Vec::new();
+    collect(dir, dir, &mut found);
     found.sort();
     found
+}
+
+/// 把 `at` 底下的 `.js` 收进 `found`，名字照相对 `dir` 的路径（用 `/` 隔开）。
+fn collect(dir: &Path, at: &Path, found: &mut Vec<(String, String)>) {
+    for entry in std::fs::read_dir(at).expect("有页面目录") {
+        let path = entry.expect("读得了").path();
+        if path.is_dir() {
+            collect(dir, &path, found);
+        } else if path.extension().is_some_and(|ext| ext == "js") {
+            let name = path
+                .strip_prefix(dir)
+                .expect("在目录里")
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            found.push((name, std::fs::read_to_string(&path).expect("读得了")));
+        }
+    }
 }
 
 /// 后台页的 `texts.js` 里的字（[`texts_in`]）。
@@ -136,7 +144,7 @@ fn same_texts(texts: &Map<String, Value>) {
 
 #[test]
 fn every_text_the_scripts_say_is_written() {
-    for (dir, least) in page_dirs().iter().zip([10, 5]) {
+    for (dir, least) in page_dirs().iter().zip([10, 20]) {
         said_is_written(dir, least);
     }
 }
@@ -193,5 +201,9 @@ fn japanese_is_written_in_japanese() {
         .filter(|(key, value)| en[key.as_str()] == **value)
         .map(|(key, _)| key)
         .collect();
-    assert!(same.is_empty(), "im 自己的页面的日文都另写：{same:?}");
+    assert_eq!(
+        same,
+        ["conn/line", "platform/qq"],
+        "im 自己的页面的日文另写，只有拼格式的、专名一样"
+    );
 }

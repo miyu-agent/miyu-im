@@ -88,7 +88,10 @@ fn everything(texts: &Texts) -> Vec<String> {
     let mut said = vec![
         texts.usage(),
         texts.no_log("disk full"),
-        texts.no_miyu("/opt/miyu/miyu", "not found"),
+        texts.web_not_running(),
+        texts.web_failed("refused"),
+        texts.web_opened("http://127.0.0.1:8302/", true),
+        texts.web_opened("http://127.0.0.1:8302/", false),
     ];
     for notice in [
         Notice::Listening { port: 8301 },
@@ -97,6 +100,8 @@ fn everything(texts: &Texts) -> Vec<String> {
         Notice::Disconnected { bot: Some(30003) },
         Notice::Disconnected { bot: None },
         Notice::NoToken,
+        Notice::Page { port: 8302 },
+        Notice::PageInUse { port: 8302 },
     ] {
         said.push(texts.notice(&notice));
     }
@@ -299,8 +304,8 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "NapCat 连 ws://127.0.0.1:8301/ws。"
     );
     assert_eq!(
-        texts.no_miyu("/opt/miyu/miyu", "not found"),
-        "打不开网页：跑不了 /opt/miyu/miyu（not found）。miyu-im 在自己旁边找 miyu，两个要放在同一个目录。"
+        texts.web_opened("http://127.0.0.1:8302/#miyu=x", false),
+        "在浏览器中打开（1 分钟内有效）：http://127.0.0.1:8302/#miyu=x"
     );
     assert_eq!(
         texts.report(&Report::Page),

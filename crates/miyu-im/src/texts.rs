@@ -99,12 +99,29 @@ impl Texts {
         self.say("no-log", &[("reason", reason.to_string())])
     }
 
-    /// `web` 跑不了旁边的 `miyu`（施工 O-28 补）：`path` 是找的那个，`reason` 是系统说的原因。
-    pub fn no_miyu(&self, path: &str, reason: &str) -> String {
-        self.say(
-            "web/no-miyu",
-            &[("path", path.to_string()), ("reason", reason.to_string())],
-        )
+    /// 这时说话用的语言（`zh`、`en`、`ja`）：`web` 照它拼进页面的网址（施工 I-6 上）。
+    pub fn language(&self) -> &str {
+        &self.language
+    }
+
+    /// `web`：im 没在跑、页面服务没听上（施工 I-6 上）。
+    pub fn web_not_running(&self) -> String {
+        self.say("web/not-running", &[])
+    }
+
+    /// `web`：连不上核心、核心拒了，`reason` 是原话（施工 I-6 上）。
+    pub fn web_failed(&self, reason: &str) -> String {
+        self.say("web/failed", &[("reason", reason.to_string())])
+    }
+
+    /// `web`：网址 `url` 交给浏览器了（`opened`），或者没打开、照它自己开（施工 I-6 上）。
+    pub fn web_opened(&self, url: &str, opened: bool) -> String {
+        let key = if opened {
+            "web/opened"
+        } else {
+            "web/open-by-hand"
+        };
+        self.say(key, &[("url", url.to_string())])
     }
 
     /// 起来了（令牌没设的说怎么设）、连上了、断开了。号没认出来的不说号。

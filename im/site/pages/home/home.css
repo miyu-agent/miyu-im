@@ -1,0 +1,15 @@
+/* 首页（施工 I-6 上）：连接卡照样板 d-im.html。 */
+.empty { display: grid; place-items: center; min-height: 64vh; text-align: center; }
+.empty h2 { margin: 0 0 6px; font-size: 20px; }
+.empty p { margin: 0 0 20px; color: var(--text-soft); }
+.section-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+.section-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.conn-tile { display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.conn-tile .grow { flex: 1; min-width: 0; }
+.conn-tile b { font-size: 14px; }
+.conn-tile .soft, .conn-tile .faint { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bot { position: relative; flex: none; }
+.bot .avatar { width: 46px; height: 46px; font-size: 18px; }
+.pf-badge { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--text-soft); color: #fff; font-size: 10px; font-weight: 700; box-shadow: 0 0 0 2.5px var(--surface-1); }
+.pf-qq { background: #12b7f5; }

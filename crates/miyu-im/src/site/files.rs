@@ -1,16 +1,23 @@
-//! 页面的文件（施工 I-5 上「怎么走」第 4 条）：包文件夹的 `site/`。`/` 是 `index.html`，`/<名字>` 是同名文件；名字只收字母、
-//! 数字、`.`、`-`、`_`，不以 `.` 开头（不出这个目录，也不给藏起来的文件）。
+//! 页面的文件（施工 I-5 上「怎么走」第 4 条）：包文件夹的 `site/`。`/` 是 `index.html`，`/<路径>` 是同一个路径的文件（施工 I-6 上：
+//! 外壳、一页一个文件夹，设计 01 第八节第 8 条）；路径一段一段用 `/` 隔开，最多 [`DEPTH`] 段，每一段只收字母、数字、`.`、`-`、
+//! `_`，不空、不以 `.` 开头（不出这个目录，也不给藏起来的文件）。
 
 use std::path::Path;
 
-/// 请求的路径 `path` 对应的文件名；不收的是空的。
+/// 路径最多几段。
+const DEPTH: usize = 4;
+
+/// 请求的路径 `path` 对应的文件（相对 `site/`）；不收的是空的。
 pub(super) fn name(path: &str) -> Option<&str> {
     let name = path.strip_prefix('/')?;
     if name.is_empty() {
         return Some("index.html");
     }
     let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_');
-    (!name.starts_with('.') && name.chars().all(allowed)).then_some(name)
+    let segment =
+        |part: &str| !part.is_empty() && !part.starts_with('.') && part.chars().all(allowed);
+    let parts: Vec<&str> = name.split('/').collect();
+    (parts.len() <= DEPTH && parts.iter().all(|part| segment(part))).then_some(name)
 }
 
 /// 文件名 `name` 照扩展名给的 `Content-Type`；认不出的当字节。

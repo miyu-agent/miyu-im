@@ -13,7 +13,10 @@
   "said": {
     "usage": "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",
     "no-log": "実行ログを書けません：{reason}",
-    "web/no-miyu": "Web アプリを開けません：{path} を実行できません（{reason}）。miyu-im は自分と同じディレクトリで miyu を探します。二つを同じ場所に置いてください。",
+    "web/failed": "ページを開けません：{reason}",
+    "web/not-running": "メッセージング接続が動いていません。先に miyu im start を実行してください。",
+    "web/open-by-hand": "ブラウザで開いてください（1 分間有効）：{url}",
+    "web/opened": "ブラウザで開きました：{url}",
     "notice/listening": "127.0.0.1:{port} で NapCat の接続を待っています。",
     "notice/page": "Web ページ：http://127.0.0.1:{port}/",
     "notice/page-in-use": "Web ページのポート {port} は使用中のため、ページは開けません。別のポート（im.web_port）にしてください。NapCat はそのまま使えます。",

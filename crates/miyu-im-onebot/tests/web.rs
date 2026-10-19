@@ -1,195 +1,111 @@
-//! `miyu im web`（施工 O-28 补，`onebot.md` 第一条「对外的样子」）：跑 `miyu-im` 旁边的 `miyu`，参数是
-//! `web --package im`，标准输入输出照原样接着，退出码照它的；跑不了的照人的语言说、退出码 1。
-//!
-//! `miyu` 是测试放的替身：Unix 上是一段 shell，Windows 上是一份 `.cmd`，都把参数写进旁边的 `seen`、在标准输出上印一行、照
-//! 要求的退出码退出。真的程序找的是自己旁边的 `miyu`（Windows 上带 `.exe`，替身写不出来），那一条只在 Unix 上跑：把
-//! `miyu-im` 硬链接进 `target/tmp` 里的一个目录，替身放在它旁边。
+//! `miyu im web`（施工 I-6 上）：带交接票打开 im 自己的页面。真核心照开关拉起真桥，测试照命令的样子调 `web`，浏览器是记下网址的
+//! 替身：网址是页面服务的端口，片段里的票换得到登录（交给页面服务的 `/login/ticket`）；im 没在跑的说一句、退出码 1。
 
-use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use serde_json::{Value, json};
+
+use miyu_client::open::Browser;
 use miyu_im::texts::Texts;
 use miyu_im::web::web;
+use miyu_session::testkit::Script;
 use miyu_store::resources::ResourceRoot;
 
-use crate::support::{package_in, resources};
+use crate::support::browser::post;
+use crate::support::group::*;
+use crate::support::*;
 
-/// `target/tmp` 下这一条测试自己的目录（和 `target/debug` 在同一个文件系统上，硬链接得过去），用完删掉。
-struct Dir(PathBuf);
+/// 记下交来的网址，照 `opens` 说打没打开。
+struct Recorder {
+    opens: bool,
+    seen: Mutex<Vec<String>>,
+}
 
-impl Dir {
-    fn new(name: &str) -> Dir {
-        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = Path::new(env!("CARGO_TARGET_TMPDIR"))
-            .join(format!("onebot-web-{name}-{}-{n}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("建得了目录");
-        Dir(dir)
-    }
-
-    /// 替身印过的参数，一个一行；没跑过的是 `None`。
-    fn seen(&self) -> Option<String> {
-        let seen = std::fs::read_to_string(self.0.join("seen")).ok()?;
-        Some(seen.lines().map(str::trim).collect::<Vec<_>>().join(" "))
+impl Browser for Recorder {
+    fn open(&self, url: &str) -> bool {
+        self.seen.lock().expect("没 panic").push(url.to_string());
+        self.opens
     }
 }
 
-impl Drop for Dir {
-    fn drop(&mut self) {
-        if std::fs::remove_dir_all(&self.0).is_err() {
-            // 删不掉就留在 `target/tmp` 里，不影响测试。
-        }
-    }
-}
-
-/// 在 `dir` 里放一个叫 `name` 的替身（Windows 上另加 `.cmd`）：参数写进 `dir/seen`，标准输出印 `opened`，以 `code` 退出。
-/// 交回它的路径。
-fn stand_in(dir: &Path, name: &str, code: u8) -> PathBuf {
-    let seen = dir.join("seen");
-    #[cfg(unix)]
-    {
-        let path = dir.join(name);
-        script(
-            &path,
-            &format!(
-                "#!/bin/sh\nfor arg in \"$@\"; do echo \"$arg\"; done > '{}'\necho opened\nexit {code}\n",
-                seen.display()
-            ),
-        );
-        path
-    }
-    #[cfg(windows)]
-    {
-        let path = dir.join(format!("{name}.cmd"));
-        std::fs::write(
-            &path,
-            format!(
-                "@echo off\r\necho %*> \"{}\"\r\necho opened\r\nexit /b {code}\r\n",
-                seen.display()
-            ),
-        )
-        .expect("写得进");
-        path
-    }
-}
-
-/// 把 `body` 写成能跑的 `path`。经 `sh` 写（照 `miyu-core` 测假助手的办法）：这个进程不拿着它的写端，别的测试这时起的进程
-/// 带不走，跑它不会撞 ETXTBSY（直接写撞过：同一个测试程序里别的测试正起着进程）。
-#[cfg(unix)]
-fn script(path: &Path, body: &str) {
-    let status = std::process::Command::new("/bin/sh")
-        .args(["-c", r#"printf '%s' "$2" > "$1" && chmod 755 "$1""#, "sh"])
-        .arg(path)
-        .arg(body)
-        .status()
-        .expect("起得来");
-    assert!(status.success());
-}
-
+/// 中文的字。
 fn zh() -> Texts {
     Texts::load(ResourceRoot::at(resources()), package_in(resources()), "zh").expect("读得出来")
 }
 
-/// 照系统的说法，`program` 为什么跑不了。
-fn why_not(program: &Path) -> String {
-    std::process::Command::new(program)
-        .status()
-        .expect_err("跑不了")
-        .to_string()
+/// 跑 `web`：交回退出码、标准输出、标准错误。
+async fn ran(home: &Home, browser: &Recorder) -> (u8, String, String) {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let code = web(&home.root, &zh(), browser, &mut out, &mut err).await;
+    (
+        code,
+        String::from_utf8(out).expect("是字"),
+        String::from_utf8(err).expect("是字"),
+    )
 }
 
-#[test]
-fn miyu_gets_web_package_onebot_and_its_exit_code_comes_back() {
-    for code in [7, 0] {
-        let dir = Dir::new("code");
-        let miyu = stand_in(&dir.0, "miyu", code);
-        let mut err = Vec::new();
-        assert_eq!(web(&miyu, &zh(), &mut err), code, "照它的退出码");
-        assert_eq!(dir.seen().as_deref(), Some("web --package im"));
-        assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
-    }
-}
-
-#[test]
-fn without_miyu_it_says_so_and_exits_1() {
-    let dir = Dir::new("missing");
-    let miyu = dir.0.join("miyu");
-    let mut err = Vec::new();
-    assert_eq!(web(&miyu, &zh(), &mut err), 1);
+#[tokio::test]
+async fn the_page_opens_with_a_ticket_that_logs_in() {
+    let (home, _napcat, _) = started(&Script::new([]), "", "", &[]).await;
+    let browser = Recorder {
+        opens: true,
+        seen: Mutex::new(Vec::new()),
+    };
+    let (code, out, err) = ran(&home, &browser).await;
+    assert_eq!(code, 0, "{err}");
+    let url = browser.seen.lock().expect("没 panic")[0].clone();
+    assert_eq!(out, format!("已在浏览器中打开：{url}\n"));
+    let board = miyu_im::status_file::read(&home.root).expect("写了状态文件");
+    let port = u16::try_from(board["web"].as_u64().expect("有页面的端口")).expect("是端口");
+    let (base, fragment) = url.split_once("#miyu=").expect("片段带交接票");
+    assert_eq!(base, format!("http://127.0.0.1:{port}/"));
+    let handed: Value =
+        serde_json::from_slice(&URL_SAFE_NO_PAD.decode(fragment).expect("是 base64url"))
+            .expect("是 JSON");
+    assert_eq!(handed["v"], 1, "{handed}");
+    assert_eq!(handed["lang"], "zh", "{handed}");
+    let ticket = handed["ticket"].as_str().expect("有票");
+    let logged = post(port, "/login/ticket", &[], &json!({"ticket": ticket})).await;
     assert_eq!(
-        String::from_utf8(err).expect("UTF-8"),
-        format!(
-            "{}\n",
-            zh().no_miyu(&miyu.display().to_string(), &why_not(&miyu))
-        )
-    );
-}
-
-#[cfg(unix)]
-#[test]
-fn a_miyu_stopped_by_a_signal_counts_as_failed() {
-    let dir = Dir::new("signal");
-    let miyu = dir.0.join("miyu");
-    script(&miyu, "#!/bin/sh\nkill -9 $$\n");
-    let mut err = Vec::new();
-    assert_eq!(web(&miyu, &zh(), &mut err), 1);
-    assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
-}
-
-/// 跑 `dir` 里的 `miyu-im web`（数据根是临时的，说中文；包文件夹照核心拉起它时那样交，施工 S-6 上），交回它的输出。
-#[cfg(unix)]
-fn run_web(dir: &Dir, args: &[&str]) -> std::process::Output {
-    let (home, root) = crate::support::temp_root();
-    let program = dir.0.join("miyu-im");
-    crate::support::spawning::link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-im")), &program);
-    let output = std::process::Command::new(&program)
-        .args(args)
-        .env("MIYU_HOME", root.path())
-        .env("MIYU_RESOURCES", resources())
-        .env("MIYU_PACKAGE_DIR", package_in(resources()).dir())
-        .env("LC_ALL", "zh_CN.UTF-8")
-        .stdin(std::process::Stdio::null())
-        .output()
-        .expect("跑得了");
-    if std::fs::remove_dir_all(&home).is_err() {
-        // 删不掉就留在临时目录里，不影响测试。
-    }
-    output
-}
-
-#[cfg(unix)]
-#[test]
-fn the_program_runs_the_miyu_beside_it_and_passes_its_output_through() {
-    let dir = Dir::new("beside");
-    stand_in(&dir.0, "miyu", 7);
-    let ran = run_web(&dir, &["web"]);
-    assert_eq!(
-        ran.status.code(),
-        Some(7),
+        logged.status,
+        200,
         "{}",
-        String::from_utf8_lossy(&ran.stderr)
+        String::from_utf8_lossy(&logged.body)
     );
-    assert_eq!(dir.seen().as_deref(), Some("web --package im"));
-    assert_eq!(
-        String::from_utf8_lossy(&ran.stdout),
-        "opened\n",
-        "标准输出照原样接着"
-    );
-    assert_eq!(String::from_utf8_lossy(&ran.stderr), "");
+    assert_eq!(logged.json()["account"], "admin");
+    // 浏览器打不开的：照样印网址，说一分钟内有效。
+    let unopened = Recorder {
+        opens: false,
+        seen: Mutex::new(Vec::new()),
+    };
+    let (code, out, _) = ran(&home, &unopened).await;
+    assert_eq!(code, 0);
+    let url = unopened.seen.lock().expect("没 panic")[0].clone();
+    assert_eq!(out, format!("在浏览器中打开（1 分钟内有效）：{url}\n"));
+    // 状态文件是别的进程留下的（进程号对不上）：不信它的端口。
+    let stale = json!({"pid": 1, "web": port});
+    std::fs::write(miyu_im::status_file::path(&home.root), format!("{stale}\n")).expect("写得进");
+    let (code, _, err) = ran(&home, &unopened).await;
+    assert_eq!(code, 1);
+    assert_eq!(err, "接入通讯平台没在运行，先执行 miyu im start。\n");
+    stopped(home).await;
 }
 
-#[cfg(unix)]
-#[test]
-fn the_program_without_miyu_beside_it_says_so_in_the_system_language() {
-    let dir = Dir::new("alone");
-    let ran = run_web(&dir, &["web"]);
-    assert_eq!(ran.status.code(), Some(1));
-    let miyu = dir.0.join("miyu");
-    assert_eq!(
-        String::from_utf8_lossy(&ran.stderr),
-        format!(
-            "{}\n",
-            zh().no_miyu(&miyu.display().to_string(), &why_not(&miyu))
-        )
+#[tokio::test]
+async fn without_im_running_it_says_to_start_it() {
+    let home = Home::new(&Script::new([]));
+    let browser = Recorder {
+        opens: true,
+        seen: Mutex::new(Vec::new()),
+    };
+    let (code, out, err) = ran(&home, &browser).await;
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert_eq!(err, "接入通讯平台没在运行，先执行 miyu im start。\n");
+    assert!(
+        browser.seen.lock().expect("没 panic").is_empty(),
+        "没开浏览器"
     );
-    assert_eq!(String::from_utf8_lossy(&ran.stdout), "");
 }

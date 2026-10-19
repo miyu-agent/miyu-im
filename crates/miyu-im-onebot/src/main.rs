@@ -5,8 +5,7 @@
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
-//! - `web`：跑旁边的 `miyu web --package im`，打开网页软件里接入通讯平台 的后台页（施工 O-28 补，[`web`]）：不连核心、不读
-//!   数据根，照系统的语言说。
+//! - `web`：带交接票打开 im 自己的页面（施工 I-6 上，[`web`]）：连已经在跑的核心要票，照系统的语言说。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
 //! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份，施工 S-6 上），
@@ -22,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use miyu_client::open::SystemBrowser;
 use miyu_client::places::{DataRoot, Env, ResourceRoot, locale};
 use miyu_im::control::{Control, CoreCommand, control};
 use miyu_im::logs::logs;
@@ -51,6 +51,8 @@ enum Command {
     Logs { follow: bool },
     /// `venue show`：场所编号的原文。
     Venue(String),
+    /// `web`：带交接票打开 im 自己的页面（施工 I-6 上）。
+    Web,
 }
 
 fn main() -> ExitCode {
@@ -81,7 +83,7 @@ fn main() -> ExitCode {
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
-        ["web"] => return ExitCode::from(web(&beside("miyu"), &texts, &mut std::io::stderr())),
+        ["web"] => Command::Web,
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
             return ExitCode::SUCCESS;
@@ -145,6 +147,13 @@ fn main() -> ExitCode {
                 &mut std::io::stderr(),
             )
         }
+        Command::Web => runtime.block_on(web(
+            &root,
+            &texts,
+            &SystemBrowser,
+            &mut std::io::stdout(),
+            &mut std::io::stderr(),
+        )),
     };
     // 标准输入在阻塞线程里读（`serve` 的管道）：核心还开着它时，等那个线程会一直等下去，不等它，进程退出时一起收掉。
     runtime.shutdown_background();

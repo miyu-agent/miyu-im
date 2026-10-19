@@ -1,0 +1,44 @@
+/* 页面的外壳（施工 I-6 上）：两栏和收起照网页软件的 styles/sidebar.css（展开先快后慢 0.28 秒，收起先慢后快 0.26 秒；收起时
+   左边那列缩到 0，左栏往左滑出去、淡掉；收起着、指针靠到最左边，左栏临时浮出来盖在内容上面）。登录页也在这里。 */
+body.signed-in { height: 100vh; overflow: hidden; }
+.shell { position: relative; display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100vh; overflow: hidden; transition: grid-template-columns 0.28s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.shell.collapsed { grid-template-columns: 0px minmax(0, 1fr); transition: grid-template-columns 0.26s cubic-bezier(0.55, 0, 0.85, 0.35); }
+.side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 2px; width: 232px; min-height: 0; padding: 0 12px 14px; background: var(--sidebar-bg); box-shadow: inset -1px 0 0 var(--line); z-index: 20; transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease, box-shadow 0.28s ease; }
+.shell.collapsed .side { transform: translateX(-100%); opacity: 0; pointer-events: none; transition: transform 0.26s cubic-bezier(0.55, 0, 0.85, 0.35), opacity 0.26s cubic-bezier(0.55, 0, 0.85, 0.35), box-shadow 0.26s ease; }
+.shell.collapsed.peek .side { position: absolute; top: 0; bottom: 0; left: 0; z-index: 41; transform: none; opacity: 1; pointer-events: auto; box-shadow: var(--peek-shadow); transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease; }
+.peek-zone { display: none; }
+.shell.collapsed .peek-zone { position: absolute; top: 0; bottom: 0; left: 0; z-index: 14; display: block; width: 10px; }
+.side-toggle { position: absolute; top: 19px; left: 14px; z-index: 42; }
+.brand-row { display: flex; min-height: 66px; align-items: center; gap: 8px; padding: 13px 2px 11px; }
+.toggle-slot { flex: 0 0 30px; height: 30px; }
+.brand { display: grid; gap: 2px; min-width: 0; padding-left: 4px; }
+.brand strong { font-family: var(--serif); font-size: 17px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
+.brand span { display: flex; align-items: center; gap: 6px; color: var(--text-soft); font-size: 11px; white-space: nowrap; }
+.nav { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); font-size: 13.5px; text-align: left; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.nav:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 4%, transparent); color: var(--text); }
+.nav.on { background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow); color: var(--text); font-weight: 500; }
+.nav:disabled { cursor: default; opacity: 0.6; }
+.nav .soon { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.side-foot { display: flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 10px; }
+.side-foot .grow { flex: 1; }
+.main { position: relative; grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; overflow-y: auto; }
+.view { max-width: 1040px; margin: 0 auto; padding: 22px 28px 72px; }
+.shell.collapsed .view { padding-left: 60px; }
+.view-head { display: flex; align-items: center; gap: 12px; min-height: 36px; margin-bottom: 18px; }
+.view-head h1 { margin: 0; font-size: 19px; font-weight: 600; }
+
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login-card { width: min(380px, 100%); }
+.login-card h1 { margin: 0 0 14px; font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: 0.04em; }
+.login-line { margin: 0 0 14px; color: var(--text-soft); }
+.login-form { display: grid; gap: 12px; }
+.login-form label { display: grid; gap: 6px; color: var(--text-soft); }
+.login-form .btn { justify-self: start; }
+.login-hint { margin: 2px 0 0; color: var(--text-faint); font-size: 12px; }
+
+/* 窄屏（手机）：左栏不占位，展开着的盖在内容上面，进来时收起着（shell.js）。 */
+@media (max-width: 720px) {
+  .shell, .shell.collapsed { grid-template-columns: 0px minmax(0, 1fr); }
+  .side { position: absolute; top: 0; bottom: 0; left: 0; z-index: 41; box-shadow: var(--peek-shadow); }
+  .view, .shell.collapsed .view { padding: 64px 16px 48px; }
+}

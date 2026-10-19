@@ -16,10 +16,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use tokio::sync::Notify;
 
 use miyu_client::places::DataRoot;
 
+use crate::changed::Changed;
 use crate::running::Running;
 use crate::serve::Failure;
 use crate::{PACKAGE, TARGET};
@@ -43,8 +43,9 @@ pub fn read(root: &DataRoot) -> Option<Value> {
 pub(crate) async fn keep(
     path: PathBuf,
     running: Arc<Running>,
-    changed: Arc<Notify>,
+    changed: Arc<Changed>,
 ) -> Option<Failure> {
+    let mut changes = changed.watch();
     loop {
         let mut now = json!({
             "pid": std::process::id(),
@@ -54,11 +55,11 @@ pub(crate) async fn keep(
         for (key, value) in running.reported.get() {
             now[key] = value;
         }
-        // 没认出来的配置项（施工 O-41 补）：`miyu im status` 照它说一句；空的不带。
         // 页面服务实际听的端口（施工 I-5 上）：没听上的不带。
         if let Some(port) = running.page.get() {
             now["web"] = json!(port);
         }
+        // 没认出来的配置项（施工 O-41 补）：`miyu im status` 照它说一句；空的不带。
         let misread = running.current.misread();
         if !misread.is_empty() {
             now["misread"] = json!(misread);
@@ -75,6 +76,9 @@ pub(crate) async fn keep(
                 tracing::warn!(target: TARGET, error = %error, "status not written");
             }
         }
-        changed.notified().await;
+        if changes.changed().await.is_err() {
+            // 叫的一头都放下了（桥在停）：不再写。
+            return None;
+        }
     }
 }

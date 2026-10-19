@@ -2,10 +2,9 @@
 //!
 //! 1. 页面先发 `{"session"}`（登录时交回的会话号；浏览器开 WebSocket 带不了自己的头），[`FIRST`] 以内没发、对不上登录的回关闭帧
 //!    4401 `bad_session`。对上了回 `{"account"}`。
-//! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason"}}`。读不懂的帧记一行
-//!    调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
-//!
-//! 这一步只有 `whoami` → `{"account"}`；页面要的方法随 I-6、I-7 加。
+//! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason"}}`（方法在
+//!    `methods`）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
+//! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,7 +17,7 @@ use tokio_tungstenite::tungstenite::protocol::Role;
 use tokio_tungstenite::tungstenite::protocol::frame::CloseFrame;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
-use super::Site;
+use super::{Site, methods};
 use crate::TARGET;
 
 /// 第一帧最多等多久。
@@ -53,7 +52,21 @@ where
     {
         return;
     }
-    while let Some(frame) = text(&mut ws).await {
+    let mut changes = site.changed.watch();
+    loop {
+        let frame = tokio::select! {
+            frame = text(&mut ws) => frame,
+            changed = changes.changed() => {
+                // 桥手里的状态变了（施工 I-6 上）：叫页面再问一遍。叫的一头放下了（桥在停）的不再等它。
+                if changed.is_ok() && send(&mut ws, &json!({"event": "changed"})).await.is_err() {
+                    return;
+                }
+                continue;
+            }
+        };
+        let Some(frame) = frame else {
+            return;
+        };
         let Ok(request) = serde_json::from_str::<Value>(&frame) else {
             tracing::debug!(target: TARGET, "channel frame not json");
             continue;
@@ -63,9 +76,9 @@ where
             return;
         };
         let id = request["id"].clone();
-        let reply = match request["method"].as_str() {
-            Some("whoami") => json!({"id": id, "result": {"account": login.account}}),
-            _ => json!({"id": id, "error": {"reason": "unknown_method"}}),
+        let reply = match methods::answer(&site, &login.account, request["method"].as_str()) {
+            Ok(result) => json!({"id": id, "result": result}),
+            Err(reason) => json!({"id": id, "error": {"reason": reason}}),
         };
         if send(&mut ws, &reply).await.is_err() {
             return;

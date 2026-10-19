@@ -7,8 +7,9 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::{Map, Value};
-use tokio::sync::{Notify, mpsc, watch};
+use tokio::sync::{mpsc, watch};
 
+use crate::changed::Changed;
 use crate::chat::{Bots, Cap, Event, Platform, To};
 use crate::core::hooks::Hooks;
 use crate::current::Current;
@@ -71,7 +72,7 @@ pub struct Gate {
     /// 连上、断开各说一行（「样子」）。
     tell: Arc<dyn Fn(Notice) + Send + Sync>,
     /// 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（施工 O-18）。
-    changed: Arc<Notify>,
+    changed: Arc<Changed>,
     /// 挂接点（施工 O-43 上）：平台的通知、请求原样交给挂在 `chat.event` 的包。
     hooks: Arc<Hooks>,
 }
@@ -83,7 +84,7 @@ impl Gate {
         bots: Arc<Bots>,
         inbound: mpsc::Sender<Event>,
         tell: Arc<dyn Fn(Notice) + Send + Sync>,
-        changed: Arc<Notify>,
+        changed: Arc<Changed>,
         hooks: Arc<Hooks>,
     ) -> Gate {
         Gate {
@@ -137,7 +138,7 @@ impl Gate {
 
     /// 状态变了：状态文件照这一刻再写。
     pub fn changed(&self) {
-        self.changed.notify_one();
+        self.changed.notify();
     }
 
     /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：

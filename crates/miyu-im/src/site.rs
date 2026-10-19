@@ -13,6 +13,7 @@ mod channel;
 mod files;
 mod guard;
 mod logins;
+mod methods;
 mod password;
 mod request;
 #[cfg(test)]
@@ -28,13 +29,15 @@ use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
 use serde_json::{Map, Value, json};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Notify, watch};
+use tokio::sync::watch;
 use tokio::task::JoinSet;
 
 use miyu_client::open;
 use miyu_client::places::DataRoot;
 
 use crate::TARGET;
+use crate::changed::Changed;
+use crate::chat::{Bots, Platform};
 use crate::core::caller::Caller;
 use crate::serve::Notice;
 use crate::tuning::Tuning;
@@ -61,17 +64,32 @@ pub(crate) struct Site {
     pub(crate) tuning: Tuning,
     /// 登录了的。
     logins: Logins<Person>,
+    /// 连着的机器人和平台（施工 I-6 上：页面的连接卡）。
+    bots: Arc<Bots>,
+    platform: Platform,
+    /// 桥手里的状态变了：开着的通道照它推（施工 I-6 上）。
+    changed: Arc<Changed>,
 }
 
 impl Site {
-    /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥自己的数 `tuning`；还没有人登录。
-    pub(crate) fn new(root: DataRoot, files: PathBuf, caller: Caller, tuning: Tuning) -> Site {
+    /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥自己的数 `tuning`，连着的机器人 `bots` 和平台
+    /// `platform`，状态变了叫 `changed`；还没有人登录。
+    pub(crate) fn new(
+        (root, files): (DataRoot, PathBuf),
+        caller: Caller,
+        tuning: Tuning,
+        (bots, platform): (Arc<Bots>, Platform),
+        changed: Arc<Changed>,
+    ) -> Site {
         Site {
             root,
             files,
             caller,
             tuning,
             logins: Logins::default(),
+            bots,
+            platform,
+            changed,
         }
     }
 }
@@ -80,12 +98,12 @@ impl Site {
 pub(crate) struct Port {
     port: Mutex<Option<u16>>,
     /// 变了叫一声状态文件。
-    changed: Arc<Notify>,
+    changed: Arc<Changed>,
 }
 
 impl Port {
     /// 变了叫 `changed`（状态文件照这一刻再写）。
-    pub(crate) fn new(changed: Arc<Notify>) -> Port {
+    pub(crate) fn new(changed: Arc<Changed>) -> Port {
         Port {
             port: Mutex::new(None),
             changed,
@@ -100,7 +118,7 @@ impl Port {
     /// 换成 `port`，叫一声状态文件。
     fn set(&self, port: u16) {
         *self.port.lock().unwrap_or_else(PoisonError::into_inner) = Some(port);
-        self.changed.notify_one();
+        self.changed.notify();
     }
 }
 
