@@ -217,6 +217,29 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         json!({"value": true, "from": "factory"})
     );
     assert_eq!(got["defaults"]["other_groups"]["rate"]["value"], "5/300s");
+    // 卡上 `rules` 能写的每一个键（施工 I-7 中一）：系统的规则改了的照它，没改的照出厂，可以不写的没写是空的。
+    let rules = &group["rules"];
+    assert_eq!(
+        rules["chatty.probability"],
+        json!({"value": 0, "from": "system"}),
+        "{rules}"
+    );
+    assert_eq!(
+        rules["chatty.base"],
+        json!({"value": 0.8, "from": "factory"}),
+        "{rules}"
+    );
+    assert_eq!(
+        rules["chatty.continuation_window"]["value"], "30s",
+        "{rules}"
+    );
+    assert_eq!(
+        rules["judge.model"],
+        json!({"value": null, "from": null}),
+        "{rules}"
+    );
+    assert!(rules["parallel"].is_object(), "{rules}");
+    assert!(group["recent"].is_object(), "回复时带几条也列出来：{group}");
     let private = &got["defaults"]["privates"][LIN.to_string()];
     assert_eq!(
         private["final_only"],

@@ -1,6 +1,6 @@
 //! 场所卡片那一层（`onebot.md` 第一条「场所卡片」，施工 O-58 上）：后台页上一个场所一张卡，白名单里的群一张、白名单成员
 //! 一人一张，「其他群」一张兜底（出厂关着）。卡片由桥存（[`store`]），拼成规则交群聊内核读，来处和配置项那一层一样是
-//! [`Source::Settings`]，排在 `60-settings.toml` 后面。
+//! [`Source::Settings`](miyu_chat::Source::Settings)，排在 `60-settings.toml` 后面。
 //!
 //! - 一张卡拼成一份规则文件、一条规则（[`Cards::files`]）：文件名里写着是哪一张卡（[`Card::parse`]），问题、来处照它说成
 //!   「哪一张卡」。先后照文件名：「其他群」在最前面（匹配名单以外的群：`not_group`，名单里的群不继承它设的格），每个群一条，
@@ -14,6 +14,7 @@
 
 pub mod defaults;
 pub mod edit;
+mod lines;
 pub mod page;
 mod store;
 
@@ -22,8 +23,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use miyu_chat::{File, Problem, Rules, Source};
+use miyu_chat::{File, Problem, Rules};
 
+use lines::{Matcher, file, group_lines, other_private_lines, private_lines};
 pub use store::{load, path, save};
 
 /// 卡片拼出来的文件名的开头：排在配置项那一份 `60-settings.toml` 后面。
@@ -119,6 +121,10 @@ pub struct GroupSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rules: Option<BTreeMap<String, Value>>,
 }
 
 /// 私聊卡能设的几格：睡觉、限流本来就不管白名单成员，不给。
@@ -146,6 +152,10 @@ pub struct PrivateSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rules: Option<BTreeMap<String, Value>>,
 }
 
 /// 「其他私聊」卡能设的几格（施工 O-60）：陌生人（不是终端管理员、不在白名单里的人）的私聊。回复没写的不回复。
@@ -179,6 +189,10 @@ pub struct OtherPrivateSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rules: Option<BTreeMap<String, Value>>,
 }
 
 /// 一个群的卡。
@@ -320,134 +334,6 @@ impl Cards {
     pub fn problems(&self) -> Vec<Problem> {
         Rules::parse(&self.files()).problems
     }
-}
-
-/// 一张卡匹配哪些场所。
-enum Matcher {
-    /// 「其他群」：群，但不是名单里的这几个（群号照 `, ` 连好）。名单里的群不继承它设的格（施工 O-58 上）。
-    Others(String),
-    /// 群卡、私聊卡：只配它自己。
-    Own,
-    /// 「其他私聊」：私聊，但不是这几个号（白名单成员、认出来的终端管理员，照 `, ` 连好，施工 O-60）。
-    Strangers(String),
-}
-
-/// 一张卡的那一份：`[[rule]]`、匹配条件、设的几格。
-fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
-    let matcher = match (card, matcher) {
-        (_, Matcher::Others(listed)) => format!("{{ kind = \"group\", not_group = [{listed}] }}"),
-        (_, Matcher::Strangers(known)) => format!("{{ kind = \"private\", not_user = [{known}] }}"),
-        (Card::Group(id), Matcher::Own) => format!("{{ kind = \"group\", group = [{id}] }}"),
-        (Card::Private(id), Matcher::Own) => format!("{{ kind = \"private\", user = [{id}] }}"),
-        (Card::OtherGroups, Matcher::Own) => "{ kind = \"group\" }".to_string(),
-        (Card::OtherPrivates, Matcher::Own) => "{ kind = \"private\" }".to_string(),
-    };
-    let mut text = format!("[[rule]]\nmatch = {matcher}\n");
-    for line in lines {
-        text.push_str(line);
-        text.push('\n');
-    }
-    File {
-        source: Source::Settings,
-        name: card.file_name(),
-        text,
-    }
-}
-
-/// 群卡的几行：`allow` 一定写（群卡没写的接，「其他群」没写的不接），别的设了才写。
-fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
-    let mut lines = vec![format!("allow = {}", set.on.unwrap_or(listed))];
-    push_text(&mut lines, "persona", set.persona.as_deref());
-    push_text(&mut lines, "model", set.model.as_deref());
-    push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
-    if let Some(words) = &set.keywords {
-        lines.push(format!("keywords = {}", texts(words)));
-    }
-    match set.chatty {
-        Some(Chatty::Never) => lines.push("discipline = \"when-called\"".to_string()),
-        Some(level) => {
-            let per_mille = PROBABILITY
-                .iter()
-                .find_map(|(known, value)| (*known == level).then_some(*value))
-                .unwrap_or_default();
-            lines.push("discipline = \"chatty\"".to_string());
-            lines.push(format!("chatty = {{ probability = {per_mille} }}"));
-        }
-        None => {}
-    }
-    if let Some(managers) = &set.managers {
-        lines.push(format!("managers = {}", texts(managers)));
-    }
-    push_text(&mut lines, "sleep", set.sleep.as_deref());
-    push_text(&mut lines, "rate", set.rate.as_deref());
-    if let Some(show) = set.show_ids {
-        lines.push(format!("show_ids = {show}"));
-    }
-    if let Some(recent) = set.recent {
-        lines.push(format!("recent = {recent}"));
-    }
-    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
-    lines
-}
-
-/// 私聊卡的几行：设了才写。
-fn private_lines(set: &PrivateSet) -> Vec<String> {
-    let mut lines = Vec::new();
-    push_text(&mut lines, "persona", set.persona.as_deref());
-    push_text(&mut lines, "model", set.model.as_deref());
-    push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
-    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
-    lines
-}
-
-/// 「其他私聊」的几行（施工 O-60）：`allow` 一定写（没写的不回复），别的设了才写。
-fn other_private_lines(set: &OtherPrivateSet) -> Vec<String> {
-    let mut lines = vec![format!("allow = {}", set.on.unwrap_or(false))];
-    push_text(&mut lines, "persona", set.persona.as_deref());
-    push_text(&mut lines, "model", set.model.as_deref());
-    push_text(&mut lines, "extra_prompt", set.extra_prompt.as_deref());
-    push_text(&mut lines, "rate", set.rate.as_deref());
-    push_outbound(&mut lines, set.final_only, (set.long_text, set.long_chars));
-    lines
-}
-
-/// 设了的一段字写成一行。
-fn push_text(lines: &mut Vec<String>, key: &str, value: Option<&str>) {
-    if let Some(value) = value {
-        lines.push(format!("{key} = {}", quoted(value)));
-    }
-}
-
-/// 仅发送最终消息、长文写成出站参数的一张表（设了才写，一格都没设的不写这一行）。去句号是通用的配置项（O-58 补二）。
-fn push_outbound(
-    lines: &mut Vec<String>,
-    final_only: Option<bool>,
-    (long_text, long_chars): (Option<LongText>, Option<u32>),
-) {
-    let mut items = Vec::new();
-    if let Some(final_only) = final_only {
-        items.push(format!("final_only = {final_only}"));
-    }
-    if let Some(long_text) = long_text {
-        items.push(format!("long_text = \"{}\"", long_text.name()));
-    }
-    if let Some(chars) = long_chars {
-        items.push(format!("long_chars = {chars}"));
-    }
-    if !items.is_empty() {
-        lines.push(format!("outbound = {{ {} }}", items.join(", ")));
-    }
-}
-
-/// 字的列表写成 TOML 的数组。
-fn texts(list: &[String]) -> String {
-    let items: Vec<String> = list.iter().map(|item| quoted(item)).collect();
-    format!("[{}]", items.join(", "))
-}
-
-/// 照 JSON 的写法加上引号：JSON 的转义都是 TOML 基本字符串认的。
-fn quoted(text: &str) -> String {
-    Value::from(text).to_string()
 }
 
 #[cfg(test)]

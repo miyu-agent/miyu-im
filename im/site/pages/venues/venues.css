@@ -99,3 +99,22 @@
 .why .grow { flex: 1; min-width: 0; }
 .why q { display: block; quotes: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .why small { color: var(--text-faint); }
+
+/* 浮窗各页的格（施工 I-7 中一），照样板 d-im.html。 */
+.field .row { border-bottom: 1px solid var(--line); }
+.field:last-child .row { border-bottom: 0; }
+.row.wide { display: block; }
+.row.wide .area { margin-top: 8px; }
+.row-failed { color: var(--danger); font-size: 12px; }
+.row-failed:empty { display: none; }
+.inline { display: inline-flex; align-items: center; gap: 6px; color: var(--text-soft); white-space: nowrap; }
+.select { max-width: 280px; height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.select:hover { background: var(--surface-3); }
+.area { width: 100%; min-height: 96px; padding: 9px 10px; border: 0; border-radius: 10px; outline: 0; background: var(--surface-2); font: 13px/1.6 var(--sans); color: inherit; resize: vertical; }
+.area:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.input.time { width: 96px; font-family: var(--mono); }
+.adv { margin-top: 16px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.adv summary { padding: 12px 16px; cursor: pointer; color: var(--text-soft); list-style: none; }
+.adv summary::before { content: "▸ "; }
+.adv[open] summary::before { content: "▾ "; }
+.adv .rows { padding: 0 16px 6px; }

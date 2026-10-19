@@ -157,3 +157,56 @@ fn template(
         }
     }
 }
+
+/// 给她看的事实的几份模板：出厂的，跑着不再读（从 `rules.rs` 挪过来，施工 I-7 中一：那一份到了行数的上限）。
+impl super::Venues {
+    /// 退信的模板（施工 O-25 下）：出厂的，跑着不再读。
+    pub fn undelivered(&self) -> &Template {
+        &self.factory.facts.undelivered
+    }
+
+    /// 「另一条线正在回」的模板（施工 O-36）：出厂的，跑着不再读。
+    pub fn another_line(&self) -> &Template {
+        &self.factory.facts.another_line
+    }
+
+    /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。
+    pub fn unshown(&self) -> &Template {
+        &self.factory.facts.unshown
+    }
+
+    /// 她被禁言了的事实的模板（施工 O-50）：出厂的，跑着不再读。
+    pub fn muted_fact(&self) -> &Template {
+        &self.factory.facts.muted
+    }
+
+    /// 她被解禁了的事实的模板（施工 O-50）：出厂的，跑着不再读。
+    pub fn unmuted_fact(&self) -> &Template {
+        &self.factory.facts.unmuted
+    }
+
+    /// 她先找人的事实的模板（施工 O-56）：出厂的，跑着不再读。
+    pub fn reached_fact(&self) -> &Template {
+        &self.factory.facts.reached
+    }
+
+    /// 插件记的一句的外壳（施工 I-8 上）：出厂的，跑着不再读。
+    pub fn plugin_note(&self) -> &Template {
+        &self.factory.facts.plugin_note
+    }
+
+    /// 冒充提醒的事实的模板（施工 O-53）：出厂的，跑着不再读。
+    pub fn impostor_fact(&self) -> &Template {
+        &self.factory.facts.impostor
+    }
+
+    /// 附加提示词那一段的模板（施工 O-58 上）：出厂的，跑着不再读。
+    pub fn note(&self) -> &Template {
+        &self.factory.facts.note
+    }
+
+    /// 群名、群号那一段的模板（施工 O-49）：出厂的，跑着不再读。
+    pub fn group_title(&self) -> &Template {
+        &self.factory.facts.group
+    }
+}

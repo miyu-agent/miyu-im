@@ -147,3 +147,50 @@ fn problems_on_other_cards_do_not_block_this_one() {
         "{got:?}"
     );
 }
+
+#[test]
+fn the_rules_change_key_by_key() {
+    // 施工 I-7 中一：卡上的 `rules` 只动交来的键，`null` 去掉那一个，去光了整格去掉。
+    let before = cards(
+        json!({"groups": [{"id": 7, "set": {"rules": {"chatty.base": 0.7, "parallel": 2}}}]}),
+    );
+    let changed = values(json!({"rules": {"chatty.base": null, "judge.records": 30}}));
+    let Edit::Done(next) = update(&before, Card::Group(7), &changed) else {
+        panic!("改得成");
+    };
+    assert_eq!(
+        serde_json::to_value(&next.groups[0].set).expect("写得成"),
+        json!({"rules": {"judge.records": 30, "parallel": 2}})
+    );
+    let emptied = values(json!({"rules": {"judge.records": null, "parallel": null}}));
+    let Edit::Done(last) = update(&next, Card::Group(7), &emptied) else {
+        panic!("改得成");
+    };
+    assert_eq!(last.groups[0].set.rules, None, "去光了整格去掉");
+}
+
+#[test]
+fn bad_rule_keys_and_values_are_reported_under_rules() {
+    let before = cards(json!({"groups": [{"id": 7, "set": {}}]}));
+    let bad_key = values(json!({"rules": {"allow": true, "chatty.base": 0.5}}));
+    assert_eq!(
+        update(&before, Card::Group(7), &bad_key),
+        Edit::Problems(vec![("rules.allow".to_string(), "unknown_key".to_string())])
+    );
+    let not_a_map = values(json!({"rules": [1]}));
+    assert_eq!(
+        update(&before, Card::Group(7), &not_a_map),
+        Edit::Problems(vec![("rules".to_string(), "value".to_string())])
+    );
+    // 群聊内核查出来的：报在卡上 `rules` 的那个键上。
+    let Edit::Problems(problems) = update(
+        &before,
+        Card::Group(7),
+        &values(json!({"rules": {"judge.records": 0, "chatty.nope": 1}})),
+    ) else {
+        panic!("规则写错了");
+    };
+    let keys: Vec<&str> = problems.iter().map(|(key, _)| key.as_str()).collect();
+    assert!(keys.contains(&"rules.judge.records"), "{problems:?}");
+    assert!(keys.contains(&"rules.chatty.nope"), "{problems:?}");
+}

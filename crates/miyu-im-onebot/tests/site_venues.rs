@@ -68,6 +68,62 @@ async fn the_venue_page_reads_and_changes_the_cards_through_the_core() {
         true
     );
 
+    // 选模型的下拉（施工 I-7 中一）：照核心的 `model.list`，只交引用、池、配的对话和看图模型。
+    let (models, _) = call_noting(&mut open, 19, "models", json!({})).await;
+    let models = &models["result"];
+    assert!(models["models"].is_array(), "{models}");
+    assert!(models["pools"].is_array(), "{models}");
+    assert!(models["uses"].is_object(), "{models}");
+    assert!(
+        models["models"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .all(|one| one["ref"].is_string()),
+        "{models}"
+    );
+
+    // 卡上 `rules`（施工 I-7 中一）：照键存；写法不对的键报在 `rules.<键>` 上。
+    let card = json!({"kind": "group", "id": 777});
+    let values = json!({"rules": {"chatty.base": 0.7, "discipline": "when-called"}});
+    let saved = changing(
+        &mut open,
+        20,
+        "cards.save_one",
+        json!({"card": card, "values": values}),
+    )
+    .await;
+    assert_eq!(saved, json!({"saved": true}));
+    let (got, _) = call_noting(&mut open, 21, "cards.get", json!({})).await;
+    let set = &got["result"]["cards"]["groups"][0]["set"];
+    assert_eq!(
+        set["rules"],
+        json!({"chatty.base": 0.7, "discipline": "when-called"}),
+        "{got}"
+    );
+    let wrong = json!({"rules": {"allow": true}});
+    let (refused, _) = call_noting(
+        &mut open,
+        22,
+        "cards.save_one",
+        json!({"card": card, "values": wrong}),
+    )
+    .await;
+    assert_eq!(refused["result"]["saved"], false, "{refused}");
+    assert_eq!(
+        refused["result"]["problems"][0]["key"], "rules.allow",
+        "{refused}"
+    );
+    let cleared = json!({"rules": {"chatty.base": null, "discipline": null}});
+    let saved = changing(
+        &mut open,
+        23,
+        "cards.save_one",
+        json!({"card": card, "values": cleared}),
+    )
+    .await;
+    assert_eq!(saved, json!({"saved": true}));
+
     // 关掉回复：只写这一格。
     let card = json!({"kind": "group", "id": 777});
     let saved = changing(

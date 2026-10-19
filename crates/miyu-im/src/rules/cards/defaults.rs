@@ -4,12 +4,32 @@
 //! - 没有规则设到的格是 `null`（页面写「不设」）；`on` 没设的是接话（出厂的群、私聊都不写 `allow`）。
 //! - 插嘴照线路规程和抽样的千分比认档：`when-called` 是 `never`，千分比不到 35 是 `few`、不到 85 是 `some`、别的是 `many`。
 //! - 来处只说是哪一层：`factory`、`setting`、`system`；照出厂参数来的（插嘴、去句号）是 `factory`。
+//! - 卡上 `rules` 能写的每一个键（施工 I-7 中一，[`rules`]）：出厂参数的每一项，规则改了的照规则、没改的照出厂；
+//!   `discipline`、`parallel`、`judge.model` 规则里有的照规则，没有的是 `null`。
 
 use serde_json::{Map, Value, json};
 
 use miyu_chat::Source;
 
-use crate::rules::Applied;
+use super::lines::TOP;
+use crate::rules::{Applied, Values};
+
+/// 出厂文件里可以不写的那一项：没写时照规则，规则也没有的是 `null`。
+const OPTIONAL: &str = "judge.model";
+
+/// 卡上 `rules` 能写的每一个键的默认值（模块的说明）：`{键: {value, from}}`。
+pub fn rules(applied: &Applied, factory: &Values) -> Value {
+    let mut keys = Map::new();
+    for (key, value) in factory {
+        let found =
+            entry(applied, key).unwrap_or_else(|| json!({"value": value, "from": "factory"}));
+        keys.insert((*key).to_string(), found);
+    }
+    for key in TOP.into_iter().chain([OPTIONAL]) {
+        keys.insert(key.to_string(), plain(applied, key));
+    }
+    Value::Object(keys)
+}
 
 /// 群卡的默认值：`{格: {value, from}}`。
 pub fn group(applied: &Applied) -> Value {
@@ -24,6 +44,7 @@ pub fn group(applied: &Applied) -> Value {
         "sleep",
         "rate",
         "show_ids",
+        "recent",
     ] {
         set.insert(key.into(), plain(applied, key));
     }

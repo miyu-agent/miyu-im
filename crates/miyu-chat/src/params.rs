@@ -12,6 +12,8 @@
 
 pub(crate) mod items;
 
+use miyu_config::Value;
+
 use crate::rules::{File, Problem, Resolved};
 use crate::{Base64, Chatty, Judge, Outbound, Restraint, Window};
 
@@ -98,6 +100,18 @@ impl Params {
             item.put(&mut params, &value);
         }
         Ok(params)
+    }
+
+    /// 出厂文件里每一项的值（施工 I-7 中一：页面上每一格写「继承」的值，场所规则没改到的照它）：键是 `表.项`，值照声明查过。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Params::read`]。
+    pub fn values(file: &File) -> Result<Vec<(&'static str, Value)>, Vec<Problem>> {
+        Ok(crate::rules::defaults(file)?
+            .into_iter()
+            .map(|(item, value)| (item.key, value))
+            .collect())
     }
 
     /// 套上场所规则改的几项（第八条「怎么走」第 5 条）：从这一份起，`resolved` 里键是 `表.项` 的，照声明再查一遍，合的

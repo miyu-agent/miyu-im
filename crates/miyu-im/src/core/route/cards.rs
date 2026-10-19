@@ -20,8 +20,9 @@ use crate::core::caller::Caller;
 use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
 use crate::plugins::Toggles;
+use crate::rules::Applied;
 use crate::rules::{Card, Cards, card_defaults, save_cards};
-use miyu_chat::VenueKind;
+use miyu_chat::{Venue, VenueKind};
 
 impl Route {
     /// 核心转来的一次 `method.call`（`pushed`）是不是场所卡片的：是的照方法答，交回真。附加提示词不在这里重放：每一条消息进来
@@ -76,7 +77,7 @@ impl Route {
             .ok()
             .and_then(|number| self.platform.venue(VenueKind::Group, number).ok())
         {
-            Some(venue) => card_defaults::group(&self.rules.beneath(&venue)),
+            Some(venue) => self.with_rules(card_defaults::group, &venue),
             None => Value::Null,
         }
     }
@@ -84,7 +85,7 @@ impl Route {
     /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
     pub(super) fn other_private_defaults(&self) -> Value {
         match self.platform.venue(VenueKind::Private, 0) {
-            Ok(venue) => card_defaults::other_private(&self.rules.beneath(&venue)),
+            Ok(venue) => self.with_rules(card_defaults::other_private, &venue),
             Err(_) => Value::Null,
         }
     }
@@ -95,9 +96,17 @@ impl Route {
             .ok()
             .and_then(|number| self.platform.venue(VenueKind::Private, number).ok())
         {
-            Some(venue) => card_defaults::private(&self.rules.beneath(&venue)),
+            Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
         }
+    }
+
+    /// 场所 `venue` 上一种卡的默认值（`defaults`）带上卡上 `rules` 能写的每一个键的（施工 I-7 中一，`card_defaults::rules`）。
+    fn with_rules(&self, defaults: fn(&Applied) -> Value, venue: &Venue) -> Value {
+        let beneath = self.rules.beneath(venue);
+        let mut found = defaults(&beneath);
+        found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
+        found
     }
 
     /// `cards.save`：查过、写进盘、换上。

@@ -202,3 +202,26 @@ fn recent_logs_come_newest_first_and_filter_by_level() {
         // 删不掉就留在临时目录里。
     }
 }
+
+#[test]
+fn the_venue_page_gets_model_refs_pools_and_what_is_used() {
+    // 施工 I-7 中一：选模型的下拉只要引用、用不了的标出来、池的名字、核心配的对话和看图模型。
+    let listed = serde_json::json!({
+        "providers": [
+            {"id": "a", "models": [{"ref": "a/one", "state": "ok", "facts": {}}, {"ref": "a/two", "state": "no_key"}]},
+            {"id": "b", "models": [{"ref": "b/three", "state": "cooling", "until": 1}, {"facts": {}}]},
+            {"id": "c", "problem": "x"}
+        ],
+        "pools": [{"name": "快池", "models": ["a/one"]}, {"strategy": "x"}],
+        "uses": {"chat": "a/one", "vision": null},
+        "catalog": null
+    });
+    assert_eq!(
+        super::venues::picked(&listed),
+        serde_json::json!({
+            "models": [{"ref": "a/one"}, {"ref": "a/two", "state": "no_key"}, {"ref": "b/three", "state": "cooling"}],
+            "pools": ["快池"],
+            "uses": {"chat": "a/one", "vision": null}
+        })
+    );
+}

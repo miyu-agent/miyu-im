@@ -1,6 +1,7 @@
 // 会话的浮窗（施工 I-7 上，设计 01 第八节第 3、7 条）：比小浮窗大，左边是这个会话（头像、名字、号）和几页，右边是这一页。
 //
-// - 几页照设计：概况、人格和模型、触发方式（只有群聊的两张）、限流与并发、发送消息处理、管理插件。这一步只做了概况，别的灰着写「即将」。
+// - 几页照设计：概况、人格和模型、触发方式（只有群聊的两张）、限流与并发、发送消息处理、管理插件。概况（I-7 上）、人格和模型、
+//   限流与并发、发送消息处理（I-7 中一，form.js 照 fields.js 画）做好了，别的灰着写「即将」；一格都没有的页不列。
 // - 概况：是否回复（私聊白名单里的人没有这一格：在名单里就是要回），改了当场存（cards.save_one），存好了宿主推 cards、墙跟着变。
 //   下面今天的数和最近判断（施工 I-7 上补，overview.js）：开的时候问一次 cards.overview，宿主推了变了（来了消息、卡片变了）再问。
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
@@ -11,18 +12,21 @@ import { cardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
+import { FIELDS, has } from './fields.js';
+import { drawForm } from './form.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
   { id: 'overview', ready: true },
-  { id: 'persona' },
+  { id: 'persona', ready: true },
   { id: 'trigger', kinds: ['group', 'other_groups'] },
-  { id: 'pace' },
-  { id: 'send' },
+  { id: 'pace', ready: true },
+  { id: 'send', ready: true },
   { id: 'plugins' },
 ];
 
-/** 开 `one` 的浮窗；`context` 是 { request, platform, bots }（bots 是机器人的号到名字，连着不止一个时卡上写是哪个），关了调
+/** 开 `one` 的浮窗；`context` 是 { request, platform, bots, personas }（bots 是机器人的号到名字，连着不止一个时卡上写是哪个；
+ *  personas 是人格的 [{persona, name}]），关了调
  *  `onClose`。交回 { update(one), refresh(), close() }：宿主推了卡片变了，会话页拿新的那一张调 update；来了消息调 refresh 再问
  *  今天的数和最近判断。 */
 export function openVenue(one, context, onClose) {
@@ -41,6 +45,17 @@ export function openVenue(one, context, onClose) {
   // 今天的数和最近判断：重画浮窗时留着这一块，问到了再换。
   const today = element('div', 'venue-today');
   let asking = 0;
+  // 哪几页的「高级」展开着：重画时照旧。
+  const expanded = new Set();
+  // 选模型的下拉：开的时候问一次宿主（models），问到了重画这一页。
+  let models = null;
+  context
+    .request('models')
+    .then((answer) => {
+      models = answer;
+      if (tab === 'persona') draw();
+    })
+    .catch(() => {});
   const refresh = async () => {
     const mine = ++asking;
     try {
@@ -60,22 +75,32 @@ export function openVenue(one, context, onClose) {
     side.replaceChildren(who, tabs);
     for (const one of TABS) {
       if (one.kinds && !one.kinds.includes(shown.kind)) continue;
+      const form = one.id === 'overview' ? null : FIELDS[one.id];
+      if (one.ready && form && !form.some((field) => field.key && has(field, shown))) continue;
       const button = element('button', one.id === tab ? 'd-tab on' : 'd-tab', say(`venue/tab-${one.id}`));
       if (!one.ready) {
         button.disabled = true;
         button.append(element('span', 'soon', say('nav/soon')));
+      } else {
+        button.addEventListener('click', () => {
+          tab = one.id;
+          draw();
+        });
       }
       tabs.append(button);
     }
     title.textContent = say(`venue/tab-${tab}`);
-    body.replaceChildren(...overview(shown, context, close, today));
+    if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
+    else body.replaceChildren(...drawForm(tab, shown, { ...context, models, expanded }));
   };
   draw();
   refresh();
   return {
     update(now) {
       shown = now;
-      draw();
+      // 正在填的那一格别被重画掉：它存的时候宿主还会再推一次。
+      const typing = body.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+      if (!typing) draw();
       refresh();
     },
     refresh,

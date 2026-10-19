@@ -35,7 +35,6 @@ use std::time::{Duration, Instant};
 
 use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, Source, Venue};
 use miyu_client::places::DataRoot;
-use miyu_client::protocol::Template;
 use miyu_client::settings::problem::Code;
 
 use crate::package::Package;
@@ -67,6 +66,9 @@ const PAGE: &str = "cards/human/page.json";
 /// 包自己的系统数据在 `system/` 下的哪个目录里，再往下是包的编号（2026-10-09 核心的主会话定）。
 const MODULES: &str = "modules";
 
+/// 出厂参数每一项的值：`表.项` → 值。
+pub type Values = std::collections::BTreeMap<&'static str, serde_json::Value>;
+
 /// 出厂的数据：起来时读一次、查过，跑着不再读。
 #[derive(Debug)]
 pub struct Factory {
@@ -74,6 +76,8 @@ pub struct Factory {
     rules: Vec<File>,
     /// 出厂参数。
     params: Params,
+    /// 出厂参数每一项的值（施工 I-7 中一）：键是 `表.项`，页面上没改过的格照它写「继承」的值。
+    values: Values,
     /// 出厂的违规词表：系统没有那一份时用它。
     keywords: Vec<String>,
     /// 判官的说明（施工 O-23 下）：查过的十三份，问判官的任务各拿一份引用。
@@ -90,7 +94,7 @@ pub struct Factory {
 impl Factory {
     /// 读包文件夹 `package` 的 `data/` 里的出厂数据（施工 S-6 上）：规则文件单独过一遍 [`Rules::parse`]（合上系统的以后，被同名替换的那一份不读，
     /// 单独过才查得全），出厂参数过 [`Params::read`]，违规词表过 [`Moderation::parse_keywords`]，判官的说明过
-    /// [`JudgeTexts::new`]（施工 O-23 下），退信的模板过 [`Template::parse`]、只认三个字段（施工 O-25 下；O-36 多「另一条线
+    /// [`JudgeTexts::new`]（施工 O-23 下），退信的模板过 [`Template::parse`](miyu_client::protocol::Template::parse)、只认三个字段（施工 O-25 下；O-36 多「另一条线
     /// 正在回」，只认 `msg`、`aim`），桥的工具的说明、答的两句照 `miyu_client::tooltext::load` 读、查过字段（施工 O-26）。
     ///
     /// # Errors
@@ -111,7 +115,11 @@ impl Factory {
                     text,
                 };
                 match Params::read(&file) {
-                    Ok(params) => Some(params),
+                    Ok(params) => {
+                        let values = Params::values(&file).unwrap_or_default();
+                        let values = values.into_iter().map(|(key, value)| (key, value.json()));
+                        Some((params, values.collect()))
+                    }
                     Err(found) => {
                         problems.extend(found);
                         None
@@ -127,19 +135,23 @@ impl Factory {
         let tools = tools::load(&dir, &mut problems);
         let page = page_words(&dir, &mut problems);
         match (params, keywords, judge, facts, tools, page) {
-            (Some(params), Some(keywords), Some(judge), Some(facts), Some(tools), Some(page))
-                if problems.is_empty() =>
-            {
-                Ok(Factory {
-                    rules,
-                    params,
-                    keywords,
-                    judge: Arc::new(judge),
-                    facts,
-                    tools: Arc::new(tools),
-                    page,
-                })
-            }
+            (
+                Some((params, values)),
+                Some(keywords),
+                Some(judge),
+                Some(facts),
+                Some(tools),
+                Some(page),
+            ) if problems.is_empty() => Ok(Factory {
+                rules,
+                params,
+                values,
+                keywords,
+                judge: Arc::new(judge),
+                facts,
+                tools: Arc::new(tools),
+                page,
+            }),
             _ => Err(problems),
         }
     }
@@ -342,54 +354,9 @@ impl Venues {
         Arc::clone(&self.factory.judge)
     }
 
-    /// 退信的模板（施工 O-25 下）：出厂的，跑着不再读。
-    pub fn undelivered(&self) -> &Template {
-        &self.factory.facts.undelivered
-    }
-
-    /// 「另一条线正在回」的模板（施工 O-36）：出厂的，跑着不再读。
-    pub fn another_line(&self) -> &Template {
-        &self.factory.facts.another_line
-    }
-
-    /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。
-    pub fn unshown(&self) -> &Template {
-        &self.factory.facts.unshown
-    }
-
-    /// 她被禁言了的事实的模板（施工 O-50）：出厂的，跑着不再读。
-    pub fn muted_fact(&self) -> &Template {
-        &self.factory.facts.muted
-    }
-
-    /// 她被解禁了的事实的模板（施工 O-50）：出厂的，跑着不再读。
-    pub fn unmuted_fact(&self) -> &Template {
-        &self.factory.facts.unmuted
-    }
-
-    /// 她先找人的事实的模板（施工 O-56）：出厂的，跑着不再读。
-    pub fn reached_fact(&self) -> &Template {
-        &self.factory.facts.reached
-    }
-
-    /// 插件记的一句的外壳（施工 I-8 上）：出厂的，跑着不再读。
-    pub fn plugin_note(&self) -> &Template {
-        &self.factory.facts.plugin_note
-    }
-
-    /// 冒充提醒的事实的模板（施工 O-53）：出厂的，跑着不再读。
-    pub fn impostor_fact(&self) -> &Template {
-        &self.factory.facts.impostor
-    }
-
-    /// 附加提示词那一段的模板（施工 O-58 上）：出厂的，跑着不再读。
-    pub fn note(&self) -> &Template {
-        &self.factory.facts.note
-    }
-
-    /// 群名、群号那一段的模板（施工 O-49）：出厂的，跑着不再读。
-    pub fn group_title(&self) -> &Template {
-        &self.factory.facts.group
+    /// 出厂参数每一项的值（施工 I-7 中一）。
+    pub fn factory_values(&self) -> &Values {
+        &self.factory.values
     }
 
     /// 这一刻 `now` 该用的那一份：离上一次看不到 `every` 的照手里的；到了，看一眼系统的两处，和上一次的一样照手里的，

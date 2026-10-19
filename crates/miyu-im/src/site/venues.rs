@@ -3,6 +3,9 @@
 //! `package.call` 调 im 自己（设计第九节第 2 条：人的权限，核心照人查），读的一头照核心转来的 `method.call` 答，答的原样交回页面。
 //!
 //! 卡片、白名单变了，读的一头叫一声 `Site::cards`，开着的通道推 `{"event": "cards"}`（`channel`）。
+//!
+//! 会话浮窗选模型（施工 I-7 中一）：`models` 在人的连接上问核心的 `model.list`，只交页面要的：`models`（配好的每个模型的引用
+//! `<供应商>/<模型>`，用不了的另带 `state`）、`pools`（池的名字）、`uses`（核心的对话、看图模型配的引用）。
 
 use serde_json::{Value, json};
 
@@ -27,4 +30,40 @@ pub(super) async fn forward(
         .call("venues", "package.call", params)
         .await
         .map_err(|why| (why.reason, why.message))
+}
+
+/// `models`（模块的说明）：核心拒了的交回（原因、原话）。
+pub(super) async fn models(person: &Person) -> Result<Value, (String, String)> {
+    let listed = person
+        .lock()
+        .await
+        .call("models", "model.list", json!({}))
+        .await
+        .map_err(|why| (why.reason, why.message))?;
+    Ok(picked(&listed))
+}
+
+/// 核心 `model.list` 的回答 `listed` 里页面要的那几样（模块的说明）。
+pub(super) fn picked(listed: &Value) -> Value {
+    let models: Vec<Value> = listed["providers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|provider| provider["models"].as_array().into_iter().flatten())
+        .filter_map(|model| {
+            let reference = model["ref"].as_str()?;
+            let mut one = json!({"ref": reference});
+            if let Some(state) = model["state"].as_str().filter(|state| *state != "ok") {
+                one["state"] = json!(state);
+            }
+            Some(one)
+        })
+        .collect();
+    let pools: Vec<Value> = listed["pools"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|pool| pool["name"].as_str().map(|name| json!(name)))
+        .collect();
+    json!({"models": models, "pools": pools, "uses": listed["uses"]})
 }

@@ -436,3 +436,31 @@ fn a_warning_alone_still_rejects_the_whole_file() {
     assert_eq!(seen.len(), 1, "{seen:?}");
     assert_eq!(seen[0].0, Code::UnknownKey);
 }
+
+#[test]
+fn the_factory_values_are_listed_by_key() {
+    // 施工 I-7 中一：页面上每一格写「继承」的值，照出厂文件。出厂文件要写的每一项都在。
+    let values = Params::values(&file(DEFAULTS)).expect("读得出");
+    let mut keys: Vec<&str> = values.iter().map(|(key, _)| *key).collect();
+    keys.sort_unstable();
+    let mut declared: Vec<&str> = super::items::ITEMS
+        .iter()
+        .filter(|item| !item.optional)
+        .map(|item| item.key)
+        .collect();
+    declared.sort_unstable();
+    assert_eq!(keys, declared);
+    let value = |key: &str| {
+        values
+            .iter()
+            .find(|(one, _)| *one == key)
+            .map(|(_, value)| value.json())
+    };
+    assert_eq!(value("chatty.probability"), Some(serde_json::json!(50)));
+    assert_eq!(value("judge.persona"), Some(serde_json::json!(true)));
+    assert!(value("judge.model").is_none(), "出厂没写的不列");
+    assert!(
+        Params::values(&file("chatty = 1")).is_err(),
+        "有问题的整份不用"
+    );
+}

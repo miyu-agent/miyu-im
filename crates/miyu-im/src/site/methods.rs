@@ -11,6 +11,7 @@
 //! - `logs {level?, limit?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，`limit`
 //!   不写的 50）。
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
+//! - `models`：会话浮窗选模型（施工 I-7 中一，`venues::models`）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -51,6 +52,7 @@ pub(super) async fn answer(
                 .map_or(50, |limit| usize::try_from(limit).unwrap_or(logs::MOST));
             Ok(json!({"logs": logs::recent(&file, filter, limit)}))
         }
+        Some("models") => venues::models(&login.person).await,
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await
         }

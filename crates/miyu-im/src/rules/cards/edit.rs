@@ -3,11 +3,14 @@
 //! - 部分更新（[`update`]）：`values` 只有改过的格，`null` 是恢复默认（删掉那一格）。每一格先单独照卡片的样子读一遍：认不得的、
 //!   类型不对的报在那一格上（`value`）；都读得出的合进去，再拼成规则交群聊内核读，有问题的报在对应的格上（规则的键换回卡片的格）。
 //! - 那张卡不在的（群卡、私聊卡）交回 [`Edit::Missing`]。
+//! - 卡上的 `rules`（施工 I-7 中一）照项部分更新：`values` 里的 `rules` 只写改了的键，`null` 是去掉那一个；键写法不对的报在
+//!   `rules.<键>` 上（`unknown_key`），去光了的整格去掉。规则写错报在那个键上的，照卡上 `rules` 里有没有它报 `rules.<键>`。
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
+use super::lines::key_ok;
 use super::{Card, Cards, GroupCard, GroupSet, PrivateCard, PrivateSet};
 
 /// 改完的样子。
@@ -51,6 +54,7 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     if let Err(problems) = merged {
         return Edit::Problems(problems);
     }
+    let written = written_rules(&next, card);
     let problems: Vec<(String, String)> = next
         .problems()
         .into_iter()
@@ -60,9 +64,11 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
                 problem
                     .key
                     .as_deref()
-                    .map(field_of)
-                    .unwrap_or_default()
-                    .to_string(),
+                    .map(|key| match written.iter().any(|one| one == key) {
+                        true => format!("rules.{key}"),
+                        false => field_of(key).to_string(),
+                    })
+                    .unwrap_or_default(),
                 problem.code.as_str().to_string(),
             )
         })
@@ -107,11 +113,83 @@ pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
     Some(next)
 }
 
-/// 每一格单独照 `T` 读一遍，都读得出的合进 `set`；读不出的交回哪几格。
+/// 卡 `card` 上 `rules` 里写着的键。
+fn written_rules(cards: &Cards, card: Card) -> Vec<String> {
+    let set = match card {
+        Card::OtherGroups => serde_json::to_value(&cards.other_groups),
+        Card::OtherPrivates => serde_json::to_value(&cards.other_privates),
+        Card::Group(id) => serde_json::to_value(
+            cards
+                .groups
+                .iter()
+                .find(|one| one.id == id)
+                .map(|one| &one.set),
+        ),
+        Card::Private(id) => serde_json::to_value(
+            cards
+                .privates
+                .iter()
+                .find(|one| one.id == id)
+                .map(|one| &one.set),
+        ),
+    };
+    set.ok()
+        .and_then(|set| {
+            set["rules"]
+                .as_object()
+                .map(|rules| rules.keys().cloned().collect())
+        })
+        .unwrap_or_default()
+}
+
+/// `values` 里的 `rules` 照项合进 `set` 原来的那一份（模块的说明）：交回合好的 `values`；键写法不对的交回哪几个。
+fn merge_rules<T: Serialize>(
+    set: &T,
+    values: &Map<String, Value>,
+) -> Result<Map<String, Value>, Vec<(String, String)>> {
+    let Some(changes) = values.get("rules") else {
+        return Ok(values.clone());
+    };
+    let Some(changes) = changes.as_object() else {
+        return Err(vec![("rules".to_string(), "value".to_string())]);
+    };
+    let bad: Vec<(String, String)> = changes
+        .keys()
+        .filter(|key| !key_ok(key))
+        .map(|key| (format!("rules.{key}"), "unknown_key".to_string()))
+        .collect();
+    if !bad.is_empty() {
+        return Err(bad);
+    }
+    let mut rules = serde_json::to_value(set)
+        .ok()
+        .and_then(|set| set["rules"].as_object().cloned())
+        .unwrap_or_default();
+    for (key, value) in changes {
+        if value.is_null() {
+            rules.remove(key);
+        } else {
+            rules.insert(key.clone(), value.clone());
+        }
+    }
+    let mut merged = values.clone();
+    merged.insert(
+        "rules".to_string(),
+        if rules.is_empty() {
+            Value::Null
+        } else {
+            Value::Object(rules)
+        },
+    );
+    Ok(merged)
+}
+
+/// 每一格单独照 `T` 读一遍，都读得出的合进 `set`；读不出的交回哪几格。`rules` 照项合（[`merge_rules`]）。
 fn merge<T: Serialize + DeserializeOwned>(
     set: &mut T,
     values: &Map<String, Value>,
 ) -> Result<(), Vec<(String, String)>> {
+    let values = &merge_rules(set, values)?;
     let bad: Vec<(String, String)> = values
         .iter()
         .filter_map(|(key, value)| {

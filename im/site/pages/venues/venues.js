@@ -176,7 +176,8 @@ export function mountVenues(view, { request }) {
     const opened = { kind: one.kind, id: one.id, dialog: null };
     open = opened;
     // 关了的不再跟着换。
-    opened.dialog = openVenue(one, { request, platform: chosen, bots: names() }, () => {
+    const personas = answer?.personas || [];
+    opened.dialog = openVenue(one, { request, platform: chosen, bots: names(), personas }, () => {
       if (open === opened) open = null;
     });
   };
