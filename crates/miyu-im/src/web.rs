@@ -90,6 +90,9 @@ pub fn url(port: u16, ticket: &str, lang: &str) -> String {
     format!("http://127.0.0.1:{port}/#miyu={encoded}")
 }
 
+#[cfg(test)]
+mod tests;
+
 /// 印一行；印不出来也没有别处可说了。
 fn say(to: &mut dyn Write, line: &str) {
     if writeln!(to, "{line}").is_err() {

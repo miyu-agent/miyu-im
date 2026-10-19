@@ -84,12 +84,6 @@ async fn the_page_opens_with_a_ticket_that_logs_in() {
     assert_eq!(code, 0);
     let url = unopened.seen.lock().expect("没 panic")[0].clone();
     assert_eq!(out, format!("在浏览器中打开（1 分钟内有效）：{url}\n"));
-    // 状态文件是别的进程留下的（进程号对不上）：不信它的端口。
-    let stale = json!({"pid": 1, "web": port});
-    std::fs::write(miyu_im::status_file::path(&home.root), format!("{stale}\n")).expect("写得进");
-    let (code, _, err) = ran(&home, &unopened).await;
-    assert_eq!(code, 1);
-    assert_eq!(err, "接入通讯平台没在运行，先执行 miyu im start。\n");
     stopped(home).await;
 }
 
