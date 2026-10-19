@@ -87,6 +87,12 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
     let avatar = get(port, &format!("/avatar/{BOT}")).await;
     assert_eq!(avatar.status, 200);
     assert_eq!(avatar.header("content-type"), Some("image/png"));
+    // 头像让浏览器记十分钟（施工 I-7 上修：页面重画不闪），别的照旧不记。
+    assert_eq!(avatar.header("cache-control"), Some("private, max-age=600"));
+    assert_eq!(
+        get(port, "/avatar/x").await.header("cache-control"),
+        Some("no-store")
+    );
     assert_eq!(avatar.body, PNG);
     assert_eq!(get(port, &format!("/avatar/{BOT}")).await.body, PNG);
     assert_eq!(

@@ -10,7 +10,7 @@
 //! - `GET` 别的路径：页面的文件（[`super::files`]），没有的 404。
 //! - 别的方法：405。
 //!
-//! 回应都带 `Cache-Control: no-store`、`X-Content-Type-Options: nosniff`、只许同源的 `Content-Security-Policy`（不许被别的页面
+//! 回应都带 `Cache-Control: no-store`（头像是 `private, max-age=600`，施工 I-7 上修：页面每次重画不再重新取、不闪）、`X-Content-Type-Options: nosniff`、只许同源的 `Content-Security-Policy`（不许被别的页面
 //! 放进框里）。
 
 use std::sync::{Mutex, PoisonError};
@@ -29,6 +29,9 @@ use crate::TARGET;
 
 /// 登录的正文最多多少字节。
 const BODY: usize = 4096;
+
+/// 头像的缓存：只在这个浏览器里，十分钟（头像换了，过一会儿就跟上）。
+const AVATAR_CACHE: &str = "private, max-age=600";
 
 /// 同源的内容安全策略。
 const POLICY: &str = "default-src 'self'; frame-ancestors 'none'";
@@ -101,7 +104,14 @@ pub(super) async fn handle(
                 None => None,
             };
             match avatar {
-                Some(avatar) => file(avatar.0.clone(), avatar.1),
+                Some(avatar) => {
+                    let mut response = file(avatar.0.clone(), avatar.1);
+                    response.headers_mut().insert(
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static(AVATAR_CACHE),
+                    );
+                    response
+                }
                 None => empty(StatusCode::NOT_FOUND),
             }
         }

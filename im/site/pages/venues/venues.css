@@ -1,5 +1,22 @@
 /* 会话页（施工 I-7 上）：卡片墙、新建、会话的大浮窗，照样板 d-im.html。 */
 .venue-search { width: 180px; }
+.pf-slot:empty { display: none; }
+.pf-pick { position: relative; }
+.pf-current { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px 0 12px; border: 0; border-radius: 10px; background: var(--surface-2); cursor: pointer; font-weight: 500; }
+.pf-current:hover { background: var(--surface-3); }
+.pf-current > .icon { width: 14px; height: 14px; color: var(--text-soft); }
+.pf-menu { position: absolute; top: 40px; left: 0; z-index: 30; display: flex; flex-direction: column; gap: 4px; width: 260px; padding: 6px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--float-shadow); }
+.pf-menu .input { width: 100%; }
+.pf-list { display: flex; flex-direction: column; gap: 2px; }
+.pf-list button { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; padding: 7px 9px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
+.pf-list button small { grid-column: 2; color: var(--text-faint); font-size: 11.5px; }
+.pf-list button:hover:not(:disabled) { background: var(--surface-2); }
+.pf-list button.on { background: var(--sidebar-active); }
+.pf-list button:disabled { opacity: 0.5; cursor: default; }
+:where(.pf-dot) { background: var(--text-soft); }
+.pf-dot { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; }
+.pf-dot .logo { width: 70%; height: 70%; }
+.pf-list button .pf-dot { grid-row: span 2; }
 .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
 .wall-label { grid-column: 1 / -1; margin: 6px 0 -2px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
 .wall-none { grid-column: 1 / -1; }
@@ -7,7 +24,6 @@
 .vcard:hover { box-shadow: var(--card-shadow); transform: translateY(-1px); }
 .vcard .top { display: flex; align-items: center; gap: 10px; }
 .vcard .avatar { width: 40px; height: 40px; }
-.vcard .pf-badge { width: 16px; height: 16px; right: -3px; bottom: -3px; font-size: 9px; }
 .vcard .grow { flex: 1; min-width: 0; }
 .vcard .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vcard .id { color: var(--text-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

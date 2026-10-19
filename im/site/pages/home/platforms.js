@@ -9,9 +9,17 @@ export const PLATFORMS = {
     // 平台的标志：雪碧图里的编号（施工 I-6 补二，2026-10-19 项目主人：原来的字母「Q」要优化）。
     logo: 'logo-qq',
     name: () => say('platform/qq'),
-    // 号的叫法（施工 I-7 上，设计 01 第八节第 7 条：叫法由驱动给）。
-    groupId: () => say('platform/qq-group-id'),
-    userId: () => say('platform/qq-user-id'),
+    // 会话页（施工 I-7 上修）：这个平台有哪几种会话，号怎么叫（设计 01 第八节第 7 条：叫法由驱动给），新建、浮窗里说这个平台
+    // 自己的规矩（QQ：私聊白名单里的人加 AI 好友自动通过）。没写的照通用的（venueKinds）。
+    venues: {
+      group: { id: () => say('platform/qq-group-id') },
+      private: {
+        id: () => say('platform/qq-user-id'),
+        searchHint: () => say('platform/qq-private-search-hint'),
+        newHint: () => say('platform/qq-new-private-hint'),
+        listedHint: () => say('platform/qq-listed-hint'),
+      },
+    },
     driver: () => say('platform/qq-driver'),
     address: (status) => `ws://127.0.0.1:${status.listen}${status.path}`,
     // 新建连接：选了平台以后的几步。address 是照着填地址的那一步，secret 是粘贴一个密钥、存了就连。
@@ -53,6 +61,27 @@ export function mark(shown) {
   use.setAttribute('href', `#${shown.logo}`);
   svg.append(use);
   return svg;
+}
+
+/** 会话的几种通用的叫法：平台没写的照这里。 */
+const GENERIC = {
+  group: {
+    id: () => say('venues/group-id'),
+    searchHint: () => say('create/group-search-hint'),
+    newHint: () => say('create/new-group-hint'),
+  },
+  private: {
+    id: () => say('venues/user-id'),
+    searchHint: () => say('create/private-search-hint'),
+    newHint: () => say('create/new-private-hint'),
+    listedHint: () => say('venue/listed-hint'),
+  },
+};
+
+/** 平台 `id` 上有哪几种会话（group、private），每种的叫法；平台没写会话的两种都有。 */
+export function venueKinds(id) {
+  const declared = platform(id).venues || { group: {}, private: {} };
+  return Object.fromEntries(Object.entries(declared).map(([type, words]) => [type, { ...GENERIC[type], ...words }]));
 }
 
 /** 平台 `id` 的样子；不认识的照名字凑一个最简单的。 */

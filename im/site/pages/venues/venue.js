@@ -7,6 +7,7 @@ import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { face } from './face.js';
 import { cardOf, valueFor } from './model.js';
+import { venueKinds } from '../home/platforms.js';
 import { idLine, titleOf } from './names.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
@@ -39,7 +40,7 @@ export function openVenue(one, context, onClose) {
     const who = element('div', 'd-who');
     const named = element('div');
     named.append(element('b', null, titleOf(shown)), element('small', null, idLine(shown, context)));
-    who.append(face(shown, context.platform), named);
+    who.append(face(shown.type, shown.id, shown.name), named);
     const tabs = element('div', 'd-tabs');
     side.replaceChildren(who, tabs);
     for (const one of TABS) {
@@ -65,12 +66,13 @@ export function openVenue(one, context, onClose) {
 }
 
 /** 概况那一页。 */
-function overview(one, { request }, close) {
+function overview(one, { request, platform }, close) {
   const parts = [];
   const reply = element('div', 'row big');
   const label = element('div', 'label');
   if (one.on === null) {
-    label.append(element('b', null, say('venue/listed')), element('small', null, say('venue/listed-hint')));
+    const hint = venueKinds(platform).private?.listedHint() || say('venue/listed-hint');
+    label.append(element('b', null, say('venue/listed')), element('small', null, hint));
     reply.append(label);
   } else {
     label.append(element('b', null, say('venue/reply')), element('small', null, say('venue/reply-hint')));
