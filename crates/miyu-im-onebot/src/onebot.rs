@@ -15,6 +15,7 @@ mod calls;
 mod forwards;
 pub mod media;
 mod members;
+pub(crate) mod reactions;
 mod replies;
 mod segments;
 mod send;

@@ -63,6 +63,11 @@ pub(super) fn flag(applied: &Applied, key: &str) -> Option<bool> {
     }
 }
 
+/// 规则的 `reaction`（施工 I-7 中三下二）：贴哪个表情，`off` 是不贴；没写的是空的（照桥的出厂）。
+pub(super) fn reaction(applied: &Applied) -> Option<&str> {
+    text(applied, "reaction")
+}
+
 /// 规则的 `show_ids` 是不是真的。
 pub(super) fn show_ids(applied: &Applied) -> bool {
     matches!(entry(applied, "show_ids"), Some(Value::Bool(true)))

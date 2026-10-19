@@ -3,7 +3,8 @@
 //! 实际带不带。
 //!
 //! 群里刚说完就回，不用引用也不用 @，带了反而吵；隔了几条别人的消息，读的人分不清她在回谁，才引用；隔了一阵、别人也说过
-//! 话，那个人可能走开了，才 @。她连着说话时最后一条是她自己的，回下一个人要靠引用分清。私聊交进来两样都是假。
+//! 话，那个人可能走开了，才 @。她连着说话时最后一条是她自己的，回下一个人要靠引用分清。私聊交进来两样都是假。智能引用、智能
+//! 艾特关了的（`quote`、`mention`，施工 I-7 中三下二）从不带。
 //!
 //! [`Since`]: super::Since
 
@@ -17,8 +18,13 @@ impl OutboundRule for Rule {
         let since = ctx.since;
         let params = &ctx.outbound;
         // 图纸写的「`quote_after` 是 0」不另写一条：`others` 是无符号的，不少于 0 恒成立。
-        let quote = target.quote && (since.last_is_own || since.others >= params.quote_after);
-        let mention = target.mention && since.elapsed >= params.mention_after && since.others > 0;
+        let quote = target.quote
+            && params.quote
+            && (since.last_is_own || since.others >= params.quote_after);
+        let mention = target.mention
+            && params.mention
+            && since.elapsed >= params.mention_after
+            && since.others > 0;
         OutStep::Continue {
             outgoing,
             target: Target { quote, mention },

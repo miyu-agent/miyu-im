@@ -187,6 +187,8 @@ fn blank() -> Params {
             reason_chars: 0,
         },
         outbound: Outbound {
+            quote: false,
+            mention: false,
             quote_after: 0,
             mention_after: 0,
             min_bigrams: 0,

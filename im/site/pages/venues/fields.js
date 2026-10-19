@@ -11,6 +11,7 @@
 // - dep：`{ key, on, unset? }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）；那一格没写的照 `unset`，
 //   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
+// - needs：浮窗问到的那一样（`reactions`：平台能贴的表情）是空的就不画。
 
 const GROUPS = ['group', 'other_groups'];
 
@@ -64,8 +65,12 @@ export const FIELDS = {
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
     { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['split', 'image', 'forward'], optionText: 'long/' },
     { key: 'long_chars', control: 'number', label: 'field/long-chars', hint: 'field/long-chars-hint', unit: 'unit/chars', min: 0, max: 100000 },
-    { key: 'rules.outbound.quote_after', control: 'number', label: 'field/quote-after', unit: 'unit/messages', advanced: true, min: 0, max: 1000 },
-    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400 },
+    // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
+    { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },
+    { key: 'rules.outbound.mention', control: 'switch', label: 'field/mention', hint: 'field/mention-hint', kinds: GROUPS },
+    { key: 'rules.reaction', control: 'reaction', label: 'field/reaction', hint: 'field/reaction-hint', kinds: GROUPS, needs: 'reactions' },
+    { key: 'rules.outbound.quote_after', control: 'number', label: 'field/quote-after', unit: 'unit/messages', advanced: true, min: 0, max: 1000, dep: { key: 'rules.outbound.quote', on: true } },
+    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400, dep: { key: 'rules.outbound.mention', on: true } },
   ],
 };
 

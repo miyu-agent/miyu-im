@@ -61,7 +61,9 @@ reason_chars = 500            # 判官的理由最多留几个字符（只进日
 
 # 出站链与纯文本（第五条）。
 [outbound]
+quote = true              # 智能引用：关了从不引用（施工 I-7 中三下二）
 quote_after = 4           # 隔几条别人的消息才引用；0 是总引用
+mention = true            # 智能艾特：关了从不 @（施工 I-7 中三下二）
 mention_after = "15s"     # 隔多久才 @
 min_bigrams = 16          # 去重：至少几个两字组才比相似度
 similar = 66              # 去重：相似度不低于百分之几算重复

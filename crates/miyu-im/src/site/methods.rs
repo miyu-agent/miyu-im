@@ -12,6 +12,8 @@
 //!   不写的 50）。
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
 //! - `models`：会话浮窗选模型（施工 I-7 中一，`venues::models`）。
+//! - `reactions` → `{"reactions": [{id, name, glyph?}], "default"}`：能贴的表情（驱动给的，空的是这个平台不支持贴表情）和桥出厂
+//!   贴的那一个（`bridge.json` 的 `reaction_emoji`，施工 I-7 中三下二）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -53,11 +55,29 @@ pub(super) async fn answer(
             Ok(json!({"logs": logs::recent(&file, filter, limit)}))
         }
         Some("models") => venues::models(&login.person).await,
+        Some("reactions") => Ok(reactions(site)),
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await
         }
         _ => Err(("unknown_method".to_string(), String::new())),
     }
+}
+
+/// 能贴的表情（模块的说明）。
+fn reactions(site: &Arc<Site>) -> Value {
+    let reactions: Vec<Value> = site
+        .driver
+        .reactions()
+        .iter()
+        .map(|one| {
+            let mut shown = json!({"id": one.id, "name": one.name});
+            if let Some(glyph) = one.glyph {
+                shown["glyph"] = json!(glyph);
+            }
+            shown
+        })
+        .collect();
+    json!({"reactions": reactions, "default": site.running.tuning.reaction_emoji})
 }
 
 /// 机器人（模块的说明）。

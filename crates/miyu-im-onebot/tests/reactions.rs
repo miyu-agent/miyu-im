@@ -288,3 +288,30 @@ async fn a_rejudged_pair_is_marked_on_the_last_only_after_the_judge() {
     );
     stopped(home).await;
 }
+
+#[tokio::test]
+async fn each_group_marks_with_its_own_emoji_or_not_at_all() {
+    // 施工 I-7 中三下二：规则的 `reaction` 是表情的编号就贴它，`off` 不贴。
+    let (chosen, off) = (994, 995);
+    let rules = format!(
+        "{}\n[[rule]]\nmatch = {{ kind = \"group\", group = [{chosen}] }}\nreaction = \"76\"\n\n\
+         [[rule]]\nmatch = {{ kind = \"group\", group = [{off}] }}\nreaction = \"off\"\n",
+        rules()
+    );
+    let lines = Lines::new([Line::says("在"), Line::says("嗯")]);
+    let (home, mut napcat, _) = started_by(Arc::new(lines), &rules, MEMBERS).await;
+    admin_says(&napcat, chosen, 1, "在吗", true);
+    let set = json!({"message_id": "1", "emoji_id": "76", "set": true});
+    assert_eq!(napcat.reacted().await, set, "照规则贴 76");
+    assert_eq!(next_words(&mut napcat, chosen).await, "在");
+    admin_says(&napcat, off, 2, "在吗", true);
+    assert_eq!(next_words(&mut napcat, off).await, "嗯");
+    until_count(&home, off, "turn.ended", 1).await;
+    let log = run_log(&home.root);
+    assert_eq!(
+        log.matches("reaction set").count(),
+        1,
+        "关了的群不贴：{log}"
+    );
+    stopped(home).await;
+}

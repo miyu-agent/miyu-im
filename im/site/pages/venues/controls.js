@@ -25,6 +25,8 @@ export function control(field, one, context, save, saveKey) {
       return tags(field, one, context, save);
     case 'percent':
       return percent(field, one, save);
+    case 'reaction':
+      return reaction(field, one, context.reactions, save);
     case 'float':
       return float(mine, fallback, save);
     case 'multi': {
@@ -125,6 +127,31 @@ function tags(field, one, context, save) {
     save([...added]);
   });
   box.append(adding);
+  return box;
+}
+
+/** 贴表情（施工 I-7 中三下二）：开关加选哪个。规则写表情的编号，`off` 是不贴；没写的照桥的出厂（`known.default`）。关掉存
+ *  `off`，打开存选着的那一个。 */
+function reaction(field, one, known, save) {
+  const box = element('span', 'inline');
+  const now = current(one, field.key);
+  const on = now !== 'off';
+  const chosen = on && now ? now : known.default;
+  const button = element('button', on ? 'switch on' : 'switch');
+  button.append(element('i'));
+  const pick = element('select', 'select');
+  for (const one of known.reactions) pick.append(new Option(one.glyph ? `${one.glyph} ${one.name}` : one.name, one.id));
+  if (!known.reactions.some((one) => one.id === chosen)) pick.append(new Option(chosen, chosen));
+  pick.value = chosen;
+  pick.hidden = !on;
+  button.addEventListener('click', () => {
+    const next = !button.classList.contains('on');
+    button.classList.toggle('on', next);
+    pick.hidden = !next;
+    save(next ? pick.value : 'off');
+  });
+  pick.addEventListener('change', () => save(pick.value));
+  box.append(pick, button);
   return box;
 }
 

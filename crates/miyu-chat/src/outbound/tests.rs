@@ -397,3 +397,26 @@ fn unwanted_target_stays_off() {
     ctx.outbound.quote_after = 0;
     assert_eq!(judge(text("好的"), &ctx), send(text("好的")));
 }
+
+#[test]
+fn quoting_and_mentioning_can_be_turned_off() {
+    // 施工 I-7 中三下二：智能引用、智能艾特关了的，条件都够也不带。
+    let mut ctx = ctx();
+    ctx.target = Target {
+        quote: true,
+        mention: true,
+    };
+    ctx.since.others = 10;
+    ctx.since.elapsed = MENTION_AFTER * 10;
+    ctx.outbound.quote = false;
+    let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
+        panic!("dropped");
+    };
+    assert_eq!((target.quote, target.mention), (false, true));
+    ctx.outbound.quote = true;
+    ctx.outbound.mention = false;
+    let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
+        panic!("dropped");
+    };
+    assert_eq!((target.quote, target.mention), (true, false));
+}

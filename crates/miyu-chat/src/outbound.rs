@@ -65,6 +65,10 @@ pub struct Since {
 /// 声明查过，两份标记一样长（施工 O-15）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Outbound {
+    /// 智能引用开没开（施工 I-7 中三下二）：关了从不引用。
+    pub(crate) quote: bool,
+    /// 智能艾特开没开（施工 I-7 中三下二）：关了从不 @。
+    pub(crate) mention: bool,
     /// 隔几条别人的消息才引用；`0` 是总引用。
     pub(crate) quote_after: u64,
     /// 隔多少毫秒才 @。

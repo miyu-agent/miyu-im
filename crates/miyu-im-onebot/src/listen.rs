@@ -33,7 +33,7 @@ use crate::onebot::{PLATFORM, number};
 use crate::settings::{NAMES, SECRETS, token};
 use miyu_im::TARGET;
 use miyu_im::chat::{CAPS, Cap, Platform};
-use miyu_im::driver::{Driver, Gate, Started};
+use miyu_im::driver::{Driver, Gate, Reaction, Started};
 
 /// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
 #[derive(Debug, Clone, Copy, Default)]
@@ -55,6 +55,10 @@ impl Driver for OneBot {
 
     fn secrets(&self) -> &'static [&'static str] {
         SECRETS
+    }
+
+    fn reactions(&self) -> &'static [Reaction] {
+        crate::onebot::reactions::REACTIONS
     }
 
     fn start(&self, gate: Arc<Gate>) -> Started {

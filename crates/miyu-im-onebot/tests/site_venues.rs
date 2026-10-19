@@ -83,6 +83,22 @@ async fn the_venue_page_reads_and_changes_the_cards_through_the_core() {
         "{models}"
     );
 
+    // 能贴的表情（施工 I-7 中三下二）：驱动给的列表，出厂贴的那一个。
+    let (reactions, _) = call_noting(&mut open, 18, "reactions", json!({})).await;
+    let reactions = &reactions["result"];
+    assert_eq!(reactions["default"], "289", "{reactions}");
+    assert_eq!(
+        reactions["reactions"][0],
+        json!({"id": "289", "name": "睁眼"}),
+        "{reactions}"
+    );
+    assert!(
+        reactions["reactions"]
+            .as_array()
+            .is_some_and(|all| all.iter().any(|one| one["glyph"] == "👍")),
+        "{reactions}"
+    );
+
     // 卡上 `rules`（施工 I-7 中一）：照键存；写法不对的键报在 `rules.<键>` 上。
     let card = json!({"kind": "group", "id": 777});
     let values = json!({"rules": {"chatty.base": 0.7, "discipline": "when-called"}});

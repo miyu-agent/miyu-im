@@ -14,16 +14,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use miyu_chat::{Kind, Supersede};
+use miyu_chat::{Kind, Supersede, Venue};
 use miyu_client::events::{Body, Event};
 use miyu_client::ids::Seq;
 use tokio::sync::oneshot;
 
 use super::decide::Decision;
-use super::{Peer, Route};
+use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::Bots;
 use crate::chat::CallError;
+
+/// 规则 `reaction` 写成它是不贴（施工 I-7 中三下二）。
+const OFF: &str = "off";
 
 /// 贴着的几条，和贴什么、多久摘。
 pub(crate) struct Reactions {
@@ -145,16 +148,30 @@ impl Route {
         if let Supersede::Inherit { msg, .. } = &passed.supersede {
             self.reactions.off(session, msg.get());
         }
-        let (Some(&seq), Some(peer)) = (decision.msgs.last(), self.peers.get(session)) else {
+        let (Some(&seq), Some(peer)) = (decision.msgs.last(), self.peers.get(session).cloned())
+        else {
             return;
         };
-        let Some(message) = self.groups.get(session).and_then(|group| group.msg(seq)) else {
+        let Some(message) = self
+            .groups
+            .get(session)
+            .and_then(|group| group.msg(seq))
+            .map(str::to_string)
+        else {
             return;
+        };
+        // 这个群贴哪个（施工 I-7 中三下二，规则的 `reaction`）：`off` 不贴，没写的照桥的出厂。
+        let chosen = Venue::parse(&peer.venue)
+            .and_then(|venue| applied::reaction(&self.applied(&venue)).map(str::to_string));
+        let emoji = match chosen.as_deref() {
+            Some(OFF) => return,
+            Some(id) => id.to_string(),
+            None => self.reactions.emoji.clone(),
         };
         let target = Mark {
-            peer: peer.clone(),
-            message: message.to_string(),
-            emoji: self.reactions.emoji.clone(),
+            peer,
+            message,
+            emoji,
         };
         let off = self.reactions.hold(session, seq);
         let bots = Arc::clone(&self.bots);

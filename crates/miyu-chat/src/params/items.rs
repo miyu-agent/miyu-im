@@ -210,6 +210,13 @@ pub(crate) const ITEMS: &[Item] = &[
     item("judge.reason_chars", CHARS_OR_NONE, |p, v| {
         p.judge.reason_chars = count(v)
     }),
+    // 智能引用、智能艾特的开关（施工 I-7 中三下二）。
+    item("outbound.quote", Kind::Bool, |p, v| {
+        p.outbound.quote = flag(v)
+    }),
+    item("outbound.mention", Kind::Bool, |p, v| {
+        p.outbound.mention = flag(v)
+    }),
     item("outbound.quote_after", COUNT, |p, v| {
         p.outbound.quote_after = count(v)
     }),

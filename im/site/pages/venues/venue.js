@@ -57,6 +57,15 @@ export function openVenue(one, context, onClose) {
       if (tab === 'persona') draw();
     })
     .catch(() => {});
+  // 能贴的表情：开的时候问一次宿主（reactions），问到了重画这一页。
+  let reactions = null;
+  context
+    .request('reactions')
+    .then((answer) => {
+      reactions = answer;
+      if (tab === 'send') draw();
+    })
+    .catch(() => {});
   const refresh = async () => {
     const mine = ++asking;
     try {
@@ -94,7 +103,7 @@ export function openVenue(one, context, onClose) {
     if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
     else {
       const idWord = idWordOf('private', context.platform);
-      body.replaceChildren(...drawForm(tab, shown, { ...context, models, expanded, idWord }));
+      body.replaceChildren(...drawForm(tab, shown, { ...context, models, reactions, expanded, idWord }));
     }
   };
   draw();

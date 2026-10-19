@@ -12,13 +12,14 @@ use miyu_chat::{File, Source};
 
 /// 只收在卡上 `rules` 里的顶层键（别的顶层键各有一格，或者不归卡管：`allow`、`match`）。私聊卡没有限流、睡眠两格，写在这里
 /// （施工 I-7 中三下一，和忽略限流、忽略睡眠一起）。
-pub(crate) const TOP: [&str; 6] = [
+pub(crate) const TOP: [&str; 7] = [
     "discipline",
     "parallel",
     "rate",
     "sleep",
     "ignore_rate",
     "ignore_sleep",
+    "reaction",
 ];
 
 /// 一张卡匹配哪些场所。

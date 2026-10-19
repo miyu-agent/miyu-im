@@ -22,6 +22,17 @@ pub type Running = Pin<Box<dyn Future<Output = ()> + Send>>;
 /// 起来的结局（[`Driver::start`]）。
 pub type Started = Pin<Box<dyn Future<Output = Result<Running, Failure>> + Send>>;
 
+/// 能贴的一个表情（施工 I-7 中三下二：会话浮窗「确认主动回复后贴表情」旁边选哪个，列表由驱动给）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reaction {
+    /// 编号：贴的时候交给平台的，规则 `reaction` 也写它。
+    pub id: &'static str,
+    /// 平台自己的叫法。
+    pub name: &'static str,
+    /// 画得出来的那个字（Unicode 表情）；平台自带的图标没有。
+    pub glyph: Option<&'static str>,
+}
+
 /// 一个平台的接法。
 pub trait Driver: Send + Sync {
     /// 平台：场所、平台上的人、命令编号照它的名字拼。
@@ -35,6 +46,11 @@ pub trait Driver: Send + Sync {
 
     /// [`Driver::settings`] 里哪几项是密钥（施工 I-6 中）：页面存它们时先存成核心的密钥（`im-<平台>-<名字>`），配置里写引用。
     fn secrets(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    /// 能贴的表情（施工 I-7 中三下二）：空的是这个平台不支持贴表情，页面上不出那一格。
+    fn reactions(&self) -> &'static [Reaction] {
         &[]
     }
 

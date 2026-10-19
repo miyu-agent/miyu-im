@@ -54,6 +54,8 @@ pub(crate) fn ctx() -> OutCtx {
             last_is_own: false,
         },
         outbound: Outbound {
+            quote: true,
+            mention: true,
             quote_after: QUOTE_AFTER,
             mention_after: MENTION_AFTER,
             min_bigrams: 16,
