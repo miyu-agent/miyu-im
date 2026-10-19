@@ -125,6 +125,22 @@ button, input, select { font: inherit; color: inherit; }
 button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 .avatar { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; color: #fff; font-weight: 600; font-size: 14px; background: linear-gradient(135deg, hsl(222 58% 62%), hsl(252 55% 52%)); }
+.avatar.sq { border-radius: 10px; }
+.h1 { --h: 222; background: linear-gradient(135deg, hsl(var(--h) 58% 62%), hsl(calc(var(--h) + 30) 55% 52%)); }
+.h2 { --h: 340; background: linear-gradient(135deg, hsl(var(--h) 60% 66%), hsl(calc(var(--h) + 25) 55% 56%)); }
+.h3 { --h: 150; background: linear-gradient(135deg, hsl(var(--h) 40% 52%), hsl(calc(var(--h) + 30) 42% 44%)); }
+.h4 { --h: 32; background: linear-gradient(135deg, hsl(var(--h) 75% 60%), hsl(calc(var(--h) + 20) 70% 50%)); }
+.h5 { --h: 270; background: linear-gradient(135deg, hsl(var(--h) 45% 64%), hsl(calc(var(--h) + 30) 45% 54%)); }
+.hx { background: var(--surface-3); color: var(--text-soft); }
+.switch { position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 16%, transparent); cursor: pointer; transition: background-color 0.16s ease; }
+.switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--bubble-shadow); transition: transform 0.16s var(--ease-out); }
+.switch.on { background: var(--accent); }
+.switch.on i { transform: translateX(16px); }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); }
+.seg button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.seg button.on { background: var(--surface-1); box-shadow: var(--bubble-shadow); color: var(--text); font-weight: 500; }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
 .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
 .dot.on { background: var(--online); }
 .dot.off { background: var(--danger); }

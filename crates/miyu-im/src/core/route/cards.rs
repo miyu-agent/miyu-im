@@ -1,7 +1,7 @@
 //! 后台页的场所卡片（施工 O-58 上，`onebot.md` 第一条「场所卡片」）：`cards.get`、`cards.save` 两个方法，读的一头照推送交到这里，
 //! 卡片、场所规则、连接都在这一头。
 //!
-//! - `cards.get`：卡片、每一格的默认值（卡片下面几层套出来的，`rules::card_defaults`）、白名单成员的号当场交；她在的群、好友
+//! - `cards.get`：卡片、每一格的默认值（卡片下面几层套出来的，`rules::card_defaults`；私聊的有卡的、白名单成员都给）、白名单成员的号当场交；她在的群、好友
 //!   （NapCat 的 `get_group_list`、`get_friend_list`，连着的号都问）和人格的名字（核心的 `persona.list`）另起任务问，问不到的
 //!   照空的交，页面写号。
 //! - `cards.save {cards}`：读不成卡片的样子拒 `bad_params`；拼成规则有问题的不存，答 `{saved: false, problems}`，问题一条条
@@ -43,9 +43,16 @@ impl Route {
         for card in &cards.groups {
             groups.insert(card.id.to_string(), self.group_defaults(card.id));
         }
+        // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张）。
+        let whitelist = self.whitelist_numbers();
         let mut privates = Map::new();
-        for card in &cards.privates {
-            privates.insert(card.id.to_string(), self.private_defaults(card.id));
+        for id in cards
+            .privates
+            .iter()
+            .map(|card| card.id)
+            .chain(whitelist.iter().copied())
+        {
+            privates.insert(id.to_string(), self.private_defaults(id));
         }
         let defaults = json!({
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
@@ -54,11 +61,6 @@ impl Route {
             "groups": groups,
             "privates": privates,
         });
-        let whitelist: Vec<u64> = self
-            .whitelist
-            .iter()
-            .filter_map(|identity| identity.strip_prefix("qq:")?.parse().ok())
-            .collect();
         let known = json!({"cards": cards, "defaults": defaults, "whitelist": whitelist});
         let (bots, caller, answerer) = (
             Arc::clone(&self.bots),
@@ -156,7 +158,8 @@ async fn listed(id: Value, known: Value, bots: Arc<Bots>, caller: Caller, answer
     answerer.answer(&id, answer);
 }
 
-/// 她在的群（`{id, name, members}`）、好友（`{id, name}`）、人格（`{persona, name}`）。
+/// 她在的群（`{id, name, members, bot}`）、好友（`{id, name, bot}`，`bot` 是问到它的那个号，施工 I-7 上：会话卡上写是哪个
+/// 机器人）、人格（`{persona, name}`）。
 pub(super) struct Lists {
     pub(super) groups: Vec<Value>,
     pub(super) friends: Vec<Value>,
@@ -167,18 +170,21 @@ pub(super) struct Lists {
 pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
     let mut groups = Vec::new();
     let mut friends = Vec::new();
-    for (_, link) in bots.all() {
+    for (bot, link) in bots.all() {
         if let Ok(list) = link.groups().await {
             let rows = list.into_iter().map(|group| {
-                let row = json!({"id": group.id, "name": group.name, "members": group.members});
+                let row = json!({"id": group.id, "name": group.name, "members": group.members, "bot": bot});
                 (group.id, row)
             });
             groups.extend(entries(rows));
         }
         if let Ok(list) = link.friends().await {
-            let rows = list
-                .into_iter()
-                .map(|friend| (friend.id, json!({"id": friend.id, "name": friend.name})));
+            let rows = list.into_iter().map(|friend| {
+                (
+                    friend.id,
+                    json!({"id": friend.id, "name": friend.name, "bot": bot}),
+                )
+            });
             friends.extend(entries(rows));
         }
     }

@@ -5,7 +5,8 @@
 //!   正文最多 [`BODY`] 字节，多了 413。
 //! - `POST /logout`：`Authorization: Bearer <会话号>` 的那份登录拿掉，在它的人的连接上作废登录令牌（`account.logout`，不成的记一行
 //!   运行日志），回 204（没有这一份也是）。
-//! - `GET /avatar/<号>`：机器人的头像（[`super::faces`]，施工 I-6 中），取不到的 404。
+//! - `GET /avatar/<号>`：机器人的头像（[`super::faces`]，施工 I-6 中）；`GET /avatar/user/<号>`、`GET /avatar/group/<群号>`：
+//!   会话卡上的（施工 I-7 上）。取不到的 404。
 //! - `GET` 别的路径：页面的文件（[`super::files`]），没有的 404。
 //! - 别的方法：405。
 //!
@@ -22,6 +23,7 @@ use hyper::{Method, Request, Response, StatusCode};
 use serde_json::Value;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
+use super::faces::Whose;
 use super::{Site, files, guard, password, ticket};
 use crate::TARGET;
 
@@ -94,10 +96,9 @@ pub(super) async fn handle(
             empty(StatusCode::NO_CONTENT)
         }
         (Method::GET, path) if path.starts_with("/avatar/") => {
-            let bot = path.trim_start_matches("/avatar/").parse::<i64>();
-            let avatar = match bot {
-                Ok(bot) => site.faces.avatar(site, bot).await,
-                Err(_) => None,
+            let avatar = match Whose::parse(path.trim_start_matches("/avatar/")) {
+                Some(whose) => site.faces.avatar(site, whose).await,
+                None => None,
             };
             match avatar {
                 Some(avatar) => file(avatar.0.clone(), avatar.1),

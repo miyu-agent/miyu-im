@@ -10,6 +10,7 @@
 //! - `today` → `{"received", "replied", "recorded", "undelivered"}`：今天的几个数（施工 I-6 下，`crate::counters`）。
 //! - `logs {level?, limit?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，`limit`
 //!   不写的 50）。
+//! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::logins::Login;
-use super::{Person, Site, logs, save};
+use super::{Person, Site, logs, save, venues};
 use crate::core::methods::short_path;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
@@ -49,6 +50,9 @@ pub(super) async fn answer(
                 .as_u64()
                 .map_or(50, |limit| usize::try_from(limit).unwrap_or(logs::MOST));
             Ok(json!({"logs": logs::recent(&file, filter, limit)}))
+        }
+        Some(method) if venues::FORWARDED.contains(&method) => {
+            venues::forward(&login.person, method, params).await
         }
         _ => Err(("unknown_method".to_string(), String::new())),
     }

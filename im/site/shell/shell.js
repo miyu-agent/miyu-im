@@ -2,15 +2,17 @@
 //
 // - 收起、展开照网页软件的左栏（shell.css）；收起着、指针靠到最左边，左栏临时浮出来，离开了滑回去。收没收起记进 localStorage。
 // - 哪一页照网址的 #（#home 这样），前进后退照浏览器的。还没做的几页在侧边栏上灰着，写「即将」。
-// - 连接的样子由外壳问（connections），宿主推了变了再问；头上的状态、这一页都照它画。通道断了头上写连不上。
+// - 连接的样子由外壳问（connections），宿主推了变了再问；头上的状态、这一页都照它画。通道断了头上写连不上。宿主推的别的（cards：
+//   卡片变了，施工 I-7 上）交给这一页。
 import { element, icon, say } from './i18n.js';
 import { choose, chosen } from './theme.js';
 import { mountHome } from '../pages/home/home.js';
+import { mountVenues } from '../pages/venues/venues.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
-  { id: 'venues', name: () => say('nav/venues') },
+  { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
   { id: 'plugins', name: () => say('nav/plugins') },
   { id: 'store', name: () => say('nav/store') },
   { id: 'stats', name: () => say('nav/stats') },
@@ -23,7 +25,7 @@ const SCHEME_ICONS = { system: 'i-monitor', light: 'i-sun', dark: 'i-moon' };
 const SCHEME_NAMES = { system: () => say('theme/system'), light: () => say('theme/light'), dark: () => say('theme/dark') };
 
 /** 在 `root` 里起外壳：`request` 调宿主的方法，`handed` 是网页软件交来了主题（不给手动切），`onSignOut` 登出。交回
- *  refresh()（变了再问）、offline()（通道断了）、dispose()。 */
+ *  refresh()（变了再问）、event(name)（宿主推的别的）、offline()（通道断了）、dispose()。 */
 export function mountShell(root, { request, handed, onSignOut }) {
   document.title = say('title');
   const shell = element('div', 'shell');
@@ -156,6 +158,9 @@ export function mountShell(root, { request, handed, onSignOut }) {
       }
       showStatus(true);
       current?.update(connections);
+    },
+    event(name) {
+      current?.event?.(name);
     },
     offline() {
       showStatus(false);

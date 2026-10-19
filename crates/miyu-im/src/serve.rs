@@ -198,6 +198,8 @@ pub async fn run(
     ));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let changed = Arc::new(Changed::new());
+    // 卡片、白名单变了（施工 I-7 上）：路由叫，页面服务推给会话页。
+    let cards = Arc::new(Changed::new());
     let gate = Arc::new(Gate::new(
         (
             Arc::clone(&current),
@@ -232,7 +234,7 @@ pub async fn run(
         core.caller(),
         (Arc::clone(&running), Arc::clone(&serve.driver)),
         Arc::clone(&counters),
-        Arc::clone(&changed),
+        (Arc::clone(&changed), Arc::clone(&cards)),
     );
     let serving = site::start(Arc::new(site), current.site(), told, page).await;
     // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
@@ -306,7 +308,7 @@ pub async fn run(
         members,
         parts,
         configured,
-        (hooks, Arc::clone(&counters)),
+        (hooks, Arc::clone(&counters), Arc::clone(&cards)),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(counters::keep(counters));

@@ -185,11 +185,11 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
     assert_eq!(got["whitelist"], json!([LIN]));
     assert_eq!(
         got["groups"],
-        json!([{"id": 777, "name": "测试群", "members": 12}, {"id": 666, "name": "另一个群", "members": 30}])
+        json!([{"id": 777, "name": "测试群", "members": 12, "bot": BOT}, {"id": 666, "name": "另一个群", "members": 30, "bot": BOT}])
     );
     assert_eq!(
         got["friends"],
-        json!([{"id": BOT, "name": "miyu"}, {"id": LIN, "name": "lin"}])
+        json!([{"id": BOT, "name": "miyu", "bot": BOT}, {"id": LIN, "name": "lin", "bot": BOT}])
     );
     assert!(got["personas"].is_array(), "{got}");
     // 默认值照卡片下面几层：限流是出厂的，插嘴照系统的规则（千分比 0 是少插嘴），群卡没写的回复。

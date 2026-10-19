@@ -38,3 +38,8 @@ export function icon(id) {
   svg.append(use);
   return svg;
 }
+
+/** 汉字和字母、数字挨着的地方补一个空格（字段换进句子以后：「输入QQ 号」写成「输入 QQ 号」）。 */
+export function spaced(text) {
+  return text.replace(/([一-鿿])([A-Za-z0-9])/g, '$1 $2').replace(/([A-Za-z0-9])([一-鿿])/g, '$1 $2');
+}

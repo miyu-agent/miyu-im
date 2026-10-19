@@ -50,8 +50,9 @@ impl Route {
         }
     }
 
-    /// 卡片、白名单变了：在看的都照新的推。
+    /// 卡片、白名单变了：在看的都照新的推，叫一声 im 的会话页（施工 I-7 上）。
     pub(super) fn repush_pages(&mut self) {
+        self.cards_changed.notify();
         let watching: Vec<String> = self.pages.watching.iter().cloned().collect();
         for widget in watching {
             self.push_page(&widget);
@@ -95,7 +96,7 @@ impl Route {
     }
 
     /// 白名单成员的号（`im.whitelist` 里这个平台的）。
-    fn whitelist_numbers(&self) -> Vec<u64> {
+    pub(super) fn whitelist_numbers(&self) -> Vec<u64> {
         self.whitelist
             .iter()
             .filter_map(|identity| identity.strip_prefix("qq:")?.parse().ok())

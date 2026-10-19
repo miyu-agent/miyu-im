@@ -203,7 +203,7 @@ fn japanese_is_written_in_japanese() {
         .collect();
     assert_eq!(
         same,
-        ["conn/line", "platform/qq"],
+        ["conn/line", "platform/qq", "venues/filter"],
         "im 自己的页面的日文另写，只有拼格式的、专名一样"
     );
 }

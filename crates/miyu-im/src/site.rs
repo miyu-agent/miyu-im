@@ -22,6 +22,7 @@ mod save;
 #[cfg(test)]
 mod tests;
 mod ticket;
+mod venues;
 
 use std::convert::Infallible;
 use std::path::PathBuf;
@@ -73,6 +74,8 @@ pub(crate) struct Site {
     driver: Arc<dyn Driver>,
     /// 桥手里的状态变了：开着的通道照它推（施工 I-6 上）。
     changed: Arc<Changed>,
+    /// 场所卡片、白名单变了：开着的通道另推一声（施工 I-7 上，会话页照它再问；每条消息都叫的 `changed` 不叫它重问）。
+    cards: Arc<Changed>,
     /// 机器人的名字、头像（施工 I-6 中）。
     faces: Faces,
     /// 今天的几个数（施工 I-6 下）。
@@ -81,13 +84,13 @@ pub(crate) struct Site {
 
 impl Site {
     /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥跑着的样子 `running` 和驱动 `driver`，状态变了叫
-    /// `changed`；还没有人登录。
+    /// `changed`、卡片变了叫 `cards`；还没有人登录。
     pub(crate) fn new(
         (root, files): (DataRoot, PathBuf),
         caller: Caller,
         (running, driver): (Arc<Running>, Arc<dyn Driver>),
         counters: Arc<Counters>,
-        changed: Arc<Changed>,
+        (changed, cards): (Arc<Changed>, Arc<Changed>),
     ) -> Site {
         Site {
             root,
@@ -97,6 +100,7 @@ impl Site {
             running,
             driver,
             changed,
+            cards,
             faces: Faces::default(),
             counters,
         }

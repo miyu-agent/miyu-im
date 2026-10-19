@@ -9,6 +9,9 @@ export const PLATFORMS = {
     // 平台的标志：雪碧图里的编号（施工 I-6 补二，2026-10-19 项目主人：原来的字母「Q」要优化）。
     logo: 'logo-qq',
     name: () => say('platform/qq'),
+    // 号的叫法（施工 I-7 上，设计 01 第八节第 7 条：叫法由驱动给）。
+    groupId: () => say('platform/qq-group-id'),
+    userId: () => say('platform/qq-user-id'),
     driver: () => say('platform/qq-driver'),
     address: (status) => `ws://127.0.0.1:${status.listen}${status.path}`,
     // 新建连接：选了平台以后的几步。address 是照着填地址的那一步，secret 是粘贴一个密钥、存了就连。

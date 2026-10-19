@@ -209,25 +209,42 @@ pub async fn logged_in(root: &miyu_store::root::DataRoot, port: u16) -> Channel 
     open
 }
 
-/// 在通道上调 `method`（编号 `id`）：交回回应（推来的 `changed` 跳过）。
+/// 在通道上调 `method`（编号 `id`）：交回回应（推来的跳过）。
 pub async fn call(open: &mut Channel, id: u64, method: &str, params: Value) -> Value {
+    call_noting(open, id, method, params).await.0
+}
+
+/// 同 [`call`]，另交回等回应时推来的几帧（施工 I-7 上：存了卡片推的 `cards` 可能赶在回应前头）。
+pub async fn call_noting(
+    open: &mut Channel,
+    id: u64,
+    method: &str,
+    params: Value,
+) -> (Value, Vec<Value>) {
     say(
         open,
         &serde_json::json!({"id": id, "method": method, "params": params}),
     )
     .await;
+    let mut pushed = Vec::new();
     loop {
         let frame = heard(open).await.expect("通道开着");
         if frame["id"] == id {
-            return frame;
+            return (frame, pushed);
         }
+        pushed.push(frame);
     }
 }
 
 /// 等到通道上推来一帧 `changed`。
 pub async fn changed(open: &mut Channel) {
+    event(open, "changed").await;
+}
+
+/// 等到通道上推来一帧 `{"event": name}`。
+pub async fn event(open: &mut Channel, name: &str) {
     loop {
-        if heard(open).await.expect("通道开着") == serde_json::json!({"event": "changed"}) {
+        if heard(open).await.expect("通道开着") == serde_json::json!({"event": name}) {
             return;
         }
     }

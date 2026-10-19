@@ -110,6 +110,7 @@ use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
 
 use crate::TARGET;
+use crate::changed::Changed;
 use crate::chat::{Bots, Platform};
 use crate::chat::{Event, Members, To};
 use crate::core::hooks::Hooks;
@@ -153,6 +154,8 @@ pub(crate) struct Route {
     core: Core,
     /// 今天的几个数（施工 I-6 下，`crate::counters`）。
     counters: Arc<Counters>,
+    /// 卡片、白名单变了叫一声（施工 I-7 上：im 的会话页照它再问）。
+    cards_changed: Arc<Changed>,
     /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
     platform: Platform,
     bots: Arc<Bots>,
@@ -254,7 +257,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters): (Arc<Hooks>, Arc<Counters>),
+        (hooks, counters, cards_changed): (Arc<Hooks>, Arc<Counters>, Arc<Changed>),
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -273,6 +276,7 @@ impl Route {
         Route {
             core,
             counters,
+            cards_changed,
             platform,
             bots,
             rules,

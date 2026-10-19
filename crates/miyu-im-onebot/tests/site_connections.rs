@@ -56,6 +56,7 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
     let (pictures, seen) = picture_server();
     let mut serve = serve(home.root.clone(), settings());
     serve.tuning.avatar_user_url = format!("http://127.0.0.1:{pictures}/u/{{id}}.png");
+    serve.tuning.avatar_group_url = format!("http://127.0.0.1:{pictures}/g/{{id}}.png");
     let bridge = start(serve).await;
     let port = page_port(&bridge, 1).await;
     let mut open = logged_in(&home.root, port).await;
@@ -99,6 +100,29 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
         "不认识的号不取"
     );
     assert_eq!(get(port, "/avatar/x").await.status, 404);
+    // 会话卡上的（施工 I-7 上）：群的、人的照各自的模板取，不查号。
+    // 取过的记着：隔了别的再要也不再取。
+    assert_eq!(get(port, "/avatar/user/20004").await.body, PNG);
+    assert_eq!(get(port, "/avatar/group/777").await.body, PNG);
+    assert_eq!(get(port, "/avatar/user/20004").await.body, PNG);
+    assert_eq!(get(port, "/avatar/group/777").await.body, PNG);
+    assert_eq!(
+        *seen.lock().expect("没 panic"),
+        [
+            format!("/u/{BOT}.png"),
+            "/u/20004.png".into(),
+            "/g/777.png".into()
+        ],
+        "群、人的各取一次"
+    );
+    for wrong in [
+        "/avatar/group/x",
+        "/avatar/group/-1",
+        "/avatar/room/1",
+        "/avatar/user/",
+    ] {
+        assert_eq!(get(port, wrong).await.status, 404, "{wrong}");
+    }
     // 断开了：卡留着，写断开的时刻。
     let closing = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

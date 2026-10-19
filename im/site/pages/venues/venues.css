@@ -1,0 +1,69 @@
+/* 会话页（施工 I-7 上）：卡片墙、新建、会话的大浮窗，照样板 d-im.html。 */
+.venue-search { width: 180px; }
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.wall-label { grid-column: 1 / -1; margin: 6px 0 -2px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
+.wall-none { grid-column: 1 / -1; }
+.vcard { position: relative; padding: 14px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); cursor: pointer; transition: box-shadow 0.15s ease, transform 0.15s var(--ease-out); }
+.vcard:hover { box-shadow: var(--card-shadow); transform: translateY(-1px); }
+.vcard .top { display: flex; align-items: center; gap: 10px; }
+.vcard .avatar { width: 40px; height: 40px; }
+.vcard .pf-badge { width: 16px; height: 16px; right: -3px; bottom: -3px; font-size: 9px; }
+.vcard .grow { flex: 1; min-width: 0; }
+.vcard .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vcard .id { color: var(--text-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vcard.off .chips, .vcard.off .id { opacity: 0.5; }
+.vcard.off .avatar { filter: grayscale(0.8); opacity: 0.7; }
+.avatar { overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip { height: 22px; max-width: 100%; padding: 0 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); font-size: 12px; line-height: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.accent { background: var(--accent-soft); color: var(--on-primary-container); }
+
+/* 新建会话。 */
+.kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 6px; }
+.kind { display: grid; justify-items: start; gap: 6px; padding: 18px; border: 0; border-radius: 14px; background: var(--surface-2); text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.kind:hover { background: var(--surface-3); }
+.kind b { font-size: 14.5px; }
+.kind small { color: var(--text-soft); font-size: 12.5px; }
+.ico { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--on-primary-container); }
+.wide-input { width: 100%; font-family: var(--mono); }
+.pick-hint { margin: 8px 0 0; font-size: 12px; }
+.pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; margin-top: 10px; overflow-y: auto; }
+.pick-none { margin: 6px 4px; }
+.pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: background-color 0.15s ease; }
+.pick:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.pick.on { background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow); }
+.pick .avatar { width: 32px; height: 32px; font-size: 13px; }
+.pick .grow { flex: 1; min-width: 0; }
+.pick small { display: block; color: var(--text-faint); font-size: 12px; }
+
+/* 会话的大浮窗：左边这个会话和几页，右边这一页。 */
+.dialog.wide { display: grid; grid-template-columns: 210px minmax(0, 1fr); width: min(1060px, 100%); height: min(720px, calc(100vh - 32px)); }
+.d-side { display: flex; flex-direction: column; gap: 2px; min-height: 0; padding: 14px 12px; overflow-y: auto; background: var(--sidebar-bg); }
+.d-who { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; }
+.d-who .avatar { width: 38px; height: 38px; }
+.d-who > div { min-width: 0; }
+.d-who b { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-who small { display: block; color: var(--text-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-tabs { display: flex; flex-direction: column; gap: 2px; }
+.d-tab { display: flex; align-items: center; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); font-size: 13.5px; text-align: left; cursor: pointer; }
+.d-tab:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 4%, transparent); color: var(--text); }
+.d-tab.on { background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow); color: var(--text); font-weight: 500; }
+.d-tab:disabled { cursor: default; color: var(--text-faint); }
+.d-tab .soon { margin-left: auto; font-size: 11px; }
+.d-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.row.big { padding: 14px 16px; margin-bottom: 6px; border: 0; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.row.big b { font-weight: 500; }
+.venue-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+
+@media (max-width: 720px) {
+  .view-head { flex-wrap: wrap; }
+  .venue-search { flex: 1; width: auto; }
+  .kinds { grid-template-columns: 1fr; }
+  .dialog.wide { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .d-side { padding: 10px 10px 6px; }
+  .d-who { padding-bottom: 8px; }
+  .d-tabs { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .d-tab { flex: none; }
+  .d-tab .soon { display: none; }
+}

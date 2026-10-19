@@ -4,7 +4,8 @@
 //!    4401 `bad_session`。对上了回 `{"account"}`。
 //! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason", "message"?}}`（方法在
 //!    `methods`；`message` 是核心拒了时的原话，施工 I-6 中）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
-//! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。
+//! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。场所卡片、白名单
+//!    变了（施工 I-7 上）另推 `{"event": "cards"}`，会话页照它再问卡片。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -53,16 +54,23 @@ where
         return;
     }
     let mut changes = site.changed.watch();
+    let mut cards = site.cards.watch();
     loop {
-        let frame = tokio::select! {
-            frame = text(&mut ws) => frame,
-            changed = changes.changed() => {
-                // 桥手里的状态变了（施工 I-6 上）：叫页面再问一遍。叫的一头放下了（桥在停）的不再等它。
-                if changed.is_ok() && send(&mut ws, &json!({"event": "changed"})).await.is_err() {
+        // 桥手里的状态、卡片变了：叫页面再问一遍。叫的一头放下了（桥在停）的不再等它。
+        let event = tokio::select! {
+            frame = text(&mut ws) => Err(frame),
+            changed = changes.changed() => Ok(changed.is_ok().then_some("changed")),
+            changed = cards.changed() => Ok(changed.is_ok().then_some("cards")),
+        };
+        let frame = match event {
+            Err(frame) => frame,
+            Ok(Some(event)) => {
+                if send(&mut ws, &json!({"event": event})).await.is_err() {
                     return;
                 }
                 continue;
             }
+            Ok(None) => continue,
         };
         let Some(frame) = frame else {
             return;

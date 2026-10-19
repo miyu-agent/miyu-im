@@ -51,6 +51,7 @@ function enter(session, fromWebUi) {
     },
     onEvent(name) {
       if (name === 'changed') shell?.refresh();
+      else shell?.event(name);
     },
     onLost() {
       shell?.offline();
