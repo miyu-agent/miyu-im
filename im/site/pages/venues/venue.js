@@ -1,7 +1,8 @@
 // 会话的浮窗（施工 I-7 上，设计 01 第八节第 3、7 条）：比小浮窗大，左边是这个会话（头像、名字、号）和几页，右边是这一页。
 //
 // - 几页照设计：概况、人格和模型、触发方式（只有群聊的两张）、限流与并发、发送消息处理、管理插件。概况（I-7 上）、人格和模型、
-//   限流与并发、发送消息处理（I-7 中一，form.js 照 fields.js 画）做好了，别的灰着写「即将」；一格都没有的页不列。
+//   限流与并发、发送消息处理（I-7 中一，form.js 照 fields.js 画）、触发方式（I-7 中二）做好了，别的灰着写「即将」；一格都没有的页
+//   不列。
 // - 概况：是否回复（私聊白名单里的人没有这一格：在名单里就是要回），改了当场存（cards.save_one），存好了宿主推 cards、墙跟着变。
 //   下面今天的数和最近判断（施工 I-7 上补，overview.js）：开的时候问一次 cards.overview，宿主推了变了（来了消息、卡片变了）再问。
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
@@ -10,7 +11,7 @@ import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { face } from './face.js';
 import { cardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
-import { idLine, titleOf } from './names.js';
+import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
 import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
@@ -19,7 +20,7 @@ import { drawForm } from './form.js';
 const TABS = [
   { id: 'overview', ready: true },
   { id: 'persona', ready: true },
-  { id: 'trigger', kinds: ['group', 'other_groups'] },
+  { id: 'trigger', kinds: ['group', 'other_groups'], ready: true },
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
   { id: 'plugins' },
@@ -91,7 +92,10 @@ export function openVenue(one, context, onClose) {
     }
     title.textContent = say(`venue/tab-${tab}`);
     if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
-    else body.replaceChildren(...drawForm(tab, shown, { ...context, models, expanded }));
+    else {
+      const idWord = idWordOf('private', context.platform);
+      body.replaceChildren(...drawForm(tab, shown, { ...context, models, expanded, idWord }));
+    }
   };
   draw();
   refresh();

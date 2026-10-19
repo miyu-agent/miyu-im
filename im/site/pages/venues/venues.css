@@ -118,3 +118,18 @@
 .adv summary::before { content: "▸ "; }
 .adv[open] summary::before { content: "▾ "; }
 .adv .rows { padding: 0 16px 6px; }
+
+/* 触发方式（施工 I-7 中二）：标签、拖动条、几个小数一行。 */
+.tags { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; max-width: 420px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; }
+.tag.inherited { padding-right: 10px; color: var(--text-faint); }
+.tag button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); cursor: pointer; }
+.tag button:hover { background: var(--surface-3); color: var(--text); }
+.tag button .icon { width: 12px; height: 12px; }
+.input.tag-add { width: 130px; height: 26px; border-radius: 999px; font-size: 12.5px; }
+.slider { width: 160px; accent-color: var(--accent); }
+.slider-value { width: 40px; text-align: right; color: var(--text); }
+.input.num.narrow { width: 56px; }
+/* 写了的值照正文的颜色，继承的（占位字）淡一档：一眼分得出哪几格改过。 */
+.d-body .input { color: var(--text); }
+.d-body .input::placeholder { color: var(--text-faint); opacity: 1; }

@@ -177,7 +177,8 @@ export function mountVenues(view, { request }) {
     open = opened;
     // 关了的不再跟着换。
     const personas = answer?.personas || [];
-    opened.dialog = openVenue(one, { request, platform: chosen, bots: names(), personas }, () => {
+    const friends = answer?.friends || [];
+    opened.dialog = openVenue(one, { request, platform: chosen, bots: names(), personas, friends }, () => {
       if (open === opened) open = null;
     });
   };

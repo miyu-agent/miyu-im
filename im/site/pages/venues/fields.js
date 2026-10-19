@@ -2,13 +2,22 @@
 // 哪几种卡有、要哪一格开着才画。form.js 照它画、存。
 //
 // - key：卡上的格；`rules.` 开头的是卡上 `rules` 里的规则键（宿主 card_edit 照项部分更新）。
-// - control：select（下拉，`options` 交选项）、persona、model（人格、模型的下拉，选项照宿主给的）、text、area、switch、number（带
-//   `unit`）、seconds（规则里写成 `15s` 的时长，页面上填秒数）、rate（`N/Ms`：几条 / 几秒）、sleep（`HH:MM-HH:MM`）。
+// - control：select（下拉，`options` 交选项）、persona、model（人格、模型的下拉，选项照宿主给的）、text、area、switch（`values` 是开、
+//   关存成什么，不写是真假）、number（带 `unit`）、float（小数）、multi（几个小数一行，`keys` 各存各的）、seconds（规则里写成 `15s`
+//   的时长，页面上填秒数）、rate（`N/Ms`：几条 / 几秒）、sleep（`HH:MM-HH:MM`）、tags（字的列表；`people` 的照号写、认得的写名字）、
+//   percent（拖动条，百分之几，存成千分比）。
+// - clears：存这一格时一起去掉卡上旧写法的那几格（插嘴的四档 `chatty`：线路规程、抽样改写进 `rules` 以后不再用它）。
 // - kinds：哪几种卡有（group、other_groups、private、other_privates），不写是都有。
 // - dep：`{ key, on }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）。
 // - advanced：收进「高级」里（默认收起）。
 
 const GROUPS = ['group', 'other_groups'];
+
+/** 主动回复判断开着才画（线路规程是 `chatty`）。 */
+const JUDGE = { key: 'rules.discipline', on: 'chatty' };
+
+/** 五项权重：相关性、意愿、社交适合度、时机、连续性。 */
+const WEIGHTS = ['relevance', 'willingness', 'social', 'timing', 'continuity'].map((name) => `rules.chatty.${name}`);
 const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 
 /** 各页的格，照页的编号。 */
@@ -18,9 +27,24 @@ export const FIELDS = {
     { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', wide: true },
     { group: 'field/models' },
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
-    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'chat', kinds: GROUPS, dep: { key: 'rules.discipline', on: 'chatty' } },
+    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'chat', kinds: GROUPS, dep: JUDGE },
     { group: 'field/context', kinds: GROUPS },
     { key: 'recent', control: 'number', label: 'field/recent', unit: 'unit/messages', kinds: GROUPS, min: 1, max: 1000 },
+  ],
+  trigger: [
+    { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
+    { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], clears: ['chatty'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
+    { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
+    { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', hint: 'field/judge-persona-hint', kinds: GROUPS, dep: JUDGE },
+    { key: 'rules.chatty.probability', control: 'percent', clears: ['chatty'], label: 'field/probability', hint: 'field/probability-hint', kinds: GROUPS, dep: JUDGE, max: 30 },
+    { key: 'managers', control: 'tags', people: true, label: 'field/managers', kinds: GROUPS },
+    { key: 'show_ids', control: 'switch', label: 'field/show-ids', kinds: GROUPS },
+    { key: 'rules.chatty.base', control: 'float', label: 'field/threshold', kinds: GROUPS, dep: JUDGE, advanced: true },
+    { key: 'rules.chatty.relevance', control: 'multi', keys: WEIGHTS, label: 'field/weights', kinds: GROUPS, dep: JUDGE, advanced: true },
+    { key: 'rules.chatty.restraint', control: 'switch', label: 'field/restraint', hint: 'field/restraint-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
+    { key: 'rules.chatty.continuation_window', control: 'seconds', label: 'field/continuation', hint: 'field/continuation-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
+    { key: 'rules.chatty.after_speaking_window', control: 'seconds', label: 'field/after-speaking', hint: 'field/after-speaking-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
+    { key: 'rules.dispatch.supersede_window', control: 'seconds', label: 'field/supersede', hint: 'field/supersede-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
   ],
   pace: [
     { key: 'rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ALL_BUT_PRIVATE },
@@ -53,10 +77,17 @@ export function inherited(one, key) {
   return one.defaults[key] || { value: null, from: null };
 }
 
-/** 现在用着的：卡上写着的，没写的照下面几层。 */
+/** 卡上插嘴的旧写法（四档）各是千分之几（同宿主 `rules/cards.rs` 的 PROBABILITY）。 */
+const CHATTY = { few: 20, some: 50, many: 120 };
+
+/** 现在用着的：卡上写着的，没写的照下面几层。线路规程、抽样照卡上插嘴的旧写法（四档）算：`rules` 没写这两项、卡上写了插嘴的照它。 */
 export function current(one, key) {
   const value = written(one, key);
-  return value === undefined ? inherited(one, key).value : value;
+  if (value !== undefined) return value;
+  const old = one.set.chatty;
+  if (old && key === 'rules.discipline') return old === 'never' ? 'when-called' : 'chatty';
+  if (old && old !== 'never' && key === 'rules.chatty.probability') return CHATTY[old];
+  return inherited(one, key).value;
 }
 
 /** 存 `key` 那一格成 `value`（null 是恢复默认）时交给 cards.save_one 的 `values`。 */

@@ -9,7 +9,12 @@ export function chips(one, personas) {
   const set = one.set;
   const all = [];
   if (one.on === false) all.push({ text: say('chip/off') });
-  if (set.chatty) {
+  // 线路规程、抽样（施工 I-7 中二）：写在卡上 `rules` 里的照它，没写的照插嘴的旧写法（四档）。
+  const rules = set.rules || {};
+  if (rules.discipline === 'when-called') all.push({ text: say('chip/called-only') });
+  else if (rules['chatty.probability'] !== undefined) {
+    all.push({ text: say('chip/chatty-percent', { n: rules['chatty.probability'] / 10 }), accent: true });
+  } else if (set.chatty) {
     all.push({ text: set.chatty === 'never' ? say('chip/called-only') : say(`chip/chatty-${set.chatty}`), accent: set.chatty !== 'never' });
   }
   if (set.keywords?.length) all.push({ text: say('chip/keywords', { words: set.keywords.join(say('chip/joiner')) }) });
