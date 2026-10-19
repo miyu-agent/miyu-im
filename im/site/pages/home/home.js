@@ -114,11 +114,24 @@ function logPanel(logs, level, choose) {
     const row = element('div', 'log');
     const time = element('span', 'faint', line.time);
     time.title = line.date;
-    row.append(time, element('span', `lv lv-${line.level.toLowerCase()}`, line.level), element('span', 'log-text', line.text));
+    row.append(time, element('span', `lv lv-${line.level.toLowerCase()}`, line.level), logText(line.text));
     row.title = line.text;
     panel.append(row);
   }
   return panel;
+}
+
+/** 日志的一行字照核心的写法拆开上色（施工 I-6 补三，2026-10-20 项目主人定）：「这件事」正常色，后面的 `键=` 淡一档，值正常色。
+ *  值里有空白、引号的核心加了双引号，照原样画。 */
+function logText(text) {
+  const shown = element('span', 'log-text');
+  const at = text.search(/ [a-z_][a-z0-9_.]*=/);
+  shown.append(element('span', 'log-msg', at < 0 ? text : text.slice(0, at)));
+  if (at < 0) return shown;
+  for (const field of text.slice(at).matchAll(/\s*([a-z_][a-z0-9_.]*)=("(?:[^"\\]|\\.)*"|\S+)/g)) {
+    shown.append(document.createTextNode(' '), element('span', 'log-key', `${field[1]}=`), element('span', 'log-value', field[2]));
+  }
+  return shown;
 }
 
 function tile(one, request) {

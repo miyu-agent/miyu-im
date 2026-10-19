@@ -62,7 +62,9 @@
 .lv-warn { color: var(--gold); }
 .lv-error { color: var(--danger); }
 .lv-debug, .lv-trace { color: var(--text-faint); }
-.log-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-soft); }
+.log-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+/* 一行字拆开上色（施工 I-6 补三）：这件事、值正常色，键淡一档。 */
+.log-key { color: var(--text-faint); }
 @media (max-width: 720px) {
   .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .log { grid-template-columns: 58px minmax(0, 1fr); }
