@@ -224,9 +224,7 @@ pub async fn run(
     ));
     // 最近判断（施工 I-7 上补）：路由记、页面读、另起的任务写盘。
     let recent = Arc::new(Recent::load(
-        status_file::path(&serve.root)
-            .with_file_name("stats")
-            .join("recent.json"),
+        status_file::path(&serve.root).with_file_name("recent.json"),
     ));
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
