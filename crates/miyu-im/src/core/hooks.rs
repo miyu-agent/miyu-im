@@ -25,6 +25,7 @@ use miyu_chat::VenueKind;
 
 use crate::chat::{Cap, Platform, To};
 use crate::plugins::{Plugins, Toggles, Unusable};
+use follow::Followed;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
 pub(crate) const EVENT: &str = "chat.event";
@@ -136,8 +137,8 @@ pub(crate) struct Hooks {
     plugins: Mutex<Plugins>,
     /// 场所开关（施工 I-8 上）：只问在那个场所开着的。
     toggles: Mutex<Toggles>,
-    /// 在跑、导出了挂接点的包，照编号排。
-    hooked: Mutex<BTreeMap<String, Vec<&'static str>>>,
+    /// 在跑、导出了挂接点的包，照编号排；跟着软件包列表走的先后（[`follow`]）。
+    hooked: Mutex<Followed>,
 }
 
 impl Hooks {
@@ -155,25 +156,31 @@ impl Hooks {
             caps,
             plugins: Mutex::new(Plugins::default()),
             toggles: Mutex::new(Toggles::default()),
-            hooked: Mutex::new(BTreeMap::new()),
+            hooked: Mutex::new(Followed::default()),
         }
     }
 
-    /// 照软件包列表 `packages`（订阅的回应、`package.list` 的 `packages`）整份换上。
-    pub(crate) fn learn(&self, packages: &Value) {
-        let hooked = table(packages);
-        tracing::info!(target: TARGET, count = hooked.len(), "hooks learned");
-        *self.lock() = hooked;
+    /// 一次订阅软件包列表要发出去了：领它的号，回应到了交给 [`Self::learn`]（[`follow`]）。
+    pub(crate) fn subscribing(&self) -> u64 {
+        self.lock().subscribing()
+    }
+
+    /// 第 `ticket` 次订阅的回应 `packages`：整份换上，这次订阅以后推来的照办；比换上的旧的不要（[`follow`]）。
+    pub(crate) fn learn(&self, ticket: u64, packages: &Value) {
+        let mut followed = self.lock();
+        if followed.learn(ticket, packages) {
+            tracing::info!(target: TARGET, count = followed.hooked.len(), "hooks learned");
+        }
     }
 
     /// 推来的一项（`package.changed` 的 `package`、`entry`）：照它换那一个包（[`change`]）。挂的变了记一行 `INFO hooks changed`
     /// （包、现在挂了几个）。
     pub(crate) fn changed(&self, package: &str, entry: &Value) {
-        let mut hooked = self.lock();
-        let before = hooked.get(package).cloned();
-        change(&mut hooked, package, entry);
-        if hooked.get(package) != before.as_ref() {
-            tracing::info!(target: TARGET, package, count = hooked.len(), "hooks changed");
+        let mut followed = self.lock();
+        let before = followed.hooked.get(package).cloned();
+        followed.changed(package, entry);
+        if followed.hooked.get(package) != before.as_ref() {
+            tracing::info!(target: TARGET, package, count = followed.hooked.len(), "hooks changed");
         }
     }
 
@@ -218,7 +225,7 @@ impl Hooks {
     /// 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的插件、在这个平台上能用、在这个
     /// 场所开着（施工 I-8 上）。场所认不出的（`None`）照插件声明的默认。
     pub(crate) fn at(&self, point: &str, to: Option<To>) -> Vec<String> {
-        let hooked = hooked_at(&self.lock(), point);
+        let hooked = hooked_at(&self.lock().hooked, point);
         hooked
             .into_iter()
             .filter(|package| self.allowed(package, to))
@@ -357,7 +364,7 @@ impl Hooks {
     }
 
     /// 锁上表。锁坏了照样用：表里只有编号和名字。
-    fn lock(&self) -> MutexGuard<'_, BTreeMap<String, Vec<&'static str>>> {
+    fn lock(&self) -> MutexGuard<'_, Followed> {
         self.hooked.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
@@ -465,6 +472,8 @@ fn points(entry: &Value) -> Vec<&'static str> {
         .filter(|point| exported.contains(point))
         .collect()
 }
+
+mod follow;
 
 #[cfg(test)]
 mod tests;

@@ -17,12 +17,13 @@ impl Route {
     /// 订阅软件包列表，照回应记下谁挂在哪：请求当场写出去（跟别的请求的先后一定），等回应交给一个小任务（`chores`），跟核心的
     /// 那一头不等它、照常往下办（核心的替身不答也不卡）；之后推来的 `package.changed` 照旧从这一头的读进来。核心拒了的记一行。
     ///
-    /// 回应和推送走两条路：回应晚于一条推送办完的，整份换上的是订阅那一刻的样子，那一个包等它下一次变了再推来就对了。
+    /// 回应和推送走两条路，先后不一定：订阅发出去前领一张号，回应照号换上，这次订阅以后推来的不被盖掉（`crate::core::hooks`）。
     ///
     /// # Errors
     ///
     /// 写不出去（核心断开）。
     pub(super) async fn follow_packages(&mut self) -> Result<(), Gone> {
+        let ticket = self.hooks.subscribing();
         let answer = self
             .core
             .caller()
@@ -33,7 +34,7 @@ impl Route {
             // 等不到的（核心断开）：跟核心的那一头会读到头、桥停下，这里没有别的要做。
             if let Ok(reply) = answer.wait().await {
                 match reason(&reply) {
-                    None => hooks.learn(&reply["result"]["packages"]),
+                    None => hooks.learn(ticket, &reply["result"]["packages"]),
                     Some(why) => tracing::warn!(target: TARGET, why, "packages not followed"),
                 }
             }
