@@ -98,6 +98,12 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"));
     assert_eq!(onebot["icon"], "message-circle", "{onebot}");
+    // 作者、上游（核心 F-12，施工 I-4 补）。
+    assert_eq!(onebot["author"], "miyu-agent", "{onebot}");
+    assert_eq!(
+        onebot["upstream"], "https://github.com/miyu-agent/miyu-im",
+        "{onebot}"
+    );
     assert_eq!(onebot["page"], true, "{onebot}");
 
     // 桥起来、开好监听以后才登记：等到调得到。
