@@ -12,6 +12,8 @@ pub mod events;
 pub mod fake_core;
 pub mod group;
 pub mod head;
+mod shipped;
+pub use shipped::*;
 pub mod hooked;
 pub mod judge;
 pub mod media;
@@ -36,10 +38,7 @@ use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::extensions::Timing;
 use miyu_im::package::Package;
-use miyu_im::rules::Factory;
 use miyu_im::serve::{Failure, Notice, Serve, run};
-use miyu_im::settings::Defaults;
-use miyu_im::tuning::Tuning;
 use miyu_im_onebot::settings::Settings;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::Models;
@@ -98,22 +97,6 @@ pub fn package_in(resources: impl AsRef<Path>) -> Package {
 /// 这个仓库的包文件夹 `im/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
 pub fn package() -> Package {
     Package::at(assembled::package_dir())
-}
-
-/// 出厂的 `bridge.json`。
-pub fn tuning() -> Tuning {
-    Tuning::load(&package().data()).expect("出厂的 bridge.json 读得出来")
-}
-
-/// 出厂的清单里 NapCat 端口的默认值（施工 O-20）。
-pub fn defaults() -> Defaults {
-    Defaults::load(&package_in(resources()), miyu_im_onebot::settings::NAMES)
-        .expect("出厂的清单读得出来")
-}
-
-/// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。
-pub fn factory() -> Factory {
-    Factory::load(&package_in(resources())).expect("出厂的读得出来")
 }
 
 /// 一个新的临时数据根（`MIYU_HOME` 指到它），建好骨架：交回目录（用完调的一方删）和数据根。
@@ -383,9 +366,9 @@ pub fn no_token() -> Notice {
 
 /// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：端口、令牌的真值；没有令牌的不放这一键。
 pub fn handed(settings: &Settings) -> Value {
-    let mut config = json!({"im.listen": settings.port});
+    let mut config = json!({"im.qq.listen": settings.port});
     if let Some(token) = &settings.token {
-        config["im.token"] = json!(token.expose());
+        config["im.qq.token"] = json!(token.expose());
     }
     config
 }

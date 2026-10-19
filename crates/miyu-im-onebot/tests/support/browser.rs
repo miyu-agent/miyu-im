@@ -17,7 +17,7 @@ use miyu_im::settings::Defaults;
 /// `defaults` 里页面服务的端口换成 0，让系统挑（进程里跑的桥都照它，不碰出厂的 8302）。
 pub fn any_page_port(defaults: Defaults) -> Defaults {
     Defaults {
-        site: serde_json::Map::from_iter([("web_port".to_string(), Value::from(0))]),
+        site: serde_json::Map::from_iter([("port".to_string(), Value::from(0))]),
         ..defaults
     }
 }

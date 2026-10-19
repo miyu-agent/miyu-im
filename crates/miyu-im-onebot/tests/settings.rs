@@ -11,6 +11,9 @@ use miyu_im::settings::{
     Defaults, driver_config, merge_driver, recall_receipts, whitelist, whitelist_key,
 };
 use miyu_im_onebot::settings::{NAMES, Settings};
+
+/// OneBot 驱动的配置项那一组（平台名，施工 I-3 补：键是 `im.qq.<名字>`）。
+const QQ: &str = "qq";
 use miyu_store::resources::ResourceRoot;
 
 use miyu_config::Layer;
@@ -23,13 +26,16 @@ fn fallback() -> Defaults {
     Defaults {
         recall_receipts: vec!["x".to_string()],
         driver: keys(json!({"listen": 18301})),
-        site: keys(json!({"web_port": 18302})),
+        site: keys(json!({"port": 18302})),
     }
 }
 
 /// 宿主挑、驱动读的整条路（施工 I-3）：握手交来的 `config` 里驱动的那几项照 `defaults` 补齐，读成 OneBot 的两项。
 fn handed(config: &Value, defaults: &Defaults) -> Settings {
-    read(&driver_config(config, NAMES, &defaults.driver), defaults)
+    read(
+        &driver_config(config, (QQ, NAMES), &defaults.driver),
+        defaults,
+    )
 }
 
 /// 驱动读宿主交来的那几项：端口读不出的照默认值。
@@ -55,7 +61,7 @@ fn the_shipped_manifest_gives_the_default_port() {
         Defaults {
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
             driver: keys(json!({"listen": 8301})),
-            site: keys(json!({"web_port": 8302})),
+            site: keys(json!({"port": 8302})),
         },
         "令牌没写默认值，不放；页面服务的端口出厂 8302（施工 I-5 上）"
     );
@@ -66,7 +72,7 @@ fn a_missing_manifest_or_default_is_named() {
     let dir = std::env::temp_dir().join(format!("miyu-im-defaults-{}", std::process::id()));
     let packages = dir.join("packages");
     std::fs::create_dir_all(&packages).expect("建得了");
-    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没有清单");
+    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("没有清单");
     assert!(error.contains("im"), "{error}");
     // 照出厂的清单写一份，去掉 `im.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
     let shipped =
@@ -76,7 +82,7 @@ fn a_missing_manifest_or_default_is_named() {
     assert_ne!(without, shipped, "真的去掉了");
     std::fs::create_dir_all(packages.join("im")).expect("建得了");
     std::fs::write(packages.join("im").join("package.toml"), without).expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("没写默认值");
+    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("没写默认值");
     let file = std::path::Path::new("im")
         .join("package.toml")
         .display()
@@ -86,7 +92,7 @@ fn a_missing_manifest_or_default_is_named() {
         "{error}"
     );
     std::fs::write(packages.join("im").join("package.toml"), "not toml [").expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone()), NAMES).expect_err("读不成");
+    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("读不成");
     assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
@@ -95,7 +101,7 @@ fn a_missing_manifest_or_default_is_named() {
 
 #[test]
 fn the_handed_config_is_taken_as_it_comes() {
-    let config = json!({"im.listen": 9000, "im.token": TOKEN, "im.whitelist": ["qq:20017"]});
+    let config = json!({"im.qq.listen": 9000, "im.qq.token": TOKEN, "im.whitelist": ["qq:20017"]});
     assert_eq!(
         handed(&config, &fallback()),
         Settings {
@@ -104,17 +110,17 @@ fn the_handed_config_is_taken_as_it_comes() {
         }
     );
     assert_eq!(
-        handed(&json!({"im.token": format!("  {TOKEN}\n")}), &fallback()).token,
+        handed(&json!({"im.qq.token": format!("  {TOKEN}\n")}), &fallback()).token,
         secret(TOKEN),
         "前后的空白去掉"
     );
     assert_eq!(
-        handed(&json!({"im.listen": 0}), &fallback()).port,
+        handed(&json!({"im.qq.listen": 0}), &fallback()).port,
         0,
         "0 也照它"
     );
     assert_eq!(
-        handed(&json!({"im.listen": 65535}), &fallback()).port,
+        handed(&json!({"im.qq.listen": 65535}), &fallback()).port,
         65535,
         "65535 也照它"
     );
@@ -130,11 +136,11 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
         json!({}),
         Value::Null,
         json!("not an object"),
-        json!({"im.listen": null, "im.token": null}),
-        json!({"im.listen": 65536, "im.token": ""}),
-        json!({"im.listen": -1}),
-        json!({"im.listen": "8301", "im.token": 42}),
-        json!({"im.listen": 8302.5}),
+        json!({"im.qq.listen": null, "im.qq.token": null}),
+        json!({"im.qq.listen": 65536, "im.qq.token": ""}),
+        json!({"im.qq.listen": -1}),
+        json!({"im.qq.listen": "8301", "im.qq.token": 42}),
+        json!({"im.qq.listen": 8302.5}),
         json!({"listen": 9000, "web.port": 9001, "onebotx.token": TOKEN, "onebot.tokens": TOKEN}),
         // 原来桥自己的网页的端口（施工 O-28 下去掉）：不认。
         json!({"im.web": 9001}),
@@ -148,14 +154,14 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
 fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
     let defaults = fallback();
     assert_eq!(
-        driver_config(&json!({}), NAMES, &defaults.driver),
+        driver_config(&json!({}), (QQ, NAMES), &defaults.driver),
         keys(json!({"listen": 18301})),
         "没交的端口照默认值，令牌没有默认值不放"
     );
     assert_eq!(
         driver_config(
-            &json!({"im.listen": null, "im.token": TOKEN, "im.whitelist": ["qq:1"]}),
-            NAMES,
+            &json!({"im.qq.listen": null, "im.qq.token": TOKEN, "im.whitelist": ["qq:1"]}),
+            (QQ, NAMES),
             &defaults.driver
         ),
         keys(json!({"listen": 18301, "token": TOKEN})),
@@ -167,14 +173,14 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
 fn a_push_changes_only_the_keys_it_carries() {
     let defaults = fallback();
     let mut driver = driver_config(
-        &json!({"im.listen": 9000, "im.token": TOKEN}),
-        NAMES,
+        &json!({"im.qq.listen": 9000, "im.qq.token": TOKEN}),
+        (QQ, NAMES),
         &defaults.driver,
     );
     let pushed = |value: Value, driver: &mut Map<String, Value>| {
-        merge_driver(driver, &keys(value), NAMES, &defaults.driver)
+        merge_driver(driver, &keys(value), (QQ, NAMES), &defaults.driver)
     };
-    assert!(pushed(json!({"im.token": "new"}), &mut driver));
+    assert!(pushed(json!({"im.qq.token": "new"}), &mut driver));
     assert_eq!(
         read(&driver, &defaults),
         Settings {
@@ -182,9 +188,9 @@ fn a_push_changes_only_the_keys_it_carries() {
             token: secret("new")
         }
     );
-    pushed(json!({"im.listen": 9100}), &mut driver);
+    pushed(json!({"im.qq.listen": 9100}), &mut driver);
     assert_eq!(read(&driver, &defaults).port, 9100);
-    pushed(json!({"im.token": null}), &mut driver);
+    pushed(json!({"im.qq.token": null}), &mut driver);
     assert_eq!(
         read(&driver, &defaults),
         Settings {
@@ -193,7 +199,7 @@ fn a_push_changes_only_the_keys_it_carries() {
         },
         "null 当没有：令牌没了"
     );
-    pushed(json!({"im.listen": null}), &mut driver);
+    pushed(json!({"im.qq.listen": null}), &mut driver);
     assert_eq!(
         read(&driver, &defaults).port,
         18301,
@@ -235,7 +241,7 @@ fn whitelist_is_a_list_of_text() {
 }
 
 #[test]
-fn the_web_port_is_an_unknown_key_now() {
+fn the_platform_and_page_keys_are_grouped() {
     // 照真核心起来时那样把出厂的包的配置项拼进来（`Packaged`，同 `support::Home`）。包的程序不在主程序旁边的当没装、配置项不拼
     // （`package-pages.md`「程序不在就当没装」）：先把 `miyu-im` 链到测试程序旁边（同 `Home::spawning`）。
     crate::support::spawning::linked();
@@ -252,14 +258,17 @@ fn the_web_port_is_an_unknown_key_now() {
             .collect()
     };
     assert_eq!(
-        codes("[im]\nlisten = 8301\n"),
+        codes("[im.qq]\nlisten = 8301\n[im.web]\nport = 8302\n"),
         Vec::<(Code, Option<String>)>::new(),
-        "NapCat 的端口照旧认"
+        "NapCat 的端口在平台那一组、页面服务的在 web 那一组（施工 I-3 补）"
     );
     assert_eq!(
-        codes("[im]\nweb = 8302\n"),
-        [(Code::UnknownKey, Some("im.web".to_string()))],
-        "原来桥自己的网页的端口不认（施工 O-28 下）"
+        codes("[im]\nlisten = 8301\nweb_port = 8302\n"),
+        [
+            (Code::UnknownKey, Some("im.listen".to_string())),
+            (Code::UnknownKey, Some("im.web_port".to_string()))
+        ],
+        "没分组的旧键不认（没发过版，不迁移）"
     );
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。

@@ -61,13 +61,13 @@ impl Changing {
         .await
     }
 
-    /// 推一个挑来的空端口当 `im.listen`，等状态文件换成它：交回它。挑来放掉以后被别人先拿走了的（桥换不成，旧的照旧）
+    /// 推一个挑来的空端口当 `im.qq.listen`，等状态文件换成它：交回它。挑来放掉以后被别人先拿走了的（桥换不成，旧的照旧）
     /// 换一个再来，最多 [`TRIES`] 次（`support/ports.rs`）。不推 0：配置里写 0 的每次都是 0，桥不当成变了（`onebot.md`
     /// 第一条「怎么走」第 1 条：照配置里写的比）。
     async fn moved(&self) -> u16 {
         for _ in 0..TRIES {
             let new = free_port();
-            self.push.config(json!({"im.listen": new}));
+            self.push.config(json!({"im.qq.listen": new}));
             let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
             while tokio::time::Instant::now() < deadline {
                 if status_file::read(&self.root).is_some_and(|file| file["listen"] == new) {
@@ -157,7 +157,7 @@ async fn a_pushed_port_that_is_taken_changes_nothing_and_is_not_tried_again() {
     let first = changing.bridge.port;
     changing.written(|now| now == u64::from(first)).await;
     let (taken, port) = held();
-    changing.push.config(json!({"im.listen": port}));
+    changing.push.config(json!({"im.qq.listen": port}));
     // 换不成：旧的照旧。推送是异步的，等一阵再看（照对的样子，这一阵里一直是旧的）。
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(
@@ -190,7 +190,7 @@ async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
     let changing = Changing::start().await;
     let port = changing.bridge.port;
     let _open = admin_napcat(port).await;
-    changing.push.config(json!({"im.token": NEW}));
+    changing.push.config(json!({"im.qq.token": NEW}));
     // 不报号：不顶掉连着的那一条。
     admitted(port, "/ws", Auth::Bearer(NEW), None)
         .await
@@ -206,7 +206,7 @@ async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
     );
     assert_eq!(status["token"], "set");
     // 令牌没了：一律 401，`status` 说没设。
-    changing.push.config(json!({"im.token": null}));
+    changing.push.config(json!({"im.qq.token": null}));
     refused(port, NEW).await;
     assert_eq!(page_status(&changing.push, "core-2").await["token"], "none");
     let nothing = napcat(port, "/ws", Auth::Nothing, None).await;

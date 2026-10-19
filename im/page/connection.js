@@ -5,7 +5,7 @@
 // 骨架、字、通道都在 app.js，经 connectionView 的参数交过来；这里不碰全局的东西。
 
 /** 「连接」页读写的两项设置。 */
-const KEYS = { listen: 'im.listen', token: 'im.token' };
+const KEYS = { listen: 'im.qq.listen', token: 'im.qq.token' };
 
 /** 生成令牌：多少个随机字节，写成十六进制（同桥自己的网页，施工单「要定的」第 1 条）。 */
 const TOKEN_BYTES = 32;
@@ -140,7 +140,7 @@ export function connectionView(ui) {
   };
 }
 
-/** NapCat 的端口：写 im.listen，写错的照网页交回的原话说。存好了桥收到推送当场换，再照 status 看实际听的（「施工时定的」
+/** NapCat 的端口：写 im.qq.listen，写错的照网页交回的原话说。存好了桥收到推送当场换，再照 status 看实际听的（「施工时定的」
  *  第 156 条）。交回 `{el, changed}`：设置项变了、格里没改过的跟着换。 */
 function portsCard(ui) {
   const { h, say } = ui;

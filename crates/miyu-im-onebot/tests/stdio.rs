@@ -80,7 +80,7 @@ async fn a_port_in_use_is_said_in_the_language_of_the_handshake() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
     let port = taken.local_addr().expect("有地址").port();
     // 系统的语言是英文（`program`），握手回中文：照中文说才是照握手回的语言。
-    let served = served(&root, json!({"im.listen": port})).await;
+    let served = served(&root, json!({"im.qq.listen": port})).await;
     let exited = within("桥退出", served.child.wait_with_output())
         .await
         .expect("等得到");
@@ -141,11 +141,11 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
 #[tokio::test]
 async fn the_old_web_port_in_the_handshake_is_not_opened() {
     let (dir, root) = temp_root();
-    // 原来桥自己的网页的端口：握手交来了也不认（施工 O-28 下，「施工时定的」第 170 条）。im 自己的页面照 `im.web_port`
+    // 原来桥自己的网页的端口：握手交来了也不认（施工 O-28 下，「施工时定的」第 170 条）。im 自己的页面照 `im.web.port`
     // （施工 I-5 上，`served` 交 0：系统挑）。
     let web = free_port();
     let (mut served, listen) = on_free_port(async |listen| {
-        let config = json!({"im.listen": listen, "im.web": web, "im.token": TOKEN});
+        let config = json!({"im.qq.listen": listen, "im.web": web, "im.qq.token": TOKEN});
         Ok((served_with(&root, config, listen).await?, listen))
     })
     .await;

@@ -217,7 +217,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.notice(&Notice::NoToken),
-        "还没设令牌（im.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu im web），填进 NapCat，几秒内就连上。"
+        "还没设令牌（im.qq.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu im web），填进 NapCat，几秒内就连上。"
     );
     assert_eq!(
         texts.usage(),

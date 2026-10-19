@@ -109,8 +109,8 @@ async fn revived(
     let (dir, root) = temp_root();
     let (mut served, listen) = on_free_port(async |listen| {
         let mut config = config.clone();
-        config["im.listen"] = json!(listen);
-        config["im.token"] = json!(TOKEN);
+        config["im.qq.listen"] = json!(listen);
+        config["im.qq.token"] = json!(TOKEN);
         Ok((served_listening(&root, config, listen).await?, listen))
     })
     .await;

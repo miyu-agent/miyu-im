@@ -356,8 +356,8 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
     let hello: Value = serde_json::from_str(&first).expect("握手是一行 JSON");
     // 页面服务的端口没交的让系统挑（施工 I-5 上）：不碰出厂的 8302。
     let mut config = config;
-    if config.get("im.web_port").is_none() {
-        config["im.web_port"] = serde_json::json!(0);
+    if config.get("im.web.port").is_none() {
+        config["im.web.port"] = serde_json::json!(0);
     }
     let reply = serde_json::json!({
         "jsonrpc": "2.0",
@@ -392,10 +392,10 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
 /// `venue.sessions`（[`Served::listed`]，施工 O-32）。它退了、标准错误
 /// 说的是这个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
 pub async fn served_up(root: &DataRoot, listen: u16) -> Result<Served, Taken> {
-    served_with(root, serde_json::json!({"im.listen": listen}), listen).await
+    served_with(root, serde_json::json!({"im.qq.listen": listen}), listen).await
 }
 
-/// 同 [`served_up`]，握手交的配置是 `config`（里面的 `im.listen` 是 `listen`）。
+/// 同 [`served_up`]，握手交的配置是 `config`（里面的 `im.qq.listen` 是 `listen`）。
 pub async fn served_with(root: &DataRoot, config: Value, listen: u16) -> Result<Served, Taken> {
     let mut served = served_listening(root, config, listen).await?;
     served.listed().await;
@@ -431,7 +431,7 @@ pub async fn served_listening(
     Err(Taken)
 }
 
-/// 系统配置：端口照写，页面服务的端口另挑一个空着的（施工 I-5 上：真核心照清单查，不收 0），令牌是 `im.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
+/// 系统配置：端口照写，页面服务的端口另挑一个空着的（施工 I-5 上：真核心照清单查，不收 0），令牌是 `im.qq.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
 /// `Home` 写在前面。
 pub fn ports_config(listen: u16) -> String {
     ports_config_with(listen, "")
@@ -440,7 +440,7 @@ pub fn ports_config(listen: u16) -> String {
 /// 同 [`ports_config`]，`[im]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。
 pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
-        "\n[im]\nlisten = {listen}\nweb_port = {}\ntoken = {{ secret = \"im\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n",
+        "\n[im]\n{onebot}\n[im.qq]\nlisten = {listen}\ntoken = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
         free_port()
     )
 }

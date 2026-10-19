@@ -3,14 +3,16 @@
 //! （`{"keys": {键: 新值或 null}}`，只放变了的键；`extensions.md`「配置」）。桥不读系统配置、密钥文件，不依赖核心的 crate
 //! （「施工时定的」第 6 条）。
 //!
-//! - 驱动的配置项（施工 I-3，设计 01 第六节）：名字由驱动报（OneBot 是 `listen`、`token`），键照 [`driver_key`] 拼；握手交来的、
+//! - 驱动的配置项（施工 I-3，设计 01 第六节）：名字由驱动报（OneBot 是 `listen`、`token`），在平台名那一组，键照 [`key`] 拼
+//!   （`im.qq.listen`，施工 I-3 补）；握手交来的、
 //!   推来的照 [`driver_config`]、[`merge_driver`] 挑出来，没有的、`null` 的照清单 `[settings]` 的默认值（[`Defaults`]，
 //!   「施工时定的」第 38 条），交给驱动读，宿主不认它们是什么。
 //! - 白名单成员 `im.whitelist`（施工 O-23；O-27 从 `im.trusted` 改名，旧键不认）：跟核心的那一头照 [`whitelist`] 读
 //!   一份、推来的换（「群里怎么叫她」第 3 条）。别的键不认。
 //!
-//! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。驱动的键
-//! 以后是 `<包的编号>.<平台>.<名字>`（2026-10-19 项目主人定，等核心的设置名能带一层前缀，随 I-4 改），只改 [`driver_key`]。
+//! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。驱动、
+//! 页面服务的键多一层组 `<包的编号>.<组>.<名字>`（2026-10-19 项目主人定；核心 9287d31d 起清单认 `[settings.<组>.<名字>]`，施工
+//! I-3 补），照 [`key`] 拼。
 
 use serde_json::{Map, Value};
 
@@ -28,8 +30,11 @@ const WHITELIST: &str = "whitelist";
 /// 群里回执要撤回的命令：清单里的名字（施工 O-47）。
 const RECALL_RECEIPTS: &str = "recall_receipts";
 
-/// 页面服务的配置项的名字（施工 I-5 上）：端口。设计里的键是 `im.web.port`，核心的设置名能带一层前缀以后和驱动的键一起改。
-pub const SITE: &[&str] = &["web_port"];
+/// 页面服务的配置项在哪一组（施工 I-3 补：核心的设置名能带一层组以后，键是 `im.web.port`）。
+pub const SITE_GROUP: &str = "web";
+
+/// 页面服务的配置项的名字（施工 I-5 上）：端口。
+pub const SITE: &[&str] = &["port"];
 
 /// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,18 +43,19 @@ pub struct Defaults {
     pub recall_receipts: Vec<String>,
     /// 驱动的配置项的默认值，照名字（施工 I-3：OneBot 的 `listen` 出厂 8301）；没写默认值的不放。
     pub driver: Map<String, Value>,
-    /// 页面服务的配置项（[`SITE`]）的默认值，照名字（施工 I-5 上：`web_port` 出厂 8302）。
+    /// 页面服务的配置项（[`SITE`]）的默认值，照名字（施工 I-5 上：`port` 出厂 8302）。
     pub site: Map<String, Value>,
 }
 
 impl Defaults {
     /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取撤回回执的
-    /// 命令（施工 O-47）、驱动的配置项 `driver`（施工 I-3）、页面服务的配置项（施工 I-5 上）的默认值。
+    /// 命令（施工 O-47）、驱动的配置项（施工 I-3：在平台名 `group` 那一组，名字是 `names`）、页面服务的配置项（施工 I-5 上）的
+    /// 默认值。交回的照组里的名字放。
     ///
     /// # Errors
     ///
     /// 清单不在、读不成、写错了，撤回回执的命令没声明、默认值不是字的列表：原话里说是哪个文件。
-    pub fn load(package: &Package, driver: &[&str]) -> Result<Defaults, String> {
+    pub fn load(package: &Package, (group, names): (&str, &[&str])) -> Result<Defaults, String> {
         let path = package.dir().join(MANIFEST);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
@@ -69,20 +75,24 @@ impl Defaults {
                 _ => None,
             })
             .ok_or_else(|| bad(format!("no list default for {PACKAGE}.{RECALL_RECEIPTS}")))?;
-        let defaults = |names: &[&str]| {
+        // 清单里分组的项名字是 `<组>.<名字>`（核心 9287d31d）：照组挑，交回组里的名字。
+        let defaults = |group: &str, names: &[&str]| {
             manifest
                 .settings
                 .iter()
-                .filter(|setting| names.contains(&setting.name.as_str()))
                 .filter_map(|setting| {
-                    Some((setting.name.clone(), json(setting.default.as_ref()?)?))
+                    let name = setting.name.strip_prefix(group)?.strip_prefix('.')?;
+                    names.contains(&name).then_some((name, setting))
+                })
+                .filter_map(|(name, setting)| {
+                    Some((name.to_string(), json(setting.default.as_ref()?)?))
                 })
                 .collect()
         };
         Ok(Defaults {
             recall_receipts,
-            driver: defaults(driver),
-            site: defaults(SITE),
+            driver: defaults(group, names),
+            site: defaults(SITE_GROUP, SITE),
         })
     }
 }
@@ -100,35 +110,33 @@ fn json(value: &manifest::Value) -> Option<Value> {
     })
 }
 
-/// 驱动的配置项 `name` 的键（施工 I-3）。
-pub fn driver_key(name: &str) -> String {
-    format!("{PACKAGE}.{name}")
+/// 组 `group` 里的配置项 `name` 的键：`im.<组>.<名字>`（施工 I-3 补：驱动的组是平台名，`im.qq.listen`；页面服务的是
+/// [`SITE_GROUP`]，`im.web.port`）。
+pub fn key(group: &str, name: &str) -> String {
+    format!("{PACKAGE}.{group}.{name}")
 }
 
-/// 页面服务的配置项 `name` 的键（施工 I-5 上）。
-pub fn site_key(name: &str) -> String {
-    format!("{PACKAGE}.{name}")
-}
-
-/// 握手交来的 `config` 里驱动的那几项 `names`（施工 I-3）：照名字放，没交的、`null` 的照 `defaults`，默认值也没有的不放。
-/// `config` 不是对象的当什么都没交。
+/// 握手交来的 `config` 里驱动的那几项（组 `group` 里的 `names`，施工 I-3）：照名字放，没交的、`null` 的照 `defaults`，默认值
+/// 也没有的不放。`config` 不是对象的当什么都没交。
 pub fn driver_config(
     config: &Value,
-    names: &[&str],
+    (group, names): (&str, &[&str]),
     defaults: &Map<String, Value>,
 ) -> Map<String, Value> {
-    pick(config, (names, driver_key), defaults)
+    pick(config, (group, names), defaults)
 }
 
-/// 同 [`driver_config`]，键照 `key` 拼（施工 I-5 上：驱动、页面服务各一组）。
+/// 同 [`driver_config`]（施工 I-5 上：驱动、页面服务各一组）。
 pub(crate) fn pick(
     config: &Value,
-    (names, key): (&[&str], fn(&str) -> String),
+    (group, names): (&str, &[&str]),
     defaults: &Map<String, Value>,
 ) -> Map<String, Value> {
     let mut driver = Map::new();
     for name in names {
-        let value = config.get(key(name)).filter(|value| !value.is_null());
+        let value = config
+            .get(key(group, name))
+            .filter(|value| !value.is_null());
         if let Some(value) = value.or_else(|| defaults.get(*name)) {
             driver.insert((*name).to_string(), value.clone());
         }
@@ -141,22 +149,22 @@ pub(crate) fn pick(
 pub fn merge_driver(
     driver: &mut Map<String, Value>,
     keys: &Map<String, Value>,
-    names: &[&str],
+    (group, names): (&str, &[&str]),
     defaults: &Map<String, Value>,
 ) -> bool {
-    merge(driver, keys, (names, driver_key), defaults)
+    merge(driver, keys, (group, names), defaults)
 }
 
-/// 同 [`merge_driver`]，键照 `key` 拼（施工 I-5 上）。
+/// 同 [`merge_driver`]（施工 I-5 上）。
 pub(crate) fn merge(
     driver: &mut Map<String, Value>,
     keys: &Map<String, Value>,
-    (names, key): (&[&str], fn(&str) -> String),
+    (group, names): (&str, &[&str]),
     defaults: &Map<String, Value>,
 ) -> bool {
     let before = driver.clone();
     for name in names {
-        let Some(value) = keys.get(&key(name)) else {
+        let Some(value) = keys.get(&key(group, name)) else {
             continue;
         };
         match Some(value)

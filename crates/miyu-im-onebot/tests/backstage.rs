@@ -145,7 +145,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     let unset = head
         .call(
             "config.set",
-            json!({"layer": "system", "changes": [{"key": "im.token", "unset": true}]}),
+            json!({"layer": "system", "changes": [{"key": "im.qq.token", "unset": true}]}),
         )
         .await;
     assert!(unset.get("result").is_some(), "{unset}");

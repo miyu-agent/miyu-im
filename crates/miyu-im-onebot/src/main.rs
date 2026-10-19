@@ -172,7 +172,14 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
     let owed = Arc::new(Mutex::new(log.err().map(|error| error.to_string())));
     let package = texts.package().clone();
     let loaded = Tuning::load(&package.data()).and_then(|tuning| {
-        Defaults::load(&package, miyu_im_onebot::settings::NAMES).map(|defaults| (tuning, defaults))
+        Defaults::load(
+            &package,
+            (
+                miyu_im_onebot::onebot::PLATFORM.name(),
+                miyu_im_onebot::settings::NAMES,
+            ),
+        )
+        .map(|defaults| (tuning, defaults))
     });
     let (tuning, defaults) = match loaded {
         Ok(loaded) => loaded,

@@ -9,14 +9,14 @@ use serde_json::{Map, Value};
 use tokio::sync::watch;
 
 use crate::rules::Configured;
-use crate::settings::{SITE, driver_key, merge, pick, site_key};
+use crate::settings::{SITE, SITE_GROUP, merge, pick};
 
-/// 挑出来的一组配置项：名字、键怎么拼、推来 `null` 的照的默认值、最新的值（施工 I-5 上从驱动的那一份抽出来）。
+/// 挑出来的一组配置项：在哪一组、名字、推来 `null` 的照的默认值、最新的值（施工 I-5 上从驱动的那一份抽出来）。
 struct Watched {
+    /// 组：键是 `im.<组>.<名字>`（施工 I-3 补）。
+    group: &'static str,
     /// 配置项的名字。
     names: &'static [&'static str],
-    /// 名字拼成键。
-    key: fn(&str) -> String,
     /// 推来 `null` 的照它（清单的默认值）。
     defaults: Map<String, Value>,
     /// 最新的值，照名字。
@@ -24,16 +24,16 @@ struct Watched {
 }
 
 impl Watched {
-    /// 从握手交来的 `config` 里挑出 `names`（键照 `key` 拼，没交的照 `defaults`）。
+    /// 从握手交来的 `config` 里挑出组 `group` 的 `names`（没交的照 `defaults`）。
     fn new(
         config: &Value,
-        (names, key): (&'static [&'static str], fn(&str) -> String),
+        (group, names): (&'static str, &'static [&'static str]),
         defaults: Map<String, Value>,
     ) -> Watched {
-        let (values, _) = watch::channel(pick(config, (names, key), &defaults));
+        let (values, _) = watch::channel(pick(config, (group, names), &defaults));
         Watched {
+            group,
             names,
-            key,
             defaults,
             values,
         }
@@ -41,8 +41,9 @@ impl Watched {
 
     /// 推来的变化 `keys` 合进来：变了的通知拿着的。
     fn change(&self, keys: &Map<String, Value>) {
-        self.values
-            .send_if_modified(|values| merge(values, keys, (self.names, self.key), &self.defaults));
+        self.values.send_if_modified(|values| {
+            merge(values, keys, (self.group, self.names), &self.defaults)
+        });
     }
 }
 
@@ -57,17 +58,17 @@ pub(crate) struct Current {
 }
 
 impl Current {
-    /// 手里先拿着握手交来的 `config`：驱动的那几项 `names` 挑出来（没交的照 `defaults`），页面服务的那几项照 `site` 的默认值
-    /// 挑，群的几项是 `configured`。
+    /// 手里先拿着握手交来的 `config`：驱动的那几项（平台名那一组 `group` 的 `names`）挑出来（没交的照 `defaults`），页面服务的
+    /// 那几项照 `site` 的默认值挑，群的几项是 `configured`。
     pub(crate) fn new(
         config: &Value,
-        (names, defaults): (&'static [&'static str], Map<String, Value>),
+        (group, names, defaults): (&'static str, &'static [&'static str], Map<String, Value>),
         site: Map<String, Value>,
         configured: Configured,
     ) -> Current {
         Current {
-            driver: Watched::new(config, (names, driver_key), defaults),
-            site: Watched::new(config, (SITE, site_key), site),
+            driver: Watched::new(config, (group, names), defaults),
+            site: Watched::new(config, (SITE_GROUP, SITE), site),
             configured: Mutex::new(configured),
         }
     }

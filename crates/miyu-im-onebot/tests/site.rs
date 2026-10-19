@@ -175,7 +175,7 @@ async fn a_new_page_port_replaces_the_old_one_and_a_taken_one_keeps_it() {
     let bridge = start(serve).await;
     let first = page_port(&bridge, 1).await;
     let wanted = free_port();
-    relay.config(json!({"im.web_port": wanted}));
+    relay.config(json!({"im.web.port": wanted}));
     let second = page_port(&bridge, 2).await;
     assert_eq!(second, wanted, "照推来的端口开");
     assert_eq!(get(second, "/").await.status, 200);
@@ -187,7 +187,7 @@ async fn a_new_page_port_replaces_the_old_one_and_a_taken_one_keeps_it() {
     );
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
     let taken_port = taken.local_addr().expect("有地址").port();
-    relay.config(json!({"im.web_port": taken_port}));
+    relay.config(json!({"im.web.port": taken_port}));
     within("说端口被占了", async {
         loop {
             let said = bridge.notices.lock().expect("没 panic").clone();

@@ -1,6 +1,6 @@
 //! 页面服务（设计 01 第九节第 1、3 条，施工 I-5 上）：im 自己的页面，只听本机。
 //!
-//! 1. 起来：听 `127.0.0.1` 的 `im.web_port`（`crate::current` 交来的页面服务那几项）。听上了说一句（`Notice::Page`）、端口报进
+//! 1. 起来：听 `127.0.0.1` 的 `im.web.port`（`crate::current` 交来的页面服务那几项）。听上了说一句（`Notice::Page`）、端口报进
 //!    状态（[`Port`]：后台页的 `status`、状态文件的 `web`）；被占了说一句（`Notice::PageInUse`）、记一行运行日志，桥照跑（页面是给人
 //!    改设置的，NapCat 收发消息不靠它）。
 //! 2. 每个 TCP 连接一个任务：当 HTTP 读（`request`），升级成 WebSocket 的接着当通道跑（`channel`）。接不了的歇一下再接。
@@ -43,8 +43,8 @@ use crate::serve::Notice;
 use crate::tuning::Tuning;
 use logins::Logins;
 
-/// 页面服务的配置项里端口的名字（`crate::settings::SITE`）。
-const PORT: &str = "web_port";
+/// 页面服务的配置项里端口的名字（`crate::settings::SITE`，键是 `im.web.port`）。
+const PORT: &str = "port";
 
 /// 人的连接握手时报的头（只记进核心的运行日志）。
 const HEAD: &str = "im-page";

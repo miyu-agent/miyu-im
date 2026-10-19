@@ -50,7 +50,7 @@ fn a_changed_system_file_is_read_at_the_next_use_after_the_interval() {
         "排在后面的盖它"
     );
     // 推来别的键、同样的值：不重读，照手里的。
-    let same = serde_json::json!({"im.listen": 9000, "im.sleep": "23:00-07:00"});
+    let same = serde_json::json!({"im.qq.listen": 9000, "im.sleep": "23:00-07:00"});
     venues.configure(same.as_object().expect("对象"));
     assert_eq!(sleep(&mut venues, 2001), Some(text("03:00-04:00")));
     clean(&dir);
@@ -173,7 +173,7 @@ fn pushed_settings_apply_at_once_and_sit_between_system_file_names() {
         "排在后面的盖它"
     );
     // 推来别的键、同样的值：不重读，照手里的。
-    let same = serde_json::json!({"im.listen": 9000, "im.sleep": "23:00-07:00"});
+    let same = serde_json::json!({"im.qq.listen": 9000, "im.sleep": "23:00-07:00"});
     venues.configure(same.as_object().expect("对象"));
     assert_eq!(sleep(&mut venues, 2001), Some(text("03:00-04:00")));
     clean(&dir);

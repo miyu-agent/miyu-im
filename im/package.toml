@@ -58,9 +58,10 @@ command = "qq-friends"
 dir = "page"
 
 # 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
-# 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。
+# 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。NapCat 的两项在
+# 平台那一组（键 im.qq.listen、im.qq.token，施工 I-3 补）。
 
-[settings.listen]
+[settings.qq.listen]
 type = "int"
 min = 1024
 max = 65535
@@ -70,16 +71,16 @@ applies = "now"
 name = { en = "Port", zh = "端口", ja = "ポート" }
 description = { en = "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.", zh = "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。", ja = "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。" }
 
-[settings.token]
+[settings.qq.token]
 type = "secret"
 layers = ["system"]
 applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
 description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect Messaging web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入通讯平台的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。メッセージング接続の Web ページで生成できます。" }
 
-# 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。设计里的键是 im.web.port，核心的设置名
-# 能带一层前缀以后改。
-[settings.web_port]
+# 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
+# 核心 9287d31d 起清单能多一层组）。
+[settings.web.port]
 type = "int"
 min = 1024
 max = 65535

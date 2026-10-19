@@ -176,7 +176,11 @@ pub async fn run(
     // 驱动的配置项挑出来交给驱动（施工 I-3），群的几项照旧。
     let current = Arc::new(Current::new(
         &core.config,
-        (serve.driver.settings(), serve.defaults.driver),
+        (
+            serve.driver.platform().name(),
+            serve.driver.settings(),
+            serve.defaults.driver,
+        ),
         serve.defaults.site,
         Configured::handed(&core.config),
     ));

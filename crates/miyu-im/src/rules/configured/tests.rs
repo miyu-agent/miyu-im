@@ -171,7 +171,7 @@ fn rules_name_their_settings_in_order() {
 fn pushed_changes_merge_and_say_whether_anything_moved() {
     let mut configured = Configured::handed(&everything());
     // 别的包的、端口、去掉的四项都不算变。
-    let unchanged = json!({"im.listen": 9000, "im.sleep": "23:00-07:00", "other.sleep": "off", "im.groups": [1]});
+    let unchanged = json!({"im.qq.listen": 9000, "im.sleep": "23:00-07:00", "other.sleep": "off", "im.groups": [1]});
     assert!(!configured.change(unchanged.as_object().expect("对象")));
     // `null` 回到默认：不看 QQ 号。
     assert!(configured.change(json!({"im.show_ids": null}).as_object().expect("对象")));

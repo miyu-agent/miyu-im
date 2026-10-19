@@ -89,14 +89,14 @@ async fn until_refused(port: u16, token: &str) {
     }
 }
 
-/// 经核心把 `im.listen` 改成挑的一个空端口，等桥当场换上：状态文件里的 `listen` 是它。桥说它被占了（运行日志
+/// 经核心把 `im.qq.listen` 改成挑的一个空端口，等桥当场换上：状态文件里的 `listen` 是它。桥说它被占了（运行日志
 /// `apply port in use port=<它>`：挑来放掉以后被别人先拿走了，`support/ports.rs`）的换一个再来，最多 [`TRIES`] 次。交回换上的
 /// 端口。
 async fn moved(root: &DataRoot) -> u16 {
     let log = root.state().join("logs").join("im.log");
     for _ in 0..TRIES {
         let new = free_port();
-        let change = json!({"layer": "system", "changes": [{"key": "im.listen", "value": new}]});
+        let change = json!({"layer": "system", "changes": [{"key": "im.qq.listen", "value": new}]});
         core_call(root, "config.set", change).await;
         let in_use = format!("apply port in use port={new}");
         let deadline = tokio::time::Instant::now() + WAIT;
@@ -317,8 +317,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
         json!({"name": "other", "value": OTHER}),
     )
     .await;
-    let other =
-        json!({"layer": "system", "changes": [{"key": "im.token", "value": {"secret": "other"}}]});
+    let other = json!({"layer": "system", "changes": [{"key": "im.qq.token", "value": {"secret": "other"}}]});
     core_call(&home.root, "config.set", other).await;
     until_admitted(listen, OTHER).await.close().await;
     let old = napcat(listen, "/ws", Auth::Bearer(NEW), None).await;
@@ -332,7 +331,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let address = zh(&Report::Listen(u64::from(new_listen)));
     until_status(&home.root, |out| out.contains(&address)).await;
     // 删了令牌：以后连进来的一律 401。
-    let unset = json!({"layer": "system", "changes": [{"key": "im.token", "unset": true}]});
+    let unset = json!({"layer": "system", "changes": [{"key": "im.qq.token", "unset": true}]});
     core_call(&home.root, "config.set", unset).await;
     until_refused(new_listen, OTHER).await;
     open.close().await;
