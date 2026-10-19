@@ -35,6 +35,7 @@ pub mod driver;
 pub mod logs;
 mod media;
 pub mod package;
+pub mod plugins;
 pub mod rules;
 mod running;
 pub mod serve;

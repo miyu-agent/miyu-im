@@ -112,6 +112,7 @@ use crate::chat::{Bots, Platform};
 use crate::chat::{Event, Members, To};
 use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
+use crate::plugins::Toggles;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
@@ -263,6 +264,7 @@ impl Route {
             (personas, Arc::clone(&hooks)),
         );
         let tools = rules.tools();
+        hooks.set_toggles(Toggles::from_cards(rules.cards()));
         Route {
             core,
             platform,
@@ -316,6 +318,7 @@ impl Route {
         if self.revive().await.is_err() || self.follow_packages().await.is_err() {
             return None;
         }
+        self.reload_plugins();
         let mut open = true;
         loop {
             let wake = self.wake();

@@ -19,6 +19,7 @@ use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
+use crate::plugins::Toggles;
 use crate::rules::{Card, Cards, card_defaults, save_cards};
 use miyu_chat::VenueKind;
 
@@ -134,6 +135,8 @@ impl Route {
             "venue cards saved"
         );
         self.rules.set_cards(cards);
+        self.hooks
+            .set_toggles(Toggles::from_cards(self.rules.cards()));
         self.forget_privates();
         answerer.answer(id, json!({"saved": true}));
         // 在看两页的照新的推（施工 O-58 下，`pages`）。

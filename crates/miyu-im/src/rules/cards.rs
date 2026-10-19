@@ -17,6 +17,8 @@ pub mod edit;
 pub mod page;
 mod store;
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -108,6 +110,9 @@ pub struct GroupSet {
     /// 仅发送最终消息（施工 O-57）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub final_only: Option<bool>,
+    /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<BTreeMap<String, bool>>,
 }
 
 /// 私聊卡能设的几格：睡觉、限流本来就不管白名单成员，不给。
@@ -129,6 +134,9 @@ pub struct PrivateSet {
     /// 仅发送最终消息（施工 O-57）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub final_only: Option<bool>,
+    /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<BTreeMap<String, bool>>,
 }
 
 /// 「其他私聊」卡能设的几格（施工 O-60）：陌生人（不是终端管理员、不在白名单里的人）的私聊。回复没写的不回复。
@@ -156,6 +164,9 @@ pub struct OtherPrivateSet {
     /// 仅发送最终消息。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub final_only: Option<bool>,
+    /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<BTreeMap<String, bool>>,
 }
 
 /// 一个群的卡。

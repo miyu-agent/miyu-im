@@ -21,7 +21,10 @@ use serde_json::{Value, json};
 use super::caller::Caller;
 use super::reason;
 use crate::TARGET;
-use crate::chat::Platform;
+use miyu_chat::VenueKind;
+
+use crate::chat::{Cap, Platform, To};
+use crate::plugins::{Plugins, Toggles};
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
 pub(crate) const EVENT: &str = "chat.event";
@@ -127,17 +130,31 @@ pub(crate) struct Hooks {
     wait: Duration,
     /// 交给挂接点的参数带的平台（施工 I-1）。
     platform: Platform,
+    /// 驱动的能力表（施工 I-8 上）：插件在这个平台上能不能用照它算。
+    caps: &'static [Cap],
+    /// 认得的插件（施工 I-8 上）：不是插件的包不问。
+    plugins: Mutex<Plugins>,
+    /// 场所开关（施工 I-8 上）：只问在那个场所开着的。
+    toggles: Mutex<Toggles>,
     /// 在跑、导出了挂接点的包，照编号排。
     hooked: Mutex<BTreeMap<String, Vec<&'static str>>>,
 }
 
 impl Hooks {
-    /// 还没看过软件包列表的一份：哪一处都没挂；问进站挂接点每个最多等 `wait`；参数带的平台是 `platform`。
-    pub(crate) fn new(caller: Caller, wait: Duration, platform: Platform) -> Hooks {
+    /// 还没看过软件包列表的一份：哪一处都没挂、一个插件都不认得；问进站挂接点每个最多等 `wait`；参数带的平台是 `platform`，它的
+    /// 能力表是 `caps`。
+    pub(crate) fn new(
+        caller: Caller,
+        wait: Duration,
+        (platform, caps): (Platform, &'static [Cap]),
+    ) -> Hooks {
         Hooks {
             caller,
             wait,
             platform,
+            caps,
+            plugins: Mutex::new(Plugins::default()),
+            toggles: Mutex::new(Toggles::default()),
             hooked: Mutex::new(BTreeMap::new()),
         }
     }
@@ -160,15 +177,44 @@ impl Hooks {
         }
     }
 
-    /// 挂在 `point` 的包，照编号排。
-    pub(crate) fn at(&self, point: &str) -> Vec<String> {
-        hooked_at(&self.lock(), point)
+    /// 认得的插件换成 `plugins`（施工 I-8 上：起来时、核心推 `content.changed` 时读的）。
+    pub(crate) fn set_plugins(&self, plugins: Plugins) {
+        *self.plugins.lock().unwrap_or_else(PoisonError::into_inner) = plugins;
     }
 
-    /// NapCat 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`）交给挂在 [`EVENT`] 的每一个包：各起一个小任务发，不等
-    /// 回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
-    pub(crate) fn event(&self, bot: i64, event: &Value) {
-        for package in self.at(EVENT) {
+    /// 场所开关换成 `toggles`（施工 I-8 上：卡片读进来、存下时拼的）。
+    pub(crate) fn set_toggles(&self, toggles: Toggles) {
+        *self.toggles.lock().unwrap_or_else(PoisonError::into_inner) = toggles;
+    }
+
+    /// 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的插件、在这个平台上能用、在这个
+    /// 场所开着（施工 I-8 上）。场所认不出的（`None`）照插件声明的默认。
+    pub(crate) fn at(&self, point: &str, to: Option<To>) -> Vec<String> {
+        let hooked = hooked_at(&self.lock(), point);
+        let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
+        let toggles = self.toggles.lock().unwrap_or_else(PoisonError::into_inner);
+        let venue = to.map(|to| match to {
+            To::Group(group) => (VenueKind::Group, group),
+            To::Private(user) => (VenueKind::Private, user),
+        });
+        hooked
+            .into_iter()
+            .filter(|package| {
+                let default = match plugins.usable(package, self.platform, self.caps) {
+                    Ok(()) => plugins
+                        .declared(package)
+                        .is_none_or(|declared| declared.default),
+                    Err(_) => return false,
+                };
+                toggles.enabled(venue, package, default)
+            })
+            .collect()
+    }
+
+    /// 平台推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`] 的每一个
+    /// 包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
+    pub(crate) fn event(&self, bot: i64, to: Option<To>, event: &Value) {
+        for package in self.at(EVENT, to) {
             let caller = self.caller.clone();
             let params = json!({"package": package, "method": EVENT, "params": {"platform": self.platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {

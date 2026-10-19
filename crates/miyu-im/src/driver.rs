@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use serde_json::{Map, Value};
 use tokio::sync::{Notify, mpsc, watch};
 
-use crate::chat::{Bots, Event, Platform};
+use crate::chat::{Bots, Cap, Event, Platform, To};
 use crate::core::hooks::Hooks;
 use crate::current::Current;
 use crate::serve::{Failure, Notice};
@@ -25,6 +25,9 @@ pub type Started = Pin<Box<dyn Future<Output = Result<Running, Failure>> + Send>
 pub trait Driver: Send + Sync {
     /// 平台：场所、平台上的人、命令编号照它的名字拼。
     fn platform(&self) -> Platform;
+
+    /// 这个平台做得到的几样（施工 I-8 上）：宿主照它算插件在这个平台上能不能用。
+    fn caps(&self) -> &'static [Cap];
 
     /// 驱动自己的配置项：清单 `[settings]` 里的名字（施工 I-3）。宿主照它挑出这几键交给驱动（[`Gate::config`]），别的键不给。
     fn settings(&self) -> &'static [&'static str];
@@ -137,8 +140,9 @@ impl Gate {
         self.changed.notify_one();
     }
 
-    /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等。
-    pub fn event(&self, bot: i64, event: &Value) {
-        self.hooks.event(bot, event);
+    /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：
+    /// 只问在那个场所开着的插件），认不出的是空的。
+    pub fn event(&self, bot: i64, to: Option<To>, event: &Value) {
+        self.hooks.event(bot, to, event);
     }
 }

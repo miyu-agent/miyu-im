@@ -18,6 +18,7 @@ use crate::TARGET;
 use crate::chat::Bots;
 use crate::core::caller::Caller;
 use crate::core::{Gone, reason};
+use crate::plugins::Toggles;
 use crate::rules::card_page::{self, FRIEND_PREFIX, GROUPS};
 use crate::rules::{Card, Cards, Edit, Known, Words, card_edit, save_cards};
 use crate::settings::whitelist_key;
@@ -204,6 +205,8 @@ impl Route {
         }
         tracing::info!(target: TARGET, groups = cards.groups.len(), privates = cards.privates.len(), "venue cards saved");
         self.rules.set_cards(cards);
+        self.hooks
+            .set_toggles(Toggles::from_cards(self.rules.cards()));
         self.forget_privates();
         self.repush_pages();
         json!({"saved": true})

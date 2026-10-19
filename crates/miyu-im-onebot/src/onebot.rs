@@ -178,6 +178,14 @@ fn request(frame: &Value) -> Option<Event> {
     }
 }
 
+/// 通知、请求是哪个场所的（施工 I-8 上：挂接点照场所开关问插件）：带群号的是那个群，不然带对方的号的是和他的私聊；都没有的
+/// 是空的。
+pub fn event_to(frame: &Value) -> Option<To> {
+    number(&frame["group_id"])
+        .map(To::Group)
+        .or_else(|| number(&frame["user_id"]).map(To::Private))
+}
+
 /// 事件里机器人的号（`self_id`）：连进来时没带 `X-Self-ID` 的，照第一条事件的认（第 2 条）。
 pub fn self_id(frame: &Value) -> Option<i64> {
     number(&frame["self_id"])

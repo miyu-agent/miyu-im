@@ -45,7 +45,8 @@ impl Route {
         voice: Voice,
         text: String,
     ) -> Result<(), Gone> {
-        let packages = self.hooks.at(OUTBOUND);
+        let to = self.peers.get(session).map(|peer| peer.to);
+        let packages = self.hooks.at(OUTBOUND, to);
         let peer = self.peers.get(session).cloned();
         let Some(peer) = peer.filter(|_| !packages.is_empty() || !self.voicing.is_empty()) else {
             return self.voiced_now(session, voice, &text).await;

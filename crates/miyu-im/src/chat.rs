@@ -3,6 +3,7 @@
 
 mod bots;
 mod calls;
+mod cap;
 mod event;
 #[cfg(test)]
 pub(crate) mod fake;
@@ -15,6 +16,7 @@ mod source;
 
 pub use bots::Bots;
 pub use calls::{CallError, DETAIL};
+pub use cap::{CAPS, Cap};
 pub use event::{Event, Lead, Posted, Recall, To};
 pub use forwards::Node;
 pub use link::{

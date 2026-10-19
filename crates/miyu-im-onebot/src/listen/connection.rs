@@ -101,7 +101,7 @@ async fn frame_in(
     if matches!(frame["post_type"].as_str(), Some("notice" | "request"))
         && let Some(id) = onebot::self_id(&frame)
     {
-        gate.event(id, &frame);
+        gate.event(id, onebot::event_to(&frame), &frame);
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {

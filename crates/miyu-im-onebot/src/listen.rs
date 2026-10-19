@@ -32,7 +32,7 @@ use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 use crate::onebot::{PLATFORM, number};
 use crate::settings::{NAMES, token};
 use miyu_im::TARGET;
-use miyu_im::chat::Platform;
+use miyu_im::chat::{CAPS, Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Started};
 
 /// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
@@ -42,6 +42,11 @@ pub struct OneBot;
 impl Driver for OneBot {
     fn platform(&self) -> Platform {
         PLATFORM
+    }
+
+    fn caps(&self) -> &'static [Cap] {
+        // OneBot（NapCat）每一样都做得到。
+        &CAPS
     }
 
     fn settings(&self) -> &'static [&'static str] {

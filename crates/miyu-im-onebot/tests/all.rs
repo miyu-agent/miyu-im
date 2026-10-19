@@ -47,6 +47,7 @@ mod page;
 mod pages;
 mod pipe;
 mod platform;
+mod plugins;
 mod private;
 mod private_media;
 mod profiled;

@@ -169,7 +169,11 @@ pub async fn run(
     let bots = Arc::new(Bots::default());
     let platform = serve.driver.platform();
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
-    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), platform));
+    let hooks = Arc::new(Hooks::new(
+        core.caller(),
+        serve.tuning.hook(),
+        (platform, serve.driver.caps()),
+    ));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let changed = Arc::new(Notify::new());
     let gate = Arc::new(Gate::new(

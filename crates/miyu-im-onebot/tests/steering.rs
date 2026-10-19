@@ -11,7 +11,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
-use crate::support::hooked::install;
+use crate::support::hooked::{install, until_hooked};
 use crate::support::*;
 
 /// 群里的别人。
@@ -58,27 +58,6 @@ fn hook(root: &DataRoot, id: &str, answer: &str) {
         answer => format!("answer:chat.inbound:{answer}"),
     };
     install(root, id, &[record, how], &["chat.inbound"]);
-}
-
-/// 等到挂了 `count` 个包：桥运行日志最后一行说挂了几个的（订阅的回应 `hooks learned`、推来的变化 `hooks changed`）是它。
-async fn until_hooked(home: &Home, count: usize) {
-    let wanted = format!("count={count}");
-    let deadline = tokio::time::Instant::now() + WAIT;
-    loop {
-        let log = run_log(&home.root);
-        let last = log
-            .lines()
-            .rev()
-            .find(|line| line.contains("hooks learned") || line.contains("hooks changed"));
-        if last.is_some_and(|line| line.split_whitespace().any(|word| word == wanted)) {
-            return;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "等不到挂上 {count} 个：{log}"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
 }
 
 /// 测试包 `id` 记下的调用。

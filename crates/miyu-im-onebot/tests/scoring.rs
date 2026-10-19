@@ -12,7 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
-use crate::support::hooked::install;
+use crate::support::hooked::{install, until_hooked};
 use crate::support::judge::*;
 use crate::support::*;
 
@@ -47,27 +47,6 @@ fn hook(root: &DataRoot, id: &str, bonus: f64) {
     let record = format!("record:{}", log_of(root, id).display());
     let how = format!("answer:chat.score:{{\"bonus\":{bonus}}}");
     install(root, id, &[record, how], &["chat.score"]);
-}
-
-/// 等到挂了 `count` 个包（同 `steering.rs`）。
-async fn until_hooked(home: &Home, count: usize) {
-    let wanted = format!("count={count}");
-    let deadline = tokio::time::Instant::now() + WAIT;
-    loop {
-        let log = run_log(&home.root);
-        let last = log
-            .lines()
-            .rev()
-            .find(|line| line.contains("hooks learned") || line.contains("hooks changed"));
-        if last.is_some_and(|line| line.split_whitespace().any(|word| word == wanted)) {
-            return;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "等不到挂上 {count} 个：{log}"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
 }
 
 /// 小林 @ 她，第 `message` 条。

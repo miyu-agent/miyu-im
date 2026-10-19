@@ -1,6 +1,8 @@
 //! 挂接点要的软件包列表（施工 O-43 上，`onebot.md` 第一条「挂接点」第 1 条）：起来时订阅核心的 `packages`（回应同
 //! `package.list`），之后推来的 `package.changed` 照换那一项，掉了队（`resync`）重新订阅。谁挂在哪记在 `crate::core::hooks`。
 //! 核心拒了订阅的记一行，照没有挂接点跑；请求写出去就接着办，不等回应，桥照常起来。
+//!
+//! im 的插件（施工 I-8 上，`crate::plugins`）同样起来时读一遍、核心推 `content.changed` 时再读，在小任务里读，不等。
 
 use std::sync::Arc;
 
@@ -9,6 +11,7 @@ use serde_json::{Value, json};
 use super::Route;
 use crate::TARGET;
 use crate::core::{Gone, reason};
+use crate::plugins::load;
 
 impl Route {
     /// 订阅软件包列表，照回应记下谁挂在哪：请求当场写出去（跟别的请求的先后一定），等回应交给一个小任务（`chores`），跟核心的
@@ -38,6 +41,17 @@ impl Route {
         Ok(())
     }
 
+    /// 读一遍 im 的插件（`crate::plugins::load`），读完交给挂接点：在小任务（`chores`）里读，跟核心的那一头不等它。
+    pub(super) fn reload_plugins(&mut self) {
+        let (caller, hooks) = (self.core.caller(), Arc::clone(&self.hooks));
+        self.chores.spawn(async move {
+            // 等的时候核心断开：跟核心的那一头会读到头、桥停下，这里没有别的要做。
+            if let Ok(plugins) = load(&caller).await {
+                hooks.set_plugins(plugins);
+            }
+        });
+    }
+
     /// 核心推来的一条 `pushed` 是不是软件包列表的：`package.changed` 照换那一项，`resync`（`packages`）重新订阅。是的交回真。
     ///
     /// # Errors
@@ -50,6 +64,11 @@ impl Route {
                 if let Some(package) = params["package"].as_str() {
                     self.hooks.changed(package, &params["entry"]);
                 }
+                Ok(true)
+            }
+            // 给 im 带内容的包装、卸、升级了（施工 I-8 上）：插件再读一遍。
+            Some("content.changed") => {
+                self.reload_plugins();
                 Ok(true)
             }
             Some("resync") if params["stream"] == "packages" => {

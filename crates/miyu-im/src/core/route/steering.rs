@@ -41,7 +41,8 @@ impl Route {
     ) -> Result<(), Gone> {
         // 重发的照记下这一刻看：问挂接点的这段时间投影会补上它。
         let known = self.known(&session, seq);
-        let packages = self.hooks.at(INBOUND);
+        let to = self.peers.get(&session).map(|peer| peer.to);
+        let packages = self.hooks.at(INBOUND, to);
         if packages.is_empty() && self.steering.is_empty() {
             return self
                 .called(&session, seq, heard, (Steered::pass(), known))

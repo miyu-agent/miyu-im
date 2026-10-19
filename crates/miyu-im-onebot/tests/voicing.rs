@@ -12,7 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
-use crate::support::hooked::install;
+use crate::support::hooked::{install, until_hooked};
 use crate::support::*;
 
 /// 群号。
@@ -43,27 +43,6 @@ fn calls(root: &DataRoot, id: &str) -> Vec<Value> {
         .lines()
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect()
-}
-
-/// 等到挂了 `count` 个包（同 `steering.rs`：桥运行日志最后一行说挂了几个的）。
-async fn until_hooked(home: &Home, count: usize) {
-    let wanted = format!("count={count}");
-    let deadline = tokio::time::Instant::now() + WAIT;
-    loop {
-        let log = run_log(&home.root);
-        let last = log
-            .lines()
-            .rev()
-            .find(|line| line.contains("hooks learned") || line.contains("hooks changed"));
-        if last.is_some_and(|line| line.split_whitespace().any(|word| word == wanted)) {
-            return;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "等不到挂上 {count} 个：{log}"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
 }
 
 /// 终端管理员在群里 @ 她，第 `message` 条。

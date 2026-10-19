@@ -10,6 +10,8 @@ use miyu_session::Models;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
+use super::events::run_log;
+use super::group::WAIT;
 use super::spawning::{self, link_beside};
 use super::{CONFIG, Home, TOKEN, resources};
 
@@ -31,7 +33,7 @@ fn linked() -> &'static str {
 }
 
 /// 往数据根 `root` 的管理员家目录装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
-/// 导出 `exports` 那几个方法，核心起来就拉起（`start = "always"`），不要能力。
+/// 导出 `exports` 那几个方法，核心起来就拉起（`start = "always"`），不要能力。导出了方法的是 im 的插件（施工 I-8 上）。
 pub fn install(root: &DataRoot, id: &str, args: &[String], exports: &[&str]) {
     install_starting(root, id, args, exports, "always");
 }
@@ -85,6 +87,17 @@ pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&
         quote(&mut args.iter().cloned()),
         quote(&mut exports.iter().map(|name| (*name).to_string())),
     );
+    // 挂挂接点的是 im 的插件（施工 I-8 上）：给 im 带一个目录，根上放 `plugin.toml`，哪个平台、哪个场所都开着。
+    let manifest = match exports.is_empty() {
+        true => manifest,
+        false => {
+            let plugin = dir.join("im");
+            std::fs::create_dir_all(&plugin).expect("建得了目录");
+            let declared = format!("[plugin]\nname = {{ en = \"Hook {id}\" }}\n");
+            std::fs::write(plugin.join("plugin.toml"), declared).expect("写得进");
+            format!("{manifest}\n[content.im]\ndir = \"im\"\n")
+        }
+    };
     std::fs::write(dir.join("package.toml"), manifest).expect("写得进");
 }
 
@@ -136,4 +149,35 @@ pub fn showing() -> Catalog {
         .collect::<Vec<_>>();
     assert_eq!(tools.len(), 1, "基础系统有 show");
     Catalog::new(tools).expect("登记得上")
+}
+
+/// 等到挂了 `count` 个包、读到了 `count` 个插件（施工 I-8 上：插件另起任务读，两样都齐了挂接点才问）：同 [`until_plugged`]。
+pub async fn until_hooked(home: &Home, count: usize) {
+    until_plugged(home, count, count).await;
+}
+
+/// 等到挂了 `hooked` 个包（导出了挂接点、在跑的）、读到了 `plugins` 个插件：桥运行日志里最后一行说挂了几个的（订阅的回应
+/// `hooks learned`、推来的变化 `hooks changed`）、最后一行说读到几个插件的（`plugins loaded`）。
+pub async fn until_plugged(home: &Home, hooked: usize, plugins: usize) {
+    let said = |log: &str, marks: &[&str], count: usize| {
+        let wanted = format!("count={count}");
+        log.lines()
+            .rev()
+            .find(|line| marks.iter().any(|mark| line.contains(mark)))
+            .is_some_and(|line| line.split_whitespace().any(|word| word == wanted))
+    };
+    let deadline = tokio::time::Instant::now() + WAIT;
+    loop {
+        let log = run_log(&home.root);
+        if said(&log, &["hooks learned", "hooks changed"], hooked)
+            && said(&log, &["plugins loaded"], plugins)
+        {
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "等不到挂上 {hooked} 个、{plugins} 个插件：{log}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
 }
