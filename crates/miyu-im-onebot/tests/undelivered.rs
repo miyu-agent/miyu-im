@@ -314,6 +314,10 @@ async fn private_words_come_back_too() {
         noted[0]["body"],
         json!({"kind": "undelivered", "text": fact("rejected", &detail, "在")})
     );
+    // 首页「今天」数没发出去的（施工 I-6 下）。
+    let day =
+        crate::support::events::until_counted(&home.root, |day| day["undelivered"] == 1).await;
+    assert_eq!(day["replied"], 0, "{day}");
     stopped(home).await;
 }
 

@@ -19,12 +19,13 @@ use miyu_client::time::Timestamp;
 use serde_json::{Value, json};
 
 use super::projection::{QUEUED, REPLY};
-use super::queue::{DISCONNECTED, EXPIRED, Ending, ending};
+use super::queue::{DISCONNECTED, EXPIRED, Ending, ending, said};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::{CallError, Lead, Outgoing, To};
 use crate::core::{Gone, reason};
+use crate::counters::Count;
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.im.venues.failed";
@@ -339,6 +340,9 @@ impl Route {
         };
         let (venue, chars) = (&peer.venue, item.piece.text.chars().count());
         tracing::info!(target: TARGET, venue = %venue, chars, "reply sent");
+        if said(&item.piece.what) {
+            self.counters.bump(Count::Replied);
+        }
         if !matches!(peer.to, To::Group(_)) {
             return Ok(());
         }
@@ -389,6 +393,9 @@ impl Route {
             .map_or_else(String::new, |peer| peer.venue.to_string());
         let chars = item.piece.text.chars().count();
         tracing::warn!(target: TARGET, venue = %venue, why, chars, "reply not sent");
+        if said(&item.piece.what) {
+            self.counters.bump(Count::Undelivered);
+        }
         let mut body = json!({"queued": item.queued, "why": why});
         if let Some(detail) = &detail {
             body["detail"] = json!(detail);

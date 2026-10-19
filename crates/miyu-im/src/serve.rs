@@ -38,6 +38,7 @@ use crate::core::route::{
     Asking, Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots,
 };
 use crate::core::{Core, provide};
+use crate::counters::{self, Counters};
 use crate::current::Current;
 use crate::driver::{Driver, Gate, Reported};
 use crate::package::Package;
@@ -213,6 +214,11 @@ pub async fn run(
     let accepting = serve.driver.start(Arc::clone(&gate)).await?;
     // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。
     let page = Arc::new(Port::new(Arc::clone(&changed)));
+    // 今天的几个数（施工 I-6 下）：路由数、页面读、另起的任务写盘。
+    let counters = Arc::new(Counters::load(
+        status_file::path(&serve.root).with_file_name("stats"),
+        Arc::clone(&changed),
+    ));
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
@@ -225,6 +231,7 @@ pub async fn run(
         (serve.root.clone(), serve.package.dir().join("site")),
         core.caller(),
         (Arc::clone(&running), Arc::clone(&serve.driver)),
+        Arc::clone(&counters),
         Arc::clone(&changed),
     );
     let serving = site::start(Arc::new(site), current.site(), told, page).await;
@@ -299,9 +306,10 @@ pub async fn run(
         members,
         parts,
         configured,
-        hooks,
+        (hooks, Arc::clone(&counters)),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();
+    tasks.spawn(counters::keep(counters));
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),
         Arc::clone(&running),

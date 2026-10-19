@@ -128,6 +128,7 @@ button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(
 .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
 .dot.on { background: var(--online); }
 .dot.off { background: var(--danger); }
+.dot.warn { background: var(--gold); }
 .panel { padding: 16px 18px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
 
 @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }

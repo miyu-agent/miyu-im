@@ -138,8 +138,12 @@ export function mountShell(root, { request, handed, onSignOut }) {
       brandDot.className = 'dot';
       brandStatus.textContent = say('status/none');
     } else {
-      brandDot.className = 'dot on';
-      brandStatus.textContent = say('status/online', { count: connections.length });
+      // 断开在重连的（施工 I-6 中）：一部分是琥珀色，全断了是红的。
+      const gone = connections.filter((one) => !one.connected).length;
+      brandDot.className = gone === 0 ? 'dot on' : gone === connections.length ? 'dot off' : 'dot warn';
+      brandStatus.textContent = gone === 0
+        ? say('status/online', { count: connections.length })
+        : say('status/reconnecting', { count: connections.length, gone });
     }
   };
 

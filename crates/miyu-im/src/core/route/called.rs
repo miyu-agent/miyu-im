@@ -30,6 +30,7 @@ use crate::TARGET;
 use crate::chat::MediaKind;
 use crate::core::hooks::{Steer, Steered};
 use crate::core::{Gone, reason};
+use crate::counters::Count;
 
 /// 禁言时判了要回、排着的那一次，判断的 `outcome` 记成它（施工 O-50）：投影不把它算进判过要回、还没回完的。
 const DEFERRED: &str = "deferred";
@@ -148,6 +149,9 @@ impl Route {
         written["outcome"] = json!(outcome);
         self.append(session, Some(&decided), DECIDED, written)
             .await?;
+        if finale == Finale::Record {
+            self.counters.bump(Count::Recorded);
+        }
         match finale {
             Finale::Reply if deferring => {
                 let deferred = Deferred {

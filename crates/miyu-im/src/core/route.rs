@@ -104,7 +104,7 @@ use std::time::{Duration, Instant};
 use futures_util::StreamExt;
 use futures_util::stream::FuturesOrdered;
 use miyu_chat::Venue;
-use miyu_client::ids::{ExternalId, VenueId};
+use miyu_client::ids::VenueId;
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
@@ -114,6 +114,7 @@ use crate::chat::{Bots, Platform};
 use crate::chat::{Event, Members, To};
 use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
+use crate::counters::{Count, Counters};
 use crate::plugins::Toggles;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
@@ -150,6 +151,8 @@ struct Peer {
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
+    /// 今天的几个数（施工 I-6 下，`crate::counters`）。
+    counters: Arc<Counters>,
     /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
     platform: Platform,
     bots: Arc<Bots>,
@@ -251,7 +254,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        hooks: Arc<Hooks>,
+        (hooks, counters): (Arc<Hooks>, Arc<Counters>),
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -269,6 +272,7 @@ impl Route {
         hooks.set_toggles(Toggles::from_cards(rules.cards()));
         Route {
             core,
+            counters,
             platform,
             bots,
             rules,
@@ -410,18 +414,6 @@ impl Route {
         }
     }
 
-    /// 私聊找过的会话都忘掉，下一条照这一刻的白名单、卡片再找（施工 O-27；O-60：「其他私聊」卡关了的陌生人不再接）。群的留着。
-    fn forget_privates(&mut self) {
-        let groups = &self.groups;
-        self.venues
-            .retain(|_, session| groups.contains_key(session));
-    }
-
-    /// 平台上的 `who` 在不在白名单里（`im.whitelist`，施工 O-23、O-27）。
-    fn whitelisted(&self, who: &ExternalId) -> bool {
-        self.whitelist.iter().any(|one| one == who.as_str())
-    }
-
     /// 交一条消息：`/` 开头的先当斜杠命令交（「斜杠命令」），办完了的不再发；别的照 `session.send` 发（第 8 条，「群消息」
     /// 第 6 条），交回会话编号和回应（接受的、拒绝的都原样：群的照它判，施工 O-23）。要带图的（施工 O-33）、要展开转发的（施工
     /// O-34）先找到会话（不接的不去取），取了图带上、展开的转发写进场所的格；私聊没有字、没带东西、图又一张都没取到的不送。命令办完了的、
@@ -460,6 +452,7 @@ impl Route {
             None => {
                 let chars = message.text.chars().count();
                 tracing::info!(target: TARGET, venue = %venue, message = number, chars, "message sent in");
+                self.counters.bump(Count::Received);
             }
             Some(other) => {
                 tracing::warn!(target: TARGET, venue = %venue, message = number, reason = other, "message refused");

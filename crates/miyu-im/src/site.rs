@@ -14,6 +14,7 @@ mod faces;
 mod files;
 mod guard;
 mod logins;
+mod logs;
 mod methods;
 mod password;
 mod request;
@@ -40,6 +41,7 @@ use miyu_client::places::DataRoot;
 use crate::TARGET;
 use crate::changed::Changed;
 use crate::core::caller::Caller;
+use crate::counters::Counters;
 use crate::driver::Driver;
 use crate::running::Running;
 use crate::serve::Notice;
@@ -73,6 +75,8 @@ pub(crate) struct Site {
     changed: Arc<Changed>,
     /// 机器人的名字、头像（施工 I-6 中）。
     faces: Faces,
+    /// 今天的几个数（施工 I-6 下）。
+    counters: Arc<Counters>,
 }
 
 impl Site {
@@ -82,6 +86,7 @@ impl Site {
         (root, files): (DataRoot, PathBuf),
         caller: Caller,
         (running, driver): (Arc<Running>, Arc<dyn Driver>),
+        counters: Arc<Counters>,
         changed: Arc<Changed>,
     ) -> Site {
         Site {
@@ -93,6 +98,7 @@ impl Site {
             driver,
             changed,
             faces: Faces::default(),
+            counters,
         }
     }
 }

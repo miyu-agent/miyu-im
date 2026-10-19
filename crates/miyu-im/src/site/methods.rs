@@ -7,6 +7,9 @@
 //! - `status` → 驱动报的几格（OneBot 是 `listen`、`token`）、`platform`、`path`（NapCat 连进来的路径里最短的那个），同后台页的
 //!   `status`（施工 I-6 中：新建连接、连接设置拼地址）。
 //! - `connection.save {values}` → `{"saved": true}`：存驱动的配置项（`save`）。
+//! - `today` → `{"received", "replied", "recorded", "undelivered"}`：今天的几个数（施工 I-6 下，`crate::counters`）。
+//! - `logs {level?, limit?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，`limit`
+//!   不写的 50）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -15,7 +18,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::logins::Login;
-use super::{Person, Site, save};
+use super::{Person, Site, logs, save};
 use crate::core::methods::short_path;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
@@ -33,6 +36,20 @@ pub(super) async fn answer(
             Ok(Value::Object(status))
         }
         Some("connection.save") => save::save(site, &login.person, params).await,
+        Some("today") => {
+            let day = site.counters.today();
+            Ok(
+                json!({"received": day.received, "replied": day.replied, "recorded": day.recorded, "undelivered": day.undelivered}),
+            )
+        }
+        Some("logs") => {
+            let file = site.root.state().join("logs").join("im.log");
+            let filter = params["level"].as_str().unwrap_or("all");
+            let limit = params["limit"]
+                .as_u64()
+                .map_or(50, |limit| usize::try_from(limit).unwrap_or(logs::MOST));
+            Ok(json!({"logs": logs::recent(&file, filter, limit)}))
+        }
         _ => Err(("unknown_method".to_string(), String::new())),
     }
 }

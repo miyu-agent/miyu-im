@@ -288,3 +288,18 @@ impl Route {
         Ok(true)
     }
 }
+
+impl Route {
+    /// 私聊找过的会话都忘掉，下一条照这一刻的白名单、卡片再找（施工 O-27；O-60：「其他私聊」卡关了的陌生人不再接）。群的留着。
+    /// （施工 I-6 下从 `route.rs` 挪来：那个文件到了行数上限。）
+    pub(super) fn forget_privates(&mut self) {
+        let groups = &self.groups;
+        self.venues
+            .retain(|_, session| groups.contains_key(session));
+    }
+
+    /// 平台上的 `who` 在不在白名单里（`im.whitelist`，施工 O-23、O-27）。
+    pub(super) fn whitelisted(&self, who: &ExternalId) -> bool {
+        self.whitelist.iter().any(|one| one == who.as_str())
+    }
+}

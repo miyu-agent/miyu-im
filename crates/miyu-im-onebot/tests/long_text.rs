@@ -152,6 +152,9 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
         "渲染包收到的是过了出站链的全文"
     );
     assert_eq!(call["from"], "im");
+    // 首页「今天」的回复（施工 I-6 下）：长文的几页算一段。
+    let day = crate::support::events::until_counted(&home.root, |day| day["replied"] != 0).await;
+    assert_eq!(day["replied"], 1, "{day}");
     stopped(home).await;
 }
 

@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use miyu_client::time::Timestamp;
 
+use super::sending::What;
 use crate::chat::{CallError, DETAIL};
 
 /// `failed` 的 `why`：NapCat 回了失败。
@@ -160,3 +161,12 @@ pub(super) fn ending(result: &Result<Option<i64>, CallError>) -> Ending {
 
 #[cfg(test)]
 mod tests;
+
+/// 首页「今天」数的是她说的（施工 I-6 下）：一段话、一张图、长文的第一页；回执、长文后面几页不算。
+pub(super) fn said(what: &What) -> bool {
+    match what {
+        What::Reply { .. } | What::Image(_) => true,
+        What::Page(page) => page.first,
+        What::Receipt { .. } => false,
+    }
+}

@@ -107,3 +107,98 @@ fn only_the_latest_logins_are_held() {
         HELD.to_string()
     );
 }
+
+#[test]
+fn log_lines_are_read_with_or_without_a_session() {
+    use super::logs::parse;
+    assert_eq!(
+        parse(
+            "2026-10-19 15:01:13.172 INFO  im       01a152bf-f0ca-71f2-ba98-721ab624c678 venue model pinned model=a/m"
+        ),
+        Some((
+            "2026-10-19 15:01:13.172",
+            "INFO",
+            "venue model pinned model=a/m"
+        ))
+    );
+    assert_eq!(
+        parse("2026-10-19 15:01:13.172 WARN  im       reply not sent why=timeout"),
+        Some((
+            "2026-10-19 15:01:13.172",
+            "WARN",
+            "reply not sent why=timeout"
+        ))
+    );
+    assert_eq!(
+        parse("2026-10-19 15:01:13.172 INFO  im       abcdefghijabcdefghijabcdefghijabcdef rest"),
+        Some((
+            "2026-10-19 15:01:13.172",
+            "INFO",
+            "abcdefghijabcdefghijabcdefghijabcdef rest"
+        )),
+        "36 个字但不是会话编号的照留"
+    );
+    for broken in [
+        "",
+        "2026-10-19 15:01:13.172 LOUD  im x",
+        "short",
+        "2026-10-19 15:01:13.172 INFO  im       ",
+    ] {
+        assert_eq!(parse(broken), None, "{broken:?}");
+    }
+}
+
+#[test]
+fn recent_logs_come_newest_first_and_filter_by_level() {
+    use super::logs::recent;
+    let dir = std::env::temp_dir().join(format!("miyu-im-logs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("建得了目录");
+    let file = dir.join("im.log");
+    std::fs::write(
+        &file,
+        "2026-10-19 10:00:00.000 INFO  im       first\n\
+         2026-10-19 10:00:01.000 WARN  im       second\n\
+         not a log line\n\
+         2026-10-19 10:00:02.000 ERROR im       third\n\
+         2026-10-19 10:00:03.000 INFO  im       fourth\n",
+    )
+    .expect("写得进");
+    let texts = |filter: &str, limit: usize| -> Vec<String> {
+        recent(&file, filter, limit)
+            .iter()
+            .map(|line| {
+                format!(
+                    "{} {} {}",
+                    line["time"].as_str().unwrap_or_default(),
+                    line["level"].as_str().unwrap_or_default(),
+                    line["text"].as_str().unwrap_or_default()
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        texts("all", 10),
+        [
+            "10:00:03 INFO fourth",
+            "10:00:02 ERROR third",
+            "10:00:01 WARN second",
+            "10:00:00 INFO first"
+        ]
+    );
+    assert_eq!(
+        texts("warn", 10),
+        ["10:00:02 ERROR third", "10:00:01 WARN second"]
+    );
+    assert_eq!(texts("error", 10), ["10:00:02 ERROR third"]);
+    assert_eq!(
+        texts("all", 2),
+        ["10:00:03 INFO fourth", "10:00:02 ERROR third"]
+    );
+    assert_eq!(
+        recent(&dir.join("none.log"), "all", 10),
+        Vec::<serde_json::Value>::new()
+    );
+    if std::fs::remove_dir_all(&dir).is_err() {
+        // 删不掉就留在临时目录里。
+    }
+}

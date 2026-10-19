@@ -23,6 +23,7 @@
 //! - [`venue`]：`miyu im venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
 //! - `site`：im 自己的页面服务（施工 I-5 上）：只听本机，给页面的文件、交接票换登录、页面和宿主说话的通道。
 //! - [`web`]：`miyu im web`：带交接票打开 im 自己的页面（施工 I-6 上；O-28 补起原来是转给网页软件的后台页）。
+//! - `counters`：今天的几个数（施工 I-6 下）：收到、回复、只记录、没发出去，记在 im 自己的状态目录里。
 //! - `changed`：桥手里的状态变了的计数（施工 I-6 上）：状态文件、页面的通道照它。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
@@ -33,6 +34,7 @@ mod changed;
 pub mod chat;
 pub mod control;
 mod core;
+mod counters;
 mod current;
 pub mod driver;
 pub mod logs;

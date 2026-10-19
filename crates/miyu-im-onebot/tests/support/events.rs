@@ -129,3 +129,23 @@ pub async fn until_logged(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> Str
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 }
+
+/// 等到数据根 `root` 里今天的几个数（施工 I-6 下：`state/packages/im/stats/<日期>.json`，测试的数据根里只有今天那一份）合
+/// `wanted`，交回它。最多等六十秒。
+pub async fn until_counted(root: &DataRoot, wanted: impl Fn(&Value) -> bool) -> Value {
+    let dir = root.state().join("packages").join("im").join("stats");
+    super::within("今天的数", async {
+        loop {
+            let found = std::fs::read_dir(&dir)
+                .ok()
+                .and_then(|mut entries| entries.next())
+                .and_then(|entry| std::fs::read(entry.ok()?.path()).ok())
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+            if let Some(day) = found.filter(|day| wanted(day)) {
+                return day;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+}

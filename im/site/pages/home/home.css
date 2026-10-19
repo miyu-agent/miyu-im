@@ -48,3 +48,23 @@
 @media (max-width: 720px) {
   .wire { width: 70px; }
 }
+
+/* 今天的数字、运行日志（施工 I-6 下）：照样板 d-im.html。 */
+.home-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.stat b { display: block; font-size: 24px; font-weight: 600; }
+.stat span { color: var(--text-soft); }
+.logs h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; font-weight: 600; }
+.log-filter { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border-radius: 8px; background: var(--surface-2); }
+.log-filter button { height: 24px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font-size: 12px; font-weight: 400; cursor: pointer; }
+.log-filter button.on { background: var(--surface-1); color: var(--text); box-shadow: var(--bubble-shadow); }
+.log { display: grid; grid-template-columns: 64px 48px minmax(0, 1fr); gap: 10px; padding: 5px 0; font: 12px var(--mono); border-top: 1px solid var(--line); }
+.lv-info { color: var(--online); }
+.lv-warn { color: var(--gold); }
+.lv-error { color: var(--danger); }
+.lv-debug, .lv-trace { color: var(--text-faint); }
+.log-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-soft); }
+@media (max-width: 720px) {
+  .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .log { grid-template-columns: 58px minmax(0, 1fr); }
+  .log .lv { display: none; }
+}
