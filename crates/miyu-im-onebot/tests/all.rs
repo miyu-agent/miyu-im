@@ -16,6 +16,7 @@ mod cards;
 mod commands;
 mod control;
 mod core;
+mod defaults_moved;
 mod dependencies;
 mod disciplines;
 mod display_names;

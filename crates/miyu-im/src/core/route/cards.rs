@@ -59,6 +59,8 @@ impl Route {
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
             "other_groups": self.group_defaults(0),
             "other_privates": self.other_private_defaults(),
+            // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
+            "defaults": self.defaults_defaults(),
             "groups": groups,
             "privates": privates,
         });
@@ -100,6 +102,19 @@ impl Route {
         {
             Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
+        }
+    }
+
+    /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
+    fn defaults_defaults(&self) -> Value {
+        match self.platform.venue(VenueKind::Group, 0) {
+            Ok(venue) => {
+                let beneath = self.rules.beneath_defaults(&venue);
+                let mut found = card_defaults::group(&beneath);
+                found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
+                found
+            }
+            Err(_) => Value::Null,
         }
     }
 

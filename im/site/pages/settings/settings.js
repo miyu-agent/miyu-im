@@ -1,23 +1,42 @@
-// 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：账号绑定（平台身份 → Miyu 账号，核心的
-// `external.bindings`）、通用（去掉末尾句号、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。会话默认值另做。
+// 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：会话默认值（施工 I-7 下二）、账号绑定（平台身份
+// → Miyu 账号，核心的 `external.bindings`）、通用（去掉末尾句号、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。
 //
-// 读写都经宿主的 settings.get、settings.set（宿主在这份登录的人的连接上改核心的配置）。改了当场存，存不成的提示一句、重读一遍。
+// - 会话默认值是一张卡（`cards.json` 的 `defaults`，项目主人 10-20 定）：照会话浮窗那几页同一套格画（form.js），卡上没改的格照它。存照
+//   cards.save_one，宿主推 cards 再读；正在填的那一格不被重画掉。
+// - 别的读写都经宿主的 settings.get、settings.set（宿主在这份登录的人的连接上改核心的配置）。改了当场存，存不成的提示一句、重读一遍。
 import { element, icon, say, spaced } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { venueKinds } from '../home/platforms.js';
+import { drawForm } from '../venues/form.js';
+import { idWord } from '../venues/names.js';
+
+/** 会话默认值画哪几页（照会话浮窗的先后，管理插件不在这里）。 */
+const TABS = ['persona', 'trigger', 'pace', 'send'];
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
   let platform = '';
+  // 会话默认值要的：模型、能贴的表情问一次；「高级」展开着的重画时照旧。
+  let models = null;
+  let reactions = null;
+  const expanded = new Set();
   const load = async () => {
     let got;
+    let cards;
     try {
-      [got] = await Promise.all([request('settings.get'), platform ? null : request('status').then((status) => (platform = status.platform || ''))]);
+      [got, cards] = await Promise.all([
+        request('settings.get'),
+        request('cards.get'),
+        platform ? null : request('status').then((status) => (platform = status.platform || '')),
+        models ? null : request('models').then((answer) => (models = answer), () => null),
+        reactions ? null : request('reactions').then((answer) => (reactions = answer), () => null),
+      ]);
     } catch {
       view.replaceChildren(head(), element('p', 'faint', say('settings-page/failed')));
       return;
     }
-    view.replaceChildren(head(), ...bindings(got, platform, save), ...general(got, save), ...site(got, save));
+    const context = { request, platform, models, reactions, expanded, personas: cards.personas || [], friends: cards.friends || [], idWord: idWord('private', platform) };
+    view.replaceChildren(head(), defaults(cards, context), ...bindings(got, platform, save), ...general(got, save), ...site(got, save));
   };
   const save = async (key, value) => {
     try {
@@ -31,8 +50,35 @@ export function mountSettings(view, { request }) {
   load();
   return {
     update() {},
+    event(name) {
+      // 卡片变了（会话默认值存了）：再读一遍；正在填的那一格不被重画掉，它存的时候宿主还会再推一次。
+      const typing = view.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+      if (name === 'cards' && !typing) load();
+    },
     dispose() {},
   };
+}
+
+/** 会话默认值：照会话浮窗那几页的格画（form.js），一页一小段。 */
+function defaults(cards, context) {
+  const one = {
+    kind: 'defaults',
+    type: 'group',
+    id: null,
+    name: '',
+    members: null,
+    bot: null,
+    set: cards.cards?.defaults || {},
+    defaults: cards.defaults?.defaults || {},
+    on: null,
+  };
+  const rows = [];
+  for (const tab of TABS) {
+    const form = drawForm(tab, one, context);
+    if (form.length === 0) continue;
+    rows.push(element('div', 'group-name', say(`venue/tab-${tab}`)), ...form);
+  }
+  return section('settings-page/defaults', 'settings-page/defaults-hint', rows);
 }
 
 function head() {

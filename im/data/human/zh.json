@@ -64,6 +64,7 @@
     "venue/factory": "出厂",
     "venue/system": "系统",
     "venue/setting": "配置项 {key}",
+    "venue/card-defaults": "卡片「会话默认值」",
     "venue/card-other-groups": "卡片「其他群」",
     "venue/card-other-privates": "卡片「其他私聊」",
     "venue/card-group": "群 {id} 的卡片",

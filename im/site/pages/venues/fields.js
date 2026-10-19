@@ -74,9 +74,10 @@ export const FIELDS = {
   ],
 };
 
-/** `one`（model.js 的一张卡）上 `field` 有没有。 */
+/** `one`（model.js 的一张卡）上 `field` 有没有。会话默认值（施工 I-7 下二，设置页）照群卡：群卡有的都有，私聊卡才有的没有。 */
 export function has(field, one) {
-  return !field.kinds || field.kinds.includes(one.kind);
+  const kind = one.kind === 'defaults' ? 'group' : one.kind;
+  return !field.kinds || field.kinds.includes(kind);
 }
 
 /** 卡上写着的值：没写的是 undefined。 */

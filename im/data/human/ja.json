@@ -64,6 +64,7 @@
     "venue/factory": "出荷時",
     "venue/system": "システム",
     "venue/setting": "設定 {key}",
+    "venue/card-defaults": "カード「チャットの既定値」",
     "venue/card-other-groups": "カード「ほかのグループ」",
     "venue/card-other-privates": "カード「ほかの個人チャット」",
     "venue/card-group": "グループ {id} のカード",

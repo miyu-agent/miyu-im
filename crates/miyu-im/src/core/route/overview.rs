@@ -58,6 +58,8 @@ impl Route {
             Some(format!("{}:", one.rsplit_once(':')?.0))
         };
         Some(match card {
+            // 会话默认值不是哪个场所：没有概况。
+            Card::Defaults => return None,
             Card::Group(id) => {
                 let one = key(VenueKind::Group, id)?;
                 Box::new(move |venue: &str| venue == one)

@@ -207,6 +207,30 @@ fn misread_names_each_bad_setting_once_in_order() {
 }
 
 #[test]
+fn the_three_moved_settings_fill_only_unset_defaults_and_skip_misread_ones() {
+    // 施工 I-7 下二：卡上写了的照卡；没认出来的不挪、留在配置里照旧报。
+    let mut defaults = GroupSet {
+        sleep: Some("01:00-02:00".into()),
+        ..GroupSet::default()
+    };
+    let moved = Configured::handed(&everything()).move_into(&mut defaults);
+    assert_eq!(moved, ["sleep", "keywords", "show_ids"]);
+    assert_eq!(defaults.sleep.as_deref(), Some("01:00-02:00"));
+    assert_eq!(defaults.keywords, Some(vec!["miyu".into(), "小羽".into()]));
+    assert_eq!(defaults.show_ids, Some(true));
+    let mut config = everything();
+    config["im.sleep"] = json!("abc");
+    let mut defaults = GroupSet::default();
+    let moved = Configured::handed(&config).move_into(&mut defaults);
+    assert_eq!(moved, ["keywords", "show_ids"]);
+    assert_eq!(defaults.sleep, None);
+    let mut untouched = GroupSet::default();
+    let moved = Configured::handed(&json!({})).move_into(&mut untouched);
+    assert!(moved.is_empty());
+    assert_eq!(untouched, GroupSet::default());
+}
+
+#[test]
 fn turning_off_the_final_period_reaches_every_venue() {
     // 去句号（施工 O-58 补二，从卡片挪来）：开着是出厂的样子、不写；关了的群和私聊都拼进出站表。
     let rules = rules(json!({"im.strip_period": false}));

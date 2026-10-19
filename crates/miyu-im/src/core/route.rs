@@ -62,6 +62,7 @@ mod long;
 mod lookup;
 mod mentions;
 mod message;
+mod migrate;
 mod muted;
 mod names;
 mod noted;
@@ -336,7 +337,8 @@ impl Route {
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
         // 起来就订阅（施工 O-32，「群里怎么叫她」第 1 条）：NapCat 那头来的先排着，订阅完了再办。
-        if self.revive().await.is_err()
+        if self.move_defaults().await.is_err()
+            || self.revive().await.is_err()
             || self.follow_packages().await.is_err()
             || self.reload_plugins().await.is_err()
         {

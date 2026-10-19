@@ -11,6 +11,7 @@ use serde_json::{Map, Value};
 
 use miyu_chat::{File, Rules, Source};
 
+use super::cards::GroupSet;
 use crate::PACKAGE;
 
 /// 拼出来的那一份的文件名：排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的盖它，同名的整份替换它。
@@ -100,6 +101,30 @@ impl Configured {
             }
         }
         *self != before
+    }
+
+    /// 挪进会话默认值（施工 I-7 下二）：睡觉时间、群里的触发词、看得到 QQ 号（开着的才算设了）这三项，设了、认得出的写进
+    /// `defaults` 那一格还没写的（卡上写了的照卡），交回挪了的几项在清单里的名字（配置里要去掉的）。没认出来的（[`Self::misread`]）
+    /// 不挪：留在配置里照旧报，改对了下次起来再挪。
+    pub fn move_into(&self, defaults: &mut GroupSet) -> Vec<&'static str> {
+        let misread = self.misread();
+        let readable = |name: &str| !misread.contains(&format!("{PACKAGE}.{name}"));
+        let mut moved = Vec::new();
+        if let Some(sleep) = self.sleep.as_ref().filter(|_| readable(SLEEP)) {
+            moved.push(SLEEP);
+            defaults.sleep.get_or_insert_with(|| sleep.clone());
+        }
+        if !self.keywords.is_empty() && readable(KEYWORDS) {
+            moved.push(KEYWORDS);
+            defaults
+                .keywords
+                .get_or_insert_with(|| self.keywords.clone());
+        }
+        if self.show_ids && readable(SHOW_IDS) {
+            moved.push(SHOW_IDS);
+            defaults.show_ids.get_or_insert(true);
+        }
+        moved
     }
 
     /// 拼成规则文件（来处 [`Source::Settings`]，名字 `60-settings.toml`），四条规则照固定的先后（[`key_of`]）。

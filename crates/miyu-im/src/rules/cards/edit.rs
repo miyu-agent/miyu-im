@@ -28,6 +28,7 @@ pub enum Edit {
 pub fn card_of(value: &Value) -> Option<Card> {
     let id = || value["id"].as_u64();
     match value["kind"].as_str()? {
+        "defaults" => Some(Card::Defaults),
         "other_groups" => Some(Card::OtherGroups),
         "other_privates" => Some(Card::OtherPrivates),
         "group" => Some(Card::Group(id()?)),
@@ -40,6 +41,7 @@ pub fn card_of(value: &Value) -> Option<Card> {
 pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
     let merged = match card {
+        Card::Defaults => merge(&mut next.defaults, values),
         Card::OtherGroups => merge(&mut next.other_groups, values),
         Card::OtherPrivates => merge(&mut next.other_privates, values),
         Card::Group(id) => match next.groups.iter_mut().find(|one| one.id == id) {
@@ -84,7 +86,7 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
 pub fn add(cards: &Cards, card: Card) -> Cards {
     let mut next = cards.clone();
     match card {
-        Card::OtherGroups | Card::OtherPrivates => {}
+        Card::Defaults | Card::OtherGroups | Card::OtherPrivates => {}
         Card::Group(id) if !next.groups.iter().any(|one| one.id == id) => {
             next.groups.push(GroupCard {
                 id,
@@ -102,11 +104,11 @@ pub fn add(cards: &Cards, card: Card) -> Cards {
     next
 }
 
-/// 删一张：「其他群」「其他私聊」删不掉（交回空的），没有的照旧。
+/// 删一张：会话默认值、「其他群」「其他私聊」删不掉（交回空的），没有的照旧。
 pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
     let mut next = cards.clone();
     match card {
-        Card::OtherGroups | Card::OtherPrivates => return None,
+        Card::Defaults | Card::OtherGroups | Card::OtherPrivates => return None,
         Card::Group(id) => next.groups.retain(|one| one.id != id),
         Card::Private(id) => next.privates.retain(|one| one.id != id),
     }
@@ -116,6 +118,7 @@ pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
 /// 卡 `card` 上 `rules` 里写着的键。
 fn written_rules(cards: &Cards, card: Card) -> Vec<String> {
     let set = match card {
+        Card::Defaults => serde_json::to_value(&cards.defaults),
         Card::OtherGroups => serde_json::to_value(&cards.other_groups),
         Card::OtherPrivates => serde_json::to_value(&cards.other_privates),
         Card::Group(id) => serde_json::to_value(

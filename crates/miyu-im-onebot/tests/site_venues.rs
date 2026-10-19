@@ -140,6 +140,42 @@ async fn the_venue_page_reads_and_changes_the_cards_through_the_core() {
     .await;
     assert_eq!(saved, json!({"saved": true}));
 
+    // 会话默认值（施工 I-7 下二）：存在默认值那张卡上，名单里的群的默认值照它；那张卡自己的默认值照出厂。
+    let defaults = json!({"kind": "defaults"});
+    let values = json!({"rules": {"chatty.judge_called": false}});
+    let saved = changing(
+        &mut open,
+        30,
+        "cards.save_one",
+        json!({"card": defaults, "values": values}),
+    )
+    .await;
+    assert_eq!(saved, json!({"saved": true}));
+    let (got, _) = call_noting(&mut open, 31, "cards.get", json!({})).await;
+    let got = &got["result"];
+    assert_eq!(
+        got["cards"]["defaults"],
+        json!({"rules": {"chatty.judge_called": false}}),
+        "{got}"
+    );
+    assert_eq!(
+        got["defaults"]["groups"]["777"]["rules"]["chatty.judge_called"]["value"], false,
+        "{got}"
+    );
+    assert_eq!(
+        got["defaults"]["defaults"]["rules"]["chatty.judge_called"]["value"], true,
+        "{got}"
+    );
+    let cleared = json!({"rules": {"chatty.judge_called": null}});
+    let saved = changing(
+        &mut open,
+        32,
+        "cards.save_one",
+        json!({"card": defaults, "values": cleared}),
+    )
+    .await;
+    assert_eq!(saved, json!({"saved": true}));
+
     // 关掉回复：只写这一格。
     let card = json!({"kind": "group", "id": 777});
     let saved = changing(

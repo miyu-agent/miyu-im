@@ -199,7 +199,7 @@ impl Route {
     }
 
     /// 存盘、换上、重推；写不进盘的答 `{saved: false, message}`。
-    fn store(&mut self, cards: Cards, words: &Words, lang: &str) -> Value {
+    pub(super) fn store(&mut self, cards: Cards, words: &Words, lang: &str) -> Value {
         if let Err(error) = save_cards(self.rules.root(), &cards) {
             tracing::warn!(target: TARGET, error = %error, "venue cards not saved");
             return json!({"saved": false, "message": words.get("not_saved", lang)});

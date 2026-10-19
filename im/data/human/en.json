@@ -64,6 +64,7 @@
     "venue/factory": "factory",
     "venue/system": "system",
     "venue/setting": "setting {key}",
+    "venue/card-defaults": "card \"Chat defaults\"",
     "venue/card-other-groups": "card \"Other groups\"",
     "venue/card-other-privates": "card \"Other private chats\"",
     "venue/card-group": "card of group {id}",

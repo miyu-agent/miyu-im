@@ -25,7 +25,7 @@ use serde_json::Value;
 
 use miyu_chat::{File, Problem, Rules};
 
-use lines::{Matcher, file, group_lines, other_private_lines, private_lines};
+use lines::{Matcher, defaults_lines, file, group_lines, other_private_lines, private_lines};
 pub use store::{load, path, save};
 
 /// 卡片拼出来的文件名的开头：排在配置项那一份 `60-settings.toml` 后面。
@@ -229,11 +229,22 @@ pub struct Cards {
     pub privates: Vec<PrivateCard>,
     /// 「其他私聊」：陌生人的私聊（施工 O-60）。
     pub other_privates: OtherPrivateSet,
+    /// 会话默认值（施工 I-7 下二，设置页）：群、私聊都套，排在别的卡下面，卡上没写的格照它。「是否回复」不归它管（写了也不拼）。
+    /// 一格都没写的不存这一项（老版本的 im 照旧读得了 `cards.json`）。
+    #[serde(skip_serializing_if = "unset")]
+    pub defaults: GroupSet,
+}
+
+/// 一格都没写。
+fn unset(set: &GroupSet) -> bool {
+    *set == GroupSet::default()
 }
 
 /// 一张卡是哪一张：拼出来的文件名里写着。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Card {
+    /// 会话默认值（施工 I-7 下二）。
+    Defaults,
     /// 「其他群」。
     OtherGroups,
     /// 「其他私聊」（施工 O-60）。
@@ -249,6 +260,7 @@ impl Card {
     /// 「其他私聊」、群、私聊。
     fn file_name(self) -> String {
         match self {
+            Card::Defaults => format!("{PREFIX}0.toml"),
             Card::OtherGroups => format!("{PREFIX}a.toml"),
             Card::OtherPrivates => format!("{PREFIX}b.toml"),
             Card::Group(id) => format!("{PREFIX}g-{id}.toml"),
@@ -260,6 +272,7 @@ impl Card {
     pub fn parse(file: &str) -> Option<Card> {
         let rest = file.strip_prefix(PREFIX)?.strip_suffix(".toml")?;
         match rest {
+            "0" => return Some(Card::Defaults),
             "a" => return Some(Card::OtherGroups),
             "b" => return Some(Card::OtherPrivates),
             _ => {}
@@ -276,6 +289,7 @@ impl Card {
     /// 交给页面的写法：`{"kind": "other_groups"}`、`{"kind": "group", "id": …}`、`{"kind": "private", "id": …}`。
     pub fn json(self) -> Value {
         match self {
+            Card::Defaults => serde_json::json!({"kind": "defaults"}),
             Card::OtherGroups => serde_json::json!({"kind": "other_groups"}),
             Card::OtherPrivates => serde_json::json!({"kind": "other_privates"}),
             Card::Group(id) => serde_json::json!({"kind": "group", "id": id}),
@@ -308,6 +322,10 @@ impl Cards {
                 &other_private_lines(&self.other_privates),
             ),
         ];
+        // 会话默认值写了的才拼（施工 I-7 下二），排在最前。
+        if !unset(&self.defaults) {
+            files.insert(0, self.defaults_file());
+        }
         let mut seen = std::collections::BTreeSet::new();
         for card in &self.groups {
             if seen.insert(Card::Group(card.id)) {
@@ -328,6 +346,15 @@ impl Cards {
             }
         }
         files
+    }
+
+    /// 会话默认值拼成的那一份（施工 I-7 下二：别的卡的默认值照它和下面几层算）。
+    pub fn defaults_file(&self) -> File {
+        file(
+            Card::Defaults,
+            &Matcher::All,
+            &defaults_lines(&self.defaults),
+        )
     }
 
     /// 卡片写错的地方：拼出来的几份单独交群聊内核读，交回问题（文件名照 [`Card::parse`] 认得出是哪一张卡）。

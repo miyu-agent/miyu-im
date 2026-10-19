@@ -241,6 +241,7 @@ impl Texts {
             // 卡片那一层（施工 O-58 上）：说是哪一张卡，文件同样是桥拼的。
             Source::Settings => {
                 return match Card::parse(file) {
+                    Some(Card::Defaults) => self.say("venue/card-defaults", &[]),
                     Some(Card::OtherGroups) => self.say("venue/card-other-groups", &[]),
                     Some(Card::OtherPrivates) => self.say("venue/card-other-privates", &[]),
                     Some(Card::Group(id)) => {

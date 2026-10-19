@@ -119,6 +119,8 @@ description = { en = "Commands whose receipts in groups are recalled a few secon
 # 系统里名字排在后面的规则文件也盖它（docs/blueprint/onebot.md 第一条「场所规则和出厂数据」第 8 条、「场所卡片」）。
 
 [settings.sleep]
+# 挪进了会话默认值（施工 I-7 下二）：藏起来，老的配置照读，桥起来时搬进卡片、去掉这一项。
+hidden = true
 type = "text"
 max = 11
 layers = ["system"]
@@ -127,6 +129,8 @@ name = { en = "Sleep hours", zh = "睡觉时间", ja = "休止時間" }
 description = { en = "HH:MM-HH:MM in local time, for example 23:00-07:00. In these hours the AI only records; the terminal administrator and whitelisted people can still call it. Empty or off: no sleep.", zh = "写成 HH:MM-HH:MM，照本机的时间，例如 23:00-07:00。这段时间里 AI 只记下、不接话，终端管理员和白名单成员照样叫得动。不填或 off 是不睡。", ja = "HH:MM-HH:MM でこのマシンの時刻で書きます。例：23:00-07:00。この時間は記録だけします。端末の管理者とホワイトリストの人は呼び出せます。空欄か off で眠りません。" }
 
 [settings.keywords]
+# 挪进了会话默认值（施工 I-7 下二）：藏起来，老的配置照读，桥起来时搬进卡片、去掉这一项。
+hidden = true
 type = "list"
 element = "text"
 max = 64
@@ -144,6 +148,8 @@ name = { en = "Drop the final period", zh = "去掉末尾的句号", ja = "末�
 description = { en = "On: a reply ending in a single 。 is sent without it, like people type in chats. Applies to every group and private chat.", zh = "开着的，回话末尾的一个「。」去掉再发，像平常聊天那样。管所有群和私聊。", ja = "オン：返信の末尾の「。」を一つ外して送ります。普段のチャットと同じです。すべてのグループと個人チャットに効きます。" }
 
 [settings.show_ids]
+# 挪进了会话默认值（施工 I-7 下二）：藏起来，老的配置照读，桥起来时搬进卡片、去掉这一项。
+hidden = true
 type = "bool"
 default = false
 layers = ["system"]

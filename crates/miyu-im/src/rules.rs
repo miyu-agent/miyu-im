@@ -354,6 +354,11 @@ impl Venues {
         Arc::clone(&self.factory.judge)
     }
 
+    /// 配置项那一层这一刻的样子（施工 I-7 下二：挪进会话默认值）。
+    pub fn configured(&self) -> &Configured {
+        &self.configured
+    }
+
     /// 出厂参数每一项的值（施工 I-7 中一）。
     pub fn factory_values(&self) -> &Values {
         &self.factory.values
@@ -402,9 +407,15 @@ impl Venues {
         }
     }
 
-    /// 卡片下面几层（出厂、配置项、系统的）套到场所 `venue` 上的样子（施工 O-58 上：`cards.get` 照它说每一格的默认值）。重读
-    /// 一次系统的规则文件，问题不记：页面才调。
+    /// 卡片下面几层（出厂、配置项、系统的，加上会话默认值，施工 I-7 下二）套到场所 `venue` 上的样子（施工 O-58 上：`cards.get`
+    /// 照它说每一格的默认值）。重读一次系统的规则文件，问题不记：页面才调。
     pub fn beneath(&self, venue: &Venue) -> Applied {
+        let layers = vec![self.configured.file(), self.cards.defaults_file()];
+        assemble(&self.factory, &self.root, layers).at(venue)
+    }
+
+    /// 会话默认值下面几层（出厂、配置项、系统的）套到场所 `venue` 上的样子（施工 I-7 下二：默认值那张卡自己的默认值）。
+    pub fn beneath_defaults(&self, venue: &Venue) -> Applied {
         assemble(&self.factory, &self.root, vec![self.configured.file()]).at(venue)
     }
 

@@ -24,6 +24,8 @@ pub(crate) const TOP: [&str; 7] = [
 
 /// 一张卡匹配哪些场所。
 pub(super) enum Matcher {
+    /// 会话默认值（施工 I-7 下二）：每一个场所。
+    All,
     /// 「其他群」：群，但不是名单里的这几个（群号照 `, ` 连好）。名单里的群不继承它设的格（施工 O-58 上）。
     Others(String),
     /// 群卡、私聊卡：只配它自己。
@@ -41,6 +43,7 @@ pub(super) fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
         (Card::Private(id), Matcher::Own) => format!("{{ kind = \"private\", user = [{id}] }}"),
         (Card::OtherGroups, Matcher::Own) => "{ kind = \"group\" }".to_string(),
         (Card::OtherPrivates, Matcher::Own) => "{ kind = \"private\" }".to_string(),
+        (_, Matcher::All) | (Card::Defaults, Matcher::Own) => "{}".to_string(),
     };
     let mut text = format!("[[rule]]\nmatch = {matcher}\n");
     for line in lines {
@@ -130,7 +133,20 @@ pub(crate) fn key_ok(key: &str) -> bool {
 pub(super) fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     let mut entries = Entries::default();
     entries.set("allow", set.on.unwrap_or(listed).to_string());
-    common(&mut entries, (&set.persona, &set.model, &set.extra_prompt));
+    group_entries(&mut entries, set);
+    entries.lines()
+}
+
+/// 会话默认值的几行（施工 I-7 下二）：同群卡，只是不写 `allow`（是否回复照各自的卡）。
+pub(super) fn defaults_lines(set: &GroupSet) -> Vec<String> {
+    let mut entries = Entries::default();
+    group_entries(&mut entries, set);
+    entries.lines()
+}
+
+/// 群卡除了 `allow` 的几格。
+fn group_entries(entries: &mut Entries, set: &GroupSet) {
+    common(entries, (&set.persona, &set.model, &set.extra_prompt));
     entries.put("keywords", set.keywords.as_deref().map(texts));
     match set.chatty {
         Some(Chatty::Never) => entries.set("discipline", quoted("when-called")),
@@ -149,13 +165,8 @@ pub(super) fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     entries.put("rate", set.rate.as_deref().map(quoted));
     entries.put("show_ids", set.show_ids.map(|show| show.to_string()));
     entries.put("recent", set.recent.map(|recent| recent.to_string()));
-    outbound(
-        &mut entries,
-        set.final_only,
-        (set.long_text, set.long_chars),
-    );
+    outbound(entries, set.final_only, (set.long_text, set.long_chars));
     entries.rules(set.rules.as_ref());
-    entries.lines()
 }
 
 /// 私聊卡的几行：设了才写。

@@ -194,3 +194,28 @@ fn bad_rule_keys_and_values_are_reported_under_rules() {
     assert!(keys.contains(&"rules.judge.records"), "{problems:?}");
     assert!(keys.contains(&"rules.chatty.nope"), "{problems:?}");
 }
+
+#[test]
+fn the_defaults_card_is_edited_like_any_other_and_never_removed() {
+    // 施工 I-7 下二：会话默认值那张卡。
+    assert_eq!(card_of(&json!({"kind": "defaults"})), Some(Card::Defaults));
+    let before = cards(json!({}));
+    let Edit::Done(next) = update(
+        &before,
+        Card::Defaults,
+        &values(json!({"rate": "2/60s", "rules": {"parallel": 2}})),
+    ) else {
+        panic!("改得成");
+    };
+    assert_eq!(
+        serde_json::to_value(&next.defaults).expect("写得成"),
+        json!({"rate": "2/60s", "rules": {"parallel": 2}})
+    );
+    assert_eq!(remove(&next, Card::Defaults), None, "删不掉");
+    assert_eq!(add(&next, Card::Defaults), *next, "加了照旧");
+    let Edit::Problems(problems) = update(&before, Card::Defaults, &values(json!({"rate": "abc"})))
+    else {
+        panic!("写错了");
+    };
+    assert_eq!(problems[0].0, "rate", "{problems:?}");
+}
