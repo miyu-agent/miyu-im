@@ -225,62 +225,62 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
-        "没等到核心的握手回应。miyu-im serve 只由核心拉起：用 miyu im start 打开 QQ 桥。"
+        "没等到核心的握手回应。miyu-im serve 只由核心拉起：用 miyu im start 打开 接入通讯平台。"
     );
     assert_eq!(
         texts.report(&Report::Started),
-        "QQ 桥开了：核心拉起它，以后核心每次起来都拉起它。"
+        "接入通讯平台开了：核心拉起它，以后核心每次起来都拉起它。"
     );
     assert_eq!(
         texts.report(&Report::Stopped),
-        "QQ 桥关了：核心停下它，以后不再拉起。"
+        "接入通讯平台关了：核心停下它，以后不再拉起。"
     );
-    assert_eq!(texts.report(&Report::Restarted), "QQ 桥重新拉起了。");
+    assert_eq!(texts.report(&Report::Restarted), "接入通讯平台重新拉起了。");
     assert_eq!(
         texts.report(&Report::Off),
-        "QQ 桥关着。用 miyu im start 打开。"
+        "接入通讯平台关着。用 miyu im start 打开。"
     );
-    assert_eq!(texts.report(&Report::Starting), "QQ 桥正在起来。");
+    assert_eq!(texts.report(&Report::Starting), "接入通讯平台正在起来。");
     assert_eq!(
         texts.report(&Report::Running(4242)),
-        "QQ 桥在跑（进程 4242）。"
+        "接入通讯平台在跑（进程 4242）。"
     );
     assert_eq!(
         texts.report(&Report::Waiting {
             seconds: 2,
             failures: 1
         }),
-        "QQ 桥退出了，2 秒后再拉起（连续失败 1 次）。"
+        "接入通讯平台退出了，2 秒后再拉起（连续失败 1 次）。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "QQ 桥停下了，核心不再拉起它：配置错了或者端口被占（退出码 1）。改好以后 miyu im restart。"
+        "接入通讯平台停下了，核心不再拉起它：配置错了或者端口被占（退出码 1）。改好以后 miyu im restart。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::FailedRepeatedly(5))),
-        "QQ 桥停下了，核心不再拉起它：连续失败了 5 次。看 miyu im logs，修好以后 miyu im restart。"
+        "接入通讯平台停下了，核心不再拉起它：连续失败了 5 次。看 miyu im logs，修好以后 miyu im restart。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::NotInstalled)),
-        "QQ 桥停下了，核心不再拉起它：miyu 旁边没有 miyu-im 这个程序。"
+        "接入通讯平台停下了，核心不再拉起它：miyu 旁边没有 miyu-im 这个程序。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::CannotStart)),
-        "QQ 桥停下了，核心不再拉起它：起不来：系统不让起，或者建不了它的目录、标准错误的文件。"
+        "接入通讯平台停下了，核心不再拉起它：起不来：系统不让起，或者建不了它的目录、标准错误的文件。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ProtocolMismatch)),
-        "QQ 桥停下了，核心不再拉起它：清单说的协议版本和核心的对不上。"
+        "接入通讯平台停下了，核心不再拉起它：清单说的协议版本和核心的对不上。"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::Other("new_reason".to_string()))),
-        "QQ 桥停下了，核心不再拉起它：new_reason",
+        "接入通讯平台停下了，核心不再拉起它：new_reason",
         "不认识的原因照原样"
     );
     assert_eq!(texts.report(&Report::Stderr), "它的标准错误的最后几行：");
     assert_eq!(
         texts.report(&Report::Other("dreaming".to_string())),
-        "QQ 桥的状态：dreaming"
+        "接入通讯平台的状态：dreaming"
     );
     assert_eq!(
         texts.report(&Report::Missing),
@@ -382,7 +382,7 @@ fn venue_show_and_problems_read_as_drawn() {
     );
     assert_eq!(
         texts.failure(&Failure::Factory(problems()[..2].to_vec())),
-        "QQ 桥的出厂数据有问题（是打包的错），起不来：\n  \
+        "接入通讯平台的出厂数据有问题（是打包的错），起不来：\n  \
          系统 80-x.toml 第 1 条规则，第 3 行：读不了：\n  \
          系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读"
     );

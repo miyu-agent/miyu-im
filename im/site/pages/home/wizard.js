@@ -12,6 +12,8 @@ export function openWizard(request) {
   let at = 0;
   let waiting = false;
   let latest = [];
+  // 连上了画着的那一个：名字后到的（页面问了宿主才去问平台），到了再画一遍。
+  let shownUp = null;
   const dialog = openDialog(say('wizard/pick'), () => { waiting = false; });
   const steps = () => (chosen ? platform(chosen).steps : []);
   const total = () => 1 + steps().length + 1;
@@ -117,6 +119,11 @@ export function openWizard(request) {
   };
 
   const check = () => {
+    if (shownUp && !shownUp.name) {
+      const named = latest.find((one) => one.bot === shownUp.bot && one.name);
+      if (named) done(named);
+      return;
+    }
     const up = latest.find((one) => one.connected && one.platform === chosen);
     if (!waiting || !up) return;
     waiting = false;
@@ -124,6 +131,7 @@ export function openWizard(request) {
   };
 
   const done = (up) => {
+    shownUp = up;
     const shown = platform(chosen);
     dialog.setTitle(say('wizard/done-title'));
     const mark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -134,7 +142,10 @@ export function openWizard(request) {
     const detail = up.implementation
       ? say('wizard/done-detail', { bot: up.bot, implementation: up.implementation, version: up.version })
       : say('wizard/done-bot', { bot: up.bot });
-    box.append(mark, element('p', 'done-line', say('wizard/done', { name: up.name || up.bot, platform: shown.name() })), element('p', 'soft', detail));
+    const line = up.name
+      ? say('wizard/done', { name: up.name, platform: shown.name() })
+      : say('wizard/done-unnamed', { platform: shown.name() });
+    box.append(mark, element('p', 'done-line', line), element('p', 'soft', detail));
     dialog.body.replaceChildren(box);
     const finish = element('button', 'btn primary', say('wizard/finish'));
     finish.addEventListener('click', dialog.close);

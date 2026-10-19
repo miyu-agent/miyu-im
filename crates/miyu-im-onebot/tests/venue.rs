@@ -178,7 +178,7 @@ fn broken_factory_data_is_said_with_every_problem() {
     assert_eq!(
         err,
         format!(
-            "QQ 桥的出厂数据有问题（是打包的错），起不来：\n  出厂 defaults.toml 第 {line} 行：chatty.probability 超出范围：5000\n"
+            "接入通讯平台的出厂数据有问题（是打包的错），起不来：\n  出厂 defaults.toml 第 {line} 行：chatty.probability 超出范围：5000\n"
         )
     );
     clean(&dir);
@@ -303,7 +303,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
     );
     assert_eq!(
         text(&exited.stderr),
-        "The QQ bridge cannot start: its factory data has problems (a packaging error):\n  \
+        "Connect Messaging cannot start: its factory data has problems (a packaging error):\n  \
          factory 50-defaults.toml, rule 1, line 2: rate is not written right: \"abc\"\n"
     );
     clean(&dir);

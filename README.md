@@ -1,6 +1,6 @@
 # 接入通讯平台
 
-Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ 接到 Miyu 上，私聊、群里都能和 AI 说话。它不随 Miyu 的发布包一起装，要用的自己装。
+Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 AI 说话。现在接的是 QQ（经 NapCat 这类 OneBot v11 实现的反向 WebSocket）。它不随 Miyu 的发布包一起装，要用的自己装。
 
 核心在 [`miyu-agent/miyu`](https://github.com/miyu-agent/miyu)；这个仓库照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。
 
@@ -11,7 +11,7 @@ Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ �
 | `crates/miyu-im/` | 接入通讯平台的宿主：场所会话、群聊、插件挂接点、给模型的工具，和平台无关；不依赖驱动 |
 | `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-im`：核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
 | `crates/miyu-chat/` | 群聊内核：通讯平台里和平台无关的那一层（场所规则、进站链、主动回复判断、判官、出站链），纯逻辑；别的平台要用照 git 依赖它 |
-| `im/` | 包文件夹：清单 `package.toml`、后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
+| `im/` | 包文件夹：清单 `package.toml`、im 自己的页面 `site/`、网页软件框里的后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
 | `docs/blueprint/` | 图纸：`onebot.md`（桥）、`chat.md`（群聊内核） |
 | `docs/ledger.md` | 登记簿：`im/data/` 里给模型看的每一份字 |
 | `xtask/` | 门禁：`cargo xtask check` |
@@ -27,7 +27,7 @@ Miyu 的一个软件包：经 NapCat（OneBot v11 的反向 WebSocket）把 QQ �
    ```
 
    它要的能力（代平台上的人发话、联网、读写会话……）照自己装的包走人批，装的时候核心会问。
-4. 在 Miyu 的接入页里打开「接入通讯平台」，设好端口和令牌；NapCat 那边的反向 WebSocket 填 `ws://127.0.0.1:<端口>/ws`、同一个令牌。
+4. 运行 `miyu im web` 打开接入通讯平台的页面，点「新建连接」照着走：在 NapCat 那边新建反向 WebSocket，填页面上给的地址，再把 NapCat 生成的 Token 粘贴回页面。
 
 ## 从源码编
 
