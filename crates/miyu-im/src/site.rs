@@ -19,6 +19,7 @@ mod methods;
 mod password;
 mod request;
 mod save;
+mod settings;
 #[cfg(test)]
 mod tests;
 mod ticket;

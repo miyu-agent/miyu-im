@@ -74,6 +74,7 @@ mod site;
 mod site_connections;
 mod site_login;
 mod site_overview;
+mod site_settings;
 mod site_today;
 mod site_venues;
 mod skip_ends;

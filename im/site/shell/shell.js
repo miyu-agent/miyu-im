@@ -8,6 +8,7 @@ import { element, icon, say } from './i18n.js';
 import { choose, chosen } from './theme.js';
 import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
+import { mountSettings } from '../pages/settings/settings.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
 const PAGES = [
@@ -16,7 +17,7 @@ const PAGES = [
   { id: 'plugins', name: () => say('nav/plugins') },
   { id: 'store', name: () => say('nav/store') },
   { id: 'stats', name: () => say('nav/stats') },
-  { id: 'settings', name: () => say('nav/settings') },
+  { id: 'settings', name: () => say('nav/settings'), mount: mountSettings },
 ];
 
 const COLLAPSED = 'miyu-im-collapsed';
