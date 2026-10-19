@@ -127,11 +127,11 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
         true => supersede(&case.facts, &own, case.pendings, case.clock, case.window),
         false => Supersede::None,
     };
-    let standing = case.facts.said.standing;
+    let said = (&case.facts.said, case.chatty);
     let media_only = case.facts.media_only;
     let (conditions, route, msgs) = match &superseded {
         Supersede::None => {
-            let route = discipline.route(&own, standing, media_only);
+            let route = discipline.route(&own, said, media_only);
             (own, route, vec![case.facts.msg.get()])
         }
         Supersede::Inherit { conditions, .. } => (
@@ -142,7 +142,7 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
         Supersede::Rejudge {
             msgs, conditions, ..
         } => {
-            let route = discipline.route(conditions, standing, media_only);
+            let route = discipline.route(conditions, said, media_only);
             let msgs = msgs.iter().map(|msg| msg.get()).collect();
             (conditions.clone(), route, msgs)
         }
@@ -161,4 +161,4 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
 #[cfg(test)]
 mod follow_tests;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

@@ -143,3 +143,76 @@ async fn the_overview_counts_today_and_says_why_each_message_was_answered() {
     assert_eq!(bad["error"]["reason"], "method_failed", "{bad}");
     stopped(home).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn called_ones_skip_the_judge_and_listed_people_are_only_recorded() {
+    // 施工 I-7 中三：卡上 `rules` 关掉被叫时也过判断，叫她的直接回；小林在跳过判断的人里，没叫她的（续聊）只记下。
+    let script = Script::new([Play::Says("在的。"), Play::Says("嗯。")]);
+    let (home, mut napcat, _) = started(&script, "", "", MEMBERS).await;
+    let mut head = Head::connect(&home.root).await;
+    let status = head
+        .until("status", |status| {
+            status["napcat"]["connected"] == true && status["web"].is_u64()
+        })
+        .await;
+    let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
+    let mut open = logged_in(&home.root, web).await;
+    let added = call(
+        &mut open,
+        1,
+        "cards.add",
+        json!({"value": LISTED.to_string()}),
+    )
+    .await;
+    assert_eq!(
+        added["result"],
+        json!({"id": LISTED.to_string()}),
+        "{added}"
+    );
+    let card = json!({"kind": "group", "id": LISTED});
+    let rules = json!({"rules": {"chatty.judge_called": false}});
+    let saved = call(
+        &mut open,
+        2,
+        "cards.save_one",
+        json!({"card": card, "values": rules}),
+    )
+    .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+
+    napcat.send(called(LISTED, 1, " 在吗"));
+    assert_eq!(napcat.group_reply(LISTED).await, "在的");
+    let first = overview(&mut open, card.clone(), 1).await;
+    assert_eq!(
+        first["recent"][0]["why"],
+        json!({"reason": "called"}),
+        "{first}"
+    );
+
+    let skip = json!({"rules": {"chatty.skip_users": [format!("qq:{LIN}")]}});
+    let saved = call(
+        &mut open,
+        3,
+        "cards.save_one",
+        json!({"card": card, "values": skip}),
+    )
+    .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    // 她刚回了小林：小林接着说是续聊，照说要判；在跳过判断的人里，只记下。
+    let follow = group_frame(
+        LISTED,
+        LIN,
+        2,
+        json!([plain("那我先走了")]),
+        ("小林", "lin"),
+    );
+    napcat.send(follow);
+    let second = overview(&mut open, card, 2).await;
+    assert_eq!(
+        second["recent"][0]["why"],
+        json!({"reason": "skip_user"}),
+        "{second}"
+    );
+    assert_eq!(second["recent"][0]["outcome"], "record", "{second}");
+    stopped(home).await;
+}

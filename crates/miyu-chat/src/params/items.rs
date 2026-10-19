@@ -53,6 +53,9 @@ const ONE_CHAR_EACH: Kind = Kind::List(&Kind::Text { max: 1 });
 /// 停不下来（施工时定的第 20 条）。
 const MARKERS: Kind = Kind::List(&Kind::Text { max: 64 });
 
+/// 平台上的人的编号的列表（`qq:10002`）：每项 1 到 64 个字符，同触发词的上限，只防写错。
+const PEOPLE: Kind = Kind::List(&Kind::Text { max: 64 });
+
 /// 窗口、半衰期、@ 的间隔：1 秒到 1 天，同场所规则 `rate` 的时长。时长不收 0（配置的时长写法）。
 const WINDOW: Kind = Kind::Duration { min: 1, max: DAY };
 
@@ -174,6 +177,16 @@ pub(crate) const ITEMS: &[Item] = &[
     }),
     item("chatty.severity_min", SEVERITY, |p, v| {
         p.chatty.severity_min = count(v)
+    }),
+    // 被叫时也过判断、跳过纯图片、跳过判断的人（施工 I-7 中三）。
+    item("chatty.judge_called", Kind::Bool, |p, v| {
+        p.chatty.judge_called = flag(v)
+    }),
+    item("chatty.skip_media", Kind::Bool, |p, v| {
+        p.chatty.skip_media = flag(v)
+    }),
+    item("chatty.skip_users", PEOPLE, |p, v| {
+        p.chatty.skip_users = texts(v)
     }),
     item("dispatch.supersede_window", WINDOW, |p, v| {
         p.supersede_window = millis(v)

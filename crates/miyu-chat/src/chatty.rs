@@ -85,6 +85,12 @@ pub struct Chatty {
     pub(crate) restraint: Restraint,
     /// 违规的门槛：判官给的严重程度不低于它，不管分数够不够都回。
     pub(crate) severity_min: u8,
+    /// 普通群友冲她来也先过判官（施工 I-7 中三）：关着的冲她来就直接回（[`route`]）。
+    pub(crate) judge_called: bool,
+    /// 只有图的不抽样、不算续聊（施工 I-7 中三；没有字的本来就不算刚说过话）。
+    pub(crate) skip_media: bool,
+    /// 这几个人（平台上的人的编号）冲她来直接回，没冲她来的只记下、不交判官（施工 I-7 中三，[`route`]）。
+    pub(crate) skip_users: Vec<String>,
 }
 
 /// 一个带窗口的加值项的参数：[`Chatty`] 的一格，格只在 crate 里可见（施工 O-15）。
@@ -277,13 +283,18 @@ pub enum Route {
     Judge,
 }
 
-/// 一条消息走哪条路：没有条件只记下；终端管理员、白名单成员冲她来直接回；只有违规旗判官只查违规；别的交给判官打分（「怎么走」
-/// 第 8 条）。
-pub fn route(conditions: &Conditions, standing: Standing) -> Route {
-    let known = matches!(standing, Standing::Admin | Standing::Whitelisted);
-    if conditions.hits.is_empty() {
+/// 一条消息走哪条路：没有条件只记下；`skip_users` 里的人冲她来直接回、别的只记下（施工 I-7 中三）；终端管理员、白名单成员冲她来
+/// 直接回，`judge_called` 关着时谁冲她来都直接回；只有违规旗判官只查违规；别的交给判官打分（「怎么走」第 8 条）。
+pub fn route(conditions: &Conditions, said: &Said, chatty: &Chatty) -> Route {
+    let known = matches!(said.standing, Standing::Admin | Standing::Whitelisted);
+    let skipped = chatty
+        .skip_users
+        .iter()
+        .any(|one| one.as_str() == said.sender.as_str());
+    let direct = conditions.has(Kind::Direct);
+    if conditions.hits.is_empty() || (skipped && !direct) {
         Route::Record
-    } else if conditions.has(Kind::Direct) && known {
+    } else if direct && (known || skipped || !chatty.judge_called) {
         Route::Commit
     } else if conditions.only_moderation() {
         Route::ModerationOnly

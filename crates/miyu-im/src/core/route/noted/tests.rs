@@ -44,6 +44,13 @@ fn passed_ones_say_how_they_were_called_or_judged() {
     assert_eq!(why(&body), json!({"reason": "moderation"}));
     let body = json!({"inbound": "pass", "route": "record", "conditions": []});
     assert_eq!(why(&body), json!({"reason": "quiet"}));
+    let body =
+        json!({"inbound": "pass", "route": "record", "conditions": [{"kind": "probability"}]});
+    assert_eq!(
+        why(&body),
+        json!({"reason": "skip_user"}),
+        "跳过判断的人没冲她来"
+    );
 }
 
 #[test]

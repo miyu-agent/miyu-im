@@ -33,7 +33,7 @@ fn read(text: String) -> Params {
 }
 
 /// 出厂参数。
-pub(super) fn params() -> Params {
+pub(in crate::core::route) fn params() -> Params {
     read(defaults())
 }
 

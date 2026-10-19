@@ -117,7 +117,8 @@ function tags(field, one, context, save) {
   const added = [...(mine ?? [])];
   adding.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' || adding.value.trim() === '') return;
-    const item = adding.value.trim();
+    const typed = adding.value.trim();
+    const item = field.prefixed && /^\d+$/.test(typed) ? `${context.platform}:${typed}` : typed;
     added.push(item);
     adding.before(element('span', 'tag', shown(item)));
     adding.value = '';

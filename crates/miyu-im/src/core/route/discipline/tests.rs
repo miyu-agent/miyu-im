@@ -1,9 +1,26 @@
 //! 线路规程（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 10 条）：四种的写法读得回来，没设的、认不出的照 `chatty`；
 //! 各留下哪些条件、看不看顶替、走哪条路。
 
-use miyu_chat::{Conditions, Hit, Kind, Route, Standing};
+use miyu_chat::{Conditions, Hit, Kind, Route, Said, Standing};
+use miyu_client::ids::ExternalId;
 
 use super::Discipline;
+use crate::core::route::decide::tests::params;
+
+/// `discipline` 照出厂的参数、`standing` 的人发的走哪条路（被叫时也过判断、跳过判断的人照出厂：开着、没有人）。
+fn way(
+    discipline: Discipline,
+    conditions: &Conditions,
+    standing: Standing,
+    media_only: bool,
+) -> Route {
+    let said = Said {
+        sender: ExternalId::parse("qq:20002").expect("合写法"),
+        standing,
+        addressed: false,
+    };
+    discipline.route(conditions, (&said, &params().chatty), media_only)
+}
 
 /// 五种条件都成立的一份（照插槽的先后），抽样只是为了看留不留。
 fn all() -> Conditions {
@@ -114,15 +131,15 @@ fn each_goes_its_own_way() {
     let flagged = only(&[Kind::Moderation]);
     // chatty 照群聊内核：没条件只记下，终端管理员冲她来开一轮，只有违规旗只查违规，别的问判官。
     let chatty = Discipline::Chatty;
-    assert_eq!(chatty.route(&none, Standing::Member, false), Route::Record);
-    assert_eq!(chatty.route(&direct, Standing::Admin, false), Route::Commit);
+    assert_eq!(way(chatty, &none, Standing::Member, false), Route::Record);
+    assert_eq!(way(chatty, &direct, Standing::Admin, false), Route::Commit);
     assert_eq!(
-        chatty.route(&direct, Standing::Whitelisted, false),
+        way(chatty, &direct, Standing::Whitelisted, false),
         Route::Commit,
         "白名单成员冲她来的也开一轮（施工 O-27）"
     );
     assert_eq!(
-        chatty.route(&flagged, Standing::Member, false),
+        way(chatty, &flagged, Standing::Member, false),
         Route::ModerationOnly
     );
     // when-called、wake：只有违规旗的判官只查违规；和别的条件一起的、别的有条件的开一轮；没有的只记下。不打分。
@@ -130,17 +147,17 @@ fn each_goes_its_own_way() {
     let continued = only(&[Kind::Continuation]);
     for discipline in [Discipline::WhenCalled, Discipline::Wake] {
         assert_eq!(
-            discipline.route(&none, Standing::Member, false),
+            way(discipline, &none, Standing::Member, false),
             Route::Record
         );
         assert_eq!(
-            discipline.route(&flagged, Standing::Member, false),
+            way(discipline, &flagged, Standing::Member, false),
             Route::ModerationOnly,
             "{discipline:?}"
         );
         for conditions in [&direct, &both, &continued] {
             assert_eq!(
-                discipline.route(conditions, Standing::Member, false),
+                way(discipline, conditions, Standing::Member, false),
                 Route::Commit,
                 "{discipline:?}"
             );
@@ -148,11 +165,11 @@ fn each_goes_its_own_way() {
     }
     // every-message：有字的都开一轮，没条件也是；只有带的东西的只记下。
     let every = Discipline::EveryMessage;
-    assert_eq!(every.route(&none, Standing::Member, false), Route::Commit);
+    assert_eq!(way(every, &none, Standing::Member, false), Route::Commit);
     assert_eq!(
-        every.route(&flagged, Standing::Member, false),
+        way(every, &flagged, Standing::Member, false),
         Route::Commit,
         "违规旗不改它：有字的本来就回"
     );
-    assert_eq!(every.route(&direct, Standing::Member, true), Route::Record);
+    assert_eq!(way(every, &direct, Standing::Member, true), Route::Record);
 }

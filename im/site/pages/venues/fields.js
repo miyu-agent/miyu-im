@@ -5,7 +5,7 @@
 // - control：select（下拉，`options` 交选项）、persona、model（人格、模型的下拉，选项照宿主给的）、text、area、switch（`values` 是开、
 //   关存成什么，不写是真假）、number（带 `unit`）、float（小数）、multi（几个小数一行，`keys` 各存各的）、seconds（规则里写成 `15s`
 //   的时长，页面上填秒数）、rate（`N/Ms`：几条 / 几秒）、sleep（`HH:MM-HH:MM`）、tags（字的列表；`people` 的照号写、认得的写名字）、
-//   percent（拖动条，百分之几，存成千分比）。
+//   percent（拖动条，百分之几，存成千分比）。`prefixed` 的标签只填了号的补成平台上的人的编号（`qq:10002`）。
 // - clears：存这一格时一起去掉卡上旧写法的那几格（插嘴的四档 `chatty`：线路规程、抽样改写进 `rules` 以后不再用它）。
 // - kinds：哪几种卡有（group、other_groups、private、other_privates），不写是都有。
 // - dep：`{ key, on }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）。
@@ -34,9 +34,12 @@ export const FIELDS = {
   trigger: [
     { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], clears: ['chatty'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
+    { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
     { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', hint: 'field/judge-persona-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.chatty.probability', control: 'percent', clears: ['chatty'], label: 'field/probability', hint: 'field/probability-hint', kinds: GROUPS, dep: JUDGE, max: 30 },
+    { key: 'rules.chatty.skip_users', control: 'tags', people: true, prefixed: true, label: 'field/skip-users', hint: 'field/skip-users-hint', kinds: GROUPS, dep: JUDGE },
+    { key: 'rules.chatty.skip_media', control: 'switch', label: 'field/skip-media', hint: 'field/skip-media-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'managers', control: 'tags', people: true, label: 'field/managers', kinds: GROUPS },
     { key: 'show_ids', control: 'switch', label: 'field/show-ids', kinds: GROUPS },
     { key: 'rules.chatty.base', control: 'float', label: 'field/threshold', kinds: GROUPS, dep: JUDGE, advanced: true },

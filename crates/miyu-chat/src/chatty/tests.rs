@@ -6,7 +6,9 @@ use miyu_kernel::id::VenueId;
 
 use crate::{Flag, Standing};
 
-use super::test_support::{OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, seq};
+use super::test_support::{
+    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, route_as, said, seq,
+};
 use super::{Chatty, Conditions, Hit, Kind, Route, conditions, route};
 
 /// 成立了的种类，照插槽的先后。
@@ -298,39 +300,42 @@ fn primary_order() {
 #[test]
 fn routes() {
     use Kind::{AfterSpeaking, Direct, Moderation, Probability};
-    assert_eq!(route(&of(&[]), Standing::Admin), Route::Record);
-    assert_eq!(route(&of(&[Direct]), Standing::Admin), Route::Commit);
+    assert_eq!(route_as(&of(&[]), Standing::Admin), Route::Record);
+    assert_eq!(route_as(&of(&[Direct]), Standing::Admin), Route::Commit);
     assert_eq!(
-        route(&of(&[Direct, Moderation]), Standing::Admin),
+        route_as(&of(&[Direct, Moderation]), Standing::Admin),
         Route::Commit
     );
     assert_eq!(
-        route(&of(&[Direct, AfterSpeaking]), Standing::Whitelisted),
+        route_as(&of(&[Direct, AfterSpeaking]), Standing::Whitelisted),
         Route::Commit,
         "白名单成员冲她来的也不过判官（施工 O-27，2026-10-10 项目主人定）"
     );
     assert_eq!(
-        route(&of(&[AfterSpeaking]), Standing::Whitelisted),
+        route_as(&of(&[AfterSpeaking]), Standing::Whitelisted),
         Route::Judge,
         "白名单成员没冲她来照样过判官"
     );
-    assert_eq!(route(&of(&[Direct]), Standing::Member), Route::Judge);
+    assert_eq!(route_as(&of(&[Direct]), Standing::Member), Route::Judge);
     assert_eq!(
-        route(&of(&[AfterSpeaking]), Standing::Admin),
+        route_as(&of(&[AfterSpeaking]), Standing::Admin),
         Route::Judge,
         "终端管理员没 @ 照样过判官"
     );
     assert_eq!(
-        route(&of(&[Moderation]), Standing::Member),
+        route_as(&of(&[Moderation]), Standing::Member),
         Route::ModerationOnly
     );
     assert_eq!(
-        route(&of(&[Moderation]), Standing::Admin),
+        route_as(&of(&[Moderation]), Standing::Admin),
         Route::ModerationOnly
     );
-    assert_eq!(route(&of(&[Probability]), Standing::Member), Route::Judge);
     assert_eq!(
-        route(&of(&[AfterSpeaking, Moderation]), Standing::Member),
+        route_as(&of(&[Probability]), Standing::Member),
+        Route::Judge
+    );
+    assert_eq!(
+        route_as(&of(&[AfterSpeaking, Moderation]), Standing::Member),
         Route::Judge
     );
 }
@@ -341,6 +346,55 @@ fn admin_addressing_commits_end_to_end() {
     msg.said.standing = Standing::Admin;
     msg.said.addressed = true;
     let got = conditions(&msg, &[], &[], now(), &chatty());
-    assert_eq!(route(&got, msg.said.standing), Route::Commit);
+    assert_eq!(route(&got, &msg.said, &chatty()), Route::Commit);
     assert_eq!(got.primary(), Some(Kind::Direct));
+}
+
+#[test]
+fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
+    // 施工 I-7 中三：被叫时也过判断关了，谁冲她来都直接回；跳过判断的人冲她来直接回，没冲她来的只记下。
+    use Kind::{AfterSpeaking, Direct, Probability};
+    let mut chatty = chatty();
+    let member = said(Standing::Member);
+    assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Judge);
+    chatty.judge_called = false;
+    assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Commit);
+    assert_eq!(
+        route(&of(&[AfterSpeaking]), &member, &chatty),
+        Route::Judge,
+        "没冲她来照样判"
+    );
+    chatty.judge_called = true;
+    chatty.skip_users = vec![SENDER.to_string()];
+    assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Commit);
+    assert_eq!(route(&of(&[Probability]), &member, &chatty), Route::Record);
+    assert_eq!(
+        route(&of(&[AfterSpeaking]), &member, &chatty),
+        Route::Record
+    );
+    assert_eq!(route(&of(&[]), &member, &chatty), Route::Record);
+    chatty.skip_users = vec![OTHER.to_string()];
+    assert_eq!(
+        route(&of(&[Probability]), &member, &chatty),
+        Route::Judge,
+        "名单里没有他"
+    );
+}
+
+#[test]
+fn media_only_messages_are_drawn_and_followed_only_when_not_skipped() {
+    // 施工 I-7 中三：跳过纯图片开着（出厂）时只有图的不抽样、不算续聊；关了照常。
+    let mut picture = facts();
+    picture.media_only = true;
+    picture.textless = true;
+    let mut chatty = chatty();
+    chatty.probability = 1000;
+    let replies = [reply(SECOND, &[SENDER])];
+    let found = conditions(&picture, &[], &replies, now(), &chatty);
+    assert!(found.hits.is_empty(), "{found:?}");
+    chatty.skip_media = false;
+    let found = conditions(&picture, &[], &replies, now(), &chatty);
+    assert!(found.has(Kind::Continuation), "{found:?}");
+    let found = conditions(&picture, &[], &[], now(), &chatty);
+    assert!(found.has(Kind::Probability), "{found:?}");
 }

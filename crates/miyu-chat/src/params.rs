@@ -171,6 +171,9 @@ fn blank() -> Params {
                 k: 0.0,
             },
             severity_min: 0,
+            judge_called: false,
+            skip_media: false,
+            skip_users: Vec::new(),
         },
         supersede_window: 0,
         judge: Judge {

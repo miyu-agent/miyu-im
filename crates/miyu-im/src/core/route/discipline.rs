@@ -12,7 +12,7 @@
 //! 里只有违规旗的照 `chatty` 的只查违规问判官，严重程度够了才回；`every-message` 有字的本来就回，违规旗不改它（「施工时定的」
 //! 第 90 条）。写在桥里、不进群聊内核（第 87 条）：别的平台的桥要用时再挪。
 
-use miyu_chat::{Conditions, Kind, Route, Standing, route};
+use miyu_chat::{Chatty, Conditions, Kind, Route, Said, route};
 
 /// 一个群的线路规程。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,17 +72,17 @@ impl Discipline {
         }
     }
 
-    /// 走哪条路：`chatty` 照群聊内核的 `route`；`when-called`、`wake` 只有违规旗的判官只查违规，别的有条件的开一轮，没有的只记下；
+    /// 走哪条路：`chatty` 照群聊内核的 `route`（发的人 `said`、参数 `chatty`：被叫时也过判断、跳过判断的人，施工 I-7 中三）；`when-called`、`wake` 只有违规旗的判官只查违规，别的有条件的开一轮，没有的只记下；
     /// `every-message` 有字的开一轮，只有带的东西（`media_only`）的只记下。
     pub(super) fn route(
         self,
         conditions: &Conditions,
-        standing: Standing,
+        (said, chatty): (&Said, &Chatty),
         media_only: bool,
     ) -> Route {
         let commit_if = |yes: bool| if yes { Route::Commit } else { Route::Record };
         match self {
-            Discipline::Chatty => route(conditions, standing),
+            Discipline::Chatty => route(conditions, said, chatty),
             Discipline::WhenCalled | Discipline::Wake if only_flagged(conditions) => {
                 Route::ModerationOnly
             }

@@ -13,7 +13,7 @@ impl Bonus for Item {
     fn judge(&self, ctx: &BonusCtx<'_>, before: &[Hit]) -> Option<Hit> {
         let facts = ctx.facts;
         let holds = before.is_empty()
-            && !facts.media_only
+            && !(ctx.chatty.skip_media && facts.media_only)
             && drawn(&facts.venue, facts.msg, ctx.chatty.probability);
         holds.then_some(Hit {
             kind: Kind::Probability,

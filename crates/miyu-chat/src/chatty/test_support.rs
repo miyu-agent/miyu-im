@@ -51,7 +51,24 @@ pub(crate) fn chatty() -> Chatty {
             k: 2.5,
         },
         severity_min: 7,
+        judge_called: true,
+        skip_media: true,
+        skip_users: Vec::new(),
     }
+}
+
+/// 发消息的人（[`SENDER`]）是 `standing`，冲她来没有不要紧（走哪条路照成立的条件认）。
+pub(crate) fn said(standing: Standing) -> Said {
+    Said {
+        sender: person(SENDER),
+        standing,
+        addressed: false,
+    }
+}
+
+/// 照出厂的参数（[`chatty`]）、`standing` 的人走哪条路。
+pub(crate) fn route_as(conditions: &super::Conditions, standing: Standing) -> super::Route {
+    super::route(conditions, &said(standing), &chatty())
 }
 
 /// 群里别的人发的一条有字的消息，不冲她来，什么都没 @、没引用。

@@ -289,7 +289,7 @@ fn every_item_lands_in_its_own_field() {
          timing = 1.5\ncontinuity = 1.6\nadjust = 1.7\ndirect = 1.8\ncontinuation = 1.9\n\
          continuation_window = \"21s\"\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
-         severity_min = 9\n\
+         severity_min = 9\njudge_called = false\nskip_media = false\nskip_users = [\"qq:1\"]\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nretries = 2\nreason_chars = 29\n\
@@ -323,6 +323,9 @@ fn every_item_lands_in_its_own_field() {
                 k: 2.3,
             },
             severity_min: 9,
+            judge_called: false,
+            skip_media: false,
+            skip_users: vec!["qq:1".to_string()],
         },
         supersede_window: 24_000,
         judge: Judge {

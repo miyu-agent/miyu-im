@@ -3,8 +3,10 @@
 
 use crate::Standing;
 
-use super::super::test_support::{OTHER, SECOND, SENDER, ago, facts, mills, now, person, seq};
-use super::super::{Conditions, Hit, Kind, Route, route};
+use super::super::test_support::{
+    OTHER, SECOND, SENDER, ago, facts, mills, now, person, route_as, seq,
+};
+use super::super::{Conditions, Hit, Kind, Route};
 use super::{Pending, Status, Supersede, supersede};
 
 /// 顶替窗口：旧版的 7 秒（18 第七节）。
@@ -215,7 +217,7 @@ fn primary_keeps_the_original() {
     let conditions = merged(&got).expect("该重判");
     assert_eq!(conditions.primary(), Some(Kind::Direct));
     assert_eq!(
-        route(conditions, Standing::Admin),
+        route_as(conditions, Standing::Admin),
         Route::Commit,
         "合起来的照第三条走路"
     );
