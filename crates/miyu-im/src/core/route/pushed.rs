@@ -6,7 +6,7 @@ use serde_json::Value;
 use super::{Projection, Route};
 use crate::TARGET;
 use crate::core::Gone;
-use crate::core::methods::SEND;
+use crate::core::methods::{NOTE, SEND};
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
 
 impl Route {
@@ -56,6 +56,10 @@ impl Route {
             // 给别的包调的方法（施工 O-42，`exports`）：读的一头只把那几个交过来；`chat.send` 要找对方的会话（施工 O-56，`outreach`）。
             if pushed["params"]["method"] == SEND {
                 return self.send_exported(&pushed).await;
+            }
+            // 插件记一句给 AI（施工 I-8 上，`notes`）。
+            if pushed["params"]["method"] == NOTE {
+                return self.note_exported(&pushed).await;
             }
             // 后台页的场所卡片（施工 O-58 上，`cards`）、两页的三个方法（施工 O-58 下，`pages`）。
             if self.cards_called(&pushed) || self.page_called(&pushed).await? {

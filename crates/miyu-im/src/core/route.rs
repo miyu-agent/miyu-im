@@ -64,6 +64,7 @@ mod mentions;
 mod message;
 mod muted;
 mod names;
+mod notes;
 mod outbound;
 mod outreach;
 mod packages;

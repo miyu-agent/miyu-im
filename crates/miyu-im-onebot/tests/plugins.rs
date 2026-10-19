@@ -1,6 +1,6 @@
 //! im 的插件（施工 I-8 上，设计 01 第四节第 1 到 5 条）：真核心照开关拉起真桥，管理员家目录里装几个都导出 `chat.inbound` 的
 //! 测试包。挂接点只问 im 的插件（带了 `plugin.toml`），在这个平台上能用的（`platforms`、`needs`），在这个场所开着的（场所卡片、
-//! 兜底卡、声明的 `default`）。
+//! 兜底卡、声明的 `default`）。插件经 im 导出的 `chat.note` 往场所会话里记一句给 AI 的事实（第 6 条）。
 
 use serde_json::{Value, json};
 
@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::{install, until_plugged};
+use crate::support::hooked::{approve, install, until_plugged};
 use crate::support::*;
 
 /// 群里的别人。
@@ -147,5 +147,44 @@ async fn a_saved_card_switches_a_plugin_on_or_off_in_its_venue_at_once() {
     until_events(&home.root, &venue, |events| decided(events, 1)).await;
     assert_eq!(calls(&home.root, "closed").len(), 1, "卡上开了的问");
     assert!(calls(&home.root, "open").is_empty(), "卡上关了的不问");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_plugin_notes_a_fact_into_the_venue_session() {
+    let (home, napcat, _) = started_installed(&Script::new([]), RULES, MEMBERS, |root| {
+        let record = format!("record:{}", log_of(root, "admin").display());
+        let note = "note:moderated:小周 was muted by 阿杰 for 10 minutes.".to_string();
+        let how = r#"answer:chat.inbound:{"route":"pass"}"#.to_string();
+        install(root, "admin", &[record, note, how], &["chat.inbound"]);
+        approve(root, "admin", &["packages.call"]);
+    })
+    .await;
+    until_plugged(&home, 1, 1).await;
+    let venue = format!("qq:group:{GROUP}");
+    napcat.send(lin_calls(1));
+    let events = until_events(&home.root, &venue, |events| {
+        events
+            .iter()
+            .any(|event| event["body"]["kind"] == "moderated")
+    })
+    .await;
+    let fact = events
+        .iter()
+        .find(|event| event["body"]["kind"] == "moderated")
+        .expect("记了");
+    assert_eq!(fact["kind"], "context.injected", "{fact}");
+    assert_eq!(
+        fact["body"]["text"].as_str().map(str::trim_end),
+        Some("<moderated>小周 was muted by 阿杰 for 10 minutes.</moderated>"),
+        "套上外壳：种类当标签"
+    );
+    let noted: Vec<Value> = calls(&home.root, "admin")
+        .into_iter()
+        .filter_map(|line| line.get("noted").cloned())
+        .collect();
+    assert_eq!(noted.len(), 1, "{noted:?}");
+    assert_eq!(noted[0]["result"], json!({"noted": true}), "{noted:?}");
+    assert!(run_log(&home.root).contains("plugin noted"));
     stopped(home).await;
 }

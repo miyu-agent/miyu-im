@@ -270,7 +270,10 @@ fn the_manifest_exports_only_the_methods_for_other_packages() {
     let text = std::fs::read_to_string(package_in(resources()).dir().join("package.toml"))
         .expect("读得了");
     let manifest = miyu_client::manifest::read(&text).expect("读得出");
-    assert_eq!(manifest.export, ["chat.action", "chat.venue", "chat.send"]);
+    assert_eq!(
+        manifest.export,
+        ["chat.action", "chat.venue", "chat.send", "chat.note"]
+    );
 }
 
 #[test]

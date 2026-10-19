@@ -30,6 +30,12 @@ const UNSHOWN: &str = "facts/unshown.txt";
 /// 「文件没发出去」认的字段：为什么、NapCat 说的原因、文件名（「展示」第 4 条）。
 const UNSHOWN_FIELDS: &[&str] = &["why", "detail", "name"];
 
+/// 插件记的一句（施工 I-8 上，设计 01 第四节第 6 条）在出厂目录里的位置：插件经 `chat.note` 交种类和字，桥套上这个外壳。
+const PLUGIN_NOTE: &str = "facts/plugin-note.txt";
+
+/// 插件记的一句认的字段：种类（当标签名，桥查过写法）、字。
+const PLUGIN_NOTE_FIELDS: &[&str] = &["kind", "text"];
+
 /// 她被禁言了的事实（施工 O-50，「禁言」第 1 条）在出厂目录里的位置。
 const MUTED: &str = "facts/muted.txt";
 
@@ -85,6 +91,8 @@ pub(super) struct Facts {
     pub(super) unmuted: Template,
     /// 有人借了名字（施工 O-53）。
     pub(super) impostor: Template,
+    /// 插件记的一句（施工 I-8 上）。
+    pub(super) plugin_note: Template,
     /// 她先找了这个场所的人（施工 O-56）。
     pub(super) reached: Template,
 }
@@ -99,6 +107,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let muted = template(dir, MUTED, MUTED_FIELDS, problems);
     let unmuted = template(dir, UNMUTED, UNMUTED_FIELDS, problems);
     let impostor = template(dir, IMPOSTOR, IMPOSTOR_FIELDS, problems);
+    let plugin_note = template(dir, PLUGIN_NOTE, PLUGIN_NOTE_FIELDS, problems);
     let reached = template(dir, REACHED, REACHED_FIELDS, problems);
     Some(Facts {
         undelivered: undelivered?,
@@ -109,6 +118,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         muted: muted?,
         unmuted: unmuted?,
         impostor: impostor?,
+        plugin_note: plugin_note?,
         reached: reached?,
     })
 }

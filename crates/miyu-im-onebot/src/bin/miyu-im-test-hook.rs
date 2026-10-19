@@ -10,6 +10,8 @@
 //! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
 //!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
 //! - `sticker-end`：`sticker` 的回答带 `end_turn`（施工 O-57：她最后一步带着工具调用、这一轮到此结束，表情包包的 `meme_send` 那样）。
+//! - `note:<种类>:<字>`：扮 im 的插件记一句（施工 I-8 上）：收到 `chat.inbound` 先经核心的 `package.call` 调 im 的 `chat.note`
+//!   （场所照问的那一条的），把回应记进 `record:` 的文件（`{"noted": <回应>}`），再照写的答。要清单里批过 `packages.call`。
 //! - `render:<路径>`：扮渲染包（施工 O-59 上）：把这个图经 `blob.put` 传上去，`markdown` 答两页、都是它。清单要导出 `markdown`。
 //!
 //! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法（有 `sticker:` 的另经 `provide` 登记那件
@@ -35,6 +37,7 @@ fn main() {
     let mut sticker: Option<String> = None;
     let mut render: Option<String> = None;
     let mut end = false;
+    let mut note: Option<(String, String)> = None;
     for arg in std::env::args().skip(1) {
         if let Some(path) = arg.strip_prefix("record:") {
             record = Some(
@@ -54,6 +57,9 @@ fn main() {
             sticker = Some(path.to_string());
         } else if let Some(path) = arg.strip_prefix("render:") {
             render = Some(path.to_string());
+        } else if let Some(rest) = arg.strip_prefix("note:") {
+            let (kind, text) = rest.split_once(':').expect("写成 note:<种类>:<字>");
+            note = Some((kind.to_string(), text.to_string()));
         } else if arg == "sticker-end" {
             end = true;
         }
@@ -99,7 +105,34 @@ fn main() {
         if line.is_empty() {
             return;
         }
+        noting(&mut input, &line, note.as_ref(), &mut record);
         serve(&line, &answers, &mut record, (sent.as_ref(), end));
+    }
+}
+
+/// 插件记一句（`note:`，施工 I-8 上）：`line` 是 `chat.inbound` 的 `method.call` 的，经核心调 im 的 `chat.note`，回应记下来。
+fn noting(
+    input: &mut impl BufRead,
+    line: &str,
+    note: Option<&(String, String)>,
+    record: &mut Option<File>,
+) {
+    let (Some((kind, text)), Ok(message)) = (note, serde_json::from_str::<Value>(line)) else {
+        return;
+    };
+    if message["method"] != "method.call" || message["params"]["method"] != "chat.inbound" {
+        return;
+    }
+    let venue = &message["params"]["params"]["venue"];
+    let params = json!({"venue": venue, "kind": kind, "text": text});
+    let reply = ask(
+        input,
+        "package.call",
+        json!({"package": "im", "method": "chat.note", "params": params}),
+    );
+    if let Some(file) = record {
+        writeln!(file, "{}", json!({"noted": reply})).expect("写得进");
+        file.flush().expect("写得出");
     }
 }
 

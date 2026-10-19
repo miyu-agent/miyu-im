@@ -191,24 +191,28 @@ impl Hooks {
     /// 场所开着（施工 I-8 上）。场所认不出的（`None`）照插件声明的默认。
     pub(crate) fn at(&self, point: &str, to: Option<To>) -> Vec<String> {
         let hooked = hooked_at(&self.lock(), point);
+        hooked
+            .into_iter()
+            .filter(|package| self.allowed(package, to))
+            .collect()
+    }
+
+    /// 包 `package` 在发到 `to` 的那个场所里算不算开着的 im 插件（施工 I-8 上）：是插件、在这个平台上能用、这个场所开着（场所认不出
+    /// 的照声明的默认）。挂接点、`chat.note` 都照它。
+    pub(crate) fn allowed(&self, package: &str, to: Option<To>) -> bool {
         let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
-        let toggles = self.toggles.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(declared) = plugins.declared(package) else {
+            return false;
+        };
+        if plugins.usable(package, self.platform, self.caps).is_err() {
+            return false;
+        }
         let venue = to.map(|to| match to {
             To::Group(group) => (VenueKind::Group, group),
             To::Private(user) => (VenueKind::Private, user),
         });
-        hooked
-            .into_iter()
-            .filter(|package| {
-                let default = match plugins.usable(package, self.platform, self.caps) {
-                    Ok(()) => plugins
-                        .declared(package)
-                        .is_none_or(|declared| declared.default),
-                    Err(_) => return false,
-                };
-                toggles.enabled(venue, package, default)
-            })
-            .collect()
+        let toggles = self.toggles.lock().unwrap_or_else(PoisonError::into_inner);
+        toggles.enabled(venue, package, declared.default)
     }
 
     /// 平台推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`] 的每一个

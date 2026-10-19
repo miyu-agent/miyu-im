@@ -33,6 +33,9 @@ pub(crate) const VENUE: &str = "chat.venue";
 /// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `chat_send`）。
 pub(crate) const SEND: &str = "chat.send";
 
+/// 给 im 的插件调的：往场所会话里记一句给 AI 的事实（施工 I-8 上，设计 01 第四节第 6 条）。
+pub(crate) const NOTE: &str = "chat.note";
+
 /// 后台页的场所卡片：读（施工 O-58 上）。
 pub(crate) const CARDS_GET: &str = "cards.get";
 
@@ -49,7 +52,15 @@ use crate::rules::card_page::{
 pub(super) fn exported(method: &str) -> bool {
     matches!(
         method,
-        ACTION | VENUE | SEND | CARDS_GET | CARDS_SAVE | CARDS_SAVE_ONE | CARDS_ADD | CARDS_REMOVE
+        ACTION
+            | VENUE
+            | SEND
+            | NOTE
+            | CARDS_GET
+            | CARDS_SAVE
+            | CARDS_SAVE_ONE
+            | CARDS_ADD
+            | CARDS_REMOVE
     )
 }
 
@@ -122,6 +133,7 @@ fn registered() -> Value {
         {"name": ACTION},
         {"name": VENUE},
         {"name": SEND},
+        {"name": NOTE},
         {"name": CARDS_GET},
         {"name": CARDS_SAVE},
         {"name": CARDS_SAVE_ONE},

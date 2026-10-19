@@ -42,6 +42,12 @@ pub fn install(root: &DataRoot, id: &str, args: &[String], exports: &[&str]) {
 /// `system/extensions.json` 里批过（施工 O-51：登记工具要 `tools`），核心起来就拉起。
 pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[&str]) {
     install_starting(root, id, args, &[], "always");
+    approve(root, id, capabilities);
+}
+
+/// 装好的扩展包 `id` 声明 `capabilities` 那几样能力、在 `system/extensions.json` 里批过（施工 I-8 上：插件调 im 的 `chat.note` 要
+/// `packages.call`）。只批这一个包。
+pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
     let manifest = root
         .path()
         .join("home/admin/packages")

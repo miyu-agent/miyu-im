@@ -6,8 +6,8 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn ten_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的三个（施工 O-42；O-56 多 `chat.send`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）。
+fn eleven_methods_are_registered_without_a_timeout() {
+    // 后台页的两个、给别的包调的四个（施工 O-42；O-56 多 `chat.send`，I-8 上多插件用的 `chat.note`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）。
     assert_eq!(
         registered(),
         json!({"methods": [
@@ -16,6 +16,7 @@ fn ten_methods_are_registered_without_a_timeout() {
             {"name": "chat.action"},
             {"name": "chat.venue"},
             {"name": "chat.send"},
+            {"name": "chat.note"},
             {"name": "cards.get"},
             {"name": "cards.save"},
             {"name": "cards.save_one"},
@@ -33,6 +34,7 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "chat.action",
         "chat.venue",
         "chat.send",
+        "chat.note",
         "cards.get",
         "cards.save",
         "cards.save_one",
@@ -50,6 +52,7 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
             "chat.action",
             "chat.venue",
             "chat.send",
+            "chat.note",
             "cards.get",
             "cards.save",
             "cards.save_one",

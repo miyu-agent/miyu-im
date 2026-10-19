@@ -372,6 +372,11 @@ impl Venues {
         &self.factory.facts.reached
     }
 
+    /// 插件记的一句的外壳（施工 I-8 上）：出厂的，跑着不再读。
+    pub fn plugin_note(&self) -> &Template {
+        &self.factory.facts.plugin_note
+    }
+
     /// 冒充提醒的事实的模板（施工 O-53）：出厂的，跑着不再读。
     pub fn impostor_fact(&self) -> &Template {
         &self.factory.facts.impostor
