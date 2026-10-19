@@ -124,7 +124,7 @@ export function mountShell(root, { request, handed, onSignOut }) {
     const view = element('section', 'view');
     main.replaceChildren(view);
     main.scrollTop = 0;
-    current = wanted.mount(view);
+    current = wanted.mount(view, { request });
     if (connections) current.update(connections);
   };
   window.addEventListener('hashchange', go);

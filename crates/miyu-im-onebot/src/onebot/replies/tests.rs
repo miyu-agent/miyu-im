@@ -2,7 +2,7 @@
 
 use serde_json::json;
 
-use super::{fetched, friends, group_name, groups, member, members};
+use super::{fetched, friends, group_name, groups, member, members, nickname};
 use miyu_im::chat::{Friend, Group, Member, Rank};
 
 #[test]
@@ -85,4 +85,16 @@ fn a_group_name_is_taken_as_is_when_it_is_text() {
     );
     assert_eq!(group_name(&json!({"group_name": 5})), None);
     assert_eq!(group_name(&json!({})), None);
+}
+
+#[test]
+fn the_nickname_is_kept_as_is_and_blank_is_none() {
+    // 施工 I-6 中：机器人自己叫什么（get_login_info）。
+    assert_eq!(
+        nickname(&json!({"user_id": 1, "nickname": "米尤 "})),
+        Some("米尤 ".to_string())
+    );
+    for data in [json!({"nickname": "  "}), json!({"nickname": 1}), json!({})] {
+        assert_eq!(nickname(&data), None, "{data}");
+    }
 }

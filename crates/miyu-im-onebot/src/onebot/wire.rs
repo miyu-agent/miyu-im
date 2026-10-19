@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::media::{get_media, get_msg};
-use super::replies::{self, FRIEND_LIST, GROUP_INFO, GROUP_LIST, MEMBER_LIST};
+use super::replies::{self, FRIEND_LIST, GROUP_INFO, GROUP_LIST, LOGIN_INFO, MEMBER_LIST};
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
     get_forward_msg, group_ban, image_to, member_info, message_to, node, number, picture_to, poke,
@@ -155,6 +155,10 @@ impl Link for Wire {
             (GROUP_INFO, json!({"group_id": group})),
             replies::group_name,
         )
+    }
+
+    fn nickname(&self) -> Reply<'_, Option<String>> {
+        self.read((LOGIN_INFO, json!({})), replies::nickname)
     }
 
     fn raw<'a>(&'a self, action: &'a str, params: Value) -> Reply<'a, Value> {

@@ -4,7 +4,7 @@
 [package]
 protocol = [1, 1]
 name = { en = "Connect Messaging", zh = "接入通讯平台", ja = "メッセージング接続" }
-summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }
+summary = { en = "Connect the AI to messaging platforms such as QQ, WeChat and Telegram", zh = "把 AI 接入通讯平台，例如 QQ、微信、Telegram 等", ja = "AI を QQ、WeChat、Telegram などのメッセージングプラットフォームにつなぐ" }
 # 软件包页上的图标（Lucide 的名字，施工 O-28 上，docs/blueprint/package-pages.md「清单多的几格」）。
 icon = "message-circle"
 
@@ -76,7 +76,7 @@ type = "secret"
 layers = ["system"]
 applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
-description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect Messaging web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入通讯平台的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。メッセージング接続の Web ページで生成できます。" }
+description = { en = "The token NapCat shows when it connects, the same one as in NapCat. Without it NapCat is refused. Paste it on the Connect Messaging page (miyu im web).", zh = "NapCat 连进来时要出示的验证 Token，和 NapCat 那边的一样。没设的，NapCat 连进来会被拒。在接入通讯平台的页面上粘贴（miyu im web）。", ja = "NapCat が接続するときに示す認証トークンで、NapCat 側と同じものです。未設定だと NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）で貼り付けます。" }
 
 # 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。

@@ -142,6 +142,9 @@ impl Link for Fake {
     fn raw<'a>(&'a self, _: &'a str, _: Value) -> Reply<'a, Value> {
         closed()
     }
+    fn nickname(&self) -> Reply<'_, Option<String>> {
+        closed()
+    }
     fn implementation(&self) -> Option<Implementation> {
         None
     }

@@ -13,3 +13,38 @@
 .bot .avatar { width: 46px; height: 46px; font-size: 18px; }
 .pf-badge { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--text-soft); color: #fff; font-size: 10px; font-weight: 700; box-shadow: 0 0 0 2.5px var(--surface-1); }
 .pf-qq { background: #12b7f5; }
+.section-head .grow { flex: 1; }
+.conn-grid + .section-head { margin-top: 24px; }
+.bot .avatar { overflow: hidden; }
+.bot .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.conn-tile.off .avatar { filter: grayscale(0.8); opacity: 0.7; }
+
+/* 新建连接（施工 I-6 中）：照样板 d-im.html。 */
+.platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pf { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 10px; border: 0; border-radius: 14px; background: var(--surface-2); cursor: pointer; }
+.pf:hover { background: var(--surface-3); }
+.pf.on { background: var(--accent-soft); color: var(--on-primary-container); }
+.pf .pi { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--text-soft); color: #fff; font-weight: 700; }
+.pi.pf-qq { background: #12b7f5; }
+.fill { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; margin-top: 14px; }
+.fill code { padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fill .input { width: 100%; }
+.center { text-align: center; }
+.link { display: flex; align-items: center; justify-content: center; margin: 22px auto 10px; }
+.node { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); font-weight: 600; }
+.node .icon { width: 24px; height: 24px; }
+.node-us { color: var(--accent); }
+.pf-text-qq { color: #12b7f5; }
+.node-wrap { display: grid; justify-items: center; gap: 6px; color: var(--text-soft); font-size: 12px; }
+.wire { position: relative; width: 150px; height: 2px; margin: 0 10px 22px; background: repeating-linear-gradient(90deg, var(--line-strong) 0 6px, transparent 6px 11px); }
+.wire i { position: absolute; top: -3px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); animation: travel 1.6s var(--ease-out) infinite alternate; }
+@keyframes travel { from { left: 0; } to { left: calc(100% - 8px); } }
+.done-mark { width: 64px; height: 64px; margin: 8px auto 6px; }
+.done-mark circle { fill: color-mix(in srgb, var(--online) 16%, transparent); stroke: none; transform-origin: center; animation: grow 0.35s var(--ease-out) both; }
+.done-mark path { fill: none; stroke: var(--online); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw 0.4s 0.25s var(--ease-out) forwards; }
+@keyframes grow { from { transform: scale(0.4); opacity: 0; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.done-line { margin: 6px 0 2px; font-size: 15px; font-weight: 600; }
+@media (max-width: 720px) {
+  .wire { width: 70px; }
+}

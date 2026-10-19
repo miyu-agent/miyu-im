@@ -117,7 +117,7 @@ impl Methods {
 }
 
 /// NapCat 那边地址的路径：桥认的几个里最短的，一样短的取先写的（「施工时定的」第 152 条）。一个都没有的是空的。
-fn short_path(paths: &[String]) -> &str {
+pub(crate) fn short_path(paths: &[String]) -> &str {
     paths
         .iter()
         .min_by_key(|path| path.len())

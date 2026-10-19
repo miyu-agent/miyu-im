@@ -19,6 +19,9 @@ const TOKEN: &str = "token";
 /// 驱动的配置项：清单里的名字（`Driver::settings`）。
 pub const NAMES: &[&str] = &[LISTEN, TOKEN];
 
+/// 其中是密钥的（`Driver::secrets`，施工 I-6 中）。
+pub const SECRETS: &[&str] = &[TOKEN];
+
 /// OneBot 驱动用的两项。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {

@@ -5,6 +5,7 @@
 //!   正文最多 [`BODY`] 字节，多了 413。
 //! - `POST /logout`：`Authorization: Bearer <会话号>` 的那份登录拿掉，在它的人的连接上作废登录令牌（`account.logout`，不成的记一行
 //!   运行日志），回 204（没有这一份也是）。
+//! - `GET /avatar/<号>`：机器人的头像（[`super::faces`]，施工 I-6 中），取不到的 404。
 //! - `GET` 别的路径：页面的文件（[`super::files`]），没有的 404。
 //! - 别的方法：405。
 //!
@@ -38,19 +39,20 @@ pub(super) async fn handle(
     slot: &Mutex<Option<OnUpgrade>>,
 ) -> Response<Full<Bytes>> {
     let headers = request.headers();
-    let host = headers
-        .get(header::HOST)
-        .and_then(|value| value.to_str().ok());
-    if !guard::local_host(host, port) {
+    let text = |name| {
+        headers
+            .get(name)
+            .and_then(|value: &HeaderValue| value.to_str().ok())
+            .map(str::to_string)
+    };
+    let (host, origin) = (text(header::HOST), text(header::ORIGIN));
+    if !guard::local_host(host.as_deref(), port) {
         tracing::warn!(target: TARGET, host, "page request for another host");
-        return empty(StatusCode::MISDIRECTED_REQUEST);
+        return refused(request, StatusCode::MISDIRECTED_REQUEST).await;
     }
-    let origin = headers
-        .get(header::ORIGIN)
-        .and_then(|value| value.to_str().ok());
-    if !guard::same_origin(origin, host.unwrap_or_default()) {
+    if !guard::same_origin(origin.as_deref(), host.as_deref().unwrap_or_default()) {
         tracing::warn!(target: TARGET, origin, "page request from another origin");
-        return empty(StatusCode::FORBIDDEN);
+        return refused(request, StatusCode::FORBIDDEN).await;
     }
     let path = request.uri().path().to_string();
     match (request.method().clone(), path.as_str()) {
@@ -86,6 +88,17 @@ pub(super) async fn handle(
             }
             empty(StatusCode::NO_CONTENT)
         }
+        (Method::GET, path) if path.starts_with("/avatar/") => {
+            let bot = path.trim_start_matches("/avatar/").parse::<i64>();
+            let avatar = match bot {
+                Ok(bot) => site.faces.avatar(site, bot).await,
+                Err(_) => None,
+            };
+            match avatar {
+                Some(avatar) => file(avatar.0.clone(), avatar.1),
+                None => empty(StatusCode::NOT_FOUND),
+            }
+        }
         (Method::GET, path) => match files::name(path) {
             Some(name) => match files::read(&site.files, name).await {
                 Some(bytes) => file(bytes, files::kind(name)),
@@ -93,8 +106,17 @@ pub(super) async fn handle(
             },
             None => empty(StatusCode::NOT_FOUND),
         },
-        _ => empty(StatusCode::METHOD_NOT_ALLOWED),
+        _ => refused(request, StatusCode::METHOD_NOT_ALLOWED).await,
     }
+}
+
+/// 不收的请求：先把正文读掉（最多 [`BODY`] 字节）再回 `status`。不读就关连接，对面还在发的正文会让系统回 RST（macOS 上
+/// 浏览器、测试都读不到回应，只见连接被重置）。
+async fn refused(request: Request<Incoming>, status: StatusCode) -> Response<Full<Bytes>> {
+    if body(request).await.is_none() {
+        // 正文太大、读不完：照样回，连接随它。
+    }
+    empty(status)
 }
 
 /// WebSocket 的升级请求：回 101、带上算好的 `Sec-WebSocket-Accept`，把升级交进 `slot`。不是升级请求的 400。

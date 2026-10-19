@@ -30,7 +30,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::onebot::{PLATFORM, number};
-use crate::settings::{NAMES, token};
+use crate::settings::{NAMES, SECRETS, token};
 use miyu_im::TARGET;
 use miyu_im::chat::{CAPS, Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Started};
@@ -51,6 +51,10 @@ impl Driver for OneBot {
 
     fn settings(&self) -> &'static [&'static str] {
         NAMES
+    }
+
+    fn secrets(&self) -> &'static [&'static str] {
+        SECRETS
     }
 
     fn start(&self, gate: Arc<Gate>) -> Started {

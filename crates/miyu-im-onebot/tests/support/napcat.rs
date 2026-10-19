@@ -11,6 +11,9 @@ use tokio_tungstenite::{WebSocketStream, client_async};
 
 use super::{ADMIN, BOT, TIME, TOKEN, within};
 
+/// 机器人在平台上的昵称：`get_login_info` 照它回（施工 I-6 中）。
+pub const NICKNAME: &str = "米尤";
+
 /// 令牌怎么出示。
 #[derive(Debug, Clone, Copy)]
 pub enum Auth<'a> {
@@ -151,8 +154,8 @@ impl NapCat {
             let kind = action["action"].as_str().unwrap_or_default();
             // 取东西（施工 O-33）：这个假 NapCat 什么都没存，回失败、不交出去。
             let fetching = ["get_msg", "get_image", "get_file", "get_forward_msg"].contains(&kind);
-            // 群名（施工 O-49）：照 `answering` 的回，不交出去。
-            let asking = kind == "get_group_info";
+            // 群名（施工 O-49）：照 `answering` 的回，不交出去。机器人自己的名字（施工 I-6 中，页面问的）也是。
+            let asking = kind == "get_group_info" || kind == "get_login_info";
             let data = match kind {
                 "get_version_info" => json!({
                     "app_name": "NapCat.Onebot",
@@ -162,6 +165,7 @@ impl NapCat {
                 "get_group_info" => {
                     json!({"group_id": action["params"]["group_id"], "group_name": super::answering::GROUP_NAME})
                 }
+                "get_login_info" => json!({"user_id": BOT, "nickname": NICKNAME}),
                 _ => json!({"message_id": 1}),
             };
             let status = if fetching { "failed" } else { "ok" };
@@ -198,6 +202,33 @@ impl NapCat {
                 "status": "ok",
                 "retcode": 0,
                 "data": {"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"},
+                "message": "",
+                "wording": "",
+                "echo": action["echo"],
+            }))
+            .await;
+            return;
+        }
+    }
+
+    /// 等页面问机器人名字时桥调的 `get_login_info`，回 [`NICKNAME`]（施工 I-6 中）。最多等六十秒。
+    pub async fn login_info(&mut self) {
+        loop {
+            let frame = within("桥问名字", self.ws.next())
+                .await
+                .expect("连接没断")
+                .expect("读得到");
+            let Message::Text(text) = frame else {
+                continue;
+            };
+            let action: Value = serde_json::from_str(&text).expect("是 JSON");
+            if action["action"] != "get_login_info" {
+                continue;
+            }
+            self.send(json!({
+                "status": "ok",
+                "retcode": 0,
+                "data": {"user_id": BOT, "nickname": NICKNAME},
                 "message": "",
                 "wording": "",
                 "echo": action["echo"],

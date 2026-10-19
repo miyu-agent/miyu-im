@@ -15,6 +15,8 @@ pub const FRIEND_LIST: &str = "get_friend_list";
 pub const MEMBER_LIST: &str = "get_group_member_list";
 /// 同 [`GROUP_LIST`]。
 pub const GROUP_INFO: &str = "get_group_info";
+/// 同 [`GROUP_LIST`]：机器人自己的号和昵称（施工 I-6 中）。
+pub const LOGIN_INFO: &str = "get_login_info";
 
 /// `get_msg` 回应的 `data`：`message_type` 是 `private` 的是私聊里的；群号 `group_id`、发的人 `user_id`；段照 `message` 认。
 pub fn fetched(data: &Value) -> Fetched {
@@ -71,6 +73,14 @@ pub fn friends(data: &Value) -> Vec<Friend> {
             })
         })
         .collect()
+}
+
+/// `get_login_info` 回应的 `data` 里的昵称 `nickname`，照原样；不是字的、空白的是空的（施工 I-6 中）。
+pub fn nickname(data: &Value) -> Option<String> {
+    data["nickname"]
+        .as_str()
+        .filter(|name| !name.trim().is_empty())
+        .map(str::to_string)
 }
 
 /// `get_group_info` 回应的 `data` 里的群名 `group_name`，照原样；不是字的是空的。

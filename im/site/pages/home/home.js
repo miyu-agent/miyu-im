@@ -1,17 +1,36 @@
-// 首页（设计 01 第八节第 2 条，施工 I-6 上）：一个连接都没有的写一句、正中留给新建连接（引导随 I-6 中）；有连接的「连接」一栏，
-// 一个机器人一张卡：头像（暂时是平台的字母，取头像随 I-6 中）、平台的角标、号、平台和实现、在线和连了多久。今天的数字、运行日志
-// 随 I-6 下。连了多久每分钟照本机的钟重画一次（不问宿主）。
-import { element, say } from '../../shell/i18n.js';
+// 首页（设计 01 第八节第 2 条，施工 I-6 上起）：一个连接都没有的正中一个「新建连接」；有连接的「连接」一栏，一个机器人一张卡：
+// 头像（页面服务转的，取不到的写平台的字母）、平台的角标、名字（没问到的写号）、平台和实现、号和连了多久；断开了的卡留着，写断开
+// 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。今天的数字、运行日志随 I-6 下。连了多久每分钟照本机的钟
+// 重画一次（不问宿主）。
+import { element, icon, say } from '../../shell/i18n.js';
+import { platform } from './platforms.js';
+import { openSettings } from './settings.js';
+import { openWizard } from './wizard.js';
 
-/** 平台的样子：角标上的字、角标的颜色（class）。 */
-const PLATFORMS = { qq: { badge: 'Q', name: () => say('platform/qq') } };
-
-/** 在 `view` 里起首页，交回 update(connections)、dispose()。 */
-export function mountHome(view) {
+/** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
+export function mountHome(view, { request }) {
   let connections = [];
+  let wizard = null;
+  const newButton = (className) => {
+    const button = element('button', className);
+    button.append(icon('i-plus'), document.createTextNode(say('home/new')));
+    button.addEventListener('click', () => {
+      wizard = openWizard(request);
+      wizard.update(connections);
+    });
+    return button;
+  };
   const draw = () => {
     if (connections.length === 0) {
-      view.replaceChildren(empty());
+      const box = element('div', 'empty');
+      const inner = element('div');
+      inner.append(
+        element('h2', null, say('home/empty-title')),
+        element('p', null, say('home/empty-text')),
+        newButton('btn primary lg'),
+      );
+      box.append(inner);
+      view.replaceChildren(box);
       return;
     }
     const head = element('div', 'view-head');
@@ -20,15 +39,19 @@ export function mountHome(view) {
     section.append(
       element('h2', null, say('home/connections')),
       element('span', 'faint', say('home/count', { count: connections.length })),
+      element('span', 'grow'),
+      newButton('btn'),
     );
     const grid = element('div', 'conn-grid');
-    for (const one of connections) grid.append(tile(one));
+    for (const one of connections) grid.append(tile(one, request));
     view.replaceChildren(head, section, grid);
   };
   const timer = setInterval(draw, 60000);
+  draw();
   return {
     update(now) {
       connections = now;
+      wizard?.update(now);
       draw();
     },
     dispose() {
@@ -37,36 +60,46 @@ export function mountHome(view) {
   };
 }
 
-function empty() {
-  const box = element('div', 'empty');
-  const inner = element('div');
-  inner.append(element('h2', null, say('home/empty-title')), element('p', null, say('home/empty-text')));
-  box.append(inner);
-  return box;
-}
-
-function tile(one) {
-  const platform = PLATFORMS[one.platform] || { badge: one.platform.slice(0, 1).toUpperCase(), name: () => one.platform };
-  const card = element('div', 'conn-tile');
+function tile(one, request) {
+  const shown = platform(one.platform);
+  const card = element('div', one.connected ? 'conn-tile' : 'conn-tile off');
   const bot = element('span', 'bot');
-  bot.append(element('span', 'avatar', platform.badge), element('span', `pf-badge pf-${one.platform}`, platform.badge));
+  const face = element('span', 'avatar', shown.badge);
+  if (one.avatar) {
+    const picture = element('img');
+    picture.alt = '';
+    picture.src = one.avatar;
+    picture.addEventListener('load', () => face.replaceChildren(picture));
+  }
+  bot.append(face, element('span', `pf-badge pf-${one.platform}`, shown.badge));
   const grow = element('div', 'grow');
   const line = one.implementation
-    ? say('conn/line', { platform: platform.name(), implementation: one.implementation, version: one.version })
-    : platform.name();
+    ? say('conn/line', { platform: shown.name(), implementation: one.implementation, version: one.version })
+    : shown.name();
   const state = element('div', 'faint');
-  state.append(element('span', 'dot on'), document.createTextNode(` ${since(one)}`));
-  grow.append(element('b', null, one.bot), element('div', 'soft', line), state);
-  card.append(bot, grow);
+  state.append(element('span', one.connected ? 'dot on' : 'dot off'), document.createTextNode(` ${since(one)}`));
+  grow.append(element('b', null, one.name || one.bot), element('div', 'soft', line), state);
+  const gear = element('button', 'icon-button');
+  gear.title = say('settings/open');
+  gear.append(icon('i-gear'));
+  gear.addEventListener('click', () => openSettings(request, one));
+  card.append(bot, grow, gear);
   return card;
 }
 
-/** 「号 · 已连多久」。 */
+/** 「号 · 已连多久」，断开了的「号 · 断开多久，在重连」。 */
 function since(one) {
   const minutes = Math.floor((Date.now() - one.since) / 60000);
-  if (minutes < 1) return say('conn/since-now', { bot: one.bot });
-  if (minutes < 60) return say('conn/since-minutes', { bot: one.bot, n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return say('conn/since-hours', { bot: one.bot, n: hours });
-  return say('conn/since-days', { bot: one.bot, n: Math.floor(hours / 24) });
+  const fields = { bot: one.bot, n: minutes };
+  if (!one.connected) {
+    if (minutes < 1) return say('conn/gone-now', fields);
+    if (minutes < 60) return say('conn/gone-minutes', fields);
+    if (hours < 24) return say('conn/gone-hours', { ...fields, n: hours });
+    return say('conn/gone-days', { ...fields, n: Math.floor(hours / 24) });
+  }
+  if (minutes < 1) return say('conn/since-now', fields);
+  if (minutes < 60) return say('conn/since-minutes', fields);
+  if (hours < 24) return say('conn/since-hours', { ...fields, n: hours });
+  return say('conn/since-days', { ...fields, n: Math.floor(hours / 24) });
 }

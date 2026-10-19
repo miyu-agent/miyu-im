@@ -189,6 +189,9 @@ pub trait Link: Send + Sync + fmt::Debug {
     /// 群 `group` 的群名，照原样；回了没有的是空的（施工 O-32）。
     fn group_name(&self, group: i64) -> Reply<'_, Option<String>>;
 
+    /// 机器人自己在平台上叫什么，照原样；回了没有的是空的（施工 I-6 中：页面的连接卡）。
+    fn nickname(&self) -> Reply<'_, Option<String>>;
+
     /// 原样的一次调用（`chat.action`，施工 O-29）：平台回了的不管成没成都原样交回。
     ///
     /// # Errors

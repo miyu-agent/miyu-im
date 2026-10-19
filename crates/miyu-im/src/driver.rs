@@ -33,6 +33,11 @@ pub trait Driver: Send + Sync {
     /// 驱动自己的配置项：清单 `[settings]` 里的名字（施工 I-3）。宿主照它挑出这几键交给驱动（[`Gate::config`]），别的键不给。
     fn settings(&self) -> &'static [&'static str];
 
+    /// [`Driver::settings`] 里哪几项是密钥（施工 I-6 中）：页面存它们时先存成核心的密钥（`im-<平台>-<名字>`），配置里写引用。
+    fn secrets(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     /// 照 [`Gate::config`] 起来（OneBot：开好端口、说听上了），交回跑着的那一段。起不来的（端口被占、听不了、配置里缺必须的
     /// 那一项）交回 [`Failure`]。
     fn start(&self, gate: Arc<Gate>) -> Started;

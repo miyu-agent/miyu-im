@@ -1,0 +1,29 @@
+/* 浮窗和短提示（施工 I-6 中）：照样板 d-im.html 的 .layer、.dialog.small。 */
+.layer { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.16s ease; }
+.layer.open { opacity: 1; pointer-events: auto; }
+.scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 60%, transparent); backdrop-filter: blur(4px); }
+.dialog { position: relative; display: flex; flex-direction: column; width: min(600px, 100%); max-height: calc(100vh - 32px); overflow: hidden; border-radius: 16px; background: var(--surface); box-shadow: var(--float-shadow); transform: scale(0.97); transition: transform 0.18s var(--ease-out); }
+.layer.open .dialog { transform: none; }
+.d-head { display: flex; align-items: center; gap: 8px; padding: 16px 16px 8px 26px; }
+.d-head h2 { flex: 1; margin: 0; font-size: 17px; }
+.d-body { flex: 1; min-height: 0; padding: 4px 26px 20px; overflow-y: auto; }
+.d-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px; }
+.d-foot .grow { flex: 1; }
+.steps { display: flex; gap: 6px; padding: 0 26px 12px; }
+.steps i { flex: 1; height: 4px; border-radius: 99px; background: var(--surface-3); transition: background-color 0.3s ease; }
+.steps i.on { background: var(--accent); }
+.lead { margin: 0 0 6px; }
+.failed { margin: 10px 0 0; color: var(--danger); }
+.failed:empty { display: none; }
+.row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.row:last-of-type { border-bottom: 0; }
+.row .label { flex: 1; min-width: 0; }
+.row .label small { display: block; color: var(--text-faint); font-size: 12px; }
+.input.num { width: 90px; font-family: var(--mono); text-align: center; }
+.row .input.mono { width: 220px; }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 70; padding: 8px 14px; border-radius: 999px; background: var(--text); color: var(--surface); font-size: 12.5px; transform: translate(-50%, 12px); opacity: 0; transition: opacity 0.18s ease, transform 0.18s var(--ease-out); pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 720px) {
+  .row { flex-wrap: wrap; }
+  .row .input.mono { width: 100%; }
+}

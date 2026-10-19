@@ -28,7 +28,7 @@
     "failure/port-in-use": "ポート {port} は使われています。別のポートにしてください：miyu config set --system im.qq.listen <ポート>。NapCat 側も合わせて変えます。",
     "failure/crashed": "メッセージング接続で不具合が起きたので止まります：{reason}",
     "failure/start": "メッセージング接続を起動できません：{reason}",
-    "notice/no-token": "トークン（im.qq.token）がまだないので、NapCat の接続は拒否されます。Web アプリの メッセージング接続のページ（miyu im web）で生成して NapCat に入れると、数秒でつながります。",
+    "notice/no-token": "トークン（im.qq.token）がまだないので、NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）を開いて NapCat 側のトークンを貼り付けると、数秒でつながります。",
     "failure/not-spawned": "コアから握手の返事がありません。miyu-im serve はコアだけが起動します：miyu im start で メッセージング接続をオンにしてください。",
     "control/started": "メッセージング接続をオンにしました：コアが今起動し、これからもコアが起きるたびに起動します。",
     "control/stopped": "メッセージング接続をオフにしました：コアが止め、これからは起動しません。",

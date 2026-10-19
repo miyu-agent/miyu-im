@@ -28,7 +28,7 @@
     "failure/port-in-use": "Port {port} is in use. Pick another: miyu config set --system im.qq.listen <port>, and change NapCat to match.",
     "failure/crashed": "The QQ bridge hit a bug and stops: {reason}",
     "failure/start": "The QQ bridge could not start: {reason}",
-    "notice/no-token": "No token (im.qq.token) yet, so NapCat will be refused. Generate one on its page in the web app (miyu im web) and put it into NapCat; it connects within seconds.",
+    "notice/no-token": "No token (im.qq.token) yet, so NapCat will be refused. Open the Connect Messaging page (miyu im web) and paste the token from NapCat; it connects within seconds.",
     "failure/not-spawned": "No handshake reply from the core. miyu-im serve is started by the core only: turn the QQ bridge on with miyu im start.",
     "control/started": "The QQ bridge is on: the core starts it now and every time the core starts.",
     "control/stopped": "The QQ bridge is off: the core stopped it and will not start it again.",

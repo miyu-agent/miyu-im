@@ -10,12 +10,14 @@
 //! （`password`）；页面上要人的权限做的事以后走这条连接。登出时在这条连接上作废它的登录令牌（`account.logout`）。
 
 mod channel;
+mod faces;
 mod files;
 mod guard;
 mod logins;
 mod methods;
 mod password;
 mod request;
+mod save;
 #[cfg(test)]
 mod tests;
 mod ticket;
@@ -37,10 +39,11 @@ use miyu_client::places::DataRoot;
 
 use crate::TARGET;
 use crate::changed::Changed;
-use crate::chat::{Bots, Platform};
 use crate::core::caller::Caller;
+use crate::driver::Driver;
+use crate::running::Running;
 use crate::serve::Notice;
-use crate::tuning::Tuning;
+use faces::Faces;
 use logins::Logins;
 
 /// 页面服务的配置项里端口的名字（`crate::settings::SITE`，键是 `im.web.port`）。
@@ -60,36 +63,36 @@ pub(crate) struct Site {
     pub(crate) files: PathBuf,
     /// 扩展连接上的调用口：换交接票（`login.redeem`）。
     pub(crate) caller: Caller,
-    /// 桥自己的数：接不了连接时歇多久。
-    pub(crate) tuning: Tuning,
     /// 登录了的。
     logins: Logins<Person>,
-    /// 连着的机器人和平台（施工 I-6 上：页面的连接卡）。
-    bots: Arc<Bots>,
-    platform: Platform,
+    /// 桥跑着的样子（施工 I-6 中：桥自己的数、连着的机器人、平台、配置、驱动报的状态）。
+    running: Arc<Running>,
+    /// 驱动：配置项的名字、哪几项是密钥（施工 I-6 中：页面存连接设置）。
+    driver: Arc<dyn Driver>,
     /// 桥手里的状态变了：开着的通道照它推（施工 I-6 上）。
     changed: Arc<Changed>,
+    /// 机器人的名字、头像（施工 I-6 中）。
+    faces: Faces,
 }
 
 impl Site {
-    /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥自己的数 `tuning`，连着的机器人 `bots` 和平台
-    /// `platform`，状态变了叫 `changed`；还没有人登录。
+    /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥跑着的样子 `running` 和驱动 `driver`，状态变了叫
+    /// `changed`；还没有人登录。
     pub(crate) fn new(
         (root, files): (DataRoot, PathBuf),
         caller: Caller,
-        tuning: Tuning,
-        (bots, platform): (Arc<Bots>, Platform),
+        (running, driver): (Arc<Running>, Arc<dyn Driver>),
         changed: Arc<Changed>,
     ) -> Site {
         Site {
             root,
             files,
             caller,
-            tuning,
             logins: Logins::default(),
-            bots,
-            platform,
+            running,
+            driver,
             changed,
+            faces: Faces::default(),
         }
     }
 }
@@ -164,7 +167,7 @@ async fn accepting(
                 }
                 Err(error) => {
                     tracing::warn!(target: TARGET, error = %error, "page accept failed");
-                    tokio::time::sleep(site.tuning.accept_retry()).await;
+                    tokio::time::sleep(site.running.tuning.accept_retry()).await;
                 }
             },
             changed = config.changed(), if watching => {

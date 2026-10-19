@@ -2,8 +2,8 @@
 //!
 //! 1. 页面先发 `{"session"}`（登录时交回的会话号；浏览器开 WebSocket 带不了自己的头），[`FIRST`] 以内没发、对不上登录的回关闭帧
 //!    4401 `bad_session`。对上了回 `{"account"}`。
-//! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason"}}`（方法在
-//!    `methods`）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
+//! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason", "message"?}}`（方法在
+//!    `methods`；`message` 是核心拒了时的原话，施工 I-6 中）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
 //! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。
 
 use std::sync::Arc;
@@ -76,9 +76,15 @@ where
             return;
         };
         let id = request["id"].clone();
-        let reply = match methods::answer(&site, &login.account, request["method"].as_str()) {
+        let asked = (request["method"].as_str(), &request["params"]);
+        let reply = match methods::answer(&site, &login, asked).await {
             Ok(result) => json!({"id": id, "result": result}),
-            Err(reason) => json!({"id": id, "error": {"reason": reason}}),
+            Err((reason, message)) if message.is_empty() => {
+                json!({"id": id, "error": {"reason": reason}})
+            }
+            Err((reason, message)) => {
+                json!({"id": id, "error": {"reason": reason, "message": message}})
+            }
         };
         if send(&mut ws, &reply).await.is_err() {
             return;

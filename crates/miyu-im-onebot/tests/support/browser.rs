@@ -187,3 +187,48 @@ pub async fn page_port(bridge: &Bridge, nth: usize) -> u16 {
     })
     .await
 }
+
+/// 照页面的样子进来：头要一张交接票，换登录，开通道、出示会话号（施工 I-6 中）。交回开着的通道。
+pub async fn logged_in(root: &miyu_store::root::DataRoot, port: u16) -> Channel {
+    let mut head = super::head::Head::connect(root).await;
+    let ticket = head.call("login.ticket", serde_json::json!({})).await["result"]["ticket"].clone();
+    let session = post(
+        port,
+        "/login/ticket",
+        &[],
+        &serde_json::json!({"ticket": ticket}),
+    )
+    .await
+    .json()["session"]
+        .as_str()
+        .expect("登录了")
+        .to_string();
+    let mut open = channel(port, None).await;
+    say(&mut open, &serde_json::json!({"session": session})).await;
+    assert!(heard(&mut open).await.is_ok(), "通道认了会话号");
+    open
+}
+
+/// 在通道上调 `method`（编号 `id`）：交回回应（推来的 `changed` 跳过）。
+pub async fn call(open: &mut Channel, id: u64, method: &str, params: Value) -> Value {
+    say(
+        open,
+        &serde_json::json!({"id": id, "method": method, "params": params}),
+    )
+    .await;
+    loop {
+        let frame = heard(open).await.expect("通道开着");
+        if frame["id"] == id {
+            return frame;
+        }
+    }
+}
+
+/// 等到通道上推来一帧 `changed`。
+pub async fn changed(open: &mut Channel) {
+    loop {
+        if heard(open).await.expect("通道开着") == serde_json::json!({"event": "changed"}) {
+            return;
+        }
+    }
+}

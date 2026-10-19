@@ -19,7 +19,7 @@ use crate::chat::Bots;
 use crate::chat::Source;
 use crate::chat::{CallError, Member, Rank, To};
 use crate::core::{Answerer, Gone};
-use crate::media::{QQ_FILES, bytes, save};
+use crate::media::{QQ_FILES, bytes, extension, save};
 use crate::rules::{AVATAR, Tools};
 
 /// 答的话里的原因最多几个字符（同取图）。
@@ -61,19 +61,6 @@ pub(super) fn avatar_of(whose: Whose, templates: &(String, String)) -> (String, 
             templates.1.replace("{id}", &group.to_string()),
             format!("avatar-group-{group}"),
         ),
-    }
-}
-
-/// 照开头几个字节认图的扩展名：PNG、GIF、WebP，别的当 JPEG（QQ 的头像多是 JPEG）。
-pub(super) fn extension(bytes: &[u8]) -> &'static str {
-    if bytes.starts_with(b"\x89PNG") {
-        "png"
-    } else if bytes.starts_with(b"GIF8") {
-        "gif"
-    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
-        "webp"
-    } else {
-        "jpg"
     }
 }
 

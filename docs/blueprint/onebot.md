@@ -187,7 +187,7 @@
 [package]
 protocol = [1, 1]
 name = { en = "Connect Messaging", zh = "接入通讯平台", ja = "メッセージング接続" }
-summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }
+summary = { en = "Connect the AI to messaging platforms such as QQ, WeChat and Telegram", zh = "把 AI 接入通讯平台，例如 QQ、微信、Telegram 等", ja = "AI を QQ、WeChat、Telegram などのメッセージングプラットフォームにつなぐ" }
 icon = "message-circle"
 
 [command]

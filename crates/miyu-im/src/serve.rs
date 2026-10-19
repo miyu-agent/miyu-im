@@ -213,22 +213,21 @@ pub async fn run(
     let accepting = serve.driver.start(Arc::clone(&gate)).await?;
     // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。
     let page = Arc::new(Port::new(Arc::clone(&changed)));
-    let site = Site::new(
-        (serve.root.clone(), serve.package.dir().join("site")),
-        core.caller(),
-        serve.tuning.clone(),
-        (Arc::clone(&bots), platform),
-        Arc::clone(&changed),
-    );
-    let serving = site::start(Arc::new(site), current.site(), told, Arc::clone(&page)).await;
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
         platform,
         current: Arc::clone(&current),
         reported,
-        page,
+        page: Arc::clone(&page),
     });
+    let site = Site::new(
+        (serve.root.clone(), serve.package.dir().join("site")),
+        core.caller(),
+        (Arc::clone(&running), Arc::clone(&serve.driver)),
+        Arc::clone(&changed),
+    );
+    let serving = site::start(Arc::new(site), current.site(), told, page).await;
     // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
     methods.ready(Arc::clone(&running));
     let registered = register(&core.caller()).await;

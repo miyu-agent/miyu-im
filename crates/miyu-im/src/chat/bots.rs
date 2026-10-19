@@ -17,16 +17,21 @@ struct Held {
     since: SystemTime,
 }
 
-/// 号到连接。
+/// 号到连接；断开了的号记下什么时候断的（施工 I-6 中：页面上留着卡写「断开 4 分钟，在重连」），同一个号连回来就拿掉。
 #[derive(Debug, Default)]
 pub struct Bots {
     links: Mutex<HashMap<i64, Held>>,
+    gone: Mutex<HashMap<i64, SystemTime>>,
 }
 
 impl Bots {
     /// 号 `bot` 现在用 `link`，这一刻连上：原来有一条的，交回它（调的一方关掉它）。
     pub fn insert(&self, bot: i64, link: Arc<dyn Link>) -> Option<Arc<dyn Link>> {
         let since = SystemTime::now();
+        self.gone
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&bot);
         self.lock()
             .insert(bot, Held { link, since })
             .map(|held| held.link)
@@ -88,7 +93,24 @@ impl Bots {
             .is_some_and(|now| Arc::ptr_eq(&now.link, link))
         {
             links.remove(&bot);
+            self.gone
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .insert(bot, SystemTime::now());
         }
+    }
+
+    /// 断开了、还没连回来的号和断开的时刻，照号排（施工 I-6 中）。
+    pub fn gone(&self) -> Vec<(i64, SystemTime)> {
+        let mut gone: Vec<(i64, SystemTime)> = self
+            .gone
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .map(|(bot, at)| (*bot, *at))
+            .collect();
+        gone.sort_by_key(|(bot, _)| *bot);
+        gone
     }
 
     /// 锁里不 `await`、不会崩；真崩了，表照样能用。

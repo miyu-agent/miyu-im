@@ -257,7 +257,7 @@ async fn the_channel_lists_connections_and_says_when_they_change() {
     assert!(u128::from(since) + 1000 >= before, "{listed}");
     assert_eq!(
         listed,
-        json!([{"platform": "qq", "bot": BOT.to_string(), "since": since, "implementation": "NapCat.Onebot", "version": "4.8.0"}])
+        json!([{"platform": "qq", "bot": BOT.to_string(), "connected": true, "since": since, "implementation": "NapCat.Onebot", "version": "4.8.0", "avatar": format!("/avatar/{BOT}")}])
     );
     bridge.stop().await.expect("停得下");
 }
