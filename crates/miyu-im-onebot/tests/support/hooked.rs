@@ -16,7 +16,7 @@ use super::spawning::{self, link_beside};
 use super::{CONFIG, Home, TOKEN, resources};
 
 /// 测试程序旁边的 `miyu-im-test-hook`：头一次要的时候链上，之后留着。
-fn linked() -> &'static str {
+pub fn linked() -> &'static str {
     static LINKED: OnceLock<PathBuf> = OnceLock::new();
     LINKED.get_or_init(|| {
         let exe = std::env::current_exe().expect("找得到测试程序");

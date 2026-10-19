@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::{approve, install, until_plugged};
+use crate::support::hooked::{approve, install, linked, until_plugged};
 use crate::support::*;
 
 /// 群里的别人。
@@ -186,5 +186,145 @@ async fn a_plugin_notes_a_fact_into_the_venue_session() {
     assert_eq!(noted.len(), 1, "{noted:?}");
     assert_eq!(noted[0]["result"], json!({"noted": true}), "{noted:?}");
     assert!(run_log(&home.root).contains("plugin noted"));
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_note_where_the_plugin_is_off_or_there_is_no_session_is_refused() {
+    let (home, napcat, _) = started_installed(&Script::new([]), RULES, MEMBERS, |root| {
+        let record = format!("record:{}", log_of(root, "admin").display());
+        let args = [
+            record,
+            "note:moderated:x".to_string(),
+            format!("note-at:qq:group:{GROUP}"),
+            "note-at:qq:group:888".to_string(),
+            "note-at:qq:group:999".to_string(),
+            "note-at:qq:nowhere".to_string(),
+            r#"answer:chat.inbound:{"route":"pass"}"#.to_string(),
+        ];
+        install(root, "admin", &args, &["chat.inbound"]);
+        approve(root, "admin", &["packages.call"]);
+    })
+    .await;
+    until_plugged(&home, 1, 1).await;
+    // 888 这个群的卡上关了它（还要让陌生群接话：存卡片是整份换）。
+    let mut head = Head::connect(&home.root).await;
+    let cards = json!({
+        "other_groups": {"on": true, "final_only": false},
+        "groups": [{"id": 888, "set": {"plugins": {"admin": false}}}],
+    });
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    napcat.send(lin_calls(1));
+    let deadline = tokio::time::Instant::now() + WAIT;
+    let noted = loop {
+        let noted: Vec<Value> = calls(&home.root, "admin")
+            .into_iter()
+            .filter(|line| line.get("noted").is_some())
+            .collect();
+        if noted.len() >= 4 {
+            break noted;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "记了 {noted:?}");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    let answer = |venue: &str| {
+        let line = noted
+            .iter()
+            .find(|line| line["venue"] == venue)
+            .expect("记了这一次");
+        line["noted"].clone()
+    };
+    assert_eq!(
+        answer(&format!("qq:group:{GROUP}"))["result"],
+        json!({"noted": true})
+    );
+    // 核心转回来的拒：原因在 `error.data.message`。
+    let refused = |venue: &str| answer(venue)["error"]["data"]["message"].clone();
+    assert_eq!(refused("qq:group:888"), "not_allowed", "卡上关了它");
+    assert_eq!(refused("qq:group:999"), "no_session", "开着、还没有会话");
+    assert_eq!(refused("qq:nowhere"), "bad_params", "不是场所");
+    stopped(home).await;
+}
+
+/// 一条群成员进群的通知：群 `group`、进来的是 `user`。
+fn joined(group: i64, user: i64) -> Value {
+    json!({"post_type": "notice", "notice_type": "group_increase", "sub_type": "approve", "time": TIME, "self_id": BOT, "group_id": group, "user_id": user, "operator_id": 0})
+}
+
+#[tokio::test]
+async fn a_platform_event_goes_only_to_plugins_on_in_its_venue() {
+    let (home, napcat, _) = started_installed(&Script::new([]), RULES, MEMBERS, |root| {
+        let record = format!("record:{}", log_of(root, "watcher").display());
+        install(
+            root,
+            "watcher",
+            &[record, "answer:chat.event:{}".to_string()],
+            &["chat.event"],
+        );
+    })
+    .await;
+    until_plugged(&home, 1, 1).await;
+    let mut head = Head::connect(&home.root).await;
+    let cards = json!({
+        "other_groups": {"on": true, "final_only": false},
+        "groups": [{"id": 888, "set": {"plugins": {"watcher": false}}}],
+    });
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    // 关着它的群先来一条，开着的群后来一条：后一条到了，前一条要是交了也早到了。
+    napcat.send(joined(888, 5));
+    napcat.send(joined(GROUP, 6));
+    let deadline = tokio::time::Instant::now() + WAIT;
+    while !calls(&home.root, "watcher")
+        .iter()
+        .any(|call| call["params"]["event"]["user_id"] == 6)
+    {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "开着的群的通知一直没到"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        calls(&home.root, "watcher")
+            .iter()
+            .all(|call| call["params"]["event"]["group_id"] != 888),
+        "关着它的群的通知不交"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_plugin_installed_while_running_is_known_from_the_pushed_change() {
+    let (home, _napcat, _) = started_installed(&Script::new([]), RULES, MEMBERS, |_| {}).await;
+    until_plugged(&home, 0, 0).await;
+    // 跑着的时候装一个带 `plugin.toml` 的包：核心重读清单、推 `content.changed`，im 再读一遍插件。
+    let dir = home.root.path().join("staging").join("late");
+    std::fs::create_dir_all(dir.join("im")).expect("建得了目录");
+    let manifest = format!(
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Late\" }}\n\n[command]\nname = \"late\"\nprogram = \"{}\"\nabout = {{ en = \"L\" }}\n\n[process]\nargs = []\nstart = \"manual\"\n\n[content.im]\ndir = \"im\"\n",
+        linked()
+    );
+    std::fs::write(dir.join("package.toml"), manifest).expect("写得进");
+    std::fs::write(
+        dir.join("im").join("plugin.toml"),
+        "[plugin]\nname = { en = \"Late\" }\n",
+    )
+    .expect("写得进");
+    let mut head = Head::connect(&home.root).await;
+    let installed = head
+        .call(
+            "package.install",
+            json!({"path": dir.display().to_string()}),
+        )
+        .await;
+    assert!(installed.get("result").is_some(), "{installed}");
+    until_plugged(&home, 0, 1).await;
+    assert!(run_log(&home.root).contains("plugin known package=late"));
     stopped(home).await;
 }
