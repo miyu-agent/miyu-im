@@ -23,6 +23,30 @@ impl Head {
     /// 连数据根 `root` 上跑着的核心、握手。
     pub async fn connect(root: &DataRoot) -> Head {
         let (connection, token) = miyu_ipc::connect(root).await.expect("连得上核心");
+        Head::shaken(connection, ("token", token)).await
+    }
+
+    /// 照网页第一次进来的样子给账号设用户名 `user`、密码 `password`（施工 I-5 下）：出示本机令牌要一次性码，照码另连一条、
+    /// `account.setup`。
+    pub async fn set_password(root: &DataRoot, user: &str, password: &str) {
+        let mut head = Head::connect(root).await;
+        let code = head.call("account.setup_code", json!({})).await["result"]["code"]
+            .as_str()
+            .expect("要得到一次性码")
+            .to_string();
+        let connection = miyu_ipc::connect_bare(root).await.expect("连得上核心");
+        let mut setting = Head::shaken(connection, ("code", code)).await;
+        let set = setting
+            .call(
+                "account.setup",
+                json!({"username": user, "password": password}),
+            )
+            .await;
+        assert!(set.get("result").is_some(), "设得了密码：{set}");
+    }
+
+    /// 在连上的 `connection` 上出示凭据 `credential`（键和值）握手。
+    async fn shaken(connection: Connection, (key, credential): (&str, String)) -> Head {
         let (read, write) = tokio::io::split(connection);
         let mut head = Head {
             lines: BufReader::new(read),
@@ -30,8 +54,8 @@ impl Head {
             next: 0,
             pushes: std::collections::VecDeque::new(),
         };
-        let hello =
-            json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": token});
+        let mut hello = json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}});
+        hello[key] = json!(credential);
         let shaken = head.call("hello", hello).await;
         assert!(shaken.get("result").is_some(), "握手：{shaken}");
         head

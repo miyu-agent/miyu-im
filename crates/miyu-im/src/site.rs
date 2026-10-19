@@ -6,12 +6,14 @@
 //! 2. 每个 TCP 连接一个任务：当 HTTP 读（`request`），升级成 WebSocket 的接着当通道跑（`channel`）。接不了的歇一下再接。
 //! 3. 端口变了开新的，开上了换掉旧的；开不了的不换（旧的照旧；原来没听上的照旧没有）。已经接进来的连接不断。
 //!
-//! 登录（`logins`）只在内存里：交接票换来的登录令牌照它另开一条人的连接（`ticket`），页面上要人的权限做的事以后走这条连接。
+//! 登录（`logins`）只在内存里：交接票换来的登录令牌照它另开一条人的连接（`ticket`），用户名、密码照它握手连上的就是人的连接
+//! （`password`）；页面上要人的权限做的事以后走这条连接。登出时在这条连接上作废它的登录令牌（`account.logout`）。
 
 mod channel;
 mod files;
 mod guard;
 mod logins;
+mod password;
 mod request;
 #[cfg(test)]
 mod tests;
@@ -21,9 +23,10 @@ use std::convert::Infallible;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use hyper::StatusCode;
 use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Notify, watch};
 use tokio::task::JoinSet;
@@ -39,6 +42,9 @@ use logins::Logins;
 
 /// 页面服务的配置项里端口的名字（`crate::settings::SITE`）。
 const PORT: &str = "web_port";
+
+/// 人的连接握手时报的头（只记进核心的运行日志）。
+const HEAD: &str = "im-page";
 
 /// 一份登录拿着的人的连接：一问一答，锁着用。
 type Person = tokio::sync::Mutex<open::Core>;
@@ -199,6 +205,11 @@ async fn bind(
     tell(Notice::Page { port: actual });
     port.set(actual);
     Some((listener, actual))
+}
+
+/// 登录不成的回应：状态 `status`，正文 `{"reason"}`。
+fn refused(status: StatusCode, reason: &str) -> (StatusCode, Value) {
+    (status, json!({"reason": reason}))
 }
 
 /// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当通道跑，直到断开。`port` 是它进来的端口。

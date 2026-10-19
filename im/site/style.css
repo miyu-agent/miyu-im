@@ -55,6 +55,47 @@ p {
   margin: 0 0 20px;
 }
 
+form {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+input {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+form button {
+  justify-self: start;
+  background: var(--accent);
+  color: var(--surface);
+}
+
+form button:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--text));
+}
+
+.hint {
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
 button {
   border: none;
   border-radius: 8px;

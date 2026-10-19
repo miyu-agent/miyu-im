@@ -12,7 +12,6 @@ pub(crate) struct Login<P> {
     /// 核心认的账号（`login.redeem` 交回的）。
     pub(crate) account: String,
     /// 照这个人的登录令牌连着核心的连接（测试里换成别的）。
-    #[expect(dead_code, reason = "页面要人的权限做的事随 I-6、I-7 经它调")]
     pub(crate) person: P,
 }
 
@@ -54,12 +53,18 @@ impl<P> Logins<P> {
         found
     }
 
-    /// 拿掉会话号 `session` 的那份登录（人的连接随最后一个拿着的放下一起断）：交回有没有。
-    pub(crate) fn remove(&self, session: &str) -> bool {
+    /// 拿掉会话号 `session` 的那份登录（人的连接随最后一个拿着的放下一起断）：交回拿掉的那一份，没有的是空的。
+    pub(crate) fn remove(&self, session: &str) -> Option<Arc<Login<P>>> {
         let mut held = self.lock();
-        let before = held.len();
-        held.retain(|(id, _)| !same(id.as_bytes(), session.as_bytes()));
-        held.len() != before
+        let mut removed = None;
+        held.retain(|(id, login)| {
+            let matched = same(id.as_bytes(), session.as_bytes());
+            if matched {
+                removed = Some(Arc::clone(login));
+            }
+            !matched
+        });
+        removed
     }
 
     /// 锁里不 `await`、不会崩；真崩了，里面的照样能用。

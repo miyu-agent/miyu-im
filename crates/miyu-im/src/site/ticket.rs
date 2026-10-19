@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 
 use miyu_client::open;
 
-use super::Site;
+use super::{HEAD, Site, refused};
 use crate::TARGET;
 use crate::core::reason;
 
@@ -71,12 +71,4 @@ pub(super) async fn redeem(site: &Site, body: &[u8]) -> (StatusCode, Value) {
         StatusCode::OK,
         json!({"account": account, "session": session}),
     )
-}
-
-/// 人的连接握手时报的头（只记进核心的运行日志）。
-const HEAD: &str = "im-page";
-
-/// 不成的回应：状态 `status`，正文 `{"reason"}`。
-fn refused(status: StatusCode, reason: &str) -> (StatusCode, Value) {
-    (status, json!({"reason": reason}))
 }

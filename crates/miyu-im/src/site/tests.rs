@@ -81,8 +81,8 @@ fn logins_are_found_by_session_and_removed() {
     assert_eq!(logins.get(&b).expect("在").account, "mio");
     assert!(logins.get(&a[..63]).is_none(), "短一位的不认");
     assert!(logins.get("").is_none());
-    assert!(logins.remove(&a), "有这一份");
-    assert!(!logins.remove(&a), "拿掉过了");
+    assert_eq!(logins.remove(&a).expect("有这一份").account, "admin");
+    assert!(logins.remove(&a).is_none(), "拿掉过了");
     assert!(logins.get(&a).is_none());
     assert_eq!(logins.get(&b).expect("别的还在").account, "mio");
 }

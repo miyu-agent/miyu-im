@@ -1,8 +1,10 @@
 //! 页面服务的一个请求（施工 I-5 上「怎么走」第 3 到 7 条）：先看地址（[`super::guard`]），再照方法和路径分：
 //!
 //! - `GET /channel`：WebSocket 的升级请求回 101，升级交进 `slot`（[`super::channel`] 接着跑）；不是升级请求的 400。
-//! - `POST /login/ticket`：交接票换登录（[`super::ticket`]）。正文最多 [`BODY`] 字节，多了 413。
-//! - `POST /logout`：`Authorization: Bearer <会话号>` 的那份登录拿掉，回 204（没有这一份也是）。
+//! - `POST /login/ticket`：交接票换登录（[`super::ticket`]）。`POST /login/password`：用户名、密码登录（[`super::password`]）。
+//!   正文最多 [`BODY`] 字节，多了 413。
+//! - `POST /logout`：`Authorization: Bearer <会话号>` 的那份登录拿掉，在它的人的连接上作废登录令牌（`account.logout`，不成的记一行
+//!   运行日志），回 204（没有这一份也是）。
 //! - `GET` 别的路径：页面的文件（[`super::files`]），没有的 404。
 //! - 别的方法：405。
 //!
@@ -19,7 +21,7 @@ use hyper::{Method, Request, Response, StatusCode};
 use serde_json::Value;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
-use super::{Site, files, guard, ticket};
+use super::{Site, files, guard, password, ticket};
 use crate::TARGET;
 
 /// 登录的正文最多多少字节。
@@ -60,11 +62,27 @@ pub(super) async fn handle(
             }
             None => empty(StatusCode::PAYLOAD_TOO_LARGE),
         },
+        (Method::POST, "/login/password") => match body(request).await {
+            Some(body) => {
+                let (status, answer) = password::login(site, &body).await;
+                json(status, &answer)
+            }
+            None => empty(StatusCode::PAYLOAD_TOO_LARGE),
+        },
         (Method::POST, "/logout") => {
-            if let Some(session) = bearer(&request)
-                && site.logins.remove(session)
-            {
-                tracing::info!(target: TARGET, "logged out");
+            if let Some(login) = bearer(&request).and_then(|session| site.logins.remove(session)) {
+                let revoked = login
+                    .person
+                    .lock()
+                    .await
+                    .call("logout", "account.logout", serde_json::json!({}))
+                    .await;
+                match revoked {
+                    Ok(_) => tracing::info!(target: TARGET, "logged out"),
+                    Err(why) => {
+                        tracing::warn!(target: TARGET, reason = why.reason, "logged out, login not revoked")
+                    }
+                }
             }
             empty(StatusCode::NO_CONTENT)
         }

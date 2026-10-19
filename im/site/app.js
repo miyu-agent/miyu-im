@@ -4,7 +4,8 @@
 //    `ticket` 换登录（POST /login/ticket），交回的会话号放进 localStorage（只有这个端口的页面读得到；cookie 同一台机器别的端口
 //    也收得到，不用）。`lang` 照它挑字。
 // 2. 没带票、localStorage 里有会话号的：开通道（/channel）出示，对得上的算登录着；关闭帧 4401 的扔掉会话号。
-// 3. 登出：POST /logout 带会话号，扔掉会话号。
+// 3. 没登录的：用户名、密码框（POST /login/password，施工 I-5 下），下面一行说也能从网页软件、终端直接打开。
+// 4. 登出：POST /logout 带会话号，扔掉会话号。
 import { TEXTS } from './texts.js';
 
 const KEY = 'miyu-im-session';
@@ -38,14 +39,18 @@ function store(session) {
   }
 }
 
-function show(line, account) {
+function show(line, account, busy = false) {
   document.title = say('title');
   document.documentElement.lang = language;
   const title = document.createElement('h1');
   title.textContent = say('title');
-  const status = document.createElement('p');
-  status.textContent = line;
-  app.replaceChildren(title, status);
+  app.replaceChildren(title);
+  if (line) {
+    const status = document.createElement('p');
+    status.textContent = line;
+    app.append(status);
+  }
+  if (!account && !busy) app.append(form());
   if (account) {
     const out = document.createElement('button');
     out.type = 'button';
@@ -68,31 +73,69 @@ function handed() {
   }
 }
 
-async function redeem(ticket) {
-  show(say('signing-in'));
+function form() {
+  const box = document.createElement('form');
+  const user = field('user', 'text', 'username');
+  const password = field('password', 'password', 'current-password');
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = say('sign-in');
+  const hint = document.createElement('p');
+  hint.className = 'hint';
+  hint.textContent = say('signed-out');
+  box.append(user.label, password.label, submit, hint);
+  box.addEventListener('submit', (event) => {
+    event.preventDefault();
+    signIn('/login/password', { user: user.input.value, password: password.input.value });
+  });
+  return box;
+}
+
+function field(key, type, autocomplete) {
+  const label = document.createElement('label');
+  const name = document.createElement('span');
+  name.textContent = say(key);
+  const input = document.createElement('input');
+  input.type = type;
+  input.name = key;
+  input.autocomplete = autocomplete;
+  input.required = true;
+  label.append(name, input);
+  return { label, input };
+}
+
+async function signIn(path, body) {
+  show(say('signing-in'), null, true);
   let answer;
   try {
-    const response = await fetch('/login/ticket', {
+    const response = await fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticket }),
+      body: JSON.stringify(body),
     });
     answer = { status: response.status, body: await response.json().catch(() => ({})) };
   } catch {
     show(say('failed/network'));
     return;
   }
+  const reason = answer.body.reason;
   if (answer.status === 200) {
     store(answer.body.session);
     show(say('signed-in', { account: answer.body.account }), answer.body.account);
-  } else if (answer.body.reason === 'bad_ticket') {
+  } else if (reason === 'bad_ticket') {
     show(say('failed/ticket'));
+  } else if (reason === 'bad_password') {
+    show(say('failed/password'));
+  } else if (reason === 'login_throttled') {
+    const seconds = Math.ceil((answer.body.retry_after_ms ?? 1000) / 1000);
+    show(say('failed/throttled', { seconds }));
   } else {
     show(say('failed/core'));
   }
 }
 
 function resume(session) {
+  show(say('signing-in'), null, true);
   const channel = new WebSocket(`ws://${location.host}/channel`);
   channel.addEventListener('open', () => channel.send(JSON.stringify({ session })));
   channel.addEventListener('message', (event) => {
@@ -102,7 +145,7 @@ function resume(session) {
   channel.addEventListener('close', (event) => {
     if (event.code === 4401) {
       store(null);
-      show(say('signed-out'));
+      show('');
     }
   });
   channel.addEventListener('error', () => show(say('failed/network')));
@@ -118,7 +161,7 @@ async function signOut() {
       // 页面服务不在了：登录本来就没了。
     }
   }
-  show(say('signed-out'));
+  show('');
 }
 
 const given = handed();
@@ -127,9 +170,9 @@ if (given?.scheme === 'dark' || given?.scheme === 'light') {
   document.documentElement.dataset.theme = given.scheme;
 }
 if (typeof given?.ticket === 'string') {
-  redeem(given.ticket);
+  signIn('/login/ticket', { ticket: given.ticket });
 } else if (stored()) {
   resume(stored());
 } else {
-  show(say('signed-out'));
+  show('');
 }

@@ -69,6 +69,7 @@ mod segments;
 mod settings;
 mod shown;
 mod site;
+mod site_login;
 mod skip_ends;
 mod skipped;
 mod spawned;
