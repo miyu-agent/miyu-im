@@ -178,7 +178,14 @@ export function mountVenues(view, { request }) {
     // 关了的不再跟着换。
     const personas = answer?.personas || [];
     const friends = answer?.friends || [];
-    opened.dialog = openVenue(one, { request, platform: chosen, bots: names(), personas, friends }, () => {
+    // 管理插件（施工 I-7 中四）：宿主认得的插件、兜底卡上的开关。
+    const plugins = answer?.plugins || [];
+    const fallbacks = {
+      group: all.find((card) => card.kind === 'other_groups')?.set.plugins || {},
+      private: all.find((card) => card.kind === 'other_privates')?.set.plugins || {},
+    };
+    const context = { request, platform: chosen, bots: names(), personas, friends, plugins, fallbacks };
+    opened.dialog = openVenue(one, context, () => {
       if (open === opened) open = null;
     });
   };

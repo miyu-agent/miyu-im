@@ -133,3 +133,10 @@
 /* 写了的值照正文的颜色，继承的（占位字）淡一档：一眼分得出哪几格改过。 */
 .d-body .input { color: var(--text); }
 .d-body .input::placeholder { color: var(--text-faint); opacity: 1; }
+
+/* 管理插件（施工 I-7 中四）。 */
+.pane-hint { margin: 0 0 6px; font-size: 12.5px; }
+.row.plugin b { font-weight: 500; }
+.row.plugin.off .label { opacity: 0.55; }
+.plugin-why { color: var(--danger) !important; }
+.switch:disabled { opacity: 0.4; cursor: default; }

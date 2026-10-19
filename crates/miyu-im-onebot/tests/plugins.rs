@@ -117,6 +117,29 @@ async fn only_plugins_usable_here_and_switched_on_are_asked() {
         log.contains("package=broken") && log.contains("plugin not read"),
         "{log}"
     );
+    // 会话浮窗「管理插件」（施工 I-7 中四）：`cards.get` 列出认得的插件，用不了的写为什么。
+    let mut head = Head::connect(&home.root).await;
+    let got = head.page_call("cards.get").await["result"]["plugins"].clone();
+    let find = |id: &str| {
+        got.as_array()
+            .and_then(|all| all.iter().find(|one| one["package"] == id).cloned())
+            .unwrap_or_else(|| panic!("没有 {id}：{got}"))
+    };
+    assert_eq!(
+        find("good"),
+        json!({"package": "good", "name": {"en": "Good"}, "summary": {}, "default": true})
+    );
+    assert_eq!(find("elsewhere")["unusable"], "other_platforms", "{got}");
+    assert_eq!(find("closed")["default"], false, "{got}");
+    assert_eq!(
+        find("broken"),
+        json!({"package": "broken", "unusable": "broken"})
+    );
+    assert!(
+        got.as_array()
+            .is_some_and(|all| all.iter().all(|one| one["package"] != "plain")),
+        "不是插件的不列：{got}"
+    );
     stopped(home).await;
 }
 

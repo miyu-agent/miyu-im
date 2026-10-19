@@ -24,7 +24,7 @@ use crate::TARGET;
 use miyu_chat::VenueKind;
 
 use crate::chat::{Cap, Platform, To};
-use crate::plugins::{Plugins, Toggles};
+use crate::plugins::{Plugins, Toggles, Unusable};
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
 pub(crate) const EVENT: &str = "chat.event";
@@ -180,6 +180,34 @@ impl Hooks {
     /// 认得的插件换成 `plugins`（施工 I-8 上：起来时、核心推 `content.changed` 时读的）。
     pub(crate) fn set_plugins(&self, plugins: Plugins) {
         *self.plugins.lock().unwrap_or_else(PoisonError::into_inner) = plugins;
+    }
+
+    /// 认得的 im 插件，交给会话浮窗「管理插件」（施工 I-7 中四）：每个 `{package, name, summary, default}`（名字、说明照语言），
+    /// 在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`）；声明读不成的只有编号和 `unusable`。
+    pub(crate) fn listed(&self) -> Vec<Value> {
+        let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
+        plugins
+            .all()
+            .map(|(package, declared)| {
+                let mut one = match declared {
+                    Ok(declared) => json!({
+                        "package": package,
+                        "name": declared.name,
+                        "summary": declared.summary,
+                        "default": declared.default,
+                    }),
+                    Err(_) => json!({"package": package}),
+                };
+                if let Err(why) = plugins.usable(package, self.platform, self.caps) {
+                    one["unusable"] = json!(match why {
+                        Unusable::NotAPlugin | Unusable::Broken(_) => "broken",
+                        Unusable::OtherPlatforms => "other_platforms",
+                        Unusable::Missing(_) => "missing",
+                    });
+                }
+                one
+            })
+            .collect()
     }
 
     /// 场所开关换成 `toggles`（施工 I-8 上：卡片读进来、存下时拼的）。

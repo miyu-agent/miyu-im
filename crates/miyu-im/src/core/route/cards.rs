@@ -62,7 +62,9 @@ impl Route {
             "groups": groups,
             "privates": privates,
         });
-        let known = json!({"cards": cards, "defaults": defaults, "whitelist": whitelist});
+        // 认得的 im 插件（施工 I-7 中四：会话浮窗「管理插件」）。
+        let plugins = self.hooks.listed();
+        let known = json!({"cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
         let (bots, caller, answerer) = (
             Arc::clone(&self.bots),
             self.core.caller(),
