@@ -35,19 +35,44 @@ impl Strangers {
     }
 }
 
+/// 私聊过进站链的是谁：陌生人（谁能叫她、限流、睡眠都管），白名单成员卡上关了忽略限流、忽略睡眠的（施工 I-7 中三下一：只管关了
+/// 的那一样，`rate`、`sleep` 是管不管）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Gating {
+    /// 陌生人。
+    Stranger,
+    /// 白名单成员：管不管限流、睡眠。
+    Listed { rate: bool, sleep: bool },
+}
+
 impl Route {
     /// 陌生人 `sender` 在私聊 `venue` 说的一条 `text` 过进站链：交回结果（本机的钟读不出的，照说不会，当不让叫她）。放行的记下
     /// 这一刻开了一个回合。
     pub(super) fn stranger(&mut self, venue: &Venue, sender: &ExternalId, text: &str) -> Outcome {
+        self.gated(venue, sender, text, Gating::Stranger)
+    }
+
+    /// 同 [`Route::stranger`]，照 `gating` 管哪几样（白名单成员的回合和陌生人的一样数，施工 I-7 中三下一）。
+    pub(super) fn gated(
+        &mut self,
+        venue: &Venue,
+        sender: &ExternalId,
+        text: &str,
+        gating: Gating,
+    ) -> Outcome {
         let Some(clock) = applied::clock() else {
             return Outcome::RecordOnly(miyu_chat::Why::NotAllowed);
         };
         let loaded = self.rules.current(std::time::Instant::now());
         let applied = loaded.at(venue);
+        let (rate, sleep, allow) = match gating {
+            Gating::Stranger => (true, true, applied::allow(&applied)),
+            Gating::Listed { rate, sleep } => (rate, sleep, None),
+        };
         let ctx = Ctx {
-            rate: applied::rate(&applied),
-            sleep: applied::sleep(&applied),
-            allow: applied::allow(&applied),
+            rate: applied::rate(&applied).filter(|_| rate),
+            sleep: applied::sleep(&applied).filter(|_| sleep),
+            allow,
             muted: false,
             turns: self.strangers.of(venue.id().as_str()),
             moderation: Moderation {

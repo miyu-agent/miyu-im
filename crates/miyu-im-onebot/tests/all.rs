@@ -50,6 +50,7 @@ mod pipe;
 mod platform;
 mod plugins;
 mod private;
+mod private_gated;
 mod private_media;
 mod profiled;
 mod pronoun;

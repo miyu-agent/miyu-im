@@ -121,7 +121,7 @@ pub struct GroupSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
-    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `lines::TOP` 里的顶层键，值照 JSON
     /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<BTreeMap<String, Value>>,
@@ -152,7 +152,7 @@ pub struct PrivateSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
-    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `lines::TOP` 里的顶层键，值照 JSON
     /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<BTreeMap<String, Value>>,
@@ -189,7 +189,7 @@ pub struct OtherPrivateSet {
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
-    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `discipline`、`parallel`，值照 JSON
+    /// 别的规则键（施工 I-7 中一：会话浮窗上没有单独一格的那些）：`表.项`（出厂参数里的）或 `lines::TOP` 里的顶层键，值照 JSON
     /// 写；和上面哪一格是同一个键的，照这里的（`lines`）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<BTreeMap<String, Value>>,

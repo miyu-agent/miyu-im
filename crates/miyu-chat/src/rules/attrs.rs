@@ -46,6 +46,9 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("extra_prompt", Form::Kind(Kind::Lines { max: 2000 })),
     ("recent", Form::Kind(Kind::Int { min: 1, max: 1000 })),
     ("model", Form::Kind(Kind::Reference)),
+    // 白名单成员的私聊忽略限流、忽略睡眠（施工 I-7 中三下一）：桥照它们管；没写的是忽略。
+    ("ignore_rate", Form::Kind(Kind::Bool)),
+    ("ignore_sleep", Form::Kind(Kind::Bool)),
 ];
 
 /// 照名字找一项属性：交回表里的名字（活得和程序一样长，结果的键用它）和写法。

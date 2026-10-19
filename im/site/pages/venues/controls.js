@@ -12,7 +12,7 @@ export function control(field, one, context, save, saveKey) {
     case 'switch': {
       // 开、关存成什么：不写的是真、假（线路规程是 `chatty`、`when-called`）。
       const [yes, no] = field.values || [true, false];
-      const button = element('button', current(one, field.key) === yes ? 'switch on' : 'switch');
+      const button = element('button', (current(one, field.key) ?? field.unset) === yes ? 'switch on' : 'switch');
       button.append(element('i'));
       button.addEventListener('click', () => {
         const next = !button.classList.contains('on');

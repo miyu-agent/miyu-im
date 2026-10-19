@@ -5,7 +5,7 @@
 //! - 插嘴照线路规程和抽样的千分比认档：`when-called` 是 `never`，千分比不到 35 是 `few`、不到 85 是 `some`、别的是 `many`。
 //! - 来处只说是哪一层：`factory`、`setting`、`system`；照出厂参数来的（插嘴、去句号）是 `factory`。
 //! - 卡上 `rules` 能写的每一个键（施工 I-7 中一，[`rules`]）：出厂参数的每一项，规则改了的照规则、没改的照出厂；
-//!   `discipline`、`parallel`、`judge.model` 规则里有的照规则，没有的是 `null`。
+//!   顶层的几个（`lines::TOP`）和 `judge.model` 规则里有的照规则，没有的是 `null`。
 
 use serde_json::{Map, Value, json};
 

@@ -20,7 +20,7 @@ export function drawForm(tab, one, context) {
       rows.push(element('div', 'group-name', say(field.group)));
       continue;
     }
-    if (field.dep && (current(one, field.dep.key) ?? field.dep.on) !== field.dep.on) continue;
+    if (field.dep && (current(one, field.dep.key) ?? field.dep.unset ?? field.dep.on) !== field.dep.on) continue;
     (field.advanced ? advanced : rows).push(row(field, one, context));
   }
   if (advanced.length > 0) {

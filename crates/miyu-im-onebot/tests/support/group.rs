@@ -20,7 +20,7 @@ pub use super::answering::{
 pub use super::events::*;
 use super::ports::on_free_port;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
-use super::{BOT, Home, NapCat, TIME, admin_napcat, resources, tuned_resources};
+use super::{BOT, Home, NapCat, TIME, admin_napcat, resources, tuned_resources, within};
 
 /// 正向的等待最多多久：真的程序、真的核心，负载高时慢。
 pub const WAIT: Duration = Duration::from_secs(60);
@@ -398,9 +398,10 @@ async fn up_installed(
 
 /// 停下桥、核心拉起的扩展。
 pub async fn stopped(home: Home) {
-    let stopped = cli(&home.root, &["stop"]).await;
+    // 停不下来的照六十秒报出来（施工 I-7 中三下一：CI 的 macOS 卡在这里到 45 分钟被掐，日志里什么都没有）。
+    let stopped = within("桥停下", cli(&home.root, &["stop"])).await;
     assert_eq!(stopped.status.code(), Some(0), "{}", text(&stopped.stderr));
-    home.stop_extensions().await;
+    within("核心停下扩展", home.stop_extensions()).await;
 }
 
 /// 照判官点了头的样子开一轮（施工 O-23 的 `called_limits.rs` 那样，O-25 中挪来共用）：场所 `venue` 的会话里经

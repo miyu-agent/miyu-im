@@ -55,6 +55,14 @@ pub(super) fn role(applied: &Applied, who: &ExternalId) -> &'static str {
     }
 }
 
+/// 规则里键是 `key` 的真假：没写的、不是真假的是空的（施工 I-7 中三下一：忽略限流、忽略睡眠）。
+pub(super) fn flag(applied: &Applied, key: &str) -> Option<bool> {
+    match entry(applied, key) {
+        Some(Value::Bool(on)) => Some(*on),
+        _ => None,
+    }
+}
+
 /// 规则的 `show_ids` 是不是真的。
 pub(super) fn show_ids(applied: &Applied) -> bool {
     matches!(entry(applied, "show_ids"), Some(Value::Bool(true)))

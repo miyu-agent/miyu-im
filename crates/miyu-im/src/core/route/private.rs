@@ -9,6 +9,7 @@ use super::fields::{Flags, fields};
 use super::forwards::{Forwards, with_placeholders};
 use super::pictures::Pictures;
 use super::session::Place;
+use super::strangers::Gating;
 use super::{Message, Route, applied};
 use crate::TARGET;
 use crate::chat::Posted;
@@ -66,6 +67,19 @@ impl Route {
                     flags.asleep = why == Why::Asleep;
                     tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "stranger recorded only");
                 }
+            }
+        }
+        // 白名单成员卡上关了忽略限流、忽略睡眠的（施工 I-7 中三下一，出厂、没写的都忽略）：只管关了的那一样，满了、睡着的只记下。
+        if self.whitelisted(&external) {
+            let rate = applied::flag(&applied, "ignore_rate") == Some(false);
+            let sleep = applied::flag(&applied, "ignore_sleep") == Some(false);
+            if (rate || sleep)
+                && let Outcome::RecordOnly(why) =
+                    self.gated(&venue, &external, &text, Gating::Listed { rate, sleep })
+            {
+                flags.ambient = true;
+                flags.asleep = why == Why::Asleep;
+                tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "listed recorded only");
             }
         }
         // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。

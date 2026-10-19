@@ -8,7 +8,8 @@
 //   percent（拖动条，百分之几，存成千分比）。`prefixed` 的标签只填了号的补成平台上的人的编号（`qq:10002`）。
 // - clears：存这一格时一起去掉卡上旧写法的那几格（插嘴的四档 `chatty`：线路规程、抽样改写进 `rules` 以后不再用它）。
 // - kinds：哪几种卡有（group、other_groups、private、other_privates），不写是都有。
-// - dep：`{ key, on }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）。
+// - dep：`{ key, on, unset? }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）；那一格没写的照 `unset`，
+//   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
 
 const GROUPS = ['group', 'other_groups'];
@@ -50,9 +51,14 @@ export const FIELDS = {
     { key: 'rules.dispatch.supersede_window', control: 'seconds', label: 'field/supersede', hint: 'field/supersede-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
   ],
   pace: [
+    // 私聊白名单里的人（施工 I-7 中三下一）：忽略限流、忽略睡眠没写的是忽略（`unset`），关了才画限流、睡眠，写在卡上的 `rules` 里。
+    { key: 'rules.ignore_rate', control: 'switch', unset: true, label: 'field/ignore-rate', kinds: ['private'] },
+    { key: 'rules.rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ['private'], dep: { key: 'rules.ignore_rate', on: false, unset: true } },
+    { key: 'rules.ignore_sleep', control: 'switch', unset: true, label: 'field/ignore-sleep', hint: 'field/ignore-sleep-hint', kinds: ['private'] },
+    { key: 'rules.sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ['private'], dep: { key: 'rules.ignore_sleep', on: false, unset: true } },
     { key: 'rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ALL_BUT_PRIVATE },
     { key: 'sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: GROUPS },
-    { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 1, max: 100 },
+    { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 3 },
   ],
   send: [
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
