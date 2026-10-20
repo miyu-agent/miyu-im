@@ -51,7 +51,7 @@ fn without_a_driver_nothing_is_provided_and_every_tool_is_unknown() {
         tools().provided(&serde_json::Map::new()),
         json!({"tools": []})
     );
-    for (id, tool) in [("core-7", "skip_reply"), ("core-8", "kick")] {
+    for (id, tool) in [("core-7", "skip_reply"), ("core-8", "ban_all")] {
         let unknown = shipped("tool-results/unknown.txt").replace("{name}", tool);
         assert_eq!(
             asked(heard(&tools(), &Methods::new(), tool_call(id, tool))),

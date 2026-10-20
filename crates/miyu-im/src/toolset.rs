@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -270,6 +271,8 @@ pub struct Call {
     pub plugins: Vec<&'static str>,
     /// 驱动这一刻的配置（施工 Q-1：没写的照清单的默认补上了）。
     pub config: Map<String, Value>,
+    /// 驱动自己的状态目录（施工 Q-2：im 的状态目录下照平台的名字，`qq/`）：驱动要记的东西放这里，没建的自己建。
+    pub store: PathBuf,
 }
 
 /// 驱动交的一套工具。

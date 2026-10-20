@@ -3,6 +3,7 @@
     "skip_reply": { "name": "Skip reply", "subject": "reason" },
     "recall": { "name": "Recall" },
     "mute": { "name": "Mute", "subject": "seconds" },
+    "kick": { "name": "Kick" },
     "poke": { "name": "Poke" },
     "fetch_media": { "name": "Fetch media", "subject": "msg" },
     "avatar": { "name": "Avatar" },

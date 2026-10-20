@@ -101,6 +101,7 @@ impl Route {
             answers,
             plugins: self.hooks.active(peer.to),
             config: self.hooks.driver_config(),
+            store: self.store.clone(),
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
         let answers = Arc::clone(&call.answers);

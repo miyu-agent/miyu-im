@@ -102,6 +102,9 @@ impl Link for Fake {
     fn mute(&self, _: i64, _: i64, _: u64) -> Reply<'_, ()> {
         closed()
     }
+    fn kick(&self, _: i64, _: i64, _: bool) -> Reply<'_, ()> {
+        closed()
+    }
     fn poke(&self, _: To, _: i64) -> Reply<'_, ()> {
         closed()
     }

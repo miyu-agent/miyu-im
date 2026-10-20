@@ -12,7 +12,7 @@ use serde_json::Value;
 use miyu_im::chat::{Fetched, Platform, To};
 use miyu_im::toolset::{Origin, msg_id};
 
-use super::{MUTE, POKE, RECALL};
+use super::{KICK, MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
 const MAX_SECONDS: u64 = 2_592_000;
@@ -52,10 +52,17 @@ pub(crate) enum Order {
     },
     /// 戳一戳。
     Poke,
+    /// 移出群（施工 Q-2）：她给的 QQ 号，以后不收他的加群申请没有。
+    Kick {
+        /// 她给的 QQ 号。
+        user: Arg<i64>,
+        /// 以后不收他的加群申请。
+        block: bool,
+    },
 }
 
 impl Order {
-    /// 工具 `tool`、参数 `args`：不是这三件的是空的。
+    /// 工具 `tool`、参数 `args`：不是这几件的是空的。
     pub(crate) fn read(tool: &str, args: &Value) -> Option<Order> {
         match tool {
             RECALL => Some(Order::Recall(Arg::read(&args["msg"], msg_id))),
@@ -67,6 +74,10 @@ impl Order {
                 Some(Order::Mute { seconds, user })
             }
             POKE => Some(Order::Poke),
+            KICK => Some(Order::Kick {
+                user: Arg::read(&args["user"], qq_number),
+                block: args["block"].as_bool().unwrap_or(false),
+            }),
             _ => None,
         }
     }
@@ -118,6 +129,13 @@ pub(crate) enum Plan {
     },
     /// 戳这个人。
     Poke(ExternalId),
+    /// 把这个人移出群（施工 Q-2）。
+    Kick {
+        /// 踢谁。
+        user: ExternalId,
+        /// 以后不收他的加群申请。
+        block: bool,
+    },
     /// 不做，回一句。
     Refuse(Why),
 }
@@ -158,6 +176,10 @@ pub(crate) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene
         Order::Recall(msg) => recall(msg, origin),
         Order::Mute { seconds, user } => mute(seconds, user, origin, scene),
         Order::Poke => poke(caller, origin, scene),
+        Order::Kick { user, block } => match person(user, origin, scene) {
+            Ok(user) => Plan::Kick { user, block },
+            Err(why) => Plan::Refuse(why),
+        },
     }
 }
 
@@ -181,7 +203,15 @@ fn mute(seconds: Option<u64>, user: Arg<i64>, origin: Option<&Origin>, scene: &S
     let Some(seconds) = seconds else {
         return Plan::Refuse(Why::BadSeconds);
     };
-    let user = match user {
+    match person(user, origin, scene) {
+        Ok(user) => Plan::Mute { user, seconds },
+        Err(why) => Plan::Refuse(why),
+    }
+}
+
+/// 禁言、踢人对谁：她给的号，没给的照引用的人和 @ 的人认唯一的一个。
+fn person(user: Arg<i64>, origin: Option<&Origin>, scene: &Scene) -> Result<ExternalId, Why> {
+    match user {
         Arg::Given(number) => scene.platform.person(number).map_err(|_| Why::NoTarget),
         Arg::Bad => Err(Why::NoTarget),
         Arg::Absent => {
@@ -194,10 +224,6 @@ fn mute(seconds: Option<u64>, user: Arg<i64>, origin: Option<&Origin>, scene: &S
                 .unwrap_or_default();
             one(quoted.into_iter().chain(mentions), scene.me)
         }
-    };
-    match user {
-        Ok(user) => Plan::Mute { user, seconds },
-        Err(why) => Plan::Refuse(why),
     }
 }
 

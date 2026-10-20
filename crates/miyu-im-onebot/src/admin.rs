@@ -8,6 +8,8 @@
 //!
 //! - `admin_on`：总开关，默认开。关了的群管理的工具都不登记（第 3 条：改开关时 im 重新登记）。
 //! - `admin_mute`：禁言工具的开关，默认开。关了的不登记禁言。
+//! - `admin_kick`：踢人工具的开关，默认开（施工 Q-2）。
+//! - `admin_records`：记不记管理记录，默认开；`admin_keep`：每个群留多少条，出厂 500（施工 Q-2，`records`）。
 //! - `admin_mute_min`、`admin_mute_max`：最短、最长禁言几分钟（出厂 1、43200，就是 QQ 能禁的最短、最长）。她给的不在这中间的答
 //!   `bad-seconds`，带这两个时长；解禁（0 秒）不管。读不出的照出厂的。
 
@@ -16,6 +18,8 @@ use serde_json::{Map, Value};
 use miyu_im::chat::Rank;
 use miyu_im::plugins::declared::{Links, Ui};
 use miyu_im::plugins::{Builtin, Declared};
+
+pub(crate) mod records;
 
 /// 编号。
 pub(crate) const ID: &str = "miyu-im-qq-admin";
@@ -34,6 +38,18 @@ pub(crate) const MUTE_MIN: &str = "admin_mute_min";
 
 /// 最长禁言。
 pub(crate) const MUTE_MAX: &str = "admin_mute_max";
+
+/// 踢人工具的开关（施工 Q-2）。
+pub(crate) const KICK: &str = "admin_kick";
+
+/// 记录开关（施工 Q-2）。
+pub(crate) const RECORDS: &str = "admin_records";
+
+/// 每个群留多少条记录（施工 Q-2）。
+pub(crate) const KEEP: &str = "admin_keep";
+
+/// 每个群留多少条读不出时照的（同清单的出厂值，同旧版）。
+const KEEP_DEFAULT: usize = 500;
 
 /// 最短禁言读不出时照的（同清单的出厂值）：一分钟，QQ 能禁的最短。
 const MIN_SECONDS: u64 = 60;
@@ -87,6 +103,26 @@ pub(crate) fn switched(config: &Map<String, Value>, name: &str) -> bool {
 /// 禁言工具登记不登记（施工 Q-1）：总开关、禁言工具的开关都开着。
 pub(crate) fn offers_mute(config: &Map<String, Value>) -> bool {
     switched(config, ON) && switched(config, MUTE)
+}
+
+/// 踢人工具登记不登记（施工 Q-2）：总开关、踢人工具的开关都开着。
+pub(crate) fn offers_kick(config: &Map<String, Value>) -> bool {
+    switched(config, ON) && switched(config, KICK)
+}
+
+/// 记不记管理记录（施工 Q-2）。
+pub(crate) fn recording(config: &Map<String, Value>) -> bool {
+    switched(config, RECORDS)
+}
+
+/// 每个群留多少条记录：读不出的、0 照出厂的。
+pub(crate) fn keep(config: &Map<String, Value>) -> usize {
+    config
+        .get(KEEP)
+        .and_then(Value::as_u64)
+        .and_then(|keep| usize::try_from(keep).ok())
+        .filter(|keep| *keep > 0)
+        .unwrap_or(KEEP_DEFAULT)
 }
 
 /// 最短、最长禁言几秒（纯逻辑）：设置是分钟，读不出的、不是正整数的照出厂的，超过 30 天的照 30 天；最短比最长还长的，两个都照出厂的。

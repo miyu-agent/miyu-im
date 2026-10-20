@@ -53,3 +53,19 @@ fn only_owners_and_admins_can_moderate() {
     assert!(!ranked(Some(Rank::Member)));
     assert!(!ranked(None));
 }
+
+#[test]
+fn kick_records_and_keep_follow_their_settings() {
+    assert!(offers_kick(&Map::new()));
+    assert!(!offers_kick(&config(json!({"admin_on": false}))));
+    assert!(!offers_kick(&config(json!({"admin_kick": false}))));
+    assert!(
+        offers_kick(&config(json!({"admin_mute": false}))),
+        "各管各的"
+    );
+    assert!(recording(&Map::new()));
+    assert!(!recording(&config(json!({"admin_records": false}))));
+    assert_eq!(keep(&Map::new()), 500);
+    assert_eq!(keep(&config(json!({"admin_keep": 20}))), 20);
+    assert_eq!(keep(&config(json!({"admin_keep": 0}))), 500);
+}

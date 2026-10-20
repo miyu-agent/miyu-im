@@ -1,0 +1,1 @@
+Removed {who} from the group.

@@ -230,6 +230,15 @@ pub fn group_ban(group: i64, user: i64, seconds: u64) -> (&'static str, Value) {
     )
 }
 
+/// 把号是 `user` 的人移出群 `group` 的动作和参数：`set_group_kick {group_id, user_id, reject_add_request}`，`block` 的以后不收他的
+/// 加群申请（施工 Q-2）。
+pub fn group_kick(group: i64, user: i64, block: bool) -> (&'static str, Value) {
+    (
+        "set_group_kick",
+        json!({"group_id": group, "user_id": user, "reject_add_request": block}),
+    )
+}
+
 /// 戳一戳号是 `user` 的人的动作和参数（施工 O-31）：在 `to` 那个群里 `group_poke {group_id, user_id}`，私聊里
 /// `friend_poke {user_id}`（NapCat 的 `SendPoke.ts`：群号没写的是私聊）。
 pub fn poke(to: To, user: i64) -> (&'static str, Value) {

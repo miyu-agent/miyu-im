@@ -53,7 +53,12 @@ pub fn unrecallable() -> String {
 }
 
 /// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
-const PLATFORM: [&str; 3] = ["set_group_ban", "group_poke", "friend_poke"];
+const PLATFORM: [&str; 4] = [
+    "set_group_ban",
+    "group_poke",
+    "friend_poke",
+    "set_group_kick",
+];
 
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
 const FETCHING: [&str; 4] = ["get_msg", "get_image", "get_file", "get_forward_msg"];
@@ -286,6 +291,7 @@ fn answer(
             | "set_msg_emoji_like"
             | "set_friend_add_request"
             | "set_group_ban"
+            | "set_group_kick"
             | "group_poke"
             | "friend_poke",
         ) => ("ok", Value::Null),

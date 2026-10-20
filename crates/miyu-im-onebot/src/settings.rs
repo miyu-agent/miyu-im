@@ -28,6 +28,9 @@ pub const NAMES: &[&str] = &[
     crate::admin::MUTE,
     crate::admin::MUTE_MIN,
     crate::admin::MUTE_MAX,
+    crate::admin::KICK,
+    crate::admin::RECORDS,
+    crate::admin::KEEP,
 ];
 
 /// 其中是密钥的（`Driver::secrets`，施工 I-6 中）。

@@ -100,6 +100,7 @@ mod voicing;
 
 use message::{Message, reply_text};
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -190,6 +191,8 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
+    /// 驱动自己的状态目录（施工 Q-2，`toolset::Call::store`）。
+    store: PathBuf,
     /// 驱动的工具交回的任务（施工 T-4，`driven`）：办完先做交回的那件事、再答。
     jobs: JoinSet<driven::Finished>,
     /// 群里回执要撤回的命令（施工 O-47，`im.recall_receipts`；推来的换）。
@@ -267,11 +270,12 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters, cards_changed, recent): (
+        (hooks, counters, cards_changed, recent, store): (
             Arc<Hooks>,
             Arc<Counters>,
             Arc<Changed>,
             Arc<Recent>,
+            PathBuf,
         ),
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
@@ -290,6 +294,7 @@ impl Route {
         hooks.set_toggles(Toggles::from_cards(rules.cards()));
         Route {
             core,
+            store,
             counters,
             cards_changed,
             recent,

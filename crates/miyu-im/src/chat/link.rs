@@ -156,6 +156,9 @@ pub trait Link: Send + Sync + fmt::Debug {
     /// 在群 `group` 里禁言号是 `user` 的人 `seconds` 秒，0 是解禁（施工 O-31）。
     fn mute(&self, group: i64, user: i64, seconds: u64) -> Reply<'_, ()>;
 
+    /// 把号是 `user` 的人移出群 `group`，`block` 的以后不收他的加群申请（施工 Q-2，群管理的踢人）。
+    fn kick(&self, group: i64, user: i64, block: bool) -> Reply<'_, ()>;
+
     /// 在 `to` 那里戳一戳号是 `user` 的人（施工 O-31）。
     fn poke(&self, to: To, user: i64) -> Reply<'_, ()>;
 

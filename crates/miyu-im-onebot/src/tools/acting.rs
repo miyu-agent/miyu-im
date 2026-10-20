@@ -1,4 +1,4 @@
-//! 撤回、禁言、戳一戳（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 2 到 6 条；施工 T-2 从宿主挪进驱动）：im 照会话填好场景交
+//! 撤回、禁言、戳一戳、踢人（施工 O-31、Q-2，`onebot.md` 第一条「平台工具（一）」第 2 到 6 条；施工 T-2 从宿主挪进驱动）：im 照会话填好场景交
 //! 过来（叫她做的那一条、谁叫的、她自己、私聊的对方），照 `target` 定对谁做，认不出目标、参数写错的当场答；要做的交给 im 另起任务：她给
 //! 的撤回编号先 `get_msg` 核对在不在这个会话里，再经收进这个会话的那个机器人号的连接调动作。施工 O-48 起不挡人（谁叫的、禁谁都交给
 //! QQ）。结果里写的人照这个群缓存着的名字，没有的、私聊里的写号（「施工时定的」第 185 条）。
@@ -8,21 +8,24 @@ use serde_json::Value;
 use miyu_im::chat::{CallError, Msg, To};
 use miyu_im::toolset::{Call, Missed, Planned, duration, message};
 
+use super::moderate;
 use super::target::{Caller, Order, Plan, Scene, Why, plan, recallable};
-use crate::admin;
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
-enum Act {
+pub(super) enum Act {
     /// 撤这一条（平台编号原样）；`check` 的先 `get_msg` 核对在不在这个会话里（施工 O-48）。
     Recall { msg: String, check: bool },
     /// 在这个群里禁言这个号几秒，0 是解禁。
     Mute { group: i64, user: i64, seconds: u64 },
     /// 戳这个号。
     Poke(i64),
+    /// 把这个号移出这个群，`block` 的以后不收他的加群申请（施工 Q-2）。
+    Kick { group: i64, user: i64, block: bool },
 }
 
-/// 撤回、禁言、戳一戳的一次调用（模块的说明）。参数写错、私聊里调到禁言（`venues` 不给，照说不会）的照不认识的工具答。
+/// 撤回、禁言、戳一戳、踢人的一次调用（模块的说明）。参数写错、私聊里调到禁言、踢人（`venues` 不给，照说不会）的照不认识的工具答。
+/// 禁言、踢人归群管理（`moderate`）：当场挡下的答它说的，做成了记进管理记录。
 pub(super) fn acting(call: Call) -> Planned {
     let decided = Order::read(&call.tool, &call.args).and_then(|order| decide(&call, order));
     let Some(decided) = decided else {
@@ -30,37 +33,26 @@ pub(super) fn acting(call: Call) -> Planned {
     };
     let act = match act(&call, decided) {
         Ok(act) => act,
-        Err(Why::BadSeconds) => return Planned::Now(bad_seconds(&call)),
+        Err(Why::BadSeconds) => return Planned::Now(moderate::bad_seconds(&call)),
         Err(why) => return Planned::Now(call.answers.say(why.name(), &[], true)),
     };
-    // 禁言归群管理（施工 Q-1）：插件在这个群开着才做，秒数照设置的最短、最长（解禁不管）。
-    if let Act::Mute { seconds, .. } = act {
-        if !call.plugins.contains(&admin::ID) {
-            return Planned::Now(call.answers.say(ADMIN_OFF, &[], true));
-        }
-        let (min, max) = admin::mute_range(&call.config);
-        if seconds != 0 && !(min..=max).contains(&seconds) {
-            return Planned::Now(bad_seconds(&call));
-        }
+    if let Some(answer) = moderate::checked(&call, &act) {
+        return Planned::Now(answer);
     }
-    Planned::later(async move { answered(&call, &act, done(&call, &act).await) })
-}
-
-/// 群管理在这个群没生效（插件关着、她不是管理员）答的那一句（施工 Q-1）。
-const ADMIN_OFF: &str = "admin-off";
-
-/// 秒数写错、出了范围答的那一句：带设置的最短、最长（施工 Q-1）。
-fn bad_seconds(call: &Call) -> Value {
-    let (min, max) = admin::mute_range(&call.config);
-    let (min, max) = (duration(min), duration(max));
-    call.answers
-        .say("bad-seconds", &[("min", &min), ("max", &max)], true)
+    Planned::later(async move {
+        let outcome = done(&call, &act).await;
+        if outcome.is_ok() {
+            moderate::recorded(&call, &act).await;
+        }
+        answered(&call, &act, outcome)
+    })
 }
 
 /// 对谁做：群里照叫她做的那一条，私聊里照对方、最近一条的引用。私聊里的禁言是空的。
 fn decide(call: &Call, order: Order) -> Option<Plan> {
     let me = call.me.as_ref()?;
-    if matches!(call.to, To::Private(_)) && matches!(order, Order::Mute { .. }) {
+    if matches!(call.to, To::Private(_)) && matches!(order, Order::Mute { .. } | Order::Kick { .. })
+    {
         return None;
     }
     let caller = Caller {
@@ -96,6 +88,13 @@ fn act(call: &Call, plan: Plan) -> Result<Act, Why> {
                 seconds,
             })
         }
+        Plan::Kick { user, block } => {
+            let user = number(&user)?;
+            let To::Group(group) = call.to else {
+                return Err(Why::NoTarget);
+            };
+            Ok(Act::Kick { group, user, block })
+        }
     }
 }
 
@@ -130,11 +129,22 @@ async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
             seconds,
         } => {
             // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。
-            let me = link.member(*group, call.bot).await.map_err(undone)?;
-            if !admin::ranked(me.rank) {
-                return Err(Undone(ADMIN_OFF, None));
+            if !moderate::admin_here(link.as_ref(), *group, call.bot)
+                .await
+                .map_err(undone)?
+            {
+                return Err(Undone(moderate::ADMIN_OFF, None));
             }
             link.mute(*group, *user, *seconds).await
+        }
+        Act::Kick { group, user, block } => {
+            if !moderate::admin_here(link.as_ref(), *group, call.bot)
+                .await
+                .map_err(undone)?
+            {
+                return Err(Undone(moderate::ADMIN_OFF, None));
+            }
+            link.kick(*group, *user, *block).await
         }
         Act::Poke(user) => link.poke(call.to, *user).await,
     };
@@ -163,6 +173,10 @@ fn answered(call: &Call, act: &Act, outcome: Result<(), Undone>) -> Value {
             false,
         ),
         (Ok(()), Act::Poke(user)) => call.answers.say("poked", &[("who", &who(*user))], false),
+        (Ok(()), Act::Kick { user, block, .. }) => {
+            let said = if *block { "kicked-blocked" } else { "kicked" };
+            call.answers.say(said, &[("who", &who(*user))], false)
+        }
         (Err(Undone(why, detail)), _) => {
             let fields: Vec<(&str, &str)> = detail
                 .as_deref()

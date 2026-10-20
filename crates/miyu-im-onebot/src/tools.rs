@@ -17,6 +17,7 @@ mod acting;
 mod fetch;
 mod lookup;
 mod mention;
+mod moderate;
 mod target;
 
 /// 「这一轮不说话」（施工 O-26，「提供者和不说话」第 3 条）：im 的读的一头当场答，她的回复里有这件的调用块，这一轮就不发了。
@@ -37,6 +38,9 @@ pub const MUTE: &str = "mute";
 /// 戳一戳（施工 O-31）。
 pub const POKE: &str = "poke";
 
+/// 踢人（施工 Q-2，群管理）：只给群。
+pub const KICK: &str = "kick";
+
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
 pub const FETCH_MEDIA: &str = "fetch_media";
 
@@ -51,7 +55,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 9] = [
+const TOOLS: [Decl; 10] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -64,6 +68,11 @@ const TOOLS: [Decl; 9] = [
     },
     Decl {
         name: MUTE,
+        access: Access::Venue,
+        venues: &["group"],
+    },
+    Decl {
+        name: KICK,
         access: Access::Venue,
         venues: &["group"],
     },
@@ -100,7 +109,7 @@ const TOOLS: [Decl; 9] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 26] = [
+const ANSWERS: [(&str, &[&str]); 28] = [
     ("skipped", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
@@ -116,6 +125,8 @@ const ANSWERS: [(&str, &[&str]); 26] = [
     ("many-targets", &[]),
     ("bad-seconds", &["min", "max"]),
     ("admin-off", &[]),
+    ("kicked", &["who"]),
+    ("kicked-blocked", &["who"]),
     ("not-found", &[]),
     ("unknown", &["name"]),
     ("saved", &["path"]),
@@ -175,13 +186,17 @@ impl ToolSet for QqTools {
     }
 
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
-        // 群管理的工具照它的开关（施工 Q-1）。
-        tool != MUTE || crate::admin::offers_mute(config)
+        // 群管理的工具照它的开关（施工 Q-1、Q-2）。
+        match tool {
+            MUTE => crate::admin::offers_mute(config),
+            KICK => crate::admin::offers_kick(config),
+            _ => true,
+        }
     }
 
     fn plan(&self, call: Call) -> Planned {
         match call.tool.as_str() {
-            RECALL | MUTE | POKE => acting::acting(call),
+            RECALL | MUTE | POKE | KICK => acting::acting(call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, self.wait),
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {
