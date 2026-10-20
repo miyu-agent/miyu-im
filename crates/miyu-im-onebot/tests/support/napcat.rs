@@ -238,6 +238,33 @@ impl NapCat {
         }
     }
 
+    /// 等桥补拉消息时调的 `get_group_msg_history`（施工 I-15）：回 `{messages}`，交回它的参数。问版本的照 NapCat 的样子回，别的
+    /// 不回。最多等六十秒。
+    pub async fn history(&mut self, messages: Value) -> Value {
+        loop {
+            let frame = within("桥补拉", self.ws.next())
+                .await
+                .expect("连接没断")
+                .expect("读得到");
+            let Message::Text(text) = frame else {
+                continue;
+            };
+            let action: Value = serde_json::from_str(&text).expect("是 JSON");
+            let data = match action["action"].as_str() {
+                Some("get_version_info") => {
+                    json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"})
+                }
+                Some("get_group_msg_history") => json!({ "messages": messages }),
+                _ => continue,
+            };
+            let reply = json!({"status": "ok", "retcode": 0, "data": data, "message": "", "wording": "", "echo": action["echo"]});
+            self.send(reply).await;
+            if action["action"] == "get_group_msg_history" {
+                return action["params"].clone();
+            }
+        }
+    }
+
     /// 下一个动作是给终端管理员的 `send_private_msg`：交回里面的字（只有一个文字段）。
     pub async fn reply(&mut self) -> String {
         let action = self.action().await;

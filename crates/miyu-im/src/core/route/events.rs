@@ -10,6 +10,7 @@ impl Route {
         match event {
             Event::Private(posted) => self.private(posted).await,
             Event::Group { group, posted } => self.group(group, posted).await,
+            Event::Backfilled { group, posted } => self.backfilled(group, posted).await,
             Event::Recalled(recall) => self.recalled(recall).await,
             Event::Muted {
                 bot,

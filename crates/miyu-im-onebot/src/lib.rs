@@ -3,6 +3,7 @@
 //! `miyu-im`（`main.rs`）把 [`OneBot`] 交给宿主。
 
 mod admin;
+mod backfill;
 mod identity;
 mod listen;
 pub mod onebot;

@@ -62,7 +62,7 @@ const PLATFORM: [&str; 5] = [
 ];
 
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
-const FETCHING: [&str; 7] = [
+const FETCHING: [&str; 8] = [
     "get_msg",
     "get_image",
     "get_file",
@@ -70,6 +70,8 @@ const FETCHING: [&str; 7] = [
     "get_group_root_files",
     "get_group_files_by_folder",
     "get_group_file_url",
+    // 补拉消息（施工 I-15）：重连、重启时桥问，一律回没有。
+    "get_group_msg_history",
 ];
 
 /// 放进去的消息、东西（施工 O-33）和问过的。
@@ -260,6 +262,7 @@ fn fetched(action: &Value, stock: &Mutex<Stock>) -> Value {
             .get(&key)
             .cloned()
             .ok_or_else(|| "消息不存在".to_string()),
+        "get_group_msg_history" => Ok(json!({"messages": []})),
         "get_forward_msg" => stock
             .forwards
             .get(&key)
@@ -473,7 +476,7 @@ impl Answering {
         stock
             .asked
             .iter()
-            .filter(|(action, _)| action != "get_group_info")
+            .filter(|(action, _)| action != "get_group_info" && action != "get_group_msg_history")
             .cloned()
             .collect()
     }

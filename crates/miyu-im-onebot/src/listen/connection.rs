@@ -26,6 +26,7 @@ use miyu_im::serve::Notice;
 type Syncing = mpsc::UnboundedSender<crate::admin::sync::Moderated>;
 
 use crate::admin::spam::Spamming;
+use crate::backfill::{self, Seen};
 
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
 pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<i64>)
@@ -53,9 +54,11 @@ where
     let syncing = crate::admin::sync::start(gate, &link);
     // 刷屏处理（施工 Q-5）：这条连接一份，照读到的先后认。
     let mut spamming = Spamming::new(gate, &link);
+    // 补拉消息（施工 I-15）：号认出来以后才有。
+    let mut seen = None;
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot {
-        Some(bot) => register(gate, bot, &link).await,
+        Some(bot) => known(gate, bot, &link, &mut seen).await,
         None => true,
     };
     tracing::info!(target: TARGET, bot, "napcat connected");
@@ -67,7 +70,7 @@ where
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    reading = frame_in(gate, &text, &mut bot, (&wire, &link, &syncing, &mut spamming)).await;
+                    reading = frame_in(gate, &text, (&mut bot, &mut seen), (&wire, &link, &syncing, &mut spamming)).await;
                 }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
@@ -76,6 +79,9 @@ where
         }
     }
     wire.calls.close();
+    if let Some(seen) = seen.as_mut() {
+        seen.flush();
+    }
     if let Some(bot) = bot {
         gate.bots().remove(bot, &link);
         gate.changed();
@@ -88,7 +94,7 @@ where
 async fn frame_in(
     gate: &Arc<Gate>,
     text: &str,
-    bot: &mut Option<i64>,
+    (bot, seen): (&mut Option<i64>, &mut Option<Seen>),
     (wire, link, syncing, spamming): (&Wire, &Arc<dyn Link>, &Syncing, &mut Spamming),
 ) -> bool {
     let frame: Value = match serde_json::from_str(text) {
@@ -102,7 +108,7 @@ async fn frame_in(
         && let Some(id) = onebot::self_id(&frame)
     {
         *bot = Some(id);
-        if !register(gate, id, link).await {
+        if !known(gate, id, link, seen).await {
             return false;
         }
     }
@@ -124,6 +130,10 @@ async fn frame_in(
         }
         Frame::Event(event) => {
             noted(&event);
+            // 补拉消息（施工 I-15）：记下每个群收到的最后一条（刷屏的也算，平台上有它）。
+            if let (Event::Group { group, posted }, Some(seen)) = (&event, seen.as_mut()) {
+                seen.note(*group, posted.time);
+            }
             // 刷屏的（施工 Q-5，群管理）：第三条起不交给 im。
             if let Event::Group { group, posted } = &event
                 && !spamming.seen(*group, posted)
@@ -155,6 +165,13 @@ fn noted(event: &Event) {
             chars = posted.text.chars().count(),
             "group message"
         ),
+        Event::Backfilled { group, posted } => tracing::debug!(
+            target: TARGET,
+            group,
+            user = posted.user,
+            message = posted.message_id,
+            "backfilled message"
+        ),
         Event::Recalled(recall) => tracing::debug!(
             target: TARGET,
             group = recall.group,
@@ -174,6 +191,17 @@ fn noted(event: &Event) {
             tracing::debug!(target: TARGET, group, user, "group invite");
         }
     }
+}
+
+/// 号 `bot` 认出来了：登记这条连接（[`register`]），读它记着的、照记着的补拉（施工 I-15）。跟核心的那一头不收了交回假。
+async fn known(gate: &Arc<Gate>, bot: i64, link: &Arc<dyn Link>, seen: &mut Option<Seen>) -> bool {
+    if !register(gate, bot, link).await {
+        return false;
+    }
+    let loaded = Seen::load(gate.store(), bot);
+    backfill::start(gate, link, bot, loaded.groups());
+    *seen = Some(loaded);
+    true
 }
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
