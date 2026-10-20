@@ -16,7 +16,13 @@
     "qq_send": { "name": "メッセージを送る", "subject": "text" }
   },
   "said": {
-    "usage": "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",
+    "usage": "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所> | whitelist [list | add <番号> | remove <番号>]（serve はコアだけが起動します）",
+    "whitelist/empty": "ホワイトリストは空です",
+    "whitelist/bad": "番号が正しくありません：{number}",
+    "whitelist/added": "ホワイトリストに追加しました：{entry}",
+    "whitelist/already": "すでにホワイトリストにあります：{entry}",
+    "whitelist/removed": "ホワイトリストから外しました：{entry}",
+    "whitelist/absent": "ホワイトリストにありません：{entry}",
     "no-log": "実行ログを書けません：{reason}",
     "web/failed": "ページを開けません：{reason}",
     "web/not-running": "メッセージング接続が動いていません。先に miyu im start を実行してください。",

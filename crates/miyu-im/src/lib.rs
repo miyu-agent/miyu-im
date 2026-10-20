@@ -54,6 +54,7 @@ pub mod toolset;
 pub mod tuning;
 pub mod venue;
 pub mod web;
+pub mod whitelist;
 
 /// 运行日志的目标。
 pub const TARGET: &str = "miyu::im";

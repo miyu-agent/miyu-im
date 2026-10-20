@@ -34,6 +34,7 @@ use miyu_im::texts::{Texts, system_language};
 use miyu_im::tuning::Tuning;
 use miyu_im::venue::{configured, show};
 use miyu_im::web::web;
+use miyu_im::whitelist::Change;
 use miyu_im::{PROGRAM, TARGET};
 
 /// 用法不对的退出码。
@@ -54,6 +55,8 @@ enum Command {
     Venue(String),
     /// `web`：带交接票打开 im 自己的页面（施工 I-6 上）。
     Web,
+    /// `whitelist`：看、改白名单（施工 I-13）。
+    Whitelist(Change),
 }
 
 fn main() -> ExitCode {
@@ -84,6 +87,9 @@ fn main() -> ExitCode {
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
+        ["whitelist"] | ["whitelist", "list"] => Command::Whitelist(Change::List),
+        ["whitelist", "add", number] => Command::Whitelist(Change::Add(number.to_string())),
+        ["whitelist", "remove", number] => Command::Whitelist(Change::Remove(number.to_string())),
         ["web"] => Command::Web,
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
@@ -147,6 +153,27 @@ fn main() -> ExitCode {
                 &mut std::io::stdout(),
                 &mut std::io::stderr(),
             )
+        }
+        Command::Whitelist(change) => {
+            // 照终端的样子连核心（核心没在跑就照 `start` 那样拉起，同 `venue show`），施工 I-13。
+            let core: CoreCommand = Arc::new(core);
+            runtime.block_on(async {
+                match miyu_client::open::Core::connect(&root, &core, miyu_im::PACKAGE).await {
+                    Ok(mut connected) => {
+                        miyu_im::whitelist::run(
+                            &mut connected,
+                            (&change, miyu_im_onebot::onebot::PLATFORM),
+                            &texts,
+                            (&mut std::io::stdout(), &mut std::io::stderr()),
+                        )
+                        .await
+                    }
+                    Err(refused) => {
+                        eprintln!("{}", texts.failure(&Failure::Core(refused.to_string())));
+                        FAILED
+                    }
+                }
+            })
         }
         Command::Web => runtime.block_on(web(
             &root,

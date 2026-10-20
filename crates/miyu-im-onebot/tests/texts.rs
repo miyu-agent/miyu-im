@@ -221,7 +221,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.usage(),
-        "用法：miyu im start | stop | restart | status | web | logs [-f] | venue show <场所>（serve 只由核心拉起）"
+        "用法：miyu im start | stop | restart | status | web | logs [-f] | venue show <场所> | whitelist [list | add <号> | remove <号>]（serve 只由核心拉起）"
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
@@ -339,7 +339,7 @@ fn japanese_is_its_own_and_the_language_can_change() {
     assert_eq!(same, Vec::<String>::new(), "和英文一样的");
     assert_eq!(
         texts.usage(),
-        "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）"
+        "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所> | whitelist [list | add <番号> | remove <番号>]（serve はコアだけが起動します）"
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),

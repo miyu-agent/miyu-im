@@ -176,6 +176,19 @@ impl Texts {
         }
     }
 
+    /// `whitelist` 说的一句（施工 I-13）。
+    pub fn whitelist(&self, said: &crate::whitelist::Said) -> String {
+        use crate::whitelist::Said;
+        match said {
+            Said::Empty => self.say("whitelist/empty", &[]),
+            Said::Bad(number) => self.say("whitelist/bad", &[("number", number.clone())]),
+            Said::Added(entry) => self.say("whitelist/added", &[("entry", entry.clone())]),
+            Said::Already(entry) => self.say("whitelist/already", &[("entry", entry.clone())]),
+            Said::Removed(entry) => self.say("whitelist/removed", &[("entry", entry.clone())]),
+            Said::Absent(entry) => self.say("whitelist/absent", &[("entry", entry.clone())]),
+        }
+    }
+
     /// 规则设到的一项（施工 O-21）：键 `key`、值照 TOML 写、来处。
     pub fn entry(&self, key: &str, entry: &Entry) -> String {
         let origin = &entry.origin;

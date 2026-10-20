@@ -106,4 +106,5 @@ mod venue;
 mod voicing;
 mod web;
 mod whitelist;
+mod whitelist_cli;
 mod words;
