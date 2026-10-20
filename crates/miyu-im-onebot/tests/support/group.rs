@@ -257,6 +257,24 @@ pub async fn started_with_models(
     .await
 }
 
+/// 同 [`started_judged`]，问群成员照 `ranks` 回身份（施工 Q-7：入群审批要她是管理员）。
+pub async fn started_judged_ranked(
+    script: &Script,
+    judge: &Server,
+    rules: &str,
+    (members, ranks): (&[Member], &[Rank]),
+) -> (Home, Answering, u16) {
+    let more = super::judge::config(judge);
+    up(
+        super::judge::models(script),
+        (&more, &Value::Null),
+        (rules, ""),
+        "",
+        |napcat| napcat.ranked(members, ranks),
+    )
+    .await
+}
+
 /// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[im]` 后面再接 `more`，`bridge.json` 照 `tuned`
 /// 改（[`Home::spawning_tuned`]）；系统的场所规则写成 `rules`，`words` 不空的写成系统的违规词表。
 async fn up(

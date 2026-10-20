@@ -195,6 +195,12 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
         ),
         // 施工 Q-3：驱动给场所会话记事实的模板也是。
         ("onebot/facts/muted-by.txt", "{who} for {how}.\n", "how"),
+        // 施工 Q-7：驱动问模型的提示词模板也是。
+        (
+            "onebot/prompts/approval-request.txt",
+            "{rule} {answer}\n",
+            "answer",
+        ),
     ] {
         let path = software.join(file);
         let kept = std::fs::read_to_string(&path).expect("读得出");

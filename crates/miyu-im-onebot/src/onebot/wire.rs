@@ -12,8 +12,8 @@ use super::media::{get_media, get_msg};
 use super::replies::{self, FRIEND_LIST, GROUP_INFO, GROUP_LIST, LOGIN_INFO, MEMBER_LIST};
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
-    get_forward_msg, group_ban, group_kick, image_to, member_info, message_to, node, number,
-    picture_to, poke, upload_to,
+    get_forward_msg, group_add, group_ban, group_kick, image_to, member_info, message_to, node,
+    number, picture_to, poke, upload_to,
 };
 use miyu_im::chat::{
     self, CallError, Fetch, Fetched, Friend, Group, Implementation, Link, Located, Member, Msg,
@@ -109,6 +109,10 @@ impl Link for Wire {
 
     fn befriend<'a>(&'a self, flag: &'a str) -> Reply<'a, ()> {
         self.done(friend_add(flag))
+    }
+
+    fn join_request<'a>(&'a self, flag: &'a str, approve: bool, reason: &'a str) -> Reply<'a, ()> {
+        self.done(group_add(flag, approve, reason))
     }
 
     fn message<'a>(&'a self, id: &'a str) -> Reply<'a, Fetched> {

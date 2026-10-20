@@ -258,6 +258,16 @@ pub fn emoji_like(message: &str, emoji: &str, set: bool) -> (&'static str, Value
     )
 }
 
+/// 处理标记是 `flag` 的那次加群申请的动作和参数：`set_group_add_request {flag, sub_type: "add", approve, reason}`（施工 Q-7）；同意的
+/// 不带理由。
+pub fn group_add(flag: &str, approve: bool, reason: &str) -> (&'static str, Value) {
+    let mut params = json!({"flag": flag, "sub_type": "add", "approve": approve});
+    if !approve {
+        params["reason"] = json!(reason);
+    }
+    ("set_group_add_request", params)
+}
+
 /// 同意标记是 `flag` 的那次好友请求的动作和参数：`set_friend_add_request {flag, approve: true}`（施工 O-27，「好友请求」）。
 /// 标记照平台给的原样交回。
 pub fn friend_add(flag: &str) -> (&'static str, Value) {

@@ -50,6 +50,8 @@ struct Driven {
     answers: Arc<Answers>,
     /// 驱动给场所会话记事实的模板（施工 Q-3，`ToolSet::facts`）。
     facts: Arc<Answers>,
+    /// 驱动问模型的提示词模板（施工 Q-7，`ToolSet::prompts`）。
+    prompts: Arc<Answers>,
 }
 
 impl std::fmt::Debug for Driven {
@@ -96,9 +98,11 @@ impl Tools {
         json!({"tools": tools})
     }
 
-    /// 驱动给场所会话记事实的模板（施工 Q-3）；没有驱动的是空的。
-    pub(crate) fn facts(&self) -> Option<Arc<Answers>> {
-        self.driven.as_ref().map(|driven| Arc::clone(&driven.facts))
+    /// 驱动给场所会话记事实的模板（施工 Q-3）、问模型的提示词模板（施工 Q-7）；没有驱动的是空的。
+    pub(crate) fn texts(&self) -> Option<(Arc<Answers>, Arc<Answers>)> {
+        self.driven
+            .as_ref()
+            .map(|driven| (Arc::clone(&driven.facts), Arc::clone(&driven.prompts)))
     }
 
     /// 「这一轮不说话」那件工具叫什么（施工 T-4，`ToolSet::silence`）。
@@ -215,11 +219,17 @@ fn driven(
     };
     let answers = loaded(Answers::load(data, dir, set.answers()));
     let facts = loaded(Answers::load_in(data, &format!("{dir}/facts"), set.facts()));
-    let (answers, facts) = (answers.filter(|_| whole)?, facts?);
+    let prompts = loaded(Answers::load_in(
+        data,
+        &format!("{dir}/prompts"),
+        set.prompts(),
+    ));
+    let (answers, facts, prompts) = (answers.filter(|_| whole)?, facts?, prompts?);
     Some(Driven {
         set,
         specs,
         answers: Arc::new(answers),
         facts: Arc::new(facts),
+        prompts: Arc::new(prompts),
     })
 }

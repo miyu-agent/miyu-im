@@ -1,0 +1,6 @@
+<rule>
+{rule}
+</rule>
+<request>
+{request}
+</request>

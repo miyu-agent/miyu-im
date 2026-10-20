@@ -84,6 +84,8 @@ async fn clearing_takes_two_clicks() {
         seconds: None,
         reason: None,
         block: false,
+        verdict: None,
+        comment: None,
     };
     records::append(context.store.clone(), 31, record, 10).await;
     let clear = json!({"group": 31});
@@ -126,4 +128,28 @@ async fn the_panel_is_for_groups_and_the_page_says_when_qq_is_away() {
         .await
         .expect("答了");
     assert_eq!(page[0]["type"], "text", "没连着的一段字：{page}");
+}
+
+#[tokio::test]
+async fn the_join_rule_is_saved_and_cleared() {
+    let context = context("approval");
+    let save = json!({"group": 31, "values": {"rule": "答案是芝麻开门"}});
+    assert_eq!(
+        call(&context, "admin.approval", &save).await,
+        Ok(json!({"saved": true}))
+    );
+    assert_eq!(
+        groups::read(&context.store)["31"].approval.rule,
+        "答案是芝麻开门"
+    );
+    let cleared = json!({"group": 31, "values": {"rule": null}});
+    assert_eq!(
+        call(&context, "admin.approval", &cleared).await,
+        Ok(json!({"saved": true}))
+    );
+    assert_eq!(groups::read(&context.store)["31"].approval.rule, "");
+    let long = json!({"group": 31, "values": {"rule": "很".repeat(2001)}});
+    let refused = call(&context, "admin.approval", &long).await.expect("答了");
+    assert_eq!(refused["saved"], false, "{refused}");
+    std::fs::remove_dir_all(&context.store).expect("删得了");
 }

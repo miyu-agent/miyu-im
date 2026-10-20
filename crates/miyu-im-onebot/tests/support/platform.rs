@@ -65,12 +65,13 @@ pub const MEMBERS: &[Member] = &[
 pub const RANKS: &[Rank] = &[(OWNER, "owner"), (BOT, "admin")];
 
 /// 照 NapCat 回、桥调的平台动作。
-pub const PLATFORM: [&str; 5] = [
+pub const PLATFORM: [&str; 6] = [
     "delete_msg",
     "set_group_ban",
     "group_poke",
     "friend_poke",
     "set_group_kick",
+    "set_group_add_request",
 ];
 
 /// 这个群的场所编号。

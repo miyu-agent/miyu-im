@@ -113,6 +113,8 @@ async fn frame_in(
         gate.event(id, onebot::event_to(&frame), &frame);
         // 群里别的管理员禁言、解禁、踢人（施工 Q-3，群管理）：另起任务办，要问 NapCat 的名字、身份，回应在这条连接上读。
         crate::admin::sync::seen(syncing, &frame);
+        // 加群申请（施工 Q-7，入群审批）：另起任务审。
+        crate::admin::approval::seen(gate, link, &frame);
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
@@ -167,6 +169,7 @@ fn noted(event: &Event) {
         Event::Connected { bot } => tracing::debug!(target: TARGET, bot, "bot known"),
         Event::Befriend { user, .. } => tracing::debug!(target: TARGET, user, "friend request"),
         Event::Noted { kind, .. } => tracing::debug!(target: TARGET, kind, "built-in note"),
+        Event::Asked { .. } => tracing::debug!(target: TARGET, "built-in model call"),
         Event::Invited { group, user, .. } => {
             tracing::debug!(target: TARGET, group, user, "group invite");
         }

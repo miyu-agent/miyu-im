@@ -55,12 +55,22 @@ impl Default for View {
     }
 }
 
+/// 一个群的入群审批（施工 Q-7）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub(crate) struct Approval {
+    /// 通过条件：项目主人写的，照原样进提示词；空的不审，留给人工。
+    pub rule: String,
+}
+
 /// 一个群的设置。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Group {
     /// 刷屏处理。
     pub spam: Spam,
+    /// 入群审批（施工 Q-7）。
+    pub approval: Approval,
     /// 面板上怎么看（施工 Q-6）。
     pub view: View,
     /// 点了「清空记录」的时刻（Unix 秒，施工 Q-6）：一分钟以内再点一次才清。

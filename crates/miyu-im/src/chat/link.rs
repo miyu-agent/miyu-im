@@ -168,6 +168,9 @@ pub trait Link: Send + Sync + fmt::Debug {
     /// 同意标记是 `flag` 的那次好友请求（施工 O-27）。
     fn befriend<'a>(&'a self, flag: &'a str) -> Reply<'a, ()>;
 
+    /// 处理标记是 `flag` 的那次加群申请（施工 Q-7，入群审批）：`approve` 的同意，不然拒绝，拒绝的理由 `reason` 给申请人看。
+    fn join_request<'a>(&'a self, flag: &'a str, approve: bool, reason: &'a str) -> Reply<'a, ()>;
+
     /// 取平台编号是 `id` 的那一条消息（施工 O-33）。
     fn message<'a>(&'a self, id: &'a str) -> Reply<'a, Fetched>;
 

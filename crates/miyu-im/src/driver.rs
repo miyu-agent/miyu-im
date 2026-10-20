@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use tokio::sync::{mpsc, watch};
 
 use crate::changed::Changed;
-use crate::chat::{Bots, Cap, Event, Platform, To};
+use crate::chat::{Bots, Cap, Event, Platform, Replier, To};
 use crate::core::hooks::Hooks;
 use crate::current::Current;
 use crate::plugins::Builtin;
@@ -113,9 +113,13 @@ pub struct Gate {
     hooks: Arc<Hooks>,
     /// 驱动自己的状态目录（施工 Q-3，同 `toolset::Call::store`）。
     store: PathBuf,
-    /// 驱动给场所会话记事实的模板（施工 Q-3，`ToolSet::facts`）；没有工具套的是空的。
-    facts: Option<Arc<Answers>>,
+    /// 驱动给场所会话记事实的模板（施工 Q-3，`ToolSet::facts`）、问模型的提示词模板（施工 Q-7，`ToolSet::prompts`）；没有工具套的
+    /// 是空的。
+    texts: Option<Texts>,
 }
+
+/// 驱动报的事实模板、提示词模板（[`Gate`]）。
+type Texts = (Arc<Answers>, Arc<Answers>);
 
 impl Gate {
     /// 拼一份：几样都是 `serve` 起来时备好的。
@@ -125,7 +129,7 @@ impl Gate {
         inbound: mpsc::Sender<Event>,
         tell: Arc<dyn Fn(Notice) + Send + Sync>,
         changed: Arc<Changed>,
-        (hooks, store, facts): (Arc<Hooks>, PathBuf, Option<Arc<Answers>>),
+        (hooks, store, texts): (Arc<Hooks>, PathBuf, Option<Texts>),
     ) -> Gate {
         Gate {
             current,
@@ -137,7 +141,7 @@ impl Gate {
             changed,
             hooks,
             store,
-            facts,
+            texts,
         }
     }
 
@@ -212,7 +216,7 @@ impl Gate {
         name: &str,
         fields: &[(&str, &str)],
     ) -> bool {
-        let facts = self.facts.as_ref().expect("驱动报了事实的模板");
+        let (facts, _) = self.texts.as_ref().expect("驱动报了事实的模板");
         let text = facts.text(name, fields).trim().to_string();
         self.inbound(Event::Noted {
             bot,
@@ -221,5 +225,31 @@ impl Gate {
             text,
         })
         .await
+    }
+
+    /// 驱动带的插件的提示词模板 `name`（`ToolSet::prompts` 里的）字段照 `fields` 换（施工 Q-7）。
+    ///
+    /// # Panics
+    ///
+    /// `name` 不是 `ToolSet::prompts` 里的、少了它要的字段：是 bug。
+    pub fn prompt(&self, name: &str, fields: &[(&str, &str)]) -> String {
+        let (_, prompts) = self.texts.as_ref().expect("驱动报了提示词模板");
+        prompts.text(name, fields)
+    }
+
+    /// 请 im 替驱动带的插件问一次模型（施工 Q-7）：场所 `to`，`model.call` 的参数 `request`（`model` 由 im 照那个场所的判断模型
+    /// 填）。交回模型回的字。
+    ///
+    /// # Errors
+    ///
+    /// 核心拒了的交回它的原因（`no_model` 这类），桥在停的是 `stopping`。
+    pub async fn ask(&self, to: To, request: Value) -> Result<String, String> {
+        let (reply, answered) = Replier::pair();
+        if !self.inbound(Event::Asked { to, request, reply }).await {
+            return Err("stopping".to_string());
+        }
+        answered
+            .await
+            .unwrap_or_else(|_| Err("stopping".to_string()))
     }
 }

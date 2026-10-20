@@ -132,6 +132,8 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
             seconds,
             reason: None,
             block: false,
+            verdict: None,
+            comment: None,
         };
         records::append(
             gate.store().to_path_buf(),

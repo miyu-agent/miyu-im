@@ -19,6 +19,8 @@ fn record(
         seconds,
         reason: reason.map(str::to_string),
         block: false,
+        verdict: None,
+        comment: None,
     }
 }
 

@@ -66,7 +66,7 @@ pub(crate) fn ranking(records: &[Record], period: Period, now: u64) -> Vec<Tally
     let since = period.since(now);
     let mut tallies: Vec<Tally> = Vec::new();
     for record in records.iter().filter(|record| record.at >= since) {
-        if record.action == Action::Unmute {
+        if matches!(record.action, Action::Unmute | Action::Join) {
             continue;
         }
         let index = match tallies.iter().position(|tally| tally.user == record.user) {
@@ -90,7 +90,7 @@ pub(crate) fn ranking(records: &[Record], period: Period, now: u64) -> Vec<Tally
                 tally.seconds += record.seconds.unwrap_or_default();
             }
             Action::Kick => tally.kicks += 1,
-            Action::Unmute => {}
+            Action::Unmute | Action::Join => {}
         }
         if record.name.is_some() {
             tally.name.clone_from(&record.name);

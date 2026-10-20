@@ -218,7 +218,7 @@ pub async fn run(
         inbound,
         tell,
         Arc::clone(&changed),
-        (Arc::clone(&hooks), store.clone(), tools.facts()),
+        (Arc::clone(&hooks), store.clone(), tools.texts()),
     ));
     // 驱动起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）。
     let accepting = serve.driver.start(Arc::clone(&gate)).await?;

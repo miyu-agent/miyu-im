@@ -5,6 +5,7 @@
 //!   一段字。
 //! - `admin.spam {group, values}`：存这个群的刷屏处理（只交改过的格：`on`、`window` 秒、`mute` 分钟），写错的回 `problems`。
 //! - `admin.view {group, values}`：存面板上这个群怎么看（`action`、`period`）。
+//! - `admin.approval {group, values}`：存这个群的入群审批的通过条件（`rule`，字，`null` 是清掉），施工 Q-7。
 //! - `admin.clear {group}`：头一次只记下点了，一分钟以内再点一次才删这个群的记录。
 
 use serde_json::{Map, Value, json};
@@ -32,7 +33,7 @@ pub(crate) async fn call(context: &Context, method: &str, params: &Value) -> Res
             Ok(page::panel(group, &settings, &records, summary, now))
         }
         "admin.page" => Ok(whole(context, summary, now).await),
-        "admin.spam" | "admin.view" | "admin.clear" => {
+        "admin.spam" | "admin.view" | "admin.clear" | "admin.approval" => {
             let group = params["group"]
                 .as_i64()
                 .filter(|group| *group > 0)
@@ -117,6 +118,22 @@ fn saved(
                 }
             })
         }
+        "admin.approval" => {
+            // 通过条件：字，最多 2000 个；`null` 是清掉（不审）。
+            let rule = values.get("rule").map(|value| match value {
+                Value::Null => Some(String::new()),
+                value => value
+                    .as_str()
+                    .filter(|text| text.chars().count() <= 2000)
+                    .map(str::to_string),
+            });
+            check("rule", !matches!(rule, Some(None)));
+            Box::new(move |group: &mut Group| {
+                if let Some(Some(rule)) = rule {
+                    group.approval.rule = rule;
+                }
+            })
+        }
         "admin.view" => {
             let pick = |key: &str, allowed: &[&str]| {
                 values.get(key).map(|value| {
@@ -126,7 +143,7 @@ fn saved(
                         .map(str::to_string)
                 })
             };
-            let action = pick("action", &["all", "mute", "unmute", "kick"]);
+            let action = pick("action", &["all", "mute", "unmute", "kick", "join"]);
             let period = pick("period", &["week", "month", "all"]);
             check("action", !matches!(action, Some(None)));
             check("period", !matches!(period, Some(None)));

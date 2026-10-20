@@ -11,7 +11,7 @@ use miyu_im::chat::To;
 use miyu_im::toolset::{Call, NAME, Planned, clean, clock};
 
 use super::moderate::{ADMIN_OFF, REASON};
-use crate::admin::records::{self, Action, By, Record};
+use crate::admin::records::{self, Action, By, Record, Verdict};
 use crate::admin::summary::{self, Period, Tally};
 use crate::admin::sync::spoken;
 use crate::admin::{self, ID};
@@ -132,6 +132,11 @@ pub(super) fn event(record: &Record) -> String {
         (Action::Unmute, _) => format!("unmuted {who}"),
         (Action::Kick, _) if record.block => format!("removed {who}, blocked from joining again"),
         (Action::Kick, _) => format!("removed {who}"),
+        (Action::Join, _) => match record.verdict {
+            Some(Verdict::Approve) => format!("approved the join request from {who}"),
+            Some(Verdict::Reject) => format!("rejected the join request from {who}"),
+            _ => format!("left the join request from {who} to a person"),
+        },
     };
     let by = match &record.by {
         By::Ai => "you".to_string(),

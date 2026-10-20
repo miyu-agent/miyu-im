@@ -161,6 +161,12 @@ const FACTS: [(&str, &[&str]); 4] = [
     ("kicked-by", &["who", "by"]),
 ];
 
+/// 驱动带的插件问模型的提示词模板：名字和认的字段（施工 Q-7）。
+const PROMPTS: [(&str, &[&str]); 2] = [
+    ("approval-system", &[]),
+    ("approval-request", &["rule", "request"]),
+];
+
 /// 照 `bridge.json` 的参数造的一套。
 #[derive(Debug, Clone)]
 pub struct QqTools {
@@ -205,6 +211,11 @@ impl ToolSet for QqTools {
     fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
         // 群管理同步别的管理员做的（施工 Q-3，`admin::sync`）、刷屏处理（施工 Q-5，`admin::spam`）。
         &FACTS
+    }
+
+    fn prompts(&self) -> &'static [(&'static str, &'static [&'static str])] {
+        // 入群审批（施工 Q-7，`admin::approval`）。
+        &PROMPTS
     }
 
     fn silence(&self) -> Option<&'static str> {

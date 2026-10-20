@@ -308,6 +308,11 @@ pub trait ToolSet: Send + Sync {
         &[]
     }
 
+    /// 驱动带的插件问模型时用的提示词模板（施工 Q-7）：名字（`prompts/<名字>.txt`）和认的字段。经 `Gate::prompt` 换。
+    fn prompts(&self) -> &'static [(&'static str, &'static [&'static str])] {
+        &[]
+    }
+
     /// 驱动的配置是 `config` 时登记不登记 `tool`（施工 Q-1：单件工具的开关）。配置变了 im 照它重新登记，登记的变了的会话下一个回合
     /// 换工具表。都登记的不用写。
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {

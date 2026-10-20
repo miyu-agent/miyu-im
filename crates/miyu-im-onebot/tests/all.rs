@@ -6,6 +6,7 @@
 mod support;
 
 mod admin;
+mod admin_approval;
 mod admin_spam;
 mod admin_sync;
 mod apply;

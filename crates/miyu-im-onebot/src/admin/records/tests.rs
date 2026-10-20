@@ -12,6 +12,8 @@ fn muted(at: u64, user: i64) -> Record {
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
+        verdict: None,
+        comment: None,
     }
 }
 
@@ -72,6 +74,8 @@ fn a_record_is_written_with_only_the_fields_it_has() {
         seconds: None,
         reason: None,
         block: true,
+        verdict: None,
+        comment: None,
     };
     assert_eq!(
         serde_json::to_value(&kick).expect("写得出"),

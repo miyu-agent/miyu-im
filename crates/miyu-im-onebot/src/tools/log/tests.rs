@@ -37,6 +37,8 @@ fn a_record_line_says_what_who_by_whom_and_why() {
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
+        verdict: None,
+        comment: None,
     };
     let line = event(&record);
     let (when, rest) = line.split_at(16);
@@ -91,6 +93,8 @@ fn outside_words_cannot_start_a_line() {
         seconds: None,
         reason: Some("a\nb".to_string()),
         block: false,
+        verdict: None,
+        comment: None,
     };
     let line = event(&record);
     assert_eq!(line.lines().count(), 1, "{line}");

@@ -34,6 +34,24 @@ pub(crate) struct Record {
     /// 踢人时以后不收他的加群申请。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub block: bool,
+    /// 入群审批的结论（施工 Q-7，审批才有）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verdict: Option<Verdict>,
+    /// 入群申请人写的（施工 Q-7，截过、洗过）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
+/// 入群审批的结论（施工 Q-7）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum Verdict {
+    /// 通过。
+    Approve,
+    /// 拒绝。
+    Reject,
+    /// 留待人工。
+    Hold,
 }
 
 /// 做了什么。
@@ -46,6 +64,8 @@ pub(crate) enum Action {
     Unmute,
     /// 移出群。
     Kick,
+    /// 入群审批（施工 Q-7）：对谁是申请人，理由是 AI 给申请人的那一句。
+    Join,
 }
 
 /// 谁做的。

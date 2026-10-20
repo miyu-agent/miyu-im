@@ -53,11 +53,12 @@ pub fn unrecallable() -> String {
 }
 
 /// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
-const PLATFORM: [&str; 4] = [
+const PLATFORM: [&str; 5] = [
     "set_group_ban",
     "group_poke",
     "friend_poke",
     "set_group_kick",
+    "set_group_add_request",
 ];
 
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
@@ -292,6 +293,7 @@ fn answer(
             | "set_friend_add_request"
             | "set_group_ban"
             | "set_group_kick"
+            | "set_group_add_request"
             | "group_poke"
             | "friend_poke",
         ) => ("ok", Value::Null),

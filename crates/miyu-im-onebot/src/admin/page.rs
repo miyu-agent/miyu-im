@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use miyu_im::toolset::clock;
 
 use super::groups::Group;
-use super::records::{Action, By, Record};
+use super::records::{Action, By, Record, Verdict};
 use super::summary::{self, Period};
 use super::sync::spoken;
 
@@ -96,6 +96,11 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
             &format!("Removed {name}"),
             &format!("{name} を退出"),
         ),
+        (Action::Join, _) => t(
+            &format!("入群申请 {name}"),
+            &format!("Join request from {name}"),
+            &format!("{name} の参加申請"),
+        ),
     };
     let by = match &record.by {
         By::Ai => t("AI", "AI", "AI"),
@@ -120,6 +125,19 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
         None => by,
     };
     let mut item = json!({"title": title, "detail": detail, "right": clock(record.at)});
+    // 入群审批（施工 Q-7）：说明是申请人写的，右边是结论。
+    if let Some(verdict) = record.verdict {
+        let (said, tone) = match verdict {
+            Verdict::Approve => (t("通过", "Approved", "承認"), "good"),
+            Verdict::Reject => (t("拒绝", "Rejected", "拒否"), "bad"),
+            Verdict::Hold => (t("留待人工", "Left to a person", "保留"), "warn"),
+        };
+        if let Some(comment) = &record.comment {
+            item["detail"] = json!(comment);
+        }
+        item["right"] =
+            json!([{"text": said, "tone": tone}, {"text": clock(record.at), "tone": "dim"}]);
+    }
     // 禁言的状态写在时刻前面，带语气（设计 02 第一节第 5 条：还在禁言中、已解禁、已过期）。
     if let Some((state, said)) = mute_state(record, &records[index + 1..], now) {
         let tone = match state {
@@ -140,6 +158,7 @@ fn events(records: &[Record], action: &str, now: u64, most: usize) -> Value {
         "mute" => record.action == Action::Mute,
         "unmute" => record.action == Action::Unmute,
         "kick" => record.action == Action::Kick,
+        "join" => record.action == Action::Join,
         _ => true,
     };
     let items: Vec<Value> = (0..records.len())
@@ -213,6 +232,10 @@ pub(crate) fn panel(
             {"key": "window", "label": t("几秒以内", "Within seconds", "何秒以内"), "control": "number", "value": spam.window, "min": 10, "max": 3600, "integer": true},
             {"key": "mute", "label": t("禁言几分钟", "Mute minutes", "ミュートする分"), "control": "number", "value": spam.mute / 60, "min": 1, "max": 43200, "integer": true}
         ], "submit": {"label": t("保存", "Save", "保存"), "call": "admin.spam", "params": {"group": group}}}),
+        json!({"type": "heading", "text": t("入群审批", "Join requests", "参加審査")}),
+        json!({"type": "form", "id": format!("approval-{group}"), "fields": [
+            {"key": "rule", "label": t("通过条件", "Rule to pass", "承認の条件"), "hint": t("写能接受的答案，原样交给 AI 审；群设了入群问题的，问题也一起带上。空着的不审，留给人工。", "Write the answers you accept; the AI reviews requests against it as written, with the group's join question. Leave it empty to review by hand.", "受け入れる答えを書きます。AI がそのまま照らし合わせて審査します（グループの参加質問も一緒に）。空なら手動で審査します。"), "control": "textarea", "value": settings.approval.rule}
+        ], "submit": {"label": t("保存", "Save", "保存"), "call": "admin.approval", "params": {"group": group}}}),
         json!({"type": "heading", "text": t("最近的管理记录", "Recent moderation", "最近の管理記録")}),
         events(records, "all", now, PANEL_SHOWN),
     ];
@@ -251,7 +274,8 @@ pub(crate) fn section(
         json!({"type": "form", "id": format!("view-{group}"), "fields": [
             {"key": "action", "label": t("看哪一种", "Show", "表示"), "control": "select", "value": view.action, "options": [
                 option("all", t("全部", "All", "すべて")), option("mute", t("禁言", "Mutes", "ミュート")),
-                option("unmute", t("解禁", "Unmutes", "解除")), option("kick", t("踢人", "Removals", "退出"))
+                option("unmute", t("解禁", "Unmutes", "解除")), option("kick", t("踢人", "Removals", "退出")),
+                option("join", t("入群审批", "Join requests", "参加審査"))
             ]},
             {"key": "period", "label": t("排行榜看多久", "Ranking period", "ランキングの期間"), "control": "select", "value": period.name(), "options": [
                 option("week", t("一周", "Week", "一週間")), option("month", t("一个月", "Month", "一か月")), option("all", t("全部", "All", "すべて"))

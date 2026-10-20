@@ -118,6 +118,9 @@ impl Link for Fake {
     fn befriend<'a>(&'a self, _: &'a str) -> Reply<'a, ()> {
         closed()
     }
+    fn join_request<'a>(&'a self, _: &'a str, _: bool, _: &'a str) -> Reply<'a, ()> {
+        closed()
+    }
     fn message<'a>(&'a self, _: &'a str) -> Reply<'a, Fetched> {
         closed()
     }

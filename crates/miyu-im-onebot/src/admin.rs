@@ -22,6 +22,7 @@ use miyu_im::plugins::declared::{Links, Page, Ui};
 use miyu_im::plugins::{Builtin, Called, Context, Declared};
 
 pub(crate) mod actions;
+pub(crate) mod approval;
 pub(crate) mod groups;
 pub(crate) mod page;
 pub(crate) mod records;

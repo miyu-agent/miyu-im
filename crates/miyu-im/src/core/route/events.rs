@@ -34,6 +34,10 @@ impl Route {
                 kind,
                 text,
             } => self.note_built_in(bot, to, kind, &text).await,
+            Event::Asked { to, request, reply } => {
+                self.ask_model(to, request, reply);
+                Ok(())
+            }
             Event::Invited { bot, group, user } => {
                 request::invited(bot, group, user);
                 Ok(())

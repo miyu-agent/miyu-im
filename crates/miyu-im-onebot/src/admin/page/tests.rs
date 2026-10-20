@@ -17,6 +17,8 @@ fn record(at: u64, action: Action, user: i64, seconds: Option<u64>) -> Record {
         seconds,
         reason: Some("刷屏".to_string()),
         block: false,
+        verdict: None,
+        comment: None,
     }
 }
 

@@ -71,6 +71,8 @@ pub(super) async fn recorded(call: &Call, act: &Act) {
             .as_str()
             .and_then(|reason| clean(reason.trim(), REASON)),
         block,
+        verdict: None,
+        comment: None,
     };
     records::append(call.store.clone(), group, record, admin::keep(&call.config)).await;
 }

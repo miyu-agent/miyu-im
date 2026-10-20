@@ -1,6 +1,8 @@
 //! 交给宿主的事和发出去的目标（施工 I-2 上从 `onebot.rs` 挪来）：一条消息、一次撤回、禁言和解禁、连上、好友请求和群邀请；
 //! 发给谁、前面带的引用和 @。
 
+use serde_json::Value;
+
 use super::{Rank, Segments};
 
 /// 一条消息：私聊的或者群里的（第 5 条，「群消息」第 1 条）。
@@ -101,6 +103,16 @@ pub enum Event {
         /// 换好的那一句。
         text: String,
     },
+    /// 驱动带的插件请 im 替它问一次模型（施工 Q-7，`Gate::ask`）：用那个场所的判断模型（会话的旁路请求先照它），问完把字或者原因
+    /// 交给 `reply`。
+    Asked {
+        /// 哪个场所。
+        to: To,
+        /// `model.call` 的参数（`purpose`、`messages`、`max_tokens`）：`model` 由 im 填。
+        request: Value,
+        /// 答到哪。
+        reply: Replier,
+    },
     /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
     Invited {
         /// 收到邀请的机器人的号。
@@ -131,4 +143,53 @@ pub struct Lead {
     pub at: Option<String>,
     /// 她用 `mention` 指定要 @ 的号（施工 O-54 后的 O-55）：照先后接在 `at` 后面，和它重的不再写。
     pub more: Vec<String>,
+}
+
+/// 问一次模型的答往哪交（[`Event::Asked`]）：只交一次。比、抄都照同一个交的地方算（事件要能比、能抄）。
+#[derive(Clone)]
+pub struct Replier(std::sync::Arc<std::sync::Mutex<Option<Answered>>>);
+
+/// 等着答的一头（[`Replier`]）。
+type Answered = tokio::sync::oneshot::Sender<Result<String, String>>;
+
+impl Replier {
+    /// 一对：交的一头和等的一头。
+    pub fn pair() -> (
+        Replier,
+        tokio::sync::oneshot::Receiver<Result<String, String>>,
+    ) {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        (
+            Replier(std::sync::Arc::new(std::sync::Mutex::new(Some(sender)))),
+            receiver,
+        )
+    }
+
+    /// 交答：模型回的字，或者没问成的原因。交过的、等的一头不等了的不管。
+    pub fn send(&self, answer: Result<String, String>) {
+        let taken = self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if let Some(sender) = taken
+            && sender.send(answer).is_err()
+        {
+            // 等的一头不等了：不要紧。
+        }
+    }
+}
+
+impl PartialEq for Replier {
+    fn eq(&self, other: &Replier) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Replier {}
+
+impl std::fmt::Debug for Replier {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Replier")
+    }
 }

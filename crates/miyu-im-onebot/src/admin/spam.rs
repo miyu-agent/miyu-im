@@ -252,6 +252,8 @@ impl Job {
                 seconds: Some(mute),
                 reason: None,
                 block: false,
+                verdict: None,
+                comment: None,
             };
             records::append(self.store.clone(), group, record, admin::keep(&config)).await;
         }

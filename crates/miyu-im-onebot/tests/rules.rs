@@ -94,6 +94,7 @@ pub fn copied_resources() -> PathBuf {
         "packages/im/data/onebot/tools",
         "packages/im/data/onebot/tool-results",
         "packages/im/data/onebot/facts",
+        "packages/im/data/onebot/prompts",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");
