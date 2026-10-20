@@ -109,7 +109,7 @@ use miyu_chat::Venue;
 use miyu_client::ids::VenueId;
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
-use tokio::task::{JoinError, JoinHandle, JoinSet};
+use tokio::task::{JoinHandle, JoinSet};
 
 use crate::TARGET;
 use crate::changed::Changed;
@@ -133,6 +133,7 @@ use impostor::Noted;
 use judges::Judges;
 use mentions::Mentions;
 use outbound::Spoken;
+use parts::sent;
 pub(crate) use parts::{Asking, Recalling};
 pub(crate) use persona::Personas;
 use projection::Projection;
@@ -189,6 +190,8 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
+    /// 驱动的工具交回的任务（施工 T-4，`driven`）：办完先做交回的那件事、再答。
+    jobs: JoinSet<driven::Finished>,
     /// 群里回执要撤回的命令（施工 O-47，`im.recall_receipts`；推来的换）。
     recalled: Vec<String>,
     /// `im.recall_receipts` 的默认值：推来 `null` 的回到它。
@@ -303,12 +306,13 @@ impl Route {
             sending: FuturesOrdered::new(),
             spoken: HashMap::new(),
             chores: JoinSet::new(),
+            jobs: JoinSet::new(),
             recall,
             recalled,
             recall_default,
             judges,
             reactions,
-            quiet: Quiet::default(),
+            quiet: Quiet::new(tools.silence()),
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
@@ -367,6 +371,9 @@ impl Route {
                 },
                 Some(joined) = self.chores.join_next(), if !self.chores.is_empty() => {
                     sent(joined).map_err(Some)
+                }
+                Some(joined) = self.jobs.join_next(), if !self.jobs.is_empty() => {
+                    sent(joined).map(|finished| self.finished(finished)).map_err(Some)
                 }
                 () = tokio::time::sleep(wake.unwrap_or_default()), if wake.is_some() => {
                     // 到点的禁言先补记解禁（施工 O-50），再看排着的。
@@ -484,13 +491,4 @@ impl Route {
     fn applied(&mut self, venue: &Venue) -> Applied {
         self.rules.current(Instant::now()).at(venue)
     }
-}
-
-/// 一个发回话、撤回执的任务结束了：交回它交出来的（等来的结局，施工 O-25 中）。崩了（是 bug：任务里只等回应、等几秒撤）照实
-/// 交上去，桥照「施工时定的」第 14 条停下，不装作还在跑；记一行运行日志。任务不会被掐掉：没有人掐它们。
-fn sent<T>(joined: Result<T, JoinError>) -> Result<T, Failure> {
-    joined.map_err(|error| {
-        tracing::error!(target: TARGET, error = %error, "reply task crashed");
-        Failure::Crashed(error.to_string())
-    })
 }

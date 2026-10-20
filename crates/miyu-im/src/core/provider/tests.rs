@@ -44,73 +44,20 @@ fn asked(heard: Heard) -> Value {
 }
 
 #[test]
-fn the_provide_params_follow_the_shipped_spec() {
-    // 施工 O-31 起四件：`recall`、`poke` 给私聊和群，`mute` 只给群；三件平台工具是 `venue`（在场所里做的事），`skip_reply` 是
-    // `read`（`onebot.md` 施工时定的第 177 条）。施工 O-33 加 `fetch_media`：`venue`，只给群；施工 O-35 起私聊也给。施工 O-54 加 `avatar`（`venue`，私聊和群）、
-    // `members`（`read`，只给群）；施工 O-55 加 `mention`（`venue`，只给群）；施工 O-56 加 `chat_send`（`venue`，私聊和群）。施工 T-1
-    // 起头像、群成员挪进驱动，T-2 起撤回、禁言、戳一戳，T-3 起取图片文件也是（不带驱动读的这一份没有它们，驱动的接在后面，`tests/provider.rs`）。
-    let spec = |name: &str| -> Value {
-        serde_json::from_str(&shipped(&format!("tools/{name}.json"))).expect("是 JSON")
-    };
-    // 施工 S-6 上：每件带给人看的名字，照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name`，三种语言都有；写了
-    // `subject` 的带上 `subject`。
-    let human = |language: &str| -> Value {
-        serde_json::from_str(&shipped(&format!("human/{language}.json"))).expect("是 JSON")
-    };
-    let entry = |name: &str, access: &str, venues: Value| {
-        let named = |language: &str| human(language)["tools"][name]["name"].clone();
-        let mut entry = json!({
-            "name": name,
-            "description": spec(name)["description"],
-            "input_schema": spec(name)["parameters"],
-            "access": access,
-            "venues": venues,
-            "display_name": {"en": named("en"), "ja": named("ja"), "zh": named("zh")},
-        });
-        // 显示名后面跟哪一个参数：照原来的 `tools.<名字>.subject` 带上，没写的不带。
-        let subject = &human("en")["tools"][name]["subject"];
-        if subject.is_string() {
-            entry["subject"] = subject.clone();
-        }
-        entry
-    };
-    let both = json!(["private", "group"]);
-    assert_eq!(
-        tools().provided(),
-        json!({"tools": [
-            entry("skip_reply", "read", both.clone()),
-            entry("mention", "venue", json!(["group"])),
-            entry("chat_send", "venue", json!(["private", "group"])),
-        ]})
-    );
-}
-
-#[test]
-fn a_tool_call_is_answered_under_its_own_id() {
-    assert_eq!(
-        asked(heard(
-            &tools(),
-            &Methods::new(),
-            tool_call("core-7", "skip_reply")
-        )),
-        json!({"jsonrpc": "2.0", "id": "core-7", "result": {
-            "blocks": [{"type": "text", "text": shipped("tool-results/skipped.txt")}],
-            "error": false,
-            "end_turn": true,
-        }})
-    );
-    let unknown = shipped("tool-results/unknown.txt").replace("{name}", "kick");
-    assert_eq!(
-        asked(heard(
-            &tools(),
-            &Methods::new(),
-            tool_call("core-8", "kick")
-        )),
-        json!({"jsonrpc": "2.0", "id": "core-8", "result": {
-            "blocks": [{"type": "text", "text": unknown}],
-            "error": true,
-        }})
-    );
+fn without_a_driver_nothing_is_provided_and_every_tool_is_unknown() {
+    // 施工 T-4 起工具全在驱动里（`tests/provider.rs`、`tests/stdio.rs` 照出厂的说明查）：不带驱动读的这一份登记的是空的，
+    // 「这一轮不说话」也不认识，答 `unknown.txt` 填上那个名字，编号原样。
+    assert_eq!(tools().provided(), json!({"tools": []}));
+    for (id, tool) in [("core-7", "skip_reply"), ("core-8", "kick")] {
+        let unknown = shipped("tool-results/unknown.txt").replace("{name}", tool);
+        assert_eq!(
+            asked(heard(&tools(), &Methods::new(), tool_call(id, tool))),
+            json!({"jsonrpc": "2.0", "id": id, "result": {
+                "blocks": [{"type": "text", "text": unknown}],
+                "error": true,
+            }})
+        );
+    }
 }
 
 #[test]
@@ -158,18 +105,4 @@ fn a_method_call_is_answered_by_the_methods() {
     // 状态还没交进来：同不认识的方法（`core/methods.rs`），编号原样。
     assert_eq!(reply["id"], "core-9", "{reply}");
     assert_eq!(reply["error"]["code"], -32601, "{reply}");
-}
-
-#[test]
-fn platform_tool_calls_pass_on_to_the_route() {
-    // 施工 O-31：撤回、禁言、戳一戳要投影和 NapCat 的连接，读的一头不当场答，原样交给跟核心的那一头（「平台工具（一）」第 2 条）。
-    // 施工 O-33：`fetch_media` 要会话发到哪、这一轮取了几次，也交过去。施工 T-2 起撤回、禁言、戳一戳在驱动里（不带驱动读的这一份
-    // 认不得，驱动的交过去照 `tests/provider.rs`）；@ 人、主动发消息同样交过去。
-    for tool in ["mention", "chat_send"] {
-        let message = tool_call("core-10", tool);
-        match heard(&tools(), &Methods::new(), message.clone()) {
-            Heard::Other(passed) => assert_eq!(passed, message),
-            other => panic!("{tool} 交给那一头：{other:?}"),
-        }
-    }
 }

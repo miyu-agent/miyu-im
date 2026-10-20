@@ -61,6 +61,28 @@ fn integer(text: &str) -> bool {
     (1..=20).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
 }
 
+/// 主动发消息一次最多多少个字符：拆段以前。
+const SEND_MOST: usize = 4000;
+
+/// 读 `chat_send`、`chat.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，正整数，写成字的也认），发什么（去掉首尾
+/// 空白不空、不超过 4000 个字符）。写错的是空的。
+pub fn send_request(args: &Value) -> Option<(To, String)> {
+    let number = |value: &Value| match value {
+        Value::Null => Some(None),
+        Value::Number(number) => number.as_i64().filter(|n| *n > 0).map(Some),
+        Value::String(text) => text.trim().parse::<i64>().ok().filter(|n| *n > 0).map(Some),
+        _ => None,
+    };
+    let to = match (number(&args["user"])?, number(&args["group"])?) {
+        (Some(user), None) => To::Private(user),
+        (None, Some(group)) => To::Group(group),
+        _ => return None,
+    };
+    let text = args["text"].as_str()?.trim();
+    let fits = !text.is_empty() && text.chars().count() <= SEND_MOST;
+    fits.then(|| (to, text.to_string()))
+}
+
 /// 多久，照人的单位写：天、时、分、秒各一段，`1d 2h 30m 5s`，0 的一段不写（禁言、她自己被禁言的事实都照它）。
 pub fn duration(seconds: u64) -> String {
     let parts = [
@@ -151,15 +173,57 @@ pub struct Decl {
     pub venues: &'static [&'static str],
 }
 
-/// 交给 im 等着的那一段：办完交回 `tool.call` 回应的 `result`（`{blocks, error}`）。
-pub type Pending = Pin<Box<dyn Future<Output = Value> + Send>>;
+/// 交给 im 等着的那一段：办完交回 [`Done`]。
+pub type Pending = Pin<Box<dyn Future<Output = Done> + Send>>;
+
+/// 办完的：`tool.call` 回应的 `result`（`{blocks, error}`），另交给 im 做的一件事（施工 T-4：im 先做它，再答）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Done {
+    /// 答的。
+    pub answer: Value,
+    /// 交给 im 做的；没有的是空的。
+    pub effect: Option<Effect>,
+}
+
+impl From<Value> for Done {
+    fn from(answer: Value) -> Done {
+        Done {
+            answer,
+            effect: None,
+        }
+    }
+}
+
+/// 要 im 做的事（施工 T-4）：路由手里的、各个平台都一样的那几样。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Effect {
+    /// 这条线这一轮她的下一句第一段前面 @ 这几个号（`mention`）。
+    Mention(Vec<i64>),
+    /// 以她的名义发到 `to`（`chat_send`）：im 照对方场所的出站链发、找对方的会话记一句，发成了答 `sent`，没成的照原因答（`failed`、
+    /// `unreachable`、`unanswered`、`no-target`，用这一套的答的话）。
+    Send {
+        /// 发到哪。
+        to: To,
+        /// 发什么（去掉首尾空白、不空）。
+        text: String,
+    },
+}
 
 /// 一次调用怎么办（[`ToolSet::plan`]）。
 pub enum Planned {
     /// 当场答：`tool.call` 回应的 `result`。
     Now(Value),
-    /// 去平台上办：im 另起任务等它办完再答。
+    /// 去平台上办：im 另起任务等它办完，先做交回的那件事，再答。
     Later(Pending),
+    /// 交给 im 当场做（施工 T-4）：做完 im 自己答。
+    Host(Effect),
+}
+
+impl Planned {
+    /// 去平台上办，办完只答话（没有要 im 做的事）。
+    pub fn later(pending: impl Future<Output = Value> + Send + 'static) -> Planned {
+        Planned::Later(Box::pin(async move { Done::from(pending.await) }))
+    }
 }
 
 /// 一次调用和它的场景（im 照会话填好）。
@@ -217,6 +281,12 @@ pub trait ToolSet: Send + Sync {
 
     /// 认一次调用：当场答的、交 im 等着的（模块的说明）。在跟核心的那一头当场调，不许等平台。
     fn plan(&self, call: Call) -> Planned;
+
+    /// 哪一件是「这一轮不说话」（施工 T-4，`providers.md`「提供者和不说话」）：读的一头当场答它（答的话 `skipped`，带 `end_turn`），
+    /// 她的回复里有这件的调用块的，这一轮写的都不发。没有的是空的。
+    fn silence(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 /// 读好、查过的答的话。

@@ -19,6 +19,45 @@ fn shipped(name: &str) -> String {
     std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
 }
 
+/// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的九件照
+/// 登记的先后，说明、参数照 `onebot/tools/<名字>.json`；`skip_reply`、`members` 是 `read`，别的是 `venue`（在场所里做的事）；禁言、
+/// 群成员、@ 人只给群。每件带给人看的名字，照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name`，三种语言都有；写了
+/// `subject` 的带上 `subject`（施工 S-6 上）。
+pub fn shipped_tools() -> Value {
+    let read = |name: &str| -> Value { serde_json::from_str(&shipped(name)).expect("是 JSON") };
+    let human = |language: &str| read(&format!("human/{language}.json"));
+    let entry = |name: &str, access: &str, venues: &[&str]| {
+        let spec = read(&format!("onebot/tools/{name}.json"));
+        let named = |language: &str| human(language)["tools"][name]["name"].clone();
+        let mut entry = json!({
+            "name": name,
+            "description": spec["description"],
+            "input_schema": spec["parameters"],
+            "access": access,
+            "venues": venues,
+            "display_name": {"en": named("en"), "ja": named("ja"), "zh": named("zh")},
+        });
+        let subject = &human("en")["tools"][name]["subject"];
+        if subject.is_string() {
+            entry["subject"] = subject.clone();
+        }
+        entry
+    };
+    let both: &[&str] = &["private", "group"];
+    let group: &[&str] = &["group"];
+    json!({"tools": [
+        entry("skip_reply", "read", both),
+        entry("recall", "venue", both),
+        entry("mute", "venue", group),
+        entry("poke", "venue", both),
+        entry("fetch_media", "venue", both),
+        entry("avatar", "venue", both),
+        entry("members", "read", group),
+        entry("mention", "venue", group),
+        entry("chat_send", "venue", both),
+    ]})
+}
+
 /// 照核心反向调用的样子拼一次 `tool.call`：编号 `id`，工具 `tool`。
 fn tool_call(id: &str, tool: &str) -> Value {
     json!({
@@ -76,7 +115,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
     assert_eq!(
         answer(&relay, "core-1").await,
         json!({"jsonrpc": "2.0", "id": "core-1", "result": {
-            "blocks": [{"type": "text", "text": shipped("tool-results/skipped.txt")}],
+            "blocks": [{"type": "text", "text": shipped("onebot/tool-results/skipped.txt")}],
             "error": false,
             "end_turn": true,
         }})
@@ -100,7 +139,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
     assert_eq!(
         answer(&relay, "core-4").await,
         json!({"jsonrpc": "2.0", "id": "core-4", "result": {
-            "blocks": [{"type": "text", "text": shipped("tool-results/unreachable.txt")}],
+            "blocks": [{"type": "text", "text": shipped("onebot/tool-results/unreachable.txt")}],
             "error": true,
         }})
     );
@@ -119,11 +158,15 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     let software = resources.join("packages/im/data");
     for (file, text, wanted) in [
         (
-            "tools/skip_reply.json",
+            "onebot/tools/skip_reply.json",
             "{\"description\": \"x\"}",
             "parameters",
         ),
-        ("tool-results/skipped.txt", "Skipped {name}.\n", "name"),
+        (
+            "onebot/tool-results/skipped.txt",
+            "Skipped {name}.\n",
+            "name",
+        ),
         ("tool-results/unknown.txt", "No tool {tool}.\n", "tool"),
         // 施工 O-31：平台工具（一）的说明和答的话同样是出厂数据。
         (
@@ -136,7 +179,7 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
             "Muted {who} for {seconds}.\n",
             "seconds",
         ),
-        ("tool-results/failed.txt", "Failed {why}.\n", "why"),
+        ("onebot/tool-results/failed.txt", "Failed {why}.\n", "why"),
         // 施工 T-1：驱动交的工具照它的目录读，写坏了、不在的同样是打包的错。
         (
             "onebot/tools/members.json",

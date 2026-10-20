@@ -16,7 +16,6 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 
 use super::voicing::Voice;
-use crate::rules::SKIP_REPLY;
 
 /// 这一轮不说话了的会话和回合；仅发送最终消息的场所里扣着的那段话。
 #[derive(Default)]
@@ -25,6 +24,8 @@ pub(super) struct Quiet {
     turns: HashSet<(String, u64)>,
     /// 扣着的：（她说话的那条线，回合编号）到那段话。
     held: HashMap<(String, u64), Held>,
+    /// 「这一轮不说话」那件工具叫什么（施工 T-4：驱动交的，`ToolSet::silence`）；没有的是空的。
+    silence: Option<&'static str>,
 }
 
 /// 扣着的一段话：发回哪个会话、哪一种、字。
@@ -44,7 +45,7 @@ impl Quiet {
         let key = (session.to_string(), turn);
         match event["kind"].as_str() {
             Some("message.assistant") => {
-                if skips(event) {
+                if skips(event, self.silence) {
                     // 这一轮不说话了：仅发送最终消息时扣着的也不发。
                     self.held.remove(&key);
                     self.turns.insert(key.clone());
@@ -61,6 +62,14 @@ impl Quiet {
 }
 
 impl Quiet {
+    /// 还什么都没记的一份：「这一轮不说话」那件工具叫 `silence`（施工 T-4）。
+    pub(super) fn new(silence: Option<&'static str>) -> Quiet {
+        Quiet {
+            silence,
+            ..Quiet::default()
+        }
+    }
+
     /// 扣着线 `line` 第 `turn` 回合的一段话（仅发送最终消息）：同一回合扣过的换成它。
     pub(super) fn hold(&mut self, line: &str, turn: u64, held: Held) {
         self.held.insert((line.to_string(), turn), held);
@@ -79,12 +88,15 @@ pub(super) fn has_calls(event: &Value) -> bool {
         .is_some_and(|blocks| blocks.iter().any(|block| block["type"] == "tool_call"))
 }
 
-/// 回复 `event` 里有没有 `skip_reply` 的工具调用块。
-fn skips(event: &Value) -> bool {
+/// 回复 `event` 里有没有「这一轮不说话」那件工具 `silence` 的调用块。
+fn skips(event: &Value, silence: Option<&str>) -> bool {
+    let Some(silence) = silence else {
+        return false;
+    };
     event["body"]["blocks"].as_array().is_some_and(|blocks| {
         blocks
             .iter()
-            .any(|block| block["type"] == "tool_call" && block["name"] == SKIP_REPLY)
+            .any(|block| block["type"] == "tool_call" && block["name"] == silence)
     })
 }
 

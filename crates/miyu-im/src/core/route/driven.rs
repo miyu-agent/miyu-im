@@ -10,10 +10,14 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::Route;
+use super::outreach::Answer;
 use crate::TARGET;
 use crate::chat::To;
+use crate::core::Answerer;
 use crate::core::Gone;
-use crate::toolset::{Answers, Blobs, Call, NAME, Origin, Planned, Quote, ToolSet, clean};
+use crate::toolset::{
+    Answers, Blobs, Call, Done, Effect, NAME, Origin, Planned, Quote, ToolSet, clean,
+};
 
 impl Route {
     /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是 `set`、答的话是 `answers`。
@@ -37,7 +41,7 @@ impl Route {
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
             tracing::warn!(target: TARGET, session, tool, why = "unreachable", "platform tool failed");
-            answerer.answer(&id, self.tools.answer("unreachable", &[], true));
+            answerer.answer(&id, answers.say("unreachable", &[], true));
             return Ok(());
         };
         let by = by_of(params);
@@ -97,21 +101,67 @@ impl Route {
             answers,
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
+        let answers = Arc::clone(&call.answers);
         match set.plan(call) {
             Planned::Now(answer) => {
                 logged(&venue, &tool, &answer);
                 answerer.answer(&id, answer);
             }
             Planned::Later(pending) => {
-                self.chores.spawn(async move {
-                    let answer = pending.await;
-                    logged(&venue, &tool, &answer);
-                    answerer.answer(&id, answer);
+                self.jobs.spawn(async move {
+                    let done = pending.await;
+                    Finished {
+                        id,
+                        answerer,
+                        venue,
+                        tool,
+                        line,
+                        turn,
+                        done,
+                    }
                 });
+            }
+            // 交给 im 当场做（施工 T-4）：主动发消息照对方场所的出站链发，发完照这一套的答的话答。
+            Planned::Host(Effect::Send { to, text }) => {
+                let answer = Answer::Tool(id, answers, answerer);
+                return self.reach(Some(peer.bot), (to, text), answer).await;
+            }
+            // @ 谁要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
+            Planned::Host(Effect::Mention(_)) => {
+                answerer.answer(&id, answers.say("unreachable", &[], true));
             }
         }
         Ok(())
     }
+
+    /// 驱动交回的任务办完了（施工 T-4）：先做它交回的那件事（@ 谁记在那条线、那一轮上），再答、记一行运行日志。
+    pub(super) fn finished(&mut self, finished: Finished) {
+        let Finished {
+            id,
+            answerer,
+            venue,
+            tool,
+            line,
+            turn,
+            done,
+        } = finished;
+        if let (Some(Effect::Mention(users)), Some(turn)) = (done.effect, turn) {
+            self.mention(line, turn, &users);
+        }
+        logged(&venue, &tool, &done.answer);
+        answerer.answer(&id, done.answer);
+    }
+}
+
+/// 驱动交回的一个任务办完了的（`Route::finished`）。
+pub(crate) struct Finished {
+    id: Value,
+    answerer: Answerer,
+    venue: String,
+    tool: String,
+    line: String,
+    turn: Option<u64>,
+    done: Done,
 }
 
 /// 记一行运行日志：出错的 `WARN platform tool failed`，成了的 `INFO platform tool done`。

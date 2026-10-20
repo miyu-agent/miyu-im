@@ -61,7 +61,7 @@ fn words(text: &str) -> Value {
 
 /// 桥答 `skip_reply` 的那一句（出厂的资源原样）。
 fn skipped() -> String {
-    std::fs::read_to_string(resources().join("packages/im/data/tool-results/skipped.txt"))
+    std::fs::read_to_string(resources().join("packages/im/data/onebot/tool-results/skipped.txt"))
         .expect("读得出")
 }
 
@@ -248,7 +248,7 @@ async fn refused_tools_are_logged_and_the_bridge_goes_on() {
 
 /// 把抄好的资源目录 `copy` 里 `skip_reply` 的参数改成不是对象的：桥读得出，核心不收（`bad_tool`）。
 fn unacceptable(copy: &Path) {
-    let file = copy.join("packages/im/data/tools/skip_reply.json");
+    let file = copy.join("packages/im/data/onebot/tools/skip_reply.json");
     let spec = json!({"description": "Say nothing.", "parameters": {"type": "string"}});
     std::fs::write(file, spec.to_string()).expect("写得进");
 }

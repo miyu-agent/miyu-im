@@ -21,3 +21,14 @@ pub(crate) struct Asking {
     /// 解禁以后最多回几条排着的（施工 O-50，`mute_replies`）。
     pub(crate) mute_replies: usize,
 }
+
+/// 一个发回话、撤回执的任务结束了：交回它交出来的（等来的结局，施工 O-25 中；从 `route.rs` 挪来，施工 T-4）。崩了（是 bug：任务里只等
+/// 回应、等几秒撤）照实交上去，桥照「施工时定的」第 14 条停下，不装作还在跑；记一行运行日志。任务不会被掐掉：没有人掐它们。
+pub(super) fn sent<T>(
+    joined: Result<T, tokio::task::JoinError>,
+) -> Result<T, crate::serve::Failure> {
+    joined.map_err(|error| {
+        tracing::error!(target: crate::TARGET, error = %error, "reply task crashed");
+        crate::serve::Failure::Crashed(error.to_string())
+    })
+}

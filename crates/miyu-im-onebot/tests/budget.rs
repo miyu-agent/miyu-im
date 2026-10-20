@@ -1,4 +1,4 @@
-//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31、O-33）：`im/data/tools/` 下的说明加起来
+//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31、O-33）：`im/data/onebot/tools/` 下的说明加起来（施工 T-1 到 T-4 起都是驱动交的）
 //! 不超过 [`BUDGET`] 字节。
 //!
 //! 照基础系统、记忆的办法：2026-10-09 照 magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash` 量，十六件（基础系统十五件加
@@ -32,11 +32,11 @@ const TOOLS: [&str; 9] = [
 
 #[test]
 fn the_bridge_tool_face_stays_within_its_budget() {
-    // im 剩下的、驱动交的（施工 T-1 起挪进 `onebot/tools/`）一起算：工具面是桥交的整套。
+    // 施工 T-1 到 T-4 起都是驱动交的（`onebot/tools/`）：工具面是桥交的整套。
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im/data");
     let mut total = 0;
     let mut names = Vec::new();
-    let entries = ["tools", "onebot/tools"]
+    let entries = ["onebot/tools"]
         .into_iter()
         .flat_map(|dir| std::fs::read_dir(data.join(dir)).expect("读得了工具说明的目录"));
     for entry in entries {

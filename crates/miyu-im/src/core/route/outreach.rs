@@ -27,35 +27,13 @@ use crate::chat::Bots;
 use crate::chat::Outgoing;
 use crate::chat::{CallError, Lead, To};
 use crate::core::{Answerer, Caller, Gone, reason};
-use crate::rules::Tools;
+use crate::toolset::{Answers, send_request as request};
 
 /// `reached` 事实的 `kind`。
 const REACHED: &str = "reached";
 
 /// 事实里她那句话的开头最多几个字符（同退信）。
 const HEAD: usize = 30;
-
-/// 一次最多发多少个字符：拆段以前。
-const MOST: usize = 4000;
-
-/// 读 `chat_send`、`chat.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，正整数，写成字的也认），发什么（去掉首尾
-/// 空白不空、不超过 [`MOST`] 个字符）。写错的是空的。
-pub(super) fn request(args: &Value) -> Option<(To, String)> {
-    let number = |value: &Value| match value {
-        Value::Null => Some(None),
-        Value::Number(number) => number.as_i64().filter(|n| *n > 0).map(Some),
-        Value::String(text) => text.trim().parse::<i64>().ok().filter(|n| *n > 0).map(Some),
-        _ => None,
-    };
-    let to = match (number(&args["user"])?, number(&args["group"])?) {
-        (Some(user), None) => To::Private(user),
-        (None, Some(group)) => To::Group(group),
-        _ => return None,
-    };
-    let text = args["text"].as_str()?.trim();
-    let fits = !text.is_empty() && text.chars().count() <= MOST;
-    fits.then(|| (to, text.to_string()))
-}
 
 /// 交给任务办的一次。
 struct Job {
@@ -90,39 +68,14 @@ enum Long {
 }
 
 /// 发完了答谁：她调的工具（`tool.call`），别的包调的方法（`method.call`）。
-enum Answer {
-    /// 工具：编号、答的话。
-    Tool(Value, Arc<Tools>, Answerer),
+pub(super) enum Answer {
+    /// 工具（施工 T-4 起是驱动交的 `chat_send`）：编号、答的话。
+    Tool(Value, Arc<Answers>, Answerer),
     /// 方法：编号。
     Method(Value, Answerer),
 }
 
 impl Route {
-    /// 核心转来的一次 `chat_send`（`pushed` 是 `tool.call`）：写错的答 `no-target`，别的起一个任务发。
-    ///
-    /// # Errors
-    ///
-    /// 收这个会话留着的推送、找对方的会话时写不出去、核心断开。
-    pub(super) async fn send_called(&mut self, pushed: &Value) -> Result<(), Gone> {
-        let params = &pushed["params"];
-        let (id, tool) = (
-            pushed["id"].clone(),
-            params["tool"].as_str().unwrap_or_default(),
-        );
-        let line = params["session"].as_str().unwrap_or_default().to_string();
-        let session = self.main_of(&line);
-        let answerer = self.core.answerer();
-        self.gather(&session).await?;
-        let Some((to, text)) = request(&params["args"]) else {
-            tracing::info!(target: TARGET, session, tool, why = "no-target", "platform tool refused");
-            answerer.answer(&id, self.tools.answer("no-target", &[], true));
-            return Ok(());
-        };
-        let bot = self.peers.get(&session).map(|peer| peer.bot);
-        let answer = Answer::Tool(id, Arc::clone(&self.tools), answerer);
-        self.reach(bot, (to, text), answer).await
-    }
-
     /// 别的包经 `package.call` 调的一次 `chat.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
     /// `bot` 写了的照它。
     ///
@@ -147,7 +100,7 @@ impl Route {
     }
 
     /// 照对方的场所过出站链、找对方的会话，起一个任务发（见模块开头）。没有机器人号连着的答 `unreachable`、拒 `not_connected`。
-    async fn reach(
+    pub(super) async fn reach(
         &mut self,
         bot: Option<i64>,
         (to, text): (To, String),
@@ -308,7 +261,7 @@ fn finish(answer: Answer, outcome: Result<usize, Undone>) {
     match (answer, outcome) {
         (Answer::Tool(id, tools, answerer), Ok(_)) => {
             tracing::info!(target: TARGET, tool = "chat_send", "platform tool done");
-            answerer.answer(&id, tools.answer("sent", &[], false));
+            answerer.answer(&id, tools.say("sent", &[], false));
         }
         (Answer::Tool(id, tools, answerer), Err((why, detail))) => {
             tracing::warn!(target: TARGET, tool = "chat_send", why, "platform tool failed");
@@ -317,7 +270,7 @@ fn finish(answer: Answer, outcome: Result<usize, Undone>) {
                 .map(|detail| ("detail", detail))
                 .into_iter()
                 .collect();
-            answerer.answer(&id, tools.answer(why, &fields, true));
+            answerer.answer(&id, tools.say(why, &fields, true));
         }
         (Answer::Method(id, answerer), Ok(pieces)) => {
             tracing::info!(target: TARGET, pieces, "export send");

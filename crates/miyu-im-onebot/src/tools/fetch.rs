@@ -54,7 +54,7 @@ pub(super) fn fetch_media(call: Call, limit: usize, wait: Duration) -> Planned {
         Ok(wanted) => wanted,
         Err(why) => return Planned::Now(call.answers.say(why, &[], true)),
     };
-    Planned::Later(Box::pin(async move {
+    Planned::later(async move {
         let home = std::env::home_dir();
         match fetch(&call, &wanted, wait, home).await {
             Some(Ok(answer)) => answer,
@@ -68,7 +68,7 @@ pub(super) fn fetch_media(call: Call, limit: usize, wait: Duration) -> Planned {
             // 核心断开了：答了也没人收，照「够不着」答。
             None => call.answers.say("unreachable", &[], true),
         }
-    }))
+    })
 }
 
 /// 取回来的那一条在不在会话 `to` 里（纯逻辑，施工 O-35 核对归属；群里的 O-33 起就查）：群里是这个群的，私聊里是这个人在

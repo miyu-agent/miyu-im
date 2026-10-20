@@ -26,7 +26,7 @@ fn ended(turn: u64) -> Value {
 
 #[test]
 fn a_reply_that_calls_skip_reply_hushes_the_rest_of_its_turn() {
-    let mut quiet = Quiet::default();
+    let mut quiet = Quiet::new(Some("skip_reply"));
     assert!(
         !quiet.heard("s1", &reply(5, json!([text("先说一句")]))),
         "调用以前的照发"
@@ -51,7 +51,7 @@ fn a_reply_that_calls_skip_reply_hushes_the_rest_of_its_turn() {
 
 #[test]
 fn other_calls_and_plain_words_do_not() {
-    let mut quiet = Quiet::default();
+    let mut quiet = Quiet::new(Some("skip_reply"));
     assert!(!quiet.heard("s1", &reply(5, json!([text("x"), call("no_such_tool")]))));
     assert!(!quiet.heard("s1", &reply(5, json!([text("skip_reply")]))));
     assert!(!quiet.heard(
@@ -63,7 +63,7 @@ fn other_calls_and_plain_words_do_not() {
 
 #[test]
 fn the_end_of_the_turn_clears_it() {
-    let mut quiet = Quiet::default();
+    let mut quiet = Quiet::new(Some("skip_reply"));
     assert!(quiet.heard("s1", &reply(5, json!([call("skip_reply")]))));
     assert!(quiet.heard("s1", &reply(7, json!([call("skip_reply")]))));
     assert!(!quiet.heard("s1", &ended(5)), "不是她的回复");
@@ -84,7 +84,7 @@ fn the_end_of_the_turn_clears_it() {
 
 #[test]
 fn events_without_a_turn_are_not_looked_at() {
-    let mut quiet = Quiet::default();
+    let mut quiet = Quiet::new(Some("skip_reply"));
     let mut lone = reply(5, json!([call("skip_reply")]));
     lone.as_object_mut().expect("是对象").remove("turn");
     assert!(!quiet.heard("s1", &lone));
@@ -101,7 +101,7 @@ fn held_words_are_kept_per_line_and_turn_and_dropped_when_she_stays_quiet() {
         voice: Voice::Private { turn: 1 },
         text: text.into(),
     };
-    let mut quiet = Quiet::default();
+    let mut quiet = Quiet::new(Some("skip_reply"));
     quiet.hold("s", 1, held("一"));
     quiet.hold("s", 1, held("二"));
     quiet.hold("lane", 1, held("支线的"));

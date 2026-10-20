@@ -53,6 +53,11 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
     }
     let provided: Value = serde_json::from_str(&lines[1]).expect("是 JSON");
     assert_eq!(provided["method"], "provide", "{provided}");
+    assert_eq!(
+        provided["params"],
+        crate::provider::shipped_tools(),
+        "登记的是驱动交的那一套（施工 T-4）"
+    );
     let registered: Value = serde_json::from_str(&lines[2]).expect("是 JSON");
     assert_eq!(registered["method"], "package.methods", "{registered}");
     let listed: Value = serde_json::from_str(&lines[3]).expect("是 JSON");

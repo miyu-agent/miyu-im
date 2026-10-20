@@ -31,9 +31,7 @@ pub(super) fn acting(call: Call) -> Planned {
         Ok(act) => act,
         Err(why) => return Planned::Now(call.answers.say(why.name(), &[], true)),
     };
-    Planned::Later(Box::pin(async move {
-        answered(&call, &act, done(&call, &act).await)
-    }))
+    Planned::later(async move { answered(&call, &act, done(&call, &act).await) })
 }
 
 /// 对谁做：群里照叫她做的那一条，私聊里照对方、最近一条的引用。私聊里的禁言是空的。

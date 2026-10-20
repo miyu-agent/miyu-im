@@ -89,7 +89,6 @@ pub fn copied_resources() -> PathBuf {
         "packages/im/data/judge",
         "packages/im/data/facts",
         "packages/im/data/system",
-        "packages/im/data/tools",
         "packages/im/data/tool-results",
         // 驱动交的工具的说明、答的话（施工 T-1）。
         "packages/im/data/onebot/tools",

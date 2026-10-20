@@ -58,8 +58,8 @@
 | `im/data/facts/reached.txt` | 事实（`kind` 是 `reached`），桥经核心的 `session.note` 记 | 她经 `chat_send`（或者别的包经 `chat.send`）给一个场所发了消息、那个场所的会话找得到：记在那个会话里，写着她那句话的开头（施工 O-56） | 31（14 个字的中文；2026-10-17 量） | 2026-10-17 项目主人定（第二段）：对方回复时她知道是自己先找的人 | `b76ba3e7` |
 | `im/data/system/group.txt` | system 尾部（核心的 `system.append`，单给这个群会话） | 群会话：桥照 NapCat 的 `get_group_info` 换进群名、群号，问到了隔 `group_info_seconds` 再问，改了名才换（`onebot.md`「群名」，施工 O-49） | 17（`摸鱼群`、`123456789`；2026-10-17 量） | 2026-10-17 项目主人定：她在群里要知道是哪个群（群名、群号）。放在 system 而不是事实：一直在、压缩不掉；群名是群里的人改得了的字，照模板的规矩转义、截到 64 个字符，裹在标签里 | `3bf06e49` |
 | `im/data/system/note.txt` | system 尾部（核心的 `system.append`，和群名那一段拼成一段，单给这个场所会话） | 场所规则设了 `extra_prompt`（后台页卡片里的「附加提示词」）的场所会话：群里判以前放好，私聊找到会话以后放，卡片存了照新的再放；删了的去掉（`onebot.md`「场所卡片」，施工 O-58 上） | 外壳 10（2026-10-17 量；带一句「他在备考。」13） | 2026-10-17 项目主人定：卡片里能给一个群、一个白名单成员写附加提示词。外壳是一个标签：原文是管理员写的几行字，原样放进去、不转义（同 `extra_prompt` 的规则文件写法），和群名那种别人改得了的字分开 | `d3053613` |
-| `im/data/tools/skip_reply.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `skip_reply`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「提供者和不说话」，施工 O-26） | 70（2026-10-09 照开发端点量，十六件一起时的边际份量） | 群里的回合判过才开，判官、加值项会看错；每个回合都要有一条不说话的路（18 第七节、Q5：旧版只靠提示词叫她别回，她把「没 @ 我」说出了口）。两句：这一轮写的都不发、什么时候用；`reason` 必填、不写说明 | `c4ebd416` |
-| `im/data/tool-results/skipped.txt` | 工具结果 | `skip_reply` 答的那一句（施工 O-26；O-38 改） | 11（2026-10-12 量；O-26 那一句 14） | 告诉她这一条回复里写的没发。O-38 起调了这一轮就结束（桥带 `end_turn`），这一句只在以后的轮次照历史看到，改成说已经发生的事：原来的「这一轮写的都不会发出去」放在历史里像在说正在跑的那一轮（`onebot.md` 施工时定的第 239 条） | `46eb168d` |
+| `im/data/onebot/tools/skip_reply.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `skip_reply`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「提供者和不说话」，施工 O-26） | 70（2026-10-09 照开发端点量，十六件一起时的边际份量） | 群里的回合判过才开，判官、加值项会看错；每个回合都要有一条不说话的路（18 第七节、Q5：旧版只靠提示词叫她别回，她把「没 @ 我」说出了口）。两句：这一轮写的都不发、什么时候用；`reason` 必填、不写说明 | `c4ebd416` |
+| `im/data/onebot/tool-results/skipped.txt` | 工具结果 | `skip_reply` 答的那一句（施工 O-26；O-38 改） | 11（2026-10-12 量；O-26 那一句 14） | 告诉她这一条回复里写的没发。O-38 起调了这一轮就结束（桥带 `end_turn`），这一句只在以后的轮次照历史看到，改成说已经发生的事：原来的「这一轮写的都不会发出去」放在历史里像在说正在跑的那一轮（`onebot.md` 施工时定的第 239 条） | `46eb168d` |
 | `im/data/tool-results/unknown.txt` | 工具结果 | 核心调到桥不答的工具（登记缓存是桥的旧版本的），字段按 `recall` 填（施工 O-26） | 9（2026-10-09 量） | 说法同核心的 `core/tool-results/unknown.txt`；给模型看的字随包走，桥不读核心的资源（`onebot.md` 施工时定的第 141 条） | `82d2ac6b` |
 | `im/data/onebot/tool-results/unknown.txt` | 工具结果 | 同 `im/data/tool-results/unknown.txt`：施工 T-2 抄一份到驱动的目录，撤回、禁言、戳一戳（挪进驱动的几件）答的是这一份，im 剩下的几件照旧用那一份 | 9（2026-10-09 量） | 同那一份（挪完 im 那一份就去掉） | `82d2ac6b` |
 | `im/data/onebot/tools/recall.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `recall`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「平台工具（一）」，施工 O-31）（施工 T-2 起挪进驱动的目录） | 55（2026-10-17 照开发端点量，二十三件一起时的边际份量；O-31 不带参数时 36） | 18 第十一节的撤回；施工 O-48（2026-10-17 项目主人定：工具只做动作、能撤任何一条）加参数 `msg`，名字和说明里的 `msg=` 对上、不另写说明（带一句「The msg= id.」是 62） | `59d0eb6a` |
@@ -67,28 +67,24 @@
 | `im/data/onebot/tools/poke.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `poke`（同 `recall`）（施工 T-2 起挪进驱动的目录） | 46（同上） | 18 第十一节的互动：戳一戳；一句说清戳谁、没 @ 的戳叫她的人 | `563796d9` |
 | `im/data/onebot/tools/avatar.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `avatar`（同 `recall`；`onebot.md`「头像和群成员」，施工 O-54）（施工 T-1 起挪进驱动的目录） | 84（2026-10-17 照开发端点量，二十五件一起时的边际份量） | 2026-10-17 项目主人定：取一个人、一个群的头像存成文件，她自己选看图还是别的；一句说清存在哪、没写人取叫她的人 | `bd6aeef5` |
 | `im/data/onebot/tools/members.json` | tools 数组 | 群会话的工具面里有 `members`（只给群；同上）（施工 T-1 起挪进驱动的目录） | 55（同上） | 2026-10-17 项目主人定（「查群成员」，配 @ 指定的人、给号禁言用）：一句说清列的是这个群的、带 QQ 号；`query` 一句 | `03bcfca6` |
-| `im/data/tools/mention.json` | tools 数组 | 群会话的工具面里有 `mention`（只给群；`onebot.md`「@ 指定的人」，施工 O-55） | 66（2026-10-17 照开发端点量，二十六件一起时的边际份量） | 2026-10-17 项目主人定：@ 指定的人要做（旧版 `qq_mention_users`）；一句说清 @ 在下一句话开头 | `56bde89c` |
-| `im/data/tools/chat_send.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `chat_send`（`onebot.md`「主动发消息」，施工 O-56） | 85（施工 I-1 改名 `chat_send`、说明去掉「QQ」一词以后量；原来 86：2026-10-17 照开发端点量，二十七件一起时的边际份量） | 2026-10-17 项目主人定：她的好友、她在的群她都能发，这是拟人的一种设计；说明里点一句「在这个聊天里直接回」免得她拿它回眼前的人 | `da5d6e73` |
+| `im/data/onebot/tools/mention.json` | tools 数组 | 群会话的工具面里有 `mention`（只给群；`onebot.md`「@ 指定的人」，施工 O-55） | 66（2026-10-17 照开发端点量，二十六件一起时的边际份量） | 2026-10-17 项目主人定：@ 指定的人要做（旧版 `qq_mention_users`）；一句说清 @ 在下一句话开头 | `56bde89c` |
+| `im/data/onebot/tools/chat_send.json` | tools 数组 | 场所会话（私聊、群）的工具面里有 `chat_send`（`onebot.md`「主动发消息」，施工 O-56） | 85（施工 I-1 改名 `chat_send`、说明去掉「QQ」一词以后量；原来 86：2026-10-17 照开发端点量，二十七件一起时的边际份量） | 2026-10-17 项目主人定：她的好友、她在的群她都能发，这是拟人的一种设计；说明里点一句「在这个聊天里直接回」免得她拿它回眼前的人 | `da5d6e73` |
 | `im/data/onebot/tool-results/members.txt` | 工具结果 | `members` 成了：列了几个、一共几个、那一行（一个一段 `<号> <名字> (<身份>)`，`; ` 隔开；施工 O-54）（施工 T-1 起挪进驱动的目录） | 13（字段空着；一个人约 8 到 10 个） | 一行说清列了几个，多的她知道还有 | `b7a8ae7f` |
 | `im/data/onebot/tool-results/no-members.txt` | 工具结果 | `members` 照 `query` 一个都没找到（施工 T-1 起挪进驱动的目录） | 4 | 说没有 | `a28b118a` |
-| `im/data/tool-results/mentioned.txt` | 工具结果 | `mention` 成了：下一句会 @ 谁（群名片，没有的写号；施工 O-55） | 8（字段空着） | 告诉她 @ 的是谁、在下一句 | `0b58dc81` |
-| `im/data/tool-results/not-members.txt` | 工具结果 | `mention` 有不是这个群的成员的号：整次不记，写哪几个 | 11（字段空着） | 她知道哪几个号不对，可以先查群成员 | `2e88a9fc` |
-| `im/data/tool-results/sent.txt` | 工具结果 | `chat_send` 发成了（施工 O-56） | 2 | 告诉她发出去了 | `4b30586e` |
+| `im/data/onebot/tool-results/mentioned.txt` | 工具结果 | `mention` 成了：下一句会 @ 谁（群名片，没有的写号；施工 O-55） | 8（字段空着） | 告诉她 @ 的是谁、在下一句 | `0b58dc81` |
+| `im/data/onebot/tool-results/not-members.txt` | 工具结果 | `mention` 有不是这个群的成员的号：整次不记，写哪几个 | 11（字段空着） | 她知道哪几个号不对，可以先查群成员 | `2e88a9fc` |
+| `im/data/onebot/tool-results/sent.txt` | 工具结果 | `chat_send` 发成了（施工 O-56） | 2 | 告诉她发出去了 | `4b30586e` |
 | `im/data/onebot/tool-results/recalled.txt` | 工具结果 | `recall` 成了（施工 O-31）（施工 T-2 起挪进驱动的目录） | 3（2026-10-10 量） | 告诉她撤了 | `5a6ee52c` |
 | `im/data/onebot/tool-results/muted.txt` | 工具结果 | `mute` 成了，秒数大于 0；`who` 是名字（没有的写号），`duration` 是 `10m` 这样的时长（施工 T-2 起挪进驱动的目录） | 9（`小明`、`10m`） | 18 第十一节：返回写明换算成多久，单位错了她看得出 | `1bee606a` |
 | `im/data/onebot/tool-results/unmuted.txt` | 工具结果 | `mute` 成了，秒数是 0（解禁）（施工 T-2 起挪进驱动的目录） | 6（`小明`） | 解禁和禁言分开说，她转告不会说反 | `d0036420` |
 | `im/data/onebot/tool-results/poked.txt` | 工具结果 | `poke` 成了（施工 T-2 起挪进驱动的目录） | 5（`小明`） | 告诉她戳了谁：没 @ 的戳的是叫她的人 | `334c70a2` |
 | `im/data/onebot/tool-results/no-quote.txt` | 工具结果 | 撤回：没给 `msg`，叫她做的那条又没引用（施工 T-2 起挪进驱动的目录） | 19（2026-10-17 量；O-31 那一句 16） | 告诉她给编号，或者要对方回复那条再叫（施工 O-48 加了 `msg`） | `5c41e58f` |
-| `im/data/tool-results/no-target.txt` | 工具结果 | 禁言：引用、@ 都认不出人；戳一戳：没 @、也不知道谁叫的 | 19 | 目标不从模型来，认不出就不做；告诉她要对方回复或 @ 那个人再叫 | `49ed6fc4` |
-| `im/data/onebot/tool-results/no-target.txt` | 工具结果 | 同 `im/data/tool-results/no-target.txt`：施工 T-1 抄一份到驱动的目录，头像、群成员（挪进驱动的几件）答的是这一份，im 剩下的几件照旧用那一份 | 19 | 同那一份（挪完 im 那一份就去掉） | `49ed6fc4` |
+| `im/data/onebot/tool-results/no-target.txt` | 工具结果 | 禁言：引用、@ 都认不出人；戳一戳：没 @、也不知道谁叫的 | 19 | 目标不从模型来，认不出就不做；告诉她要对方回复或 @ 那个人再叫 | `49ed6fc4` |
 | `im/data/onebot/tool-results/many-targets.txt` | 工具结果 | 禁言、戳一戳：引用的和 @ 的合起来不止一个人（施工 T-2 起挪进驱动的目录） | 17 | 一次只动一个人，不猜是哪一个 | `1feae897` |
 | `im/data/onebot/tool-results/bad-seconds.txt` | 工具结果 | 禁言：秒数没写、不是整数、不在 0 到 2592000（施工 T-2 起挪进驱动的目录） | 14 | QQ 的上限是 30 天；参数说明里写了，写错的再说一遍范围 | `82238467` |
-| `im/data/tool-results/failed.txt` | 工具结果 | NapCat 回了失败（问身份、动作都算），`detail` 是它的原话（截到 200 个字符） | 9（`Recall failed`） | 施工单：NapCat 回失败照原话交回；她在群里不是管理员时撤别人的就走这里 | `a24f6a13` |
-| `im/data/onebot/tool-results/failed.txt` | 工具结果 | 同 `im/data/tool-results/failed.txt`：施工 T-1 抄一份到驱动的目录，头像、群成员（挪进驱动的几件）答的是这一份，im 剩下的几件照旧用那一份 | 9（`Recall failed`） | 同那一份（挪完 im 那一份就去掉） | `a24f6a13` |
-| `im/data/tool-results/unreachable.txt` | 工具结果 | 那个机器人号没连着、连接断了，或者桥不认识这个会话 | 11 | 没做成，说清是够不着 QQ，不是被拒 | `8c9726ee` |
-| `im/data/onebot/tool-results/unreachable.txt` | 工具结果 | 同 `im/data/tool-results/unreachable.txt`：施工 T-1 抄一份到驱动的目录，头像、群成员（挪进驱动的几件）答的是这一份，im 剩下的几件照旧用那一份 | 11 | 同那一份（挪完 im 那一份就去掉） | `8c9726ee` |
-| `im/data/tool-results/unanswered.txt` | 工具结果 | 等了 `call_timeout_seconds` NapCat 没回 | 15 | 可能做了、可能没做：照实说，她不会以为一定没成又叫一遍 | `9261e1f6` |
-| `im/data/onebot/tool-results/unanswered.txt` | 工具结果 | 同 `im/data/tool-results/unanswered.txt`：施工 T-1 抄一份到驱动的目录，头像、群成员（挪进驱动的几件）答的是这一份，im 剩下的几件照旧用那一份 | 15 | 同那一份（挪完 im 那一份就去掉） | `9261e1f6` |
+| `im/data/onebot/tool-results/failed.txt` | 工具结果 | NapCat 回了失败（问身份、动作都算），`detail` 是它的原话（截到 200 个字符） | 9（`Recall failed`） | 施工单：NapCat 回失败照原话交回；她在群里不是管理员时撤别人的就走这里 | `a24f6a13` |
+| `im/data/onebot/tool-results/unreachable.txt` | 工具结果 | 那个机器人号没连着、连接断了，或者桥不认识这个会话 | 11 | 没做成，说清是够不着 QQ，不是被拒 | `8c9726ee` |
+| `im/data/onebot/tool-results/unanswered.txt` | 工具结果 | 等了 `call_timeout_seconds` NapCat 没回 | 15 | 可能做了、可能没做：照实说，她不会以为一定没成又叫一遍 | `9261e1f6` |
 | `im/data/onebot/tools/fetch_media.json` | tools 数组 | 群、私聊会话的工具面里有 `fetch_media`（施工 O-33 给群，O-35 给私聊；本机的会话没有）（施工 T-3 起挪进驱动的目录） | 114（2026-10-11，二十件一起的边际份量；第一稿 122；O-35 把 `group message` 换成 `QQ message`，重量还是 114） | 按需看（2026-10-11 项目主人定）：群里、私聊里的图、视频、文件她要看才去 QQ 取。说明一句说清取什么、图回来看、视频文件存进 `qq-files/`；`index` 写明是那一条里第几样、从 1 数（近况那一行的 `#n`，核心审时要的） | `ffe86481` |
 | `im/data/onebot/tool-results/saved.txt` | 工具结果 | `fetch_media` 把视频、文件（存不成图的图）写进了工作区，`path` 是相对工作区的 `qq-files/<名字>`（施工 O-33 改的，「施工时定的」第 204 条）（施工 T-3 起挪进驱动的目录） | 16（2026-10-11，`path` 填 `qq-files/8816-1-排班.pdf`；改相对路径以前填绝对路径量的是 33） | 她拿路径再 `read`（视频她用 `shell` 调 ffmpeg 抽帧再 `read`） | `b0a83124` |
 | `im/data/onebot/tool-results/not-found.txt` | 工具结果 | `fetch_media` 的 `msg` 不是整数、QQ 说没有这一条、那一条不在这个会话（群里不是这个群的，私聊里不是这个人私聊的）（施工 T-3 起挪进驱动的目录） | 12 | 编号不对、过期了、别处的都照没有说：不让她拿编号看别的群、别人的私聊。O-35 把 `in this group` 换成 `in this chat`，私聊里也说得对，重量还是 12 | `b6d793bf` |

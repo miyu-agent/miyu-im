@@ -100,12 +100,12 @@ pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
     };
     let (url, name) = avatar_of(whose, &tools.avatars);
     let wait = tools.wait;
-    Planned::Later(Box::pin(async move {
+    Planned::later(async move {
         match fetched(&url, &name, (&call.cwd, std::env::home_dir()), wait).await {
             Ok(path) => call.answers.say("saved", &[("path", &path)], false),
             Err(undone) => said(&call, undone),
         }
-    }))
+    })
 }
 
 /// `members`：列这个群的成员（只给群：私聊里调到的照说不会，答 `unreachable`）。
@@ -114,12 +114,12 @@ pub(super) fn members(tools: &QqTools, call: Call) -> Planned {
         return Planned::Now(call.answers.say("unreachable", &[], true));
     };
     let shown = tools.members;
-    Planned::Later(Box::pin(async move {
+    Planned::later(async move {
         match listing(&call, group, shown).await {
             Ok(answer) => answer,
             Err(undone) => said(&call, undone),
         }
-    }))
+    })
 }
 
 /// 没做成的那一句：带原因的照填。
