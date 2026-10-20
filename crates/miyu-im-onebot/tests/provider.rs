@@ -126,9 +126,13 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
         ("tool-results/skipped.txt", "Skipped {name}.\n", "name"),
         ("tool-results/unknown.txt", "No tool {tool}.\n", "tool"),
         // 施工 O-31：平台工具（一）的说明和答的话同样是出厂数据。
-        ("tools/mute.json", "{\"parameters\": {}}", "description"),
         (
-            "tool-results/muted.txt",
+            "onebot/tools/mute.json",
+            "{\"parameters\": {}}",
+            "description",
+        ),
+        (
+            "onebot/tool-results/muted.txt",
             "Muted {who} for {seconds}.\n",
             "seconds",
         ),

@@ -1,16 +1,19 @@
 //! 驱动交的工具的调用（施工 T-1，`crate::toolset`）：读的一头把它们的 `tool.call` 照推送交到这里。照会话填好场景（发到哪、机器人
-//! 号、谁叫的、工作区、那个机器人号的连接）交给驱动：当场答的写回去；要去平台上办的另起一个任务（`chores`，同取图）等它办完再
+//! 号、谁叫的、工作区、那个机器人号的连接；施工 T-2 多叫她做的那一条、她自己、私聊的对方、这个群缓存着的名字）交给驱动：当场答的写回去；要去平台上办的另起一个任务（`chores`，同取图）等它办完再
 //! 答，跟核心的那一头不等。桥不认识这个会话的答 `unreachable`。
 
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
+use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::Route;
 use crate::TARGET;
 use crate::chat::To;
 use crate::core::Gone;
-use crate::toolset::{Answers, Call, Planned, ToolSet};
+use crate::toolset::{Answers, Call, NAME, Origin, Planned, Quote, ToolSet, clean};
 
 impl Route {
     /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是 `set`、答的话是 `answers`。
@@ -37,9 +40,30 @@ impl Route {
             answerer.answer(&id, self.tools.answer("unreachable", &[], true));
             return Ok(());
         };
-        let caller = match peer.to {
-            To::Private(user) => Some(user),
-            To::Group(_) => caller_number(params),
+        let by = by_of(params);
+        let (caller, other, origin, names) = match peer.to {
+            To::Private(user) => {
+                // 私聊：叫她做的那条是最近一条人说的话（对方的），引用照记下的（「怎么走」第 9 条）。
+                let other = self.platform.person(user).ok();
+                let quote = self.quotes.get(&session).cloned().flatten();
+                let origin = other.clone().map(|sender| Origin {
+                    sender,
+                    quote: quote.map(|msg| Quote { msg, sender: None }),
+                    mentions: Vec::new(),
+                });
+                (Some(user), other, origin, HashMap::new())
+            }
+            To::Group(group) => {
+                // 群：投影里调用所在那条线（主线或者支线，施工 O-36）这一轮她回的那一条。
+                let origin = self.groups.get(&session).and_then(|one| one.origin(&line));
+                let names = self
+                    .members
+                    .names_in(group, Instant::now())
+                    .into_iter()
+                    .filter_map(|(user, name)| Some((user, clean(&name, NAME)?)))
+                    .collect();
+                (by.as_ref().and_then(number), None, origin, names)
+            }
         };
         let call = Call {
             tool: tool.to_string(),
@@ -48,6 +72,12 @@ impl Route {
             to: peer.to,
             bot: peer.bot,
             caller,
+            by,
+            origin,
+            me: self.platform.person(peer.bot).ok(),
+            other,
+            platform: self.platform,
+            names,
             cwd: params["cwd"].as_str().unwrap_or_default().to_string(),
             link: self.bots.get(peer.bot),
             answers,
@@ -79,13 +109,22 @@ fn logged(venue: &str, tool: &str, answer: &Value) {
     }
 }
 
-/// 叫她的人的号：`tool.call` 的 `by` 是外部身份的照 `by.id`，私聊里认出的终端管理员照 `by.via`；别的是空的。
-fn caller_number(params: &Value) -> Option<i64> {
+/// 谁叫的（`tool.call` 的 `by`，`providers.md`「是谁要的」）：外部身份的照 `by.id`；私聊里核心照对应表认出的终端管理员记成本人，照
+/// 它经的平台身份 `by.via`。没有触发的回合、本机的人、别的种类是空的。
+pub(super) fn by_of(params: &Value) -> Option<ExternalId> {
     let by = &params["by"];
     let id = match by["kind"].as_str() {
         Some("external") => by["id"].as_str(),
         Some("person") => by["via"].as_str(),
         _ => None,
     }?;
-    id.rsplit_once(':')?.1.parse().ok()
+    ExternalId::parse(id).ok()
 }
+
+/// 平台上的人 `id` 的号。
+fn number(id: &ExternalId) -> Option<i64> {
+    id.as_str().rsplit_once(':')?.1.parse().ok()
+}
+
+#[cfg(test)]
+mod tests;

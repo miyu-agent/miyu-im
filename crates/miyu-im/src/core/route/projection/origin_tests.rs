@@ -3,9 +3,9 @@
 
 use serde_json::json;
 
-use super::super::platform::{Origin, Quote};
 use super::Projection;
 use super::tests::{LINE, ended, event, joined, qq, started, take_all};
+use crate::toolset::{Origin, Quote};
 
 /// 号是 `user` 的人说的第 `seq` 条：引用 `reply_to`、@ 了 `mentions`；`admin` 的带 `account`。
 fn quoting(

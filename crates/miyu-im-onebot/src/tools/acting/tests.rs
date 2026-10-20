@@ -2,7 +2,7 @@
 //! （`said`，怎么读在 `tests/calls.rs`）；等不到、断了各是一句。
 
 use super::{Undone, undone};
-use crate::chat::CallError;
+use miyu_im::chat::CallError;
 
 #[test]
 fn a_refusal_carries_what_the_platform_said() {

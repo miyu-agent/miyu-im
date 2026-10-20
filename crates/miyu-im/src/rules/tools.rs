@@ -28,15 +28,6 @@ use crate::toolset::{Answers, ToolSet};
 /// 「这一轮不说话」（「提供者和不说话」第 3 条）：她的回复里有这件的调用块，这一轮就不发了（`core/route/quiet.rs`）。
 pub(crate) const SKIP_REPLY: &str = "skip_reply";
 
-/// 撤回（施工 O-31，「平台工具（一）」）：撤叫她做的那条引用的那一条。
-pub(crate) const RECALL: &str = "recall";
-
-/// 禁言（施工 O-31）：只给群。
-pub(crate) const MUTE: &str = "mute";
-
-/// 戳一戳（施工 O-31）。
-pub(crate) const POKE: &str = "poke";
-
 /// 取图、视频、文件（施工 O-33，「平台工具（二）」）：私聊、群都给（施工 O-35 起私聊也给）。
 pub(crate) const FETCH_MEDIA: &str = "fetch_media";
 
@@ -54,11 +45,8 @@ const VENUES: &[&str] = &["private", "group"];
 /// 会话里拒绝，谁能叫、能动谁由桥自己挡（`providers.md`「在场所里做的事」，「施工时定的」第 177 条）。本机的会话都没有。
 /// `fetch_media` 也是在场所里做的事（施工 O-33：去平台取东西、写进这个会话自己的工作区）；O-33 只给群，O-35 起私聊里带了东西
 /// 的那条也写出消息编号，私聊也给。
-const TOOLS: [(&str, Access, &[&str]); 7] = [
+const TOOLS: [(&str, Access, &[&str]); 4] = [
     (SKIP_REPLY, Access::Read, VENUES),
-    (RECALL, Access::Venue, VENUES),
-    (MUTE, Access::Venue, &["group"]),
-    (POKE, Access::Venue, VENUES),
     (FETCH_MEDIA, Access::Venue, VENUES),
     (MENTION, Access::Venue, &["group"]),
     (CHAT_SEND, Access::Venue, VENUES),
@@ -76,15 +64,8 @@ const UNKNOWN: &str = "unknown";
 /// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段；`saved` 以后是
 /// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered`、`not-found` 共用。施工 O-48 去掉
 /// 不让做的两句（`not-allowed`、`protected`）。
-const ANSWERS: [(&str, &[&str]); 21] = [
-    ("recalled", &[]),
-    ("muted", &["who", "duration"]),
-    ("unmuted", &["who"]),
-    ("poked", &["who"]),
-    ("no-quote", &[]),
+const ANSWERS: [(&str, &[&str]); 14] = [
     ("no-target", &[]),
-    ("many-targets", &[]),
-    ("bad-seconds", &[]),
     ("failed", &["detail"]),
     ("unreachable", &[]),
     ("unanswered", &[]),
@@ -169,8 +150,7 @@ impl Tools {
     /// 缓存和机器人号的连接；`fetch_media`（施工 O-33）要会话发到哪、这一轮取了几次；`avatar`、`members`（施工 O-54）要会话发到哪、
     /// 机器人号的连接。
     pub(crate) fn routed(&self, tool: &str) -> bool {
-        [RECALL, MUTE, POKE, FETCH_MEDIA, MENTION, CHAT_SEND].contains(&tool)
-            || self.driven(tool).is_some()
+        [FETCH_MEDIA, MENTION, CHAT_SEND].contains(&tool) || self.driven(tool).is_some()
     }
 
     /// 工具 `tool` 是驱动交的（施工 T-1）：交回那一套和它答的话；别的是空的。

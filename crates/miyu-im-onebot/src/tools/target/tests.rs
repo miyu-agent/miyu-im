@@ -5,8 +5,10 @@
 use miyu_client::ids::ExternalId;
 use serde_json::json;
 
-use super::{Arg, Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan, recallable};
-use crate::chat::{Fetched, Platform, To};
+use miyu_im::chat::{Fetched, Platform, To};
+use miyu_im::toolset::{Origin, Quote, duration};
+
+use super::{Arg, Caller, Order, Plan, Scene, Why, plan, recallable};
 
 /// 测试用的平台。
 const QQ: Platform = Platform::new("qq");
@@ -124,31 +126,6 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
             "{args}"
         );
     }
-}
-
-#[test]
-fn the_caller_is_read_from_the_platform_identity_only() {
-    let by = |by: serde_json::Value| Caller::read(&json!({"by": by}));
-    assert_eq!(
-        by(json!({"kind": "external", "id": "qq:40001", "role": "member"})),
-        caller(40001)
-    );
-    // 私聊里终端管理员记成本人：照经的平台身份认。
-    assert_eq!(
-        by(json!({"kind": "person", "account": "admin", "via": "qq:10001"})),
-        caller(BOSS)
-    );
-    assert_eq!(
-        by(json!({"kind": "person", "account": "admin"})).id,
-        None,
-        "本机的人没有平台身份"
-    );
-    assert_eq!(
-        by(json!({"kind": "module", "id": "qq:10001"})).id,
-        None,
-        "别的种类不认"
-    );
-    assert_eq!(Caller::read(&json!({})).id, None);
 }
 
 #[test]

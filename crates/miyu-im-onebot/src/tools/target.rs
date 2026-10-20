@@ -1,4 +1,4 @@
-//! 平台工具（一）对谁做（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 3、4 条；18 第十一节）：纯逻辑。
+//! 平台工具（一）对谁做（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 3、4 条；18 第十一节；施工 T-2 从宿主挪进驱动）：纯逻辑。
 //!
 //! 施工 O-48（2026-10-17 项目主人定：工具只做动作，做不做由她判断，程序不替她判断）起不挡人：谁叫的都做，动不动得了由 QQ 说。
 //! 这里只认目标：撤回撤她给的 `msg`，没给的撤叫她做的那条引用的那一条；禁言禁她给的 `user`，没给的禁那条引用的人或者唯一 @
@@ -9,16 +9,17 @@
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
-use super::fetching::msg_id;
-use crate::chat::{Fetched, Platform, To};
-use crate::rules::{MUTE, POKE, RECALL};
+use miyu_im::chat::{Fetched, Platform, To};
+use miyu_im::toolset::{Origin, msg_id};
+
+use super::{MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
 const MAX_SECONDS: u64 = 2_592_000;
 
 /// 她给的一个参数：没给、给了、给错了（施工 O-48）。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Arg<T> {
+pub(crate) enum Arg<T> {
     /// 没给：照叫她做的那条认。
     Absent,
     /// 给了。
@@ -39,7 +40,7 @@ impl<T> Arg<T> {
 
 /// 叫她做的一件。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Order {
+pub(crate) enum Order {
     /// 撤回：她给的消息编号（施工 O-48）。
     Recall(Arg<String>),
     /// 禁言。
@@ -55,7 +56,7 @@ pub(super) enum Order {
 
 impl Order {
     /// 工具 `tool`、参数 `args`：不是这三件的是空的。
-    pub(super) fn read(tool: &str, args: &Value) -> Option<Order> {
+    pub(crate) fn read(tool: &str, args: &Value) -> Option<Order> {
         match tool {
             RECALL => Some(Order::Recall(Arg::read(&args["msg"], msg_id))),
             MUTE => {
@@ -81,62 +82,26 @@ fn qq_number(value: &Value) -> Option<i64> {
     number.filter(|number| *number > 0)
 }
 
-/// 谁叫的（`tool.call` 的 `by`，`providers.md`「是谁要的」）：外部身份的 `by.id`；私聊里核心照对应表认出的终端管理员记成本人，照
-/// 它经的平台身份 `by.via`。没有触发的回合、本机的人是空的。
+/// 谁叫的（im 照 `tool.call` 的 `by` 认好交过来，`miyu_im::toolset::Call::by`）。没有触发的回合、本机的人是空的。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Caller {
+pub(crate) struct Caller {
     /// 平台上的身份。
-    pub(super) id: Option<ExternalId>,
-}
-
-impl Caller {
-    /// 照 `tool.call` 的参数 `params` 认。
-    pub(super) fn read(params: &Value) -> Caller {
-        let by = &params["by"];
-        let id = match by["kind"].as_str() {
-            Some("external") => by["id"].as_str(),
-            Some("person") => by["via"].as_str(),
-            _ => None,
-        };
-        Caller {
-            id: id.and_then(|id| ExternalId::parse(id).ok()),
-        }
-    }
-}
-
-/// 叫她做的那条。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Origin {
-    /// 发它的人。
-    pub(super) sender: ExternalId,
-    /// 它引用的那一条；没引用的是空的。
-    pub(super) quote: Option<Quote>,
-    /// 它 @ 了谁（不含她：群消息记的时候就去掉了，「群消息」第 2 条），照先后。
-    pub(super) mentions: Vec<ExternalId>,
-}
-
-/// 被引用的那一条。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Quote {
-    /// 平台编号，照引用里的原样：撤它时原样还回去。
-    pub(super) msg: String,
-    /// 发它的人：投影里认得出的；她的、桥不认识的是空的。
-    pub(super) sender: Option<ExternalId>,
+    pub(crate) id: Option<ExternalId>,
 }
 
 /// 这个场所的情形。
-pub(super) struct Scene<'a> {
+pub(crate) struct Scene<'a> {
     /// 私聊的对方；群的是空的。
-    pub(super) peer: Option<&'a ExternalId>,
+    pub(crate) peer: Option<&'a ExternalId>,
     /// 她自己（收进这个会话的机器人号）。
-    pub(super) me: &'a ExternalId,
+    pub(crate) me: &'a ExternalId,
     /// 平台：她给的号照它拼成平台上的人。
-    pub(super) platform: Platform,
+    pub(crate) platform: Platform,
 }
 
 /// 定下来的。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Plan {
+pub(crate) enum Plan {
     /// 撤平台编号是 `msg` 的那一条；`check` 的是她给的编号，先核对在不在这个会话里。
     Recall {
         /// 平台编号。
@@ -159,7 +124,7 @@ pub(super) enum Plan {
 
 /// 做不了的为什么：每一种答一句（`tool-results/<名字>.txt`，「平台工具（一）」第 5 条）。都是认不出目标、参数写错，不是不让做。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Why {
+pub(crate) enum Why {
     /// 撤回：没给 `msg`，叫她做的那条又没引用（或者没有那条）。
     NoQuote,
     /// 撤回：`msg` 写错了，或者不在这个会话里。
@@ -174,7 +139,7 @@ pub(super) enum Why {
 
 impl Why {
     /// 答的那一句的名字。
-    pub(super) fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Why::NoQuote => "no-quote",
             Why::NotFound => "not-found",
@@ -187,7 +152,7 @@ impl Why {
 
 /// 定 `order` 对谁做：`caller` 叫的，叫她做的那条是 `origin`，场所的情形 `scene`。私聊里的禁言（`venues` 不给）由调的一方挡在
 /// 前面。
-pub(super) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
+pub(crate) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
     let origin = origin.filter(|origin| caller.id.as_ref() == Some(&origin.sender));
     match order {
         Order::Recall(msg) => recall(msg, origin),
@@ -274,29 +239,13 @@ fn one<'a>(
 
 /// 她给的编号取回来的那一条撤不撤得到（施工 O-48，同取图核对归属）：群里是这个群的，她的、别人的都算；私聊里是私聊的，发的人
 /// 是对方或者她（机器人号 `bot`）。
-pub(super) fn recallable(fetched: &Fetched, to: To, bot: i64) -> bool {
+pub(crate) fn recallable(fetched: &Fetched, to: To, bot: i64) -> bool {
     match to {
         To::Group(group) => fetched.group == Some(group),
         To::Private(user) => {
             fetched.private && (fetched.user == Some(user) || fetched.user == Some(bot))
         }
     }
-}
-
-/// 禁言多久，照人的单位写（「施工时定的」第 182 条）：天、时、分、秒各一段，`1d 2h 30m 5s`，0 的一段不写（0 秒是解禁，不用它）。
-pub(super) fn duration(seconds: u64) -> String {
-    let parts = [
-        (seconds / 86_400, "d"),
-        (seconds % 86_400 / 3_600, "h"),
-        (seconds % 3_600 / 60, "m"),
-        (seconds % 60, "s"),
-    ];
-    let written: Vec<String> = parts
-        .iter()
-        .filter(|(count, _)| *count > 0)
-        .map(|(count, unit)| format!("{count}{unit}"))
-        .collect();
-    written.join(" ")
 }
 
 #[cfg(test)]

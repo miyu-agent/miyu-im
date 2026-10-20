@@ -75,7 +75,6 @@ mod pages;
 mod parts;
 mod persona;
 mod pictures;
-mod platform;
 mod policy;
 mod private;
 mod projection;

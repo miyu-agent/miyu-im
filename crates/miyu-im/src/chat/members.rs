@@ -46,6 +46,17 @@ impl Members {
         }
     }
 
+    /// 群 `group` 此刻 `now` 记着的每一个人的名字（号 → 名字，施工 T-2：交给驱动的工具写结果里的人）。
+    pub fn names_in(&self, group: i64, now: Instant) -> HashMap<i64, String> {
+        self.names
+            .iter()
+            .filter(|((one, _), (_, at))| {
+                *one == group && now.saturating_duration_since(*at) < self.keep
+            })
+            .map(|((_, user), (name, _))| (*user, name.clone()))
+            .collect()
+    }
+
     /// 群 `group` 里号是 `user` 的人此刻 `now` 叫 `name`：记下（盖掉原来的），顺手扔掉过了的，缓存不会越攒越多。
     pub fn remember(&mut self, group: i64, user: i64, name: String, now: Instant) {
         let keep = self.keep;

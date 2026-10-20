@@ -21,7 +21,7 @@ use crate::chat::{CallError, Fetch, Fetched, Link, Source};
 
 /// 没取到。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Missed {
+pub enum Missed {
     /// NapCat 回了失败：它说的（去掉首尾空白、截到 200 个字符，同出站队列的 `rejected`）。
     Failed(String),
     /// 等不到 NapCat 回。
@@ -58,7 +58,7 @@ fn missed(error: CallError) -> Missed {
 /// # Errors
 ///
 /// 平台回了失败（没有这一条、过期了）、等不到、没连着。
-pub(crate) async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
+pub async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
     link.message(msg).await.map_err(missed)
 }
 

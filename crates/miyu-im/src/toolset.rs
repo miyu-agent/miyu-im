@@ -12,14 +12,68 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use miyu_client::ids::ExternalId;
 use miyu_client::protocol::Template;
 use miyu_client::tooltext::{Access, load};
 use serde_json::{Value, json};
 
-use crate::chat::{Link, To};
+use crate::chat::{Link, Platform, To};
 
-/// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名。
-pub use crate::media::{QQ_FILES, bytes, extension, save};
+/// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
+/// 先核对）。
+pub use crate::media::{Missed, QQ_FILES, bytes, extension, message, save};
+
+/// 叫她做的那一条（施工 T-2，原来路由的 `platform::Origin`）：群里是投影里调用所在那条线这一轮她回的那一条，私聊是最近一条人说的话。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Origin {
+    /// 发它的人。
+    pub sender: ExternalId,
+    /// 它引用的那一条；没引用的是空的。
+    pub quote: Option<Quote>,
+    /// 它 @ 了谁（不含她：群消息记的时候就去掉了），照先后。
+    pub mentions: Vec<ExternalId>,
+}
+
+/// 被引用的那一条。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Quote {
+    /// 平台编号，照引用里的原样。
+    pub msg: String,
+    /// 发它的人：投影里认得出的；她的、桥不认识的是空的。
+    pub sender: Option<ExternalId>,
+}
+
+/// 她给的消息编号 `value`：整数，或者写成十进制整数的字（最多 20 位，前面可以有负号），交回写成字的；别的是空的（取图、撤回的
+/// `msg` 照它读）。
+pub fn msg_id(value: &Value) -> Option<String> {
+    match value {
+        Value::Number(number) if number.is_i64() => Some(number.to_string()),
+        Value::String(text) if integer(text) => Some(text.clone()),
+        _ => None,
+    }
+}
+
+/// 是不是十进制整数：可以有一个负号，1 到 20 位数字。
+fn integer(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    (1..=20).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// 多久，照人的单位写：天、时、分、秒各一段，`1d 2h 30m 5s`，0 的一段不写（禁言、她自己被禁言的事实都照它）。
+pub fn duration(seconds: u64) -> String {
+    let parts = [
+        (seconds / 86_400, "d"),
+        (seconds % 86_400 / 3_600, "h"),
+        (seconds % 3_600 / 60, "m"),
+        (seconds % 60, "s"),
+    ];
+    let written: Vec<String> = parts
+        .iter()
+        .filter(|(count, _)| *count > 0)
+        .map(|(count, unit)| format!("{count}{unit}"))
+        .collect();
+    written.join(" ")
+}
 
 /// 发的人的名字最长几个字符（`name`）。
 pub const NAME: usize = 64;
@@ -71,6 +125,18 @@ pub struct Call {
     pub bot: i64,
     /// 叫她的人的号：外部身份的照 `by.id`，私聊里认出的终端管理员照 `by.via`；私聊里没有的是对方；本机的人、没有触发的是空的。
     pub caller: Option<i64>,
+    /// 叫她的人在平台上的身份（同上，施工 T-2）：私聊里没有的照空的，不补对方。
+    pub by: Option<ExternalId>,
+    /// 叫她做的那一条（施工 T-2）；认不出的是空的。
+    pub origin: Option<Origin>,
+    /// 她自己（收进这个会话的机器人号在平台上的身份）。
+    pub me: Option<ExternalId>,
+    /// 私聊的对方；群的是空的。
+    pub other: Option<ExternalId>,
+    /// 平台：号照它拼成平台上的人。
+    pub platform: Platform,
+    /// 这个群缓存着的成员名字（号 → 名字，洗过）；私聊的是空的。
+    pub names: HashMap<i64, String>,
     /// 这一轮的工作目录（`tool.call` 的 `cwd`）：存东西照它。
     pub cwd: String,
     /// 那个机器人号这一刻的连接；断了的是空的。

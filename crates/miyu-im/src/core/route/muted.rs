@@ -18,13 +18,13 @@ use serde_json::{Value, json};
 use super::Route;
 use super::applied;
 use super::fields::{NAME, clean};
-use super::platform::duration;
 use super::projection::{MUTED, UNMUTED};
 use super::queue::until;
 use super::session::Place;
 use crate::TARGET;
 use crate::chat::To;
 use crate::core::{Gone, reason};
+use crate::toolset::duration;
 
 /// 禁言的事实的 `kind`。
 const MUTED_FACT: &str = "muted";

@@ -48,7 +48,7 @@ fn the_provide_params_follow_the_shipped_spec() {
     // 施工 O-31 起四件：`recall`、`poke` 给私聊和群，`mute` 只给群；三件平台工具是 `venue`（在场所里做的事），`skip_reply` 是
     // `read`（`onebot.md` 施工时定的第 177 条）。施工 O-33 加 `fetch_media`：`venue`，只给群；施工 O-35 起私聊也给。施工 O-54 加 `avatar`（`venue`，私聊和群）、
     // `members`（`read`，只给群）；施工 O-55 加 `mention`（`venue`，只给群）；施工 O-56 加 `chat_send`（`venue`，私聊和群）。施工 T-1
-    // 起头像、群成员挪进驱动（不带驱动读的这一份没有它们，驱动的接在后面，`tests/provider.rs`）。
+    // 起头像、群成员挪进驱动，T-2 起撤回、禁言、戳一戳也是（不带驱动读的这一份没有它们，驱动的接在后面，`tests/provider.rs`）。
     let spec = |name: &str| -> Value {
         serde_json::from_str(&shipped(&format!("tools/{name}.json"))).expect("是 JSON")
     };
@@ -79,9 +79,6 @@ fn the_provide_params_follow_the_shipped_spec() {
         tools().provided(),
         json!({"tools": [
             entry("skip_reply", "read", both.clone()),
-            entry("recall", "venue", both.clone()),
-            entry("mute", "venue", json!(["group"])),
-            entry("poke", "venue", both.clone()),
             entry("fetch_media", "venue", json!(["private", "group"])),
             entry("mention", "venue", json!(["group"])),
             entry("chat_send", "venue", json!(["private", "group"])),
@@ -167,8 +164,9 @@ fn a_method_call_is_answered_by_the_methods() {
 #[test]
 fn platform_tool_calls_pass_on_to_the_route() {
     // 施工 O-31：撤回、禁言、戳一戳要投影和 NapCat 的连接，读的一头不当场答，原样交给跟核心的那一头（「平台工具（一）」第 2 条）。
-    // 施工 O-33：`fetch_media` 要会话发到哪、这一轮取了几次，也交过去。
-    for tool in ["recall", "mute", "poke", "fetch_media"] {
+    // 施工 O-33：`fetch_media` 要会话发到哪、这一轮取了几次，也交过去。施工 T-2 起撤回、禁言、戳一戳在驱动里（不带驱动读的这一份
+    // 认不得，驱动的交过去照 `tests/provider.rs`）；@ 人、主动发消息同样交过去。
+    for tool in ["fetch_media", "mention", "chat_send"] {
         let message = tool_call("core-10", tool);
         match heard(&tools(), &Methods::new(), message.clone()) {
             Heard::Other(passed) => assert_eq!(passed, message),

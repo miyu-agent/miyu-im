@@ -4,8 +4,8 @@
 
 use miyu_client::ids::ExternalId;
 
-use super::super::platform::{Origin, Quote};
 use super::Projection;
+use crate::toolset::{Origin, Quote};
 
 impl Projection {
     /// 叫她做的那条（O-31，「平台工具（一）」第 3 条）：线 `line`（主线或者支线，O-36）这一轮她回的那一条（同出站链的引用，和
