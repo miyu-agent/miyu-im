@@ -42,6 +42,7 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
             uses("mute", r#"{"seconds":600}"#),
             uses("mute", r#"{"seconds":600}"#),
             uses("kick", "{}"),
+            uses("moderation_log", "{}"),
         ]
         .into_iter()
         .flatten(),
@@ -73,9 +74,14 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
         refused("admin-off", &[])
     );
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 504, words, 4).await,
+        asks(&home, &napcat, MANAGER, 504, words.clone(), 4).await,
         refused("admin-off", &[]),
         "踢人同禁言"
+    );
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 505, words, 5).await,
+        refused("admin-off", &[]),
+        "查记录同禁言"
     );
     no_platform(&mut napcat);
     stopped(home).await;
@@ -84,9 +90,13 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
 #[tokio::test]
 async fn mute_needs_her_to_be_an_admin_of_the_group() {
     let lines = Lines::new(
-        [uses("mute", r#"{"seconds":60}"#), uses("kick", "{}")]
-            .into_iter()
-            .flatten(),
+        [
+            uses("mute", r#"{"seconds":60}"#),
+            uses("kick", "{}"),
+            uses("moderation_log", "{}"),
+        ]
+        .into_iter()
+        .flatten(),
     );
     // 她是普通成员。
     let ranks = [(OWNER, "owner")];
@@ -104,9 +114,14 @@ async fn mute_needs_her_to_be_an_admin_of_the_group() {
     );
     assert!(napcat.asked().contains(&BOT), "问了她自己的身份");
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 602, words, 2).await,
+        asks(&home, &napcat, MANAGER, 602, words.clone(), 2).await,
         refused("admin-off", &[]),
         "踢人同禁言"
+    );
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 603, words, 3).await,
+        refused("admin-off", &[]),
+        "查记录同禁言"
     );
     no_platform(&mut napcat);
     assert!(records(&home).is_empty(), "没做成的不记");
@@ -130,7 +145,14 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
     );
     // 关掉禁言工具：im 重新登记（日志多一行 `tools provided`），之后的回合没有禁言。
     let before = provided(&home);
-    set(&home, json!([{"key": "im.qq.admin_mute", "value": false}])).await;
+    set(
+        &home,
+        json!([
+            {"key": "im.qq.admin_mute", "value": false},
+            {"key": "im.qq.admin_log", "value": false},
+        ]),
+    )
+    .await;
     within("重新登记", async {
         while provided(&home) <= before {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
@@ -144,6 +166,18 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
     })
     .await;
     assert_eq!(platform_tools(&lines.requests()[1]), ["poke", "recall"]);
+    let named = |index: usize| -> Vec<String> {
+        lines.requests()[index]
+            .tools
+            .iter()
+            .map(|tool| tool.name.clone())
+            .collect()
+    };
+    assert!(named(0).contains(&"moderation_log".to_string()));
+    assert!(
+        !named(1).contains(&"moderation_log".to_string()),
+        "查记录工具关了不登记"
+    );
     stopped(home).await;
 }
 
@@ -237,17 +271,29 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
 
 #[tokio::test]
 async fn nothing_is_recorded_when_records_are_off_and_kick_can_be_switched_off() {
-    let lines = Lines::new(uses("mute", r#"{"seconds":60}"#));
+    let lines = Lines::new(
+        [
+            uses("mute", r#"{"seconds":60}"#),
+            uses("moderation_log", r#"{"view":"ranking"}"#),
+        ]
+        .into_iter()
+        .flatten(),
+    );
     let config = format!(
-        "{}qq.admin_records = false\nqq.admin_kick = false\n",
+        "{}qq.admin_records = false\nqq.admin_kick = false\nqq.admin_summary = false\n",
         onebot()
     );
     let (home, mut napcat, _) =
         started_ranked(Arc::new(lines.clone()), &rules(), &config, (MEMBERS, RANKS)).await;
     let words = json!([at(MEMBER), plain(" 禁言")]);
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 901, words, 1).await,
+        asks(&home, &napcat, MANAGER, 901, words.clone(), 1).await,
         done("muted", &[("who", "小明"), ("duration", "1m")])
+    );
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 902, words, 2).await,
+        refused("ranking-off", &[]),
+        "成员汇总关了没有排行榜"
     );
     next_platform(&mut napcat).await;
     assert!(records(&home).is_empty(), "记录关了不记");
@@ -260,6 +306,67 @@ async fn nothing_is_recorded_when_records_are_off_and_kick_can_be_switched_off()
     assert!(
         !tools.contains(&"kick".to_string()),
         "踢人工具关了不登记：{tools:?}"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn the_moderation_log_lists_records_and_a_ranking() {
+    let lines = Lines::new(
+        [
+            uses("moderation_log", "{}"),
+            uses("mute", r#"{"seconds":600,"reason":"刷屏"}"#),
+            uses("mute", r#"{"seconds":0}"#),
+            uses("moderation_log", "{}"),
+            uses("moderation_log", r#"{"view":"ranking","period":"week"}"#),
+            uses("moderation_log", r#"{"user":40002}"#),
+        ]
+        .into_iter()
+        .flatten(),
+    );
+    let (home, mut napcat) = up(&lines).await;
+    let words = json!([at(MEMBER), plain(" 查一下")]);
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 1001, words.clone(), 1).await,
+        done("log-empty", &[])
+    );
+    asks(&home, &napcat, MANAGER, 1002, words.clone(), 2).await;
+    next_platform(&mut napcat).await;
+    asks(&home, &napcat, MANAGER, 1012, words.clone(), 3).await;
+    next_platform(&mut napcat).await;
+    within("记下了", async {
+        while records(&home).len() < 2 {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    let (events, state) = asks(&home, &napcat, MANAGER, 1003, words.clone(), 4).await;
+    assert_eq!(state, "ok");
+    let lines: Vec<&str> = events.trim_end().lines().collect();
+    let template = sentence("log-events", &[("shown", "2"), ("total", "2")]);
+    assert_eq!(lines[0], template.trim_end(), "{events}");
+    assert!(
+        lines[1].ends_with(" unmuted 小明 (40001); by you"),
+        "新的在前：{events}"
+    );
+    assert!(
+        lines[2].ends_with(" muted 小明 (40001) for 10 minutes; by you; reason: 刷屏"),
+        "{events}"
+    );
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 1004, words.clone(), 5).await,
+        (
+            format!(
+                "{}\n1. 小明 (40001): muted 1 time for 10 minutes; last reason: 刷屏",
+                sentence("log-ranking", &[("period", "week")])
+            ),
+            "ok".to_string()
+        )
+    );
+    assert_eq!(
+        asks(&home, &napcat, MANAGER, 1005, words, 6).await,
+        done("log-empty", &[]),
+        "只看这个人：他没有记录"
     );
     stopped(home).await;
 }

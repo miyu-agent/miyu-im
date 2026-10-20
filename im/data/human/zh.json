@@ -4,6 +4,7 @@
     "recall": { "name": "撤回" },
     "mute": { "name": "禁言", "subject": "seconds" },
     "kick": { "name": "踢人" },
+    "moderation_log": { "name": "管理记录", "subject": "view" },
     "poke": { "name": "戳一戳" },
     "fetch_media": { "name": "取图和文件", "subject": "msg" },
     "avatar": { "name": "取头像" },

@@ -140,6 +140,24 @@ hidden = true
 name = { en = "Mute tool", zh = "禁言工具", ja = "ミュートツール" }
 description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 能禁言、解禁群成员。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
 
+[settings.qq.admin_log]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Moderation log tool", zh = "查管理记录工具", ja = "管理記録ツール" }
+description = { en = "Let the AI look up this group's moderation records and ranking. Turning it off takes the tool away from the AI.", zh = "让 AI 能查这个群的管理记录和排行榜。关掉以后 AI 没有这件工具。", ja = "AI がこのグループの管理記録とランキングを確認できるようにします。オフにすると AI はこのツールを使えません。" }
+
+[settings.qq.admin_summary]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Member summary", zh = "成员汇总", ja = "メンバーのまとめ" }
+description = { en = "Count mutes and kicks per member and rank them, for the AI and the panel.", zh = "照人数被禁言、被踢的次数，排成榜，给 AI 和面板看。", ja = "メンバーごとのミュートと退出の回数を数えてランキングにし、AI とパネルに見せます。" }
+
 [settings.qq.admin_sync_unmute]
 type = "bool"
 default = true

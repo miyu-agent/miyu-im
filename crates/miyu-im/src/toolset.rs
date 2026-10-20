@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 use miyu_client::ids::ExternalId;
 use miyu_client::protocol::Template;
+use miyu_client::time::{Timestamp, UtcOffset};
 use miyu_client::tooltext::{Access, load};
 use serde_json::{Map, Value, json};
 
@@ -82,6 +83,19 @@ pub fn send_request(args: &Value) -> Option<(To, String)> {
     let text = args["text"].as_str()?.trim();
     let fits = !text.is_empty() && text.chars().count() <= SEND_MOST;
     fits.then(|| (to, text.to_string()))
+}
+
+/// Unix 秒 `at` 照本机此刻的时区写到分钟：`2026-10-20 14:03`（施工 Q-4：管理记录的时刻；时区照核心给会话钉时区的算法）。读不成的
+/// 照 UTC。
+pub fn clock(at: u64) -> String {
+    let minutes = jiff::Zoned::now().offset().seconds() / 60;
+    let offset = UtcOffset::from_minutes(minutes).unwrap_or(UtcOffset::UTC);
+    i64::try_from(at)
+        .ok()
+        .and_then(|at| at.checked_mul(1000))
+        .and_then(Timestamp::from_unix_millis)
+        .map(|at| at.local_minute(offset))
+        .unwrap_or_default()
 }
 
 /// 多久，照人的单位写：天、时、分、秒各一段，`1d 2h 30m 5s`，0 的一段不写（禁言、她自己被禁言的事实都照它）。

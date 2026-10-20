@@ -15,6 +15,7 @@ use serde_json::{Map, Value};
 
 mod acting;
 mod fetch;
+mod log;
 mod lookup;
 mod mention;
 mod moderate;
@@ -41,6 +42,9 @@ pub const POKE: &str = "poke";
 /// 踢人（施工 Q-2，群管理）：只给群。
 pub const KICK: &str = "kick";
 
+/// 查管理记录（施工 Q-4，群管理）：只给群。
+pub const MODERATION_LOG: &str = "moderation_log";
+
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
 pub const FETCH_MEDIA: &str = "fetch_media";
 
@@ -55,7 +59,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 10] = [
+const TOOLS: [Decl; 11] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -74,6 +78,11 @@ const TOOLS: [Decl; 10] = [
     Decl {
         name: KICK,
         access: Access::Venue,
+        venues: &["group"],
+    },
+    Decl {
+        name: MODERATION_LOG,
+        access: Access::Read,
         venues: &["group"],
     },
     Decl {
@@ -109,7 +118,7 @@ const TOOLS: [Decl; 10] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 28] = [
+const ANSWERS: [(&str, &[&str]); 32] = [
     ("skipped", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
@@ -127,6 +136,10 @@ const ANSWERS: [(&str, &[&str]); 28] = [
     ("admin-off", &[]),
     ("kicked", &["who"]),
     ("kicked-blocked", &["who"]),
+    ("log-events", &["shown", "total"]),
+    ("log-ranking", &["period"]),
+    ("log-empty", &[]),
+    ("ranking-off", &[]),
     ("not-found", &[]),
     ("unknown", &["name"]),
     ("saved", &["path"]),
@@ -202,6 +215,7 @@ impl ToolSet for QqTools {
         match tool {
             MUTE => crate::admin::offers_mute(config),
             KICK => crate::admin::offers_kick(config),
+            MODERATION_LOG => crate::admin::offers_log(config),
             _ => true,
         }
     }
@@ -209,6 +223,7 @@ impl ToolSet for QqTools {
     fn plan(&self, call: Call) -> Planned {
         match call.tool.as_str() {
             RECALL | MUTE | POKE | KICK => acting::acting(call),
+            MODERATION_LOG => log::log(call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, self.wait),
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {

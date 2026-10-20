@@ -13,7 +13,7 @@ use crate::admin::{self, records};
 pub(super) const ADMIN_OFF: &str = "admin-off";
 
 /// 理由最多记几个字符（她给的一句话）。
-const REASON: usize = 200;
+pub(super) const REASON: usize = 200;
 
 /// 禁言、踢人当场挡下的：插件在这个群没开着的答 `admin-off`，禁言秒数不在设置的最短、最长中间的答 `bad-seconds`（解禁不管）。别的
 /// 动作、过了的是空的。

@@ -15,15 +15,6 @@ fn muted(at: u64, user: i64) -> Record {
     }
 }
 
-/// 群 `group` 的记录，照先后；写坏了的行跳过。
-fn read(store: &Path, group: i64) -> Vec<Record> {
-    std::fs::read_to_string(file(store, group))
-        .unwrap_or_default()
-        .lines()
-        .filter_map(|line| serde_json::from_str(line).ok())
-        .collect()
-}
-
 fn temp(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("miyu-im-records-{name}-{}", std::process::id()));
     if dir.exists() {

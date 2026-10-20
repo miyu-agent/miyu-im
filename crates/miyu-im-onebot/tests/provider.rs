@@ -19,9 +19,9 @@ fn shipped(name: &str) -> String {
     std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
 }
 
-/// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十件照
-/// 登记的先后，说明、参数照 `onebot/tools/<名字>.json`；`skip_reply`、`members` 是 `read`，别的是 `venue`（在场所里做的事）；禁言、
-/// 踢人、群成员、@ 人只给群。每件带给人看的名字，照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name`，三种语言都有；写了
+/// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十一件照
+/// 登记的先后，说明、参数照 `onebot/tools/<名字>.json`；`skip_reply`、`moderation_log`、`members` 是 `read`，别的是 `venue`（在场所里做的事）；禁言、
+/// 踢人、查管理记录、群成员、@ 人只给群。每件带给人看的名字，照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name`，三种语言都有；写了
 /// `subject` 的带上 `subject`（施工 S-6 上）。
 pub fn shipped_tools() -> Value {
     let read = |name: &str| -> Value { serde_json::from_str(&shipped(name)).expect("是 JSON") };
@@ -50,6 +50,7 @@ pub fn shipped_tools() -> Value {
         entry("recall", "venue", both),
         entry("mute", "venue", group),
         entry("kick", "venue", group),
+        entry("moderation_log", "read", group),
         entry("poke", "venue", both),
         entry("fetch_media", "venue", both),
         entry("avatar", "venue", both),

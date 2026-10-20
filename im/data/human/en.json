@@ -4,6 +4,7 @@
     "recall": { "name": "Recall" },
     "mute": { "name": "Mute", "subject": "seconds" },
     "kick": { "name": "Kick" },
+    "moderation_log": { "name": "Moderation log", "subject": "view" },
     "poke": { "name": "Poke" },
     "fetch_media": { "name": "Fetch media", "subject": "msg" },
     "avatar": { "name": "Avatar" },

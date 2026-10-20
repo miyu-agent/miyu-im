@@ -1,0 +1,4 @@
+{
+  "description": "Look up this group's moderation records, or rank who was moderated most.",
+  "parameters": {"type":"object","properties":{"view":{"type":"string","enum":["events","ranking"]},"user":{"type":"integer","description":"QQ number."},"period":{"type":"string","enum":["week","month","all"]}}}
+}

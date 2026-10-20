@@ -1,5 +1,5 @@
 //! 管理记录（施工 Q-2，设计 02 第一节第 2 条、第四节）：一个群一份 `<驱动的状态目录>/admin/<群号>.jsonl`，一行一条，照先后追加；
-//! 超过「每个群留多少条」（`admin_keep`）的从旧的删。面板、浮窗、查记录的工具都读这一份（施工 Q-4 起）。
+//! 超过「每个群留多少条」（`admin_keep`）的从旧的删。面板、浮窗、查记录的工具都读这一份。
 //!
 //! 写一条是一次读改写（超了要删旧的）：同一个进程里照一把锁排着写，另起阻塞的任务做，不卡跟核心的那一头。写坏了的行读的时候跳过。
 
@@ -85,6 +85,15 @@ pub(crate) async fn append(store: PathBuf, group: i64, record: Record, keep: usi
     if let Ok(Err(error)) | Err(error) = written.map_err(std::io::Error::other) {
         tracing::warn!(target: miyu_im::TARGET, group, error = %error, "moderation record not written");
     }
+}
+
+/// 群 `group` 的记录，照先后（旧的在前）；没有的、读不了的是空的，写坏了的行跳过（施工 Q-4：查记录的工具、面板读它）。
+pub(crate) fn read(store: &Path, group: i64) -> Vec<Record> {
+    std::fs::read_to_string(file(store, group))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect()
 }
 
 /// 读改写：原来的几行（写坏了的跳过）加上这一条，只留最后 `keep` 条，写到旁边再换上。

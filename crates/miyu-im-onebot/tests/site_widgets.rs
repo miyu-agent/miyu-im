@@ -62,12 +62,24 @@ async fn plugin_content_is_fetched_checked_and_localized_for_the_page() {
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
 
-    let card = call(
-        &mut open,
-        1,
-        "plugins.widget",
-        asking("dice", "home", json!({})),
-    )
+    // 桥从软件包列表的订阅里认到插件要一会儿（Windows 上慢过一次，Q-4 补）：认到以前要的回 `bad_params`，等到回了内容。
+    let mut asked = 100;
+    let card = within("认到插件", async {
+        loop {
+            asked += 1;
+            let card = call(
+                &mut open,
+                asked,
+                "plugins.widget",
+                asking("dice", "home", json!({})),
+            )
+            .await;
+            if card["error"]["reason"] != "bad_params" {
+                return card;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
     .await;
     assert_eq!(
         card["result"]["content"][0]["items"][0]["value"], "58",

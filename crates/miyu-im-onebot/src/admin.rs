@@ -10,6 +10,7 @@
 //! - `admin_mute`：禁言工具的开关，默认开。关了的不登记禁言。
 //! - `admin_kick`：踢人工具的开关，默认开（施工 Q-2）。
 //! - `admin_records`：记不记管理记录，默认开；`admin_keep`：每个群留多少条，出厂 500（施工 Q-2，`records`）。
+//! - `admin_log`：查管理记录的工具的开关；`admin_summary`：成员汇总（排行榜）的开关，都默认开（施工 Q-4）。
 //! - `admin_sync_unmute`：别的管理员解禁的也记、也告诉 AI，默认开（施工 Q-3，`sync`）。
 //! - `admin_mute_min`、`admin_mute_max`：最短、最长禁言几分钟（出厂 1、43200，就是 QQ 能禁的最短、最长）。她给的不在这中间的答
 //!   `bad-seconds`，带这两个时长；解禁（0 秒）不管。读不出的照出厂的。
@@ -21,6 +22,7 @@ use miyu_im::plugins::declared::{Links, Ui};
 use miyu_im::plugins::{Builtin, Declared};
 
 pub(crate) mod records;
+pub(crate) mod summary;
 pub(crate) mod sync;
 
 /// 编号。
@@ -49,6 +51,12 @@ pub(crate) const RECORDS: &str = "admin_records";
 
 /// 每个群留多少条记录（施工 Q-2）。
 pub(crate) const KEEP: &str = "admin_keep";
+
+/// 查管理记录的工具的开关（施工 Q-4）。
+pub(crate) const LOG: &str = "admin_log";
+
+/// 成员汇总（排行榜）的开关（施工 Q-4）。
+pub(crate) const SUMMARY: &str = "admin_summary";
 
 /// 同步群里别的管理员的解禁（施工 Q-3）。
 pub(crate) const SYNC_UNMUTE: &str = "admin_sync_unmute";
@@ -113,6 +121,16 @@ pub(crate) fn offers_mute(config: &Map<String, Value>) -> bool {
 /// 踢人工具登记不登记（施工 Q-2）：总开关、踢人工具的开关都开着。
 pub(crate) fn offers_kick(config: &Map<String, Value>) -> bool {
     switched(config, ON) && switched(config, KICK)
+}
+
+/// 查管理记录的工具登记不登记（施工 Q-4）：总开关、这件工具的开关都开着。
+pub(crate) fn offers_log(config: &Map<String, Value>) -> bool {
+    switched(config, ON) && switched(config, LOG)
+}
+
+/// 成员汇总（排行榜）开着没有（施工 Q-4）。
+pub(crate) fn summarizing(config: &Map<String, Value>) -> bool {
+    switched(config, SUMMARY)
 }
 
 /// 记不记管理记录（施工 Q-2）。

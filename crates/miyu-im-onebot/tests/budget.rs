@@ -11,22 +11,24 @@
 //! 加一成，571 个 token，合 1974 字节。施工 O-55 加 `mention`（二十六件一起）：边际份量 66，八件合计 585 个 token、2026 字节；
 //! 预算 643 个 token，合 2228 字节。施工 O-56 加 `chat_send`（二十七件一起）：边际份量 86，九件合计 671 个 token、2294 字节；
 //! 预算 738 个 token，合 2523 字节。施工 Q-2 加 `kick`、给 `mute` 加 `reason`（2026-10-20 同一个端点、同一个办法，驱动的十件一起）：
-//! 边际份量 101、115（`mute` 原来 95），十件合计 1002 个 token、2762 字节；预算是实测加一成，1102 个 token，合 3038 字节。加工具、
-//! 改说明超了，重新量过再改这里和设计。
+//! 边际份量 101、115（`mute` 原来 95），十件合计 1002 个 token、2762 字节；预算是实测加一成，1102 个 token，合 3038 字节。施工 Q-4
+//! 加 `moderation_log`（同一个端点、同一个办法，十一件一起）：第一稿 124，说明删到一句、参数不写说明以后 96；十一件合计 1098 个
+//! token、3071 字节，预算是实测加一成，1208 个 token，合 3378 字节。加工具、改说明超了，重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 3038;
+const BUDGET: usize = 3378;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 10] = [
+const TOOLS: [&str; 11] = [
     "avatar",
     "chat_send",
     "fetch_media",
     "kick",
     "members",
     "mention",
+    "moderation_log",
     "mute",
     "poke",
     "recall",

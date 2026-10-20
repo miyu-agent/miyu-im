@@ -4,6 +4,7 @@
     "recall": { "name": "取り消し" },
     "mute": { "name": "発言禁止", "subject": "seconds" },
     "kick": { "name": "グループから外す" },
+    "moderation_log": { "name": "管理記録", "subject": "view" },
     "poke": { "name": "つつく" },
     "fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
     "avatar": { "name": "アイコン" },
