@@ -17,6 +17,7 @@ mod logins;
 mod logs;
 mod methods;
 mod password;
+mod plugin_settings;
 mod plugins;
 mod request;
 mod save;

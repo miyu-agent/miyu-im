@@ -20,7 +20,11 @@ use crate::core::methods::CARDS_GET;
 use crate::plugins::read_all;
 
 /// 在 `person` 的连接上调核心的 `method`：拒了的交回（原因、原话）。
-async fn core(person: &Person, method: &str, params: Value) -> Result<Value, (String, String)> {
+pub(super) async fn core(
+    person: &Person,
+    method: &str,
+    params: Value,
+) -> Result<Value, (String, String)> {
     person
         .lock()
         .await
@@ -33,6 +37,14 @@ async fn core(person: &Person, method: &str, params: Value) -> Result<Value, (St
 async fn known(person: &Person) -> Result<Vec<Value>, (String, String)> {
     let cards = venues::forward(person, CARDS_GET, &json!({})).await?;
     Ok(cards["plugins"].as_array().cloned().unwrap_or_default())
+}
+
+/// `package` 是不是 im 认得的插件。
+pub(super) async fn is_plugin(person: &Person, package: &str) -> Result<bool, (String, String)> {
+    Ok(known(person)
+        .await?
+        .iter()
+        .any(|plugin| plugin["package"] == package))
 }
 
 /// `plugins.list`（模块的说明）。
@@ -133,11 +145,7 @@ pub(super) async fn readme(
 pub(super) async fn enable(person: &Person, params: &Value) -> Result<Value, (String, String)> {
     let package = params["package"].as_str().ok_or_else(bad)?;
     let on = params["on"].as_bool().ok_or_else(bad)?;
-    if !known(person)
-        .await?
-        .iter()
-        .any(|plugin| plugin["package"] == package)
-    {
+    if !is_plugin(person, package).await? {
         return Err(bad());
     }
     let answer = if on {
@@ -158,7 +166,7 @@ pub(super) async fn enable(person: &Person, params: &Value) -> Result<Value, (St
 }
 
 /// 参数不对。
-fn bad() -> (String, String) {
+pub(super) fn bad() -> (String, String) {
     ("bad_params".to_string(), String::new())
 }
 

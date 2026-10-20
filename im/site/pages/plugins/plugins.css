@@ -45,3 +45,14 @@
   .two { grid-template-columns: minmax(0, 1fr); }
   .detail-head { flex-wrap: wrap; padding: 16px; }
 }
+/* 插件自己的设置（施工 I-9 中）。 */
+.plug-settings .field .row { border-bottom: 1px solid var(--line); }
+.plug-settings .field:last-of-type .row { border-bottom: 0; }
+.plug-settings .area { min-width: 240px; }
+.input.plug-text { width: 220px; }
+.plug-settings-note { margin: 10px 0 0; }
+.plug-settings .inline { flex-wrap: wrap; justify-content: flex-end; }
+.plug-reset { height: 28px; padding: 0 8px; font-size: 12px; }
+@media (max-width: 720px) {
+  .input.plug-text { width: 150px; }
+}

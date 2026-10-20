@@ -1,5 +1,6 @@
-// 插件详情（施工 I-9 上，照样板 d-im.html 的插件详情）：头上图标、名字、编号和版本、主页仓库问题反馈三个链接、总开关；左边两页
-// 「介绍」（README，readme.js）和「用在哪」（每个会话一个开关，同会话浮窗「管理插件」的算法），右边「关于」。
+// 插件详情（施工 I-9 上，照样板 d-im.html 的插件详情）：头上图标、名字、编号和版本、主页仓库问题反馈三个链接、总开关；左边三页
+// 「介绍」（README，readme.js）、「设置」（插件自己的配置项，施工 I-9 中，config-form.js）、「用在哪」（每个会话一个开关，同会话浮窗
+// 「管理插件」的算法），右边「关于」。
 //
 // - README 宿主经桥自己的连接读（plugins.readme），读过的记着，重画时不再读；没写的照一句说明。
 // - 开着、没在跑的（缺批准、失败停下），头下面说一句为什么。
@@ -10,6 +11,7 @@ import { idLine, titleOf } from '../venues/names.js';
 import { fallbacksOf, isOn, named, pluginSwitch } from '../venues/plugins.js';
 import { back } from './plugins.js';
 import { pluginIcon, subtitle, usable } from './card.js';
+import { drawSettings } from './config-form.js';
 import { readme } from './readme.js';
 import { masterSwitch } from './switch.js';
 
@@ -59,7 +61,11 @@ function tabs(plugin, all, context) {
   const panel = element('div', 'panel');
   const seg = element('div', 'seg plug-tabs');
   const body = element('div');
-  const pages = { readme: () => intro(plugin, context.request), where: () => where(plugin, all, context) };
+  const pages = {
+    readme: () => intro(plugin, context.request),
+    settings: () => [drawSettings(plugin.package, context.request)],
+    where: () => where(plugin, all, context),
+  };
   const show = (key) => {
     tab = key;
     for (const button of seg.children) button.classList.toggle('on', button.dataset.tab === key);
