@@ -8,19 +8,21 @@
 //!   `config.set` 写进系统那一层。
 //! - `plugins.call {package, method, params?}` → `package.call` 的回应。
 //!
-//! 都在这份登录的人的连接上（人的权限）；`package` 由页面填（框里的页面写不了），不是 im 插件的不收（`bad_params`）。
+//! 都在这份登录的人的连接上（人的权限）；`package` 由页面填（框里的页面写不了），不是 im 插件的不收（`bad_params`）。驱动带的插件
+//! （施工 I-10 上）的设置是 im 的配置项、键以它的 `settings` 开头（藏起来的，这里照常列，总开关 `<开头>on` 不列）；它没有程序，
+//! `plugins.call` 不收。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
 
 use super::Person;
-use super::plugins::{bad, core, is_plugin};
+use super::plugins::{bad, core, known};
 
 /// `plugins.settings.get`（模块的说明）。
 pub(super) async fn get(person: &Person, params: &Value) -> Result<Value, (String, String)> {
-    let package = plugin(person, params).await?;
-    let items = items(person, &package).await?;
+    let scope = plugin(person, params).await?;
+    let items = items(person, &scope).await?;
     let keys: Vec<&Value> = items.iter().map(|item| &item["key"]).collect();
     let got = match keys.is_empty() {
         true => json!({"items": {}}),
@@ -48,7 +50,8 @@ pub(super) fn values(items: &[Value], got: &Value) -> Value {
 
 /// `plugins.settings.set`（模块的说明）。
 pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (String, String)> {
-    let package = plugin(person, params).await?;
+    let scope = plugin(person, params).await?;
+    let package = scope.package.clone();
     let changes = params["changes"]
         .as_array()
         .filter(|changes| !changes.is_empty())
@@ -56,10 +59,10 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
     if changes.iter().any(|change| !change["key"].is_string()) {
         return Err(bad());
     }
-    if !all_own(&package, changes) {
+    if !all_own(&scope.prefix, changes) {
         return Err(("forbidden".to_string(), String::new()));
     }
-    let items = items(person, &package).await?;
+    let items = items(person, &scope).await?;
     let mut written = Vec::new();
     for change in changes {
         let key = change["key"].as_str().unwrap_or_default();
@@ -87,43 +90,87 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
 
 /// `plugins.call`（模块的说明）。
 pub(super) async fn call(person: &Person, params: &Value) -> Result<Value, (String, String)> {
-    let package = plugin(person, params).await?;
+    let scope = plugin(person, params).await?;
+    if scope.builtin {
+        return Err(bad());
+    }
     let method = params["method"].as_str().ok_or_else(bad)?;
-    let mut args = json!({"package": package, "method": method});
+    let mut args = json!({"package": scope.package, "method": method});
     if let Some(given) = params.get("params").filter(|given| !given.is_null()) {
         args["params"] = given.clone();
     }
     core(person, "package.call", args).await
 }
 
-/// 参数里的 `package`：要是 im 认得的插件。
-async fn plugin(person: &Person, params: &Value) -> Result<String, (String, String)> {
-    let package = params["package"].as_str().ok_or_else(bad)?;
-    if !is_plugin(person, package).await? {
-        return Err(bad());
-    }
-    Ok(package.to_string())
+/// 一个插件的设置在哪：插件的编号、它的配置项的键的开头（软件包是 `<编号>.`，驱动带的是它的 `settings`）、是不是驱动带的。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Scope {
+    pub(super) package: String,
+    pub(super) prefix: String,
+    pub(super) builtin: bool,
 }
 
-/// `config.schema` 里 `package` 是它的项。
-async fn items(person: &Person, package: &str) -> Result<Vec<Value>, (String, String)> {
+/// 参数里的 `package`：要是 im 认得的插件。
+async fn plugin(person: &Person, params: &Value) -> Result<Scope, (String, String)> {
+    let package = params["package"].as_str().ok_or_else(bad)?;
+    let known = known(person).await?;
+    let plugin = known
+        .iter()
+        .find(|plugin| plugin["package"] == package)
+        .ok_or_else(bad)?;
+    Ok(
+        match (plugin["builtin"] == true, plugin["settings"].as_str()) {
+            (true, Some(prefix)) => Scope {
+                package: package.to_string(),
+                prefix: prefix.to_string(),
+                builtin: true,
+            },
+            _ => Scope {
+                package: package.to_string(),
+                prefix: format!("{package}."),
+                builtin: false,
+            },
+        },
+    )
+}
+
+/// `config.schema` 里这个插件的项。
+async fn items(person: &Person, scope: &Scope) -> Result<Vec<Value>, (String, String)> {
     let schema = core(person, "config.schema", json!({})).await?;
-    Ok(schema["items"]
+    Ok(own_items(&schema["items"], scope))
+}
+
+/// `config.schema` 的 `items` 里 `scope` 的项：软件包的照 `package`；驱动带的照键的开头，总开关不列，`hidden` 拿掉（只在插件页改）。
+pub(super) fn own_items(items: &Value, scope: &Scope) -> Vec<Value> {
+    let switch = format!("{}on", scope.prefix);
+    items
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|item| item["package"] == package)
-        .cloned()
-        .collect())
+        .filter(|item| match scope.builtin {
+            true => item["key"]
+                .as_str()
+                .is_some_and(|key| key.starts_with(&scope.prefix) && key != switch),
+            false => item["package"] == scope.package.as_str(),
+        })
+        .map(|item| {
+            let mut item = item.clone();
+            if scope.builtin
+                && let Some(fields) = item.as_object_mut()
+            {
+                fields.remove("hidden");
+            }
+            item
+        })
+        .collect()
 }
 
-/// `changes` 里每一项的键都是 `<package>.` 开头。
-pub(super) fn all_own(package: &str, changes: &[Value]) -> bool {
-    let prefix = format!("{package}.");
+/// `changes` 里每一项的键都是 `prefix` 开头（软件包的是 `<编号>.`）。
+pub(super) fn all_own(prefix: &str, changes: &[Value]) -> bool {
     changes.iter().all(|change| {
         change["key"]
             .as_str()
-            .is_some_and(|key| key.starts_with(&prefix))
+            .is_some_and(|key| key.starts_with(prefix))
     })
 }
 

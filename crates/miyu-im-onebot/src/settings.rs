@@ -16,8 +16,15 @@ const LISTEN: &str = "listen";
 /// 令牌：清单里的名字。
 const TOKEN: &str = "token";
 
-/// 驱动的配置项：清单里的名字（`Driver::settings`）。
-pub const NAMES: &[&str] = &[LISTEN, TOKEN];
+/// 驱动的配置项：清单里的名字（`Driver::settings`）。识人术的四项（施工 I-10 上，`crate::identity`）也是驱动的配置项。
+pub const NAMES: &[&str] = &[
+    LISTEN,
+    TOKEN,
+    crate::identity::ON,
+    crate::identity::ADMIN,
+    crate::identity::CARD,
+    crate::identity::PEOPLE,
+];
 
 /// 其中是密钥的（`Driver::secrets`，施工 I-6 中）。
 pub const SECRETS: &[&str] = &[TOKEN];

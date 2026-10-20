@@ -88,3 +88,90 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     assert_eq!(unknown["error"]["reason"], "bad_params", "{unknown}");
     stopped(home).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_builtin_identity_plugin_is_listed_switched_and_set_from_the_page() {
+    // 施工 I-10 上：OneBot 带的识人术照样列出来（内置、照 im 的版本），总开关、设置都是 im 的配置项，没有程序、不收 plugins.call。
+    let (home, _napcat, _) = started_installed(&Script::new([]), "", MEMBERS, |_| {}).await;
+    let mut head = Head::connect(&home.root).await;
+    let status = head.until("status", |status| status["web"].is_u64()).await;
+    let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
+    let mut open = logged_in(&home.root, web).await;
+    let id = "miyu-im-identity";
+
+    let listed = call(&mut open, 1, "plugins.list", json!({})).await;
+    let identity = one(&listed, id);
+    assert_eq!(identity["builtin"], true, "{identity}");
+    assert_eq!(identity["from"], "builtin", "{identity}");
+    assert_eq!(identity["enabled"], true, "{identity}");
+    assert_eq!(identity["settings"], "im.qq.identity_", "{identity}");
+    assert_eq!(identity["platforms"], json!(["qq"]), "{identity}");
+
+    let off = call(
+        &mut open,
+        2,
+        "plugins.enable",
+        json!({"package": id, "on": false}),
+    )
+    .await;
+    assert_eq!(off["result"]["enabled"], false, "{off}");
+    let listed = call(&mut open, 3, "plugins.list", json!({})).await;
+    assert_eq!(one(&listed, id)["enabled"], false, "{listed}");
+    call(
+        &mut open,
+        4,
+        "plugins.enable",
+        json!({"package": id, "on": true}),
+    )
+    .await;
+
+    let got = call(&mut open, 5, "plugins.settings.get", json!({"package": id})).await;
+    let keys: Vec<&str> = got["result"]["items"]
+        .as_array()
+        .expect("有项")
+        .iter()
+        .filter_map(|item| item["key"].as_str())
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            "im.qq.identity_admin",
+            "im.qq.identity_card",
+            "im.qq.identity_people"
+        ],
+        "总开关不列：{got}"
+    );
+    assert!(got["result"]["items"][0].get("hidden").is_none(), "{got}");
+    let people = json!([{"key": "im.qq.identity_people", "value": ["主人=10001"]}]);
+    let saved = call(
+        &mut open,
+        6,
+        "plugins.settings.set",
+        json!({"package": id, "changes": people}),
+    )
+    .await;
+    assert!(saved["result"]["keys"].is_object(), "{saved}");
+    let got = call(&mut open, 7, "plugins.settings.get", json!({"package": id})).await;
+    assert_eq!(
+        got["result"]["values"]["im.qq.identity_people"],
+        json!(["主人=10001"])
+    );
+    let others = json!([{"key": "im.qq.listen", "value": 9000}]);
+    let refused = call(
+        &mut open,
+        8,
+        "plugins.settings.set",
+        json!({"package": id, "changes": others}),
+    )
+    .await;
+    assert_eq!(refused["error"]["reason"], "forbidden", "{refused}");
+    let called = call(
+        &mut open,
+        9,
+        "plugins.call",
+        json!({"package": id, "method": "x"}),
+    )
+    .await;
+    assert_eq!(called["error"]["reason"], "bad_params", "{called}");
+    stopped(home).await;
+}

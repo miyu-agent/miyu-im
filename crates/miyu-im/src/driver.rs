@@ -13,6 +13,7 @@ use crate::changed::Changed;
 use crate::chat::{Bots, Cap, Event, Platform, To};
 use crate::core::hooks::Hooks;
 use crate::current::Current;
+use crate::plugins::Builtin;
 use crate::serve::{Failure, Notice};
 use crate::tuning::Tuning;
 
@@ -52,6 +53,11 @@ pub trait Driver: Send + Sync {
     /// 能贴的表情（施工 I-7 中三下二）：空的是这个平台不支持贴表情，页面上不出那一格。
     fn reactions(&self) -> &'static [Reaction] {
         &[]
+    }
+
+    /// 驱动自己带的 im 插件（施工 I-10 上，[`Builtin`]）：照样是插件（声明、场所开关、插件页），卸不掉；OneBot 带识人术。
+    fn builtins(&self) -> Vec<Arc<dyn Builtin>> {
+        Vec::new()
     }
 
     /// 照 [`Gate::config`] 起来（OneBot：开好端口、说听上了），交回跑着的那一段。起不来的（端口被占、听不了、配置里缺必须的

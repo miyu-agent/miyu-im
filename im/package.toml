@@ -81,6 +81,46 @@ applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
 description = { en = "The token NapCat shows when it connects, the same one as in NapCat. Without it NapCat is refused. Paste it on the Connect Messaging page (miyu im web).", zh = "NapCat 连进来时要出示的验证 Token，和 NapCat 那边的一样。没设的，NapCat 连进来会被拒。在接入通讯平台的页面上粘贴（miyu im web）。", ja = "NapCat が接続するときに示す認証トークンで、NapCat 側と同じものです。未設定だと NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）で貼り付けます。" }
 
+# 识人术（施工 I-10 上，设计 01 第一节第 22 条）：OneBot 驱动带的插件，设置是驱动的配置项，藏起来，只在 im 页面的插件页「识人术」的
+# 「设置」里改；总开关是插件页上的开关。
+[settings.qq.identity_on]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Identity on", zh = "识人术开着", ja = "なりすまし防止を使う" }
+description = { en = "The switch of the Identity plugin.", zh = "识人术插件的总开关。", ja = "なりすまし防止プラグインのスイッチです。" }
+
+[settings.qq.identity_admin]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Protect the terminal admin's name", zh = "保护终端管理员的名字", ja = "端末管理者の名前を守る" }
+description = { en = "When someone uses the terminal admin's name with another number, remind the AI.", zh = "有人用了终端管理员的名字、号却对不上，提醒 AI", ja = "端末管理者の名前を別の番号の人が使ったら AI に伝えます。" }
+
+[settings.qq.identity_card]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Protect the AI's own group card", zh = "保护 AI 自己的群名片", ja = "AI 自身のグループ名を守る" }
+description = { en = "When someone changes their group card to the AI's, remind the AI.", zh = "有人把群名片改成和 AI 一样，提醒 AI", ja = "グループ名を AI と同じにした人がいたら AI に伝えます。" }
+
+[settings.qq.identity_people]
+type = "list"
+element = "text"
+max = 128
+default = []
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "People and numbers", zh = "识人映射", ja = "人と番号の対応" }
+description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字对上、号码对不上的，提醒 AI 这不是那个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
+
 # 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。
 [settings.web.port]

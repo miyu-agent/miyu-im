@@ -60,10 +60,16 @@ fn the_shipped_manifest_gives_the_default_port() {
         defaults(),
         Defaults {
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
-            driver: keys(json!({"listen": 8301})),
+            driver: keys(json!({
+                "listen": 8301,
+                "identity_on": true,
+                "identity_admin": true,
+                "identity_card": true,
+                "identity_people": [],
+            })),
             site: keys(json!({"port": 8302})),
         },
-        "令牌没写默认值，不放；页面服务的端口出厂 8302（施工 I-5 上）"
+        "令牌没写默认值，不放；识人术的四项出厂开着、映射空的（施工 I-10 上）；页面服务的端口出厂 8302（施工 I-5 上）"
     );
 }
 

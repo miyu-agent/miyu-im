@@ -1,10 +1,12 @@
 //! 认得的 im 插件，交给会话浮窗「管理插件」（施工 I-7 中四）和插件页（施工 I-9 上）：每个 `{package, name, summary, default}`（名字、说明
 //! 是语言到字的表，页面照语言挑），声明里写了的另带 `icon`、`links`（`homepage`、`repository`、`issues`、`readme`）、`platforms`、
 //! `needs`（能力的名字）、`ui`（往 im 的页面加的：`home`、`panel`、`pages` 每个 `{id, title, method}`，施工 I-8 下；都没写的不带）。在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`），缺能力的还带 `missing`（缺的那几样）；
-//! 声明读不成的只有编号和 `unusable`。
+//! 声明读不成的只有编号和 `unusable`。驱动带的（施工 I-10 上）另带 `builtin: true`、`settings`（它的配置项的键的开头，例如
+//! `im.qq.identity_`：总开关是 `<开头>on`）。
 
 use serde_json::{Map, Value, json};
 
+use crate::PACKAGE;
 use crate::chat::{Cap, Platform};
 use crate::plugins::{Plugins, Unusable};
 
@@ -51,6 +53,10 @@ pub(super) fn listed(plugins: &Plugins, platform: Platform, caps: &[Cap]) -> Vec
                 }
                 Err(_) => json!({"package": package}),
             };
+            if let Some(prefix) = plugins.builtin(package) {
+                one["builtin"] = json!(true);
+                one["settings"] = json!(format!("{PACKAGE}.{}.{prefix}", platform.name()));
+            }
             if let Err(why) = plugins.usable(package, platform, caps) {
                 one["unusable"] = json!(match &why {
                     Unusable::NotAPlugin | Unusable::Broken(_) => "broken",

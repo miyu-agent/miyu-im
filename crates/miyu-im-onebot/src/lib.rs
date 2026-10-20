@@ -2,6 +2,7 @@
 //! 事件和动作怎么认、怎么拼（[`onebot`]），宿主要做的事照 OneBot 办（[`onebot::Wire`]）。宿主 `miyu-im` 不依赖这里；程序
 //! `miyu-im`（`main.rs`）把 [`OneBot`] 交给宿主。
 
+mod identity;
 mod listen;
 pub mod onebot;
 pub mod settings;

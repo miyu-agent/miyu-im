@@ -196,6 +196,7 @@ pub async fn run(
         core.caller(),
         serve.tuning.hook(),
         (platform, serve.driver.caps()),
+        (serve.driver.builtins(), current.driver()),
     ));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let changed = Arc::new(Changed::new());

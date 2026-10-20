@@ -1,9 +1,8 @@
-//! 冒充提醒（施工 O-53，`onebot.md` 第一条「冒充提醒」，2026-10-17 项目主人定：识人术，免得她在群里被别人借名字带着走）：群里一个人
-//! 的名字里含着终端管理员在这个群用过的名字、或者她自己的名字（群成员缓存里她的群名片），他又不是那个人，就在他这一条记下以后
-//! 经核心的 `session.note` 记一块 `impostor` 事实（模板 `facts/impostor.txt`，给模型看的字，登记在 `docs/ledger.md`），写着
-//! 哪一条、借的是谁的名字。
+//! 冒充提醒（施工 O-53，`onebot.md` 第一条「冒充提醒」，2026-10-17 项目主人定：识人术，免得她在群里被别人借名字带着走；施工 I-10 上：
+//! 认借没借挪进驱动带的插件，`crate::plugins::Builtin::impostor`，OneBot 的识人术）：群里一个人这一条记下以后，这里交给开着的驱动带的
+//! 插件（终端管理员在这个群用过的名字、她自己的群名片一起交过去），说借了谁的名字的，经核心的 `session.note` 记一块 `impostor` 事实
+//! （模板 `facts/impostor.txt`，给模型看的字，登记在 `docs/ledger.md`），写着哪一条、借的是谁的名字。
 //!
-//! - 比法照旧版：都转小写、去掉空白，含着就算（不止一模一样：「老板本人」「米尤bot」也算）；不到两个字的名字不比（一个字到处撞）。
 //! - 同一个人借同一个名字，这个群这次桥起来只记一块；换了名字、换了人再记。
 //! - 终端管理员自己（小号也是：问到的对应表、在这个群说过的话带 `account` 的）不算；白名单成员照算。
 
@@ -16,29 +15,10 @@ use serde_json::json;
 use super::Route;
 use crate::TARGET;
 use crate::core::{Gone, reason};
+use crate::plugins::Seen;
 
 /// 冒充提醒那一块事实的 `kind`。
 const IMPOSTOR: &str = "impostor";
-
-/// 比的名字最少几个字（去掉空白以后）。
-const SHORTEST: usize = 2;
-
-/// 照这一种写法比：转小写、去掉空白。
-fn folded(name: &str) -> String {
-    name.chars()
-        .filter(|char| !char.is_whitespace())
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-/// `name` 借了 `protected` 里哪一个（纯逻辑）：照 [`folded`] 比，含着就算；不到 [`SHORTEST`] 个字的不比；借了几个的取头一个。
-pub(super) fn borrowed<'a>(name: &str, protected: &'a [String]) -> Option<&'a String> {
-    let name = folded(name);
-    protected.iter().find(|one| {
-        let one = folded(one);
-        one.chars().count() >= SHORTEST && name.contains(&one)
-    })
-}
 
 /// 记过的：群会话、发的人、借的名字；问过她群名片的群（缓存里没有的每个群只问一次 NapCat，问不到的不再问）。
 #[derive(Debug, Default)]
@@ -72,13 +52,18 @@ impl Route {
         if projection.is_admin(sender) {
             return Ok(());
         }
-        let mut protected = projection.admin_names();
+        let admin_names = projection.admin_names();
         // 她自己的群名片：缓存里没有的每个群问一次 NapCat（问到的记进缓存，问不到的不再问）。
         let mut asking = self.impostors.asked.insert(group);
-        if let Some(mine) = self.member(group, bot, bot, &mut asking).await {
-            protected.push(mine);
-        }
-        let Some(claimed) = borrowed(name, &protected).cloned() else {
+        let own_card = self.member(group, bot, bot, &mut asking).await;
+        let number = sender.as_str().rsplit(':').next().unwrap_or_default();
+        let seen = Seen {
+            name,
+            number,
+            admin_names: &admin_names,
+            own_card: own_card.as_deref(),
+        };
+        let Some(claimed) = self.hooks.impostor(group, &seen) else {
             return Ok(());
         };
         let key = (
@@ -111,6 +96,3 @@ impl Route {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests;

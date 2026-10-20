@@ -9,6 +9,9 @@
 //! - `plugins.enable {package, on, approve?}` → 核心回的那一项：人的连接上 `package.enable`（`approve` 是要一并批准的能力的编号，
 //!   照传；还有没批的核心拒 `needs_approval`）或 `package.disable`。不是 im 插件的、`approve` 不是字的列表的 `bad_params`。
 //!
+//! 驱动带的插件（施工 I-10 上，`builtin: true`）不是软件包：`plugins.list` 的 `enabled` 照它的总开关（配置项 `<settings>on`，没写的开），
+//! `from` 是 `builtin`，版本、作者照 im 的包，挂在进站；`plugins.enable` 改那个配置项（写进系统那一层）。
+//!
 //! 读核心的都在这份登录的人的连接上（人的权限，设计第九节第 2 条）。
 
 use serde_json::{Map, Value, json};
@@ -53,9 +56,26 @@ pub(super) async fn list(site: &Site, person: &Person) -> Result<Value, (String,
     let hidden = home_cards::hidden(&site.root);
     let packages = core(person, "package.list", json!({})).await?;
     let extensions = core(person, "extension.status", json!({})).await?;
+    let switches: Vec<String> = known
+        .iter()
+        .filter(|plugin| plugin["builtin"] == true)
+        .filter_map(|plugin| Some(format!("{}on", plugin["settings"].as_str()?)))
+        .collect();
+    let switched = match switches.is_empty() {
+        true => json!({"items": {}}),
+        false => core(person, "config.get", json!({"keys": switches})).await?,
+    };
+    let own = packages["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|entry| entry["package"] == crate::PACKAGE)
+        .cloned()
+        .unwrap_or(Value::Null);
     let plugins: Vec<Value> = known
         .into_iter()
         .map(|plugin| merged(plugin, &packages["packages"], &extensions["extensions"]))
+        .map(|plugin| builtin(plugin, &switched, &own))
         .map(|mut plugin| {
             if plugin["ui"]["home"] == true {
                 let package = plugin["package"].as_str().unwrap_or_default();
@@ -114,6 +134,30 @@ pub(super) fn merged(mut plugin: Value, packages: &Value, extensions: &Value) ->
     plugin
 }
 
+/// 驱动带的插件 `plugin`（不是的原样交回）：`enabled` 照 `config.get` 的回答 `switched` 里它的总开关（没有的开），`from` 是
+/// `builtin`，版本、作者照 im 的包 `own`（`package.list` 的那一项），挂在进站、在跑。
+pub(super) fn builtin(mut plugin: Value, switched: &Value, own: &Value) -> Value {
+    if plugin["builtin"] != true {
+        return plugin;
+    }
+    let switch = format!("{}on", plugin["settings"].as_str().unwrap_or_default());
+    let enabled = switched["items"][&switch]["value"]
+        .as_bool()
+        .unwrap_or(true);
+    let Some(shown) = plugin.as_object_mut() else {
+        return plugin;
+    };
+    copy(shown, own, &["version", "author"]);
+    shown.insert("enabled".into(), json!(enabled));
+    shown.insert("from".into(), json!("builtin"));
+    shown.insert("points".into(), json!(["chat.inbound"]));
+    shown.insert(
+        "status".into(),
+        json!(if enabled { "running" } else { "stopped" }),
+    );
+    plugin
+}
+
 /// 把 `from` 里写了的 `keys` 抄进 `into`。
 fn copy(into: &mut Map<String, Value>, from: &Value, keys: &[&str]) {
     for key in keys {
@@ -153,8 +197,22 @@ pub(super) async fn readme(
 pub(super) async fn enable(person: &Person, params: &Value) -> Result<Value, (String, String)> {
     let package = params["package"].as_str().ok_or_else(bad)?;
     let on = params["on"].as_bool().ok_or_else(bad)?;
-    if !is_plugin(person, package).await? {
-        return Err(bad());
+    let known = known(person).await?;
+    let plugin = known
+        .iter()
+        .find(|plugin| plugin["package"] == package)
+        .ok_or_else(bad)?;
+    if plugin["builtin"] == true {
+        let key = format!("{}on", plugin["settings"].as_str().ok_or_else(bad)?);
+        let change = json!({"key": key, "value": on});
+        core(
+            person,
+            "config.set",
+            json!({"layer": "system", "changes": [change]}),
+        )
+        .await?;
+        tracing::info!(target: crate::TARGET, package, on, "builtin plugin switched from the page");
+        return Ok(json!({"package": package, "enabled": on}));
     }
     let answer = if on {
         let mut args = json!({"package": package});

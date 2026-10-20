@@ -437,10 +437,11 @@ pub fn ports_config(listen: u16) -> String {
     ports_config_with(listen, "")
 }
 
-/// 同 [`ports_config`]，`[im]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。
+/// 同 [`ports_config`]，`[im]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。驱动的两项写成 `qq.listen`、`qq.token`（不另开
+/// `[im.qq]` 表），`onebot` 里也能写 `qq.` 开头的驱动配置项（施工 I-10 上：识人术的设置）。
 pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
-        "\n[im]\n{onebot}\n[im.qq]\nlisten = {listen}\ntoken = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
+        "\n[im]\n{onebot}\nqq.listen = {listen}\nqq.token = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
         free_port()
     )
 }

@@ -2,7 +2,7 @@
 
 use serde_json::json;
 
-use super::{all_own, secret_name, values};
+use super::{Scope, all_own, own_items, secret_name, values};
 
 #[test]
 fn values_fall_back_to_the_default_then_null() {
@@ -21,15 +21,52 @@ fn values_fall_back_to_the_default_then_null() {
 #[test]
 fn only_own_keys_may_be_changed() {
     assert!(all_own(
-        "dice",
+        "dice.",
         &[json!({"key": "dice.sides"}), json!({"key": "dice.a.b"})]
     ));
     assert!(!all_own(
-        "dice",
+        "dice.",
         &[json!({"key": "dice.sides"}), json!({"key": "dicer.x"})]
     ));
-    assert!(!all_own("dice", &[json!({"key": "dice"})]));
-    assert!(!all_own("dice", &[json!({"value": 1})]));
+    assert!(!all_own("dice.", &[json!({"key": "dice"})]));
+    assert!(!all_own("dice.", &[json!({"value": 1})]));
+    assert!(all_own(
+        "im.qq.identity_",
+        &[json!({"key": "im.qq.identity_people"})]
+    ));
+    assert!(!all_own(
+        "im.qq.identity_",
+        &[json!({"key": "im.qq.listen"})]
+    ));
+}
+
+#[test]
+fn a_builtin_plugin_lists_its_own_hidden_items_but_not_its_switch() {
+    // 施工 I-10 上：驱动带的插件照键的开头找，总开关不列，藏起来的照列（拿掉 hidden）。
+    let items = json!([
+        {"key": "im.qq.identity_on", "package": "im", "hidden": true},
+        {"key": "im.qq.identity_admin", "package": "im", "hidden": true},
+        {"key": "im.qq.listen", "package": "im"},
+        {"key": "dice.sides", "package": "dice"},
+    ]);
+    let builtin = Scope {
+        package: "miyu-im-identity".into(),
+        prefix: "im.qq.identity_".into(),
+        builtin: true,
+    };
+    assert_eq!(
+        own_items(&items, &builtin),
+        [json!({"key": "im.qq.identity_admin", "package": "im"})]
+    );
+    let package = Scope {
+        package: "dice".into(),
+        prefix: "dice.".into(),
+        builtin: false,
+    };
+    assert_eq!(
+        own_items(&items, &package),
+        [json!({"key": "dice.sides", "package": "dice"})]
+    );
 }
 
 #[test]

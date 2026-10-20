@@ -3,22 +3,26 @@
 //! （`load`）。插件在一个平台上能不能用照它声明的 `platforms`、`needs` 和驱动的能力表算（[`Plugins::usable`]）；在一个场所
 //! 开没开照场所卡片（`crate::rules` 的卡片，[`Toggles`]）。挂接点只问能用、开着的（`crate::core::hooks`）。
 
+mod builtin;
 pub mod declared;
 mod load;
 mod toggles;
 
 use std::collections::BTreeMap;
 
+pub use builtin::{Builtin, Seen};
 pub use declared::Declared;
 pub(crate) use load::{load, read_all};
 pub use toggles::Toggles;
 
 use crate::chat::{Cap, Platform};
 
-/// 认得的插件：包的编号到它的声明，读不成的是为什么。
+/// 认得的插件：包的编号到它的声明，读不成的是为什么；驱动带的（施工 I-10 上，[`Builtin`]）另记设置项的开头。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Plugins {
     known: BTreeMap<String, Result<Declared, String>>,
+    /// 驱动带的：编号到设置项名字的开头。
+    builtin: BTreeMap<String, &'static str>,
 }
 
 /// 插件在一个平台上用不了的原因。
@@ -37,7 +41,27 @@ pub enum Unusable {
 impl Plugins {
     /// 照读到的 `known`（包的编号到声明或为什么读不成）。
     pub fn new(known: BTreeMap<String, Result<Declared, String>>) -> Plugins {
-        Plugins { known }
+        Plugins {
+            known,
+            builtin: BTreeMap::new(),
+        }
+    }
+
+    /// 并上驱动带的 `builtins`：照软件包一样认，编号撞了的照驱动带的。
+    #[must_use]
+    pub fn with_builtins(mut self, builtins: &[std::sync::Arc<dyn Builtin>]) -> Plugins {
+        for builtin in builtins {
+            self.known
+                .insert(builtin.id().to_string(), Ok(builtin.declared()));
+            self.builtin
+                .insert(builtin.id().to_string(), builtin.settings());
+        }
+        self
+    }
+
+    /// `package` 是驱动带的：交回它设置项名字的开头；软件包、不认得的是空的。
+    pub fn builtin(&self, package: &str) -> Option<&'static str> {
+        self.builtin.get(package).copied()
     }
 
     /// 包 `package` 的声明；不是插件、读不成的是空的。

@@ -23,10 +23,11 @@ export function pluginCard(plugin, context) {
   return card;
 }
 
-/** 编号、版本（出厂的写「出厂」）。 */
+/** 编号、版本（出厂的写「出厂」，驱动带的写「内置」，施工 I-10 上）。 */
 export function subtitle(plugin) {
   const parts = [plugin.package];
-  if (plugin.from === 'shipped') parts.push(say('plugins-page/shipped'));
+  if (plugin.builtin) parts.push(say('plugins-page/builtin'));
+  else if (plugin.from === 'shipped') parts.push(say('plugins-page/shipped'));
   else if (plugin.version) parts.push(plugin.version);
   return parts.join(' · ');
 }

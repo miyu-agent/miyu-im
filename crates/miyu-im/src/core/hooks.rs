@@ -12,11 +12,12 @@
 //!   进算分的 `bonus`（[`Hooks::score`]）。
 
 use std::collections::BTreeMap;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use futures_util::future::join_all;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
+use tokio::sync::watch;
 
 use super::caller::Caller;
 use super::reason;
@@ -24,7 +25,7 @@ use crate::TARGET;
 use miyu_chat::VenueKind;
 
 use crate::chat::{Cap, Platform, To};
-use crate::plugins::{Plugins, Toggles};
+use crate::plugins::{Builtin, Plugins, Toggles};
 use follow::Followed;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
@@ -123,6 +124,9 @@ impl Steered {
     }
 }
 
+/// 驱动带的插件和驱动这一刻的配置（施工 I-10 上，[`Hooks::new`]）。
+pub(crate) type Builtins = (Vec<Arc<dyn Builtin>>, watch::Receiver<Map<String, Value>>);
+
 /// 谁挂在哪：包的编号到它导出的挂接点。
 pub(crate) struct Hooks {
     /// 经它发 `package.call`：并着发，不等跟核心的那一头手上的事。
@@ -137,24 +141,31 @@ pub(crate) struct Hooks {
     plugins: Mutex<Plugins>,
     /// 场所开关（施工 I-8 上）：只问在那个场所开着的。
     toggles: Mutex<Toggles>,
+    /// 驱动带的插件（施工 I-10 上，[`builtins`]）。
+    builtins: Vec<Arc<dyn Builtin>>,
+    /// 驱动这一刻的配置：驱动带的插件的设置照它（[`builtins`]）。
+    driver: watch::Receiver<Map<String, Value>>,
     /// 在跑、导出了挂接点的包，照编号排；跟着软件包列表走的先后（[`follow`]）。
     hooked: Mutex<Followed>,
 }
 
 impl Hooks {
-    /// 还没看过软件包列表的一份：哪一处都没挂、一个插件都不认得；问进站挂接点每个最多等 `wait`；参数带的平台是 `platform`，它的
-    /// 能力表是 `caps`。
+    /// 还没看过软件包列表的一份：哪一处都没挂，只认得驱动带的插件 `builtins`（它们的设置照驱动的配置 `driver`）；问进站挂接点
+    /// 每个最多等 `wait`；参数带的平台是 `platform`，它的能力表是 `caps`。
     pub(crate) fn new(
         caller: Caller,
         wait: Duration,
         (platform, caps): (Platform, &'static [Cap]),
+        (builtins, driver): Builtins,
     ) -> Hooks {
         Hooks {
             caller,
             wait,
             platform,
             caps,
-            plugins: Mutex::new(Plugins::default()),
+            plugins: Mutex::new(Plugins::default().with_builtins(&builtins)),
+            builtins,
+            driver,
             toggles: Mutex::new(Toggles::default()),
             hooked: Mutex::new(Followed::default()),
         }
@@ -186,6 +197,7 @@ impl Hooks {
 
     /// 认得的插件换成 `plugins`（施工 I-8 上：起来时、核心推 `content.changed` 时读的）。
     pub(crate) fn set_plugins(&self, plugins: Plugins) {
+        let plugins = plugins.with_builtins(&self.builtins);
         *self.plugins.lock().unwrap_or_else(PoisonError::into_inner) = plugins;
     }
 
@@ -451,6 +463,7 @@ fn points(entry: &Value) -> Vec<&'static str> {
         .collect()
 }
 
+mod builtins;
 mod follow;
 mod listed;
 

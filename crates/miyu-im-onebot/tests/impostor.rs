@@ -91,5 +91,65 @@ async fn borrowing_the_admins_or_her_name_is_noted_once() {
     assert_eq!(noted(&events).len(), 2, "{:?}", noted(&events));
     // 判断照旧：只记下，不开轮。
     assert!(of_kind(&events, "turn.started").is_empty());
+    // 在这个群关掉识人术（施工 I-10 上：场所开关照软件包插件的算，「陌生群」卡上的开关）：再有人借也不记。
+    let mut head = crate::support::head::Head::connect(&home.root).await;
+    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-identity": false}}});
+    let saved = head.page_call_with("cards.save_one", off).await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    says(&napcat, 20011, "老板二号", 8);
+    let events = until_decided(&home, 8).await;
+    assert_eq!(noted(&events).len(), 2, "关了不记：{:?}", noted(&events));
+    stopped(home).await;
+}
+
+/// 照网页、命令行的样子改系统配置。
+async fn set(home: &Home, changes: Value) {
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    core.call(
+        "i10",
+        "config.set",
+        json!({"layer": "system", "changes": changes}),
+    )
+    .await
+    .unwrap_or_else(|refused| panic!("config.set 被拒：{refused}"));
+}
+
+#[tokio::test]
+async fn the_identity_plugin_follows_its_settings_and_the_people_map() {
+    // 施工 I-10 上：认借没借挪进 OneBot 带的识人术插件，照它的设置：识人映射、保护群名片关了、总开关关了。
+    let settings = "qq.identity_people = [\"阿杰=20008\"]\nqq.identity_card = false\n";
+    let (home, napcat, _) = started(&Script::new([]), RULES, settings, MEMBERS).await;
+    // 映射里阿杰是 20008：本人不算，别人叫「阿杰的朋友」算。
+    says(&napcat, 20008, "阿杰", 1);
+    says(&napcat, 20009, "阿杰的朋友", 2);
+    let events = until_decided(&home, 2).await;
+    assert_eq!(noted(&events), [fact(2, "阿杰")]);
+    // 保护群名片关了：叫「米尤」不算。
+    says(&napcat, WANG, "米尤", 3);
+    let events = until_decided(&home, 3).await;
+    assert_eq!(noted(&events).len(), 1, "{:?}", noted(&events));
+    // 总开关关了：借了映射里的名字也不记。
+    set(&home, json!([{"key": "im.qq.identity_on", "value": false}])).await;
+    // 配置推到桥要一会儿：每次换一个人借「阿杰」（同一个人只记一次），直到有一条没记，就是关上了；之后的一条也不该记。
+    let mut message = 4;
+    loop {
+        let before = noted(&until_decided(&home, message - 1).await).len();
+        says(&napcat, 30000 + message, "我是阿杰", message);
+        let after = noted(&until_decided(&home, message).await).len();
+        if after == before {
+            break;
+        }
+        assert!(message < 40, "总开关一直没关上");
+        message += 1;
+    }
+    says(&napcat, 31000, "阿杰本尊", 99);
+    let events = until_decided(&home, 99).await;
+    assert!(
+        noted(&events).iter().all(|text| !text.contains("99")),
+        "{:?}",
+        noted(&events)
+    );
     stopped(home).await;
 }
