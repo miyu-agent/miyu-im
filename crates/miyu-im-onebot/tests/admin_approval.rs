@@ -6,7 +6,6 @@ use serde_json::{Value, json};
 use crate::support::group::*;
 use crate::support::judge;
 use crate::support::platform::*;
-use crate::support::speaking::Lines;
 use crate::support::*;
 
 /// 写这个群的通过条件。
