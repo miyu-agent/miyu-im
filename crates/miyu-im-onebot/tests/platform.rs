@@ -185,7 +185,7 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
     let words = json!([at(MEMBER), plain(" 禁一个月")]);
     assert_eq!(
         asks(&home, &napcat, MANAGER, 207, words, 6).await,
-        refused("bad-seconds", &[])
+        refused("bad-seconds", &[("min", "1m"), ("max", "30d")])
     );
     // 30 天是上限。
     let words = json!([at(MEMBER), plain(" 禁三十天")]);

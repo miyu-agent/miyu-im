@@ -38,7 +38,7 @@ pub(crate) use caller::Caller;
 use caller::{Waiting, Writer, write_line};
 use methods::Methods;
 use provider::Heard;
-pub(crate) use provider::{Answerer, provide};
+pub(crate) use provider::{Answerer, follow, provide};
 
 /// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]

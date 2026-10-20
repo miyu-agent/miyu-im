@@ -9,6 +9,7 @@ use miyu_im::chat::{CallError, Msg, To};
 use miyu_im::toolset::{Call, Missed, Planned, duration, message};
 
 use super::target::{Caller, Order, Plan, Scene, Why, plan, recallable};
+use crate::admin;
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -29,9 +30,31 @@ pub(super) fn acting(call: Call) -> Planned {
     };
     let act = match act(&call, decided) {
         Ok(act) => act,
+        Err(Why::BadSeconds) => return Planned::Now(bad_seconds(&call)),
         Err(why) => return Planned::Now(call.answers.say(why.name(), &[], true)),
     };
+    // 禁言归群管理（施工 Q-1）：插件在这个群开着才做，秒数照设置的最短、最长（解禁不管）。
+    if let Act::Mute { seconds, .. } = act {
+        if !call.plugins.contains(&admin::ID) {
+            return Planned::Now(call.answers.say(ADMIN_OFF, &[], true));
+        }
+        let (min, max) = admin::mute_range(&call.config);
+        if seconds != 0 && !(min..=max).contains(&seconds) {
+            return Planned::Now(bad_seconds(&call));
+        }
+    }
     Planned::later(async move { answered(&call, &act, done(&call, &act).await) })
+}
+
+/// 群管理在这个群没生效（插件关着、她不是管理员）答的那一句（施工 Q-1）。
+const ADMIN_OFF: &str = "admin-off";
+
+/// 秒数写错、出了范围答的那一句：带设置的最短、最长（施工 Q-1）。
+fn bad_seconds(call: &Call) -> Value {
+    let (min, max) = admin::mute_range(&call.config);
+    let (min, max) = (duration(min), duration(max));
+    call.answers
+        .say("bad-seconds", &[("min", &min), ("max", &max)], true)
 }
 
 /// 对谁做：群里照叫她做的那一条，私聊里照对方、最近一条的引用。私聊里的禁言是空的。
@@ -105,7 +128,14 @@ async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
             group,
             user,
             seconds,
-        } => link.mute(*group, *user, *seconds).await,
+        } => {
+            // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。
+            let me = link.member(*group, call.bot).await.map_err(undone)?;
+            if !admin::ranked(me.rank) {
+                return Err(Undone(ADMIN_OFF, None));
+            }
+            link.mute(*group, *user, *seconds).await
+        }
         Act::Poke(user) => link.poke(call.to, *user).await,
     };
     result.map_err(undone)

@@ -37,7 +37,7 @@ use crate::core::methods::{Methods, register};
 use crate::core::route::{
     Asking, Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots,
 };
-use crate::core::{Core, provide};
+use crate::core::{Core, follow, provide};
 use crate::counters::{self, Counters};
 use crate::current::Current;
 use crate::driver::{Driver, Gate, Reported};
@@ -163,8 +163,6 @@ pub async fn run(
     )
     .await?;
     shaken(&core.language);
-    // 登记桥的工具（施工 O-26）：写出去就接着起来，之后的 `venue.session` 造的会话就有它们。
-    let provided = provide(&core.caller(), &tools).await;
     // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。跟核心的那一头每一条消息照它套场所（施工 O-22）。
     let venues = Venues::new(
         serve.factory,
@@ -186,6 +184,12 @@ pub async fn run(
         serve.defaults.site,
         Configured::handed(&core.config),
     ));
+    // 登记桥的工具（施工 O-26）：写出去就接着起来，之后的 `venue.session` 造的会话就有它们。驱动的配置变了照它重新登记（施工 Q-1）。
+    let mut driver_config = current.driver();
+    let config = driver_config.borrow_and_update().clone();
+    let provided = provide(&core.caller(), &tools, &config).await;
+    let first = tools.provided(&config);
+    let following = follow(core.caller(), Arc::clone(&tools), driver_config, first);
     let reported = Arc::new(Reported::default());
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
     let told = Arc::clone(&tell);
@@ -262,6 +266,10 @@ pub async fn run(
             None
         });
     }
+    tasks.spawn(async move {
+        following.await;
+        None
+    });
     if let Some(registered) = registered {
         tasks.spawn(async move {
             registered.await;

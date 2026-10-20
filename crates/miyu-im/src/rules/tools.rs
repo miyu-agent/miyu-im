@@ -16,7 +16,7 @@ use miyu_client::protocol::Template;
 use miyu_client::settings::problem::Code;
 use miyu_client::tooltext::Spec;
 use miyu_client::tooltext::load::{self, LoadError};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use super::files;
 use super::names::{self, Names};
@@ -63,12 +63,17 @@ impl std::fmt::Debug for Driven {
 impl Tools {
     /// `provide` 的参数（「提供者和不说话」第 1 条）：驱动交的每件 `{name, description, input_schema, access, venues}`，有给人看的
     /// 名字的再带 `display_name`（`{语言: 名字}`，施工 S-6 上），写了名字后面跟哪一个参数的再带 `subject`；不写 `timeout_ms`（照核心的
-    /// 一分钟）。没有驱动的套的是空的。
-    pub(crate) fn provided(&self) -> Value {
+    /// 一分钟）。驱动的配置是 `config`：驱动说不登记的那几件不带（施工 Q-1，`ToolSet::offers`）。没有驱动的套的是空的。
+    pub(crate) fn provided(&self, config: &Map<String, Value>) -> Value {
         let tools: Vec<Value> = self
             .driven
             .iter()
-            .flat_map(|driven| driven.specs.iter())
+            .flat_map(|driven| {
+                driven
+                    .specs
+                    .iter()
+                    .filter(|(spec, _)| driven.set.offers(&spec.name, config))
+            })
             .map(|(spec, venues)| {
                 let mut tool = json!({
                     "name": spec.name,

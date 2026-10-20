@@ -11,6 +11,7 @@ use std::time::Duration;
 use miyu_client::tooltext::Access;
 use miyu_im::toolset::{Call, Decl, Effect, Planned, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
+use serde_json::{Map, Value};
 
 mod acting;
 mod fetch;
@@ -99,7 +100,7 @@ const TOOLS: [Decl; 9] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 25] = [
+const ANSWERS: [(&str, &[&str]); 26] = [
     ("skipped", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
@@ -113,7 +114,8 @@ const ANSWERS: [(&str, &[&str]); 25] = [
     ("poked", &["who"]),
     ("no-quote", &[]),
     ("many-targets", &[]),
-    ("bad-seconds", &[]),
+    ("bad-seconds", &["min", "max"]),
+    ("admin-off", &[]),
     ("not-found", &[]),
     ("unknown", &["name"]),
     ("saved", &["path"]),
@@ -170,6 +172,11 @@ impl ToolSet for QqTools {
 
     fn silence(&self) -> Option<&'static str> {
         Some(SKIP_REPLY)
+    }
+
+    fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
+        // 群管理的工具照它的开关（施工 Q-1）。
+        tool != MUTE || crate::admin::offers_mute(config)
     }
 
     fn plan(&self, call: Call) -> Planned {

@@ -15,7 +15,7 @@ use std::sync::Arc;
 use miyu_client::ids::ExternalId;
 use miyu_client::protocol::Template;
 use miyu_client::tooltext::{Access, load};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::chat::{Link, Media, Platform, To};
 use crate::core::Caller;
@@ -266,6 +266,10 @@ pub struct Call {
     pub link: Option<Arc<dyn Link>>,
     /// 答的话（[`ToolSet::answers`] 里的那几句）。
     pub answers: Arc<Answers>,
+    /// 在这个场所开着的驱动带的插件的编号（施工 Q-1：总开关、场所开关都开着的，`plugins::Builtin`）。
+    pub plugins: Vec<&'static str>,
+    /// 驱动这一刻的配置（施工 Q-1：没写的照清单的默认补上了）。
+    pub config: Map<String, Value>,
 }
 
 /// 驱动交的一套工具。
@@ -281,6 +285,13 @@ pub trait ToolSet: Send + Sync {
 
     /// 认一次调用：当场答的、交 im 等着的（模块的说明）。在跟核心的那一头当场调，不许等平台。
     fn plan(&self, call: Call) -> Planned;
+
+    /// 驱动的配置是 `config` 时登记不登记 `tool`（施工 Q-1：单件工具的开关）。配置变了 im 照它重新登记，登记的变了的会话下一个回合
+    /// 换工具表。都登记的不用写。
+    fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
+        let _ = (tool, config);
+        true
+    }
 
     /// 哪一件是「这一轮不说话」（施工 T-4，`providers.md`「提供者和不说话」）：读的一头当场答它（答的话 `skipped`，带 `end_turn`），
     /// 她的回复里有这件的调用块的，这一轮写的都不发。没有的是空的。

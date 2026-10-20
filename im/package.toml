@@ -121,6 +121,47 @@ hidden = true
 name = { en = "People and numbers", zh = "识人映射", ja = "人と番号の対応" }
 description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字对上、号码对不上的，提醒 AI 这不是那个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
 
+# 群管理（施工 Q-1，设计 02）：OneBot 驱动带的插件，同识人术。总开关关了、禁言工具的开关关了的，禁言不登记（改的时候 im 重新登记）。
+[settings.qq.admin_on]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Group admin on", zh = "群管理开着", ja = "グループ管理を使う" }
+description = { en = "The switch of the Group admin plugin.", zh = "群管理插件的总开关。", ja = "グループ管理プラグインのスイッチです。" }
+
+[settings.qq.admin_mute]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Mute tool", zh = "禁言工具", ja = "ミュートツール" }
+description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 能禁言、解禁群成员。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
+
+[settings.qq.admin_mute_min]
+type = "int"
+min = 1
+max = 43200
+default = 1
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Shortest mute (minutes)", zh = "最短禁言时长（分钟）", ja = "最短のミュート時間（分）" }
+description = { en = "QQ allows 1 minute at the least.", zh = "QQ 最短 1 分钟。", ja = "QQ では最短 1 分です。" }
+
+[settings.qq.admin_mute_max]
+type = "int"
+min = 1
+max = 43200
+default = 43200
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Longest mute (minutes)", zh = "最长禁言时长（分钟）", ja = "最長のミュート時間（分）" }
+description = { en = "QQ allows 30 days (43200 minutes) at the most.", zh = "QQ 最长 30 天（43200 分钟）。", ja = "QQ では最長 30 日（43200 分）です。" }
+
 # 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。
 [settings.web.port]

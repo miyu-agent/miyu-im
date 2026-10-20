@@ -9,7 +9,10 @@
 //! - 撤回、禁言、戳一戳（施工 O-31，「平台工具（一）」第 2 条）不在这里答：要投影、群成员的缓存、机器人号的连接，原样交给跟核心
 //!   的那一头（`route/acting.rs`），答完了照 [`Answerer`] 写回去。
 
-use serde_json::{Value, json};
+use std::sync::Arc;
+
+use serde_json::{Map, Value, json};
+use tokio::sync::watch;
 
 use super::caller::{Caller, Writer, write_line};
 use crate::TARGET;
@@ -106,30 +109,61 @@ pub(super) fn reply(writer: &Writer, reply: Value) {
     });
 }
 
-/// 登记 `tools`（「提供者和不说话」第 1 条）：经 `caller` 发 `provide`，写出去就交回等回应、记运行日志的那一段（交给 `serve`
-/// 的任务组）。写不出去的（核心关了管道）交回空的：跟核心的那一头接着读到头，照「怎么走」第 11 条停下。
+/// 登记 `tools`（「提供者和不说话」第 1 条），驱动这一刻的配置是 `config`（施工 Q-1：单件工具的开关）：经 `caller` 发 `provide`，
+/// 写出去就交回等回应、记运行日志的那一段（交给 `serve` 的任务组）。写不出去的（核心关了管道）交回空的：跟核心的那一头接着读到头，
+/// 照「怎么走」第 11 条停下。
 pub(crate) async fn provide(
     caller: &Caller,
     tools: &Tools,
+    config: &Map<String, Value>,
 ) -> Option<impl Future<Output = ()> + use<>> {
-    let answer = caller.send("provide", tools.provided()).await.ok()?;
+    let answer = caller.send("provide", tools.provided(config)).await.ok()?;
     Some(async move {
         match answer.wait().await {
-            Ok(reply) => match reason(&reply) {
-                None => {
-                    let count = reply["result"]["tools"].as_u64().unwrap_or_default();
-                    tracing::info!(target: TARGET, count, "tools provided");
-                }
-                Some(reason) => {
-                    let detail = &reply["error"]["data"];
-                    tracing::error!(target: TARGET, reason, detail = %detail, "tools not provided");
-                }
-            },
+            Ok(reply) => logged(&reply),
             Err(Gone) => {
                 // 核心关了管道：跟核心的那一头接着读到头，桥停下。
             }
         }
     })
+}
+
+/// 驱动的配置变了重新登记（施工 Q-1）：照 `driver` 的新配置算出来的和上一次登记的 `sent` 不一样才发（单件工具的开关，
+/// `ToolSet::offers`），等到回应记一行。配置不再推了（桥在停）、写不出去了（核心关了管道）就停。
+pub(crate) async fn follow(
+    caller: Caller,
+    tools: Arc<Tools>,
+    mut driver: watch::Receiver<Map<String, Value>>,
+    mut sent: Value,
+) {
+    while driver.changed().await.is_ok() {
+        let wanted = tools.provided(&driver.borrow_and_update());
+        if wanted == sent {
+            continue;
+        }
+        let Ok(answer) = caller.send("provide", wanted.clone()).await else {
+            return;
+        };
+        sent = wanted;
+        match answer.wait().await {
+            Ok(reply) => logged(&reply),
+            Err(Gone) => return,
+        }
+    }
+}
+
+/// 记 `provide` 的回应 `reply`：登记了几件，被拒了记一行 `ERROR`。
+fn logged(reply: &Value) {
+    match reason(reply) {
+        None => {
+            let count = reply["result"]["tools"].as_u64().unwrap_or_default();
+            tracing::info!(target: TARGET, count, "tools provided");
+        }
+        Some(reason) => {
+            let detail = &reply["error"]["data"];
+            tracing::error!(target: TARGET, reason, detail = %detail, "tools not provided");
+        }
+    }
 }
 
 #[cfg(test)]

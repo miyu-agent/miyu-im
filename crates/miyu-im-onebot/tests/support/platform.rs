@@ -61,8 +61,8 @@ pub const MEMBERS: &[Member] = &[
     (ALT, "小号", "alt"),
 ];
 
-/// 问群成员时回的身份。
-pub const RANKS: &[Rank] = &[(OWNER, "owner")];
+/// 问群成员时回的身份：她是管理员（施工 Q-1：群管理的工具要她是管理员、群主）。
+pub const RANKS: &[Rank] = &[(OWNER, "owner"), (BOT, "admin")];
 
 /// 照 NapCat 回、桥调的平台动作。
 pub const PLATFORM: [&str; 4] = ["delete_msg", "set_group_ban", "group_poke", "friend_poke"];

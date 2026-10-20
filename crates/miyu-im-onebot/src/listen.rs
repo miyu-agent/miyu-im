@@ -66,8 +66,11 @@ impl Driver for OneBot {
     }
 
     fn builtins(&self) -> Vec<Arc<dyn Builtin>> {
-        // 识人术（施工 I-10 上）：OneBot 自己带的 im 插件。
-        vec![Arc::new(crate::identity::Identity)]
+        // 识人术（施工 I-10 上）、群管理（施工 Q-1）：OneBot 自己带的 im 插件。
+        vec![
+            Arc::new(crate::identity::Identity),
+            Arc::new(crate::admin::Admin),
+        ]
     }
 
     fn reactions(&self) -> &'static [Reaction] {

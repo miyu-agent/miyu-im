@@ -5,6 +5,7 @@
 
 mod support;
 
+mod admin;
 mod apply;
 mod backstage;
 mod budget;

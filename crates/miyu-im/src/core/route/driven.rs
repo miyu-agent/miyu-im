@@ -99,6 +99,8 @@ impl Route {
             blobs: Blobs(self.core.caller()),
             link: self.bots.get(peer.bot),
             answers,
+            plugins: self.hooks.active(peer.to),
+            config: self.hooks.driver_config(),
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
         let answers = Arc::clone(&call.answers);
