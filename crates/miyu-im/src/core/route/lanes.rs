@@ -370,8 +370,9 @@ impl Route {
             }
             Seen::Sealed => {
                 tracing::info!(target: TARGET, session, lane, "lane sealed");
-                // 这条支线取了几次（`fetch_media`）不用再记。
-                self.fetches.remove(lane);
+                // 这条支线的回合、驱动的工具调了几次不用再记（施工 T-3）。
+                self.turns.remove(lane);
+                self.uses.retain(|(line, _), _| line != lane);
                 self.unfollow(lane).await?;
             }
             Seen::Nothing => {}

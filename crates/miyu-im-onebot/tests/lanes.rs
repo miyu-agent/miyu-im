@@ -325,9 +325,10 @@ async fn tools_on_a_lane_look_at_its_own_trigger() {
     let fetched = results[1]["body"]["blocks"][0]["text"]
         .as_str()
         .unwrap_or_default();
-    let not_found =
-        std::fs::read_to_string(resources().join("packages/im/data/tool-results/not-found.txt"))
-            .expect("读得出");
+    let not_found = std::fs::read_to_string(
+        resources().join("packages/im/data/onebot/tool-results/not-found.txt"),
+    )
+    .expect("读得出");
     assert_eq!(
         fetched.trim_end(),
         not_found.trim_end(),

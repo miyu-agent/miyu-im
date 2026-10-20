@@ -51,14 +51,8 @@ impl Pictures {
     }
 }
 
-/// 和交给核心的 `venue.media` 一样洗过的：编号合写法的才算（`fields.rs`），第几个照它数。
-pub(super) fn kept(media: &[Media]) -> Vec<Media> {
-    media
-        .iter()
-        .filter(|item| fits(&item.id))
-        .cloned()
-        .collect()
-}
+/// 和交给核心的 `venue.media` 一样洗过的（施工 T-3 挪进 `crate::toolset`：取图片文件也照它数第几个）。
+pub(super) use crate::toolset::kept;
 
 impl Route {
     /// 取 `wanted` 里的图、存成 blob，交回 `attachments`（`blob.close` 的回应里的 `blob`、`name`、`media_type`），引用的那一条的在

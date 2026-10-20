@@ -10,9 +10,6 @@ use serde_json::{Map, Value, json};
 
 use crate::chat::{Media, Posted};
 
-/// 平台的编号最长几个字符（`venues.md`「场所的格」的 `msg`、`reply_to`，带的东西的 `id`）。
-const ID: usize = 128;
-
 /// 发的人的名字最长几个字符（`name`，施工 T-1 挪进 `crate::toolset`）。
 pub(super) use crate::toolset::NAME;
 
@@ -102,10 +99,8 @@ pub(super) fn shown(venue: &mut Value, numbers: &[usize]) {
 /// 洗名字（施工 T-1 挪进 `crate::toolset`：驱动的工具也用）。
 pub(super) use crate::toolset::clean;
 
-/// 一个平台的编号合不合核心的写法：不空，最多 [`ID`] 个字符，没有控制字符。
-pub(super) fn fits(id: &str) -> bool {
-    !id.is_empty() && id.chars().count() <= ID && !id.chars().any(char::is_control)
-}
+/// 一个平台的编号合不合核心的写法（施工 T-3 挪进 `crate::toolset`：驱动的工具也用）。
+pub(super) use crate::toolset::fits;
 
 #[cfg(test)]
 mod tests;

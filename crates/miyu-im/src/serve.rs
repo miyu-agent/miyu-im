@@ -291,8 +291,6 @@ pub async fn run(
         },
         Fetching {
             images: serve.tuning.message_images,
-            per_turn: serve.tuning.fetch_per_turn,
-            wait: serve.tuning.fetch(),
             quick: serve.tuning.call_timeout(),
         },
         Forwarding {

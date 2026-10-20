@@ -60,20 +60,6 @@ fn a_msg_that_is_not_an_integer_is_not_found() {
     assert_eq!(wanted(&json!({})), Err("not-found"));
 }
 
-#[test]
-fn a_turn_holds_at_most_the_limit_and_a_new_turn_starts_over() {
-    let mut kept = None;
-    for n in 1..=4 {
-        kept = counted(kept, Some(7), 4);
-        assert_eq!(kept, Some((Some(7), n)));
-    }
-    assert_eq!(counted(kept, Some(7), 4), None, "第五次");
-    assert_eq!(counted(kept, Some(9), 4), Some((Some(9), 1)), "换了一轮");
-    assert_eq!(counted(None, None, 4), Some((None, 1)), "主线没在跑的也数");
-    assert_eq!(counted(Some((None, 4)), None, 4), None);
-    assert_eq!(counted(None, Some(1), 0), None, "一次都不给");
-}
-
 /// 取回来的一条：私聊里的没有群号。
 fn fetched(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
     Fetched {

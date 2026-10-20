@@ -223,8 +223,10 @@ pub(crate) struct Route {
     backlogs: HashMap<String, Backlog>,
     /// 取东西的几个数（施工 O-33，`fetching`、`pictures`）。
     fetching: Fetching,
-    /// 会话编号 → 这一轮的回合编号和 `fetch_media` 取了几次（施工 O-33，`fetching`；私聊的回合编号照推来的事件记，施工 O-35）。
-    fetches: HashMap<String, (Option<u64>, usize)>,
+    /// 私聊会话编号 → 这一轮的回合编号（施工 O-35：照推来的事件记；T-3 起驱动的工具照它数一轮调了几次）。
+    turns: HashMap<String, Option<u64>>,
+    /// （会话编号，工具名）→ 那一轮的回合编号、调了几次（施工 T-3，`driven`）。
+    uses: HashMap<(String, String), (Option<u64>, usize)>,
     /// 展开合并转发的几个数（施工 O-34，`forwards`）。
     forwarding: Forwarding,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
@@ -318,7 +320,8 @@ impl Route {
             quotes: HashMap::new(),
             backlogs: HashMap::new(),
             fetching,
-            fetches: HashMap::new(),
+            turns: HashMap::new(),
+            uses: HashMap::new(),
             forwarding,
             configured,
             hooks,

@@ -13,7 +13,7 @@ use super::Route;
 use crate::TARGET;
 use crate::chat::To;
 use crate::core::Gone;
-use crate::toolset::{Answers, Call, NAME, Origin, Planned, Quote, ToolSet, clean};
+use crate::toolset::{Answers, Blobs, Call, NAME, Origin, Planned, Quote, ToolSet, clean};
 
 impl Route {
     /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是 `set`、答的话是 `answers`。
@@ -65,6 +65,17 @@ impl Route {
                 (by.as_ref().and_then(number), None, origin, names)
             }
         };
+        // 这一轮这件工具以前调过几次（施工 T-3）：群照投影里调用所在那条线这一轮，私聊照推来的事件的回合；换了回合从头数。
+        let turn = match self.groups.get(&session) {
+            Some(group) => group.turn(&line),
+            None => self.turns.get(&line).copied().flatten(),
+        };
+        let used = counted(
+            self.uses
+                .entry((line.clone(), tool.to_string()))
+                .or_insert((turn, 0)),
+            turn,
+        );
         let call = Call {
             tool: tool.to_string(),
             args: params["args"].clone(),
@@ -79,6 +90,9 @@ impl Route {
             platform: self.platform,
             names,
             cwd: params["cwd"].as_str().unwrap_or_default().to_string(),
+            line: line.clone(),
+            used,
+            blobs: Blobs(self.core.caller()),
             link: self.bots.get(peer.bot),
             answers,
         };
@@ -119,6 +133,15 @@ pub(super) fn by_of(params: &Value) -> Option<ExternalId> {
         _ => None,
     }?;
     ExternalId::parse(id).ok()
+}
+
+/// 记着的（那一轮的回合、调了几次）`kept` 照这一轮 `turn` 数这一次（纯逻辑）：换了一轮的从头数；交回这一次以前调过几次。
+pub(super) fn counted(kept: &mut (Option<u64>, usize), turn: Option<u64>) -> usize {
+    if kept.0 != turn {
+        *kept = (turn, 0);
+    }
+    kept.1 += 1;
+    kept.1 - 1
 }
 
 /// 平台上的人 `id` 的号。

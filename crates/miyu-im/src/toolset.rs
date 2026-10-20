@@ -17,11 +17,13 @@ use miyu_client::protocol::Template;
 use miyu_client::tooltext::{Access, load};
 use serde_json::{Value, json};
 
-use crate::chat::{Link, Platform, To};
+use crate::chat::{Link, Media, Platform, To};
+use crate::core::Caller;
+use crate::core::blobs::{Unstored, put};
 
 /// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
 /// 先核对）。
-pub use crate::media::{Missed, QQ_FILES, bytes, extension, message, save};
+pub use crate::media::{Missed, QQ_FILES, bytes, extension, file_name, message, save, take};
 
 /// 叫她做的那一条（施工 T-2，原来路由的 `platform::Origin`）：群里是投影里调用所在那条线这一轮她回的那一条，私聊是最近一条人说的话。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +79,56 @@ pub fn duration(seconds: u64) -> String {
 
 /// 发的人的名字最长几个字符（`name`）。
 pub const NAME: usize = 64;
+
+/// 平台的编号最长几个字符（`venues.md`「场所的格」的 `msg`、`reply_to`，带的东西的 `id`）。
+const ID: usize = 128;
+
+/// 一个平台的编号合不合核心的写法：不空，最多 128 个字符，没有控制字符。
+pub fn fits(id: &str) -> bool {
+    !id.is_empty() && id.chars().count() <= ID && !id.chars().any(char::is_control)
+}
+
+/// 一条消息带的东西里看得到的那几样（和交给核心的 `venue.media` 一样洗过：编号合写法的才算），第几个照它数（施工 T-3：取图片文件
+/// 的 `index` 也照它）。
+pub fn kept(media: &[Media]) -> Vec<Media> {
+    media
+        .iter()
+        .filter(|item| fits(&item.id))
+        .cloned()
+        .collect()
+}
+
+/// 存 blob 的一头（施工 T-3：取图片文件把图交成工具结果里的图片块）：经桥跟核心的连接分块传，存在管理员名下，核心照会话的属主拷。
+#[derive(Clone)]
+pub struct Blobs(pub(crate) Caller);
+
+/// 存了一张图的结果。
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stored {
+    /// 存成了图：工具结果里的图片块（`type`、`blob`、`name`、`media_type`、`width`、`height`）。
+    Image(Value),
+    /// 存不成图（太大、不是图、核心拒了）：照文件存。
+    NotImage,
+    /// 核心断开了：不用答了。
+    Gone,
+}
+
+impl Blobs {
+    /// 把 `bytes` 存成名字是 `name` 的 blob，看它是不是图（模块的说明）。
+    pub async fn image(&self, name: &str, bytes: &[u8]) -> Stored {
+        match put(&self.0, name, bytes).await {
+            Ok(stored) if stored["kind"] == "image" => {
+                let mut block = json!({"type": "image"});
+                for key in ["blob", "name", "media_type", "width", "height"] {
+                    block[key] = stored[key].clone();
+                }
+                Stored::Image(block)
+            }
+            Ok(_) | Err(Unstored::Refused(_)) => Stored::NotImage,
+            Err(Unstored::Gone) => Stored::Gone,
+        }
+    }
+}
 
 /// 洗一个名字：去掉控制字符，截到 `most` 个字符（不截断一个字）；去掉首尾空白是空的交回空的。
 pub fn clean(name: &str, most: usize) -> Option<String> {
@@ -139,6 +191,13 @@ pub struct Call {
     pub names: HashMap<i64, String>,
     /// 这一轮的工作目录（`tool.call` 的 `cwd`）：存东西照它。
     pub cwd: String,
+    /// 调用所在那条线（会话编号，主线或者支线，施工 T-3）。
+    pub line: String,
+    /// 这条线这一轮这件工具在这一次以前调过几次（施工 T-3：一轮最多几次由驱动照它挡；群照投影里这条线的回合，私聊照推来的事件的
+    /// 回合，换了回合从头数）。
+    pub used: usize,
+    /// 存 blob 的一头（施工 T-3）。
+    pub blobs: Blobs,
     /// 那个机器人号这一刻的连接；断了的是空的。
     pub link: Option<Arc<dyn Link>>,
     /// 答的话（[`ToolSet::answers`] 里的那几句）。

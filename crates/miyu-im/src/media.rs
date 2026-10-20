@@ -34,7 +34,7 @@ pub enum Missed {
 
 impl Missed {
     /// 记运行日志、答她的那一句的名字（`tool-results/<名字>.txt`）。
-    pub(crate) fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
             Missed::Failed(_) => "failed",
             Missed::Unanswered => "unanswered",
@@ -68,7 +68,7 @@ pub async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
 /// # Errors
 ///
 /// 平台回了失败、等不到、没连着；回了但哪儿都拿不到。
-pub(crate) async fn take(
+pub async fn take(
     link: &dyn Link,
     fetch: Fetch,
     id: &str,
@@ -151,8 +151,8 @@ async fn read(path: PathBuf) -> Result<Vec<u8>, String> {
 }
 
 /// 存进工作区的文件名：`<消息编号>-<第几个>`，有名字的接 `-<名字>`；名字去掉路径分隔符、Windows 不许的字符和控制字符，去掉
-/// 开头的点和空白、结尾的点和空白（Windows 会吃掉），留前 [`NAME`] 个字符；洗完是空的不接。
-pub(crate) fn file_name(msg: &str, index: usize, name: Option<&str>) -> String {
+/// 开头的点和空白、结尾的点和空白（Windows 会吃掉），留前 `NAME`（80）个字符；洗完是空的不接。
+pub fn file_name(msg: &str, index: usize, name: Option<&str>) -> String {
     let cleaned: String = name
         .unwrap_or_default()
         .chars()

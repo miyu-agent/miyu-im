@@ -3,7 +3,7 @@
 use miyu_client::ids::ExternalId;
 use serde_json::json;
 
-use super::by_of;
+use super::{by_of, counted};
 
 #[test]
 fn the_caller_is_read_from_the_platform_identity_only() {
@@ -29,4 +29,18 @@ fn the_caller_is_read_from_the_platform_identity_only() {
         "别的种类不认"
     );
     assert_eq!(by_of(&json!({})), None);
+}
+
+#[test]
+fn a_turn_counts_its_own_calls_and_a_new_turn_starts_over() {
+    // 原来 `fetch_media` 的一轮取了几次（施工 O-33），T-3 起 im 照这个给驱动的每件工具数，挡不挡由驱动定。
+    let mut kept = (Some(7), 0);
+    for n in 0..4 {
+        assert_eq!(counted(&mut kept, Some(7)), n);
+    }
+    assert_eq!(counted(&mut kept, Some(9)), 0, "换了一轮");
+    assert_eq!(kept, (Some(9), 1));
+    let mut idle = (None, 0);
+    assert_eq!(counted(&mut idle, None), 0, "主线没在跑的也数");
+    assert_eq!(counted(&mut idle, None), 1);
 }
