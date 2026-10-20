@@ -75,6 +75,7 @@ mod segments;
 mod settings;
 mod shown;
 mod site;
+mod site_admin;
 mod site_connections;
 mod site_login;
 mod site_overview;

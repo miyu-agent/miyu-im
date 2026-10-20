@@ -4,11 +4,34 @@
 //!
 //! - 设置是驱动的配置项（清单 `[settings.<平台>.<开头>…]`，藏起来，只在插件页「设置」里改），名字都以 [`Builtin::settings`] 开头；
 //!   总开关是 `<开头>on`（插件页的总开关改它）。
-//! - 现在只有一处挂接点：群里一个人借了别人的名字（[`Builtin::impostor`]，识人术）。
+//! - 挂接点：群里一个人借了别人的名字（[`Builtin::impostor`]，识人术）。
+//! - 页面调它的方法（[`Builtin::call`]，施工 Q-6）：界面块的内容、按钮和表单的动作，在进程里直接问，交给它 [`Context`]。
+
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::Arc;
 
 use serde_json::{Map, Value};
 
 use super::Declared;
+use crate::chat::{Bots, Platform};
+
+/// 调驱动带的插件的方法交回的（[`Builtin::call`]）：成了的是回应，没成的是原因（同 `package.call` 的错误码）。
+pub type Called<'a> = Pin<Box<dyn Future<Output = Result<Value, String>> + Send + 'a>>;
+
+/// 页面调驱动带的插件时交给它的（施工 Q-6）。
+#[derive(Clone)]
+pub struct Context {
+    /// 平台。
+    pub platform: Platform,
+    /// 驱动这一刻的配置（没写的照清单的默认补上了）。
+    pub config: Map<String, Value>,
+    /// 驱动自己的状态目录（同 `toolset::Call::store`）。
+    pub store: PathBuf,
+    /// 连着的机器人号：要问平台的照它找连接。
+    pub bots: Arc<Bots>,
+}
 
 /// 驱动带的一个插件。
 pub trait Builtin: Send + Sync {
@@ -26,6 +49,13 @@ pub trait Builtin: Send + Sync {
     fn impostor(&self, config: &Map<String, Value>, seen: &Seen<'_>) -> Option<String> {
         let _ = (config, seen);
         None
+    }
+
+    /// 页面调这个插件的方法 `method`（施工 Q-6）：界面块的内容（`[plugin.ui]` 里写的方法、`chat.panel`）、按钮和表单的动作，参数
+    /// `params` 同软件包插件经 `package.call` 收到的。没有这个方法的回 `unknown_method`。
+    fn call<'a>(&'a self, context: &'a Context, method: &'a str, params: &'a Value) -> Called<'a> {
+        let _ = (context, method, params);
+        Box::pin(async { Err("unknown_method".to_string()) })
     }
 }
 

@@ -74,7 +74,7 @@ pub(super) async fn answer(
         Some("plugins.enable") => plugins::enable(&login.person, params).await,
         Some("plugins.settings.get") => plugin_settings::get(&login.person, params).await,
         Some("plugins.settings.set") => plugin_settings::set(&login.person, params).await,
-        Some("plugins.call") => plugin_settings::call(&login.person, params).await,
+        Some("plugins.call") => plugin_settings::call(site, &login.person, params).await,
         Some("plugins.panel") => panels::open(site, login, params).await,
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await

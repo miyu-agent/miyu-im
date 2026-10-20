@@ -10,7 +10,7 @@ mod toggles;
 
 use std::collections::BTreeMap;
 
-pub use builtin::{Builtin, Seen};
+pub use builtin::{Builtin, Called, Context, Seen};
 pub use declared::Declared;
 pub(crate) use load::{load, read_all};
 pub use toggles::Toggles;

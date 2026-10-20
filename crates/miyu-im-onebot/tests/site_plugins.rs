@@ -172,6 +172,7 @@ async fn the_builtin_identity_plugin_is_listed_switched_and_set_from_the_page() 
         json!({"package": id, "method": "x"}),
     )
     .await;
-    assert_eq!(called["error"]["reason"], "bad_params", "{called}");
+    // 施工 Q-6 起驱动带的插件在进程里直接问：识人术没有这个方法。
+    assert_eq!(called["error"]["reason"], "unknown_method", "{called}");
     stopped(home).await;
 }

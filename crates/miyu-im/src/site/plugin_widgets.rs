@@ -71,12 +71,18 @@ pub(super) async fn widget(
         }
         _ => return Err(bad()),
     };
-    let content = core(
-        person,
-        "package.call",
-        json!({"package": package, "method": method, "params": args}),
-    )
-    .await?;
+    // 驱动带的插件在进程里直接问（施工 Q-6）。
+    let content = match plugin["builtin"] == true {
+        true => site.call_builtin(package, &method, &args).await?,
+        false => {
+            core(
+                person,
+                "package.call",
+                json!({"package": package, "method": method, "params": args}),
+            )
+            .await?
+        }
+    };
     let pages: Vec<&str> = ui["pages"]
         .as_array()
         .into_iter()

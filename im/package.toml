@@ -140,33 +140,6 @@ hidden = true
 name = { en = "Mute tool", zh = "禁言工具", ja = "ミュートツール" }
 description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 能禁言、解禁群成员。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
 
-[settings.qq.admin_log]
-type = "bool"
-default = true
-layers = ["system"]
-applies = "now"
-hidden = true
-name = { en = "Moderation log tool", zh = "查管理记录工具", ja = "管理記録ツール" }
-description = { en = "Let the AI look up this group's moderation records and ranking. Turning it off takes the tool away from the AI.", zh = "让 AI 能查这个群的管理记录和排行榜。关掉以后 AI 没有这件工具。", ja = "AI がこのグループの管理記録とランキングを確認できるようにします。オフにすると AI はこのツールを使えません。" }
-
-[settings.qq.admin_summary]
-type = "bool"
-default = true
-layers = ["system"]
-applies = "now"
-hidden = true
-name = { en = "Member summary", zh = "成员汇总", ja = "メンバーのまとめ" }
-description = { en = "Count mutes and kicks per member and rank them, for the AI and the panel.", zh = "照人数被禁言、被踢的次数，排成榜，给 AI 和面板看。", ja = "メンバーごとのミュートと退出の回数を数えてランキングにし、AI とパネルに見せます。" }
-
-[settings.qq.admin_sync_unmute]
-type = "bool"
-default = true
-layers = ["system"]
-applies = "now"
-hidden = true
-name = { en = "Sync other admins' unmutes", zh = "同步群里别的管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
-description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里别的管理员解禁了谁，也记下来、告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
-
 [settings.qq.admin_mute_min]
 type = "int"
 min = 1
@@ -198,6 +171,15 @@ hidden = true
 name = { en = "Kick tool", zh = "踢人工具", ja = "退出ツール" }
 description = { en = "Let the AI remove group members, and refuse their later join requests if it chooses. Turning it off takes the tool away from the AI.", zh = "让 AI 能把群成员移出群，也能拒绝他以后的加群申请。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーを退出させ、必要なら今後の参加申請も拒否できるようにします。オフにすると AI はこのツールを使えません。" }
 
+[settings.qq.admin_log]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Moderation log tool", zh = "查管理记录工具", ja = "管理記録ツール" }
+description = { en = "Let the AI look up this group's moderation records and ranking. Turning it off takes the tool away from the AI.", zh = "让 AI 能查这个群的管理记录和排行榜。关掉以后 AI 没有这件工具。", ja = "AI がこのグループの管理記録とランキングを確認できるようにします。オフにすると AI はこのツールを使えません。" }
+
 [settings.qq.admin_records]
 type = "bool"
 default = true
@@ -217,6 +199,24 @@ applies = "now"
 hidden = true
 name = { en = "Records kept per group", zh = "每个群最多留多少条记录", ja = "グループごとに残す記録の数" }
 description = { en = "Older records go first.", zh = "超了从旧的删。", ja = "超えたら古いものから消します。" }
+
+[settings.qq.admin_summary]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Member summary", zh = "成员汇总", ja = "メンバーのまとめ" }
+description = { en = "Count mutes and kicks per member and rank them, for the AI and the panel.", zh = "照人数被禁言、被踢的次数，排成榜，给 AI 和面板看。", ja = "メンバーごとのミュートと退出の回数を数えてランキングにし、AI とパネルに見せます。" }
+
+[settings.qq.admin_sync_unmute]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Sync other admins' unmutes", zh = "同步群里别的管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
+description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里别的管理员解禁了谁，也记下来、告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
 
 # 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。

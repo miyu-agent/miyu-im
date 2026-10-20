@@ -6,18 +6,17 @@
 //! - `plugins.settings.set {package, changes}` → `config.set` 的回应：每一项的键都要是 `<编号>.` 开头，有一项不是的整个不办（`forbidden`）；
 //!   密钥类型给的是一段字的，先 `secret.set` 存成一个新名字的密钥（照键起名、带上时刻，最多 64 个字，不覆盖原来的），再写引用。照
 //!   `config.set` 写进系统那一层。
-//! - `plugins.call {package, method, params?}` → `package.call` 的回应。
+//! - `plugins.call {package, method, params?}` → `package.call` 的回应；驱动带的插件在进程里直接问（施工 Q-6，`site/builtins.rs`）。
 //!
 //! 都在这份登录的人的连接上（人的权限）；`package` 由页面填（框里的页面写不了），不是 im 插件的不收（`bad_params`）。驱动带的插件
-//! （施工 I-10 上）的设置是 im 的配置项、键以它的 `settings` 开头（藏起来的，这里照常列，总开关 `<开头>on` 不列）；它没有程序，
-//! `plugins.call` 不收。
+//! （施工 I-10 上）的设置是 im 的配置项、键以它的 `settings` 开头（藏起来的，这里照常列，总开关 `<开头>on` 不列）。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
 
-use super::Person;
 use super::plugins::{bad, core, known};
+use super::{Person, Site};
 
 /// `plugins.settings.get`（模块的说明）。
 pub(super) async fn get(person: &Person, params: &Value) -> Result<Value, (String, String)> {
@@ -89,12 +88,18 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
 }
 
 /// `plugins.call`（模块的说明）。
-pub(super) async fn call(person: &Person, params: &Value) -> Result<Value, (String, String)> {
+pub(super) async fn call(
+    site: &Site,
+    person: &Person,
+    params: &Value,
+) -> Result<Value, (String, String)> {
     let scope = plugin(person, params).await?;
-    if scope.builtin {
-        return Err(bad());
-    }
     let method = params["method"].as_str().ok_or_else(bad)?;
+    if scope.builtin {
+        // 驱动带的插件在进程里直接问（施工 Q-6）。
+        let given = params.get("params").cloned().unwrap_or(Value::Null);
+        return site.call_builtin(&scope.package, method, &given).await;
+    }
     let mut args = json!({"package": scope.package, "method": method});
     if let Some(given) = params.get("params").filter(|given| !given.is_null()) {
         args["params"] = given.clone();

@@ -27,6 +27,11 @@ use crate::{PACKAGE, TARGET};
 /// 文件名：在这个包放状态的目录里。
 const FILE: &str = "status.json";
 
+/// 数据根 `root` 里平台 `platform` 的驱动自己的状态目录（施工 Q-2、Q-6）：im 的状态目录下照平台的名字，同状态文件放一起。
+pub fn store(root: &DataRoot, platform: crate::chat::Platform) -> PathBuf {
+    path(root).with_file_name(platform.name())
+}
+
 /// 数据根 `root` 里桥的状态文件在哪。
 pub fn path(root: &DataRoot) -> PathBuf {
     root.state().join("packages").join(PACKAGE).join(FILE)

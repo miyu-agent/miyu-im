@@ -18,10 +18,12 @@
 use serde_json::{Map, Value};
 
 use miyu_im::chat::{CallError, Link, Rank};
-use miyu_im::plugins::declared::{Links, Ui};
-use miyu_im::plugins::{Builtin, Declared};
+use miyu_im::plugins::declared::{Links, Page, Ui};
+use miyu_im::plugins::{Builtin, Called, Context, Declared};
 
+pub(crate) mod actions;
 pub(crate) mod groups;
+pub(crate) mod page;
 pub(crate) mod records;
 pub(crate) mod spam;
 pub(crate) mod summary;
@@ -101,12 +103,25 @@ impl Builtin for Admin {
             platforms: vec!["qq".to_string()],
             needs: Vec::new(),
             default: true,
-            ui: Ui::default(),
+            // 会话浮窗的「群管理」页、面板（施工 Q-6，设计 02 第四节第 4、5 条）。
+            ui: Ui {
+                home: false,
+                panel: true,
+                pages: vec![Page {
+                    id: "admin".to_string(),
+                    title: words("群管理面板", "Group admin panel", "グループ管理パネル"),
+                    method: "admin.page".to_string(),
+                }],
+            },
         }
     }
 
     fn settings(&self) -> &'static str {
         PREFIX
+    }
+
+    fn call<'a>(&'a self, context: &'a Context, method: &'a str, params: &'a Value) -> Called<'a> {
+        Box::pin(actions::call(context, method, params))
     }
 }
 

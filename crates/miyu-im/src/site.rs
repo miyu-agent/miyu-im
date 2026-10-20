@@ -9,6 +9,7 @@
 //! 登录（`logins`）只在内存里：交接票换来的登录令牌照它另开一条人的连接（`ticket`），用户名、密码照它握手连上的就是人的连接
 //! （`password`）；页面上要人的权限做的事以后走这条连接。登出时在这条连接上作废它的登录令牌（`account.logout`）。
 
+mod builtins;
 mod channel;
 mod faces;
 mod files;
