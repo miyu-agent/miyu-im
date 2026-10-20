@@ -25,6 +25,8 @@ use miyu_im::serve::Notice;
 /// 交给群管理照先后同步的那一头（施工 Q-3）。
 type Syncing = mpsc::UnboundedSender<crate::admin::sync::Moderated>;
 
+use crate::admin::spam::Spamming;
+
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
 pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<i64>)
 where
@@ -49,6 +51,8 @@ where
     let link: Arc<dyn Link> = wire.clone();
     // 群管理同步别的管理员做的（施工 Q-3）：这条连接一个，照先后办。
     let syncing = crate::admin::sync::start(gate, &link);
+    // 刷屏处理（施工 Q-5）：这条连接一份，照读到的先后认。
+    let mut spamming = Spamming::new(gate, &link);
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot {
         Some(bot) => register(gate, bot, &link).await,
@@ -63,7 +67,7 @@ where
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    reading = frame_in(gate, &text, &mut bot, (&wire, &link, &syncing)).await;
+                    reading = frame_in(gate, &text, &mut bot, (&wire, &link, &syncing, &mut spamming)).await;
                 }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
@@ -85,7 +89,7 @@ async fn frame_in(
     gate: &Arc<Gate>,
     text: &str,
     bot: &mut Option<i64>,
-    (wire, link, syncing): (&Wire, &Arc<dyn Link>, &Syncing),
+    (wire, link, syncing, spamming): (&Wire, &Arc<dyn Link>, &Syncing, &mut Spamming),
 ) -> bool {
     let frame: Value = match serde_json::from_str(text) {
         Ok(frame) => frame,
@@ -118,6 +122,12 @@ async fn frame_in(
         }
         Frame::Event(event) => {
             noted(&event);
+            // 刷屏的（施工 Q-5，群管理）：第三条起不交给 im。
+            if let Event::Group { group, posted } = &event
+                && !spamming.seen(*group, posted)
+            {
+                return true;
+            }
             return gate.inbound(event).await;
         }
         Frame::Other(kind) => tracing::debug!(target: TARGET, kind, "event ignored"),

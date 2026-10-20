@@ -154,8 +154,9 @@ const ANSWERS: [(&str, &[&str]); 32] = [
 ];
 
 /// 驱动带的插件给场所会话记一句的模板：名字和认的字段（施工 Q-3）。
-const FACTS: [(&str, &[&str]); 3] = [
+const FACTS: [(&str, &[&str]); 4] = [
     ("muted-by", &["who", "by", "duration"]),
+    ("spam-muted", &["who", "duration"]),
     ("unmuted-by", &["who", "by"]),
     ("kicked-by", &["who", "by"]),
 ];
@@ -202,7 +203,7 @@ impl ToolSet for QqTools {
     }
 
     fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
-        // 群管理同步别的管理员做的（施工 Q-3，`admin::sync`）。
+        // 群管理同步别的管理员做的（施工 Q-3，`admin::sync`）、刷屏处理（施工 Q-5，`admin::spam`）。
         &FACTS
     }
 

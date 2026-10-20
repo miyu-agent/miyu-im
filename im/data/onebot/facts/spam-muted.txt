@@ -1,0 +1,1 @@
+{who} was muted for {duration} for flooding the chat.

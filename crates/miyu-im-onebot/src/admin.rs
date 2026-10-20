@@ -21,7 +21,9 @@ use miyu_im::chat::{CallError, Link, Rank};
 use miyu_im::plugins::declared::{Links, Ui};
 use miyu_im::plugins::{Builtin, Declared};
 
+pub(crate) mod groups;
 pub(crate) mod records;
+pub(crate) mod spam;
 pub(crate) mod summary;
 pub(crate) mod sync;
 
