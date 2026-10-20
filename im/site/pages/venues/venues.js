@@ -15,6 +15,7 @@ import { face } from './face.js';
 import { entries } from './model.js';
 import { idLine, titleOf } from './names.js';
 import { platformPick } from './platforms-pick.js';
+import { fallbacksOf } from './plugins.js';
 import { openVenue, toggle } from './venue.js';
 
 /** 墙上的三段：标题、哪几种卡、属于哪一种会话。 */
@@ -180,10 +181,7 @@ export function mountVenues(view, { request }) {
     const friends = answer?.friends || [];
     // 管理插件（施工 I-7 中四）：宿主认得的插件、兜底卡上的开关。
     const plugins = answer?.plugins || [];
-    const fallbacks = {
-      group: all.find((card) => card.kind === 'other_groups')?.set.plugins || {},
-      private: all.find((card) => card.kind === 'other_privates')?.set.plugins || {},
-    };
+    const fallbacks = fallbacksOf(all);
     const context = { request, platform: chosen, bots: names(), personas, friends, plugins, fallbacks };
     opened.dialog = openVenue(one, context, () => {
       if (open === opened) open = null;

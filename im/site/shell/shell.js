@@ -9,12 +9,13 @@ import { choose, chosen } from './theme.js';
 import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
 import { mountSettings } from '../pages/settings/settings.js';
+import { mountPlugins } from '../pages/plugins/plugins.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
-  { id: 'plugins', name: () => say('nav/plugins') },
+  { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins },
   { id: 'store', name: () => say('nav/store') },
   { id: 'stats', name: () => say('nav/stats') },
   { id: 'settings', name: () => say('nav/settings'), mount: mountSettings },
@@ -121,13 +122,16 @@ export function mountShell(root, { request, handed, onSignOut }) {
   let connections = null;
   let current = null;
   const go = () => {
-    const wanted = PAGES.find((page) => page.mount && page.id === location.hash.slice(1)) || PAGES[0];
+    // #plugins/<编号> 这样的：头一段是哪一页，后面交给那一页（施工 I-9 上：插件详情）。
+    const [id, ...rest] = location.hash.slice(1).split('/');
+    const wanted = PAGES.find((page) => page.mount && page.id === id) || PAGES[0];
+    const path = rest.length > 0 ? decodeURIComponent(rest.join('/')) : '';
     for (const [id, nav] of navs) nav.classList.toggle('on', id === wanted.id);
     current?.dispose?.();
     const view = element('section', 'view');
     main.replaceChildren(view);
     main.scrollTop = 0;
-    current = wanted.mount(view, { request });
+    current = wanted.mount(view, { request, path });
     if (connections) current.update(connections);
   };
   window.addEventListener('hashchange', go);

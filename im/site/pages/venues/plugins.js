@@ -3,8 +3,8 @@
 // - 开没开照宿主的场所开关（`crate::plugins::Toggles`）算：这张卡上写了的照它；没写的照兜底卡（群照「陌生群」、私聊照「陌生私聊」，兜底卡自己
 //   没有兜底）；都没写的照插件声明的默认。改了存进卡上的 `plugins`（和兜底一样的去掉，去光了整格去掉）。
 // - 在这个平台上用不了的（读不成、只在别的平台上用、缺平台能力）灰着，写为什么，不能开关。
-// - 点一个插件改它的设置、去它的详情页随插件页（I-8 下）。
-import { element, say } from '../../shell/i18n.js';
+// - 名字后面一个小箭头去插件页上它的详情（施工 I-9 上）。插件页「用在哪」照同一套算法画开关（pluginSwitch）。
+import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { cardOf } from './model.js';
 
@@ -22,15 +22,40 @@ export function drawPlugins(one, context) {
 function row(one, plugin, fallback, request) {
   const line = element('div', plugin.unusable ? 'row plugin off' : 'row plugin');
   const label = element('div', 'label');
-  label.append(element('b', null, named(plugin.name) || plugin.package));
+  const title = element('b', null, named(plugin.name) || plugin.package);
+  const detail = element('a', 'plugin-detail');
+  detail.href = `#plugins/${encodeURIComponent(plugin.package)}`;
+  detail.title = say('plugins/detail');
+  detail.append(icon('i-up-right'));
+  title.append(detail);
+  label.append(title);
   const summary = named(plugin.summary);
   if (summary) label.append(element('small', null, summary));
   if (plugin.unusable) label.append(element('small', 'plugin-why', say(`plugins/unusable-${plugin.unusable}`)));
+  line.append(label, pluginSwitch(one, plugin, fallback, request));
+  return line;
+}
+
+/** 卡上的兜底：群照「陌生群」、私聊照「陌生私聊」卡上的插件开关（`all` 是 model.entries 的卡）。 */
+export function fallbacksOf(all) {
+  return {
+    group: all.find((card) => card.kind === 'other_groups')?.set.plugins || {},
+    private: all.find((card) => card.kind === 'other_privates')?.set.plugins || {},
+  };
+}
+
+/** 插件 `plugin` 在卡 `one` 上开没开（模块的说明）：`fallback` 是这张卡的兜底卡上的开关；用不了的算关着。 */
+export function isOn(one, plugin, fallback) {
+  const inherited = fallback[plugin.package] ?? plugin.default ?? true;
+  return !plugin.unusable && ((one.set.plugins || {})[plugin.package] ?? inherited);
+}
+
+/** 插件 `plugin` 在卡 `one` 上的开关：点了存进卡上的 `plugins`（模块的说明），存不成的翻回去。 */
+export function pluginSwitch(one, plugin, fallback, request) {
   const own = one.set.plugins || {};
   const inherited = fallback[plugin.package] ?? plugin.default ?? true;
   // 用不了的照关着画：开了也不会问它。
-  const on = !plugin.unusable && (own[plugin.package] ?? inherited);
-  const button = element('button', on ? 'switch on' : 'switch');
+  const button = element('button', isOn(one, plugin, fallback) ? 'switch on' : 'switch');
   button.append(element('i'));
   button.disabled = Boolean(plugin.unusable);
   button.addEventListener('click', async () => {
@@ -49,12 +74,11 @@ function row(one, plugin, fallback, request) {
     }
     button.classList.toggle('on', !next);
   });
-  line.append(label, button);
-  return line;
+  return button;
 }
 
 /** 照页面的语言挑：没有的照英文、中文，再没有的照第一个。 */
-function named(texts) {
+export function named(texts) {
   if (!texts) return '';
   const lang = document.documentElement.lang || 'en';
   return texts[lang] ?? texts.en ?? texts.zh ?? Object.values(texts)[0] ?? '';

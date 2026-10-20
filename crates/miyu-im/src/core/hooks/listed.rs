@@ -1,0 +1,71 @@
+//! 认得的 im 插件，交给会话浮窗「管理插件」（施工 I-7 中四）和插件页（施工 I-9 上）：每个 `{package, name, summary, default}`（名字、说明
+//! 是语言到字的表，页面照语言挑），声明里写了的另带 `icon`、`links`（`homepage`、`repository`、`issues`、`readme`）、`platforms`、
+//! `needs`（能力的名字）。在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`），缺能力的还带 `missing`（缺的那几样）；
+//! 声明读不成的只有编号和 `unusable`。
+
+use serde_json::{Map, Value, json};
+
+use crate::chat::{Cap, Platform};
+use crate::plugins::{Plugins, Unusable};
+
+/// 模块的说明：`platform` 是这个平台，`caps` 是驱动的能力表。
+pub(super) fn listed(plugins: &Plugins, platform: Platform, caps: &[Cap]) -> Vec<Value> {
+    plugins
+        .all()
+        .map(|(package, declared)| {
+            let mut one = match declared {
+                Ok(declared) => {
+                    let mut one = json!({
+                        "package": package,
+                        "name": declared.name,
+                        "summary": declared.summary,
+                        "default": declared.default,
+                    });
+                    let links = &declared.links;
+                    let written: Map<String, Value> = [
+                        ("homepage", &links.homepage),
+                        ("repository", &links.repository),
+                        ("issues", &links.issues),
+                        ("readme", &links.readme),
+                    ]
+                    .into_iter()
+                    .filter_map(|(name, link)| Some((name.to_string(), json!(link.as_ref()?))))
+                    .collect();
+                    if let Some(icon) = &links.icon {
+                        one["icon"] = json!(icon);
+                    }
+                    if !written.is_empty() {
+                        one["links"] = Value::Object(written);
+                    }
+                    if !declared.platforms.is_empty() {
+                        one["platforms"] = json!(declared.platforms);
+                    }
+                    if !declared.needs.is_empty() {
+                        one["needs"] = json!(names(&declared.needs));
+                    }
+                    one
+                }
+                Err(_) => json!({"package": package}),
+            };
+            if let Err(why) = plugins.usable(package, platform, caps) {
+                one["unusable"] = json!(match &why {
+                    Unusable::NotAPlugin | Unusable::Broken(_) => "broken",
+                    Unusable::OtherPlatforms => "other_platforms",
+                    Unusable::Missing(_) => "missing",
+                });
+                if let Unusable::Missing(missing) = why {
+                    one["missing"] = json!(names(&missing));
+                }
+            }
+            one
+        })
+        .collect()
+}
+
+/// 能力的名字。
+fn names(caps: &[Cap]) -> Vec<&'static str> {
+    caps.iter().map(|cap| cap.name()).collect()
+}
+
+#[cfg(test)]
+mod tests;

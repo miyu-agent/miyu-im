@@ -1,0 +1,47 @@
+/* 插件页（施工 I-9 上）：照样板 d-im.html 的 .plug-grid、.plug-card、.detail-head、.two、.meta-row、.links、.readme。 */
+.plug-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.plug-card { padding: 16px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); cursor: pointer; transition: box-shadow 0.15s ease; }
+.plug-card:hover { box-shadow: var(--card-shadow); }
+.plug-card .top { display: flex; align-items: center; gap: 12px; }
+.plug-card .grow { flex: 1; min-width: 0; }
+.plug-card .grow b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plug-card p { margin: 10px 0 0; color: var(--text-soft); }
+.plug-card.off .ico, .plug-card.off .grow, .plug-card.off p, .plug-card.off .chips { opacity: 0.55; }
+.chip.bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.plug-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; text-decoration: none; }
+.plug-about h3 { margin: 0 0 6px; font-size: 14px; }
+.detail-head { display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); }
+.detail-head .ico { width: 56px; height: 56px; border-radius: 16px; }
+.detail-head .ico .icon { width: 26px; height: 26px; }
+.detail-head h2 { margin: 0; font-size: 18px; }
+.detail-head .grow { flex: 1; min-width: 0; }
+.links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
+.links a { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-size: 12.5px; text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+.links .icon { width: 12px; height: 12px; }
+.plug-notice { margin: 10px 0 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--text); }
+.two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; margin-top: 12px; align-items: start; }
+.plug-tabs { margin-bottom: 12px; }
+.meta-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; color: var(--text-soft); }
+.meta-row b { color: var(--text); font-weight: 500; text-align: right; }
+.meta-row b.bad { color: var(--danger); }
+.readme { line-height: 1.7; overflow-wrap: anywhere; }
+.readme h3, .readme h4 { margin: 0 0 6px; font-size: 16px; }
+.readme h5, .readme h6 { margin: 14px 0 4px; font-size: 13.5px; }
+.readme p, .readme blockquote { margin: 0 0 8px; color: var(--text-soft); }
+.readme blockquote { padding-left: 12px; box-shadow: inset 3px 0 0 var(--line-strong); }
+.readme ul, .readme ol { margin: 0 0 8px; padding-left: 20px; color: var(--text-soft); }
+.readme code { padding: 1px 5px; border-radius: 5px; background: var(--surface-2); font-family: var(--mono); font-size: 12.5px; }
+.readme pre { margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); overflow-x: auto; }
+.readme pre code { padding: 0; background: none; }
+.readme hr { margin: 12px 0; border: 0; height: 1px; background: var(--line); }
+.readme a { color: var(--accent); }
+.capabilities { margin: 8px 0 0; padding-left: 20px; }
+.capabilities small { display: block; color: var(--text-faint); }
+.row.plugin .plugin-detail { display: inline-flex; margin-left: 4px; color: var(--text-faint); vertical-align: -2px; }
+.row.plugin .plugin-detail:hover { color: var(--accent); }
+.row.plugin .plugin-detail .icon { width: 13px; height: 13px; }
+@media (max-width: 720px) {
+  .two { grid-template-columns: minmax(0, 1fr); }
+  .detail-head { flex-wrap: wrap; padding: 16px; }
+}

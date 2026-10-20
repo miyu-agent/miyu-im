@@ -15,6 +15,7 @@
 //! - `reactions` → `{"reactions": [{id, name, glyph?}], "default"}`：能贴的表情（驱动给的，空的是这个平台不支持贴表情）和桥出厂
 //!   贴的那一个（`bridge.json` 的 `reaction_emoji`，施工 I-7 中三下二）。
 //! - `settings.get`、`settings.set`：设置页（施工 I-7 下一，`settings`）。
+//! - `plugins.list`、`plugins.readme`、`plugins.enable`：插件页（施工 I-9 上，`plugins`）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -23,7 +24,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::logins::Login;
-use super::{Person, Site, logs, save, settings, venues};
+use super::{Person, Site, logs, plugins, save, settings, venues};
 use crate::core::methods::short_path;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
@@ -59,6 +60,9 @@ pub(super) async fn answer(
         Some("reactions") => Ok(reactions(site)),
         Some("settings.get") => settings::get(&login.person, &login.account).await,
         Some("settings.set") => settings::set(&login.person, params).await,
+        Some("plugins.list") => plugins::list(&login.person).await,
+        Some("plugins.readme") => plugins::readme(site, &login.person, params).await,
+        Some("plugins.enable") => plugins::enable(&login.person, params).await,
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await
         }

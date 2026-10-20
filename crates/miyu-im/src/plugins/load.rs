@@ -16,6 +16,9 @@ use crate::core::{Gone, reason};
 /// 插件的声明在它目录里的路径。
 const DECLARED: &str = "plugin.toml";
 
+/// 一份文件最多读多少字节：声明、README 都用不到这么多，过了的当读不成。
+const MOST: usize = 4 * 1024 * 1024;
+
 /// 照 `content.list` 的回应 `listed`（已经写出去的那一次）读一遍。
 ///
 /// # Errors
@@ -35,7 +38,7 @@ pub(crate) async fn load(caller: &Caller, listed: Answer) -> Result<Plugins, Gon
         .collect();
     let mut known = BTreeMap::new();
     for package in packages {
-        let declared = match read_all(caller, &package).await? {
+        let declared = match read_all(caller, &package, DECLARED).await? {
             Ok(bytes) => String::from_utf8(bytes)
                 .map_err(|_| format!("{DECLARED} is not UTF-8"))
                 .and_then(|text| declared::read(&text)),
@@ -52,23 +55,34 @@ pub(crate) async fn load(caller: &Caller, listed: Answer) -> Result<Plugins, Gon
     Ok(Plugins::new(known))
 }
 
-/// 读完 `package` 的 [`DECLARED`]：读不成的交回为什么（核心说的原因码，或者回的读不懂）。
-async fn read_all(caller: &Caller, package: &str) -> Result<Result<Vec<u8>, String>, Gone> {
+/// 读完 `package` 给 im 带的目录里的 `path`（[`DECLARED`]、插件页的 README）：读不成的交回为什么（核心说的原因码，或者回的读不懂）。
+///
+/// # Errors
+///
+/// 等的时候核心断开。
+pub(crate) async fn read_all(
+    caller: &Caller,
+    package: &str,
+    path: &str,
+) -> Result<Result<Vec<u8>, String>, Gone> {
     let mut bytes = Vec::new();
     loop {
-        let params = json!({"package": package, "path": DECLARED, "offset": bytes.len()});
+        let params = json!({"package": package, "path": path, "offset": bytes.len()});
         let reply = caller.call("content.read", params).await?;
         if let Some(why) = reason(&reply) {
-            return Ok(Err(format!("{DECLARED}: {why}")));
+            return Ok(Err(format!("{path}: {why}")));
         }
         let Some(chunk) = chunk(&reply["result"]) else {
-            return Ok(Err(format!("{DECLARED}: unreadable answer")));
+            return Ok(Err(format!("{path}: unreadable answer")));
         };
         let eof = reply["result"]["eof"].as_bool().unwrap_or(true);
         if chunk.is_empty() && !eof {
-            return Ok(Err(format!("{DECLARED}: empty chunk before the end")));
+            return Ok(Err(format!("{path}: empty chunk before the end")));
         }
         bytes.extend_from_slice(&chunk);
+        if bytes.len() > MOST {
+            return Ok(Err(format!("{path}: too_big")));
+        }
         if eof {
             return Ok(Ok(bytes));
         }

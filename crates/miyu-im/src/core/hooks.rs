@@ -24,7 +24,7 @@ use crate::TARGET;
 use miyu_chat::VenueKind;
 
 use crate::chat::{Cap, Platform, To};
-use crate::plugins::{Plugins, Toggles, Unusable};
+use crate::plugins::{Plugins, Toggles};
 use follow::Followed;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
@@ -49,7 +49,7 @@ fn with_platform(params: &Value, platform: Platform) -> Value {
 }
 
 /// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
-const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
+pub(crate) const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
 
 /// 一个包、几个包的加分最多加减多少：门槛是 0 到 1 左右的数，夹住免得一个包把判断整个改掉（施工 O-43 末）。
 const NUDGE_MAX: f64 = 1.0;
@@ -189,32 +189,10 @@ impl Hooks {
         *self.plugins.lock().unwrap_or_else(PoisonError::into_inner) = plugins;
     }
 
-    /// 认得的 im 插件，交给会话浮窗「管理插件」（施工 I-7 中四）：每个 `{package, name, summary, default}`（名字、说明照语言），
-    /// 在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`）；声明读不成的只有编号和 `unusable`。
+    /// 认得的 im 插件（会话浮窗「管理插件」、插件页，[`listed`]）。
     pub(crate) fn listed(&self) -> Vec<Value> {
         let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
-        plugins
-            .all()
-            .map(|(package, declared)| {
-                let mut one = match declared {
-                    Ok(declared) => json!({
-                        "package": package,
-                        "name": declared.name,
-                        "summary": declared.summary,
-                        "default": declared.default,
-                    }),
-                    Err(_) => json!({"package": package}),
-                };
-                if let Err(why) = plugins.usable(package, self.platform, self.caps) {
-                    one["unusable"] = json!(match why {
-                        Unusable::NotAPlugin | Unusable::Broken(_) => "broken",
-                        Unusable::OtherPlatforms => "other_platforms",
-                        Unusable::Missing(_) => "missing",
-                    });
-                }
-                one
-            })
-            .collect()
+        listed::listed(&plugins, self.platform, self.caps)
     }
 
     /// 场所开关换成 `toggles`（施工 I-8 上：卡片读进来、存下时拼的）。
@@ -474,6 +452,7 @@ fn points(entry: &Value) -> Vec<&'static str> {
 }
 
 mod follow;
+mod listed;
 
 #[cfg(test)]
 mod tests;

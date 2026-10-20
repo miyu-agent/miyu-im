@@ -127,7 +127,7 @@ async fn only_plugins_usable_here_and_switched_on_are_asked() {
     };
     assert_eq!(
         find("good"),
-        json!({"package": "good", "name": {"en": "Good"}, "summary": {}, "default": true})
+        json!({"package": "good", "name": {"en": "Good"}, "summary": {}, "default": true, "needs": ["mute"]})
     );
     assert_eq!(find("elsewhere")["unusable"], "other_platforms", "{got}");
     assert_eq!(find("closed")["default"], false, "{got}");

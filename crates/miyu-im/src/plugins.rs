@@ -10,7 +10,7 @@ mod toggles;
 use std::collections::BTreeMap;
 
 pub use declared::Declared;
-pub(crate) use load::load;
+pub(crate) use load::{load, read_all};
 pub use toggles::Toggles;
 
 use crate::chat::{Cap, Platform};
