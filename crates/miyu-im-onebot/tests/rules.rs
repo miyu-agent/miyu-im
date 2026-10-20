@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use miyu_chat::{Entry, Origin, Source, Venue, VenueKind};
 use miyu_config::Value;
 use miyu_config::problem::Code;
-use miyu_im::rules::{Cards, Configured, Factory, Loaded, load};
+use miyu_im::rules::{Cards, Configured, Loaded, load};
 use miyu_store::root::DataRoot;
 
 use crate::support::*;
@@ -91,6 +91,9 @@ pub fn copied_resources() -> PathBuf {
         "packages/im/data/system",
         "packages/im/data/tools",
         "packages/im/data/tool-results",
+        // 驱动交的工具的说明、答的话（施工 T-1）。
+        "packages/im/data/onebot/tools",
+        "packages/im/data/onebot/tool-results",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");
@@ -382,7 +385,8 @@ fn factory_mistakes_are_all_reported() {
     )
     .expect("写得进");
     std::fs::remove_file(factory.join("moderation.txt")).expect("删得了");
-    let problems = Factory::load(&package_in(&resources)).expect_err("读不出来");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("读不出来");
     let seen = problems
         .iter()
         .map(|problem| {
@@ -421,7 +425,8 @@ fn broken_judge_texts_are_factory_mistakes() {
     let resources = copied_resources();
     let judge = resources.join("packages/im/data/judge");
     std::fs::write(judge.join("violations.txt"), "Severity {nope}.\n").expect("写得进");
-    let problems = Factory::load(&package_in(&resources)).expect_err("模板写坏了");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("模板写坏了");
     assert_eq!(
         problems
             .iter()
@@ -442,7 +447,8 @@ fn broken_judge_texts_are_factory_mistakes() {
     )
     .expect("抄得了");
     std::fs::remove_file(judge.join("answer.txt")).expect("删得了");
-    let problems = Factory::load(&package_in(&resources)).expect_err("少了一份");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("少了一份");
     assert_eq!(
         problems
             .iter()
@@ -463,14 +469,16 @@ fn a_factory_warning_or_a_missing_directory_is_a_mistake_too() {
     let resources = copied_resources();
     let rules = resources.join("packages/im/data/venues.d");
     std::fs::write(rules.join("60-extra.toml"), "nonsense = 1\n").expect("写得进");
-    let problems = Factory::load(&package_in(&resources)).expect_err("警告也算");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("警告也算");
     assert_eq!(problems.len(), 1);
     assert_eq!(
         (problems[0].code, problems[0].file.as_str()),
         (Code::UnknownKey, "60-extra.toml")
     );
     std::fs::remove_dir_all(&rules).expect("删得了");
-    let problems = Factory::load(&package_in(&resources)).expect_err("出厂的规则不在");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("出厂的规则不在");
     assert_eq!(
         problems
             .iter()

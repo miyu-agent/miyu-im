@@ -161,9 +161,15 @@ pub async fn ended(home: &Home, turn: usize) -> (String, String) {
     )
 }
 
-/// 出厂的那一句 `tool-results/<name>.txt`，字段照 `fields` 换，去掉行尾。
+/// 出厂的那一句 `tool-results/<name>.txt`（施工 T-1 起挪进驱动的那几件的在 `onebot/tool-results/`，先找 im 的），字段照 `fields`
+/// 换，去掉行尾。
 pub fn sentence(name: &str, fields: &[(&str, &str)]) -> String {
-    let path = resources().join(format!("packages/im/data/tool-results/{name}.txt"));
+    let data = resources().join("packages/im/data");
+    let own = data.join(format!("tool-results/{name}.txt"));
+    let path = match own.exists() {
+        true => own,
+        false => data.join(format!("onebot/tool-results/{name}.txt")),
+    };
     let mut text = std::fs::read_to_string(path).expect("读得出");
     for (key, value) in fields {
         text = text.replace(&format!("{{{key}}}"), value);

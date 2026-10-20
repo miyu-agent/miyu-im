@@ -47,9 +47,7 @@ pub use cards::{load as load_cards, path as cards_path, save as save_cards};
 pub use configured::{Configured, key_of};
 use files::Stamp;
 pub use tools::Tools;
-pub(crate) use tools::{
-    AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, MUTE, POKE, RECALL, SKIP_REPLY,
-};
+pub(crate) use tools::{CHAT_SEND, FETCH_MEDIA, MENTION, MUTE, POKE, RECALL, SKIP_REPLY};
 
 /// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `system/` 里。
 const VENUES: &str = "venues.d";
@@ -101,8 +99,12 @@ impl Factory {
     ///
     /// 有一条问题就是打包的错（警告也算，照 `chat.md` 第八条施工时定的第 10 条），交回全部问题：规则写错、出厂参数写错、
     /// 判官的说明、退信的模板、桥的工具写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规
-    /// 词表、判官的说明、退信的模板、桥的工具的先后。
-    pub fn load(package: &Package) -> Result<Factory, Vec<Problem>> {
+    /// 词表、判官的说明、退信的模板、桥的工具的先后。驱动交的工具 `toolset`（施工 T-1，`Driver::toolset`）照它的目录一起读、查；
+    /// 印场所规则这类用不上工具的交空的。
+    pub fn load(
+        package: &Package,
+        toolset: Option<Arc<dyn crate::toolset::ToolSet>>,
+    ) -> Result<Factory, Vec<Problem>> {
         let dir = package.data();
         let mut problems = Vec::new();
         let rules = files::rules(&dir.join(VENUES), VENUES, Source::Factory, &mut problems);
@@ -132,7 +134,7 @@ impl Factory {
             .map(|text| Moderation::parse_keywords(&text));
         let judge = judge::texts(&dir, &mut problems);
         let facts = facts::load(&dir, &mut problems);
-        let tools = tools::load(&dir, &mut problems);
+        let tools = tools::load(&dir, toolset, &mut problems);
         let page = page_words(&dir, &mut problems);
         match (params, keywords, judge, facts, tools, page) {
             (

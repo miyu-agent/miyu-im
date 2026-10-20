@@ -82,7 +82,7 @@ pub(crate) async fn take(
 }
 
 /// 工作区里放取来的视频、文件的目录（施工单「要定的」第 3 条）。
-pub(crate) const QQ_FILES: &str = "qq-files";
+pub const QQ_FILES: &str = "qq-files";
 
 /// 文件名里名字那一段最多几个字符：前面还有消息编号和第几个，整个不超过文件系统的 255 字节。
 const NAME: usize = 80;
@@ -92,7 +92,7 @@ const NAME: usize = 80;
 /// # Errors
 ///
 /// 地址下不下来、路径读不了、base64 解不出：都不行的时候。
-pub(crate) async fn bytes(sources: &[Source], timeout: Duration) -> Result<Vec<u8>, String> {
+pub async fn bytes(sources: &[Source], timeout: Duration) -> Result<Vec<u8>, String> {
     let mut why = Vec::new();
     for source in sources {
         let got = match source {
@@ -172,18 +172,13 @@ pub(crate) fn file_name(msg: &str, index: usize, name: Option<&str>) -> String {
     }
 }
 
-/// 把 `bytes` 存成工作区 `cwd`（`~` 换成家目录 `home`）下 `qq-files/` 里的 `name`（[`file_name`] 洗过的），交回落到的真实路径。
+/// 把 `bytes` 存成工作区 `cwd`（`~` 换成家目录 `home`）下 `qq-files/` 里的 `name`（照取东西时 `file_name` 洗过的），交回落到的真实路径。
 /// 在阻塞线程里调。
 ///
 /// # Errors
 ///
 /// 工作区不是绝对路径、没有，`qq-files` 不是目录（链接也算不是）、落到了工作区外面、写不了：英文的一句。
-pub(crate) fn save(
-    cwd: &str,
-    home: Option<&Path>,
-    name: &str,
-    bytes: &[u8],
-) -> Result<PathBuf, String> {
+pub fn save(cwd: &str, home: Option<&Path>, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
     let workspace = expand(cwd, home)?;
     if !workspace.is_absolute() {
         return Err(format!("workspace {cwd} is not an absolute path"));
@@ -260,7 +255,7 @@ fn unique() -> String {
 mod tests;
 
 /// 照开头几个字节认图的扩展名（施工 I-6 中从 `core/route/lookup.rs` 挪来：页面服务给头像也照它）：PNG、GIF、WebP，别的当 JPEG（QQ 的头像多是 JPEG）。
-pub(crate) fn extension(bytes: &[u8]) -> &'static str {
+pub fn extension(bytes: &[u8]) -> &'static str {
     if bytes.starts_with(b"\x89PNG") {
         "png"
     } else if bytes.starts_with(b"GIF8") {

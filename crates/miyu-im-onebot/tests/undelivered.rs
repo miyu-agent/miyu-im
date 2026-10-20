@@ -11,7 +11,6 @@ use tokio::sync::oneshot;
 
 use miyu_chat::Source;
 use miyu_config::problem::Code;
-use miyu_im::rules::Factory;
 use miyu_session::testkit::{Play, Script};
 
 use crate::rules::{clean, copied_resources};
@@ -331,7 +330,8 @@ fn a_broken_undelivered_template_is_a_factory_mistake() {
         ("<undelivered who=\"{who}\">{text}</undelivered>\n", "who"),
     ] {
         std::fs::write(facts.join("undelivered.txt"), text).expect("写得进");
-        let problems = Factory::load(&package_in(&resources)).expect_err("模板不对");
+        let problems =
+            crate::support::shipped::factory_at(&package_in(&resources)).expect_err("模板不对");
         assert_eq!(
             problems
                 .iter()
@@ -348,7 +348,7 @@ fn a_broken_undelivered_template_is_a_factory_mistake() {
         );
     }
     std::fs::remove_file(facts.join("undelivered.txt")).expect("删得了");
-    let problems = Factory::load(&package_in(&resources)).expect_err("不在");
+    let problems = crate::support::shipped::factory_at(&package_in(&resources)).expect_err("不在");
     assert_eq!(
         problems
             .iter()
@@ -362,6 +362,6 @@ fn a_broken_undelivered_template_is_a_factory_mistake() {
         "<undelivered why=\"{why}\">{text}</undelivered>\n",
     )
     .expect("写得进");
-    assert!(Factory::load(&package_in(&resources)).is_ok());
+    assert!(crate::support::shipped::factory_at(&package_in(&resources)).is_ok());
     clean(resources.parent().expect("有上一级"));
 }

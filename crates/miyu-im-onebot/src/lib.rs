@@ -6,5 +6,6 @@ mod identity;
 mod listen;
 pub mod onebot;
 pub mod settings;
+mod tools;
 
 pub use listen::OneBot;

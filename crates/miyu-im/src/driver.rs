@@ -55,6 +55,13 @@ pub trait Driver: Send + Sync {
         &[]
     }
 
+    /// 驱动给 AI 的工具（施工 T-1，[`crate::toolset::ToolSet`]；2026-10-20 项目主人定：平台的工具在驱动里，im 不提供工具）：照
+    /// `bridge.json` 的参数 `tuning` 造一套；没有的是空的。
+    fn toolset(&self, tuning: &Tuning) -> Option<Arc<dyn crate::toolset::ToolSet>> {
+        let _ = tuning;
+        None
+    }
+
     /// 驱动自己带的 im 插件（施工 I-10 上，[`Builtin`]）：照样是插件（声明、场所开关、插件页），卸不掉；OneBot 带识人术。
     fn builtins(&self) -> Vec<Arc<dyn Builtin>> {
         Vec::new()

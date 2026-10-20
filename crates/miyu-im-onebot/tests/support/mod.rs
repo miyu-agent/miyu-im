@@ -12,7 +12,7 @@ pub mod events;
 pub mod fake_core;
 pub mod group;
 pub mod head;
-mod shipped;
+pub mod shipped;
 pub use shipped::*;
 pub mod hooked;
 pub mod judge;

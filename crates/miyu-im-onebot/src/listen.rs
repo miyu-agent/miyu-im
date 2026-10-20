@@ -35,6 +35,8 @@ use miyu_im::TARGET;
 use miyu_im::chat::{CAPS, Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Reaction, Started};
 use miyu_im::plugins::Builtin;
+use miyu_im::toolset::ToolSet;
+use miyu_im::tuning::Tuning;
 
 /// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
 #[derive(Debug, Clone, Copy, Default)]
@@ -56,6 +58,11 @@ impl Driver for OneBot {
 
     fn secrets(&self) -> &'static [&'static str] {
         SECRETS
+    }
+
+    fn toolset(&self, tuning: &Tuning) -> Option<Arc<dyn ToolSet>> {
+        // 给 AI 的工具（施工 T-1 起挪进驱动）。
+        Some(Arc::new(crate::tools::QqTools::new(tuning)))
     }
 
     fn builtins(&self) -> Vec<Arc<dyn Builtin>> {

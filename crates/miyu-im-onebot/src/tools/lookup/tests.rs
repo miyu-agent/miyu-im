@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use super::{Whose, avatar_of, extension, listed, whose};
-use crate::chat::{Member, Rank};
+use miyu_im::chat::{Member, Rank};
 
 #[test]
 fn whose_avatar_is_read_from_the_arguments_or_the_caller() {

@@ -18,7 +18,7 @@ use crate::chat::Bots;
 use crate::chat::{CallError, Msg, To};
 use crate::core::{Answerer, Gone};
 use crate::media::{Missed, message};
-use crate::rules::{AVATAR, CHAT_SEND, FETCH_MEDIA, MEMBERS, MENTION, Tools};
+use crate::rules::{CHAT_SEND, FETCH_MEDIA, MENTION, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -77,9 +77,9 @@ impl Route {
         if tool == FETCH_MEDIA {
             return self.fetch_called(pushed).await;
         }
-        // 头像、群成员（施工 O-54，`lookup`）。
-        if tool == AVATAR || tool == MEMBERS {
-            return self.looked_up(pushed).await;
+        // 驱动交的工具（施工 T-1，`driven`）：头像、群成员起挪进驱动。
+        if let Some(driven) = self.tools.driven(tool) {
+            return self.driven_called(pushed, driven).await;
         }
         // @ 指定的人（施工 O-55，`mentions`）。
         if tool == MENTION {

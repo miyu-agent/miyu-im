@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use miyu_client::open::SystemBrowser;
 use miyu_client::places::{DataRoot, Env, ResourceRoot, locale};
 use miyu_im::control::{Control, CoreCommand, control};
+use miyu_im::driver::Driver;
 use miyu_im::logs::logs;
 use miyu_im::package::{self, Package};
 use miyu_im::rules::Factory;
@@ -189,7 +190,8 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
             return FAILED;
         }
     };
-    let factory = match Factory::load(&package) {
+    let driver = std::sync::Arc::new(miyu_im_onebot::OneBot);
+    let factory = match Factory::load(&package, driver.toolset(&tuning)) {
         Ok(factory) => factory,
         Err(problems) => {
             settle(texts, &owed);
@@ -204,7 +206,7 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         tuning,
         defaults,
         factory,
-        driver: std::sync::Arc::new(miyu_im_onebot::OneBot),
+        driver,
         package,
     };
     let speaking = Arc::new(Mutex::new(texts.clone()));

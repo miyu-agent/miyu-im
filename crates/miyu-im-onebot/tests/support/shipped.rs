@@ -22,5 +22,11 @@ pub fn defaults() -> Defaults {
 
 /// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。
 pub fn factory() -> Factory {
-    Factory::load(&package_in(resources())).expect("出厂的读得出来")
+    factory_at(&package_in(resources())).expect("出厂的读得出来")
+}
+
+/// 照包文件夹 `package` 读出厂的（同桥起来时）：驱动交的工具（施工 T-1）一起读。
+pub fn factory_at(package: &miyu_im::package::Package) -> Result<Factory, Vec<miyu_chat::Problem>> {
+    use miyu_im::driver::Driver;
+    Factory::load(package, miyu_im_onebot::OneBot.toolset(&tuning()))
 }

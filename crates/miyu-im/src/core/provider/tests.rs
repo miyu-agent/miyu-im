@@ -18,7 +18,7 @@ fn package() -> std::path::PathBuf {
 
 /// 出厂的工具。
 fn tools() -> Arc<Tools> {
-    Factory::load(&Package::at(package()))
+    Factory::load(&Package::at(package()), None)
         .expect("出厂的读得出")
         .tools()
 }
@@ -47,7 +47,8 @@ fn asked(heard: Heard) -> Value {
 fn the_provide_params_follow_the_shipped_spec() {
     // 施工 O-31 起四件：`recall`、`poke` 给私聊和群，`mute` 只给群；三件平台工具是 `venue`（在场所里做的事），`skip_reply` 是
     // `read`（`onebot.md` 施工时定的第 177 条）。施工 O-33 加 `fetch_media`：`venue`，只给群；施工 O-35 起私聊也给。施工 O-54 加 `avatar`（`venue`，私聊和群）、
-    // `members`（`read`，只给群）；施工 O-55 加 `mention`（`venue`，只给群）；施工 O-56 加 `chat_send`（`venue`，私聊和群）。
+    // `members`（`read`，只给群）；施工 O-55 加 `mention`（`venue`，只给群）；施工 O-56 加 `chat_send`（`venue`，私聊和群）。施工 T-1
+    // 起头像、群成员挪进驱动（不带驱动读的这一份没有它们，驱动的接在后面，`tests/provider.rs`）。
     let spec = |name: &str| -> Value {
         serde_json::from_str(&shipped(&format!("tools/{name}.json"))).expect("是 JSON")
     };
@@ -82,8 +83,6 @@ fn the_provide_params_follow_the_shipped_spec() {
             entry("mute", "venue", json!(["group"])),
             entry("poke", "venue", both.clone()),
             entry("fetch_media", "venue", json!(["private", "group"])),
-            entry("avatar", "venue", both),
-            entry("members", "read", json!(["group"])),
             entry("mention", "venue", json!(["group"])),
             entry("chat_send", "venue", json!(["private", "group"])),
         ]})

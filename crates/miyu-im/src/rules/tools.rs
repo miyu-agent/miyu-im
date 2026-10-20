@@ -6,9 +6,13 @@
 //!
 //! 交出去的：`provide` 的参数（[`Tools::provided`]），读的一头当场答的 `tool.call` 的结果（[`Tools::call`]），交给跟核心的那一头
 //! 答的几件（[`Tools::routed`]）和它们答的话（[`Tools::answer`]，施工 O-31）。
+//!
+//! 施工 T-1 起（2026-10-20 项目主人定：平台的工具在驱动里，im 不提供工具）一件一件挪进驱动：驱动交的一套（`crate::toolset::ToolSet`）
+//! 照它的目录读说明、答的话，登记时接在这里剩下的几件后面；它那几件的调用照名字交给它（[`Tools::driven`]）。挪完了这张表是空的。
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 use miyu_chat::{Problem, Source};
 use miyu_client::protocol::Template;
@@ -19,6 +23,7 @@ use serde_json::{Value, json};
 
 use super::files;
 use super::names::{self, Names};
+use crate::toolset::{Answers, ToolSet};
 
 /// 「这一轮不说话」（「提供者和不说话」第 3 条）：她的回复里有这件的调用块，这一轮就不发了（`core/route/quiet.rs`）。
 pub(crate) const SKIP_REPLY: &str = "skip_reply";
@@ -35,12 +40,6 @@ pub(crate) const POKE: &str = "poke";
 /// 取图、视频、文件（施工 O-33，「平台工具（二）」）：私聊、群都给（施工 O-35 起私聊也给）。
 pub(crate) const FETCH_MEDIA: &str = "fetch_media";
 
-/// 取头像（施工 O-54，「头像和群成员」）：一个人的、一个群的，存进工作区。
-pub(crate) const AVATAR: &str = "avatar";
-
-/// 查群成员（施工 O-54）：只给群。
-pub(crate) const MEMBERS: &str = "members";
-
 /// @ 指定的人（施工 O-55）：只给群。
 pub(crate) const MENTION: &str = "mention";
 
@@ -55,14 +54,12 @@ const VENUES: &[&str] = &["private", "group"];
 /// 会话里拒绝，谁能叫、能动谁由桥自己挡（`providers.md`「在场所里做的事」，「施工时定的」第 177 条）。本机的会话都没有。
 /// `fetch_media` 也是在场所里做的事（施工 O-33：去平台取东西、写进这个会话自己的工作区）；O-33 只给群，O-35 起私聊里带了东西
 /// 的那条也写出消息编号，私聊也给。
-const TOOLS: [(&str, Access, &[&str]); 9] = [
+const TOOLS: [(&str, Access, &[&str]); 7] = [
     (SKIP_REPLY, Access::Read, VENUES),
     (RECALL, Access::Venue, VENUES),
     (MUTE, Access::Venue, &["group"]),
     (POKE, Access::Venue, VENUES),
     (FETCH_MEDIA, Access::Venue, VENUES),
-    (AVATAR, Access::Venue, VENUES),
-    (MEMBERS, Access::Read, &["group"]),
     (MENTION, Access::Venue, &["group"]),
     (CHAT_SEND, Access::Venue, VENUES),
 ];
@@ -79,7 +76,7 @@ const UNKNOWN: &str = "unknown";
 /// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段；`saved` 以后是
 /// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered`、`not-found` 共用。施工 O-48 去掉
 /// 不让做的两句（`not-allowed`、`protected`）。
-const ANSWERS: [(&str, &[&str]); 23] = [
+const ANSWERS: [(&str, &[&str]); 21] = [
     ("recalled", &[]),
     ("muted", &["who", "duration"]),
     ("unmuted", &["who"]),
@@ -98,8 +95,6 @@ const ANSWERS: [(&str, &[&str]); 23] = [
     ("unfetched", &["detail"]),
     ("too-many", &["count"]),
     ("not-saved", &["detail"]),
-    ("members", &["shown", "total", "list"]),
-    ("no-members", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
     ("sent", &[]),
@@ -118,6 +113,26 @@ pub struct Tools {
     answers: HashMap<&'static str, Template>,
     /// 每件给人看的名字（施工 S-6 上）：照语言，`provide` 时带上（`display_name`）。
     names: Names,
+    /// 驱动交的那一套（施工 T-1）。
+    driven: Option<Driven>,
+}
+
+/// 驱动交的一套工具，说明、答的话读好了。
+struct Driven {
+    set: Arc<dyn ToolSet>,
+    /// 每件的规格和给哪种会话，照 `ToolSet::tools` 的先后。
+    specs: Vec<(Spec, &'static [&'static str])>,
+    answers: Arc<Answers>,
+}
+
+impl std::fmt::Debug for Driven {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Driven")
+            .field("dir", &self.set.dir())
+            .field("specs", &self.specs)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Tools {
@@ -125,9 +140,11 @@ impl Tools {
     /// 的再带 `display_name`（`{语言: 名字}`，施工 S-6 上，[`names`]），写了名字后面跟哪一个参数的再带 `subject`；不写 `timeout_ms`（照核心的一分钟：这几件当场答，平台工具
     /// 等 NapCat 也在 `call_timeout_seconds` 里）。
     pub(crate) fn provided(&self) -> Value {
+        let driven = self.driven.iter().flat_map(|driven| driven.specs.iter());
         let tools: Vec<Value> = self
             .specs
             .iter()
+            .chain(driven)
             .map(|(spec, venues)| {
                 let mut tool = json!({
                     "name": spec.name,
@@ -152,17 +169,19 @@ impl Tools {
     /// 缓存和机器人号的连接；`fetch_media`（施工 O-33）要会话发到哪、这一轮取了几次；`avatar`、`members`（施工 O-54）要会话发到哪、
     /// 机器人号的连接。
     pub(crate) fn routed(&self, tool: &str) -> bool {
-        [
-            RECALL,
-            MUTE,
-            POKE,
-            FETCH_MEDIA,
-            AVATAR,
-            MEMBERS,
-            MENTION,
-            CHAT_SEND,
-        ]
-        .contains(&tool)
+        [RECALL, MUTE, POKE, FETCH_MEDIA, MENTION, CHAT_SEND].contains(&tool)
+            || self.driven(tool).is_some()
+    }
+
+    /// 工具 `tool` 是驱动交的（施工 T-1）：交回那一套和它答的话；别的是空的。
+    pub(crate) fn driven(&self, tool: &str) -> Option<(Arc<dyn ToolSet>, Arc<Answers>)> {
+        let driven = self.driven.as_ref()?;
+        driven
+            .set
+            .tools()
+            .iter()
+            .any(|decl| decl.name == tool)
+            .then(|| (Arc::clone(&driven.set), Arc::clone(&driven.answers)))
     }
 
     /// 读的一头当场答的 `tool.call` 的结果（`tool.call` 回应的 `result`，「提供者和不说话」第 2、3 条）：`skip_reply` 答出厂的
@@ -195,11 +214,23 @@ fn result(text: &str, error: bool) -> Value {
     json!({"blocks": [{"type": "text", "text": text}], "error": error})
 }
 
-/// 读包文件夹的数据目录 `data` 里桥的工具：说明、答的话、给人看的名字（施工 S-6 上，`names`）。读不成、写坏了、要了别的字段的，每一份记一条 `bad_format`（文件照
-/// `data/` 下的位置写，原话照 `miyu_client::tooltext::load` 说的），交回空的。
-pub(super) fn load(data: &Path, problems: &mut Vec<Problem>) -> Option<Tools> {
+/// 读包文件夹的数据目录 `data` 里桥的工具：说明、答的话、给人看的名字（施工 S-6 上，`names`），驱动交的那一套 `toolset` 照它的
+/// 目录读（施工 T-1）。读不成、写坏了、要了别的字段的，每一份记一条 `bad_format`（文件照 `data/` 下的位置写，原话照
+/// `miyu_client::tooltext::load` 说的），交回空的。
+pub(super) fn load(
+    data: &Path,
+    toolset: Option<Arc<dyn ToolSet>>,
+    problems: &mut Vec<Problem>,
+) -> Option<Tools> {
     // 给人看的名字先读（施工 S-6 上）：读不懂的那一份先记一条问题，下面记问题的那一个要一直借着 `problems`。
-    let named: Vec<&str> = TOOLS.iter().map(|(name, _, _)| *name).collect();
+    let driver_names = toolset
+        .iter()
+        .flat_map(|set| set.tools().iter().map(|decl| decl.name));
+    let named: Vec<&str> = TOOLS
+        .iter()
+        .map(|(name, _, _)| *name)
+        .chain(driver_names)
+        .collect();
     let names = names::load(data, &named, problems);
     let mut trouble = |file: String, error: LoadError| {
         problems.push(files::whole(
@@ -216,6 +247,7 @@ pub(super) fn load(data: &Path, problems: &mut Vec<Problem>) -> Option<Tools> {
             Err(error) => trouble(format!("tools/{name}.json"), error),
         }
     }
+    let driven = toolset.map(|set| driven(data, set, &mut trouble));
     let text = |name: &str, fields: &[&str]| {
         load::text_in(data, RESULTS, name, fields)
             .map_err(|error| (format!("{RESULTS}/{name}.txt"), error))
@@ -232,6 +264,11 @@ pub(super) fn load(data: &Path, problems: &mut Vec<Problem>) -> Option<Tools> {
             Err(error) => broken.push(error),
         }
     }
+    let driven = match driven {
+        None => None,
+        Some(Some(driven)) => Some(driven),
+        Some(None) => return None,
+    };
     match (skipped, unknown) {
         (Ok(skipped), Ok(unknown)) if specs.len() == TOOLS.len() && broken.is_empty() => {
             Some(Tools {
@@ -240,6 +277,7 @@ pub(super) fn load(data: &Path, problems: &mut Vec<Problem>) -> Option<Tools> {
                 unknown,
                 answers,
                 names,
+                driven,
             })
         }
         (skipped, unknown) => {
@@ -250,4 +288,44 @@ pub(super) fn load(data: &Path, problems: &mut Vec<Problem>) -> Option<Tools> {
             None
         }
     }
+}
+
+/// 读驱动交的那一套 `set`（施工 T-1）：说明照 `data/<目录>/tools/`，答的话照 `data/<目录>/tool-results/`。读不成的每一份交给
+/// `trouble` 记一条，交回空的。
+fn driven(
+    data: &Path,
+    set: Arc<dyn ToolSet>,
+    trouble: &mut impl FnMut(String, LoadError),
+) -> Option<Driven> {
+    let dir = set.dir();
+    let mut specs = Vec::new();
+    let mut whole = true;
+    for decl in set.tools() {
+        match load::spec_in(&data.join(dir), decl.name, decl.access.clone()) {
+            Ok(spec) => specs.push((spec, decl.venues)),
+            Err(error) => {
+                whole = false;
+                trouble(format!("{dir}/tools/{}.json", decl.name), error);
+            }
+        }
+    }
+    let answers = match Answers::load(data, dir, set.answers()) {
+        Ok(answers) => Some(answers),
+        Err(broken) => {
+            for (file, why) in broken {
+                let error = LoadError {
+                    file: data.join(&file),
+                    why,
+                };
+                trouble(file, error);
+            }
+            None
+        }
+    };
+    let answers = answers.filter(|_| whole)?;
+    Some(Driven {
+        set,
+        specs,
+        answers: Arc::new(answers),
+    })
 }

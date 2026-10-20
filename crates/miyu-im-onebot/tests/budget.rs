@@ -32,10 +32,14 @@ const TOOLS: [&str; 9] = [
 
 #[test]
 fn the_bridge_tool_face_stays_within_its_budget() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im/data/tools");
+    // im 剩下的、驱动交的（施工 T-1 起挪进 `onebot/tools/`）一起算：工具面是桥交的整套。
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im/data");
     let mut total = 0;
     let mut names = Vec::new();
-    for entry in std::fs::read_dir(&dir).expect("读得了工具说明的目录") {
+    let entries = ["tools", "onebot/tools"]
+        .into_iter()
+        .flat_map(|dir| std::fs::read_dir(data.join(dir)).expect("读得了工具说明的目录"));
+    for entry in entries {
         let path = entry.expect("读得了目录项").path();
         let bytes = std::fs::read(&path).expect("读得了说明");
         total += bytes.iter().filter(|byte| **byte != b'\r').count();

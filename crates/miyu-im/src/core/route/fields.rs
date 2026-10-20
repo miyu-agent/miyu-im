@@ -13,8 +13,8 @@ use crate::chat::{Media, Posted};
 /// 平台的编号最长几个字符（`venues.md`「场所的格」的 `msg`、`reply_to`，带的东西的 `id`）。
 const ID: usize = 128;
 
-/// 发的人的名字最长几个字符（`name`）。
-pub(super) const NAME: usize = 64;
+/// 发的人的名字最长几个字符（`name`，施工 T-1 挪进 `crate::toolset`）。
+pub(super) use crate::toolset::NAME;
 
 /// 带的东西的名字最长几个字符（文件名、表情的字）。
 const MEDIA_NAME: usize = 200;
@@ -99,15 +99,8 @@ pub(super) fn shown(venue: &mut Value, numbers: &[usize]) {
     }
 }
 
-/// 洗一个名字：去掉控制字符，截到 `most` 个字符（不截断一个字）；去掉首尾空白是空的交回空的。
-pub(super) fn clean(name: &str, most: usize) -> Option<String> {
-    let cleaned: String = name
-        .chars()
-        .filter(|char| !char.is_control())
-        .take(most)
-        .collect();
-    (!cleaned.trim().is_empty()).then_some(cleaned)
-}
+/// 洗名字（施工 T-1 挪进 `crate::toolset`：驱动的工具也用）。
+pub(super) use crate::toolset::clean;
 
 /// 一个平台的编号合不合核心的写法：不空，最多 [`ID`] 个字符，没有控制字符。
 pub(super) fn fits(id: &str) -> bool {

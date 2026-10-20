@@ -9,7 +9,6 @@ use serde_json::{Value, json};
 
 use miyu_chat::Source;
 use miyu_config::problem::Code;
-use miyu_im::rules::Factory;
 use miyu_session::testkit::{Play, Script};
 
 use crate::rules::{clean, copied_resources};
@@ -115,7 +114,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
 
 #[test]
 fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
-    assert!(Factory::load(&package_in(resources())).is_ok());
+    assert!(crate::support::shipped::factory_at(&package_in(resources())).is_ok());
     let resources = copied_resources();
     let software = resources.join("packages/im/data");
     for (file, text, wanted) in [
@@ -134,11 +133,23 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
             "seconds",
         ),
         ("tool-results/failed.txt", "Failed {why}.\n", "why"),
+        // 施工 T-1：驱动交的工具照它的目录读，写坏了、不在的同样是打包的错。
+        (
+            "onebot/tools/members.json",
+            "{\"parameters\": {}}",
+            "description",
+        ),
+        (
+            "onebot/tool-results/members.txt",
+            "{shown} of {all}\n",
+            "all",
+        ),
     ] {
         let path = software.join(file);
         let kept = std::fs::read_to_string(&path).expect("读得出");
         std::fs::write(&path, text).expect("写得进");
-        let problems = Factory::load(&package_in(&resources)).expect_err("写坏了");
+        let problems =
+            crate::support::shipped::factory_at(&package_in(&resources)).expect_err("写坏了");
         assert_eq!(
             problems
                 .iter()
@@ -154,7 +165,8 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
             "{problems:?}"
         );
         std::fs::remove_file(&path).expect("删得了");
-        let problems = Factory::load(&package_in(&resources)).expect_err("不在");
+        let problems =
+            crate::support::shipped::factory_at(&package_in(&resources)).expect_err("不在");
         assert_eq!(problems.len(), 1, "{problems:?}");
         assert_eq!(problems[0].file, file, "{problems:?}");
         std::fs::write(&path, kept).expect("写得进");
@@ -163,7 +175,8 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     let zh = software.join("human/zh.json");
     let kept = std::fs::read_to_string(&zh).expect("读得出");
     std::fs::write(&zh, "{").expect("写得进");
-    let problems = Factory::load(&package_in(&resources)).expect_err("读不懂");
+    let problems =
+        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("读不懂");
     assert_eq!(
         problems
             .iter()
@@ -173,12 +186,12 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     );
     std::fs::remove_file(&zh).expect("删得了");
     assert!(
-        Factory::load(&package_in(&resources)).is_ok(),
+        crate::support::shipped::factory_at(&package_in(&resources)).is_ok(),
         "没有的不算错"
     );
     std::fs::write(&zh, kept).expect("写得进");
     // 少要字段照收：答的那一句不带工具名也认得出。
     std::fs::write(software.join("tool-results/unknown.txt"), "No such tool.\n").expect("写得进");
-    assert!(Factory::load(&package_in(&resources)).is_ok());
+    assert!(crate::support::shipped::factory_at(&package_in(&resources)).is_ok());
     clean(resources.parent().expect("有上一级"));
 }

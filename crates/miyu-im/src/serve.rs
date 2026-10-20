@@ -294,11 +294,6 @@ pub async fn run(
             per_turn: serve.tuning.fetch_per_turn,
             wait: serve.tuning.fetch(),
             quick: serve.tuning.call_timeout(),
-            avatars: (
-                serve.tuning.avatar_user_url.clone(),
-                serve.tuning.avatar_group_url.clone(),
-            ),
-            members: serve.tuning.members_shown,
         },
         Forwarding {
             per_message: serve.tuning.message_forwards,

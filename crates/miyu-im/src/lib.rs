@@ -50,6 +50,7 @@ pub mod settings;
 mod site;
 pub mod status_file;
 pub mod texts;
+pub mod toolset;
 pub mod tuning;
 pub mod venue;
 pub mod web;
