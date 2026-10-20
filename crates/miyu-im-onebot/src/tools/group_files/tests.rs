@@ -48,6 +48,19 @@ fn sizes_and_saved_names_read_well() {
         saved_name("https://x.invalid/d?fname=../../etc/passwd", "/f1"),
         "passwd"
     );
+    // 平台给的名字是 `%XX` 写的：解开再洗，解出来的路径照样去掉。
+    assert_eq!(
+        saved_name("https://x.invalid/d?fname=%E6%8E%92%E7%8F%AD.pdf", "/f1"),
+        "排班.pdf"
+    );
+    assert_eq!(
+        saved_name("https://x.invalid/d?fname=%2E%2E%2F%2E%2E%2Fpasswd", "/f1"),
+        "passwd"
+    );
+    assert_eq!(
+        saved_name("https://x.invalid/d?fname=100%25%zz", "/f1"),
+        "100%%zz"
+    );
     assert_eq!(
         saved_name("https://x.invalid/d?fname=..", "/f1"),
         "group-file-f1"

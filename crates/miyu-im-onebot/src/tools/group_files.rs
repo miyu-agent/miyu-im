@@ -52,12 +52,14 @@ pub(crate) fn listed(files: &GroupFiles, shown: usize) -> (usize, usize, String)
     (list.len(), total, list.join("; "))
 }
 
-/// 下下来的群文件存成什么名字（纯逻辑）：下载地址里带了 `fname=` 的照它（洗过、去掉路径），不然 `group-file-<编号>`。
+/// 下下来的群文件存成什么名字（纯逻辑）：下载地址里带了 `fname=` 的照它（先解开 `%XX`，再洗过、去掉路径），不然
+/// `group-file-<编号>`。
 pub(crate) fn saved_name(url: &str, file: &str) -> String {
     let named = url
         .split(['?', '&'])
         .find_map(|part| part.strip_prefix("fname="))
-        .map(|name| name.rsplit(['/', '\\']).next().unwrap_or(name).to_string())
+        .map(decoded)
+        .map(|name| name.rsplit(['/', '\\']).next().unwrap_or(&name).to_string())
         .and_then(|name| clean(&name, NAME))
         .filter(|name| !name.trim().is_empty() && name != "." && name != "..");
     named.unwrap_or_else(|| {
@@ -68,6 +70,30 @@ pub(crate) fn saved_name(url: &str, file: &str) -> String {
             .collect();
         format!("group-file-{id}")
     })
+}
+
+/// 解开地址里的 `%XX`（平台给的文件名是这样写的）；不成对的 `%` 照原样，解出来不是 UTF-8 的那几个字节换成替换字符。
+fn decoded(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        let hex = bytes
+            .get(at + 1..at + 3)
+            .and_then(|pair| std::str::from_utf8(pair).ok())
+            .and_then(|pair| u8::from_str_radix(pair, 16).ok());
+        match (bytes[at], hex) {
+            (b'%', Some(byte)) => {
+                out.push(byte);
+                at += 3;
+            }
+            (byte, _) => {
+                out.push(byte);
+                at += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// `qq_group_files` 的一次调用（模块的说明）。私聊里调到的照不认识的工具答（`venues` 不给，照说不会）。

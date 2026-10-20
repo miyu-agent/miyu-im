@@ -43,11 +43,24 @@ pub(super) fn plugins(packages: &Value) -> Vec<Value> {
         .collect()
 }
 
+/// 一个包的编号（纯逻辑，照核心 `packages.md` 的写法：小写字母开头，小写字母、数字、`-`、`_`，最多 64 个）。核心的
+/// `package.install` 也收路径、地址，商城只装软件源里的，别的拒。
+pub(super) fn named(package: &str) -> bool {
+    package.len() <= 64
+        && package
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_lowercase())
+        && package
+            .chars()
+            .all(|one| one.is_ascii_lowercase() || one.is_ascii_digit() || one == '-' || one == '_')
+}
+
 /// `store.install`（模块的说明）。
 pub(super) async fn install(person: &Person, params: &Value) -> Result<Value, (String, String)> {
     let package = params["package"]
         .as_str()
-        .filter(|package| !package.is_empty())
+        .filter(|package| named(package))
         .ok_or_else(bad)?;
     let installed = core(person, "package.install", json!({"source": package})).await?;
     tracing::info!(target: crate::TARGET, package, "plugin installed from the store");

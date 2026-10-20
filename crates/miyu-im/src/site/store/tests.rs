@@ -2,7 +2,7 @@
 
 use serde_json::json;
 
-use super::plugins;
+use super::{named, plugins};
 
 #[test]
 fn only_packages_carrying_im_content_are_listed() {
@@ -18,4 +18,26 @@ fn only_packages_carrying_im_content_are_listed() {
         .collect();
     assert_eq!(listed, ["miyu-im-memes", "both"]);
     assert!(plugins(&json!(null)).is_empty());
+}
+
+#[test]
+fn only_package_names_from_the_index_are_installed() {
+    assert!(named("miyu-im-memes"));
+    assert!(named("dice_2"));
+    let long = "a".repeat(65);
+    for bad in [
+        "",
+        "-x",
+        "2dice",
+        "Dice",
+        "./pkg",
+        "/tmp/evil",
+        "https://x.invalid/p.tar.gz",
+        "a b",
+        "..",
+        "pkg@1",
+        &long,
+    ] {
+        assert!(!named(bad), "{bad}");
+    }
 }
