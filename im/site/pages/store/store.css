@@ -1,0 +1,15 @@
+/* 商城（施工 I-11）：卡片照插件页的 .plug-card；头上的搜索框照设置页的输入框，不描边。 */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.page-head h1 { margin: 0; font-size: 20px; }
+.store-search { width: min(320px, 100%); height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; outline: none; }
+.store-search:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.store-card { cursor: default; }
+.store-action { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.store-action .btn { white-space: nowrap; }
+.store-failed { color: var(--danger); font-size: 12px; }
+.store-stale { margin: 0 0 12px; }
+@media (max-width: 640px) {
+  .page-head { flex-direction: column; align-items: stretch; }
+  .store-search { width: 100%; }
+}
+.chip.good { background: color-mix(in srgb, var(--online) 14%, transparent); color: var(--online); }

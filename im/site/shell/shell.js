@@ -10,13 +10,14 @@ import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
 import { mountSettings } from '../pages/settings/settings.js';
 import { mountPlugins } from '../pages/plugins/plugins.js';
+import { mountStore } from '../pages/store/store.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
   { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins },
-  { id: 'store', name: () => say('nav/store') },
+  { id: 'store', name: () => say('nav/store'), mount: mountStore },
   { id: 'stats', name: () => say('nav/stats') },
   { id: 'settings', name: () => say('nav/settings'), mount: mountSettings },
 ];
