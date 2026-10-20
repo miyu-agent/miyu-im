@@ -141,6 +141,29 @@ async fn the_overview_counts_today_and_says_why_each_message_was_answered() {
     )
     .await;
     assert_eq!(bad["error"]["reason"], "method_failed", "{bad}");
+
+    // 统计页（施工 I-14）：两个群各收一条，为什么回、为什么没回带上判断的结论（判不了照回的是 unjudged-reply）。
+    let stats = call(&mut open, 5, "stats", json!({"period": "today"})).await;
+    let messages = &stats["result"]["messages"];
+    assert_eq!(
+        (&messages["now"]["received"], &messages["now"]["replied"]),
+        (&json!(2), &json!(1)),
+        "{stats}"
+    );
+    assert_eq!(
+        messages["reasons"],
+        json!({"unjudged-reply": 1, "off": 1}),
+        "{stats}"
+    );
+    let hours: u64 = messages["hours"]
+        .as_array()
+        .map(|hours| hours.iter().filter_map(Value::as_u64).sum())
+        .unwrap_or_default();
+    assert_eq!(hours, 2, "{stats}");
+    assert!(stats["result"]["running"]["uptime"].is_u64(), "{stats}");
+    // 不认的段照今天。
+    let wrong = call(&mut open, 6, "stats", json!({"period": "year"})).await;
+    assert_eq!(wrong["result"]["messages"]["now"]["received"], 2, "{wrong}");
     stopped(home).await;
 }
 

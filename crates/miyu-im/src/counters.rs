@@ -8,7 +8,8 @@
 //!
 //! - 每个场所另有一份（施工 I-7 上补：会话浮窗「概况」的今天收到、回复、只记录）：同一个文件里的 `venues`，场所编号 → 几个数。
 //!
-//! 统计页要的分判断结果、分小时随统计那一步加。
+//! - 统计页（施工 I-14）另记两样：判断的原因（`reasons`，原因的编号 → 几次，同会话浮窗「最近判断」的原因）、收到的按本机的小时
+//!   （`hours`，24 格）。[`Counters::days`] 读一段日子的（今天照手里的，别的照盘上的）。
 
 #[cfg(test)]
 mod tests;
@@ -47,13 +48,21 @@ pub(crate) struct Day {
     pub(crate) undelivered: u64,
 }
 
-/// 存的一天：合计（写在最外层，同施工 I-6 下的写法）和每个场所的。
+/// 存的一天：合计（写在最外层，同施工 I-6 下的写法）、每个场所的、判断的原因和按小时收到的（施工 I-14）。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-struct Daily {
+pub(crate) struct Daily {
+    /// 合计。
     #[serde(flatten)]
-    total: Day,
+    pub(crate) total: Day,
+    /// 场所编号 → 几个数。
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    venues: BTreeMap<String, Day>,
+    pub(crate) venues: BTreeMap<String, Day>,
+    /// 判断的原因 → 几次（施工 I-14）。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) reasons: BTreeMap<String, u64>,
+    /// 收到的，按本机的小时（0 到 23 点，施工 I-14）；以前写的没有这一格。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) hours: Vec<u64>,
 }
 
 impl Day {
@@ -120,6 +129,9 @@ impl Counters {
             }
             let daily = &mut held.1;
             daily.total.add(count);
+            if count == Count::Received {
+                hour(daily, now_hour());
+            }
             daily
                 .venues
                 .entry(venue.to_string())
@@ -128,6 +140,38 @@ impl Counters {
         }
         self.dirty.notify_one();
         self.changed.notify();
+    }
+
+    /// 判断了一次，原因是 `reason`（施工 I-14，统计页「为什么回、为什么没回」）。
+    pub(crate) fn reason(&self, reason: &str) {
+        {
+            let date = today();
+            let mut held = lock(&self.held);
+            if held.0 != date {
+                *held = (date, Daily::default());
+            }
+            *held.1.reasons.entry(reason.to_string()).or_default() += 1;
+        }
+        self.dirty.notify_one();
+    }
+
+    /// 日期 `dates` 那几天的（施工 I-14，统计页）：今天照手里的，别的照盘上的；没有的、读不懂的当零。
+    pub(crate) fn days(&self, dates: &[String]) -> Vec<(String, Daily)> {
+        let held = lock(&self.held).clone();
+        dates
+            .iter()
+            .map(|date| {
+                let daily = if *date == held.0 {
+                    held.1.clone()
+                } else {
+                    std::fs::read(file(&self.dir, date))
+                        .ok()
+                        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+                        .unwrap_or_default()
+                };
+                (date.clone(), daily)
+            })
+            .collect()
     }
 
     /// 今天的几个数（记着的是前一天的当零）。
@@ -190,6 +234,21 @@ pub(crate) async fn keep(counters: Arc<Counters>) -> Option<Failure> {
             Err(error) => tracing::warn!(target: TARGET, error = %error, "counters not written"),
         }
     }
+}
+
+/// 第 `hour` 点收到的那一格数一下：以前写的没有 24 格的先补齐。
+fn hour(daily: &mut Daily, hour: usize) {
+    if daily.hours.len() != 24 {
+        daily.hours.resize(24, 0);
+    }
+    if let Some(slot) = daily.hours.get_mut(hour) {
+        *slot += 1;
+    }
+}
+
+/// 本机此刻是几点（0 到 23）。
+fn now_hour() -> usize {
+    usize::try_from(jiff::Zoned::now().hour()).unwrap_or_default()
 }
 
 /// 日期 `date` 那一份的路径。

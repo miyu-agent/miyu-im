@@ -26,6 +26,7 @@ mod plugins;
 mod request;
 mod save;
 mod settings;
+mod stats;
 mod store;
 #[cfg(test)]
 mod tests;

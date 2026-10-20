@@ -27,6 +27,8 @@ pub(crate) struct Running {
     pub(crate) reported: Arc<Reported>,
     /// 页面服务实际听的端口（施工 I-5 上）。
     pub(crate) page: Arc<Port>,
+    /// 桥起来的时刻（施工 I-14：统计页的运行时间）。
+    pub(crate) since: std::time::SystemTime,
 }
 
 impl Running {

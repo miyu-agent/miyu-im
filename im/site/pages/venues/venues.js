@@ -26,12 +26,14 @@ const SECTIONS = [
 ];
 
 /** 在 `view` 里起会话页：`request` 调宿主的方法。交回 update(connections)、event(name)、dispose()。 */
-export function mountVenues(view, { request }) {
+export function mountVenues(view, { request, path }) {
   let answer = null;
   let all = [];
   let filter = 'all';
   let query = '';
   let open = null;
+  // 从别的页点过来的（#venues/group/777，施工 I-14 统计页）：读到卡以后打开它一次。
+  let wanted = path || '';
   // 宿主的平台、现在看的平台、连着的机器人（号 → 名字、平台、连没连着）、出现过的平台。
   let host = '';
   let chosen = '';
@@ -81,6 +83,13 @@ export function mountVenues(view, { request }) {
     all = entries(answer);
     drawHead();
     drawWall();
+    if (wanted) {
+      const [type, id] = wanted.split('/');
+      wanted = '';
+      const one = all.find((each) => each.type === type && each.id === id);
+      if (one) show(one);
+      history.replaceState(null, '', '#venues');
+    }
     if (open) {
       const now = all.find((one) => one.kind === open.kind && one.id === open.id);
       if (now) open.dialog.update(now);

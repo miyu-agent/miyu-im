@@ -30,7 +30,7 @@ use serde_json::{Map, Value, json};
 use super::logins::Login;
 use super::{
     Person, Site, home_cards, logs, panels, plugin_settings, plugin_widgets, plugins, save,
-    settings, store, venues,
+    settings, stats, store, venues,
 };
 use crate::core::methods::short_path;
 
@@ -76,6 +76,7 @@ pub(super) async fn answer(
         Some("plugins.settings.set") => plugin_settings::set(&login.person, params).await,
         Some("plugins.call") => plugin_settings::call(site, &login.person, params).await,
         Some("plugins.panel") => panels::open(site, login, params).await,
+        Some("stats") => stats::stats(site, &login.person, params).await,
         Some("store.list") => store::list(&login.person, params).await,
         Some("store.install") => store::install(&login.person, params).await,
         Some(method) if venues::FORWARDED.contains(&method) => {

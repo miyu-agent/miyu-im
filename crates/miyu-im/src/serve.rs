@@ -240,6 +240,7 @@ pub async fn run(
         current: Arc::clone(&current),
         reported,
         page: Arc::clone(&page),
+        since: std::time::SystemTime::now(),
     });
     let site = Site::new(
         (serve.root.clone(), serve.package.dir().join("site")),

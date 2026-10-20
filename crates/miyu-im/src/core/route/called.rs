@@ -158,6 +158,15 @@ impl Route {
             outcome: outcome.to_string(),
             why: noted::why(&written),
         };
+        // 统计页「为什么回、为什么没回」（施工 I-14）：判过的、没判成的带上结论（回了、只记下）。
+        if let Some(reason) = note.why["reason"].as_str() {
+            match reason {
+                "judged" | "unjudged" => {
+                    self.counters.reason(&format!("{reason}-{}", note.outcome))
+                }
+                reason => self.counters.reason(reason),
+            }
+        }
         self.recent.note(&tag.venue, note);
         self.append(session, Some(&decided), DECIDED, written)
             .await?;
