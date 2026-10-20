@@ -86,7 +86,7 @@ async fn a_call_joined_into_a_skipped_turn_is_answered_in_the_next_turn() {
 #[tokio::test]
 async fn other_calls_of_the_step_still_run() {
     // 多排一句：照旧接着请求的话拿得到，不卡在替身里。
-    let lines = Lines::new([Line::skips("").and("poke", "{}"), Line::says("不该说。")]);
+    let lines = Lines::new([Line::skips("").and("qq_poke", "{}"), Line::says("不该说。")]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
     admin_calls(&napcat, 1, "戳我一下");
     // 戳照常到 NapCat：没 @ 别人，戳叫她的人。
@@ -118,7 +118,7 @@ async fn other_calls_of_the_step_still_run() {
     assert_eq!(
         seen,
         [
-            ("poke".to_string(), json!("ok"), Value::Null),
+            ("qq_poke".to_string(), json!("ok"), Value::Null),
             (SKIP_REPLY.to_string(), json!("ok"), json!(true)),
         ],
         "{events:#?}"

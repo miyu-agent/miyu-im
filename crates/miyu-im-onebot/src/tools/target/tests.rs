@@ -84,9 +84,9 @@ fn recall(msg: &str, check: bool) -> Plan {
 
 #[test]
 fn orders_are_read_from_the_tool_with_what_she_gives() {
-    assert_eq!(Order::read("recall", &json!({})), Some(RECALL));
-    assert_eq!(Order::read("poke", &json!({})), Some(Order::Poke));
-    assert_eq!(Order::read("skip_reply", &json!({})), None);
+    assert_eq!(Order::read("qq_recall", &json!({})), Some(RECALL));
+    assert_eq!(Order::read("qq_poke", &json!({})), Some(Order::Poke));
+    assert_eq!(Order::read("qq_skip_reply", &json!({})), None);
     for (msg, wanted) in [
         (json!("123"), Arg::Given("123".to_string())),
         (json!(-45), Arg::Given("-45".to_string())),
@@ -95,7 +95,7 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
         (json!(1.5), Arg::Bad),
     ] {
         assert_eq!(
-            Order::read("recall", &json!({"msg": msg})),
+            Order::read("qq_recall", &json!({"msg": msg})),
             Some(Order::Recall(wanted)),
             "{msg}"
         );
@@ -121,7 +121,7 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
         (json!({"seconds": 60, "user": "小明"}), Some(60), Arg::Bad),
     ] {
         assert_eq!(
-            Order::read("mute", &args),
+            Order::read("qq_mute", &args),
             Some(Order::Mute { seconds, user }),
             "{args}"
         );

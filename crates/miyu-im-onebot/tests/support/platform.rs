@@ -219,7 +219,7 @@ pub fn platform_tools(request: &Request) -> Vec<String> {
         .tools
         .iter()
         .map(|tool| tool.name.clone())
-        .filter(|name| ["recall", "mute", "poke"].contains(&name.as_str()))
+        .filter(|name| ["qq_recall", "qq_mute", "qq_poke"].contains(&name.as_str()))
         .collect()
 }
 

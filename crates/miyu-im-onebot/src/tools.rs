@@ -14,52 +14,64 @@ use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
 
 mod acting;
+mod contacts;
 mod fetch;
+mod group_files;
 mod log;
 mod lookup;
 mod mention;
 mod moderate;
+mod react;
 mod target;
 
 /// 「这一轮不说话」（施工 O-26，「提供者和不说话」第 3 条）：im 的读的一头当场答，她的回复里有这件的调用块，这一轮就不发了。
-pub const SKIP_REPLY: &str = "skip_reply";
+pub const SKIP_REPLY: &str = "qq_skip_reply";
 
 /// @ 指定的人（施工 O-55）：只给群。
-pub const MENTION: &str = "mention";
+pub const MENTION: &str = "qq_mention";
 
 /// 主动发消息（施工 O-56）：发给她的好友、她在的群。
-pub const CHAT_SEND: &str = "chat_send";
+pub const CHAT_SEND: &str = "qq_send";
 
 /// 撤回（施工 O-31）：撤叫她做的那条引用的那一条，或者她给的编号。
-pub const RECALL: &str = "recall";
+pub const RECALL: &str = "qq_recall";
 
 /// 禁言（施工 O-31）：只给群。
-pub const MUTE: &str = "mute";
+pub const MUTE: &str = "qq_mute";
 
 /// 戳一戳（施工 O-31）。
-pub const POKE: &str = "poke";
+pub const POKE: &str = "qq_poke";
 
 /// 踢人（施工 Q-2，群管理）：只给群。
-pub const KICK: &str = "kick";
+pub const KICK: &str = "qq_kick";
 
 /// 查管理记录（施工 Q-4，群管理）：只给群。
-pub const MODERATION_LOG: &str = "moderation_log";
+pub const MODERATION_LOG: &str = "qq_moderation_log";
+
+/// 通讯录（施工 I-12）：私聊、群都给。
+pub const CONTACTS: &str = "qq_contacts";
+
+/// 群文件（施工 I-12）：只给群。
+pub const GROUP_FILES: &str = "qq_group_files";
+
+/// 给消息贴表情（施工 I-12）：只给群。
+pub const REACT: &str = "qq_react";
 
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
-pub const FETCH_MEDIA: &str = "fetch_media";
+pub const FETCH_MEDIA: &str = "qq_fetch_media";
 
 /// 取头像（施工 O-54）：一个人的、一个群的，存进工作区。
-pub const AVATAR: &str = "avatar";
+pub const AVATAR: &str = "qq_avatar";
 
 /// 查群成员（施工 O-54）：只给群。
-pub const MEMBERS: &str = "members";
+pub const MEMBERS: &str = "qq_members";
 
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 11] = [
+const TOOLS: [Decl; 14] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -115,10 +127,25 @@ const TOOLS: [Decl; 11] = [
         access: Access::Venue,
         venues: VENUES,
     },
+    Decl {
+        name: CONTACTS,
+        access: Access::Read,
+        venues: VENUES,
+    },
+    Decl {
+        name: GROUP_FILES,
+        access: Access::Venue,
+        venues: &["group"],
+    },
+    Decl {
+        name: REACT,
+        access: Access::Venue,
+        venues: &["group"],
+    },
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 32] = [
+const ANSWERS: [(&str, &[&str]); 37] = [
     ("skipped", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
@@ -140,6 +167,11 @@ const ANSWERS: [(&str, &[&str]); 32] = [
     ("log-ranking", &["period"]),
     ("log-empty", &[]),
     ("ranking-off", &[]),
+    ("contacts", &["shown", "total", "kind", "list"]),
+    ("no-contacts", &[]),
+    ("group-files", &["shown", "total", "list"]),
+    ("no-group-files", &[]),
+    ("reacted", &[]),
     ("not-found", &[]),
     ("unknown", &["name"]),
     ("saved", &["path"]),
@@ -236,6 +268,9 @@ impl ToolSet for QqTools {
         match call.tool.as_str() {
             RECALL | MUTE | POKE | KICK => acting::acting(call),
             MODERATION_LOG => log::log(call),
+            CONTACTS => contacts::contacts(self.members, call),
+            GROUP_FILES => group_files::group_files(self, call),
+            REACT => react::react(call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, self.wait),
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {

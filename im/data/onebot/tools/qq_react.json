@@ -1,0 +1,4 @@
+{
+  "description": "Add an emoji reaction to a message in this group.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"emoji":{"type":"string","description":"One emoji, e.g. 👍."}},"required":["msg","emoji"]}
+}

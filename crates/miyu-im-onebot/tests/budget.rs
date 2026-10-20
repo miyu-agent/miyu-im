@@ -13,26 +13,32 @@
 //! 预算 738 个 token，合 2523 字节。施工 Q-2 加 `kick`、给 `mute` 加 `reason`（2026-10-20 同一个端点、同一个办法，驱动的十件一起）：
 //! 边际份量 101、115（`mute` 原来 95），十件合计 1002 个 token、2762 字节；预算是实测加一成，1102 个 token，合 3038 字节。施工 Q-4
 //! 加 `moderation_log`（同一个端点、同一个办法，十一件一起）：第一稿 124，说明删到一句、参数不写说明以后 96；十一件合计 1098 个
-//! token、3071 字节，预算是实测加一成，1208 个 token，合 3378 字节。加工具、改说明超了，重新量过再改这里和设计。
+//! token、3071 字节，预算是实测加一成，1208 个 token，合 3378 字节。施工 I-12 工具名统一加 `qq_`（2026-10-20 项目主人定；`chat_send`
+//! 改回 `qq_send`）：十一件合计 1115 个 token（多 17），说明字节不变；同一张加 `qq_contacts`、`qq_group_files`、`qq_react`（边际
+//! 89、90、89），十四件合计 1383 个 token、3920 字节，预算是实测加一成，1521 个 token，合 4312 字节。加工具、改说明超了，重新量过
+//! 再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 3378;
+const BUDGET: usize = 4312;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 11] = [
-    "avatar",
-    "chat_send",
-    "fetch_media",
-    "kick",
-    "members",
-    "mention",
-    "moderation_log",
-    "mute",
-    "poke",
-    "recall",
-    "skip_reply",
+const TOOLS: [&str; 14] = [
+    "qq_avatar",
+    "qq_contacts",
+    "qq_fetch_media",
+    "qq_group_files",
+    "qq_kick",
+    "qq_members",
+    "qq_mention",
+    "qq_moderation_log",
+    "qq_mute",
+    "qq_poke",
+    "qq_react",
+    "qq_recall",
+    "qq_send",
+    "qq_skip_reply",
 ];
 
 #[test]

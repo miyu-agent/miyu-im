@@ -1,16 +1,19 @@
 {
   "tools": {
-    "skip_reply": { "name": "Skip reply", "subject": "reason" },
-    "recall": { "name": "Recall" },
-    "mute": { "name": "Mute", "subject": "seconds" },
-    "kick": { "name": "Kick" },
-    "moderation_log": { "name": "Moderation log", "subject": "view" },
-    "poke": { "name": "Poke" },
-    "fetch_media": { "name": "Fetch media", "subject": "msg" },
-    "avatar": { "name": "Avatar" },
-    "members": { "name": "Group members", "subject": "query" },
-    "mention": { "name": "Mention" },
-    "chat_send": { "name": "Send message", "subject": "text" }
+    "qq_skip_reply": { "name": "Skip reply", "subject": "reason" },
+    "qq_recall": { "name": "Recall" },
+    "qq_mute": { "name": "Mute", "subject": "seconds" },
+    "qq_kick": { "name": "Kick" },
+    "qq_contacts": { "name": "Contacts", "subject": "query" },
+    "qq_group_files": { "name": "Group files", "subject": "file" },
+    "qq_react": { "name": "React", "subject": "emoji" },
+    "qq_moderation_log": { "name": "Moderation log", "subject": "view" },
+    "qq_poke": { "name": "Poke" },
+    "qq_fetch_media": { "name": "Fetch media", "subject": "msg" },
+    "qq_avatar": { "name": "Avatar" },
+    "qq_members": { "name": "Group members", "subject": "query" },
+    "qq_mention": { "name": "Mention" },
+    "qq_send": { "name": "Send message", "subject": "text" }
   },
   "said": {
     "usage": "usage: miyu im start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",

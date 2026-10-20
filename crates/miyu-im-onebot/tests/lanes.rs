@@ -304,8 +304,8 @@ async fn tools_on_a_lane_look_at_its_own_trigger() {
     let (release_a, hold_a) = oneshot::channel();
     let lines = Lines::new([
         Line::says("回A").released_by(hold_a),
-        Line::uses("", "poke", "{}"),
-        Line::uses("", "fetch_media", r#"{"msg":"999"}"#),
+        Line::uses("", "qq_poke", "{}"),
+        Line::uses("", "qq_fetch_media", r#"{"msg":"999"}"#),
         Line::says("好"),
     ]);
     let (home, mut napcat, _) =

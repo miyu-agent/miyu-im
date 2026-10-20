@@ -66,7 +66,7 @@ fn qq_files(home: &Home) -> PathBuf {
 #[tokio::test]
 async fn a_private_message_shows_its_marks_and_fetch_media_works_there() {
     let picture = png(3, 3);
-    let fetch = |args: &'static str| Line::uses("", "fetch_media", args);
+    let fetch = |args: &'static str| Line::uses("", "qq_fetch_media", args);
     let lines = Lines::new([
         // 第一轮：文件、图、别人的私聊、他在群里说的、第五次。
         fetch(r#"{"msg":"801","index":2}"#),
@@ -120,7 +120,10 @@ async fn a_private_message_shows_its_marks_and_fetch_media_works_there() {
         "交了原图的那一样记 shown"
     );
     assert!(
-        request.tools.iter().any(|tool| tool.name == "fetch_media"),
+        request
+            .tools
+            .iter()
+            .any(|tool| tool.name == "qq_fetch_media"),
         "私聊的工具面里有 fetch_media"
     );
     let saved_text = sentence("saved", &[("path", "qq-files/801-2-排班.pdf")]);
@@ -223,7 +226,7 @@ async fn a_private_message_with_only_media_is_sent_with_its_marks() {
 #[tokio::test]
 async fn in_a_group_a_private_message_is_not_found() {
     let lines = Lines::new([
-        Line::uses("", "fetch_media", r#"{"msg":"821"}"#),
+        Line::uses("", "qq_fetch_media", r#"{"msg":"821"}"#),
         Line::says("好。"),
     ]);
     let (home, napcat) = up(&lines).await;

@@ -27,7 +27,7 @@ use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports, TurnConfig};
 pub const NO_TOOL: &str = "no_such_tool";
 
 /// 桥提供的「这一轮不说话」（施工 O-26）。
-pub const SKIP_REPLY: &str = "skip_reply";
+pub const SKIP_REPLY: &str = "qq_skip_reply";
 
 /// 她调 [`SKIP_REPLY`] 时给的参数。
 pub const SKIP_ARGS: &str = r#"{"reason":"not for me"}"#;

@@ -18,6 +18,7 @@ mod calls;
 mod card_model;
 mod cards;
 mod commands;
+mod contacts;
 mod control;
 mod core;
 mod defaults_moved;

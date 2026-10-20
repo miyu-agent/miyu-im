@@ -33,10 +33,10 @@ async fn next_message(napcat: &mut Answering) -> Vec<Value> {
 #[tokio::test]
 async fn her_next_words_mention_the_members_she_named() {
     let lines = Lines::new([
-        Line::uses("", "mention", r#"{"users":[40001,40005,40001]}"#),
+        Line::uses("", "qq_mention", r#"{"users":[40001,40005,40001]}"#),
         Line::says("开会了"),
         Line::says("第二轮"),
-        Line::uses("", "mention", r#"{"users":[40001,59999]}"#),
+        Line::uses("", "qq_mention", r#"{"users":[40001,59999]}"#),
         Line::says("不带"),
     ]);
     let (home, mut napcat) = up(&lines).await;
@@ -74,7 +74,7 @@ async fn her_next_words_mention_the_members_she_named() {
 async fn a_mention_she_did_not_use_does_not_carry_over() {
     // 她 `mention` 了，这一轮又不说话（`skip_reply`）：下一轮的话不带那几个 @。
     let lines = Lines::new([
-        Line::uses("", "mention", r#"{"users":[40001]}"#),
+        Line::uses("", "qq_mention", r#"{"users":[40001]}"#),
         Line::skips(""),
         Line::says("下一轮"),
     ]);

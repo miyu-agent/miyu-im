@@ -1,16 +1,19 @@
 {
   "tools": {
-    "skip_reply": { "name": "返事しない", "subject": "reason" },
-    "recall": { "name": "取り消し" },
-    "mute": { "name": "発言禁止", "subject": "seconds" },
-    "kick": { "name": "グループから外す" },
-    "moderation_log": { "name": "管理記録", "subject": "view" },
-    "poke": { "name": "つつく" },
-    "fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
-    "avatar": { "name": "アイコン" },
-    "members": { "name": "グループのメンバー", "subject": "query" },
-    "mention": { "name": "メンション" },
-    "chat_send": { "name": "メッセージを送る", "subject": "text" }
+    "qq_skip_reply": { "name": "返事しない", "subject": "reason" },
+    "qq_recall": { "name": "取り消し" },
+    "qq_mute": { "name": "発言禁止", "subject": "seconds" },
+    "qq_kick": { "name": "グループから外す" },
+    "qq_contacts": { "name": "連絡先", "subject": "query" },
+    "qq_group_files": { "name": "グループファイル", "subject": "file" },
+    "qq_react": { "name": "リアクション", "subject": "emoji" },
+    "qq_moderation_log": { "name": "管理記録", "subject": "view" },
+    "qq_poke": { "name": "つつく" },
+    "qq_fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
+    "qq_avatar": { "name": "アイコン" },
+    "qq_members": { "name": "グループのメンバー", "subject": "query" },
+    "qq_mention": { "name": "メンション" },
+    "qq_send": { "name": "メッセージを送る", "subject": "text" }
   },
   "said": {
     "usage": "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所>（serve はコアだけが起動します）",

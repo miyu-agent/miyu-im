@@ -14,14 +14,14 @@ use crate::support::*;
 async fn recall_takes_the_quoted_message_or_the_msg_she_gives_for_anyone() {
     let lines = Lines::new(
         [
-            uses("recall", "{}"),
-            uses("recall", "{}"),
-            uses("recall", "{}"),
-            uses("recall", "{}"),
-            uses("recall", "{}"),
-            uses("recall", r#"{"msg":"555"}"#),
-            uses("recall", r#"{"msg":"666"}"#),
-            uses("recall", r#"{"msg":"777"}"#),
+            uses("qq_recall", "{}"),
+            uses("qq_recall", "{}"),
+            uses("qq_recall", "{}"),
+            uses("qq_recall", "{}"),
+            uses("qq_recall", "{}"),
+            uses("qq_recall", r#"{"msg":"555"}"#),
+            uses("qq_recall", r#"{"msg":"666"}"#),
+            uses("qq_recall", r#"{"msg":"777"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -43,7 +43,7 @@ async fn recall_takes_the_quoted_message_or_the_msg_she_gives_for_anyone() {
     assert_eq!(ended(&home, 1).await, done("recalled", &[]));
     assert_eq!(
         platform_tools(&lines.requests()[0]),
-        ["mute", "poke", "recall"],
+        ["qq_mute", "qq_poke", "qq_recall"],
         "群会话的工具面里三件都有（照名字排）"
     );
     // 施工 O-48：普通成员（昵称冒充终端管理员的也是）叫她撤别人的：照撤，做不做由她，成不成由 QQ。
@@ -113,15 +113,15 @@ async fn recall_takes_the_quoted_message_or_the_msg_she_gives_for_anyone() {
 async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_mention() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":600}"#),
-            uses("mute", r#"{"seconds":0}"#),
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":2592001}"#),
-            uses("mute", r#"{"seconds":2592000}"#),
-            uses("mute", r#"{"seconds":120,"user":40005}"#),
-            uses("mute", r#"{"seconds":120,"user":"小杰"}"#),
+            uses("qq_mute", r#"{"seconds":600}"#),
+            uses("qq_mute", r#"{"seconds":0}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":2592001}"#),
+            uses("qq_mute", r#"{"seconds":2592000}"#),
+            uses("qq_mute", r#"{"seconds":120,"user":40005}"#),
+            uses("qq_mute", r#"{"seconds":120,"user":"小杰"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -220,10 +220,10 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
 async fn mute_holds_no_one_back_and_asks_nothing_first() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
         ]
         .into_iter()
         .flatten(),
@@ -261,9 +261,13 @@ async fn mute_holds_no_one_back_and_asks_nothing_first() {
 #[tokio::test]
 async fn poke_takes_the_mention_or_the_one_who_asked() {
     let lines = Lines::new(
-        [uses("poke", "{}"), uses("poke", "{}"), uses("poke", "{}")]
-            .into_iter()
-            .flatten(),
+        [
+            uses("qq_poke", "{}"),
+            uses("qq_poke", "{}"),
+            uses("qq_poke", "{}"),
+        ]
+        .into_iter()
+        .flatten(),
     );
     let (home, mut napcat) = up(&lines).await;
     let words = json!([at(MEMBER), plain(" 戳他")]);
@@ -301,7 +305,7 @@ async fn poke_takes_the_mention_or_the_one_who_asked() {
 #[tokio::test]
 async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_have_none() {
     let lines = Lines::new(
-        [uses("recall", "{}"), uses("poke", "{}")]
+        [uses("qq_recall", "{}"), uses("qq_poke", "{}")]
             .into_iter()
             .flatten()
             .chain([Line::says("本机。")]),
@@ -318,7 +322,7 @@ async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_hav
     let requests = lines.requests();
     assert_eq!(
         platform_tools(&requests[0]),
-        ["poke", "recall"],
+        ["qq_poke", "qq_recall"],
         "私聊没有禁言"
     );
     let results: Vec<String> = home

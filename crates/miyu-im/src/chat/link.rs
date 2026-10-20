@@ -123,6 +123,28 @@ pub struct Friend {
     pub name: Option<String>,
 }
 
+/// 群文件的一层（施工 I-12，[`Link::group_files`]）：文件夹和文件，照平台给的先后。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GroupFiles {
+    /// 文件夹：（编号，名字，里面几个文件）。
+    pub folders: Vec<(String, String, u64)>,
+    /// 文件。
+    pub files: Vec<GroupFile>,
+}
+
+/// 群里的一个文件（施工 I-12）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupFile {
+    /// 平台给的编号：取的时候原样交回。
+    pub id: String,
+    /// 文件名，照原样。
+    pub name: String,
+    /// 多大（字节）；没有的是 0。
+    pub size: u64,
+    /// 谁传的；没有的是空的。
+    pub uploader: Option<String>,
+}
+
 /// 对端是哪个实现（施工 O-28：后台页的 `status`、状态文件说它）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Implementation {
@@ -170,6 +192,12 @@ pub trait Link: Send + Sync + fmt::Debug {
 
     /// 处理标记是 `flag` 的那次加群申请（施工 Q-7，入群审批）：`approve` 的同意，不然拒绝，拒绝的理由 `reason` 给申请人看。
     fn join_request<'a>(&'a self, flag: &'a str, approve: bool, reason: &'a str) -> Reply<'a, ()>;
+
+    /// 群 `group` 的群文件：`folder` 是哪个文件夹，空的是最外一层（施工 I-12）。
+    fn group_files<'a>(&'a self, group: i64, folder: Option<&'a str>) -> Reply<'a, GroupFiles>;
+
+    /// 群 `group` 里编号是 `file` 的群文件的下载地址（施工 I-12）。
+    fn group_file_url<'a>(&'a self, group: i64, file: &'a str) -> Reply<'a, String>;
 
     /// 取平台编号是 `id` 的那一条消息（施工 O-33）。
     fn message<'a>(&'a self, id: &'a str) -> Reply<'a, Fetched>;

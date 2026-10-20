@@ -104,7 +104,7 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
 async fn fetch_media_brings_back_pictures_and_saves_files() {
     let picture = png(5, 5);
     let server = Server::start(vec![serving(&picture)]).await;
-    let fetch = |args: &'static str| Line::uses("", "fetch_media", args);
+    let fetch = |args: &'static str| Line::uses("", "qq_fetch_media", args);
     let lines = Lines::new([
         // 第一轮：图、文件、小黄脸、没有的编号、第五次。
         fetch(r#"{"msg":"601","index":1}"#),
@@ -281,7 +281,10 @@ async fn a_private_picture_comes_along() {
         .collect();
     assert_eq!(names, ["msg-701-1"]);
     assert!(
-        request.tools.iter().any(|tool| tool.name == "fetch_media"),
+        request
+            .tools
+            .iter()
+            .any(|tool| tool.name == "qq_fetch_media"),
         "私聊的工具面里有 fetch_media"
     );
     stopped(home).await;

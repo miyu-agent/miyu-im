@@ -38,11 +38,11 @@ fn provided(home: &Home) -> usize {
 async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":60}"#),
-            uses("mute", r#"{"seconds":600}"#),
-            uses("mute", r#"{"seconds":600}"#),
-            uses("kick", "{}"),
-            uses("moderation_log", "{}"),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_mute", r#"{"seconds":600}"#),
+            uses("qq_mute", r#"{"seconds":600}"#),
+            uses("qq_kick", "{}"),
+            uses("qq_moderation_log", "{}"),
         ]
         .into_iter()
         .flatten(),
@@ -91,9 +91,9 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
 async fn mute_needs_her_to_be_an_admin_of_the_group() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":60}"#),
-            uses("kick", "{}"),
-            uses("moderation_log", "{}"),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_kick", "{}"),
+            uses("qq_moderation_log", "{}"),
         ]
         .into_iter()
         .flatten(),
@@ -141,7 +141,7 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
     .await;
     assert_eq!(
         platform_tools(&lines.requests()[0]),
-        ["mute", "poke", "recall"]
+        ["qq_mute", "qq_poke", "qq_recall"]
     );
     // 关掉禁言工具：im 重新登记（日志多一行 `tools provided`），之后的回合没有禁言。
     let before = provided(&home);
@@ -165,7 +165,10 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
         of_kind(events, "turn.ended").len() >= 2
     })
     .await;
-    assert_eq!(platform_tools(&lines.requests()[1]), ["poke", "recall"]);
+    assert_eq!(
+        platform_tools(&lines.requests()[1]),
+        ["qq_poke", "qq_recall"]
+    );
     let named = |index: usize| -> Vec<String> {
         lines.requests()[index]
             .tools
@@ -173,9 +176,9 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
             .map(|tool| tool.name.clone())
             .collect()
     };
-    assert!(named(0).contains(&"moderation_log".to_string()));
+    assert!(named(0).contains(&"qq_moderation_log".to_string()));
     assert!(
-        !named(1).contains(&"moderation_log".to_string()),
+        !named(1).contains(&"qq_moderation_log".to_string()),
         "查记录工具关了不登记"
     );
     stopped(home).await;
@@ -199,10 +202,10 @@ fn records(home: &Home) -> Vec<Value> {
 async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":600,"reason":"刷屏"}"#),
-            uses("mute", r#"{"seconds":0}"#),
-            uses("kick", r#"{"block":true,"reason":"发广告"}"#),
-            uses("kick", r#"{"user":40002}"#),
+            uses("qq_mute", r#"{"seconds":600,"reason":"刷屏"}"#),
+            uses("qq_mute", r#"{"seconds":0}"#),
+            uses("qq_kick", r#"{"block":true,"reason":"发广告"}"#),
+            uses("qq_kick", r#"{"user":40002}"#),
         ]
         .into_iter()
         .flatten(),
@@ -273,8 +276,8 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
 async fn nothing_is_recorded_when_records_are_off_and_kick_can_be_switched_off() {
     let lines = Lines::new(
         [
-            uses("mute", r#"{"seconds":60}"#),
-            uses("moderation_log", r#"{"view":"ranking"}"#),
+            uses("qq_mute", r#"{"seconds":60}"#),
+            uses("qq_moderation_log", r#"{"view":"ranking"}"#),
         ]
         .into_iter()
         .flatten(),
@@ -302,9 +305,9 @@ async fn nothing_is_recorded_when_records_are_off_and_kick_can_be_switched_off()
         .iter()
         .map(|tool| tool.name.clone())
         .collect();
-    assert!(tools.contains(&"mute".to_string()), "{tools:?}");
+    assert!(tools.contains(&"qq_mute".to_string()), "{tools:?}");
     assert!(
-        !tools.contains(&"kick".to_string()),
+        !tools.contains(&"qq_kick".to_string()),
         "踢人工具关了不登记：{tools:?}"
     );
     stopped(home).await;
@@ -314,12 +317,12 @@ async fn nothing_is_recorded_when_records_are_off_and_kick_can_be_switched_off()
 async fn the_moderation_log_lists_records_and_a_ranking() {
     let lines = Lines::new(
         [
-            uses("moderation_log", "{}"),
-            uses("mute", r#"{"seconds":600,"reason":"刷屏"}"#),
-            uses("mute", r#"{"seconds":0}"#),
-            uses("moderation_log", "{}"),
-            uses("moderation_log", r#"{"view":"ranking","period":"week"}"#),
-            uses("moderation_log", r#"{"user":40002}"#),
+            uses("qq_moderation_log", "{}"),
+            uses("qq_mute", r#"{"seconds":600,"reason":"刷屏"}"#),
+            uses("qq_mute", r#"{"seconds":0}"#),
+            uses("qq_moderation_log", "{}"),
+            uses("qq_moderation_log", r#"{"view":"ranking","period":"week"}"#),
+            uses("qq_moderation_log", r#"{"user":40002}"#),
         ]
         .into_iter()
         .flatten(),

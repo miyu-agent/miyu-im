@@ -106,7 +106,7 @@ async fn words_with_a_tool_that_ends_the_turn_go_out_when_it_ends() {
 
 #[tokio::test]
 async fn a_turn_she_stays_quiet_in_sends_nothing() {
-    let lines = Lines::new([Line::calls("我想想"), Line::uses("", "skip_reply", "{}")]);
+    let lines = Lines::new([Line::calls("我想想"), Line::uses("", "qq_skip_reply", "{}")]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), &rule(), MEMBERS).await;
     call_her(&napcat);
     assert_eq!(

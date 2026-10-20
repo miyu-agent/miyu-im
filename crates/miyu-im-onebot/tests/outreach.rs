@@ -43,10 +43,10 @@ fn reached(root: &miyu_store::root::DataRoot, venue: &str) -> Vec<String> {
 async fn she_messages_another_group_a_friend_and_a_stranger() {
     let lines = Lines::new(
         [
-            uses("chat_send", r#"{"group":999,"text":"大家晚上好。"}"#),
-            uses("chat_send", r#"{"user":40005,"text":"在吗"}"#),
-            uses("chat_send", r#"{"user":50099,"text":"你好"}"#),
-            uses("chat_send", r#"{"user":1,"group":2,"text":"x"}"#),
+            uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#),
+            uses("qq_send", r#"{"user":40005,"text":"在吗"}"#),
+            uses("qq_send", r#"{"user":50099,"text":"你好"}"#),
+            uses("qq_send", r#"{"user":1,"group":2,"text":"x"}"#),
         ]
         .into_iter()
         .flatten(),

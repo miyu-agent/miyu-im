@@ -19,8 +19,8 @@ fn shipped(name: &str) -> String {
     std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
 }
 
-/// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十一件照
-/// 登记的先后，说明、参数照 `onebot/tools/<名字>.json`；`skip_reply`、`moderation_log`、`members` 是 `read`，别的是 `venue`（在场所里做的事）；禁言、
+/// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十四件照
+/// 登记的先后，说明、参数照 `onebot/tools/<名字>.json`；`qq_skip_reply`、`qq_moderation_log`、`qq_members` 是 `read`，别的是 `venue`（在场所里做的事）；禁言、
 /// 踢人、查管理记录、群成员、@ 人只给群。每件带给人看的名字，照包文件夹 `data/human/<语言>.json` 的 `tools.<名字>.name`，三种语言都有；写了
 /// `subject` 的带上 `subject`（施工 S-6 上）。
 pub fn shipped_tools() -> Value {
@@ -46,17 +46,20 @@ pub fn shipped_tools() -> Value {
     let both: &[&str] = &["private", "group"];
     let group: &[&str] = &["group"];
     json!({"tools": [
-        entry("skip_reply", "read", both),
-        entry("recall", "venue", both),
-        entry("mute", "venue", group),
-        entry("kick", "venue", group),
-        entry("moderation_log", "read", group),
-        entry("poke", "venue", both),
-        entry("fetch_media", "venue", both),
-        entry("avatar", "venue", both),
-        entry("members", "read", group),
-        entry("mention", "venue", group),
-        entry("chat_send", "venue", both),
+        entry("qq_skip_reply", "read", both),
+        entry("qq_recall", "venue", both),
+        entry("qq_mute", "venue", group),
+        entry("qq_kick", "venue", group),
+        entry("qq_moderation_log", "read", group),
+        entry("qq_poke", "venue", both),
+        entry("qq_fetch_media", "venue", both),
+        entry("qq_avatar", "venue", both),
+        entry("qq_members", "read", group),
+        entry("qq_mention", "venue", group),
+        entry("qq_send", "venue", both),
+        entry("qq_contacts", "read", both),
+        entry("qq_group_files", "venue", group),
+        entry("qq_react", "venue", group),
     ]})
 }
 
@@ -111,7 +114,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
         "method": "tool.cancel",
         "params": {"session": "0190f3a1-0000-7000-8000-000000000001", "call_id": "c0"},
     }));
-    relay.request(tool_call("core-1", "skip_reply"));
+    relay.request(tool_call("core-1", "qq_skip_reply"));
     relay.request(tool_call("core-2", "ban_all"));
     relay.request(json!({"jsonrpc": "2.0", "id": "core-3", "method": "tool.peek", "params": {}}));
     assert_eq!(
@@ -137,7 +140,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
         "{refused}"
     );
     // 平台工具（施工 O-31）交给跟核心的那一头答：桥不认识这个会话，答够不着 QQ。
-    relay.request(tool_call("core-4", "recall"));
+    relay.request(tool_call("core-4", "qq_recall"));
     assert_eq!(
         answer(&relay, "core-4").await,
         json!({"jsonrpc": "2.0", "id": "core-4", "result": {
@@ -160,7 +163,7 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     let software = resources.join("packages/im/data");
     for (file, text, wanted) in [
         (
-            "onebot/tools/skip_reply.json",
+            "onebot/tools/qq_skip_reply.json",
             "{\"description\": \"x\"}",
             "parameters",
         ),
@@ -172,7 +175,7 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
         ("tool-results/unknown.txt", "No tool {tool}.\n", "tool"),
         // 施工 O-31：平台工具（一）的说明和答的话同样是出厂数据。
         (
-            "onebot/tools/mute.json",
+            "onebot/tools/qq_mute.json",
             "{\"parameters\": {}}",
             "description",
         ),
@@ -184,7 +187,7 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
         ("onebot/tool-results/failed.txt", "Failed {why}.\n", "why"),
         // 施工 T-1：驱动交的工具照它的目录读，写坏了、不在的同样是打包的错。
         (
-            "onebot/tools/members.json",
+            "onebot/tools/qq_members.json",
             "{\"parameters\": {}}",
             "description",
         ),

@@ -8,8 +8,8 @@ use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{
-    CallError, Fetch, Fetched, Friend, Group, Implementation, Link, Located, Member, Msg, Node,
-    Outgoing, Pending, Reply, To,
+    CallError, Fetch, Fetched, Friend, Group, GroupFiles, Implementation, Link, Located, Member,
+    Msg, Node, Outgoing, Pending, Reply, To,
 };
 
 /// 要它做的一件。
@@ -119,6 +119,12 @@ impl Link for Fake {
         closed()
     }
     fn join_request<'a>(&'a self, _: &'a str, _: bool, _: &'a str) -> Reply<'a, ()> {
+        closed()
+    }
+    fn group_files<'a>(&'a self, _: i64, _: Option<&'a str>) -> Reply<'a, GroupFiles> {
+        closed()
+    }
+    fn group_file_url<'a>(&'a self, _: i64, _: &'a str) -> Reply<'a, String> {
         closed()
     }
     fn message<'a>(&'a self, _: &'a str) -> Reply<'a, Fetched> {

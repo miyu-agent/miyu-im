@@ -62,7 +62,15 @@ const PLATFORM: [&str; 5] = [
 ];
 
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
-const FETCHING: [&str; 4] = ["get_msg", "get_image", "get_file", "get_forward_msg"];
+const FETCHING: [&str; 7] = [
+    "get_msg",
+    "get_image",
+    "get_file",
+    "get_forward_msg",
+    "get_group_root_files",
+    "get_group_files_by_folder",
+    "get_group_file_url",
+];
 
 /// 放进去的消息、东西（施工 O-33）和问过的。
 #[derive(Default)]
@@ -238,6 +246,10 @@ fn fetched(action: &Value, stock: &Mutex<Stock>) -> Value {
             .trim_matches('"')
             .to_string(),
         "get_forward_msg" => params["id"].as_str().unwrap_or_default().to_string(),
+        // 群文件（施工 I-12）：最外一层放在 `root`，文件夹照编号，下载地址照文件编号。
+        "get_group_root_files" => "root".to_string(),
+        "get_group_files_by_folder" => params["folder_id"].as_str().unwrap_or_default().to_string(),
+        "get_group_file_url" => params["file_id"].as_str().unwrap_or_default().to_string(),
         _ => params["file"].as_str().unwrap_or_default().to_string(),
     };
     let mut stock = stock.lock().expect("没 panic");

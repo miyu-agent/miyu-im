@@ -13,7 +13,13 @@ use crate::support::spawning::{bridge_up, cli, ports_config, text};
 use crate::support::*;
 
 /// 桥的五件工具。
-const TOOLS: [&str; 5] = ["skip_reply", "recall", "mute", "poke", "fetch_media"];
+const TOOLS: [&str; 5] = [
+    "qq_skip_reply",
+    "qq_recall",
+    "qq_mute",
+    "qq_poke",
+    "qq_fetch_media",
+];
 
 /// 问核心 `human.get`（语言 `language`），等到五件都有了名字：交回 `tools` 那一格里这五件的名字。
 async fn names(home: &Home, language: &str) -> Value {
@@ -54,11 +60,11 @@ async fn the_cores_human_texts_name_the_bridges_tools() {
     .await;
     assert_eq!(
         names(&home, "zh").await,
-        json!({"skip_reply": "不说话", "recall": "撤回", "mute": "禁言", "poke": "戳一戳", "fetch_media": "取图和文件"})
+        json!({"qq_skip_reply": "不说话", "qq_recall": "撤回", "qq_mute": "禁言", "qq_poke": "戳一戳", "qq_fetch_media": "取图和文件"})
     );
     assert_eq!(
         names(&home, "en").await,
-        json!({"skip_reply": "Skip reply", "recall": "Recall", "mute": "Mute", "poke": "Poke", "fetch_media": "Fetch media"})
+        json!({"qq_skip_reply": "Skip reply", "qq_recall": "Recall", "qq_mute": "Mute", "qq_poke": "Poke", "qq_fetch_media": "Fetch media"})
     );
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await

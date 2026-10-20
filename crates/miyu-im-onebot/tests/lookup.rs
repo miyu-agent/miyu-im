@@ -34,9 +34,12 @@ async fn an_avatar_is_saved_to_the_workspace() {
     let picture = png(3, 3);
     let server = Server::start(vec![serving(&picture), serving(&picture)]).await;
     let lines = Lines::new(
-        [uses("avatar", r#"{"user":40001}"#), uses("avatar", "{}")]
-            .into_iter()
-            .flatten(),
+        [
+            uses("qq_avatar", r#"{"user":40001}"#),
+            uses("qq_avatar", "{}"),
+        ]
+        .into_iter()
+        .flatten(),
     );
     let tuned = json!({
         "avatar_user_url": format!("{}/qq/{{id}}", server.base_url),
@@ -83,9 +86,9 @@ async fn an_avatar_is_saved_to_the_workspace() {
 async fn members_are_listed_and_filtered_by_name() {
     let lines = Lines::new(
         [
-            uses("members", "{}"),
-            uses("members", r#"{"query":"群主"}"#),
-            uses("members", r#"{"query":"没有"}"#),
+            uses("qq_members", "{}"),
+            uses("qq_members", r#"{"query":"群主"}"#),
+            uses("qq_members", r#"{"query":"没有"}"#),
         ]
         .into_iter()
         .flatten(),

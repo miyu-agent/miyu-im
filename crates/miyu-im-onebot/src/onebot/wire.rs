@@ -9,15 +9,18 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::media::{get_media, get_msg};
-use super::replies::{self, FRIEND_LIST, GROUP_INFO, GROUP_LIST, LOGIN_INFO, MEMBER_LIST};
+use super::replies::{
+    self, FILE_URL, FOLDER_FILES, FRIEND_LIST, GROUP_INFO, GROUP_LIST, LOGIN_INFO, MEMBER_LIST,
+    ROOT_FILES,
+};
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
     get_forward_msg, group_add, group_ban, group_kick, image_to, member_info, message_to, node,
     number, picture_to, poke, upload_to,
 };
 use miyu_im::chat::{
-    self, CallError, Fetch, Fetched, Friend, Group, Implementation, Link, Located, Member, Msg,
-    Node, Outgoing, Reply, To,
+    self, CallError, Fetch, Fetched, Friend, Group, GroupFiles, Implementation, Link, Located,
+    Member, Msg, Node, Outgoing, Reply, To,
 };
 
 /// 一条 NapCat 的连接：往它写的队列，它上面在等回应的调用，对端是哪个实现。
@@ -156,6 +159,29 @@ impl Link for Wire {
 
     fn friends(&self) -> Reply<'_, Vec<Friend>> {
         self.read((FRIEND_LIST, json!({})), replies::friends)
+    }
+
+    fn group_files<'a>(&'a self, group: i64, folder: Option<&'a str>) -> Reply<'a, GroupFiles> {
+        let action = match folder {
+            Some(folder) => (
+                FOLDER_FILES,
+                json!({"group_id": group, "folder_id": folder}),
+            ),
+            None => (ROOT_FILES, json!({"group_id": group})),
+        };
+        self.read(action, replies::group_files)
+    }
+
+    fn group_file_url<'a>(&'a self, group: i64, file: &'a str) -> Reply<'a, String> {
+        let wanted = (FILE_URL, json!({"group_id": group, "file_id": file}));
+        Box::pin(async move {
+            self.read(wanted, replies::file_url)
+                .await?
+                .ok_or_else(|| CallError::Failed {
+                    said: "no url".to_string(),
+                    message: String::new(),
+                })
+        })
     }
 
     fn group_name(&self, group: i64) -> Reply<'_, Option<String>> {

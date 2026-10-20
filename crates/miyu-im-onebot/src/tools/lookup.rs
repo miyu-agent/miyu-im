@@ -123,7 +123,7 @@ pub(super) fn members(tools: &QqTools, call: Call) -> Planned {
 }
 
 /// 没做成的那一句：带原因的照填。
-fn said(call: &Call, (why, detail): Undone) -> Value {
+pub(super) fn said(call: &Call, (why, detail): Undone) -> Value {
     let fields: Vec<(&str, &str)> = detail
         .as_deref()
         .map(|detail| ("detail", detail))
@@ -133,10 +133,10 @@ fn said(call: &Call, (why, detail): Undone) -> Value {
 }
 
 /// 没做成的：那一句的名字、带的原因。
-type Undone = (&'static str, Option<String>);
+pub(super) type Undone = (&'static str, Option<String>);
 
-/// 下头像、存进工作区：交回相对工作区的路径。
-async fn fetched(
+/// 下 `url`、照 `name` 加上看出来的扩展名存进工作区：交回相对工作区的路径（头像、群文件，施工 I-12 起共用）。
+pub(super) async fn fetched(
     url: &str,
     name: &str,
     (cwd, home): (&str, Option<std::path::PathBuf>),
@@ -145,7 +145,11 @@ async fn fetched(
     let got = bytes(&[Source::Url(url.to_string())], wait)
         .await
         .map_err(|why| ("unfetched", Some(cut(&why))))?;
-    let file = format!("{name}.{}", extension(&got));
+    // 名字自己带了扩展名的（群文件的原名）照它，没带的照看出来的补上（头像）。
+    let file = match std::path::Path::new(name).extension() {
+        Some(_) => name.to_string(),
+        None => format!("{name}.{}", extension(&got)),
+    };
     let cwd = cwd.to_string();
     let saved = tokio::task::spawn_blocking(move || save(&cwd, home.as_deref(), &file, &got))
         .await
@@ -167,11 +171,7 @@ async fn listing(call: &Call, group: i64, shown: usize) -> Result<Value, Undone>
     let Some(link) = &call.link else {
         return Err(("unreachable", None));
     };
-    let list = link.members(group).await.map_err(|error| match error {
-        CallError::Failed { said, .. } => ("failed", Some(said)),
-        CallError::Timeout => ("unanswered", None),
-        CallError::Closed => ("unreachable", None),
-    })?;
+    let list = link.members(group).await.map_err(undone)?;
     let (count, total, list) = listed(&list, query(call), shown);
     if count == 0 {
         return Ok(call.answers.say("no-members", &[], false));
@@ -184,13 +184,22 @@ async fn listing(call: &Call, group: i64, shown: usize) -> Result<Value, Undone>
     ))
 }
 
+/// 平台没成算成哪一句（施工 I-12 起共用）：回了失败的是 `failed` 带原话，等不到是 `unanswered`，没连着是 `unreachable`。
+pub(super) fn undone(error: CallError) -> Undone {
+    match error {
+        CallError::Failed { said, .. } => ("failed", Some(said)),
+        CallError::Timeout => ("unanswered", None),
+        CallError::Closed => ("unreachable", None),
+    }
+}
+
 /// `members` 的 `query`：只留名字、号含着它的。
 fn query(call: &Call) -> Option<&str> {
     call.args["query"].as_str()
 }
 
 /// 截到 [`DETAIL`] 个字符。
-fn cut(text: &str) -> String {
+pub(super) fn cut(text: &str) -> String {
     text.chars().take(DETAIL).collect()
 }
 

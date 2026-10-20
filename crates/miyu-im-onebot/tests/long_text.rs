@@ -104,7 +104,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
     // 她先 @ 终端管理员（`mention`），再说长文：@ 只在第一页。
     let mention = format!(r#"{{"users":[{ADMIN}]}}"#);
     let script = Script::new([
-        Play::calls(&[("mention", mention.as_str())]),
+        Play::calls(&[("qq_mention", mention.as_str())]),
         Play::Says(long()),
     ]);
     let (home, mut napcat, _) = started_installed(&script, "", MEMBERS, renderer(&record)).await;
