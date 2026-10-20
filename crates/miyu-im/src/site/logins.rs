@@ -7,8 +7,10 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 /// 最多留几份登录。
 pub(super) const HELD: usize = 16;
 
-/// 一份登录：账号、人的连接。
+/// 一份登录：会话号、账号、人的连接。
 pub(crate) struct Login<P> {
+    /// 会话号（插件面板的票据照它认是哪一份登录，施工 I-9 下）。
+    pub(crate) session: String,
     /// 核心认的账号（`login.redeem` 交回的）。
     pub(crate) account: String,
     /// 照这个人的登录令牌连着核心的连接（测试里换成别的）。
@@ -33,7 +35,12 @@ impl<P> Logins<P> {
     pub(crate) fn add(&self, account: String, person: P) -> Option<String> {
         let session = session()?;
         let mut held = self.lock();
-        held.push((session.clone(), Arc::new(Login { account, person })));
+        let login = Login {
+            session: session.clone(),
+            account,
+            person,
+        };
+        held.push((session.clone(), Arc::new(login)));
         if held.len() > HELD {
             held.remove(0);
         }
@@ -73,15 +80,15 @@ impl<P> Logins<P> {
     }
 }
 
-/// 新的会话号：32 个随机字节写成 64 位十六进制。取不到随机数的是空的。
-fn session() -> Option<String> {
+/// 新的会话号（插件面板的票据也照它起，施工 I-9 下）：32 个随机字节写成 64 位十六进制。取不到随机数的是空的。
+pub(super) fn session() -> Option<String> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).ok()?;
     Some(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 /// 两串字节一样不一样，按常数时间比：长短不一样直接不一样；一样长的每个字节都比。
-fn same(a: &[u8], b: &[u8]) -> bool {
+pub(super) fn same(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len()
         && a.iter()
             .zip(b)

@@ -16,6 +16,7 @@ mod guard;
 mod logins;
 mod logs;
 mod methods;
+mod panels;
 mod password;
 mod plugin_settings;
 mod plugins;
@@ -83,6 +84,8 @@ pub(crate) struct Site {
     faces: Faces,
     /// 今天的几个数（施工 I-6 下）。
     counters: Arc<Counters>,
+    /// 插件面板的票据（施工 I-9 下）。
+    panels: panels::Panels,
 }
 
 impl Site {
@@ -106,6 +109,7 @@ impl Site {
             cards,
             faces: Faces::default(),
             counters,
+            panels: panels::Panels::default(),
         }
     }
 }

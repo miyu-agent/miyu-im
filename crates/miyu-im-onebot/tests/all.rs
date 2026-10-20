@@ -75,6 +75,7 @@ mod site;
 mod site_connections;
 mod site_login;
 mod site_overview;
+mod site_panels;
 mod site_plugin_settings;
 mod site_plugins;
 mod site_settings;

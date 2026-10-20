@@ -53,6 +53,13 @@ function detailHead(plugin, context) {
   }
   if (links.childElementCount > 0) grow.append(links);
   head.append(pluginIcon(plugin), grow, masterSwitch(plugin, context));
+  // 有后台页、开着的：打开面板（施工 I-9 下）。
+  if (plugin.page && plugin.enabled) {
+    const open = element('a', 'btn primary open-panel');
+    open.href = `#plugins/${encodeURIComponent(plugin.package)}/panel`;
+    open.append(document.createTextNode(say('plugins-page/open-panel')), icon('i-up-right'));
+    head.append(open);
+  }
   return head;
 }
 

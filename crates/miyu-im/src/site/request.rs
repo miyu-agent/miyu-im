@@ -7,6 +7,8 @@
 //!   运行日志），回 204（没有这一份也是）。
 //! - `GET /avatar/<号>`：机器人的头像（[`super::faces`]，施工 I-6 中）；`GET /avatar/user/<号>`、`GET /avatar/group/<群号>`：
 //!   会话卡上的（施工 I-7 上）。取不到的 404。
+//! - `GET /p/<票据>/<编号>/<路径>`：插件面板里的文件（[`super::panels`]，施工 I-9 下），回应头照 [`framed`]；框里的页面在空的来源里
+//!   跑，它取文件带的 `Origin: null` 也收（票据就是凭据）。对不上、读不成的 404。
 //! - `GET` 别的路径：页面的文件（[`super::files`]），没有的 404。
 //! - 别的方法：405。
 //!
@@ -24,7 +26,7 @@ use serde_json::Value;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use super::faces::Whose;
-use super::{Site, files, guard, password, ticket};
+use super::{Site, files, guard, panels, password, ticket};
 use crate::TARGET;
 
 /// 登录的正文最多多少字节。
@@ -35,6 +37,10 @@ const AVATAR_CACHE: &str = "private, max-age=600";
 
 /// 同源的内容安全策略。
 const POLICY: &str = "default-src 'self'; frame-ancestors 'none'";
+
+/// 插件面板里的文件的内容安全策略（施工 I-9 下，同 WebUI 给后台页的）：沙箱里只许脚本、表单，不许联网，只许嵌在 im 自己的页面里。
+const FRAMED: &str =
+    "sandbox allow-scripts allow-forms; connect-src 'none'; frame-ancestors 'self'";
 
 /// 一个请求的回应；升级成的把升级交进 `slot`。`port` 是这个连接进来的端口。
 pub(super) async fn handle(
@@ -55,11 +61,13 @@ pub(super) async fn handle(
         tracing::warn!(target: TARGET, host, "page request for another host");
         return refused(request, StatusCode::MISDIRECTED_REQUEST).await;
     }
-    if !guard::same_origin(origin.as_deref(), host.as_deref().unwrap_or_default()) {
+    let path = request.uri().path().to_string();
+    let framed_origin = path.starts_with("/p/") && origin.as_deref() == Some("null");
+    if !framed_origin && !guard::same_origin(origin.as_deref(), host.as_deref().unwrap_or_default())
+    {
         tracing::warn!(target: TARGET, origin, "page request from another origin");
         return refused(request, StatusCode::FORBIDDEN).await;
     }
-    let path = request.uri().path().to_string();
     match (request.method().clone(), path.as_str()) {
         (Method::GET, "/channel") => upgrade(&mut request, slot),
         (Method::POST, "/login/ticket") => match body(request).await {
@@ -115,6 +123,10 @@ pub(super) async fn handle(
                 None => empty(StatusCode::NOT_FOUND),
             }
         }
+        (Method::GET, path) if path.starts_with("/p/") => match panels::file(site, path).await {
+            Some((bytes, kind)) => framed(bytes, kind),
+            None => empty(StatusCode::NOT_FOUND),
+        },
         (Method::GET, path) => match files::name(path) {
             Some(name) => match files::read(&site.files, name).await {
                 Some(bytes) => file(bytes, files::kind(name)),
@@ -200,6 +212,27 @@ fn file(bytes: Vec<u8>, kind: &'static str) -> Response<Full<Bytes>> {
     response
         .headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static(kind));
+    response
+}
+
+/// 插件面板里的一个文件（施工 I-9 下）：内容安全策略换成 [`FRAMED`]，不缓存但能重新验证（`no-cache`），不带来源页；框的来源是
+/// 空的，ES 模块脚本、字体照跨源取，带上 `Access-Control-Allow-Origin`。
+fn framed(bytes: Vec<u8>, kind: &'static str) -> Response<Full<Bytes>> {
+    let mut response = file(bytes, kind);
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(FRAMED),
+    );
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
     response
 }
 

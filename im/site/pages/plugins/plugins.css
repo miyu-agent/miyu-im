@@ -56,3 +56,9 @@
 @media (max-width: 720px) {
   .input.plug-text { width: 150px; }
 }
+/* 插件面板（施工 I-9 下）：框占满这一页，上面一条窄的返回。 */
+.view.panel-view { display: flex; flex-direction: column; height: 100%; min-height: calc(100vh - 56px); }
+.panel-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.panel-bar .btn { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.plug-frame { flex: 1; width: 100%; min-height: 480px; border: 0; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.open-panel { display: inline-flex; align-items: center; gap: 4px; height: 38px; padding: 0 16px; border-radius: 10px; font-size: 14px; text-decoration: none; }

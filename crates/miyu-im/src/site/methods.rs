@@ -17,6 +17,7 @@
 //! - `settings.get`、`settings.set`：设置页（施工 I-7 下一，`settings`）。
 //! - `plugins.list`、`plugins.readme`、`plugins.enable`：插件页（施工 I-9 上，`plugins`）。
 //! - `plugins.settings.get`、`plugins.settings.set`、`plugins.call`：插件自己的设置、插件面板（施工 I-9 中，`plugin_settings`）。
+//! - `plugins.panel`：插件面板的地址（施工 I-9 下，`panels`）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -25,7 +26,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::logins::Login;
-use super::{Person, Site, logs, plugin_settings, plugins, save, settings, venues};
+use super::{Person, Site, logs, panels, plugin_settings, plugins, save, settings, venues};
 use crate::core::methods::short_path;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
@@ -67,6 +68,7 @@ pub(super) async fn answer(
         Some("plugins.settings.get") => plugin_settings::get(&login.person, params).await,
         Some("plugins.settings.set") => plugin_settings::set(&login.person, params).await,
         Some("plugins.call") => plugin_settings::call(&login.person, params).await,
+        Some("plugins.panel") => panels::open(site, login, params).await,
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await
         }
