@@ -129,7 +129,7 @@ async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
             seconds,
         } => {
             // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。
-            if !moderate::admin_here(link.as_ref(), *group, call.bot)
+            if !crate::admin::admin_here(link.as_ref(), *group, call.bot)
                 .await
                 .map_err(undone)?
             {
@@ -138,7 +138,7 @@ async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
             link.mute(*group, *user, *seconds).await
         }
         Act::Kick { group, user, block } => {
-            if !moderate::admin_here(link.as_ref(), *group, call.bot)
+            if !crate::admin::admin_here(link.as_ref(), *group, call.bot)
                 .await
                 .map_err(undone)?
             {

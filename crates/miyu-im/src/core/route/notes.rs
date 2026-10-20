@@ -15,8 +15,12 @@ use serde_json::{Value, json};
 use miyu_chat::Venue;
 use miyu_client::ids::VenueId;
 
+use miyu_chat::VenueKind;
+
 use super::Route;
+use super::session::Place;
 use crate::TARGET;
+use crate::chat::To;
 use crate::core::{Gone, reason};
 
 /// 一句最多几个字。
@@ -71,28 +75,74 @@ impl Route {
             answerer.refuse(&id, "no_session");
             return Ok(());
         };
-        let fields = BTreeMap::from([("kind", kind), ("text", text)]);
-        let Ok(rendered) = self.rules.plugin_note().render(&fields) else {
-            // 照说不会：起来时查过模板只要这两个字段（`rules/facts.rs`）。
-            answerer.refuse(&id, "internal");
-            return Ok(());
-        };
-        let facts = json!([{"kind": kind, "text": rendered}]);
-        let reply = self
-            .core
-            .call("session.note", json!({"session": session, "facts": facts}))
-            .await?;
-        match reason(&reply) {
+        match self.note_in(&session, kind, text).await? {
             None => {
                 tracing::info!(target: TARGET, from, venue = %venue.id(), kind, "plugin noted");
                 answerer.answer(&id, json!({"noted": true}));
             }
             Some(why) => {
                 tracing::warn!(target: TARGET, from, venue = %venue.id(), why, "plugin note refused by core");
-                answerer.refuse(&id, why);
+                answerer.refuse(&id, &why);
             }
         }
         Ok(())
+    }
+
+    /// 驱动带的插件给场所 `to` 记一句（施工 Q-3，`Event::Noted`）：同插件的外壳，记进那个群的主会话（还没有的先找、建，同她被禁言
+    /// 的事实，`muted.rs`）。私聊的、记不进的记一行运行日志。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn note_built_in(
+        &mut self,
+        bot: i64,
+        to: To,
+        kind: &str,
+        text: &str,
+    ) -> Result<(), Gone> {
+        let To::Group(group) = to else {
+            tracing::warn!(target: TARGET, kind, "built-in note for a private chat dropped");
+            return Ok(());
+        };
+        let Ok(venue) = self.platform.venue(VenueKind::Group, group) else {
+            return Ok(());
+        };
+        let place = Place::group(&venue, &self.applied(&venue), bot, group);
+        if !self.found(&place).await? {
+            tracing::warn!(target: TARGET, group, kind, "built-in note dropped, no session");
+            return Ok(());
+        }
+        let Some(session) = self.venues.get(venue.id().as_str()).cloned() else {
+            return Ok(());
+        };
+        match self.note_in(&session, kind, text).await? {
+            None => tracing::info!(target: TARGET, venue = %venue.id(), kind, "built-in noted"),
+            Some(why) => {
+                tracing::warn!(target: TARGET, venue = %venue.id(), kind, why, "built-in note refused");
+            }
+        }
+        Ok(())
+    }
+
+    /// 套上外壳记进会话 `session`：成了的是空的，核心拒了的交回原因。
+    async fn note_in(
+        &mut self,
+        session: &str,
+        kind: &str,
+        text: &str,
+    ) -> Result<Option<String>, Gone> {
+        let fields = BTreeMap::from([("kind", kind), ("text", text)]);
+        let Ok(rendered) = self.rules.plugin_note().render(&fields) else {
+            // 照说不会：起来时查过模板只要这两个字段（`rules/facts.rs`）。
+            return Ok(Some("internal".to_string()));
+        };
+        let facts = json!([{"kind": kind, "text": rendered}]);
+        let reply = self
+            .core
+            .call("session.note", json!({"session": session, "facts": facts}))
+            .await?;
+        Ok(reason(&reply).map(str::to_string))
     }
 }
 

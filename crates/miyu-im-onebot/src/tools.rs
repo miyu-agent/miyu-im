@@ -140,6 +140,13 @@ const ANSWERS: [(&str, &[&str]); 28] = [
     ("unreachable", &[]),
 ];
 
+/// 驱动带的插件给场所会话记一句的模板：名字和认的字段（施工 Q-3）。
+const FACTS: [(&str, &[&str]); 3] = [
+    ("muted-by", &["who", "by", "duration"]),
+    ("unmuted-by", &["who", "by"]),
+    ("kicked-by", &["who", "by"]),
+];
+
 /// 照 `bridge.json` 的参数造的一套。
 #[derive(Debug, Clone)]
 pub struct QqTools {
@@ -179,6 +186,11 @@ impl ToolSet for QqTools {
 
     fn answers(&self) -> &'static [(&'static str, &'static [&'static str])] {
         &ANSWERS
+    }
+
+    fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
+        // 群管理同步别的管理员做的（施工 Q-3，`admin::sync`）。
+        &FACTS
     }
 
     fn silence(&self) -> Option<&'static str> {

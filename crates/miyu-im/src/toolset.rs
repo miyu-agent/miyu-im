@@ -289,6 +289,11 @@ pub trait ToolSet: Send + Sync {
     /// 认一次调用：当场答的、交 im 等着的（模块的说明）。在跟核心的那一头当场调，不许等平台。
     fn plan(&self, call: Call) -> Planned;
 
+    /// 驱动带的插件给场所会话记一句时用的模板（施工 Q-3）：名字（`facts/<名字>.txt`）和认的字段。经 `Gate::note` 换好交给 im 记。
+    fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
+        &[]
+    }
+
     /// 驱动的配置是 `config` 时登记不登记 `tool`（施工 Q-1：单件工具的开关）。配置变了 im 照它重新登记，登记的变了的会话下一个回合
     /// 换工具表。都登记的不用写。
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
@@ -320,11 +325,23 @@ impl Answers {
         dir: &str,
         wanted: &[(&'static str, &'static [&'static str])],
     ) -> Result<Answers, Vec<(String, String)>> {
-        let results = format!("{dir}/tool-results");
+        Answers::load_in(data, &format!("{dir}/tool-results"), wanted)
+    }
+
+    /// 同 [`Answers::load`]，读的是 `data/<results>/` 下的（施工 Q-3：驱动的事实模板在 `<目录>/facts/`）。
+    ///
+    /// # Errors
+    ///
+    /// 读不成、写坏了、要了别的字段的那几份。
+    pub fn load_in(
+        data: &std::path::Path,
+        results: &str,
+        wanted: &[(&'static str, &'static [&'static str])],
+    ) -> Result<Answers, Vec<(String, String)>> {
         let mut templates = HashMap::new();
         let mut broken = Vec::new();
         for (name, fields) in wanted {
-            match load::text_in(data, &results, name, fields) {
+            match load::text_in(data, results, name, fields) {
                 Ok(template) => {
                     templates.insert(*name, template);
                 }
@@ -343,10 +360,16 @@ impl Answers {
     ///
     /// `name` 不是 [`ToolSet::answers`] 里的、少了它要的字段：是 bug（名字、字段都写在驱动的代码里，测试走得到）。
     pub fn say(&self, name: &str, fields: &[(&str, &str)], error: bool) -> Value {
-        let template = self
-            .templates
-            .get(name)
-            .expect("答的话在 ToolSet::answers 里");
-        json!({"blocks": [{"type": "text", "text": load::say(template, fields)}], "error": error})
+        json!({"blocks": [{"type": "text", "text": self.text(name, fields)}], "error": error})
+    }
+
+    /// 那一句 `name` 的字，字段照 `fields` 换（施工 Q-3：事实的模板也照它换）。
+    ///
+    /// # Panics
+    ///
+    /// 同 [`Answers::say`]。
+    pub fn text(&self, name: &str, fields: &[(&str, &str)]) -> String {
+        let template = self.templates.get(name).expect("那一句在驱动报的名字里");
+        load::say(template, fields)
     }
 }

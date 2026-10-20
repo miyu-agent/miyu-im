@@ -10,16 +10,18 @@
 //! - `admin_mute`：禁言工具的开关，默认开。关了的不登记禁言。
 //! - `admin_kick`：踢人工具的开关，默认开（施工 Q-2）。
 //! - `admin_records`：记不记管理记录，默认开；`admin_keep`：每个群留多少条，出厂 500（施工 Q-2，`records`）。
+//! - `admin_sync_unmute`：别的管理员解禁的也记、也告诉 AI，默认开（施工 Q-3，`sync`）。
 //! - `admin_mute_min`、`admin_mute_max`：最短、最长禁言几分钟（出厂 1、43200，就是 QQ 能禁的最短、最长）。她给的不在这中间的答
 //!   `bad-seconds`，带这两个时长；解禁（0 秒）不管。读不出的照出厂的。
 
 use serde_json::{Map, Value};
 
-use miyu_im::chat::Rank;
+use miyu_im::chat::{CallError, Link, Rank};
 use miyu_im::plugins::declared::{Links, Ui};
 use miyu_im::plugins::{Builtin, Declared};
 
 pub(crate) mod records;
+pub(crate) mod sync;
 
 /// 编号。
 pub(crate) const ID: &str = "miyu-im-qq-admin";
@@ -47,6 +49,9 @@ pub(crate) const RECORDS: &str = "admin_records";
 
 /// 每个群留多少条记录（施工 Q-2）。
 pub(crate) const KEEP: &str = "admin_keep";
+
+/// 同步群里别的管理员的解禁（施工 Q-3）。
+pub(crate) const SYNC_UNMUTE: &str = "admin_sync_unmute";
 
 /// 每个群留多少条读不出时照的（同清单的出厂值，同旧版）。
 const KEEP_DEFAULT: usize = 500;
@@ -140,6 +145,12 @@ pub(crate) fn mute_range(config: &Map<String, Value>) -> (u64, u64) {
         return (MIN_SECONDS, MAX_SECONDS);
     }
     (min, max)
+}
+
+/// 她（机器人号 `bot`）在群 `group` 里管得了人没有：问 NapCat 她的身份，群主、管理员才算（施工 Q-1）。问不到的交回为什么。
+pub(crate) async fn admin_here(link: &dyn Link, group: i64, bot: i64) -> Result<bool, CallError> {
+    let me = link.member(group, bot).await?;
+    Ok(ranked(me.rank))
 }
 
 /// 群里的身份 `rank` 管得了人没有：群主、管理员。

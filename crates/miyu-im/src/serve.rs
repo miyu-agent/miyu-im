@@ -195,6 +195,8 @@ pub async fn run(
     let told = Arc::clone(&tell);
     let bots = Arc::new(Bots::default());
     let platform = serve.driver.platform();
+    // 驱动自己的状态目录（施工 Q-2、Q-3）：im 的状态目录下照平台的名字。
+    let store = status_file::path(&serve.root).with_file_name(platform.name());
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
     let hooks = Arc::new(Hooks::new(
         core.caller(),
@@ -216,7 +218,7 @@ pub async fn run(
         inbound,
         tell,
         Arc::clone(&changed),
-        Arc::clone(&hooks),
+        (Arc::clone(&hooks), store.clone(), tools.facts()),
     ));
     // 驱动起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）。
     let accepting = serve.driver.start(Arc::clone(&gate)).await?;
@@ -320,8 +322,7 @@ pub async fn run(
             Arc::clone(&counters),
             Arc::clone(&cards),
             Arc::clone(&recent),
-            // 驱动自己的状态目录（施工 Q-2）：im 的状态目录下照平台的名字。
-            status_file::path(&serve.root).with_file_name(platform.name()),
+            store,
         ),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();

@@ -66,6 +66,13 @@ pub(crate) enum By {
     Spam,
 }
 
+/// 本机此刻的 Unix 秒；钟在 1970 年以前的是 0。
+pub(crate) fn now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs())
+}
+
 /// 群 `group` 的记录放在哪：驱动的状态目录 `store` 下。
 pub(crate) fn file(store: &Path, group: i64) -> PathBuf {
     store.join("admin").join(format!("{group}.jsonl"))

@@ -3,6 +3,7 @@
 //! 认出来的事交给谁、桥自己的数、说给人听的、状态报给谁、平台事件交给挂接点。宿主不依赖驱动，驱动只经这里碰宿主。
 
 use std::future::Future;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -15,6 +16,7 @@ use crate::core::hooks::Hooks;
 use crate::current::Current;
 use crate::plugins::Builtin;
 use crate::serve::{Failure, Notice};
+use crate::toolset::Answers;
 use crate::tuning::Tuning;
 
 /// 驱动起来以后跑着的那一段：接连接、配置变了自己换，桥停下时随宿主的任务组一起放下。
@@ -109,6 +111,10 @@ pub struct Gate {
     changed: Arc<Changed>,
     /// 挂接点（施工 O-43 上）：平台的通知、请求原样交给挂在 `chat.event` 的包。
     hooks: Arc<Hooks>,
+    /// 驱动自己的状态目录（施工 Q-3，同 `toolset::Call::store`）。
+    store: PathBuf,
+    /// 驱动给场所会话记事实的模板（施工 Q-3，`ToolSet::facts`）；没有工具套的是空的。
+    facts: Option<Arc<Answers>>,
 }
 
 impl Gate {
@@ -119,7 +125,7 @@ impl Gate {
         inbound: mpsc::Sender<Event>,
         tell: Arc<dyn Fn(Notice) + Send + Sync>,
         changed: Arc<Changed>,
-        hooks: Arc<Hooks>,
+        (hooks, store, facts): (Arc<Hooks>, PathBuf, Option<Arc<Answers>>),
     ) -> Gate {
         Gate {
             current,
@@ -130,6 +136,8 @@ impl Gate {
             tell,
             changed,
             hooks,
+            store,
+            facts,
         }
     }
 
@@ -179,5 +187,39 @@ impl Gate {
     /// 只问在那个场所开着的插件），认不出的是空的。
     pub fn event(&self, bot: i64, to: Option<To>, event: &Value) {
         self.hooks.event(bot, to, event);
+    }
+
+    /// 驱动自己的状态目录（施工 Q-3）：im 的状态目录下照平台的名字。
+    pub fn store(&self) -> &Path {
+        &self.store
+    }
+
+    /// 驱动带的插件 `id` 在场所 `to` 开着没有（施工 Q-3：总开关、场所开关，同 `toolset::Call::plugins`）。
+    pub fn active(&self, id: &str, to: To) -> bool {
+        self.hooks.active(to).contains(&id)
+    }
+
+    /// 驱动带的插件给场所 `to` 记一句（施工 Q-3）：模板 `name`（`ToolSet::facts` 里的）字段照 `fields` 换、去掉首尾空白，种类是 `kind`，交给跟
+    /// 核心的那一头套上外壳记进那个场所的主会话（机器人号 `bot` 收进的）。那一头不收了（桥在停）交回假。
+    ///
+    /// # Panics
+    ///
+    /// `name` 不是 `ToolSet::facts` 里的、少了它要的字段：是 bug。
+    pub async fn note(
+        &self,
+        (bot, to): (i64, To),
+        kind: &'static str,
+        name: &str,
+        fields: &[(&str, &str)],
+    ) -> bool {
+        let facts = self.facts.as_ref().expect("驱动报了事实的模板");
+        let text = facts.text(name, fields).trim().to_string();
+        self.inbound(Event::Noted {
+            bot,
+            to,
+            kind,
+            text,
+        })
+        .await
     }
 }

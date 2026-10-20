@@ -1,0 +1,1 @@
+{who} was muted by {by} for {duration}.

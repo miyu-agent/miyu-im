@@ -93,6 +93,7 @@ pub fn copied_resources() -> PathBuf {
         // 驱动交的工具的说明、答的话（施工 T-1）。
         "packages/im/data/onebot/tools",
         "packages/im/data/onebot/tool-results",
+        "packages/im/data/onebot/facts",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");

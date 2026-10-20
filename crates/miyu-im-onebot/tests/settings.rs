@@ -73,6 +73,7 @@ fn the_shipped_manifest_gives_the_default_port() {
                 "admin_kick": true,
                 "admin_records": true,
                 "admin_keep": 500,
+                "admin_sync_unmute": true,
             })),
             site: keys(json!({"port": 8302})),
         },

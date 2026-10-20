@@ -48,6 +48,8 @@ struct Driven {
     /// 每件的规格和给哪种会话，照 `ToolSet::tools` 的先后。
     specs: Vec<(Spec, &'static [&'static str])>,
     answers: Arc<Answers>,
+    /// 驱动给场所会话记事实的模板（施工 Q-3，`ToolSet::facts`）。
+    facts: Arc<Answers>,
 }
 
 impl std::fmt::Debug for Driven {
@@ -92,6 +94,11 @@ impl Tools {
             })
             .collect();
         json!({"tools": tools})
+    }
+
+    /// 驱动给场所会话记事实的模板（施工 Q-3）；没有驱动的是空的。
+    pub(crate) fn facts(&self) -> Option<Arc<Answers>> {
+        self.driven.as_ref().map(|driven| Arc::clone(&driven.facts))
     }
 
     /// 「这一轮不说话」那件工具叫什么（施工 T-4，`ToolSet::silence`）。
@@ -193,7 +200,7 @@ fn driven(
             }
         }
     }
-    let answers = match Answers::load(data, dir, set.answers()) {
+    let mut loaded = |read: Result<Answers, Vec<(String, String)>>| match read {
         Ok(answers) => Some(answers),
         Err(broken) => {
             for (file, why) in broken {
@@ -206,10 +213,13 @@ fn driven(
             None
         }
     };
-    let answers = answers.filter(|_| whole)?;
+    let answers = loaded(Answers::load(data, dir, set.answers()));
+    let facts = loaded(Answers::load_in(data, &format!("{dir}/facts"), set.facts()));
+    let (answers, facts) = (answers.filter(|_| whole)?, facts?);
     Some(Driven {
         set,
         specs,
         answers: Arc::new(answers),
+        facts: Arc::new(facts),
     })
 }

@@ -22,8 +22,11 @@ use miyu_im::chat::{Implementation, Link};
 use miyu_im::driver::Gate;
 use miyu_im::serve::Notice;
 
+/// 交给群管理照先后同步的那一头（施工 Q-3）。
+type Syncing = mpsc::UnboundedSender<crate::admin::sync::Moderated>;
+
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
-pub(super) async fn run<S>(io: S, gate: &Gate, mut bot: Option<i64>)
+pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<i64>)
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -44,6 +47,8 @@ where
     });
     let wire = Arc::new(Wire::new(out, gate.tuning().call_timeout()));
     let link: Arc<dyn Link> = wire.clone();
+    // 群管理同步别的管理员做的（施工 Q-3）：这条连接一个，照先后办。
+    let syncing = crate::admin::sync::start(gate, &link);
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot {
         Some(bot) => register(gate, bot, &link).await,
@@ -58,7 +63,7 @@ where
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    reading = frame_in(gate, &text, &mut bot, (&wire, &link)).await;
+                    reading = frame_in(gate, &text, &mut bot, (&wire, &link, &syncing)).await;
                 }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
@@ -77,10 +82,10 @@ where
 
 /// 一帧文字。跟核心的那一头不收了（桥在停）交回假。
 async fn frame_in(
-    gate: &Gate,
+    gate: &Arc<Gate>,
     text: &str,
     bot: &mut Option<i64>,
-    (wire, link): (&Wire, &Arc<dyn Link>),
+    (wire, link, syncing): (&Wire, &Arc<dyn Link>, &Syncing),
 ) -> bool {
     let frame: Value = match serde_json::from_str(text) {
         Ok(frame) => frame,
@@ -102,6 +107,8 @@ async fn frame_in(
         && let Some(id) = onebot::self_id(&frame)
     {
         gate.event(id, onebot::event_to(&frame), &frame);
+        // 群里别的管理员禁言、解禁、踢人（施工 Q-3，群管理）：另起任务办，要问 NapCat 的名字、身份，回应在这条连接上读。
+        crate::admin::sync::seen(syncing, &frame);
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
@@ -149,6 +156,7 @@ fn noted(event: &Event) {
         Event::Unmuted { group, .. } => tracing::debug!(target: TARGET, group, "unmuted"),
         Event::Connected { bot } => tracing::debug!(target: TARGET, bot, "bot known"),
         Event::Befriend { user, .. } => tracing::debug!(target: TARGET, user, "friend request"),
+        Event::Noted { kind, .. } => tracing::debug!(target: TARGET, kind, "built-in note"),
         Event::Invited { group, user, .. } => {
             tracing::debug!(target: TARGET, group, user, "group invite");
         }

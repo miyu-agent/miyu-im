@@ -1,0 +1,1 @@
+{who} was removed from the group by {by}.

@@ -140,6 +140,15 @@ hidden = true
 name = { en = "Mute tool", zh = "禁言工具", ja = "ミュートツール" }
 description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 能禁言、解禁群成员。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
 
+[settings.qq.admin_sync_unmute]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Sync other admins' unmutes", zh = "同步群里别的管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
+description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里别的管理员解禁了谁，也记下来、告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
+
 [settings.qq.admin_mute_min]
 type = "int"
 min = 1

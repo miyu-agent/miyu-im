@@ -89,6 +89,18 @@ pub enum Event {
         /// 平台给这次请求的标记：同意时原样交回（`set_friend_add_request` 的 `flag`）。不进运行日志。
         flag: String,
     },
+    /// 驱动带的插件给场所会话记一句（施工 Q-3，`Gate::note`）：im 套上插件记事实的外壳（`facts/plugin-note.txt`）记进那个场所的
+    /// 主会话，不开回合。
+    Noted {
+        /// 收到那件事的机器人的号。
+        bot: i64,
+        /// 哪个场所。
+        to: To,
+        /// 事实的种类（当标签名）。
+        kind: &'static str,
+        /// 换好的那一句。
+        text: String,
+    },
     /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
     Invited {
         /// 收到邀请的机器人的号。
