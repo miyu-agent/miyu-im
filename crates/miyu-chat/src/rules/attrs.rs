@@ -38,7 +38,7 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("allow", Form::Kind(Kind::Bool)),
     ("keywords", Form::Kind(Kind::List(&Kind::Text { max: 64 }))),
     ("rate", Form::Rate),
-    ("parallel", Form::Kind(Kind::Int { min: 0, max: 3 })),
+    ("parallel", Form::Kind(Kind::Int { min: 0, max: 16 })),
     ("sleep", Form::Sleep),
     ("managers", Form::Managers),
     ("show_ids", Form::Kind(Kind::Bool)),

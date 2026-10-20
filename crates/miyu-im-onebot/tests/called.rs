@@ -169,8 +169,8 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(other["route"], "judge", "{other}");
     assert_eq!(
         other["judge"],
-        json!({"mode": "reply", "tries": 2, "millis": other["judge"]["millis"], "unjudged": "refused", "detail": "no_model"}),
-        "别人的 @ 要问判官，判不了的再问一次：{other}"
+        json!({"mode": "reply", "tries": 1, "millis": other["judge"]["millis"], "unjudged": "refused", "detail": "no_model"}),
+        "别人的 @ 要问判官，被拒了不再问（施工 I-16 照旧版）：{other}"
     );
     assert!(other.get("score").is_none(), "{other}");
     assert_eq!(other["outcome"], "reply", "判不了、冲她来的照回：{other}");
@@ -207,10 +207,8 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     assert!(napcat.pending().is_none(), "别的什么都不发");
     let log = run_log(&home.root);
     assert!(log.contains("chat decided"), "{log}");
-    assert!(
-        !log.contains("大家好") && !log.contains("帮个忙"),
-        "原文不进运行日志"
-    );
+    // 施工 I-16 起判断那一行带说话的人和正文开头（首页活动流照它写，2026-10-20 项目主人定）。
+    assert!(log.contains("帮个忙"), "判断那一行带正文开头");
     stopped(home).await;
 }
 

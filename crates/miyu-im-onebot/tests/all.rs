@@ -5,8 +5,10 @@
 
 mod support;
 
+mod access_cli;
 mod admin;
 mod admin_approval;
+mod admin_kick;
 mod admin_spam;
 mod admin_sync;
 mod apply;

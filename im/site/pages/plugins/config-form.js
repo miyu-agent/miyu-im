@@ -2,7 +2,8 @@
 // package 是它的），所有会话共用。一项一行：名字、说明、控件；照核心给的 control、type 挑控件：开关、下拉、数、一行字、几行字、列表、
 // 下拉加「其他」、密钥（只说设没设，粘贴新的换上）。改了当场存（plugins.settings.set），存不成的写在那一行下面；和默认不一样的给
 // 「恢复默认」。值写成引用（{ env = … } 这类）的不在这里改。
-import { element, icon, say } from '../../shell/i18n.js';
+import { element, say } from '../../shell/i18n.js';
+import { tagInput } from '../../shell/tags.js';
 
 /** 插件 `package` 的设置：先画「读取中」，读到了换上。 */
 export function drawSettings(packageId, request) {
@@ -20,6 +21,7 @@ export function drawSettings(packageId, request) {
       box.replaceChildren(element('p', 'faint', say('plugins-page/no-settings')));
       return;
     }
+    // 存了重读一遍；列表（标签当场画上了）正接着填的不重读，重读会把正在填的那一格换掉。
     const save = async (key, change, failed) => {
       failed.textContent = '';
       try {
@@ -28,7 +30,8 @@ export function drawSettings(packageId, request) {
         failed.textContent = say('failed/invalid');
         return;
       }
-      load();
+      const typing = box.contains(document.activeElement) && document.activeElement.matches('.tag-add');
+      if (!typing) load();
     };
     box.replaceChildren(...items.map((item) => row(item, got.values?.[item.key] ?? null, save)));
     box.append(element('p', 'faint plug-settings-note', say('plugins-page/settings-shared')));
@@ -144,26 +147,9 @@ function combo(suggestions, value, put) {
   return box;
 }
 
-/** 列表：一个一个小标签，后面一格加一个。 */
+/** 列表：一个一个小标签，后面一格加一个（shell/tags.js：回车、离开这一格都加，输入法选字的回车不算，加了当场画上）。 */
 function list(items, put) {
-  const box = element('div', 'tags');
-  items.forEach((item, at) => {
-    const tag = element('span', 'tag', String(item));
-    const remove = element('button');
-    remove.title = say('field/remove');
-    remove.append(icon('i-x'));
-    remove.addEventListener('click', () => put({ value: items.filter((_, index) => index !== at) }));
-    tag.append(remove);
-    box.append(tag);
-  });
-  const adding = element('input', 'input tag-add');
-  adding.placeholder = say('field/add-word');
-  adding.addEventListener('keydown', (event) => {
-    const typed = adding.value.trim();
-    if (event.key === 'Enter' && typed) put({ value: [...items, typed] });
-  });
-  box.append(adding);
-  return box;
+  return tagInput({ items, save: (next) => put({ value: next }) });
 }
 
 /** 密钥：只说设没设，粘贴新的回车或离开就换上。 */

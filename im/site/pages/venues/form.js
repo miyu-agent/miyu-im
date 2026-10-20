@@ -9,7 +9,7 @@ import { FIELDS, current, has, inherited, values } from './fields.js';
 import { cardOf } from './model.js';
 import { control } from './controls.js';
 
-/** 画 `tab` 那一页：`one` 是这张卡，`context` 是 { request, personas, models, expanded }（expanded 记着哪几页的「高级」展开着，
+/** 画 `tab` 那一页：`one` 是这张卡，`context` 是 { request, personas, models, reactions, presets, expanded }（expanded 记着哪几页的「高级」展开着，
  *  重画时照旧）。交回几块元素。 */
 export function drawForm(tab, one, context) {
   const rows = [];
@@ -21,7 +21,7 @@ export function drawForm(tab, one, context) {
       continue;
     }
     if (field.dep && (current(one, field.dep.key) ?? field.dep.unset ?? field.dep.on) !== field.dep.on) continue;
-    if (field.needs && !context[field.needs]?.reactions?.length) continue;
+    if (field.needs && !context[field.needs]?.[field.needs]?.length) continue;
     (field.advanced ? advanced : rows).push(row(field, one, context));
   }
   if (advanced.length > 0) {

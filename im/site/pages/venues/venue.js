@@ -8,9 +8,10 @@
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
 // - 「插件加的」（施工 I-8 下，设计 01 第四节第 5 条）：声明了浮窗一页、在这个会话开着的插件（2026-10-20 项目主人定：开着才出现）
 //   一个一页，兜底卡上没有；内容经插件登记的 chat.panel 取（plugins/widget-host.js），这一个浮窗开着时只取一次，点了动作、存了表单再取。
+// - 「会话默认值」那张卡（2026-10-20 项目主人验收：从设置页挪到会话页墙上第一张）也开这个浮窗：没有概况、管理插件，从人格和模型起。
 import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
-import { face } from './face.js';
+import { faceOf } from './face.js';
 import { cardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, idWord as idWordOf, titleOf } from './names.js';
@@ -22,12 +23,12 @@ import { mountWidget } from '../plugins/widget-host.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
-  { id: 'overview', ready: true },
+  { id: 'overview', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
   { id: 'persona', ready: true },
-  { id: 'trigger', kinds: ['group', 'other_groups'], ready: true },
+  { id: 'trigger', kinds: ['group', 'other_groups', 'defaults'], ready: true },
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
-  { id: 'plugins', ready: true },
+  { id: 'plugins', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
 ];
 
 /** 开 `one` 的浮窗；`context` 是 { request, platform, bots, personas }（bots 是机器人的号到名字，连着不止一个时卡上写是哪个；
@@ -46,7 +47,7 @@ export function openVenue(one, context, onClose) {
   dialog.append(side, main);
   const close = openLayer(dialog, onClose);
   head.append(title, closeButton(close));
-  let tab = 'overview';
+  let tab = one.kind === 'defaults' ? 'persona' : 'overview';
   // 今天的数和最近判断：重画浮窗时留着这一块，问到了再换。
   const today = element('div', 'venue-today');
   let asking = 0;
@@ -86,7 +87,17 @@ export function openVenue(one, context, onClose) {
       if (tab === 'send') draw();
     })
     .catch(() => {});
+  // 预设：开的时候问一次宿主（presets），问不到的（宿主还没有这个方法）那一格不画。
+  let presets = null;
+  context
+    .request('presets')
+    .then((answer) => {
+      presets = answer;
+      if (tab === 'persona') draw();
+    })
+    .catch(() => {});
   const refresh = async () => {
+    if (shown.kind === 'defaults') return;
     const mine = ++asking;
     try {
       const answer = await context.request('cards.overview', { card: cardOf(shown) });
@@ -100,14 +111,14 @@ export function openVenue(one, context, onClose) {
     const who = element('div', 'd-who');
     const named = element('div');
     named.append(element('b', null, titleOf(shown)), element('small', null, idLine(shown, context)));
-    who.append(face(shown.type, shown.id, shown.name), named);
+    who.append(faceOf(shown), named);
     const tabs = element('div', 'd-tabs');
     side.replaceChildren(who, tabs);
     const added = shown.id
       ? (context.plugins || []).filter((plugin) => plugin.ui?.panel && isOn(shown, plugin, context.fallbacks?.[shown.type] || {}))
       : [];
     const plugin = added.find((one) => `plugin:${one.package}` === tab);
-    if (tab.startsWith('plugin:') && !plugin) tab = 'overview';
+    if (tab.startsWith('plugin:') && !plugin) tab = shown.kind === 'defaults' ? 'persona' : 'overview';
     for (const one of TABS) {
       if (one.kinds && !one.kinds.includes(shown.kind)) continue;
       const form = one.id === 'overview' ? null : FIELDS[one.id];
@@ -140,7 +151,7 @@ export function openVenue(one, context, onClose) {
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));
     else {
       const idWord = idWordOf('private', context.platform);
-      body.replaceChildren(...drawForm(tab, shown, { ...context, models, reactions, expanded, idWord }));
+      body.replaceChildren(...drawForm(tab, shown, { ...context, models, reactions, presets, expanded, idWord }));
     }
   };
   draw();

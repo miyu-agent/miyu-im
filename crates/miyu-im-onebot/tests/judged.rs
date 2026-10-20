@@ -226,8 +226,9 @@ async fn others_calling_her_are_judged() {
     assert!(user.contains(&judge_text("current-open.txt")), "{user}");
     assert!(user.contains("在吗"), "{user}");
     assert_eq!(first["model"], "m", "判官没写模型，照 models.chat");
+    // 判官不设输出上限（施工 I-16 照旧版）：不是判官交的 400。
     assert!(
-        first["max_tokens"] == 400 || first["max_completion_tokens"] == 400,
+        first["max_tokens"] != 400 && first["max_completion_tokens"] != 400,
         "{first}"
     );
     let moderated = asked(&server, 3);
@@ -237,9 +238,10 @@ async fn others_calling_her_are_judged() {
         "{system}"
     );
     let log = run_log(&home.root);
+    // 施工 I-16 起判断那一行带正文开头和判官的理由（首页活动流，2026-10-20 项目主人定）。
     assert!(
-        !log.contains("they asked her") && !log.contains("在吗") && !log.contains("abusive"),
-        "理由、原文不进运行日志：{log}"
+        log.contains("在吗") && log.contains("they asked her"),
+        "理由、正文开头进运行日志：{log}"
     );
     assert_eq!(script.requests().len(), 3, "判官不说回的不开回合");
     assert!(napcat.pending().is_none(), "别的什么都不发");
@@ -251,7 +253,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
     let mut server = judge(vec![
         says("我觉得应该回"),
         says("还是应该回"),
-        verdict(json!({"relevance": 9, "should_reply": true})),
+        says("[回]"),
         yes("second try"),
         slow(Duration::from_secs(3), yes("too late")),
     ])
@@ -282,7 +284,7 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_unjudged() {
     );
     assert!(unread.get("score").is_none(), "{unread}");
     assert_eq!(unread["outcome"], "reply");
-    // 2：头一次少了几维，再问一次读出来了，回。
+    // 2：头一次读不出（少了几维照旧版按 0 算，读得出；这里换成没有对象），再问一次读出来了，回。
     napcat.send(group_frame(
         GROUP,
         JIE,

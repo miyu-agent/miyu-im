@@ -339,7 +339,8 @@ impl Route {
             }
         };
         let (venue, chars) = (&peer.venue, item.piece.text.chars().count());
-        tracing::info!(target: TARGET, venue = %venue, chars, "reply sent");
+        let text = crate::recent::Note::excerpt(&item.piece.text);
+        tracing::info!(target: TARGET, venue = %venue, chars, text = %text, "reply sent");
         if said(&item.piece.what) {
             self.counters.bump(Count::Replied, &venue.to_string());
         }

@@ -1,5 +1,5 @@
 //! 回复时带多少条群聊记录（施工 O-62）：群卡的 `recent` 拼成场所规则的 `recent`，桥造群会话时经 `venue.session` 交给核心（核心
-//! 3161f0c5 起认，造会话时钉进快照）。真核心照开关拉起真桥：设了的群会话钉着这个数，没设的不带，核心只照字节预算。
+//! 3161f0c5 起认，造会话时钉进快照）。真核心照开关拉起真桥：设了的群会话钉着这个数，没设的照出厂的 30 条（施工 I-16）。
 
 use serde_json::{Value, json};
 
@@ -30,7 +30,7 @@ async fn a_group_card_pins_its_recent_count_on_new_sessions() {
     let mut head = Head::connect(&home.root).await;
     head.until("status", |status| status["napcat"]["connected"] == true)
         .await;
-    let cards = json!({"groups": [{"id": COUNTED, "set": {"recent": 30}}, {"id": PLAIN}]});
+    let cards = json!({"groups": [{"id": COUNTED, "set": {"recent": 50}}, {"id": PLAIN}]});
     let saved = head
         .page_call_with("cards.save", json!({"cards": cards}))
         .await;
@@ -49,11 +49,11 @@ async fn a_group_card_pins_its_recent_count_on_new_sessions() {
         let events = until_events(&home.root, &venue, |events| !events.is_empty()).await;
         created.push(events[0].clone());
     }
-    assert_eq!(limit(&home, &created[0]), Some(json!(30)), "{}", created[0]);
+    assert_eq!(limit(&home, &created[0]), Some(json!(50)), "{}", created[0]);
     assert_eq!(
         limit(&home, &created[1]),
-        None,
-        "没设的不带：{}",
+        Some(json!(30)),
+        "没设的照出厂：{}",
         created[1]
     );
     stopped(home).await;

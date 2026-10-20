@@ -132,13 +132,15 @@ pub struct Judge {
     /// 判官带不带这个群会话所用的人格的说明（[`Ask::persona`]，施工 O-23 补，2026-10-09 项目主人定：默认开）：假的是
     /// 不带、不读，某个群想省 token 写一条场所规则关掉（`chat.md` 第八条施工时定的第 24 条）。
     pub persona: bool,
-    /// 判官最多输出多少 token（`model.call` 的 `max_tokens`）。
+    /// 判官最多输出多少 token（`model.call` 的 `max_tokens`）；0 是不设（施工 I-16 照旧版：带思考的模型会被截断）。
     pub max_tokens: u32,
-    /// 打分那一次的超时，毫秒。
+    /// 打分那一整次（连重试）最多多久，毫秒（施工 I-16 照旧版：总期限）。
     pub timeout: i64,
-    /// 只查违规那一次（[`Mode::ModerationOnly`]）的超时，毫秒。
+    /// 只查违规那一整次（[`Mode::ModerationOnly`]）最多多久，毫秒。
     pub moderation_timeout: i64,
-    /// 判不了（读不出来、超时、出错）重试几次。
+    /// 每问一次最多等多久，毫秒（施工 I-16 照旧版 `judge_endpoint_timeout_seconds`）。
+    pub attempt_timeout: i64,
+    /// 读不出来时再问几次（施工 I-16 照旧版：等不到、出错的不再问）。
     pub retries: u32,
     /// 判官的理由最多留几个字符：交给 [`read()`]。
     pub reason_chars: usize,

@@ -42,12 +42,16 @@ pub fn located(data: &Value) -> Located {
     }
 }
 
-/// `get_group_member_info` 回应的 `data`、`get_group_member_list` 的一行：号读不出的不是。
+/// `get_group_member_info` 回应的 `data`、`get_group_member_list` 的一行：号读不出的不是。头衔照 `title`（施工 I-17），空白的不要。
 pub fn member(data: &Value) -> Option<Member> {
     Some(Member {
         user: number(&data["user_id"])?,
         name: display_name(data),
         rank: rank_of(data),
+        title: data["title"]
+            .as_str()
+            .filter(|title| !title.trim().is_empty())
+            .map(str::to_string),
     })
 }
 

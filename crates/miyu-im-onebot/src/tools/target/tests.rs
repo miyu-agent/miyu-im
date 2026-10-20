@@ -70,7 +70,7 @@ const RECALL: Order = Order::Recall(Arg::Absent);
 fn mute(seconds: u64) -> Order {
     Order::Mute {
         seconds: Some(seconds),
-        user: Arg::Absent,
+        users: Arg::Absent,
     }
 }
 
@@ -90,9 +90,9 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
     for (msg, wanted) in [
         (json!("123"), Arg::Given("123".to_string())),
         (json!(-45), Arg::Given("-45".to_string())),
-        (json!("1e3"), Arg::Bad),
-        (json!(""), Arg::Bad),
-        (json!(1.5), Arg::Bad),
+        (json!("1e3"), Arg::Bad("msg must be a message id")),
+        (json!(""), Arg::Bad("msg must be a message id")),
+        (json!(1.5), Arg::Bad("msg must be a message id")),
     ] {
         assert_eq!(
             Order::read("qq_recall", &json!({"msg": msg})),
@@ -100,32 +100,66 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
             "{msg}"
         );
     }
-    for (args, seconds, user) in [
+    for (args, seconds, users) in [
         (json!({"seconds": 0}), Some(0), Arg::Absent),
         (json!({"seconds": 2_592_000}), Some(2_592_000), Arg::Absent),
         (json!({"seconds": 2_592_001}), None, Arg::Absent),
         (json!({"seconds": -1}), None, Arg::Absent),
-        (json!({"seconds": "600"}), None, Arg::Absent),
+        (json!({"seconds": "600"}), Some(600), Arg::Absent),
+        (json!({"seconds": "十分钟"}), None, Arg::Absent),
         (json!({}), None, Arg::Absent),
         (
             json!({"seconds": 60, "user": 40001}),
             Some(60),
-            Arg::Given(40001),
+            Arg::Given(vec![40001]),
         ),
         (
             json!({"seconds": 60, "user": " 40001 "}),
             Some(60),
-            Arg::Given(40001),
+            Arg::Given(vec![40001]),
         ),
-        (json!({"seconds": 60, "user": 0}), Some(60), Arg::Bad),
-        (json!({"seconds": 60, "user": "小明"}), Some(60), Arg::Bad),
+        (
+            json!({"seconds": 60, "user": 0}),
+            Some(60),
+            Arg::Bad("user must be a QQ number"),
+        ),
+        (
+            json!({"seconds": 60, "user": "小明"}),
+            Some(60),
+            Arg::Bad("user must be a QQ number"),
+        ),
+        // 施工 I-17：一次几个人，和 `user` 二选一。
+        (
+            json!({"seconds": 60, "users": [40001, "40002", 40001]}),
+            Some(60),
+            Arg::Given(vec![40001, 40002]),
+        ),
+        (
+            json!({"seconds": 60, "users": []}),
+            Some(60),
+            Arg::Bad("users must be 1 to 32 QQ numbers"),
+        ),
+        (
+            json!({"seconds": 60, "user": 40001, "users": [40002]}),
+            Some(60),
+            Arg::Bad("give user or users, not both"),
+        ),
     ] {
         assert_eq!(
             Order::read("qq_mute", &args),
-            Some(Order::Mute { seconds, user }),
+            Some(Order::Mute { seconds, users }),
             "{args}"
         );
     }
+    let many: Vec<i64> = (40001..=40033).collect();
+    assert_eq!(
+        Order::read("qq_kick", &json!({"users": many})),
+        Some(Order::Kick {
+            users: Arg::Bad("users must be 1 to 32 QQ numbers"),
+            block: false
+        }),
+        "最多 32 个"
+    );
 }
 
 #[test]
@@ -153,7 +187,11 @@ fn anyone_recalls_anything_and_her_own_msg_is_checked() {
         "没有叫她的那条也撤得了"
     );
     assert_eq!(
-        in_group(Order::Recall(Arg::Bad), &caller(40001), Some(&others)),
+        in_group(
+            Order::Recall(Arg::Bad("msg must be a message id")),
+            &caller(40001),
+            Some(&others)
+        ),
         Plan::Refuse(Why::NotFound)
     );
     let bare = origin(40003, None, &[40002]);
@@ -196,7 +234,7 @@ fn mute_takes_one_person_never_her_and_never_holds_anyone_back() {
     let anyone = caller(40009);
     let muting = |origin: &Origin| in_group(mute(60), &anyone, Some(origin));
     let muted = |user: i64| Plan::Mute {
-        user: qq(user),
+        users: vec![qq(user)],
         seconds: 60,
     };
     // 引用的和 @ 的是同一个人：一个。
@@ -231,33 +269,50 @@ fn mute_takes_one_person_never_her_and_never_holds_anyone_back() {
 #[test]
 fn mute_takes_the_user_she_gives_over_the_quote() {
     let at_one = origin(40009, None, &[40002]);
-    let given = |user: Arg<i64>| Order::Mute {
+    let given = |users: Arg<Vec<i64>>| Order::Mute {
         seconds: Some(600),
-        user,
+        users,
     };
     assert_eq!(
-        in_group(given(Arg::Given(40005)), &caller(40009), Some(&at_one)),
+        in_group(
+            given(Arg::Given(vec![40005])),
+            &caller(40009),
+            Some(&at_one)
+        ),
         Plan::Mute {
-            user: qq(40005),
+            users: vec![qq(40005)],
             seconds: 600
         }
     );
     assert_eq!(
-        in_group(given(Arg::Given(40005)), &caller(40009), None),
+        in_group(given(Arg::Given(vec![40005])), &caller(40009), None),
         Plan::Mute {
-            user: qq(40005),
+            users: vec![qq(40005)],
             seconds: 600
         },
         "没有叫她的那条也禁得了"
     );
     assert_eq!(
-        in_group(given(Arg::Bad), &caller(40009), Some(&at_one)),
-        Plan::Refuse(Why::NoTarget)
+        in_group(given(Arg::Given(vec![40005, 40006])), &caller(40009), None),
+        Plan::Mute {
+            users: vec![qq(40005), qq(40006)],
+            seconds: 600
+        },
+        "一次几个人（施工 I-17）"
+    );
+    assert_eq!(
+        in_group(
+            given(Arg::Bad("user must be a QQ number")),
+            &caller(40009),
+            Some(&at_one)
+        ),
+        Plan::Refuse(Why::Bad("user must be a QQ number")),
+        "写错的说哪个参数（施工 I-17）"
     );
     // 秒数先看。
     let no_seconds = Order::Mute {
         seconds: None,
-        user: Arg::Given(40005),
+        users: Arg::Given(vec![40005]),
     };
     assert_eq!(
         in_group(no_seconds, &caller(40009), None),
@@ -352,6 +407,7 @@ fn every_refusal_names_its_sentence() {
         Why::NoTarget,
         Why::ManyTargets,
         Why::BadSeconds,
+        Why::Bad("user must be a QQ number"),
     ]
     .into_iter()
     .map(Why::name)
@@ -363,7 +419,8 @@ fn every_refusal_names_its_sentence() {
             "not-found",
             "no-target",
             "many-targets",
-            "bad-seconds"
+            "bad-seconds",
+            "bad-args"
         ]
     );
 }

@@ -223,8 +223,8 @@ fn saved_cards_apply_at_once_and_sit_after_the_settings() {
     );
     assert_eq!(
         rate(&mut venues, 1, "3"),
-        text("5/300s"),
-        "名单里没写的不继承「其他群」"
+        text("30/60s"),
+        "名单里没写的不继承「其他群」：照出厂群规则的 30/60（施工 I-16）"
     );
     assert_eq!(venues.cards(), &cards);
     system_rule(&root, "80-after.toml", "[[rule]]\nrate = \"4/60s\"\n");

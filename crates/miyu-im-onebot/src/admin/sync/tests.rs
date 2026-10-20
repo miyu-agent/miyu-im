@@ -98,3 +98,30 @@ fn durations_are_said_in_days_hours_and_minutes() {
     assert_eq!(spoken(86_400 * 2 + 60), "2 days 1 minute");
     assert_eq!(spoken(2_592_000), "30 days");
 }
+
+#[test]
+fn her_own_kicks_are_only_kept_as_recent_removals() {
+    // 施工 I-17：她踢走的不当别的管理员做的记，只记进「刚踢走的」，踢人的工具照它核实。
+    let hers = frame("group_decrease", "kick", 7, 1, None);
+    assert_eq!(read(&hers), None);
+    assert_eq!(removed_by_her(&hers), Some((31, 7)));
+    assert_eq!(
+        removed_by_her(&frame("group_decrease", "kick", 7, 9, None)),
+        None,
+        "别的管理员踢的"
+    );
+    assert_eq!(
+        removed_by_her(&frame("group_decrease", "leave", 7, 1, None)),
+        None,
+        "自己走的"
+    );
+    let mut removals = Removals::default();
+    let start = Instant::now();
+    removals.note((31, 7), start);
+    assert!(removals.lately((31, 7), start + Duration::from_secs(5)));
+    assert!(!removals.lately((31, 8), start), "别人");
+    assert!(
+        !removals.lately((31, 7), start + Duration::from_secs(61)),
+        "过了一分钟"
+    );
+}

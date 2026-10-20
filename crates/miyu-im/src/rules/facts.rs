@@ -24,6 +24,15 @@ const ANOTHER_LINE: &str = "facts/another-line.txt";
 /// 「另一条线正在回」认的字段：别的线在回的那一条、这条线回的那一条的平台编号（「群里怎么叫她」第 7 条「事实」）。
 const ANOTHER_LINE_FIELDS: &[&str] = &["msg", "aim"];
 
+/// 抽中插话的那一轮带的一句（施工 I-16，照旧版 `<qq-join-in>`：压「没 @ 我就不接」）在出厂目录里的位置。
+const JOIN_IN: &str = "facts/join-in.txt";
+
+/// 违规预检的结论（施工 I-16，照旧版 `<qq-moderation-precheck>`）在出厂目录里的位置。
+const PRECHECK: &str = "facts/precheck.txt";
+
+/// 违规预检认的字段：严重程度、判官的理由。
+const PRECHECK_FIELDS: &[&str] = &["severity", "reason"];
+
 /// 「文件没发出去」的模板在出厂目录里的位置（施工 O-46）。
 const UNSHOWN: &str = "facts/unshown.txt";
 
@@ -95,6 +104,10 @@ pub(super) struct Facts {
     pub(super) plugin_note: Template,
     /// 她先找了这个场所的人（施工 O-56）。
     pub(super) reached: Template,
+    /// 抽中插话（施工 I-16）。
+    pub(super) join_in: Template,
+    /// 违规预检（施工 I-16）。
+    pub(super) precheck: Template,
 }
 
 /// 读出厂目录 `dir`（包文件夹的 `data/`）里的几份模板，查过交回。问题照退信、另一条线的先后记；有问题的交回空的。
@@ -109,6 +122,8 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let impostor = template(dir, IMPOSTOR, IMPOSTOR_FIELDS, problems);
     let plugin_note = template(dir, PLUGIN_NOTE, PLUGIN_NOTE_FIELDS, problems);
     let reached = template(dir, REACHED, REACHED_FIELDS, problems);
+    let join_in = template(dir, JOIN_IN, &[], problems);
+    let precheck = template(dir, PRECHECK, PRECHECK_FIELDS, problems);
     Some(Facts {
         undelivered: undelivered?,
         another_line: another_line?,
@@ -120,6 +135,8 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         impostor: impostor?,
         plugin_note: plugin_note?,
         reached: reached?,
+        join_in: join_in?,
+        precheck: precheck?,
     })
 }
 
@@ -168,6 +185,16 @@ impl super::Venues {
     /// 「另一条线正在回」的模板（施工 O-36）：出厂的，跑着不再读。
     pub fn another_line(&self) -> &Template {
         &self.factory.facts.another_line
+    }
+
+    /// 抽中插话那一轮带的一句（施工 I-16）：出厂的，跑着不再读。
+    pub fn join_in(&self) -> &Template {
+        &self.factory.facts.join_in
+    }
+
+    /// 违规预检的结论（施工 I-16）：出厂的，跑着不再读。
+    pub fn precheck(&self) -> &Template {
+        &self.factory.facts.precheck
     }
 
     /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。

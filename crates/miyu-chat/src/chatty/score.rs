@@ -13,8 +13,8 @@ pub struct Judgement {
     /// 五维的分，各 0 到 10，照相关、意愿、社交、时机、连贯的先后，和 [`Chatty`] 的五维权重（出厂文件的
     /// `chatty.relevance` 到 `chatty.continuity`）一一对上。超过 10 的当 10，低于 0 的当 0。
     pub scores: [f64; 5],
-    /// 判官说该不该回：照它加减 [`Chatty`] 的 `adjust`。
-    pub should_reply: bool,
+    /// 判官说该不该回：照它加减 [`Chatty`] 的 `adjust`；没说（读不出）的不加不减（施工 I-16 照旧版）。
+    pub should_reply: Option<bool>,
     /// 判官说这句是不是在跟她说话：是的，冷静不抬。
     pub to_bot: bool,
     /// 违规的严重程度，0 到 10；没查是 `None`。不低于 [`Chatty`] 的违规门槛 `severity_min` 的，不管分数都回。
@@ -68,8 +68,9 @@ pub fn score(
     }
     let raw = raw(&judgement.scores, &chatty.weights);
     let adjust = match judgement.should_reply {
-        true => chatty.adjust,
-        false => -chatty.adjust,
+        Some(true) => chatty.adjust,
+        Some(false) => -chatty.adjust,
+        None => 0.0,
     };
     let bonus = conditions.hits.iter().map(|hit| hit.bonus).sum::<f64>();
     let total = (raw + adjust + bonus).max(0.0);

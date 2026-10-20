@@ -203,6 +203,10 @@ impl Projection {
                             .unwrap_or_default(),
                         name: venue.and_then(|venue| venue.name.clone()),
                     };
+                    // 她最近一轮以后说过话的人（施工 I-16：续聊被别人插话打断，照旧版）。
+                    if let Some(last) = self.replies.last_mut() {
+                        add(&mut last.after, std::slice::from_ref(&speaker.id));
+                    }
                     self.said.insert(seq, speaker);
                     self.keep(seq, event);
                 }
@@ -234,6 +238,7 @@ impl Projection {
                         self.replies.push(Reply {
                             at: event.at,
                             to: delivered.to.clone(),
+                            after: Vec::new(),
                         });
                     }
                 }
@@ -375,6 +380,21 @@ impl Projection {
     /// 她的回复，一轮一笔（第三条的 `Reply`）。
     pub(super) fn replies(&self) -> &[Reply] {
         &self.replies
+    }
+
+    /// 被撤回的平台编号是 `msg` 的那一条（施工 I-16，照旧版撤回插件）：它的序号，和主线这一轮是不是只在回它；不认得的是空的。
+    pub(super) fn withdrawn(&self, msg: &str) -> Option<(u64, bool)> {
+        let seq = self
+            .said
+            .iter()
+            .find(|(_, speaker)| speaker.msg.as_deref() == Some(msg))
+            .map(|(seq, _)| *seq)?;
+        let only = self
+            .main
+            .running
+            .as_ref()
+            .is_some_and(|running| running.msgs == [seq]);
+        Some((seq, only))
     }
 
     /// 平台编号是 `msg` 的那一条是不是她发的（认「引用她」）。

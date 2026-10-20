@@ -57,7 +57,7 @@ impl Route {
         }
         let defaults = json!({
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
-            "other_groups": self.group_defaults(0),
+            "other_groups": other_groups(self.group_defaults(0)),
             "other_privates": self.other_private_defaults(),
             // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
             "defaults": self.defaults_defaults(),
@@ -243,3 +243,12 @@ fn entries(rows: impl Iterator<Item = (i64, Value)>) -> Vec<Value> {
 
 #[cfg(test)]
 mod tests;
+
+/// 「其他群」卡的默认值（施工 I-16）：限流只照出厂的那一格时，换成「其他群」那张卡没写时自己补的 [`OTHER_GROUPS_RATE`](crate::rules::OTHER_GROUPS_RATE)（出厂群规则是名单里
+/// 的群的 30/60）。
+fn other_groups(mut defaults: Value) -> Value {
+    if defaults["rate"]["from"] == "factory" {
+        defaults["rate"] = json!({"value": crate::rules::OTHER_GROUPS_RATE, "from": "factory"});
+    }
+    defaults
+}

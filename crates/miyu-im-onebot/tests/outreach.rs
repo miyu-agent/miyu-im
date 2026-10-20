@@ -112,7 +112,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
         json!([at(BOT), plain(" 乱发")]),
     )
     .await;
-    assert_eq!(ended(&home, 4).await, refused("no-target", &[]));
+    assert_eq!(ended(&home, 4).await, refused("no-recipient", &[]));
     stopped(home).await;
 }
 

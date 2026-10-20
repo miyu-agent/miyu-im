@@ -31,6 +31,7 @@
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
 //! （施工 O-20）。核心里别的 crate 只经门面 `miyu-client` 拿（设计 32 第九节第 1 条，施工 S-6 上）。
 
+pub mod access;
 mod changed;
 pub mod chat;
 pub mod control;

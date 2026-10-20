@@ -29,8 +29,8 @@ use serde_json::{Map, Value, json};
 
 use super::logins::Login;
 use super::{
-    Person, Site, home_cards, logs, panels, plugin_settings, plugin_widgets, plugins, save,
-    settings, stats, store, venues,
+    Person, Site, home_cards, logs, moderation, panels, plugin_settings, plugin_widgets, plugins,
+    save, settings, stats, store, venues,
 };
 use crate::core::methods::short_path;
 
@@ -64,6 +64,9 @@ pub(super) async fn answer(
             Ok(json!({"logs": logs::recent(&file, filter, limit)}))
         }
         Some("models") => venues::models(&login.person).await,
+        Some("presets") => venues::presets(&login.person).await,
+        Some("moderation.get") => moderation::get(site),
+        Some("moderation.set") => moderation::set(site, params),
         Some("reactions") => Ok(reactions(site)),
         Some("settings.get") => settings::get(&login.person, &login.account).await,
         Some("settings.set") => settings::set(&login.person, params).await,

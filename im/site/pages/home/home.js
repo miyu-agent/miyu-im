@@ -8,6 +8,7 @@ import { picture } from '../../shell/avatar.js';
 import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
 import { pluginCards } from './plugin-cards.js';
+import { activityRows, namesOf } from './activity.js';
 import { openWizard } from './wizard.js';
 
 /** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
@@ -17,13 +18,25 @@ export function mountHome(view, { request }) {
   let today = null;
   let logs = [];
   let level = 'all';
+  let names = new Map();
+  // 日志看活动还是原始的（施工 I-19）：记在这台浏览器上。
+  let mode = 'activity';
+  try {
+    if (localStorage.getItem('miyu-im-log-mode') === 'raw') mode = 'raw';
+  } catch {
+    // 记不住就算了。
+  }
   const plugins = pluginCards(request);
   const refresh = async () => {
     try {
-      [today, logs] = await Promise.all([
+      const wanted = mode === 'activity' ? { level: 'all', limit: 120 } : { level, limit: 30 };
+      let cards;
+      [today, logs, cards] = await Promise.all([
         request('today'),
-        request('logs', { level, limit: 30 }).then((answer) => answer.logs),
+        request('logs', wanted).then((answer) => answer.logs),
+        request('cards.get').catch(() => null),
       ]);
+      names = namesOf(cards);
     } catch {
       return;
     }
@@ -64,10 +77,20 @@ export function mountHome(view, { request }) {
     for (const one of connections) grid.append(tile(one, request));
     const todayHead = element('div', 'section-head');
     todayHead.append(element('h2', null, say('home/today')));
-    view.replaceChildren(head, section, grid, todayHead, numbers(today), plugins.box, logPanel(logs, level, (chosen) => {
-      level = chosen;
+    const choose = (chosen) => {
+      if (chosen === 'activity' || chosen === 'raw') {
+        mode = chosen;
+        try {
+          localStorage.setItem('miyu-im-log-mode', chosen);
+        } catch {
+          // 记不住就算了。
+        }
+      } else {
+        level = chosen;
+      }
       refresh();
-    }));
+    };
+    view.replaceChildren(head, section, grid, todayHead, numbers(today), plugins.box, logPanel(logs, { level, mode, names }, choose));
   };
   const timer = setInterval(draw, 60000);
   draw();
@@ -101,18 +124,33 @@ function numbers(today) {
   return grid;
 }
 
-/** 最近的运行日志：头上按级别筛（全部、提醒、出错），一行一条，新的在前。 */
-function logPanel(logs, level, choose) {
+/** 最近的运行日志：头上切「活动」「原始日志」（施工 I-19）；原始的再按级别筛（全部、提醒、出错），一行一条，新的在前。 */
+function logPanel(logs, { level, mode, names }, choose) {
   const panel = element('div', 'panel logs');
   const head = element('h3', null, say('home/logs'));
-  const filter = element('span', 'log-filter');
-  for (const [value, label] of [['all', say('logs/all')], ['warn', say('logs/warn')], ['error', say('logs/error')]]) {
-    const button = element('button', value === level ? 'on' : null, label);
+  const modes = element('span', 'log-filter');
+  for (const [value, label] of [['activity', say('logs/activity')], ['raw', say('logs/raw')]]) {
+    const button = element('button', value === mode ? 'on' : null, label);
     button.addEventListener('click', () => choose(value));
-    filter.append(button);
+    modes.append(button);
   }
-  head.append(filter);
+  head.append(modes);
+  if (mode === 'raw') {
+    const filter = element('span', 'log-filter');
+    for (const [value, label] of [['all', say('logs/all')], ['warn', say('logs/warn')], ['error', say('logs/error')]]) {
+      const button = element('button', value === level ? 'on' : null, label);
+      button.addEventListener('click', () => choose(value));
+      filter.append(button);
+    }
+    head.append(filter);
+  }
   panel.append(head);
+  if (mode === 'activity') {
+    const rows = activityRows(logs, names);
+    if (rows.length === 0) panel.append(element('p', 'faint', say('logs/none')));
+    panel.append(...rows);
+    return panel;
+  }
   if (logs.length === 0) panel.append(element('p', 'faint', say('logs/none')));
   for (const line of logs) {
     const row = element('div', 'log');

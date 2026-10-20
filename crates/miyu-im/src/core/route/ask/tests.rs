@@ -189,7 +189,10 @@ async fn the_records_come_first_then_the_call_shaped_as_drawn() {
         .await;
     let params = &call["params"];
     assert_eq!(params["purpose"], "judge");
-    assert_eq!(params["max_tokens"], 400);
+    assert!(
+        params.get("max_tokens").is_none(),
+        "出厂不设上限（施工 I-16 照旧版）：{params}"
+    );
     assert!(params.get("model").is_none(), "没写模型的不带：{params}");
     let messages = params["messages"].as_array().expect("是列表");
     assert_eq!(messages.len(), 2);
@@ -257,19 +260,18 @@ async fn what_cannot_be_judged_is_asked_again_and_the_last_why_kept() {
     // 不再问：读不出就是读不出，少了哪一维照实说。
     let task = asked(asking(|asking| asking.judge.retries = 0), &caller, &slots());
     core.records("", "C\n").await;
-    core.says(r#"{"relevance": 5}"#).await;
+    core.says("嗯，我觉得该回").await;
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(answer.tries, 1);
     assert_eq!(
         answer.result,
-        Err(Unjudged::Unreadable(Unreadable::Dimension("willingness")))
+        Err(Unjudged::Unreadable(Unreadable::NoObject))
     );
-    // 再问两次：第三次读出来了。
+    // 再问两次：头两次读不出，第三次读出来了。
     let task = asked(asking(|asking| asking.judge.retries = 2), &caller, &slots());
     core.records("", "C\n").await;
-    let refused = core.next().await;
-    core.refuse(&refused, "model_failed");
     core.says("nope").await;
+    core.says("还是不知道").await;
     core.says(&verdict("third")).await;
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(answer.tries, 3);
@@ -305,18 +307,18 @@ async fn what_cannot_be_judged_is_asked_again_and_the_last_why_kept() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn slow_answers_time_out_by_mode_and_are_asked_again() {
+async fn slow_answers_time_out_and_are_not_asked_again() {
     let (caller, mut core) = connected();
-    // 打分的一次最多等 60 秒（出厂的），不再问。
+    // 施工 I-16 照旧版：每问一次最多等 15 秒（出厂的），等不到的不再问。
     let task = asked(asking(|asking| asking.judge.retries = 0), &caller, &slots());
     core.records("", "C\n").await;
     core.next().await;
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(
         (answer.tries, answer.millis, answer.model, answer.result),
-        (1, 60_000, None, Err(Unjudged::Timeout))
+        (1, 15_000, None, Err(Unjudged::Timeout))
     );
-    // 只查违规的等 120 秒。
+    // 只查违规的也是每次 15 秒。
     let task = asked(
         asking(|asking| {
             asking.mode = Mode::ModerationOnly;
@@ -330,16 +332,17 @@ async fn slow_answers_time_out_by_mode_and_are_asked_again() {
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(
         (answer.millis, answer.result),
-        (120_000, Err(Unjudged::Timeout))
+        (15_000, Err(Unjudged::Timeout))
     );
-    // 头一次等不到，再问一次回了：前一次晚来的回答没人收。
+    // 能再问也不再问：等不到就是等不到，晚来的回答没人收。
     let task = asked(asking(|asking| asking.judge.retries = 1), &caller, &slots());
     core.records("", "C\n").await;
     let late = core.next().await;
-    core.says(&verdict("second")).await;
     let answer = task.await.expect("没崩").expect("核心在");
-    assert_eq!((answer.tries, answer.millis), (2, 60_000));
-    assert_eq!(answer.result.expect("读得出").reason, "second");
+    assert_eq!(
+        (answer.tries, answer.millis, answer.result),
+        (1, 15_000, Err(Unjudged::Timeout))
+    );
     let reply = json!({"jsonrpc": "2.0", "id": late["id"], "result": {"text": verdict("late")}});
     assert_eq!(core.waiting.sort(reply), None, "晚来的丢掉");
 }

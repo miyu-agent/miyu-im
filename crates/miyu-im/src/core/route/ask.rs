@@ -8,8 +8,9 @@
 //! 3. 带上人格（施工 O-23 补，第 12 条第 3 款）：调的一方交了人格的编号的（这个群会话用的人格，`judge.persona` 开着），读它的
 //!    原文（`persona.rs`：读到的记一阵，读不到的这一次不带、照样问）；没交的不带、不读。
 //! 4. 拼请求（`request`）：base64 解出来的字由调的一方交进来。
-//! 5. `model.call {purpose: "judge", model?, max_tokens, messages}`：每一次最多等 `timeout`（只查违规的 `moderation_timeout`）；
-//!    等不到、核心拒了、读不出（`read`）的再问，最多再问 `retries` 次，交回最后一次的为什么（「施工时定的」第 94 条）。
+//! 5. `model.call {purpose: "judge", model?, max_tokens?, messages}`：整次最多 `timeout`（只查违规的 `moderation_timeout`），每问
+//!    一次最多 `attempt_timeout`；读不出（`read`）的再问，最多再问 `retries` 次，等不到、核心拒了的不再问（施工 I-16 照旧版），交回
+//!    最后一次的为什么。`max_tokens` 是 0 的不写（不设上限）。
 //!
 //! 耗时从交给判官（排队以前）算到有结果（「施工时定的」第 96 条）。核心断开了交回空的：跟核心的那一头也停了，没人收。
 
@@ -132,8 +133,10 @@ pub(super) async fn ask(
             json!({"role": role, "text": message.text})
         })
         .collect();
-    let mut params =
-        json!({"purpose": PURPOSE, "max_tokens": asking.judge.max_tokens, "messages": messages});
+    let mut params = json!({"purpose": PURPOSE, "messages": messages});
+    if asking.judge.max_tokens > 0 {
+        params["max_tokens"] = json!(asking.judge.max_tokens);
+    }
     if let Some(model) = &asking.judge.model {
         params["model"] = json!(model);
     }
@@ -141,22 +144,29 @@ pub(super) async fn ask(
         Mode::Reply => asking.judge.timeout,
         Mode::ModerationOnly => asking.judge.moderation_timeout,
     };
-    let wait = Duration::from_millis(u64::try_from(wait).unwrap_or(0));
+    let millis = |value: i64| Duration::from_millis(u64::try_from(value).unwrap_or(0));
+    let deadline = tokio::time::Instant::now() + millis(wait);
+    let attempt = millis(asking.judge.attempt_timeout);
     let (mut tries, mut model, mut why) = (0, None, Unjudged::Timeout);
     while tries <= asking.judge.retries {
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if left.is_zero() {
+            break;
+        }
         tries += 1;
+        let wait = attempt.min(left);
         let reply =
             match tokio::time::timeout(wait, caller.call("model.call", params.clone())).await {
                 Err(_) => {
                     why = Unjudged::Timeout;
-                    continue;
+                    break;
                 }
                 Ok(Err(Gone)) => return None,
                 Ok(Ok(reply)) => reply,
             };
         if let Some(reason) = reason(&reply) {
             why = Unjudged::Refused(reason.to_string());
-            continue;
+            break;
         }
         let result = &reply["result"];
         let (provider, name) = (result["provider"].as_str(), result["model"].as_str());

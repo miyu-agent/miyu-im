@@ -53,10 +53,11 @@ supersede_window = "7s"   # 同一个人在这么久里补发，接过前一条
 [judge]
 records = 20                  # 判官看触发这一条之前的几条记录
 persona = true                # 判官带不带这个群会话所用的人格的说明；某个群想省 token，场所规则写 judge = { persona = false }
-max_tokens = 400              # 判官最多输出多少 token
-timeout = "60s"               # 打分那一次的超时
-moderation_timeout = "120s"   # 只查违规那一次的超时
-retries = 1                   # 判不了重试几次
+max_tokens = 0                # 判官最多输出多少 token；0 是不设（照旧版，带思考的模型会被截断）
+timeout = "60s"               # 打分那一整次（连重试）最多多久
+moderation_timeout = "120s"   # 只查违规那一整次最多多久
+attempt_timeout = "15s"       # 每问一次最多等多久（照旧版）
+retries = 1                   # 读不出来时再问几次（等不到、出错的不再问，照旧版）
 reason_chars = 500            # 判官的理由最多留几个字符（只进日志）
 
 # 出站链与纯文本（第五条）。

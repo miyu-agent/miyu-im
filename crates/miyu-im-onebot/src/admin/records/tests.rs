@@ -8,7 +8,7 @@ fn muted(at: u64, user: i64) -> Record {
         action: Action::Mute,
         user,
         name: Some("小明".to_string()),
-        by: By::Ai,
+        by: By::Ai { asked: None },
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
@@ -84,4 +84,60 @@ fn a_record_is_written_with_only_the_fields_it_has() {
     let back: Record =
         serde_json::from_value(serde_json::to_value(&kick).expect("写得出")).expect("读得回");
     assert_eq!(back, kick);
+}
+
+#[test]
+fn who_asked_is_kept_and_old_records_still_read() {
+    // 施工 I-17：AI 做的记下谁让她做的；以前的 `{"kind": "ai"}` 照样读得进，读成没人叫。
+    let old: Record = serde_json::from_value(serde_json::json!({"at": 1, "action": "mute", "user": 7, "by": {"kind": "ai"}, "seconds": 60}))
+        .expect("老记录读得进");
+    assert_eq!(old.by, By::Ai { asked: None });
+    let asked = By::Ai {
+        asked: Some(Asker {
+            user: 40003,
+            name: Some("群管".to_string()),
+        }),
+    };
+    assert_eq!(
+        serde_json::to_value(&asked).expect("写得出"),
+        serde_json::json!({"kind": "ai", "asked": {"user": 40003, "name": "群管"}})
+    );
+    assert_eq!(
+        serde_json::to_value(By::Ai { asked: None }).expect("写得出"),
+        serde_json::json!({"kind": "ai"}),
+        "没人叫的照老样子写"
+    );
+}
+
+#[test]
+fn a_mute_is_on_expired_lifted_or_overridden() {
+    let mute = |at: u64, user: i64| muted(at, user);
+    let unmute = |at: u64, user: i64| Record {
+        action: Action::Unmute,
+        seconds: None,
+        ..muted(at, user)
+    };
+    // 600 秒的禁言：100 时禁 7，200 时又禁 7（覆盖），1000 时禁 8，1100 时解禁 8；2000 时禁 9，3000 时又禁 9（前一次已经到期）。
+    let records = [
+        mute(100, 7),
+        mute(200, 7),
+        mute(1000, 8),
+        unmute(1100, 8),
+        mute(2000, 9),
+        mute(3000, 9),
+    ];
+    let states: Vec<Option<MuteState>> = (0..records.len())
+        .map(|index| mute_state(&records, index, 3100))
+        .collect();
+    assert_eq!(
+        states,
+        [
+            Some(MuteState::Overridden),
+            Some(MuteState::Expired),
+            Some(MuteState::Lifted),
+            None,
+            Some(MuteState::Expired),
+            Some(MuteState::Muted),
+        ]
+    );
 }

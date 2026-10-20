@@ -13,7 +13,7 @@ fn record(at: u64, action: Action, user: i64, seconds: Option<u64>) -> Record {
         action,
         user,
         name: Some(format!("u{user}")),
-        by: By::Ai,
+        by: By::Ai { asked: None },
         seconds,
         reason: Some("刷屏".to_string()),
         block: false,
@@ -192,4 +192,36 @@ fn a_ranking_leaves_out_what_is_zero_and_mutes_say_their_state() {
         events["items"][2]["right"][0],
         json!({"text": "已过期", "tone": "dim"})
     );
+}
+
+#[test]
+fn a_mute_overridden_by_a_later_one_is_not_shown_as_on() {
+    // 施工 I-17：同一个人禁言两次，前一条以前也写「禁言中」。
+    let mut later = record(NOW - 50, Action::Mute, 7, Some(600));
+    later.by = By::Ai {
+        asked: Some(records::Asker {
+            user: 40003,
+            name: Some("群管".to_string()),
+        }),
+    };
+    let both = [record(NOW - 100, Action::Mute, 7, Some(600)), later];
+    let list = zh(&events(&both, "mute", NOW, 10));
+    let said: Vec<(&str, &str)> = list["items"]
+        .as_array()
+        .expect("是列表")
+        .iter()
+        .map(|item| {
+            (
+                item["state"].as_str().unwrap_or_default(),
+                item["right"][0]["text"].as_str().unwrap_or_default(),
+            )
+        })
+        .collect();
+    assert_eq!(said, [("doing", "禁言中"), ("off", "已覆盖")], "新的在前");
+    assert_eq!(
+        list["items"][0]["detail"], "AI（群管 让做的） · 刷屏",
+        "谁让她做的"
+    );
+    let raw = json!([events(&both, "mute", NOW, 10)]);
+    assert_eq!(check(WidgetPlace::Page, &[], &raw), Ok(()), "{raw}");
 }

@@ -189,6 +189,32 @@ impl Texts {
         }
     }
 
+    /// `access` 说的一句（施工 I-16）。
+    pub fn access(&self, said: &crate::access::Said) -> String {
+        use crate::access::Said;
+        let pair = |key: &str, list: &String, entry: &String| {
+            self.say(key, &[("list", list.clone()), ("entry", entry.clone())])
+        };
+        match said {
+            Said::NoGroup(group) => self.say("access/no-group", &[("group", group.clone())]),
+            Said::Bad(number) => self.say("whitelist/bad", &[("number", number.clone())]),
+            Said::Empty(list) => self.say("access/empty", &[("list", list.clone())]),
+            Said::Added(list, entry) => pair("access/added", list, entry),
+            Said::Already(list, entry) => pair("access/already", list, entry),
+            Said::Removed(list, entry) => pair("access/removed", list, entry),
+            Said::Absent(list, entry) => pair("access/absent", list, entry),
+            Said::Heading(list) => self.say("access/heading", &[("list", list.clone())]),
+        }
+    }
+
+    /// `access` 的一份名单叫什么（施工 I-16）：`groups` 名单里的群，`skip` 群 `group` 跳过判断的人。
+    pub fn access_list(&self, which: &str, group: &str) -> String {
+        self.say(
+            &format!("access/list-{which}"),
+            &[("group", group.to_string())],
+        )
+    }
+
     /// 规则设到的一项（施工 O-21）：键 `key`、值照 TOML 写、来处。
     pub fn entry(&self, key: &str, entry: &Entry) -> String {
         let origin = &entry.origin;

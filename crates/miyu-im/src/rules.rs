@@ -39,6 +39,7 @@ use miyu_client::settings::problem::Code;
 
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
+pub use cards::OTHER_GROUPS_RATE;
 pub use cards::defaults as card_defaults;
 pub use cards::edit::{self as card_edit, Edit};
 pub use cards::page::{self as card_page, Known, Words};
@@ -276,8 +277,8 @@ fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
     }
 }
 
-/// 系统的违规词表：`system/modules/im/moderation.txt`。
-fn words(root: &DataRoot) -> PathBuf {
+/// 系统的违规词表：`system/modules/im/moderation.txt`（施工 I-16 起页面也写它，`site::moderation`）。
+pub(crate) fn words(root: &DataRoot) -> PathBuf {
     root.system().join(MODULES).join(PACKAGE).join(MODERATION)
 }
 

@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use miyu_im::chat::{DETAIL, Fetch, Fetched, To};
+use miyu_im::chat::{DETAIL, Fetch, Fetched, Link, Source, To};
 use miyu_im::toolset::{
     Call, Missed, Planned, QQ_FILES, Stored, file_name, kept, message, msg_id, save, take,
 };
@@ -110,7 +110,17 @@ async fn fetch(
     let Some(how) = item.fetch else {
         return Some(Err(("not-fetchable", Vec::new())));
     };
-    let (bytes, named) = match take(link.as_ref(), how, &item.id, wait).await {
+    let taken = match (how, call.to) {
+        // 群里的文件（施工 I-16）：`get_file` 只认缓存的图片、语音，照群文件的下载地址取；取不到的再照 `get_file` 试。
+        (Fetch::File, To::Group(group)) => {
+            match group_file(link.as_ref(), group, &item.id, wait).await {
+                Some(bytes) => Ok((bytes, None)),
+                None => take(link.as_ref(), how, &item.id, wait).await,
+            }
+        }
+        _ => take(link.as_ref(), how, &item.id, wait).await,
+    };
+    let (bytes, named) = match taken {
         Ok(taken) => taken,
         Err(missed) => return Some(Err(undone(missed))),
     };
@@ -151,6 +161,14 @@ async fn fetch(
         }
         Err(detail) => Err(("not-saved", vec![("detail", cut(&detail))])),
     })
+}
+
+/// 群 `group` 里编号是 `id` 的群文件的字节（施工 I-16）；拿不到下载地址、下不下来的是空的。
+async fn group_file(link: &dyn Link, group: i64, id: &str, wait: Duration) -> Option<Vec<u8>> {
+    let url = link.group_file_url(group, id).await.ok()?;
+    miyu_im::toolset::bytes(&[Source::Url(url)], wait)
+        .await
+        .ok()
 }
 
 /// 没取到的那一句：NapCat 回失败的 `failed`（它说的），拿不到手的 `unfetched`（为什么，截到 [`DETAIL`] 个字符），等不到、没连着的

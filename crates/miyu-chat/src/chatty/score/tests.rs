@@ -9,7 +9,7 @@ use super::{Judgement, Score, nudged, score};
 fn judged() -> Judgement {
     Judgement {
         scores: [6.0, 5.0, 4.0, 6.0, 3.0],
-        should_reply: true,
+        should_reply: Some(true),
         to_bot: false,
         severity: None,
         reason: String::new(),
@@ -73,7 +73,7 @@ fn example_addressed_goes_through() {
 #[test]
 fn adjust_follows_should_reply() {
     let mut no = judged();
-    no.should_reply = false;
+    no.should_reply = Some(false);
     let got = scored(&no, &sampled(), &[], &chatty());
     assert_eq!(mills(got.adjust), -200);
     assert_eq!(mills(got.total), 285);
@@ -82,7 +82,7 @@ fn adjust_follows_should_reply() {
         adjust: 0.0,
         ..chatty()
     };
-    for should_reply in [true, false] {
+    for should_reply in [Some(true), Some(false), None] {
         let judgement = Judgement {
             should_reply,
             ..judged()
@@ -149,7 +149,7 @@ fn zero_weights_give_zero_raw() {
 fn total_and_threshold_never_go_below_zero() {
     let judgement = Judgement {
         scores: [0.0; 5],
-        should_reply: false,
+        should_reply: Some(false),
         ..judged()
     };
     let got = scored(&judgement, &sampled(), &[], &chatty());
@@ -168,7 +168,7 @@ fn total_and_threshold_never_go_below_zero() {
 fn severity_overrides_the_score() {
     let quiet = Judgement {
         scores: [0.0; 5],
-        should_reply: false,
+        should_reply: Some(false),
         ..judged()
     };
     for (severity, reply) in [

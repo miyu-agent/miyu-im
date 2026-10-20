@@ -7,6 +7,7 @@ use serde_json::Value;
 use miyu_im::chat::To;
 use miyu_im::toolset::{Call, Missed, Planned, message, msg_id};
 
+use super::args::{bad_args, group_only};
 use super::lookup::undone;
 use super::target::recallable;
 
@@ -25,11 +26,16 @@ pub(crate) fn emoji_id(emoji: &str) -> Option<String> {
         .map(|first| u32::from(first).to_string())
 }
 
-/// `qq_react` 的一次调用（模块的说明）。参数写错的、私聊里调到的照不认识的工具答。
+/// `qq_react` 的一次调用（模块的说明）。私聊里调到的答只给群，参数写错的说哪个（施工 I-17）。
 pub(super) fn react(call: Call) -> Planned {
-    let wanted = msg_id(&call.args["msg"]).zip(call.args["emoji"].as_str().and_then(emoji_id));
-    let (To::Group(_), Some((msg, emoji))) = (call.to, wanted) else {
-        return Planned::Now(call.answers.say("unknown", &[("name", &call.tool)], true));
+    if !matches!(call.to, To::Group(_)) {
+        return group_only(&call);
+    }
+    let Some(msg) = msg_id(&call.args["msg"]) else {
+        return bad_args(&call, "msg must be a message id");
+    };
+    let Some(emoji) = call.args["emoji"].as_str().and_then(emoji_id) else {
+        return bad_args(&call, "emoji must be one emoji or a QQ face number");
     };
     Planned::later(async move { reacted(&call, &msg, &emoji).await })
 }

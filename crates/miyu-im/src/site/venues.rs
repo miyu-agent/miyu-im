@@ -43,6 +43,36 @@ pub(super) async fn models(person: &Person) -> Result<Value, (String, String)> {
     Ok(picked(&listed))
 }
 
+/// `presets`（施工 I-16，会话浮窗「预设」那一格）：核心 `preset.list` 里写对了的那几个，`{presets: [{id, name}]}`；名字没写的照编号。
+pub(super) async fn presets(person: &Person) -> Result<Value, (String, String)> {
+    let listed = person
+        .lock()
+        .await
+        .call("presets", "preset.list", json!({}))
+        .await
+        .map_err(|why| (why.reason, why.message))?;
+    Ok(preset_choices(&listed))
+}
+
+/// 核心 `preset.list` 的回答 `listed` 里写对了的预设：编号、名字（没写的照编号）。写错了的（带 `problem`）不列。
+pub(super) fn preset_choices(listed: &Value) -> Value {
+    let presets: Vec<Value> = listed["presets"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|one| one.get("problem").is_none())
+        .filter_map(|one| {
+            let id = one["preset"].as_str()?;
+            let name = one["name"]
+                .as_str()
+                .filter(|name| !name.is_empty())
+                .unwrap_or(id);
+            Some(json!({"id": id, "name": name}))
+        })
+        .collect();
+    json!({"presets": presets})
+}
+
 /// 核心 `model.list` 的回答 `listed` 里页面要的那几样（模块的说明）。
 pub(super) fn picked(listed: &Value) -> Value {
     let models: Vec<Value> = listed["providers"]

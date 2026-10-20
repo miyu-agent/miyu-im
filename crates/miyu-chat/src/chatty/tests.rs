@@ -7,7 +7,7 @@ use miyu_kernel::id::VenueId;
 use crate::{Flag, Standing};
 
 use super::test_support::{
-    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, route_as, said, seq,
+    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, person, reply, route_as, said, seq,
 };
 use super::{Chatty, Conditions, Hit, Kind, Route, conditions, route};
 
@@ -152,6 +152,18 @@ fn mentions_or_quotes_of_others_break_continuation() {
         kinds(&hits(&quotes, &[], &replies, &chatty())),
         [Kind::AfterSpeaking]
     );
+}
+
+#[test]
+fn someone_else_speaking_after_her_reply_breaks_continuation() {
+    // 施工 I-16，照旧版：她回了他以后别人插过话，不算续聊；只有他自己接着说的照算。
+    let mut replies = [reply(5 * SECOND, &[SENDER])];
+    replies[0].after = vec![person(SENDER)];
+    let got = hits(&facts(), &[], &replies, &chatty());
+    assert_eq!(kinds(&got), [Kind::Continuation, Kind::AfterSpeaking]);
+    replies[0].after.push(person(OTHER));
+    let got = hits(&facts(), &[], &replies, &chatty());
+    assert_eq!(kinds(&got), [Kind::AfterSpeaking]);
 }
 
 #[test]
@@ -352,8 +364,8 @@ fn admin_addressing_commits_end_to_end() {
 
 #[test]
 fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
-    // 施工 I-7 中三：被叫时也过判断关了，谁冲她来都直接回；跳过判断的人冲她来直接回，没冲她来的只记下。
-    use Kind::{AfterSpeaking, Direct, Probability};
+    // 施工 I-7 中三：被叫时也过判断关了，谁冲她来都直接回。I-16：跳过判断的人冲她来、续聊直接回，插话的（刚说过话、抽中）照常判。
+    use Kind::{AfterSpeaking, Continuation, Direct, Probability};
     let mut chatty = chatty();
     let member = said(Standing::Member);
     assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Judge);
@@ -367,11 +379,13 @@ fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
     chatty.judge_called = true;
     chatty.skip_users = vec![SENDER.to_string()];
     assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Commit);
-    assert_eq!(route(&of(&[Probability]), &member, &chatty), Route::Record);
+    assert_eq!(route(&of(&[Continuation]), &member, &chatty), Route::Commit);
     assert_eq!(
-        route(&of(&[AfterSpeaking]), &member, &chatty),
-        Route::Record
+        route(&of(&[AfterSpeaking, Continuation]), &member, &chatty),
+        Route::Commit
     );
+    assert_eq!(route(&of(&[Probability]), &member, &chatty), Route::Judge);
+    assert_eq!(route(&of(&[AfterSpeaking]), &member, &chatty), Route::Judge);
     assert_eq!(route(&of(&[]), &member, &chatty), Route::Record);
     chatty.skip_users = vec![OTHER.to_string()];
     assert_eq!(
@@ -382,8 +396,8 @@ fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
 }
 
 #[test]
-fn media_only_messages_are_drawn_and_followed_only_when_not_skipped() {
-    // 施工 I-7 中三：跳过纯图片开着（出厂）时只有图的不抽样、不算续聊；关了照常。
+fn media_only_messages_are_drawn_only_when_not_skipped_but_always_followed() {
+    // 施工 I-16 照旧版：跳过纯图片开着（出厂）时只有图的不抽样；续聊照算。关了照常抽样。
     let mut picture = facts();
     picture.media_only = true;
     picture.textless = true;
@@ -391,7 +405,9 @@ fn media_only_messages_are_drawn_and_followed_only_when_not_skipped() {
     chatty.probability = 1000;
     let replies = [reply(SECOND, &[SENDER])];
     let found = conditions(&picture, &[], &replies, now(), &chatty);
-    assert!(found.hits.is_empty(), "{found:?}");
+    assert!(found.has(Kind::Continuation), "{found:?}");
+    let found = conditions(&picture, &[], &[], now(), &chatty);
+    assert!(!found.has(Kind::Probability), "{found:?}");
     chatty.skip_media = false;
     let found = conditions(&picture, &[], &replies, now(), &chatty);
     assert!(found.has(Kind::Continuation), "{found:?}");

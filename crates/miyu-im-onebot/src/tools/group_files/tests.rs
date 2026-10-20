@@ -41,32 +41,53 @@ fn sizes_and_saved_names_read_well() {
     assert_eq!(size(2048), "2.0 KB");
     assert_eq!(size(3 << 30), "3.0 GB");
     assert_eq!(
-        saved_name("https://x.invalid/d?fname=排班.pdf&k=1", "/f1"),
+        saved_name(None, "https://x.invalid/d?fname=排班.pdf&k=1", "/f1"),
         "排班.pdf"
     );
     assert_eq!(
-        saved_name("https://x.invalid/d?fname=../../etc/passwd", "/f1"),
+        saved_name(None, "https://x.invalid/d?fname=../../etc/passwd", "/f1"),
         "passwd"
     );
-    // 平台给的名字是 `%XX` 写的：解开再洗，解出来的路径照样去掉。
+    // 列表里的名字优先（SnowLuma 的 fname 是编号）；fname 就是编号的不算。
     assert_eq!(
-        saved_name("https://x.invalid/d?fname=%E6%8E%92%E7%8F%AD.pdf", "/f1"),
+        saved_name(Some("排班.pdf"), "https://x.invalid/d?fname=/f1", "/f1"),
         "排班.pdf"
     );
     assert_eq!(
-        saved_name("https://x.invalid/d?fname=%2E%2E%2F%2E%2E%2Fpasswd", "/f1"),
-        "passwd"
-    );
-    assert_eq!(
-        saved_name("https://x.invalid/d?fname=100%25%zz", "/f1"),
-        "100%%zz"
-    );
-    assert_eq!(
-        saved_name("https://x.invalid/d?fname=..", "/f1"),
+        saved_name(None, "https://x.invalid/d?fname=/f1", "/f1"),
         "group-file-f1"
     );
     assert_eq!(
-        saved_name("https://x.invalid/d", "/abc-123"),
+        saved_name(Some("../x/a.md"), "https://x.invalid/d", "/f1"),
+        "a.md"
+    );
+    // 平台给的名字是 `%XX` 写的：解开再洗，解出来的路径照样去掉。
+    assert_eq!(
+        saved_name(
+            None,
+            "https://x.invalid/d?fname=%E6%8E%92%E7%8F%AD.pdf",
+            "/f1"
+        ),
+        "排班.pdf"
+    );
+    assert_eq!(
+        saved_name(
+            None,
+            "https://x.invalid/d?fname=%2E%2E%2F%2E%2E%2Fpasswd",
+            "/f1"
+        ),
+        "passwd"
+    );
+    assert_eq!(
+        saved_name(None, "https://x.invalid/d?fname=100%25%zz", "/f1"),
+        "100%%zz"
+    );
+    assert_eq!(
+        saved_name(None, "https://x.invalid/d?fname=..", "/f1"),
+        "group-file-f1"
+    );
+    assert_eq!(
+        saved_name(None, "https://x.invalid/d", "/abc-123"),
         "group-file-abc123"
     );
 }

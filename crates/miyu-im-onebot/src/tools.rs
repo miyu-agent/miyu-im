@@ -14,6 +14,7 @@ use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
 
 mod acting;
+mod args;
 mod contacts;
 mod fetch;
 mod group_files;
@@ -145,7 +146,7 @@ const TOOLS: [Decl; 14] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 37] = [
+const ANSWERS: [(&str, &[&str]); 43] = [
     ("skipped", &[]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
@@ -180,9 +181,16 @@ const ANSWERS: [(&str, &[&str]); 37] = [
     ("members", &["shown", "total", "list"]),
     ("no-members", &[]),
     ("no-target", &[]),
+    ("no-recipient", &[]),
     ("failed", &["detail"]),
     ("unanswered", &[]),
     ("unreachable", &[]),
+    // 施工 I-17：参数写错的说哪个、私聊里调到只给群的、群友叫的踢人要确认、不踢群主管理员、一次几个人的头一行。
+    ("bad-args", &["detail"]),
+    ("group-only", &[]),
+    ("confirm", &[]),
+    ("protected", &["who"]),
+    ("batch", &["done", "total"]),
 ];
 
 /// 驱动带的插件给场所会话记一句的模板：名字和认的字段（施工 Q-3）。
@@ -275,7 +283,8 @@ impl ToolSet for QqTools {
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
-                None => Planned::Now(call.answers.say("no-target", &[], true)),
+                // 没写发给谁（施工 I-16：以前借禁言那句「要对方引用或 @」，把她带偏去反复试）：回这个会话直接写字。
+                None => Planned::Now(call.answers.say("no-recipient", &[], true)),
             },
             // 「这一轮不说话」im 的读的一头当场答，到不了这里；照说不会。
             SKIP_REPLY => Planned::Now(call.answers.say("skipped", &[], false)),

@@ -9,7 +9,7 @@ use super::{Item, pressure};
 fn chiming() -> (Judgement, Conditions) {
     let judgement = Judgement {
         scores: [5.0; 5],
-        should_reply: true,
+        should_reply: Some(true),
         to_bot: false,
         severity: None,
         reason: String::new(),

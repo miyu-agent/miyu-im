@@ -1,7 +1,7 @@
 # 群聊桥的出厂场所规则（docs/blueprint/chat.md 第一条，docs/designs/18-通讯平台.md 第四节）。
 #
-# 这份是软件包的默认值：群走主动回复判断（chatty），私聊每条都回（every-message）；限流都是 5 分钟 5 个回合；群里最多
-# 一条支线，私聊串行。群里仅发送最终消息（调工具时说的话不发，施工 O-57），私聊每一步都发（出厂参数 final_only = false）。
+# 软件包的默认值：群走主动回复判断，私聊每条都回；群限流 30 轮/60 秒（「其他群」5/300，卡片那一层写），私聊 5/300；群里最多三条
+# 支线、带 30 条群聊记录，AI 看得到 QQ 号（I-16 照旧版），私聊串行。群里仅发送最终消息（施工 O-57），私聊每一步都发。
 #
 # 不写 persona、preset：跟着核心的默认走（核心的 persona.default，预设以后照 preset.default）；写了反而把终端管理员改的默认
 # 盖掉。参数（chatty = { … } 这类）也不写，照出厂参数 defaults.toml；群的仅发送最终消息是例外（群、私聊出厂不一样）。
@@ -12,12 +12,15 @@
 [[rule]]
 match = { kind = "group" }
 discipline = "chatty"
-rate = "5/300s"
-parallel = 1
+rate = "30/60s"
+parallel = 3
 outbound = { final_only = true }
+recent = 30
+show_ids = true
 
 [[rule]]
 match = { kind = "private" }
 discipline = "every-message"
 rate = "5/300s"
 parallel = 0
+show_ids = true

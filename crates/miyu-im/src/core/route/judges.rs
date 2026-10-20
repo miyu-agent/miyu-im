@@ -37,6 +37,8 @@ pub(super) struct Tag {
     pub(super) who: String,
     /// 正文的开头：最近判断。
     pub(super) text: String,
+    /// 开这一轮时多带的事实：为什么叫她（施工 I-16，`primer`）；判下来要回以前是空的。
+    pub(super) facts: Vec<serde_json::Value>,
 }
 
 /// 交给判官的一条：判官回来时算分、记判断要的，都在交出去的那一刻定下（「施工时定的」第 100 条）。

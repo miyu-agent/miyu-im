@@ -2,16 +2,16 @@
 // 哪几种卡有、要哪一格开着才画。form.js 照它画、存。
 //
 // - key：卡上的格；`rules.` 开头的是卡上 `rules` 里的规则键（宿主 card_edit 照项部分更新）。
-// - control：select（下拉，`options` 交选项）、persona、model（人格、模型的下拉，选项照宿主给的）、text、area、switch（`values` 是开、
+// - control：select（下拉，`options` 交选项）、persona、preset（人格、预设的下拉，选项照宿主给的）、model（点开小窗选模型）、text、area、switch（`values` 是开、
 //   关存成什么，不写是真假）、number（带 `unit`）、float（小数）、multi（几个小数一行，`keys` 各存各的）、seconds（规则里写成 `15s`
 //   的时长，页面上填秒数）、rate（`N/Ms`：几条 / 几秒）、sleep（`HH:MM-HH:MM`）、tags（字的列表；`people` 的照号写、认得的写名字）、
-//   percent（拖动条，百分之几，存成千分比）。`prefixed` 的标签只填了号的补成平台上的人的编号（`qq:10002`）。
+//   percent（拖动条，百分之几，存成千分比）、reaction（贴表情：开关加点开小窗选）。`prefixed` 的标签只填了号的补成平台上的人的编号（`qq:10002`）。
 // - clears：存这一格时一起去掉卡上旧写法的那几格（插嘴的四档 `chatty`：线路规程、抽样改写进 `rules` 以后不再用它）。
 // - kinds：哪几种卡有（group、other_groups、private、other_privates），不写是都有。
 // - dep：`{ key, on, unset? }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）；那一格没写的照 `unset`，
 //   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
-// - needs：浮窗问到的那一样（`reactions`：平台能贴的表情）是空的就不画。
+// - needs：浮窗问到的那一样（`reactions`：平台能贴的表情；`presets`：预设）是空的、问不到的就不画（照回答里同名的那个列表）。
 
 const GROUPS = ['group', 'other_groups'];
 
@@ -26,12 +26,15 @@ const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 export const FIELDS = {
   persona: [
     { key: 'persona', control: 'persona', label: 'field/persona', hint: 'field/persona-hint' },
+    { key: 'preset', control: 'preset', label: 'field/preset', needs: 'presets' },
     { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', defaultsHint: 'field/extra-prompt-hint-defaults', wide: true },
     { group: 'field/models' },
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
     { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'chat', kinds: GROUPS, dep: JUDGE },
-    { group: 'field/context', kinds: GROUPS },
+    { group: 'field/context' },
     { key: 'recent', control: 'number', label: 'field/recent', unit: 'unit/messages', kinds: GROUPS, min: 1, max: 1000 },
+    // 是否向 AI 显示号码（2026-10-20 项目主人验收：每种卡都有，原来只在群卡的触发方式页）。
+    { key: 'show_ids', control: 'switch', label: 'field/show-ids' },
   ],
   trigger: [
     { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
@@ -39,17 +42,18 @@ export const FIELDS = {
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
     { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', hint: 'field/judge-persona-hint', kinds: GROUPS, dep: JUDGE },
-    { key: 'rules.chatty.probability', control: 'percent', clears: ['chatty'], label: 'field/probability', hint: 'field/probability-hint', kinds: GROUPS, dep: JUDGE, max: 30 },
+    { key: 'rules.chatty.probability', control: 'percent', clears: ['chatty'], label: 'field/probability', hint: 'field/probability-hint', kinds: GROUPS, dep: JUDGE, max: 100 },
     { key: 'rules.chatty.skip_users', control: 'tags', people: true, prefixed: true, label: 'field/skip-users', hint: 'field/skip-users-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.chatty.skip_media', control: 'switch', label: 'field/skip-media', hint: 'field/skip-media-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'managers', control: 'tags', people: true, label: 'field/managers', kinds: GROUPS },
-    { key: 'show_ids', control: 'switch', label: 'field/show-ids', kinds: GROUPS },
     { key: 'rules.chatty.base', control: 'float', label: 'field/threshold', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.relevance', control: 'multi', keys: WEIGHTS, label: 'field/weights', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.restraint', control: 'switch', label: 'field/restraint', hint: 'field/restraint-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.continuation_window', control: 'seconds', label: 'field/continuation', hint: 'field/continuation-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.after_speaking_window', control: 'seconds', label: 'field/after-speaking', hint: 'field/after-speaking-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.dispatch.supersede_window', control: 'seconds', label: 'field/supersede', hint: 'field/supersede-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
+    // 违规判断的门槛（施工 I-16，照旧版设置页）：违规关键词在设置页「违规判断」。
+    { key: 'rules.chatty.severity_min', control: 'number', label: 'field/severity-min', hint: 'field/severity-min-hint', kinds: GROUPS, advanced: true, min: 0, max: 10 },
   ],
   pace: [
     // 私聊白名单里的人（施工 I-7 中三下一）：忽略限流、忽略睡眠没写的是忽略（`unset`），关了才画限流、睡眠，写在卡上的 `rules` 里。
@@ -58,12 +62,12 @@ export const FIELDS = {
     { key: 'rules.ignore_sleep', control: 'switch', unset: true, label: 'field/ignore-sleep', hint: 'field/ignore-sleep-hint', kinds: ['private'] },
     { key: 'rules.sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ['private'], dep: { key: 'rules.ignore_sleep', on: false, unset: true } },
     { key: 'rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ALL_BUT_PRIVATE },
-    { key: 'sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: GROUPS },
-    { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 3 },
+    { key: 'sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ALL_BUT_PRIVATE },
+    { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 16 },
   ],
   send: [
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
-    { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['split', 'image', 'forward'], optionText: 'long/' },
+    { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['image', 'forward'], optionText: 'long/' },
     { key: 'long_chars', control: 'number', label: 'field/long-chars', hint: 'field/long-chars-hint', unit: 'unit/chars', min: 0, max: 100000 },
     // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
     { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },

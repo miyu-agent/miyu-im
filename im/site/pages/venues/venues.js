@@ -1,6 +1,7 @@
 // 会话页（施工 I-7 上，设计 01 第八节第 3 条；I-7 上修照样板按平台分）：卡片墙。一页是一个平台的会话：连着不止一个平台时头上先切平台
 // （platforms-pick.js），卡上不再画平台角标；有哪几种会话、号怎么叫由平台给（platforms.js 的 venues）。再筛「全部」「群聊」「私聊」
-// （张数只数名单里的，不数「陌生群」「陌生私聊」两张兜底卡）、搜名字或号码、「新建」；墙上分三段：名单以外、群聊名单、私聊白名单。
+// （张数只数名单里的，不数「陌生群」「陌生私聊」两张兜底卡）、搜名字或号码、「新建」；墙上分四段：默认（「会话默认值」一张，2026-10-20
+// 从设置页挪过来，只在「全部」里）、名单以外、群聊名单、私聊白名单。
 // 一张卡一个会话：头像、名字、号（连着不止一个机器人时写是哪个）、是否回复的开关、几个小标签；点卡打开它的浮窗。
 //
 // - 卡片照宿主的 cards.get 画；宿主推 cards（卡片、白名单变了）再问，开着的浮窗跟着换成新的那一张。机器人连上、断开了也再问一遍
@@ -11,7 +12,7 @@ import { element, icon, say } from '../../shell/i18n.js';
 import { venueKinds } from '../home/platforms.js';
 import { chips } from './chips.js';
 import { openCreate } from './create.js';
-import { face } from './face.js';
+import { faceOf } from './face.js';
 import { entries } from './model.js';
 import { idLine, titleOf } from './names.js';
 import { platformPick } from './platforms-pick.js';
@@ -20,6 +21,7 @@ import { openVenue, toggle } from './venue.js';
 
 /** 墙上的三段：标题、哪几种卡、属于哪一种会话。 */
 const SECTIONS = [
+  { label: 'venues/defaults-section', kinds: ['defaults'] },
   { label: 'venues/outside', kinds: ['other_groups', 'other_privates'] },
   { label: 'venues/groups', kinds: ['group'], type: 'group' },
   { label: 'venues/privates', kinds: ['private'], type: 'private' },
@@ -140,8 +142,8 @@ export function mountVenues(view, { request, path }) {
     const context = { platform: chosen, bots: names() };
     const kinds = venueKinds(chosen);
     const shown = mine()
-      .filter((one) => kinds[one.type])
-      .filter((one) => filter === 'all' || one.type === filter)
+      .filter((one) => one.kind === 'defaults' || kinds[one.type])
+      .filter((one) => filter === 'all' || (one.type === filter && one.kind !== 'defaults'))
       .filter((one) => matches(one, context, query));
     const parts = [];
     const kept = new Set();
@@ -173,7 +175,7 @@ export function mountVenues(view, { request, path }) {
     const top = element('div', 'top');
     const named = element('div', 'grow');
     named.append(element('div', 'name', titleOf(one)), element('div', 'id', idLine(one, context)));
-    top.append(face(one.type, one.id, one.name), named);
+    top.append(faceOf(one), named);
     if (one.on !== null) top.append(toggle(one, request));
     const tags = element('div', 'chips');
     for (const chip of labels) tags.append(element('span', chip.accent ? 'chip accent' : 'chip', chip.text));

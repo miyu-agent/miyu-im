@@ -25,10 +25,7 @@ impl Route {
             } => self.muted((bot, group), None, operator).await,
             // 号连上了：排着的照先后发（施工 O-25 中，「出站队列」第 3 条）。
             Event::Connected { .. } => self.pump().await,
-            Event::Befriend { bot, user, flag } => {
-                self.befriend(bot, user, flag);
-                Ok(())
-            }
+            Event::Befriend { bot, user, flag } => self.befriend(bot, user, flag).await,
             Event::Noted {
                 bot,
                 to,

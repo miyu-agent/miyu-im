@@ -94,14 +94,16 @@ fn each_keeps_its_own_conditions() {
         [Direct, Continuation, AfterSpeaking, Moderation],
         "额度满了不抽样"
     );
-    for discipline in [Discipline::WhenCalled, Discipline::Wake] {
-        for full in [false, true] {
-            assert_eq!(
-                kinds(&discipline.keep(all(), full)),
-                [Direct, Continuation, Moderation],
-                "{discipline:?}"
-            );
-        }
+    for full in [false, true] {
+        // 关了主动回复判断：只有被叫才回，续聊不算（施工 I-16，照旧版）；唤醒的回复以后一小段时间照续聊算。
+        assert_eq!(
+            kinds(&Discipline::WhenCalled.keep(all(), full)),
+            [Direct, Moderation]
+        );
+        assert_eq!(
+            kinds(&Discipline::Wake.keep(all(), full)),
+            [Direct, Continuation, Moderation]
+        );
     }
     for full in [false, true] {
         assert_eq!(

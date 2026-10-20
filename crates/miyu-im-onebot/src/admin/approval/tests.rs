@@ -49,3 +49,27 @@ fn the_verdict_is_read_from_the_json_and_the_reason_cut() {
         assert_eq!(verdict(bad), None, "{bad}");
     }
 }
+
+#[test]
+fn snowluma_flags_are_fixed_and_filtered_ones_are_known() {
+    // 施工 I-17，照旧版 `group_join.rs`：加群申请的标记里事件种类 2 改成 1，别的照原样。
+    assert_eq!(action_flag("slreq:1:31:7:2:99"), "slreq:1:31:7:1:99");
+    assert_eq!(action_flag("slreq:1:31:7:1:99"), "slreq:1:31:7:1:99");
+    assert_eq!(
+        action_flag("slreq:2:31:7:2:99"),
+        "slreq:2:31:7:2:99",
+        "不是这一版"
+    );
+    assert_eq!(action_flag("1700000000"), "1700000000", "NapCat 的照原样");
+    assert!(filtered("slreq:1:31:7:2:1"));
+    assert!(!filtered("slreq:1:31:7:2:0"));
+    assert!(!filtered("1700000001"));
+}
+
+#[test]
+fn control_characters_are_taken_out_of_the_reason() {
+    assert_eq!(
+        verdict("{\"verdict\": \"reject\", \"reason\": \"答\\u0007错\\n了\"}"),
+        Some((Verdict::Reject, "答错了".to_string()))
+    );
+}

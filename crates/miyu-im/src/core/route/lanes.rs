@@ -2,7 +2,8 @@
 //! 的照群聊内核的 `dispatch` 做，支线推来的事件收进主线的投影。纯逻辑的那一半在 `projection/lanes.rs`。
 //!
 //! - `StartMain`：`session.respond` 主线，给每条支线在回的每一条带一块「另一条线正在回」（模板是出厂数据，`rules/facts.rs`）。
-//! - `JoinMain`、`Queue`：`session.respond` 主线，不带事实（施工单「要拍板的」第 3 条：核心没有「排到下一轮」，并进来就是）。
+//! - `JoinMain`：`session.respond` 主线，不带事实。
+//! - `Queue`：排在这个群会话后面，主线这一轮结束了开下一轮（施工 I-16 照旧版，`waiting`；原来并进主线这一轮）。
 //! - `JoinLane`：判的几条里比分叉点晚、还没抄进去的先抄（`session.send`，命令编号加 `/branch`，`venue` 带 `ambient`），再
 //!   `session.respond` 支线。
 //! - `Fork`：`session.fork {seal_after: 1}`、订阅子会话（`after` 是分叉点）、把留着的人话里比分叉点晚的照先后抄进去，最后
@@ -98,7 +99,12 @@ impl Route {
                 let facts = self.another_line(group.answering(true), aim.as_deref());
                 self.respond(session, msgs, &facts, tag).await
             }
-            Dispatch::JoinMain | Dispatch::Queue => self.respond(session, msgs, &[], tag).await,
+            Dispatch::JoinMain => self.respond(session, msgs, &[], tag).await,
+            Dispatch::Queue => Ok(if self.wait(session, msgs, tag) {
+                Responded::Asked
+            } else {
+                Responded::Refused
+            }),
             Dispatch::JoinLane(index) => match group.lane_at(index).map(str::to_string) {
                 Some(lane) => self.join_lane(session, &lane, msgs, tag).await,
                 None => self.respond(session, msgs, &[], tag).await,
@@ -235,6 +241,8 @@ impl Route {
     ) -> Result<Responded, Gone> {
         let id = format!("{}/respond", tag.id);
         let mut params = json!({"session": target, "to": to});
+        // 为什么叫她（施工 I-16，`primer`）跟在别的事实后面。
+        let facts: Vec<&Value> = facts.iter().chain(&tag.facts).collect();
         if !facts.is_empty() {
             params["facts"] = json!(facts);
         }

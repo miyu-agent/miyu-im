@@ -48,7 +48,7 @@ fn decision(route: Route, conclusion: Conclusion, supersede: Supersede) -> Decis
 fn judgement(severity: Option<u8>) -> Judgement {
     Judgement {
         scores: [8.0, 7.0, 5.0, 6.0, 7.0],
-        should_reply: true,
+        should_reply: Some(true),
         to_bot: true,
         severity,
         reason: "asked her".to_string(),

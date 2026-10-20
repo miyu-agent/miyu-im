@@ -4,20 +4,24 @@
 //! - `avatar`：一个人的（`user`）、一个群的（`group`）头像，照 `bridge.json` 的地址（`avatar_user_url`、`avatar_group_url`，
 //!   `{id}` 换成号）下下来，存进这个会话的工作区 `qq-files/avatar-qq-<号>.<扩展名>`、`avatar-group-<号>.<…>`，答相对工作区的
 //!   路径（同 `fetch_media`）；她看不看图、拿它做什么是她的事。两个都没写的取叫她的人（`by.id`；私聊里是对方）。
-//! - `members`：这个群的成员（`get_group_member_list`），`query` 写了的只留名字（群名片、昵称）含着它的，最多列
-//!   `members_shown` 个，一行一个：QQ 号、名字、身份。
+//! - `members`：这个群的成员（`get_group_member_list`），`query` 写了的只留名字（群名片、昵称）含着它的，最多列 `limit` 个（施工
+//!   I-17：没写的照 `members_shown`，最多 [`MEMBERS_MOST`]，照旧版），一行一个：QQ 号、名字、身份、头衔。
 
 use std::time::Duration;
 
 use serde_json::Value;
 
 use miyu_im::chat::{CallError, Member, Rank, Source, To};
-use miyu_im::toolset::{Call, NAME, Planned, QQ_FILES, bytes, clean, extension, save};
+use miyu_im::toolset::{Call, NAME, Planned, QQ_FILES, bytes, clean, image_extension, save};
 
 use super::QqTools;
+use super::args::{Bad, bad_args, group_only, optional_number, optional_text};
 
 /// 答的话里的原因最多几个字符（同取图）。
 const DETAIL: usize = 200;
+
+/// 群成员一次最多列几个（施工 I-17，同旧版 `get_group_members_info` 的上限）。
+pub(crate) const MEMBERS_MOST: usize = 200;
 
 /// 要谁的头像（纯逻辑）：她给的群号、QQ 号（正整数，写成字的也认），都没给的取叫她的人。两个都给了的、写错的是空的。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,7 +64,7 @@ pub(crate) fn avatar_of(whose: Whose, templates: &(String, String)) -> (String, 
 
 /// 群成员列表 `data`（`get_group_member_list` 的回答）照 `query` 筛、列成一行（纯逻辑）：交回（列的几个、一共几个、那一行）。
 /// 名字照群名片，空的照昵称（洗过）；`query` 照名字、号找，不分大小写；身份没写的当 `member`；一个一段 `<号> <名字> (<身份>)`，
-/// `; ` 隔开；最多 `shown` 个。
+/// 有头衔的写成 `(<身份>, title: <头衔>)`（施工 I-17，洗过）；`; ` 隔开；最多 `shown` 个。
 pub(crate) fn listed(
     members: &[Member],
     query: Option<&str>,
@@ -85,7 +89,11 @@ pub(crate) fn listed(
                 return None;
             }
             let role = member.rank.map_or("member", Rank::word);
-            Some(format!("{user} {name} ({role})"))
+            let title = member.title.as_deref().and_then(|title| clean(title, NAME));
+            Some(match title {
+                Some(title) => format!("{user} {name} ({role}, title: {title})"),
+                None => format!("{user} {name} ({role})"),
+            })
         })
         .collect();
     let total = found.len();
@@ -93,8 +101,17 @@ pub(crate) fn listed(
     (list.len(), total, list.join("; "))
 }
 
-/// `avatar`：认要谁的（认不出的当场答 `no-target`），下下来存进工作区。
+/// `avatar`：认要谁的（参数写错的答写错了哪个，施工 I-17；没写、又不知道谁叫的当场答 `no-target`），下下来存进工作区。
 pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
+    let given = (
+        optional_number(&call.args, "user", "user must be a QQ number"),
+        optional_number(&call.args, "group", "group must be a group number"),
+    );
+    match given {
+        (Err(bad), _) | (_, Err(bad)) => return bad_args(&call, bad),
+        (Ok(Some(_)), Ok(Some(_))) => return bad_args(&call, "give user or group, not both"),
+        _ => {}
+    }
     let Some(whose) = whose(&call.args, call.caller) else {
         return Planned::Now(call.answers.say("no-target", &[], true));
     };
@@ -108,18 +125,36 @@ pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
     })
 }
 
-/// `members`：列这个群的成员（只给群：私聊里调到的照说不会，答 `unreachable`）。
+/// `members`：列这个群的成员（只给群：私聊里调到的照说不会，答只给群）。`limit` 写错的、`query` 不是字的答写错了哪个。
 pub(super) fn members(tools: &QqTools, call: Call) -> Planned {
     let To::Group(group) = call.to else {
-        return Planned::Now(call.answers.say("unreachable", &[], true));
+        return group_only(&call);
     };
-    let shown = tools.members;
+    let shown = match limit(&call.args, tools.members) {
+        Ok(shown) => shown,
+        Err(bad) => return bad_args(&call, bad),
+    };
+    if let Err(bad) = optional_text(&call.args, "query", "query must be text") {
+        return bad_args(&call, bad);
+    }
     Planned::later(async move {
         match listing(&call, group, shown).await {
             Ok(answer) => answer,
             Err(undone) => said(&call, undone),
         }
     })
+}
+
+/// 列几个（纯逻辑）：`limit` 是 1 到 [`MEMBERS_MOST`] 的整数（写成字的也认），没写的照 `shown`（`members_shown`，超过上限的照上限）。
+pub(crate) fn limit(args: &Value, shown: usize) -> Result<usize, Bad> {
+    let bad = "limit must be 1 to 200";
+    match optional_number(args, "limit", bad)? {
+        None => Ok(shown.min(MEMBERS_MOST)),
+        Some(limit) => usize::try_from(limit)
+            .ok()
+            .filter(|limit| *limit <= MEMBERS_MOST)
+            .ok_or(bad),
+    }
 }
 
 /// 没做成的那一句：带原因的照填。
@@ -145,10 +180,13 @@ pub(super) async fn fetched(
     let got = bytes(&[Source::Url(url.to_string())], wait)
         .await
         .map_err(|why| ("unfetched", Some(cut(&why))))?;
-    // 名字自己带了扩展名的（群文件的原名）照它，没带的照看出来的补上（头像）。
-    let file = match std::path::Path::new(name).extension() {
-        Some(_) => name.to_string(),
-        None => format!("{name}.{}", extension(&got)),
+    // 名字自己带了扩展名的（群文件的原名）照它；没带的认得出是图的补上（头像），认不出的照原样（施工 I-16：以前一律补 `.jpg`）。
+    let file = match (
+        std::path::Path::new(name).extension(),
+        image_extension(&got),
+    ) {
+        (None, Some(ext)) => format!("{name}.{ext}"),
+        _ => name.to_string(),
     };
     let cwd = cwd.to_string();
     let saved = tokio::task::spawn_blocking(move || save(&cwd, home.as_deref(), &file, &got))

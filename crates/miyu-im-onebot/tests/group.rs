@@ -266,7 +266,8 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     assert_eq!(broken.len(), 1, "同一个群只记一行：{log}");
     assert!(broken[0].contains("venue=qq:group:777"), "{log}");
     assert!(broken[0].contains("reason=unknown_persona"), "{log}");
-    assert!(!log.contains("大家好"), "原文不进运行日志");
+    // 送不进核心的那一行不带原文（施工 I-16 起判断那一行带正文开头，给首页活动流，2026-10-20 项目主人定）。
+    assert!(!broken[0].contains("大家好"), "{log}");
     stopped(home).await;
 }
 

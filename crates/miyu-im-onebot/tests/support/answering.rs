@@ -152,6 +152,7 @@ impl NapCat {
         let (mut sink, mut stream) = self.ws.split();
         let task = tokio::spawn(async move {
             let mut sent = FIRST_SENT;
+            let mut gone = std::collections::HashSet::new();
             let mut holding = Vec::new();
             loop {
                 tokio::select! {
@@ -172,7 +173,10 @@ impl NapCat {
                         };
                         let action: Value = serde_json::from_str(&text).expect("是 JSON");
                         let kind = action["action"].as_str().unwrap_or_default();
-                        let mut answer = if FETCHING.contains(&kind) {
+                        // 踢成了却回失败的那一个（施工 I-17，`kicking`）。
+                        let mut answer = if let Some(kicked) = super::kicking::kicking(&action, &mut gone) {
+                            kicked
+                        } else if FETCHING.contains(&kind) {
                             fetched(&action, &stocked)
                         } else if kind == "get_group_info" {
                             group_info(&action, &stocked)

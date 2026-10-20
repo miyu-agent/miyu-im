@@ -73,7 +73,11 @@ pub(crate) enum Action {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum By {
     /// AI 用工具做的。
-    Ai,
+    Ai {
+        /// 谁让她做的（施工 I-17，照旧版的 `operator_id`）：叫她的那个人；没人叫的、老记录是空的。
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        asked: Option<Asker>,
+    },
     /// 群里别的管理员（施工 Q-3：平台的通知同步进来）。
     Admin {
         /// 号。
@@ -84,6 +88,48 @@ pub(crate) enum By {
     },
     /// 刷屏处理（施工 Q-5）。
     Spam,
+}
+
+/// 让 AI 做的人（施工 I-17）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct Asker {
+    /// 号。
+    pub user: i64,
+    /// 那时在群里叫什么（洗过）；不知道的是空的。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// 一条禁言现在怎样（施工 Q-6；I-17 加「被覆盖」）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MuteState {
+    /// 还在禁言中。
+    Muted,
+    /// 到期了。
+    Expired,
+    /// 到期以前解禁了（解禁、踢出）。
+    Lifted,
+    /// 到期以前又禁了一次：照后一次算。
+    Overridden,
+}
+
+/// 记录 `records`（旧的在前）的第 `index` 条是禁言的话现在怎样（纯逻辑）：禁着的那段时间里对同一个人的头一条后来的禁言是被覆盖，
+/// 解禁、踢出是已解禁；都没有的照此刻 `now` 看到没到期。不是禁言的、没写秒数的是空的。
+pub(crate) fn mute_state(records: &[Record], index: usize, now: u64) -> Option<MuteState> {
+    let record = records.get(index)?;
+    let seconds = record.seconds.filter(|_| record.action == Action::Mute)?;
+    let end = record.at.saturating_add(seconds);
+    let next = records[index + 1..].iter().find(|after| {
+        after.user == record.user
+            && after.at <= end
+            && matches!(after.action, Action::Mute | Action::Unmute | Action::Kick)
+    });
+    Some(match next.map(|after| after.action) {
+        Some(Action::Mute) => MuteState::Overridden,
+        Some(_) => MuteState::Lifted,
+        None if now < end => MuteState::Muted,
+        None => MuteState::Expired,
+    })
 }
 
 /// 本机此刻的 Unix 秒；钟在 1970 年以前的是 0。

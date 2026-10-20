@@ -1,7 +1,8 @@
 //! 读判官的回答（`chat.md` 第六条「怎么走」第 4 条）。
 //!
-//! 各家模型回的样子不一样：有的包在 ` ```json ` 里，有的前后带几句话。读的时候宽：只认第一个 `{` 到最后一个 `}` 那一段；
-//! 五维是算分离不开的，少了就判不了；别的格少了、类型不对，照「没说」算（布尔当假、`severity` 当没查、`reason` 当空）。
+//! 各家模型回的样子不一样：有的包在 ` ```json ` 里，有的前后带几句话。读的时候宽（施工 I-16 照旧版 judge.rs）：只认第一个 `{`
+//! 到最后一个 `}` 那一段；五维少了、不是数的按 0 算（写成字的数照读）；`should_reply`、`to_bot` 认 `true`、`"是"`、`1` 这类写法，
+//! 读不出的当没说；`severity` 读不出的当没查、`reason` 当空。
 //! 判不了的照不回算，由外面记一笔 `ext.im.chat.decided`（「怎么走」第 5 条）。
 
 use serde_json::{Map, Value};
@@ -30,8 +31,8 @@ pub enum Unreadable {
 
 /// 读判官的回答：从第一个 `{` 到最后一个 `}` 照 JSON 读成一个对象，读出 [`Judgement`]。
 ///
-/// - 五维都要有、都是数；小于 0 的当 0，大于 10 的当 10。
-/// - `should_reply`、`to_bot` 不是布尔（包括没有）的当假。
+/// - 五维少了、不是数的按 0；小于 0 的当 0，大于 10 的当 10。
+/// - `should_reply`、`to_bot` 照 `flexible` 读，读不出的是没说（`should_reply` 不加不减，`to_bot` 当不是）。
 /// - `severity` 是数的夹到 0 到 10、四舍五入成整数；不是数（包括没有）的当没查（`None`）。
 /// - `reason` 不是字（包括没有）的当空；超过 `reason_chars` 个字符的截到 `reason_chars`（出厂 500：只进日志，太长的截掉，免得一条日志被撑大，
 ///   「怎么走」第 4 条；数由外面交进来，从第八条的 `Params::judge` 拿，这里不写死）。
@@ -40,19 +41,15 @@ pub enum Unreadable {
 ///
 /// # Errors
 ///
-/// 找不到对象、读不成对象（[`Unreadable::NoObject`]）；五维少了一维、不是数（[`Unreadable::Dimension`]）；只查违规的
-/// 那一次没有 `severity`（[`Unreadable::NoSeverity`]）。
+/// 找不到对象、读不成对象（[`Unreadable::NoObject`]）；只查违规的那一次没有 `severity`（[`Unreadable::NoSeverity`]）。
 pub fn read(answer: &str, mode: Mode, reason_chars: usize) -> Result<Judgement, Unreadable> {
     let object = object(answer).ok_or(Unreadable::NoObject)?;
     let mut scores = [0.0; 5];
     for (score, name) in scores.iter_mut().zip(DIMENSIONS) {
-        let value = object
-            .get(name)
-            .and_then(Value::as_f64)
-            .ok_or(Unreadable::Dimension(name))?;
+        let value = object.get(name).and_then(number).unwrap_or_default();
         *score = value.clamp(0.0, MAX);
     }
-    let flag = |name: &str| object.get(name).and_then(Value::as_bool).unwrap_or(false);
+    let flag = |name: &str| object.get(name).and_then(flexible);
     let severity = object
         .get("severity")
         .and_then(Value::as_f64)
@@ -69,10 +66,33 @@ pub fn read(answer: &str, mode: Mode, reason_chars: usize) -> Result<Judgement, 
     Ok(Judgement {
         scores,
         should_reply: flag("should_reply"),
-        to_bot: flag("to_bot"),
+        to_bot: flag("to_bot") == Some(true),
         severity,
         reason,
     })
+}
+
+/// 一个数：是数的照读，写成字的数也读（`"7"`）。
+fn number(value: &Value) -> Option<f64> {
+    match value {
+        Value::String(text) => text.trim().parse().ok(),
+        _ => value.as_f64(),
+    }
+}
+
+/// 宽着读一个是非（照旧版 `flexible_bool`）：布尔；数（0 是否）；`true`、`yes`、`1`、`reply`、`是`、`回复`、`应该回复` 是，
+/// `false`、`no`、`0`、`no_reply`、`否`、`不回复` 否；别的读不出。
+fn flexible(value: &Value) -> Option<bool> {
+    match value {
+        Value::Bool(value) => Some(*value),
+        Value::Number(value) => value.as_f64().map(|value| value != 0.0),
+        Value::String(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "true" | "yes" | "1" | "reply" | "应该回复" | "回复" | "是" => Some(true),
+            "false" | "no" | "0" | "no_reply" | "不回复" | "否" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 /// 第一个 `{` 到最后一个 `}`（含两头）读成的 JSON 对象；找不到、读不成对象的是 `None`。取最外的一段，理由里带着花括号

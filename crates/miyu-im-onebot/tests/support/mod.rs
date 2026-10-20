@@ -16,6 +16,7 @@ pub mod shipped;
 pub use shipped::*;
 pub mod hooked;
 pub mod judge;
+pub mod kicking;
 pub mod media;
 pub mod napcat;
 pub mod pipe;

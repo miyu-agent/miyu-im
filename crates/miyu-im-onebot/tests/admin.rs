@@ -222,9 +222,9 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
         done("unmuted", &[("who", "小明")])
     );
     next_platform(&mut napcat).await;
-    // 踢 @ 的那个人，拉黑；再踢她给的号（没在群里说过话：名字没缓存，结果写号、记录不带名字）。
+    // 踢 @ 的那个人，拉黑；再踢她给的号（没在群里说过话：名字没缓存，结果写号、记录不带名字）。群主叫的：不用确认（施工 I-17）。
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 803, words.clone(), 3).await,
+        asks(&home, &napcat, OWNER, 803, words.clone(), 3).await,
         done("kicked-blocked", &[("who", "小明")])
     );
     let kicked = next_platform(&mut napcat).await;
@@ -234,7 +234,7 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
         json!({"group_id": GROUP, "user_id": MEMBER, "reject_add_request": true})
     );
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 804, words, 4).await,
+        asks(&home, &napcat, OWNER, 804, words, 4).await,
         done("kicked", &[("who", "40002")])
     );
     let kicked = next_platform(&mut napcat).await;
@@ -259,14 +259,16 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
             record
         })
         .collect();
-    let ai = json!({"kind": "ai"});
+    // 施工 I-17：记下是谁让她做的（那时的名字）。
+    let manager = json!({"kind": "ai", "asked": {"user": MANAGER, "name": "群管"}});
+    let owner = json!({"kind": "ai", "asked": {"user": OWNER, "name": "群主"}});
     assert_eq!(
         shape,
         [
-            json!({"action": "mute", "user": MEMBER, "name": "小明", "by": ai, "seconds": 600, "reason": "刷屏"}),
-            json!({"action": "unmute", "user": MEMBER, "name": "小明", "by": ai}),
-            json!({"action": "kick", "user": MEMBER, "name": "小明", "by": ai, "reason": "发广告", "block": true}),
-            json!({"action": "kick", "user": IMPOSTOR, "by": ai}),
+            json!({"action": "mute", "user": MEMBER, "name": "小明", "by": manager, "seconds": 600, "reason": "刷屏"}),
+            json!({"action": "unmute", "user": MEMBER, "name": "小明", "by": manager}),
+            json!({"action": "kick", "user": MEMBER, "name": "小明", "by": owner, "reason": "发广告", "block": true}),
+            json!({"action": "kick", "user": IMPOSTOR, "by": owner}),
         ]
     );
     stopped(home).await;
@@ -349,11 +351,13 @@ async fn the_moderation_log_lists_records_and_a_ranking() {
     let template = sentence("log-events", &[("shown", "2"), ("total", "2")]);
     assert_eq!(lines[0], template.trim_end(), "{events}");
     assert!(
-        lines[1].ends_with(" unmuted 小明 (40001); by you"),
+        lines[1].ends_with(" unmuted 小明 (40001); by you, asked by 群管 (40003)"),
         "新的在前：{events}"
     );
     assert!(
-        lines[2].ends_with(" muted 小明 (40001) for 10 minutes; by you; reason: 刷屏"),
+        lines[2].ends_with(
+            " muted 小明 (40001) for 10 minutes; by you, asked by 群管 (40003); reason: 刷屏; status: unmuted"
+        ),
         "{events}"
     );
     assert_eq!(

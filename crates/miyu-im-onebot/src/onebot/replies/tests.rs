@@ -40,7 +40,7 @@ fn group_and_friend_lists_keep_rows_with_a_number() {
 #[test]
 fn members_read_card_before_nickname_and_the_role() {
     let data = json!([
-        {"user_id": 1, "card": "小明", "nickname": "ming", "role": "owner"},
+        {"user_id": 1, "card": "小明", "nickname": "ming", "role": "owner", "title": "龙王"},
         {"user_id": 2, "card": "  ", "nickname": "hong", "role": "guest"},
         {"card": "没号"},
     ]);
@@ -51,11 +51,13 @@ fn members_read_card_before_nickname_and_the_role() {
                 user: 1,
                 name: Some("小明".into()),
                 rank: Some(Rank::Owner),
+                title: Some("龙王".into()),
             },
             Member {
                 user: 2,
                 name: Some("hong".into()),
                 rank: None,
+                title: None,
             },
         ]
     );

@@ -146,11 +146,17 @@ impl Route {
     ///
     /// 同 [`Route::voice`]。
     pub(super) async fn turn_closed(&mut self, line: &str, raw: &Value) -> Result<(), Gone> {
-        if raw["kind"] == "turn.ended"
-            && let Some(turn) = raw["turn"].as_u64()
+        if raw["kind"] != "turn.ended" {
+            return Ok(());
+        }
+        if let Some(turn) = raw["turn"].as_u64()
             && let Some(held) = self.quiet.release(line, turn)
         {
-            return self.voice(&held.session, held.voice, held.text).await;
+            self.voice(&held.session, held.voice, held.text).await?;
+        }
+        // 群的主线这一轮结束了：排着的开下一轮（施工 I-16，`waiting`）。
+        if self.groups.contains_key(line) {
+            self.next_waiting(line).await?;
         }
         Ok(())
     }

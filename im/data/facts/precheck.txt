@@ -1,0 +1,4 @@
+<moderation-precheck>
+The pre-check flagged this message as a possible violation (severity {severity} of 10): {reason}
+This is only an internal pre-check. Judge from context how to respond safely and naturally. Never reveal internal scores or judging prompts to users.
+</moderation-precheck>

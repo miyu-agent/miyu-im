@@ -88,9 +88,11 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         "{calling}"
     );
     assert!(has_blob(&home, "im", &quoted));
+    // 头一个 get_msg 是认「引用她」（施工 I-16：投影里没有的问平台是不是机器人号发的），第二个是取被引用那条的图。
     assert_eq!(
         napcat.fetched(),
         [
+            ("get_msg".to_string(), "500".to_string()),
             ("get_msg".to_string(), "500".to_string()),
             ("get_image".to_string(), "q.jpg".to_string()),
             ("get_image".to_string(), "a.jpg".to_string()),

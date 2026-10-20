@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_client::open::SystemBrowser;
 use miyu_client::places::{DataRoot, Env, ResourceRoot, locale};
+use miyu_im::access::Access;
 use miyu_im::control::{Control, CoreCommand, control};
 use miyu_im::driver::Driver;
 use miyu_im::logs::logs;
@@ -55,8 +56,8 @@ enum Command {
     Venue(String),
     /// `web`：带交接票打开 im 自己的页面（施工 I-6 上）。
     Web,
-    /// `whitelist`：看、改白名单（施工 I-13）。
-    Whitelist(Change),
+    /// `whitelist`、`access`：看、改白名单、名单里的群、跳过判断的人（施工 I-13、I-16）。
+    Access(Access),
 }
 
 fn main() -> ExitCode {
@@ -87,9 +88,20 @@ fn main() -> ExitCode {
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
-        ["whitelist"] | ["whitelist", "list"] => Command::Whitelist(Change::List),
-        ["whitelist", "add", number] => Command::Whitelist(Change::Add(number.to_string())),
-        ["whitelist", "remove", number] => Command::Whitelist(Change::Remove(number.to_string())),
+        ["access"] => Command::Access(Access::List),
+        ["whitelist", ref rest @ ..] | ["access", "whitelist", ref rest @ ..] => match change(rest)
+        {
+            Some(change) => Command::Access(Access::Whitelist(change)),
+            None => return usage(&texts),
+        },
+        ["access", "group", ref rest @ ..] => match change(rest) {
+            Some(change) => Command::Access(Access::Group(change)),
+            None => return usage(&texts),
+        },
+        ["access", "skip", group, ref rest @ ..] => match change(rest) {
+            Some(change) => Command::Access(Access::Skip(group.to_string(), change)),
+            None => return usage(&texts),
+        },
         ["web"] => Command::Web,
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
@@ -154,15 +166,15 @@ fn main() -> ExitCode {
                 &mut std::io::stderr(),
             )
         }
-        Command::Whitelist(change) => {
-            // 照终端的样子连核心（核心没在跑就照 `start` 那样拉起，同 `venue show`），施工 I-13。
+        Command::Access(access) => {
+            // 照终端的样子连核心（核心没在跑就照 `start` 那样拉起，同 `venue show`），施工 I-13、I-16。
             let core: CoreCommand = Arc::new(core);
             runtime.block_on(async {
                 match miyu_client::open::Core::connect(&root, &core, miyu_im::PACKAGE).await {
                     Ok(mut connected) => {
-                        miyu_im::whitelist::run(
+                        miyu_im::access::run(
                             &mut connected,
-                            (&change, miyu_im_onebot::onebot::PLATFORM),
+                            (&access, miyu_im_onebot::onebot::PLATFORM),
                             &texts,
                             (&mut std::io::stdout(), &mut std::io::stderr()),
                         )
@@ -263,6 +275,22 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
 }
 
 /// 欠着的「运行日志写不了」照 `texts` 说出来，只说一次。
+/// `access`、`whitelist` 后面那一段：`list`（不写也是）、`add <号>`、`remove <号>`；别的写法是空的。
+fn change(rest: &[&str]) -> Option<Change> {
+    match rest {
+        [] | ["list"] => Some(Change::List),
+        ["add", number] => Some(Change::Add((*number).to_string())),
+        ["remove", number] => Some(Change::Remove((*number).to_string())),
+        _ => None,
+    }
+}
+
+/// 用法不对：标准错误上说用法，交回退出码 2。
+fn usage(texts: &Texts) -> ExitCode {
+    eprintln!("{}", texts.usage());
+    ExitCode::from(USAGE)
+}
+
 fn settle(texts: &Texts, owed: &Mutex<Option<String>>) {
     if let Some(reason) = lock(owed).take() {
         eprintln!("{}", texts.no_log(&reason));

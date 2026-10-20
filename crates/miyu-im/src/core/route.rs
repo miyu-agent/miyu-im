@@ -79,6 +79,7 @@ mod parts;
 mod persona;
 mod pictures;
 mod policy;
+mod primer;
 mod private;
 mod projection;
 mod pushed;
@@ -100,6 +101,7 @@ mod strangers;
 mod tests;
 mod titled;
 mod voicing;
+mod waiting;
 
 use message::{Message, reply_text};
 use std::collections::{HashMap, HashSet};
@@ -230,6 +232,8 @@ pub(crate) struct Route {
     quotes: HashMap<String, Option<String>>,
     /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
     backlogs: HashMap<String, Backlog>,
+    /// 支线都占满时排着的（施工 I-16，`waiting`）。
+    queued: waiting::Waiting,
     /// 取东西的几个数（施工 O-33，`fetching`、`pictures`）。
     fetching: Fetching,
     /// 私聊会话编号 → 这一轮的回合编号（施工 O-35：照推来的事件记；T-3 起驱动的工具照它数一轮调了几次）。
@@ -331,6 +335,7 @@ impl Route {
             mute_replies: asking.mute_replies,
             quotes: HashMap::new(),
             backlogs: HashMap::new(),
+            queued: waiting::Waiting::default(),
             fetching,
             turns: HashMap::new(),
             uses: HashMap::new(),

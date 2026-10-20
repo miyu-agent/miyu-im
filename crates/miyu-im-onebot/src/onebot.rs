@@ -26,7 +26,9 @@ use serde_json::{Value, json};
 
 pub use calls::{CallError, Calls, DETAIL, Pending, failed, said};
 pub use forwards::{Node, forward_messages, get_forward_msg, node};
-pub use members::{MEMBER_INFO, Members, Rank, display_name, member_info, rank_of};
+pub use members::{
+    MEMBER_INFO, Members, Rank, display_name, fresh_member, fresh_member_info, member_info, rank_of,
+};
 pub use miyu_im::chat::{Event, Lead, Platform, Posted, Recall, To};
 pub use segments::{FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments, segments};
 pub use send::{forward_to, image_to, message_to, picture_to};

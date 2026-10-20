@@ -183,6 +183,7 @@ fn blank() -> Params {
             max_tokens: 0,
             timeout: 0,
             moderation_timeout: 0,
+            attempt_timeout: 0,
             retries: 0,
             reason_chars: 0,
         },

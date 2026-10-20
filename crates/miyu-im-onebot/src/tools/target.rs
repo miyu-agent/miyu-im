@@ -5,6 +5,9 @@
 //! 的人；戳一戳戳 @ 的那一个，没有的戳叫她的人（[`Origin`]：群里是投影里主线这一轮她回的那一条，私聊是最近一条人说的话）。
 //! 叫她做的那条和 `tool.call` 的 `by` 对不上的当没有：A 的身份配不上 B 的引用（「施工时定的」第 179 条）。她给的 `msg` 先核对
 //! 在不在这个会话里（[`recallable`]，同取图）：编号是数字，人打得出别的群的。
+//!
+//! 施工 I-17（照旧版）：禁言、踢人能给 `users`（号的列表，最多 [`MOST`] 个，和 `user` 二选一）；号写错了的不再当认不出人，交回
+//! 哪个参数不对（[`Why::Bad`]），秒数写成数字的字也认。
 
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
@@ -12,10 +15,14 @@ use serde_json::Value;
 use miyu_im::chat::{Fetched, Platform, To};
 use miyu_im::toolset::{Origin, msg_id};
 
+use super::args::{Bad, qq_number, qq_numbers};
 use super::{KICK, MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
 const MAX_SECONDS: u64 = 2_592_000;
+
+/// 禁言、踢人一次最多管几个人（施工 I-17，同旧版 `MAX_TARGETS`）。
+pub(crate) const MOST: usize = 32;
 
 /// 她给的一个参数：没给、给了、给错了（施工 O-48）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,17 +31,35 @@ pub(crate) enum Arg<T> {
     Absent,
     /// 给了。
     Given(T),
-    /// 给了，写法不对。
-    Bad,
+    /// 给了，写法不对：哪个参数、期望什么（施工 I-17）。
+    Bad(Bad),
 }
 
 impl<T> Arg<T> {
-    /// `value` 照 `read` 读：`null` 是没给，读不出的是给错了。
-    fn read(value: &Value, read: impl Fn(&Value) -> Option<T>) -> Arg<T> {
+    /// `value` 照 `read` 读：`null` 是没给，读不出的是给错了（`bad`）。
+    fn read(value: &Value, read: impl Fn(&Value) -> Option<T>, bad: Bad) -> Arg<T> {
         match value {
             Value::Null => Arg::Absent,
-            value => read(value).map_or(Arg::Bad, Arg::Given),
+            value => read(value).map_or(Arg::Bad(bad), Arg::Given),
         }
+    }
+}
+
+/// 禁言、踢人对谁（施工 I-17）：`user` 一个号、`users` 号的列表（最多 [`MOST`] 个），二选一。
+fn people(args: &Value) -> Arg<Vec<i64>> {
+    match (&args["user"], &args["users"]) {
+        (Value::Null, Value::Null) => Arg::Absent,
+        (user, Value::Null) => Arg::read(
+            user,
+            |user| qq_number(user).map(|one| vec![one]),
+            "user must be a QQ number",
+        ),
+        (Value::Null, users) => Arg::read(
+            users,
+            |users| qq_numbers(users, MOST),
+            "users must be 1 to 32 QQ numbers",
+        ),
+        _ => Arg::Bad("give user or users, not both"),
     }
 }
 
@@ -47,15 +72,15 @@ pub(crate) enum Order {
     Mute {
         /// 几秒（0 是解禁）；没写、不是整数、出了范围的是空的。
         seconds: Option<u64>,
-        /// 她给的 QQ 号（施工 O-48）。
-        user: Arg<i64>,
+        /// 她给的 QQ 号（施工 O-48；I-17 起能给几个）。
+        users: Arg<Vec<i64>>,
     },
     /// 戳一戳。
     Poke,
     /// 移出群（施工 Q-2）：她给的 QQ 号，以后不收他的加群申请没有。
     Kick {
-        /// 她给的 QQ 号。
-        user: Arg<i64>,
+        /// 她给的 QQ 号（施工 I-17 起能给几个）。
+        users: Arg<Vec<i64>>,
         /// 以后不收他的加群申请。
         block: bool,
     },
@@ -65,32 +90,31 @@ impl Order {
     /// 工具 `tool`、参数 `args`：不是这几件的是空的。
     pub(crate) fn read(tool: &str, args: &Value) -> Option<Order> {
         match tool {
-            RECALL => Some(Order::Recall(Arg::read(&args["msg"], msg_id))),
+            RECALL => Some(Order::Recall(Arg::read(
+                &args["msg"],
+                msg_id,
+                "msg must be a message id",
+            ))),
             MUTE => {
-                let seconds = args["seconds"]
-                    .as_u64()
-                    .filter(|seconds| *seconds <= MAX_SECONDS);
-                let user = Arg::read(&args["user"], qq_number);
-                Some(Order::Mute { seconds, user })
+                // 秒数照整数读，写成数字的字也认（施工 I-17）。
+                let seconds = match &args["seconds"] {
+                    Value::String(text) => text.trim().parse().ok(),
+                    value => value.as_u64(),
+                }
+                .filter(|seconds| *seconds <= MAX_SECONDS);
+                Some(Order::Mute {
+                    seconds,
+                    users: people(args),
+                })
             }
             POKE => Some(Order::Poke),
             KICK => Some(Order::Kick {
-                user: Arg::read(&args["user"], qq_number),
+                users: people(args),
                 block: args["block"].as_bool().unwrap_or(false),
             }),
             _ => None,
         }
     }
-}
-
-/// QQ 号：正整数，或者写成正整数的字。
-fn qq_number(value: &Value) -> Option<i64> {
-    let number = match value {
-        Value::Number(number) => number.as_i64(),
-        Value::String(text) => text.trim().parse().ok(),
-        _ => None,
-    };
-    number.filter(|number| *number > 0)
 }
 
 /// 谁叫的（im 照 `tool.call` 的 `by` 认好交过来，`miyu_im::toolset::Call::by`）。没有触发的回合、本机的人是空的。
@@ -120,19 +144,19 @@ pub(crate) enum Plan {
         /// 先核对。
         check: bool,
     },
-    /// 禁言这个人这么多秒（0 是解禁）。
+    /// 禁言这几个人这么多秒（0 是解禁）。
     Mute {
-        /// 禁谁。
-        user: ExternalId,
+        /// 禁谁（施工 I-17 起能几个）。
+        users: Vec<ExternalId>,
         /// 几秒。
         seconds: u64,
     },
     /// 戳这个人。
     Poke(ExternalId),
-    /// 把这个人移出群（施工 Q-2）。
+    /// 把这几个人移出群（施工 Q-2）。
     Kick {
-        /// 踢谁。
-        user: ExternalId,
+        /// 踢谁（施工 I-17 起能几个）。
+        users: Vec<ExternalId>,
         /// 以后不收他的加群申请。
         block: bool,
     },
@@ -153,6 +177,8 @@ pub(crate) enum Why {
     ManyTargets,
     /// 禁言：秒数没写、不是整数、出了范围。
     BadSeconds,
+    /// 禁言、踢人：号写错了（施工 I-17）：哪个参数、期望什么。
+    Bad(Bad),
 }
 
 impl Why {
@@ -164,6 +190,7 @@ impl Why {
             Why::NoTarget => "no-target",
             Why::ManyTargets => "many-targets",
             Why::BadSeconds => "bad-seconds",
+            Why::Bad(_) => "bad-args",
         }
     }
 }
@@ -174,10 +201,10 @@ pub(crate) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene
     let origin = origin.filter(|origin| caller.id.as_ref() == Some(&origin.sender));
     match order {
         Order::Recall(msg) => recall(msg, origin),
-        Order::Mute { seconds, user } => mute(seconds, user, origin, scene),
+        Order::Mute { seconds, users } => mute(seconds, users, origin, scene),
         Order::Poke => poke(caller, origin, scene),
-        Order::Kick { user, block } => match person(user, origin, scene) {
-            Ok(user) => Plan::Kick { user, block },
+        Order::Kick { users, block } => match people_of(users, origin, scene) {
+            Ok(users) => Plan::Kick { users, block },
             Err(why) => Plan::Refuse(why),
         },
     }
@@ -187,7 +214,7 @@ pub(crate) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene
 fn recall(msg: Arg<String>, origin: Option<&Origin>) -> Plan {
     match msg {
         Arg::Given(msg) => Plan::Recall { msg, check: true },
-        Arg::Bad => Plan::Refuse(Why::NotFound),
+        Arg::Bad(_) => Plan::Refuse(Why::NotFound),
         Arg::Absent => match origin.and_then(|origin| origin.quote.as_ref()) {
             Some(quote) => Plan::Recall {
                 msg: quote.msg.clone(),
@@ -199,21 +226,33 @@ fn recall(msg: Arg<String>, origin: Option<&Origin>) -> Plan {
 }
 
 /// 禁言：先看秒数，再认人：她给的号，没给的照引用的人和 @ 的人认唯一的一个。
-fn mute(seconds: Option<u64>, user: Arg<i64>, origin: Option<&Origin>, scene: &Scene) -> Plan {
+fn mute(
+    seconds: Option<u64>,
+    users: Arg<Vec<i64>>,
+    origin: Option<&Origin>,
+    scene: &Scene,
+) -> Plan {
     let Some(seconds) = seconds else {
         return Plan::Refuse(Why::BadSeconds);
     };
-    match person(user, origin, scene) {
-        Ok(user) => Plan::Mute { user, seconds },
+    match people_of(users, origin, scene) {
+        Ok(users) => Plan::Mute { users, seconds },
         Err(why) => Plan::Refuse(why),
     }
 }
 
-/// 禁言、踢人对谁：她给的号，没给的照引用的人和 @ 的人认唯一的一个。
-fn person(user: Arg<i64>, origin: Option<&Origin>, scene: &Scene) -> Result<ExternalId, Why> {
-    match user {
-        Arg::Given(number) => scene.platform.person(number).map_err(|_| Why::NoTarget),
-        Arg::Bad => Err(Why::NoTarget),
+/// 禁言、踢人对谁：她给的号（一个或几个），没给的照引用的人和 @ 的人认唯一的一个。
+fn people_of(
+    users: Arg<Vec<i64>>,
+    origin: Option<&Origin>,
+    scene: &Scene,
+) -> Result<Vec<ExternalId>, Why> {
+    match users {
+        Arg::Given(numbers) => numbers
+            .into_iter()
+            .map(|number| scene.platform.person(number).map_err(|_| Why::NoTarget))
+            .collect(),
+        Arg::Bad(bad) => Err(Why::Bad(bad)),
         Arg::Absent => {
             // 她的那一条没有发的人（她说的不是人说的话），去掉她的那一步在 `one` 里。
             let quoted = origin
@@ -222,7 +261,7 @@ fn person(user: Arg<i64>, origin: Option<&Origin>, scene: &Scene) -> Result<Exte
             let mentions = origin
                 .map(|origin| origin.mentions.as_slice())
                 .unwrap_or_default();
-            one(quoted.into_iter().chain(mentions), scene.me)
+            one(quoted.into_iter().chain(mentions), scene.me).map(|one| vec![one])
         }
     }
 }

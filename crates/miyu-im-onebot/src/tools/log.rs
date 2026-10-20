@@ -1,6 +1,8 @@
-//! 查管理记录（施工 Q-4，设计 02 第一节第 1、4 条）：`moderation_log {view?, user?, period?}`，只给群。`events` 是这个群的记录，新的
-//! 在前，最多 [`SHOWN`] 条，写了 `user` 的只看这个人；`ranking` 是成员汇总排的榜（`period`：`week`、`month`、`all`，出厂 `all`），写了
-//! `user` 的只看这个人那一行（成员汇总关了的答 `ranking-off`）。群管理在这个群生效才查（插件开着、她是管理员或群主）。
+//! 查管理记录（施工 Q-4，设计 02 第一节第 1、4 条）：`moderation_log {view?, user?, period?, action?, limit?}`，只给群。`events` 是这个
+//! 群的记录，新的在前，最多 `limit` 条（施工 I-17：出厂 [`SHOWN`]，最多 [`MOST`]），写了 `user` 的只看这个人，写了 `action`（`mute`、
+//! `unmute`、`kick`）的只看这一种，禁言带状态（禁言中、到期、解禁、被后一次覆盖，`records::mute_state`）；`ranking` 是成员汇总排的榜
+//! （`period`：`week`、`month`、`all`，出厂 `all`），写了 `user` 的只看这个人那一行（成员汇总关了的答 `ranking-off`）。群管理在这个群
+//! 生效才查（插件开着、她是管理员或群主）。参数写错的说哪个（施工 I-17）。跨群查、不是管理员也能查不做（设计 02 定的）。
 //!
 //! 每一行的样子在这里拼（同群成员列表）：时刻照本机的时区，人写「名字 (号)」，没有名字的写号；她自己做的写 `you`。头一行照模板，
 //! 一行一条接在后面（模板换字会转义字段里的换行），名字、理由先洗掉控制字符：伪造不出别的行。
@@ -10,14 +12,18 @@ use serde_json::{Value, json};
 use miyu_im::chat::To;
 use miyu_im::toolset::{Call, NAME, Planned, clean, clock};
 
+use super::args::{Bad, bad_args, group_only, optional_number};
 use super::moderate::{ADMIN_OFF, REASON};
-use crate::admin::records::{self, Action, By, Record, Verdict};
+use crate::admin::records::{self, Action, By, MuteState, Record, Verdict};
 use crate::admin::summary::{self, Period, Tally};
 use crate::admin::sync::spoken;
 use crate::admin::{self, ID};
 
-/// 一次最多列几条、几个人。
+/// 没写 `limit` 时列几条、几个人。
 const SHOWN: usize = 20;
+
+/// `limit` 最多几条（施工 I-17）。
+const MOST: usize = 100;
 
 /// 看哪一种。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,29 +34,72 @@ enum View {
     Ranking(Period),
 }
 
-/// 读参数 `args`：看哪一种、只看谁。写错的是空的。
-fn read(args: &Value) -> Option<(View, Option<i64>)> {
-    let user = match &args["user"] {
-        Value::Null => None,
-        value => Some(value.as_i64().filter(|user| *user > 0)?),
-    };
-    let period = match &args["period"] {
-        Value::Null => Period::All,
-        value => Period::read(value.as_str()?)?,
-    };
-    let view = match args["view"].as_str() {
-        None | Some("events") => View::Events,
-        Some("ranking") => View::Ranking(period),
-        Some(_) => return None,
-    };
-    Some((view, user))
+/// 查什么（读好的参数）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Query {
+    /// 看哪一种。
+    view: View,
+    /// 只看这个人。
+    user: Option<i64>,
+    /// 只看这一种动作（施工 I-17）。
+    action: Option<Action>,
+    /// 最多几条、几个人（施工 I-17）。
+    limit: usize,
 }
 
-/// `moderation_log` 的一次调用（模块的说明）。参数写错的、私聊里调到的照不认识的工具答。
-pub(super) fn log(call: Call) -> Planned {
-    let (To::Group(group), Some((view, user))) = (call.to, read(&call.args)) else {
-        return Planned::Now(call.answers.say("unknown", &[("name", &call.tool)], true));
+/// 读参数 `args`（纯逻辑）：写错的交回哪个参数、期望什么。
+fn read(args: &Value) -> Result<Query, Bad> {
+    let user = optional_number(args, "user", "user must be a QQ number")?;
+    let period = match &args["period"] {
+        Value::Null => Period::All,
+        value => value
+            .as_str()
+            .and_then(Period::read)
+            .ok_or("period must be week, month or all")?,
     };
+    let view = match &args["view"] {
+        Value::Null => View::Events,
+        value => match value.as_str() {
+            Some("events") => View::Events,
+            Some("ranking") => View::Ranking(period),
+            _ => return Err("view must be events or ranking"),
+        },
+    };
+    let action = match &args["action"] {
+        Value::Null => None,
+        value => Some(match value.as_str() {
+            Some("mute") => Action::Mute,
+            Some("unmute") => Action::Unmute,
+            Some("kick") => Action::Kick,
+            _ => return Err("action must be mute, unmute or kick"),
+        }),
+    };
+    let bad = "limit must be 1 to 100";
+    let limit = match optional_number(args, "limit", bad)? {
+        None => SHOWN,
+        Some(limit) => usize::try_from(limit)
+            .ok()
+            .filter(|limit| *limit <= MOST)
+            .ok_or(bad)?,
+    };
+    Ok(Query {
+        view,
+        user,
+        action,
+        limit,
+    })
+}
+
+/// `moderation_log` 的一次调用（模块的说明）。私聊里调到的答只给群，参数写错的说哪个。
+pub(super) fn log(call: Call) -> Planned {
+    let To::Group(group) = call.to else {
+        return group_only(&call);
+    };
+    let query = match read(&call.args) {
+        Ok(query) => query,
+        Err(bad) => return bad_args(&call, bad),
+    };
+    let view = query.view;
     if !call.plugins.contains(&ID) {
         return Planned::Now(call.answers.say(ADMIN_OFF, &[], true));
     }
@@ -71,20 +120,40 @@ pub(super) fn log(call: Call) -> Planned {
         let mut kept = tokio::task::spawn_blocking(move || records::read(&store, group))
             .await
             .unwrap_or_default();
-        if let Some(user) = user {
+        if let Some(user) = query.user {
             kept.retain(|record| record.user == user);
         }
-        answered(&call, view, &kept, records::now())
+        answered(&call, query, &kept, records::now())
     })
 }
 
 /// 答的那一句：记录 `kept`（旧的在前，筛过人），此刻是 `now`。
-fn answered(call: &Call, view: View, kept: &[Record], now: u64) -> Value {
+fn answered(call: &Call, query: Query, kept: &[Record], now: u64) -> Value {
+    let view = query.view;
+    // 禁言的状态照筛动作以前的算（解禁、踢出、后一次禁言都要看）。
+    let wanted: Vec<usize> = (0..kept.len())
+        .filter(|index| {
+            query
+                .action
+                .is_none_or(|action| kept[*index].action == action)
+        })
+        .collect();
     let lines: Vec<String> = match view {
-        View::Events => kept.iter().rev().take(SHOWN).map(event).collect(),
+        View::Events => wanted
+            .iter()
+            .rev()
+            .take(query.limit)
+            .map(|index| {
+                let line = event(&kept[*index]);
+                match records::mute_state(kept, *index, now) {
+                    Some(state) => format!("{line}; status: {}", status(state)),
+                    None => line,
+                }
+            })
+            .collect(),
         View::Ranking(period) => summary::ranking(kept, period, now)
             .iter()
-            .take(SHOWN)
+            .take(query.limit)
             .enumerate()
             .map(|(index, tally)| ranked(index + 1, tally))
             .collect(),
@@ -94,7 +163,7 @@ fn answered(call: &Call, view: View, kept: &[Record], now: u64) -> Value {
     }
     let head = match view {
         View::Events => {
-            let (shown, total) = (lines.len().to_string(), kept.len().to_string());
+            let (shown, total) = (lines.len().to_string(), wanted.len().to_string());
             let fields = [("shown", shown.as_str()), ("total", &total)];
             call.answers.text("log-events", &fields)
         }
@@ -112,6 +181,16 @@ fn person(name: Option<&str>, user: i64) -> String {
     match name.and_then(|name| clean(name, NAME)) {
         Some(name) => format!("{name} ({user})"),
         None => user.to_string(),
+    }
+}
+
+/// 禁言的状态怎么写（施工 I-17）。
+fn status(state: MuteState) -> &'static str {
+    match state {
+        MuteState::Muted => "muted now",
+        MuteState::Expired => "expired",
+        MuteState::Lifted => "unmuted",
+        MuteState::Overridden => "overridden by a later mute",
     }
 }
 
@@ -139,7 +218,14 @@ pub(super) fn event(record: &Record) -> String {
         },
     };
     let by = match &record.by {
-        By::Ai => "you".to_string(),
+        By::Ai { asked: None } => "you".to_string(),
+        // 施工 I-17：谁让她做的。
+        By::Ai { asked: Some(asker) } => {
+            format!(
+                "you, asked by {}",
+                person(asker.name.as_deref(), asker.user)
+            )
+        }
         By::Admin { user, name } => person(name.as_deref(), *user),
         By::Spam => "the flood rule".to_string(),
     };

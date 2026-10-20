@@ -18,6 +18,7 @@ mod home_cards;
 mod logins;
 mod logs;
 mod methods;
+mod moderation;
 mod panels;
 mod password;
 mod plugin_settings;

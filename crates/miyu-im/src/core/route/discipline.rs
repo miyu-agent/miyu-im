@@ -4,7 +4,7 @@
 //! | 线路规程 | 算数的条件 | 顶替 | 走哪条路 |
 //! |---|---|---|---|
 //! | `chatty` | 全部（额度满了去掉抽样） | 看 | 群聊内核的 `route` |
-//! | `when-called` | 冲她来、续聊、违规旗 | 看 | 只有违规旗的判官只查违规，别的有条件的开一轮 |
+//! | `when-called` | 冲她来、违规旗（施工 I-16 照旧版：关了主动回复判断只有被叫才回，续聊不算） | 看 | 只有违规旗的判官只查违规，别的有条件的开一轮 |
 //! | `wake` | 冲她来、续聊、违规旗 | 不看 | 同 `when-called` |
 //! | `every-message` | 去掉抽样（违规旗只记进判断） | 不看 | 有字的开一轮 |
 //!
@@ -19,7 +19,7 @@ use miyu_chat::{Chatty, Conditions, Kind, Route, Said, route};
 pub(super) enum Discipline {
     /// 看情况插话：主动回复判断那一整套，问判官。
     Chatty,
-    /// 叫她才回：冲她来、续聊、同一个人接连发的几条。
+    /// 叫她才回：冲她来、同一个人接连发的几条（续聊不算，施工 I-16 照旧版）。
     WhenCalled,
     /// 唤醒：听到唤醒词（触发词）才回；回复以后一小段时间内不用再叫，照续聊算（「施工时定的」第 89 条）。
     Wake,
@@ -58,7 +58,8 @@ impl Discipline {
     pub(super) fn keep(self, found: Conditions, rate_full: bool) -> Conditions {
         let kept = |kind: Kind| match self {
             Discipline::Chatty => kind != Kind::Probability || !rate_full,
-            Discipline::WhenCalled | Discipline::Wake => {
+            Discipline::WhenCalled => matches!(kind, Kind::Direct | Kind::Moderation),
+            Discipline::Wake => {
                 matches!(kind, Kind::Direct | Kind::Continuation | Kind::Moderation)
             }
             Discipline::EveryMessage => kind != Kind::Probability,

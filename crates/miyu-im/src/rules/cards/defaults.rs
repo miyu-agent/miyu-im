@@ -38,6 +38,7 @@ pub fn group(applied: &Applied) -> Value {
     set.insert("on".into(), on);
     for key in [
         "persona",
+        "preset",
         "extra_prompt",
         "keywords",
         "managers",
@@ -56,7 +57,7 @@ pub fn group(applied: &Applied) -> Value {
 /// 私聊卡的默认值。
 pub fn private(applied: &Applied) -> Value {
     let mut set = Map::new();
-    for key in ["persona", "extra_prompt"] {
+    for key in ["persona", "preset", "extra_prompt", "show_ids"] {
         set.insert(key.into(), plain(applied, key));
     }
     long_text(applied, &mut set);
@@ -70,6 +71,7 @@ pub fn other_private(applied: &Applied) -> Value {
         let on = entry(applied, "allow").unwrap_or_else(|| json!({"value": false, "from": null}));
         set.insert("on".into(), on);
         set.insert("rate".into(), plain(applied, "rate"));
+        set.insert("sleep".into(), plain(applied, "sleep"));
     }
     set
 }

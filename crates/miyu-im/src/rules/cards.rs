@@ -15,6 +15,8 @@
 pub mod defaults;
 pub mod edit;
 mod lines;
+
+pub use lines::OTHER_GROUPS_RATE;
 pub mod page;
 mod store;
 
@@ -85,6 +87,9 @@ pub struct GroupSet {
     /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 预设（施工 I-16）：预设的编号，拼成 `preset`；改了照 `session.configure` 换到已有的会话上（`route::policy`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
@@ -131,12 +136,18 @@ pub struct GroupSet {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PrivateSet {
+    /// 渲染时写发的人的平台身份（施工 I-16 照旧版：私聊也有）：拼成 `show_ids`。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_ids: Option<bool>,
     /// 人格。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
     /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 预设（施工 I-16）：预设的编号，拼成 `preset`；改了照 `session.configure` 换到已有的会话上（`route::policy`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
@@ -171,12 +182,21 @@ pub struct OtherPrivateSet {
     /// 对话模型（施工 O-58 补三）：`<供应商>/<模型>` 或 `@<池>`，拼成 `model`；没写的跟着配置。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 预设（施工 I-16）：预设的编号，拼成 `preset`；改了照 `session.configure` 换到已有的会话上（`route::policy`）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
     /// 附加提示词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_prompt: Option<String>,
     /// 限流：写法同规则的 `rate`。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<String>,
+    /// 睡觉时间（施工 I-16）：写法同规则的 `sleep`（`off` 是不睡）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sleep: Option<String>,
+    /// 渲染时写发的人的平台身份（施工 I-16）：拼成 `show_ids`。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_ids: Option<bool>,
     /// 长文怎么发。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub long_text: Option<LongText>,

@@ -87,6 +87,7 @@ impl Route {
             to: peer.to,
             bot: peer.bot,
             caller,
+            owner: params["by"]["kind"] == "person" || params["by"]["account"].is_string(),
             by,
             origin,
             me: self.platform.person(peer.bot).ok(),
@@ -167,12 +168,20 @@ pub(crate) struct Finished {
     done: Done,
 }
 
-/// 记一行运行日志：出错的 `WARN platform tool failed`，成了的 `INFO platform tool done`。
+/// 记一行运行日志：出错的 `WARN platform tool failed`，成了的 `INFO platform tool done`；`said` 是答她的那句的开头（施工 I-16：
+/// 首页活动流照它写做了什么）。
 fn logged(venue: &str, tool: &str, answer: &Value) {
+    let text: String = answer["blocks"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|block| block["text"].as_str())
+        .collect();
+    let said = crate::recent::Note::excerpt(&text);
     if answer["error"] == true {
-        tracing::warn!(target: TARGET, venue, tool, "platform tool failed");
+        tracing::warn!(target: TARGET, venue, tool, said = %said, "platform tool failed");
     } else {
-        tracing::info!(target: TARGET, venue, tool, "platform tool done");
+        tracing::info!(target: TARGET, venue, tool, said = %said, "platform tool done");
     }
 }
 

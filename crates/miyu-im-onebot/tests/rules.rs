@@ -138,13 +138,20 @@ fn the_factory_data_is_read_clean() {
         applied.resolved.entries.get("discipline"),
         Some(&factory(text("chatty"), 14))
     );
+    // 群 1 不在名单里：限流照「其他群」那张卡写的 5/300（施工 I-16，出厂群规则是名单里的群的 30/60）。
     assert_eq!(
         applied.resolved.entries.get("rate"),
-        Some(&factory(text("5/300s"), 15))
+        Some(&entry(
+            text("5/300s"),
+            Source::Settings,
+            "70-card-a.toml",
+            1,
+            4
+        ))
     );
     assert_eq!(
         applied.resolved.entries.get("parallel"),
-        Some(&factory(Value::Int(1), 16))
+        Some(&factory(Value::Int(3), 16))
     );
     // 卡片那一层（施工 O-58 上）：没有卡片时「其他群」关着。
     assert_eq!(
@@ -159,8 +166,8 @@ fn the_factory_data_is_read_clean() {
     );
     assert_eq!(
         applied.resolved.entries.len(),
-        5,
-        "出厂的写了四项（施工 O-57 多仅发送最终消息），卡片一项"
+        7,
+        "出厂的写了六项（施工 O-57 多仅发送最终消息，I-16 多群聊记录条数、显示 QQ 号），卡片一项"
     );
     assert_eq!(
         applied.params.judge.retries, 1,
@@ -172,11 +179,11 @@ fn the_factory_data_is_read_clean() {
 #[test]
 fn system_files_go_with_the_factory_ones_by_file_name() {
     let (dir, root) = temp_root();
-    // 排在出厂的前面：它设的 discipline 被出厂的盖掉，出厂、卡片都没设的 show_ids 留着。
+    // 排在出厂的前面：它设的 discipline 被出厂的盖掉，出厂、卡片都没设的 ignore_rate 留着（I-16 起出厂设了 show_ids）。
     system_rule(
         &root,
         "10-early.toml",
-        "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\nshow_ids = true\n",
+        "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\nignore_rate = true\n",
     );
     // 排在后面：盖出厂的；参数只改写了的几项，只对群 1。
     system_rule(
@@ -199,7 +206,7 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
         ))
     );
     assert_eq!(
-        one.resolved.entries.get("show_ids"),
+        one.resolved.entries.get("ignore_rate"),
         Some(&entry(
             Value::Bool(true),
             Source::System,
@@ -247,7 +254,7 @@ fn a_system_file_with_the_same_name_replaces_the_factory_one() {
 fn only_rule_files_are_read() {
     let (dir, root) = temp_root();
     // 设一项出厂、卡片都没设的：排在哪都看得出读没读。
-    let rule = "[[rule]]\nshow_ids = true\n";
+    let rule = "[[rule]]\nignore_rate = true\n";
     // 不以 `.toml` 结尾、以 `.` 开头（编辑器的锁文件）、是个目录的：都不是规则文件。
     system_rule(&root, "80-notes.txt", rule);
     system_rule(&root, "80-backup.toml~", rule);
@@ -256,12 +263,12 @@ fn only_rule_files_are_read() {
     let loaded = plain(&root);
     assert_eq!(loaded.problems, [], "不是规则文件的不读，也不报");
     assert_eq!(
-        loaded.at(&group("1")).resolved.entries.get("show_ids"),
+        loaded.at(&group("1")).resolved.entries.get("ignore_rate"),
         None
     );
     system_rule(&root, "90-real.toml", rule);
     assert_eq!(
-        plain(&root).at(&group("1")).resolved.entries["show_ids"].value,
+        plain(&root).at(&group("1")).resolved.entries["ignore_rate"].value,
         Value::Bool(true)
     );
     clean(&dir);
@@ -290,10 +297,10 @@ fn a_system_mistake_drops_only_that_part_and_is_reported() {
     let loaded = plain(&root);
     let entries = loaded.at(&group("1")).resolved.entries;
     assert_eq!(entries["parallel"].value, Value::Int(3), "别的照收");
-    assert_eq!(
+    assert_ne!(
         entries["rate"].origin.source,
-        Source::Factory,
-        "写错的不盖出厂的"
+        Source::System,
+        "写错的不盖下面几层的"
     );
     let seen = loaded
         .problems
@@ -364,7 +371,7 @@ fn venues_d_that_cannot_be_listed_is_a_problem() {
     assert!(problem.why.is_some(), "带系统的原话");
     assert_eq!(
         loaded.at(&group("1")).resolved.entries["parallel"].value,
-        Value::Int(1),
+        Value::Int(3),
         "出厂的照用"
     );
     clean(&dir);

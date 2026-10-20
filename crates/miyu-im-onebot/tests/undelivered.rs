@@ -217,7 +217,15 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
     assert_eq!(undelivered(&events).len(), 3, "回执不退：{events:#?}");
     let log = run_log(&home.root);
     assert_eq!(log.matches("undelivered noted").count(), 3, "{log}");
-    assert!(!log.contains("在"), "正文不进运行日志：{log}");
+    // 退信那几行不带正文（施工 I-16 起「发出去了」「判断」那几行带开头，给首页活动流）。
+    let noted: Vec<&str> = log
+        .lines()
+        .filter(|line| line.contains("undelivered noted"))
+        .collect();
+    assert!(
+        noted.iter().all(|line| !line.contains("在")),
+        "退信不带正文：{log}"
+    );
     stopped(home).await;
 }
 

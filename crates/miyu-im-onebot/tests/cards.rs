@@ -196,7 +196,7 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
     let group = &got["defaults"]["groups"][LISTED.to_string()];
     assert_eq!(
         group["rate"],
-        json!({"value": "5/300s", "from": "factory"}),
+        json!({"value": "30/60s", "from": "factory"}),
         "{group}"
     );
     assert_eq!(group["chatty"], json!({"value": "few", "from": "system"}));

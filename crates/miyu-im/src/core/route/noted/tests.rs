@@ -58,3 +58,16 @@ fn a_hook_that_steered_is_named() {
     let body = json!({"inbound": "pass", "route": "commit", "conditions": [{"kind": "direct"}], "hook": {"package": "dice", "route": "reply"}});
     assert_eq!(why(&body), json!({"reason": "called", "hook": "dice"}));
 }
+
+#[test]
+fn the_judges_reason_comes_along() {
+    // 施工 I-16：判官给了理由的照原样带上，空白的不带。
+    let score = json!({"total": 1.24, "threshold": 0.8});
+    let drawn = json!([{"kind": "direct", "bonus": 0.3}]);
+    let body = json!({"inbound": "pass", "route": "judge", "conditions": drawn, "score": score,
+        "judge": {"answer": {"reason": "Asked her directly."}}});
+    assert_eq!(why(&body)["reason_text"], "Asked her directly.");
+    let blank = json!({"inbound": "pass", "route": "judge", "conditions": drawn, "score": score,
+        "judge": {"answer": {"reason": "  "}}});
+    assert!(why(&blank).get("reason_text").is_none());
+}

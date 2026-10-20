@@ -24,6 +24,7 @@ use super::decide::{Case, Conclusion, Decision, decide};
 use super::deferred::Deferred;
 use super::discipline::Discipline;
 use super::judges::{Judging, Tag};
+use super::primer::primer;
 use super::projection::DECIDED;
 use super::{Route, applied, noted};
 use crate::TARGET;
@@ -52,6 +53,8 @@ pub(super) struct Heard {
     pub(super) text: String,
     /// @ 了她。
     pub(super) mentions_me: bool,
+    /// 引用了她的话（投影里有、或者平台说是机器人号发的，施工 I-16）。
+    pub(super) quotes_me: bool,
     /// @ 了别人。
     pub(super) mentions_others: bool,
     /// 引用的那一条的平台编号。
@@ -146,17 +149,38 @@ impl Route {
         let finale = finale(decision, judged);
         let deferring = finale == Finale::Reply && self.deferring(session);
         let outcome = if deferring { DEFERRED } else { finale.name() };
-        tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, outcome, "chat decided");
         let decided = format!("{}/decided", tag.id);
         let mut written = body(decision, standing, judged);
         written["outcome"] = json!(outcome);
+        // 运行日志带上谁、说了什么、为什么（施工 I-16：首页活动流照它写，照旧版的判断日志）。
+        let why = noted::why(&written);
+        let score = |key: &str| {
+            why[key]
+                .as_f64()
+                .map(|value| format!("{value:.2}"))
+                .unwrap_or_default()
+        };
+        tracing::info!(
+            target: TARGET,
+            venue = %tag.venue,
+            message = tag.number,
+            outcome,
+            who = %tag.who,
+            text = %tag.text,
+            why = why["reason"].as_str().unwrap_or_default(),
+            trigger = why["trigger"].as_str().unwrap_or_default(),
+            total = %score("total"),
+            threshold = %score("threshold"),
+            judge = why["reason_text"].as_str().unwrap_or_default(),
+            "chat decided"
+        );
         // 会话浮窗的最近判断（施工 I-7 上补）。
         let note = Note {
             at: crate::recent::now(),
             who: tag.who.clone(),
             text: tag.text.clone(),
             outcome: outcome.to_string(),
-            why: noted::why(&written),
+            why,
         };
         // 统计页「为什么回、为什么没回」（施工 I-14）：判过的、没判成的带上结论（回了、只记下）。
         if let Some(reason) = note.why["reason"].as_str() {
@@ -173,6 +197,12 @@ impl Route {
         if finale == Finale::Record {
             self.counters.bump(Count::Recorded, &tag.venue);
         }
+        // 开轮带上为什么叫她（施工 I-16，`primer`）：排着的（禁言时）也带。
+        let templates = (self.rules.join_in(), self.rules.precheck());
+        let tag = &Tag {
+            facts: primer(decision, judged.as_ref(), templates),
+            ..tag.clone()
+        };
         match finale {
             Finale::Reply if deferring => {
                 let deferred = Deferred {
@@ -281,7 +311,8 @@ impl Route {
         } else {
             Standing::Member
         };
-        let quotes_me = heard.reply_to.as_deref().is_some_and(|msg| group.mine(msg));
+        let quotes_me =
+            heard.quotes_me || heard.reply_to.as_deref().is_some_and(|msg| group.mine(msg));
         let keywords = applied::keywords(&applied);
         let addressed = addressed(
             VenueKind::Group,
@@ -290,8 +321,13 @@ impl Route {
             &heard.text,
             &keywords,
         );
-        // 只有带的东西、没有字（「施工时定的」第 79 条；没有字 O-37 改：原来只有都是表情的算）。
-        let media_only = heard.text.trim().is_empty() && !heard.media.is_empty();
+        // 纯图片：没有字（空白、只有占位）、带的都是图或表情（施工 I-16 照旧版：文件、视频、语音不算）。
+        let media_only = (heard.wordless || heard.text.trim().is_empty())
+            && !heard.media.is_empty()
+            && heard
+                .media
+                .iter()
+                .all(|kind| matches!(kind, MediaKind::Image | MediaKind::Sticker));
         let facts = Facts {
             venue: heard.venue.id().clone(),
             msg,
@@ -381,6 +417,7 @@ fn tag(heard: &Heard) -> Tag {
         venue: heard.venue.id().to_string(),
         who,
         text: Note::excerpt(&heard.text),
+        facts: Vec::new(),
     }
 }
 

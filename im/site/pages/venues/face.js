@@ -5,6 +5,14 @@ import { picture } from '../../shell/avatar.js';
 
 const HUES = 5;
 
+/** 一张卡（model.js）的头像：会话默认值那张画齿轮。 */
+export function faceOf(one) {
+  if (one.kind !== 'defaults') return face(one.type, one.id, one.name);
+  const round = element('span', 'avatar sq hx');
+  round.append(icon('i-gear'));
+  return round;
+}
+
 /** `type`（group、private）的号是 `id`、名字是 `name` 的头像；没有号的是兜底卡，画图标。 */
 export function face(type, id, name) {
   const round = element('span', `avatar${type === 'group' ? ' sq' : ''}`);

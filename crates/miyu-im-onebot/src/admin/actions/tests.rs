@@ -80,7 +80,7 @@ async fn clearing_takes_two_clicks() {
         action: records::Action::Kick,
         user: 7,
         name: None,
-        by: records::By::Ai,
+        by: records::By::Ai { asked: None },
         seconds: None,
         reason: None,
         block: false,
@@ -152,4 +152,14 @@ async fn the_join_rule_is_saved_and_cleared() {
     let refused = call(&context, "admin.approval", &long).await.expect("答了");
     assert_eq!(refused["saved"], false, "{refused}");
     std::fs::remove_dir_all(&context.store).expect("删得了");
+}
+
+#[test]
+fn a_group_is_admin_if_any_of_her_numbers_is() {
+    // 施工 I-17：连着的号都看。
+    assert_eq!(role([Some(false), Some(true)]), Some(true));
+    assert_eq!(role([None, Some(true)]), Some(true));
+    assert_eq!(role([Some(false), Some(false)]), Some(false));
+    assert_eq!(role([Some(false), None]), None, "有问不到的");
+    assert_eq!(role([]), None);
 }

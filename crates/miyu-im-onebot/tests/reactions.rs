@@ -20,8 +20,11 @@ use crate::support::*;
 /// 不抽样的群。
 const GROUP: i64 = 991;
 
-/// 只在叫她时回的群（`when-called`）：续聊不过判官，直接开一轮。
+/// 只在叫她时回的群（`when-called`）：续聊不算（施工 I-16 照旧版）。
 const CALLED: i64 = 992;
+
+/// 唤醒的群（`wake`）：回了以后一小段时间里续聊不过判官，直接开一轮。
+const WOKEN: i64 = 994;
 
 /// 抽样必中的群。
 const SAMPLED: i64 = 993;
@@ -38,7 +41,8 @@ fn rules() -> String {
     format!(
         "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{CALLED}] }}\ndiscipline = \"when-called\"\n\n\
-         [[rule]]\nmatch = {{ kind = \"group\", group = [{SAMPLED}] }}\nchatty = {{ probability = 1000 }}\n"
+         [[rule]]\nmatch = {{ kind = \"group\", group = [{SAMPLED}] }}\nchatty = {{ probability = 1000 }}\n\n\
+         [[rule]]\nmatch = {{ kind = \"group\", group = [{WOKEN}] }}\ndiscipline = \"wake\"\n"
     )
 }
 
@@ -113,17 +117,17 @@ async fn an_admin_call_is_marked_until_her_first_piece() {
 async fn a_continuation_is_marked_too() {
     let script = Script::new([Play::Says("在"), Play::Says("好的")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    admin_says(&napcat, CALLED, 1, "在吗", true);
+    admin_says(&napcat, WOKEN, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
-    assert_eq!(next_words(&mut napcat, CALLED).await, "在");
+    assert_eq!(next_words(&mut napcat, WOKEN).await, "在");
     assert_eq!(napcat.reacted().await, reaction(1, false));
     // 她刚回过终端管理员（续聊照送达算：等 `venue.delivered` 记下了，NapCat 收到她的话时还没记），终端管理员不 @ 她接着说：续聊，照样贴。
-    until_count(&home, CALLED, "venue.delivered", 1).await;
-    admin_says(&napcat, CALLED, 2, "那明天见", false);
+    until_count(&home, WOKEN, "venue.delivered", 1).await;
+    admin_says(&napcat, WOKEN, 2, "那明天见", false);
     assert_eq!(napcat.reacted().await, reaction(2, true));
-    assert_eq!(next_words(&mut napcat, CALLED).await, "好的");
+    assert_eq!(next_words(&mut napcat, WOKEN).await, "好的");
     assert_eq!(napcat.reacted().await, reaction(2, false));
-    let events = until_count(&home, CALLED, "ext.im.chat.decided", 2).await;
+    let events = until_count(&home, WOKEN, "ext.im.chat.decided", 2).await;
     let second = &of_kind(&events, "ext.im.chat.decided")[1]["body"];
     assert_eq!(
         second["conditions"],

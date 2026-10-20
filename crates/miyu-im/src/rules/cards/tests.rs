@@ -50,9 +50,13 @@ fn without_cards_other_groups_are_off_and_private_chats_untouched() {
     let empty = Cards::default();
     let names: Vec<String> = empty.files().into_iter().map(|file| file.name).collect();
     assert_eq!(names, ["70-card-a.toml", "70-card-b.toml"]);
+    // 「其他群」没写限流的照旧版非白名单群 5 轮/300 秒（施工 I-16）。
     assert_eq!(
         values(&empty, &group("1")),
-        [("allow".to_string(), Value::Bool(false))]
+        [
+            ("allow".to_string(), Value::Bool(false)),
+            ("rate".to_string(), text("5/300s"))
+        ]
     );
     // 「其他私聊」出厂不回复（施工 O-60）。
     assert_eq!(
@@ -168,7 +172,10 @@ fn private_cards_set_only_their_own_chat() {
     );
     assert_eq!(
         values(&set, &group("9")),
-        [("allow".to_string(), Value::Bool(false))]
+        [
+            ("allow".to_string(), Value::Bool(false)),
+            ("rate".to_string(), text("5/300s"))
+        ]
     );
 }
 

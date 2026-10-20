@@ -237,7 +237,12 @@ impl Job {
                 tracing::warn!(target: miyu_im::TARGET, group, error = ?error, "flood message not recalled");
             }
         }
-        if !flood.fresh || self.link.mute(group, user, mute).await.is_err() {
+        if !flood.fresh {
+            return;
+        }
+        // 撤回成了、禁言没成的记一行（施工 I-17：以前悄悄放过）。
+        if let Err(error) = self.link.mute(group, user, mute).await {
+            tracing::warn!(target: miyu_im::TARGET, group, user, error = ?error, "flood sender not muted");
             return;
         }
         let config = self.gate.config().borrow().clone();

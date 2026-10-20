@@ -85,3 +85,14 @@
 @media (max-width: 720px) {
   .home-card { grid-column: span 2; }
 }
+/* 活动（施工 I-19）：一件一行，时间在左，事在右；回了的、AI 说的、出了岔子的左边一道色条。 */
+.log-filter + .log-filter { margin-left: 6px; }
+.act { display: flex; gap: 12px; padding: 7px 0 7px 10px; border-left: 3px solid transparent; font-size: 13px; }
+.act-time { flex: none; width: 56px; font-variant-numeric: tabular-nums; }
+.act-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.act-head { overflow-wrap: anywhere; }
+.act-tail, .act-note { font-size: 12px; overflow-wrap: anywhere; }
+.act-note { font-style: italic; }
+.act-good { border-left-color: var(--online); }
+.act-ai { border-left-color: var(--accent); }
+.act-warn { border-left-color: var(--gold); }

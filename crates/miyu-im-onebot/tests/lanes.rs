@@ -1,6 +1,7 @@
 //! 群里的支线（施工 O-36，`onebot.md` 第一条「群里怎么叫她」第 1、2、6、7、9 条；`session/fork.md`）：真核心拉起真桥、假
 //! NapCat、她照台词说（`support/speaking.rs`）。主线在回 A 的时候 B @ 她：分叉一条支线回 B，支线第一次请求的前缀和主线上一次
-//! 请求逐字节一样，开轮带一块「另一条线正在回」；A 再催并进主线，B 再催抄进支线并进，支线满了 C 也并进主线；两条线的话各引用
+//! 请求逐字节一样，开轮带一块「另一条线正在回」；A 再催并进主线，B 再催抄进支线并进，支线满了 C 排着，主线这一轮完了给他单开一轮（施工
+//! I-16 照旧版；原来并进主线）；两条线的话各引用
 //! 各回的那一条，`venue.delivered` 都记在主线、`line` 照线写；支线跑完一轮封存。主线开轮时支线还在回的带上那一块，支线封存以后
 //! 主线下一轮的近况里有它说的话。支线里调平台工具、`fetch_media` 照支线自己的触发、找得到发到哪；支线开的回合算进限流；支线的话
 //! 发不出去，退信记在她看得到的那一处。
@@ -36,8 +37,9 @@ const MEMBERS: &[Member] = &[
 
 /// 系统的场所规则：叫她才回（不过判官），总引用她回的那一条，限流照 `rate`；支线照出厂的 1 条。
 fn rules(rate: &str) -> String {
+    // 最多一条支线（出厂 I-16 起是三条）：「支线满了」那几步照一条写。
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\ndiscipline = \"when-called\"\nrate = \"{rate}\"\noutbound = {{ quote_after = 0 }}\n"
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\ndiscipline = \"when-called\"\nrate = \"{rate}\"\nparallel = 1\noutbound = {{ quote_after = 0 }}\n"
     )
 }
 
@@ -160,7 +162,8 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
         Line::says("在"),
         Line::says("回A").released_by(hold_a),
         Line::says("回B").released_by(hold_b),
-        Line::says("回A和C"),
+        Line::says("再回A"),
+        Line::says("回C"),
         Line::says("再回B"),
     ]);
     let (home, mut napcat, _) =
@@ -189,7 +192,7 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     let main = venue_session(&home.root, &venue()).expect("有主线").0;
     assert_eq!(events[0]["body"]["forked"]["from"], main.as_str());
     assert_eq!(events[0]["body"]["forked"]["seal_after"], 1);
-    // A 再催并进主线；B 再催抄进支线并进；支线满了，C 也并进主线。
+    // A 再催并进主线；B 再催抄进支线并进；支线满了，C 排着。
     calls(&napcat, A, 103, "？", &[]);
     until_main(&home, "turn.joined", 1).await;
     calls(&napcat, B, 202, "？？", &[]);
@@ -207,17 +210,26 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     let joined = &of_kind(&lanes[0].1, "turn.joined")[0];
     assert_eq!(joined["body"]["triggers"], json!([copy["seq"]]));
     calls(&napcat, C, 301, "我也问一下", &[]);
-    let events = until_main(&home, "turn.joined", 2).await;
+    until_logged(&home.root, |log| log.contains("reply queued")).await;
+    let events = until_main(&home, "turn.joined", 1).await;
     let joins = of_kind(&events, "turn.joined");
+    assert_eq!(joins.len(), 1, "C 没并进主线这一轮：{joins:#?}");
     assert_eq!(joins[0]["body"]["triggers"], json!([seq_of(&events, 103)]));
-    assert_eq!(joins[1]["body"]["triggers"], json!([seq_of(&events, 301)]));
-    // 主线说完，再放支线：各引用各在回的那一条。
+    // 主线说完这一轮，再给 C 单开一轮；再放支线：各引用各在回的那一条。
     release_a.send(()).expect("还在等");
-    assert_eq!(
-        next_said(&mut napcat).await,
-        (Some("301".into()), "回A".into())
+    assert_eq!(next_said(&mut napcat).await.1, "回A");
+    assert_eq!(next_said(&mut napcat).await.1, "再回A");
+    let (quoted, said) = next_said(&mut napcat).await;
+    assert_eq!(said, "回C");
+    // C 那一轮是排着的单开的：有一轮的触发正好是他那一条（核心接着并进来的那几条开的一轮不带 `triggers`）。
+    let events = until_main(&home, "turn.started", 3).await;
+    let c = json!([seq_of(&events, 301)]);
+    assert!(
+        of_kind(&events, "turn.started")
+            .iter()
+            .any(|one| one["body"]["triggers"] == c),
+        "{quoted:?} {events:#?}"
     );
-    assert_eq!(next_said(&mut napcat).await.1, "回A和C");
     release_b.send(()).expect("还在等");
     assert_eq!(
         next_said(&mut napcat).await,
@@ -229,13 +241,18 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     })
     .await;
     let started = of_kind(&lanes[0].1, "turn.started")[0]["seq"].clone();
-    let events = until_main(&home, "venue.delivered", 5).await;
+    let events = until_main(&home, "venue.delivered", 6).await;
     let delivered = of_kind(&events, "venue.delivered");
     let lane_said: Vec<_> = delivered
         .iter()
         .filter(|one| one["body"]["line"] == lane.as_str())
         .collect();
     assert_eq!(lane_said.len(), 2, "{delivered:#?}");
+    assert_eq!(
+        delivered.len() - lane_said.len(),
+        4,
+        "主线：在、回A、再回A、回C：{delivered:#?}"
+    );
     assert_eq!(lane_said[0]["body"]["turn"], started);
     assert_eq!(lane_said[0]["body"]["to"], json!([format!("qq:{B}")]));
     assert!(

@@ -24,7 +24,8 @@ let tab = 'readme';
 
 /** 插件 `plugin` 的详情：`context` 是 { request, platform, cards（cards.get 的回答）, reload }。 */
 export function drawDetail(plugin, context) {
-  const all = entries(context.cards);
+  // 「会话默认值」那张卡不是一个会话：不列在「用在哪」里。
+  const all = entries(context.cards).filter((one) => one.kind !== 'defaults');
   const parts = [back(), detailHead(plugin, context)];
   if (plugin.enabled && plugin.state && plugin.state !== 'running') {
     const why = plugin.reason ? say(`plugins-page/stopped-${plugin.reason}`) : say('plugins-page/not-running');

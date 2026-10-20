@@ -1,0 +1,30 @@
+/* 选一项的小浮窗（shell/picker.js）和像下拉的按钮：不描边，底色分层；平常同背景、悬停深一档、选中再深一档。 */
+.pk-trigger { display: inline-flex; align-items: center; gap: 6px; max-width: 280px; height: 30px; padding: 0 8px 0 10px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); cursor: pointer; transition: background-color 0.15s ease; }
+.pk-trigger:hover { background: var(--surface-3); }
+.pk-trigger .pk-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-trigger .icon { flex: none; width: 14px; height: 14px; color: var(--text-soft); }
+
+.dialog.pk-dialog { width: min(520px, 100%); height: min(620px, calc(100vh - 32px)); }
+.pk-top { padding: 0 26px 10px; }
+.pk-search { width: 100%; }
+.pk-body { flex: 1; min-height: 0; padding: 0 18px 18px; overflow-y: auto; }
+.pk-group { margin: 12px 8px 4px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
+.pk-list { display: flex; flex-direction: column; gap: 2px; }
+.pk-item { display: flex; align-items: baseline; gap: 8px; width: 100%; min-height: 34px; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.pk-item .pk-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-item small { flex: none; margin-left: auto; color: var(--text-faint); font-size: 12px; }
+.pk-item:hover, .pk-cell:hover { background: var(--surface-2); }
+.pk-item.on, .pk-cell.on { background: var(--surface-3); font-weight: 500; }
+.pk-first { margin-bottom: 2px; color: var(--text-soft); }
+.pk-custom { color: var(--accent); }
+.pk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; }
+.pk-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: 76px; padding: 6px 4px; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 0.15s ease; }
+.pk-cell .pk-glyph { font-size: 24px; line-height: 1.2; }
+.pk-cell .pk-text { max-width: 100%; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-cell small { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+.pk-none { margin: 16px 8px; }
+@media (max-width: 720px) {
+  .pk-top { padding: 0 16px 10px; }
+  .pk-body { padding: 0 10px 14px; }
+  .pk-trigger { max-width: 100%; }
+}

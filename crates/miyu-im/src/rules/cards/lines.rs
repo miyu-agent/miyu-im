@@ -129,11 +129,17 @@ pub(crate) fn key_ok(key: &str) -> bool {
     }
 }
 
-/// 群卡的几行：`allow` 一定写（群卡没写的接，「其他群」没写的不接），别的设了才写。
+/// 「其他群」没写限流时的限流（施工 I-16 照旧版：名单里的群 30 轮/60 秒（出厂规则），名单以外的 5 轮/300 秒）。
+pub const OTHER_GROUPS_RATE: &str = "5/300s";
+
+/// 群卡的几行：`allow` 一定写（群卡没写的接，「其他群」没写的不接），别的设了才写；「其他群」没写限流的写 [`OTHER_GROUPS_RATE`]。
 pub(super) fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     let mut entries = Entries::default();
     entries.set("allow", set.on.unwrap_or(listed).to_string());
     group_entries(&mut entries, set);
+    if !listed && !entries.0.iter().any(|(key, _)| key == "rate") {
+        entries.set("rate", quoted(OTHER_GROUPS_RATE));
+    }
     entries.lines()
 }
 
@@ -146,7 +152,11 @@ pub(super) fn defaults_lines(set: &GroupSet) -> Vec<String> {
 
 /// 群卡除了 `allow` 的几格。
 fn group_entries(entries: &mut Entries, set: &GroupSet) {
-    common(entries, (&set.persona, &set.model, &set.extra_prompt));
+    common(
+        entries,
+        (&set.persona, &set.model, &set.extra_prompt),
+        &set.preset,
+    );
     entries.put("keywords", set.keywords.as_deref().map(texts));
     match set.chatty {
         Some(Chatty::Never) => entries.set("discipline", quoted("when-called")),
@@ -172,7 +182,12 @@ fn group_entries(entries: &mut Entries, set: &GroupSet) {
 /// 私聊卡的几行：设了才写。
 pub(super) fn private_lines(set: &PrivateSet) -> Vec<String> {
     let mut entries = Entries::default();
-    common(&mut entries, (&set.persona, &set.model, &set.extra_prompt));
+    common(
+        &mut entries,
+        (&set.persona, &set.model, &set.extra_prompt),
+        &set.preset,
+    );
+    entries.put("show_ids", set.show_ids.map(|show| show.to_string()));
     outbound(
         &mut entries,
         set.final_only,
@@ -186,8 +201,14 @@ pub(super) fn private_lines(set: &PrivateSet) -> Vec<String> {
 pub(super) fn other_private_lines(set: &OtherPrivateSet) -> Vec<String> {
     let mut entries = Entries::default();
     entries.set("allow", set.on.unwrap_or(false).to_string());
-    common(&mut entries, (&set.persona, &set.model, &set.extra_prompt));
+    common(
+        &mut entries,
+        (&set.persona, &set.model, &set.extra_prompt),
+        &set.preset,
+    );
     entries.put("rate", set.rate.as_deref().map(quoted));
+    entries.put("sleep", set.sleep.as_deref().map(quoted));
+    entries.put("show_ids", set.show_ids.map(|show| show.to_string()));
     outbound(
         &mut entries,
         set.final_only,
@@ -201,8 +222,10 @@ pub(super) fn other_private_lines(set: &OtherPrivateSet) -> Vec<String> {
 fn common(
     entries: &mut Entries,
     (persona, model, extra): (&Option<String>, &Option<String>, &Option<String>),
+    preset: &Option<String>,
 ) {
     entries.put("persona", persona.as_deref().map(quoted));
+    entries.put("preset", preset.as_deref().map(quoted));
     entries.put("model", model.as_deref().map(quoted));
     entries.put("extra_prompt", extra.as_deref().map(quoted));
 }

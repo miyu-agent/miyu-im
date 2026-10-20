@@ -101,6 +101,8 @@ pub struct Member {
     pub name: Option<String>,
     /// 群里的身份；没带、认不出的是空的。
     pub rank: Option<Rank>,
+    /// 群头衔（施工 I-17，查群成员的工具带上），照原样；没有的、空白的是空的。
+    pub title: Option<String>,
 }
 
 /// 机器人在的一个群（[`Link::groups`]）。

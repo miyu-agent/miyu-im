@@ -130,7 +130,7 @@ pub(super) fn discipline(applied: &Applied) -> Option<&str> {
     text(applied, "discipline")
 }
 
-/// 规则的 `parallel`（施工 O-36，「群里怎么叫她」第 6 条）：最多几条支线；没设的是 0（串行）。群聊内核查过是 0 到 3 的整数。
+/// 规则的 `parallel`（施工 O-36，「群里怎么叫她」第 6 条）：最多几条支线；没设的是 0（串行）。群聊内核查过是 0 到 16 的整数（施工 I-16 照旧版放宽）。
 pub(super) fn parallel(applied: &Applied) -> u8 {
     match entry(applied, "parallel") {
         Some(Value::Int(count)) => u8::try_from(*count).unwrap_or(0),

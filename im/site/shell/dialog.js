@@ -3,6 +3,9 @@
 // 一条短提示（toast），一会儿自己消失。
 import { element, icon, say } from './i18n.js';
 
+/** 开着的几层（后开的在后）：Esc 只关最上面那一层（会话浮窗上再开选模型的小窗时，Esc 只关小窗）。 */
+const layers = [];
+
 /** 把浮窗 `dialog` 盖着底放上页面。交回 close()；关了调 `onClose`。 */
 export function openLayer(dialog, onClose) {
   const layer = element('div', 'layer');
@@ -10,10 +13,16 @@ export function openLayer(dialog, onClose) {
   layer.append(scrim, dialog);
   document.body.append(layer);
   requestAnimationFrame(() => layer.classList.add('open'));
+  layers.push(layer);
   const keys = (event) => {
-    if (event.key === 'Escape') close();
+    if (event.key === 'Escape' && layers[layers.length - 1] === layer) {
+      event.stopImmediatePropagation();
+      close();
+    }
   };
   const close = () => {
+    if (!layers.includes(layer)) return;
+    layers.splice(layers.indexOf(layer), 1);
     document.removeEventListener('keydown', keys);
     layer.classList.remove('open');
     setTimeout(() => layer.remove(), 180);

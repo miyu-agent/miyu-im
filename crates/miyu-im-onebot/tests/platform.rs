@@ -206,11 +206,11 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
         action["params"],
         json!({"group_id": GROUP, "user_id": FRIEND, "duration": 120})
     );
-    // 号写错了：认不出人。
+    // 号写错了：说哪个参数不对（施工 I-17：以前答「要对方回复或 @」，她会去叫人引用）。
     let words = json!([plain("禁小杰")]);
     assert_eq!(
         asks(&home, &napcat, MANAGER, 210, words, 9).await,
-        refused("no-target", &[])
+        refused("bad-args", &[("detail", "user must be a QQ number")])
     );
     no_platform(&mut napcat);
     stopped(home).await;

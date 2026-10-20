@@ -168,7 +168,7 @@ async fn the_overview_counts_today_and_says_why_each_message_was_answered() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn called_ones_skip_the_judge_and_listed_people_are_only_recorded() {
+async fn called_ones_skip_the_judge_and_listed_people_skip_it_when_talking_to_her() {
     // 施工 I-7 中三：卡上 `rules` 关掉被叫时也过判断，叫她的直接回；小林在跳过判断的人里，没叫她的（续聊）只记下。
     let script = Script::new([Play::Says("在的。"), Play::Says("嗯。")]);
     let (home, mut napcat, _) = started(&script, "", "", MEMBERS).await;
@@ -221,7 +221,7 @@ async fn called_ones_skip_the_judge_and_listed_people_are_only_recorded() {
     )
     .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
-    // 她刚回了小林：小林接着说是续聊，照说要判；在跳过判断的人里，只记下。
+    // 她刚回了小林：小林接着说是续聊，照说要判；在跳过判断的人里，直接回（施工 I-16，项目主人 10-20 定）。
     let follow = group_frame(
         LISTED,
         LIN,
@@ -230,12 +230,13 @@ async fn called_ones_skip_the_judge_and_listed_people_are_only_recorded() {
         ("小林", "lin"),
     );
     napcat.send(follow);
+    assert_eq!(napcat.group_reply(LISTED).await, "嗯");
     let second = overview(&mut open, card, 2).await;
     assert_eq!(
         second["recent"][0]["why"],
-        json!({"reason": "skip_user"}),
+        json!({"reason": "continued"}),
         "{second}"
     );
-    assert_eq!(second["recent"][0]["outcome"], "record", "{second}");
+    assert_eq!(second["recent"][0]["outcome"], "reply", "{second}");
     stopped(home).await;
 }

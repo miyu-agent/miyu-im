@@ -1,15 +1,18 @@
 //! 页面调群管理（施工 Q-6，`miyu_im::plugins::Builtin::call`）：
 //!
 //! - `chat.panel {platform, venue}`：会话浮窗的「群管理」页（`page::panel`）；不是群的回 `bad_params`。
-//! - `admin.page {platform}`：面板，她在的每个群一项（`page::section`）：群照第一个连着的号问 QQ，她的身份一个个问；没连着的回
-//!   一段字。
+//! - `admin.page {platform}`：面板，她在的每个群一项（`page::section`）：群照每个连着的号问 QQ，她的身份并着问（施工 I-17）；没连
+//!   着的回一段字。
 //! - `admin.spam {group, values}`：存这个群的刷屏处理（只交改过的格：`on`、`window` 秒、`mute` 分钟），写错的回 `problems`。
 //! - `admin.view {group, values}`：存面板上这个群怎么看（`action`、`period`）。
 //! - `admin.approval {group, values}`：存这个群的入群审批的通过条件（`rule`，字，`null` 是清掉），施工 Q-7。
 //! - `admin.clear {group}`：头一次只记下点了，一分钟以内再点一次才删这个群的记录。
 
+use std::sync::Arc;
+
 use serde_json::{Map, Value, json};
 
+use miyu_im::chat::Link;
 use miyu_im::plugins::Context;
 
 use super::groups::{self, Group};
@@ -54,29 +57,91 @@ fn venue_group(venue: &str) -> Option<i64> {
         .filter(|group: &i64| *group > 0)
 }
 
-/// 面板：她在的每个群一项。
+/// 面板：她在的每个群一项（施工 I-17：连着的号都看，一个群照在里面的号问身份，都并着问，以前只看第一个号、一个个等）。
 async fn whole(context: &Context, summary: bool, now: u64) -> Value {
-    let Some((bot, link)) = context.bots.first() else {
+    let bots = context.bots.all();
+    if bots.is_empty() {
         return json!([{"type": "text", "text": t("QQ 没连着：连上以后这里列出她在的群。", "QQ is not connected: the groups appear once it is.", "QQ が接続されていません。接続するとグループが表示されます。"), "tone": "dim"}]);
-    };
-    let listed = link.groups().await.unwrap_or_default();
-    let all = groups::read(&context.store);
-    let mut items = Vec::new();
-    for group in listed.iter().take(page::SHOWN) {
-        let admin = admin::admin_here(link.as_ref(), group.id, bot).await.ok();
-        let settings = all.get(&group.id.to_string()).cloned().unwrap_or_default();
-        let records = records::read(&context.store, group.id);
-        items.push(page::section(
-            (group.id, group.name.as_deref()),
-            admin,
-            (&settings, &records),
-            (summary, now),
-        ));
     }
+    // 每个号在的群，并着问；群的先后照号的先后、QQ 列的先后（同以前）。
+    let mut listing = tokio::task::JoinSet::new();
+    for (index, (bot, link)) in bots.into_iter().enumerate() {
+        listing.spawn(async move { (index, bot, link.groups().await.unwrap_or_default(), link) });
+    }
+    let mut answered = Vec::new();
+    while let Some(Ok(one)) = listing.join_next().await {
+        answered.push(one);
+    }
+    answered.sort_by_key(|(index, ..)| *index);
+    let mut listed: Vec<Listed> = Vec::new();
+    for (_, bot, groups, link) in answered {
+        for group in groups {
+            match listed.iter_mut().find(|(id, _, _)| *id == group.id) {
+                Some((_, _, inside)) => inside.push((bot, Arc::clone(&link))),
+                None => listed.push((group.id, group.name, vec![(bot, Arc::clone(&link))])),
+            }
+        }
+    }
+    listed.truncate(page::SHOWN);
+    // 每个群里每个号的身份，并着问：有一个是管理员就算；都问到了、都不是的不是；别的问不到。
+    let mut asking = tokio::task::JoinSet::new();
+    for (group, _, inside) in &listed {
+        for (bot, link) in inside {
+            let (group, bot, link) = (*group, *bot, Arc::clone(link));
+            asking.spawn(async move {
+                (
+                    group,
+                    admin::admin_here(link.as_ref(), group, bot).await.ok(),
+                )
+            });
+        }
+    }
+    let mut ranks: Vec<(i64, Option<bool>)> = Vec::new();
+    while let Some(Ok(asked)) = asking.join_next().await {
+        ranks.push(asked);
+    }
+    let all = groups::read(&context.store);
+    let items: Vec<Value> = listed
+        .iter()
+        .map(|(group, name, _)| {
+            let admin = role(
+                ranks
+                    .iter()
+                    .filter(|(id, _)| id == group)
+                    .map(|(_, admin)| *admin),
+            );
+            let settings = all.get(&group.to_string()).cloned().unwrap_or_default();
+            let records = records::read(&context.store, *group);
+            page::section(
+                (*group, name.as_deref()),
+                admin,
+                (&settings, &records),
+                (summary, now),
+            )
+        })
+        .collect();
     if items.is_empty() {
         return json!([{"type": "text", "text": t("她还不在任何群里。", "She is not in any group yet.", "まだどのグループにも入っていません。"), "tone": "dim"}]);
     }
     json!([{"type": "sections", "items": items}])
+}
+
+/// 面板上的一个群：群号、群名、在里面的号和它的连接。
+type Listed = (i64, Option<String>, Vec<(i64, Arc<dyn Link>)>);
+
+/// 一个群里几个号问到的身份（纯逻辑）：有一个是管理员就是；都问到了、都不是的不是；别的（有问不到的、一个都没有）是空的。
+pub(crate) fn role(asked: impl IntoIterator<Item = Option<bool>>) -> Option<bool> {
+    let mut all_no = true;
+    let mut any = false;
+    for one in asked {
+        any = true;
+        match one {
+            Some(true) => return Some(true),
+            Some(false) => {}
+            None => all_no = false,
+        }
+    }
+    (any && all_no).then_some(false)
 }
 
 /// 存表单、点按钮（模块的说明）：表单回 `{"saved": …}`，按钮回 `{}`。

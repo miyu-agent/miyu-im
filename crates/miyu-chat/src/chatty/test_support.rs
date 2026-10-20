@@ -108,6 +108,7 @@ pub(crate) fn reply(ago_ms: i64, to: &[&str]) -> Reply {
     Reply {
         at: ago(ago_ms),
         to: to.iter().map(|id| person(id)).collect(),
+        after: Vec::new(),
     }
 }
 

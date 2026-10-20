@@ -7,6 +7,8 @@
 //! - 偏向通过、拿不准留人工；AI 出错、超时、回的读不出来（重试一次以后）一律留待人工，不自动拒绝。
 //! - 同时审的最多 [`SLOTS`] 个；一次最多 [`TOKENS`] 个 token、等 [`WAIT`]。
 //! - 每一次审批都进管理记录（`Action::Join`：申请人、他写的、结论、AI 给的理由）；不另给会话记事实。
+//! - 施工 I-17（照旧版 `group_join.rs`）：每个分支记一行运行日志（没写通过条件、插件没开、她不是管理员、审过了通过拒绝留着）；理由先
+//!   去掉控制字符；问模型连重试一共最多 [`WAIT`]；SnowLuma 的标记先修正（[`action_flag`]），被它滤掉的申请（[`filtered`]）照样审。
 
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -14,7 +16,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
 
-use miyu_im::chat::{Link, To};
+use miyu_im::chat::{CallError, Link, To};
 use miyu_im::driver::Gate;
 use miyu_im::toolset::clean;
 
@@ -28,7 +30,7 @@ pub(crate) const SLOTS: usize = 8;
 /// 一次最多输出几个 token（同旧版）。
 pub(crate) const TOKENS: u64 = 300;
 
-/// 一次最多等多久（同旧版）。
+/// 问模型连重试一共最多等多久（同旧版；施工 I-17 以前是每一次 60 秒）。
 pub(crate) const WAIT: Duration = Duration::from_secs(60);
 
 /// 申请人写的最多几个字进提示词。
@@ -76,8 +78,24 @@ pub(crate) fn read(frame: &Value) -> Option<Applicant> {
     })
 }
 
+/// 处理申请时交回的标记（纯逻辑，施工 I-17 照旧版 `group_add_request_action_flag`）：SnowLuma 的加群申请的标记
+/// `slreq:1:<…>:<…>:2:<…>` 里事件种类是 2（邀请），照它处理 QQ 回「already deleted by system」、申请一直挂着；加群申请改成 1。
+/// 别的照原样。
+pub(crate) fn action_flag(flag: &str) -> String {
+    let mut parts: Vec<&str> = flag.split(':').collect();
+    if parts.len() == 6 && parts[0] == "slreq" && parts[1] == "1" && parts[4] == "2" {
+        parts[4] = "1";
+    }
+    parts.join(":")
+}
+
+/// SnowLuma 标成被过滤的申请（纯逻辑，同旧版 `group_join_request_is_filtered`）：`slreq:1:` 开头、最后一段是 1。照样审，日志里写上。
+pub(crate) fn filtered(flag: &str) -> bool {
+    flag.starts_with("slreq:1:") && flag.rsplit(':').next() == Some("1")
+}
+
 /// 读 AI 回的那一行（纯逻辑）：头一个 `{` 到最后一个 `}` 是 `{"verdict", "reason"}`，结论是三种之一；理由去掉首尾空白、截到
-/// [`REASON`] 个字。读不出的是空的。
+/// [`REASON`] 个字，控制字符先去掉（施工 I-17：理由要发给申请人）。读不出的是空的。
 pub(crate) fn verdict(text: &str) -> Option<(Verdict, String)> {
     let start = text.find('{')?;
     let end = text.rfind('}')?;
@@ -88,8 +106,13 @@ pub(crate) fn verdict(text: &str) -> Option<(Verdict, String)> {
         "hold" => Verdict::Hold,
         _ => return None,
     };
-    let reason = answer["reason"].as_str().unwrap_or_default().trim();
-    Some((verdict, reason.chars().take(REASON).collect()))
+    let reason: String = answer["reason"]
+        .as_str()
+        .unwrap_or_default()
+        .chars()
+        .filter(|char| !char.is_control())
+        .collect();
+    Some((verdict, reason.trim().chars().take(REASON).collect()))
 }
 
 /// 一帧请求 `frame` 是加群申请就另起任务审（模块的说明），经收到它的那条连接 `link` 问身份、处理。
@@ -103,20 +126,27 @@ pub(crate) fn seen(gate: &Arc<Gate>, link: &Arc<dyn Link>, frame: &Value) {
 
 /// 审一次（模块的说明）。
 async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
-    let to = To::Group(applicant.group);
+    let (group, user) = (applicant.group, applicant.user);
+    let flag = action_flag(&applicant.flag);
+    tracing::info!(target: miyu_im::TARGET, group, user, filtered = filtered(&applicant.flag), rewritten = flag != applicant.flag, "join request received");
+    let to = To::Group(group);
     if !gate.active(ID, to) {
+        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: group admin is off here");
         return;
     }
     let settings = groups::read(gate.store())
-        .remove(&applicant.group.to_string())
+        .remove(&group.to_string())
         .unwrap_or_default();
     let rule = settings.approval.rule.trim().to_string();
-    if rule.is_empty()
-        || !matches!(
-            admin::admin_here(link, applicant.group, applicant.bot).await,
-            Ok(true)
-        )
-    {
+    if rule.is_empty() {
+        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: no rule to pass");
+        return;
+    }
+    if !matches!(
+        admin::admin_here(link, group, applicant.bot).await,
+        Ok(true)
+    ) {
+        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: not an admin of the group");
         return;
     }
     let Ok(_slot) = AUDITING.acquire().await else {
@@ -131,33 +161,33 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
             {"role": "user", "text": gate.prompt("approval-request", &[("rule", &rule), ("request", &comment)])},
         ],
     });
-    let mut decided = None;
-    for _ in 0..2 {
-        match tokio::time::timeout(WAIT, gate.ask(to, request.clone())).await {
-            Ok(Ok(text)) => {
-                decided = verdict(&text);
-                if decided.is_some() {
-                    break;
-                }
-            }
-            Ok(Err(why)) => {
-                tracing::warn!(target: miyu_im::TARGET, group = applicant.group, why, "join request not audited");
-                break;
-            }
-            Err(_) => break,
-        }
+    let decided = tokio::time::timeout(WAIT, asked(gate, to, &request)).await;
+    if decided.is_err() {
+        tracing::warn!(target: miyu_im::TARGET, group, user, "join request not audited: timed out");
     }
-    let (verdict, reason) = decided.unwrap_or((Verdict::Hold, String::new()));
+    let (verdict, reason) = decided
+        .ok()
+        .flatten()
+        .unwrap_or((Verdict::Hold, String::new()));
     let done = match verdict {
-        Verdict::Approve => link.join_request(&applicant.flag, true, "").await,
-        Verdict::Reject => link.join_request(&applicant.flag, false, &reason).await,
+        Verdict::Approve => link.join_request(&flag, true, "").await,
+        Verdict::Reject => link.join_request(&flag, false, &reason).await,
         Verdict::Hold => Ok(()),
     };
-    if let Err(error) = done {
-        tracing::warn!(target: miyu_im::TARGET, group = applicant.group, error = ?error, "join request not handled");
-        return;
+    match done {
+        Ok(()) => {
+            tracing::info!(target: miyu_im::TARGET, group, user, verdict = ?verdict, reason = %reason, "join request audited");
+        }
+        // 别的管理员先处理了（同旧版）。
+        Err(CallError::Failed { said, .. }) if said.contains("already deleted by system") => {
+            tracing::info!(target: miyu_im::TARGET, group, user, "join request already handled by someone else");
+            return;
+        }
+        Err(error) => {
+            tracing::warn!(target: miyu_im::TARGET, group, user, error = ?error, "join request not handled");
+            return;
+        }
     }
-    tracing::info!(target: miyu_im::TARGET, group = applicant.group, user = applicant.user, verdict = ?verdict, "join request audited");
     let config = gate.config().borrow().clone();
     if admin::recording(&config) {
         let record = Record {
@@ -165,7 +195,7 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
             action: Action::Join,
             user: applicant.user,
             name: None,
-            by: By::Ai,
+            by: By::Ai { asked: None },
             seconds: None,
             reason: clean(&reason, REASON).filter(|reason| !reason.trim().is_empty()),
             block: false,
@@ -181,6 +211,25 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
         )
         .await;
     }
+}
+
+/// 问模型，回的读不出的再问一次：读出来的结论、理由；出错、两次都读不出的是空的。总时限由调的一方管。
+async fn asked(gate: &Gate, to: To, request: &Value) -> Option<(Verdict, String)> {
+    for _ in 0..2 {
+        match gate.ask(to, request.clone()).await {
+            Ok(text) => {
+                if let Some(decided) = verdict(&text) {
+                    return Some(decided);
+                }
+            }
+            Err(why) => {
+                let To::Group(group) = to else { return None };
+                tracing::warn!(target: miyu_im::TARGET, group, why, "join request not audited");
+                return None;
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]

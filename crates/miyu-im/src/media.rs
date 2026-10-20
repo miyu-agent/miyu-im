@@ -254,6 +254,15 @@ fn unique() -> String {
 #[cfg(test)]
 mod tests;
 
+/// 照开头几个字节认得出的图的扩展名（施工 I-16：群文件认不出的不当 JPEG）：PNG、GIF、WebP、JPEG，别的是空的。
+#[must_use]
+pub fn image_extension(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\xff\xd8\xff") {
+        return Some("jpg");
+    }
+    Some(extension(bytes)).filter(|found| *found != "jpg")
+}
+
 /// 照开头几个字节认图的扩展名（施工 I-6 中从 `core/route/lookup.rs` 挪来：页面服务给头像也照它）：PNG、GIF、WebP，别的当 JPEG（QQ 的头像多是 JPEG）。
 pub fn extension(bytes: &[u8]) -> &'static str {
     if bytes.starts_with(b"\x89PNG") {

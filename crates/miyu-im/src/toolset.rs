@@ -25,7 +25,9 @@ use crate::core::blobs::{Unstored, put};
 
 /// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
 /// 先核对）。
-pub use crate::media::{Missed, QQ_FILES, bytes, extension, file_name, message, save, take};
+pub use crate::media::{
+    Missed, QQ_FILES, bytes, extension, file_name, image_extension, message, save, take,
+};
 
 /// 叫她做的那一条（施工 T-2，原来路由的 `platform::Origin`）：群里是投影里调用所在那条线这一轮她回的那一条，私聊是最近一条人说的话。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,6 +258,9 @@ pub struct Call {
     pub bot: i64,
     /// 叫她的人的号：外部身份的照 `by.id`，私聊里认出的终端管理员照 `by.via`；私聊里没有的是对方；本机的人、没有触发的是空的。
     pub caller: Option<i64>,
+    /// 叫她的人是终端管理员（施工 I-16：踢人不用二次确认）：群里核心认出对着本机账号的（`by.account`），私聊里核心照对应表认出的
+    /// （`by.kind` 是 `person`）。
+    pub owner: bool,
     /// 叫她的人在平台上的身份（同上，施工 T-2）：私聊里没有的照空的，不补对方。
     pub by: Option<ExternalId>,
     /// 叫她做的那一条（施工 T-2）；认不出的是空的。

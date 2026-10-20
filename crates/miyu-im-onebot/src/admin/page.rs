@@ -2,15 +2,15 @@
 //! 记录、排行），面板（一个群一项：她的身份、按动作筛的记录、排行榜、清空）。写法照核心的界面块，纯逻辑；字是语言到字的表，宿主
 //! 照页面的语言挑。
 //!
-//! 记录一条一行：做了什么、对谁（标题），谁做的、理由（说明），时刻（右边）；禁言的带状态：还在禁言中（`doing`）、已解禁（后来有
-//! 对这个人的解禁，`done`）、已过期（`off`）。
+//! 记录一条一行：做了什么、对谁（标题），谁做的、理由（说明），时刻（右边）；禁言的带状态：还在禁言中（`doing`）、已解禁（到期
+//! 以前有对这个人的解禁、踢出，`done`）、已过期（`off`）、被后一次禁言覆盖（字写「已覆盖」，状态照 `off`，施工 I-17：以前同一个人两条都写「禁言中」）。
 
 use serde_json::{Value, json};
 
 use miyu_im::toolset::clock;
 
 use super::groups::Group;
-use super::records::{Action, By, Record, Verdict};
+use super::records::{self, Action, By, MuteState, Record, Verdict};
 use super::summary::{self, Period};
 use super::sync::spoken;
 
@@ -50,16 +50,14 @@ fn who(name: Option<&str>, user: i64) -> String {
     name.map_or_else(|| user.to_string(), str::to_string)
 }
 
-/// 一条记录是禁言的话现在怎样：`(状态, 字)`；别的是空的。`later` 是这一条以后的记录。
-fn mute_state(record: &Record, later: &[Record], now: u64) -> Option<(&'static str, Value)> {
-    let seconds = record.seconds.filter(|_| record.action == Action::Mute)?;
-    let lifted = later.iter().any(|after| {
-        after.user == record.user && matches!(after.action, Action::Unmute | Action::Kick)
-    });
-    Some(match (lifted, now < record.at.saturating_add(seconds)) {
-        (true, _) => ("done", t("已解禁", "Unmuted", "解除済み")),
-        (false, true) => ("doing", t("禁言中", "Muted", "ミュート中")),
-        (false, false) => ("off", t("已过期", "Expired", "期限切れ")),
+/// 一条记录是禁言的话现在怎样：`(状态, 字)`；别的是空的（`records::mute_state`）。
+fn mute_state(records: &[Record], index: usize, now: u64) -> Option<(&'static str, Value)> {
+    Some(match records::mute_state(records, index, now)? {
+        MuteState::Lifted => ("done", t("已解禁", "Unmuted", "解除済み")),
+        MuteState::Muted => ("doing", t("禁言中", "Muted", "ミュート中")),
+        MuteState::Expired => ("off", t("已过期", "Expired", "期限切れ")),
+        // 核心的界面块只认五种状态：照已过期的样子淡着，字写已覆盖。
+        MuteState::Overridden => ("off", t("已覆盖", "Overridden", "上書き済み")),
     })
 }
 
@@ -103,7 +101,16 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
         ),
     };
     let by = match &record.by {
-        By::Ai => t("AI", "AI", "AI"),
+        By::Ai { asked: None } => t("AI", "AI", "AI"),
+        // 施工 I-17：谁让她做的。
+        By::Ai { asked: Some(asker) } => {
+            let name = who(asker.name.as_deref(), asker.user);
+            t(
+                &format!("AI（{name} 让做的）"),
+                &format!("AI, asked by {name}"),
+                &format!("AI（{name} の依頼）"),
+            )
+        }
         By::Admin { user, name } => {
             let name = who(name.as_deref(), *user);
             t(
@@ -139,7 +146,7 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
             json!([{"text": said, "tone": tone}, {"text": clock(record.at), "tone": "dim"}]);
     }
     // 禁言的状态写在时刻前面，带语气（设计 02 第一节第 5 条：还在禁言中、已解禁、已过期）。
-    if let Some((state, said)) = mute_state(record, &records[index + 1..], now) {
+    if let Some((state, said)) = mute_state(records, index, now) {
         let tone = match state {
             "doing" => "warn",
             "done" => "good",

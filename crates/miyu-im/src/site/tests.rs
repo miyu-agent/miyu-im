@@ -225,3 +225,17 @@ fn the_venue_page_gets_model_refs_pools_and_what_is_used() {
         })
     );
 }
+
+#[test]
+fn the_venue_page_gets_presets_that_are_written_right() {
+    // 施工 I-16：浮窗「预设」那一格只要编号、名字；没写名字的照编号，写错了的不列。
+    let listed = serde_json::json!({"presets": [
+        {"preset": "chat", "name": "聊天", "summary": "", "icon": null},
+        {"preset": "plain", "name": "", "summary": ""},
+        {"preset": "broken", "problem": "第 3 行写错了", "line": 3}
+    ]});
+    assert_eq!(
+        super::venues::preset_choices(&listed),
+        serde_json::json!({"presets": [{"id": "chat", "name": "聊天"}, {"id": "plain", "name": "plain"}]})
+    );
+}

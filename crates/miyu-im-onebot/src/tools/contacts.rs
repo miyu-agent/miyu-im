@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use miyu_im::toolset::{Call, NAME, Planned, clean};
 
+use super::args::{bad_args, optional_text};
 use super::lookup::{Undone, said, undone};
 
 /// 列哪一种。
@@ -58,9 +59,13 @@ pub(crate) fn listed(
 
 /// `qq_contacts` 的一次调用（模块的说明）。
 pub(super) fn contacts(shown: usize, call: Call) -> Planned {
+    // 施工 I-17：写错的说哪个参数。
     let Some(kind) = kind(&call.args) else {
-        return Planned::Now(call.answers.say("unknown", &[("name", &call.tool)], true));
+        return bad_args(&call, "kind must be friends or groups");
     };
+    if let Err(bad) = optional_text(&call.args, "query", "query must be text") {
+        return bad_args(&call, bad);
+    }
     Planned::later(async move {
         match listing(&call, kind, shown).await {
             Ok(answer) => answer,

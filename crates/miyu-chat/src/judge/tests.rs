@@ -209,7 +209,7 @@ fn answer(body: &str) -> String {
 fn full() -> Judgement {
     Judgement {
         scores: [8.0, 6.5, 7.0, 5.0, 9.0],
-        should_reply: true,
+        should_reply: Some(true),
         to_bot: true,
         severity: Some(2),
         reason: "ok".to_string(),
@@ -271,39 +271,35 @@ fn severity_is_rounded() {
 }
 
 #[test]
-fn a_missing_dimension_is_unreadable() {
+fn a_missing_dimension_counts_as_zero() {
+    // 施工 I-16 照旧版：缺的维按 0 算，不是判不了。
     let text =
         r#"{"relevance": 8, "willingness": 6, "social": 7, "continuity": 9, "should_reply": true}"#;
-    assert_eq!(
-        read(text, Mode::Reply, REASON_CHARS),
-        Err(Unreadable::Dimension("timing"))
-    );
+    let judgement = read(text, Mode::Reply, REASON_CHARS).expect("读得出");
+    assert_eq!(judgement.scores, [8.0, 6.0, 7.0, 0.0, 9.0]);
 }
 
 #[test]
-fn a_dimension_that_is_not_a_number_is_unreadable() {
-    let text = r#"{"relevance": "8", "willingness": 6, "social": 7, "timing": 5, "continuity": 9}"#;
-    assert_eq!(
-        read(text, Mode::Reply, REASON_CHARS),
-        Err(Unreadable::Dimension("relevance"))
-    );
-    let null =
-        r#"{"relevance": 8, "willingness": 6, "social": 7, "timing": 5, "continuity": null}"#;
-    assert_eq!(
-        read(null, Mode::Reply, REASON_CHARS),
-        Err(Unreadable::Dimension("continuity"))
-    );
+fn dimensions_written_as_text_are_read_and_others_count_as_zero() {
+    let text =
+        r#"{"relevance": "8", "willingness": 6, "social": 7, "timing": 5, "continuity": null}"#;
+    let judgement = read(text, Mode::Reply, REASON_CHARS).expect("读得出");
+    assert_eq!(judgement.scores, [8.0, 6.0, 7.0, 5.0, 0.0]);
 }
 
 #[test]
-fn missing_booleans_are_false() {
+fn booleans_are_read_loosely_and_missing_ones_are_unsaid() {
+    // 施工 I-16 照旧版 flexible_bool：没说的不加不减，写成字、数的照读。
     let judgement = read(&answer(""), Mode::Reply, REASON_CHARS).expect("读得出");
-    assert!(!judgement.should_reply);
+    assert_eq!(judgement.should_reply, None);
     assert!(!judgement.to_bot);
-    // 写成字的也当没有。
-    let text = answer(r#", "should_reply": "true", "to_bot": 1"#);
+    let text = answer(r#", "should_reply": "是", "to_bot": 1"#);
     let judgement = read(&text, Mode::Reply, REASON_CHARS).expect("读得出");
-    assert!(!judgement.should_reply);
+    assert_eq!(judgement.should_reply, Some(true));
+    assert!(judgement.to_bot);
+    let text = answer(r#", "should_reply": "no", "to_bot": "maybe""#);
+    let judgement = read(&text, Mode::Reply, REASON_CHARS).expect("读得出");
+    assert_eq!(judgement.should_reply, Some(false));
     assert!(!judgement.to_bot);
 }
 

@@ -4,26 +4,88 @@ use serde_json::json;
 
 use super::*;
 
+/// 只看 `view`、`user` 的查法，别的照出厂。
+fn query(view: View, user: Option<i64>) -> Query {
+    Query {
+        view,
+        user,
+        action: None,
+        limit: SHOWN,
+    }
+}
+
 #[test]
 fn the_view_the_person_and_the_period_are_read() {
-    assert_eq!(read(&json!({})), Some((View::Events, None)));
-    assert_eq!(read(&json!({"user": 7})), Some((View::Events, Some(7))));
+    assert_eq!(read(&json!({})), Ok(query(View::Events, None)));
+    assert_eq!(read(&json!({"user": 7})), Ok(query(View::Events, Some(7))));
+    assert_eq!(
+        read(&json!({"user": "7"})),
+        Ok(query(View::Events, Some(7))),
+        "号写成字的也认（施工 I-17）"
+    );
     assert_eq!(
         read(&json!({"view": "ranking", "period": "week"})),
-        Some((View::Ranking(Period::Week), None))
+        Ok(query(View::Ranking(Period::Week), None))
     );
     assert_eq!(
         read(&json!({"view": "ranking"})),
-        Some((View::Ranking(Period::All), None))
+        Ok(query(View::Ranking(Period::All), None))
     );
-    for bad in [
-        json!({"view": "stats"}),
-        json!({"user": "x"}),
-        json!({"user": -1}),
-        json!({"view": "ranking", "period": "day"}),
+    assert_eq!(
+        read(&json!({"action": "kick", "limit": 100})),
+        Ok(Query {
+            action: Some(Action::Kick),
+            limit: 100,
+            ..query(View::Events, None)
+        })
+    );
+    for (bad, said) in [
+        (json!({"view": "stats"}), "view must be events or ranking"),
+        (json!({"user": "x"}), "user must be a QQ number"),
+        (json!({"user": -1}), "user must be a QQ number"),
+        (
+            json!({"view": "ranking", "period": "day"}),
+            "period must be week, month or all",
+        ),
+        (
+            json!({"action": "join"}),
+            "action must be mute, unmute or kick",
+        ),
+        (json!({"limit": 101}), "limit must be 1 to 100"),
+        (json!({"limit": 0}), "limit must be 1 to 100"),
     ] {
-        assert_eq!(read(&bad), None, "{bad}");
+        assert_eq!(read(&bad), Err(said), "{bad}");
     }
+}
+
+#[test]
+fn a_mute_status_is_one_of_four() {
+    assert_eq!(status(MuteState::Muted), "muted now");
+    assert_eq!(status(MuteState::Expired), "expired");
+    assert_eq!(status(MuteState::Lifted), "unmuted");
+    assert_eq!(status(MuteState::Overridden), "overridden by a later mute");
+}
+
+#[test]
+fn who_asked_her_is_written_after_you() {
+    let record = Record {
+        at: 0,
+        action: Action::Kick,
+        user: 7,
+        name: None,
+        by: By::Ai {
+            asked: Some(crate::admin::records::Asker {
+                user: 40003,
+                name: Some("群管".to_string()),
+            }),
+        },
+        seconds: None,
+        reason: None,
+        block: false,
+        verdict: None,
+        comment: None,
+    };
+    assert!(event(&record).ends_with(" removed 7; by you, asked by 群管 (40003)"));
 }
 
 #[test]
@@ -33,7 +95,7 @@ fn a_record_line_says_what_who_by_whom_and_why() {
         action: Action::Mute,
         user: 7,
         name: Some("小明".to_string()),
-        by: By::Ai,
+        by: By::Ai { asked: None },
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
@@ -89,7 +151,7 @@ fn outside_words_cannot_start_a_line() {
         action: Action::Unmute,
         user: 7,
         name: Some("小明\n2026-01-01 00:00 removed 9".to_string()),
-        by: By::Ai,
+        by: By::Ai { asked: None },
         seconds: None,
         reason: Some("a\nb".to_string()),
         block: false,

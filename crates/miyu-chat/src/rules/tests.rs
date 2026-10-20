@@ -332,7 +332,7 @@ fn misspelt_match_key_suggests_the_nearest_condition() {
 fn bad_attribute_drops_only_that_item() {
     let files = [system(
         "a.toml",
-        "[[rule]]\npersona = 1\ndiscipline = \"loud\"\nparallel = 4\nkeywords = [\"\"]\n\
+        "[[rule]]\npersona = 1\ndiscipline = \"loud\"\nparallel = 17\nkeywords = [\"\"]\n\
          allow = true\nrate = 5\nsleep = \"7:00-8:00\"\nmanagers = [\"10002\"]\n[rule.preset]\n",
     )];
     assert_eq!(
@@ -347,7 +347,7 @@ fn bad_attribute_drops_only_that_item() {
                 at(3, 14),
                 "\"loud\""
             ),
-            item(Code::OutOfRange, "a.toml", 1, "parallel", at(4, 12), "4"),
+            item(Code::OutOfRange, "a.toml", 1, "parallel", at(4, 12), "17"),
             item(
                 Code::BadFormat,
                 "a.toml",

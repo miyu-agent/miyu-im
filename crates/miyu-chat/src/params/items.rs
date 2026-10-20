@@ -34,9 +34,6 @@ const RECORDS: Kind = Kind::Int { min: 1, max: 100 };
 /// 违规的严重程度：1 到 10。0 是判官一报严重程度就回。
 const SEVERITY: Kind = Kind::Int { min: 1, max: 10 };
 
-/// 判官最多输出：1 到 100000 个 token。
-const TOKENS: Kind = Kind::Int { min: 1, max: LIMIT };
-
 /// 重试：0 到 10 次。
 const RETRIES: Kind = Kind::Int { min: 0, max: 10 };
 
@@ -199,12 +196,16 @@ pub(crate) const ITEMS: &[Item] = &[
     item("judge.persona", Kind::Bool, |p, v| {
         p.judge.persona = flag(v)
     }),
-    item("judge.max_tokens", TOKENS, |p, v| {
+    // 0 是不设（施工 I-16 照旧版）。
+    item("judge.max_tokens", CHARS_OR_NONE, |p, v| {
         p.judge.max_tokens = count(v)
     }),
     item("judge.timeout", TIMEOUT, |p, v| p.judge.timeout = millis(v)),
     item("judge.moderation_timeout", TIMEOUT, |p, v| {
         p.judge.moderation_timeout = millis(v)
+    }),
+    item("judge.attempt_timeout", TIMEOUT, |p, v| {
+        p.judge.attempt_timeout = millis(v)
     }),
     item("judge.retries", RETRIES, |p, v| p.judge.retries = count(v)),
     item("judge.reason_chars", CHARS_OR_NONE, |p, v| {

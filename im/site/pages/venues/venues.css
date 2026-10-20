@@ -83,6 +83,9 @@
   .d-tabs { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
   .d-tab { flex: none; }
   .d-tab .soon { display: none; }
+  /* 名字那一格至少留 160px：放不下控件的（标签、限流两格）换到下一行，不把名字挤成一字一行。 */
+  .d-body .row .label { flex: 1 1 160px; }
+  .tags { max-width: 100%; }
 }
 
 /* 概况里今天的数和最近判断（施工 I-7 上补），照样板 d-im.html。 */
@@ -99,6 +102,7 @@
 .why .grow { flex: 1; min-width: 0; }
 .why q { display: block; quotes: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .why small { color: var(--text-faint); }
+.why .why-said { margin: 4px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* 浮窗各页的格（施工 I-7 中一），照样板 d-im.html。 */
 .field .row { border-bottom: 1px solid var(--line); }
@@ -122,7 +126,7 @@
 /* 触发方式（施工 I-7 中二）：标签、拖动条、几个小数一行。 */
 .tags { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; max-width: 420px; }
 .tag { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; }
-.tag.inherited { padding-right: 10px; color: var(--text-faint); }
+.tag.inherited { color: var(--text-faint); }
 .tag button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); cursor: pointer; }
 .tag button:hover { background: var(--surface-3); color: var(--text); }
 .tag button .icon { width: 12px; height: 12px; }
@@ -130,6 +134,11 @@
 .slider { width: 160px; accent-color: var(--accent); }
 .slider-value { width: 40px; text-align: right; color: var(--text); }
 .input.num.narrow { width: 56px; }
+/* 睡眠的「不睡」：平常同底、悬停深一档、点亮了再深一档（不变白）。 */
+.pill { height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); cursor: pointer; transition: background-color 0.15s ease; }
+.pill:hover { background: var(--surface-3); color: var(--text); }
+.pill.on { background: var(--accent-soft); color: var(--on-primary-container); font-weight: 500; }
+.sleep { flex-wrap: wrap; justify-content: flex-end; }
 /* 写了的值照正文的颜色，继承的（占位字）淡一档：一眼分得出哪几格改过。 */
 .d-body .input { color: var(--text); }
 .d-body .input::placeholder { color: var(--text-faint); opacity: 1; }

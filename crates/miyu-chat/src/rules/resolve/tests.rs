@@ -258,13 +258,16 @@ fn the_repository_factory_rules_set_groups_and_private_chats() {
     let group_set = [
         ("discipline", text("chatty")),
         ("outbound.final_only", Value::Bool(true)),
-        ("parallel", Value::Int(1)),
-        ("rate", text("5/300s")),
+        ("parallel", Value::Int(3)),
+        ("rate", text("30/60s")),
+        ("recent", Value::Int(30)),
+        ("show_ids", Value::Bool(true)),
     ];
     let private_set = [
         ("discipline", text("every-message")),
         ("parallel", Value::Int(0)),
         ("rate", text("5/300s")),
+        ("show_ids", Value::Bool(true)),
     ];
     // 不写 `persona`、`preset`、参数：跟着核心的默认和出厂参数走（第一条施工时定的第 16 条）；群的仅发送最终消息例外（施工 O-57：
     // 群、私聊出厂不一样）。平台不挑。

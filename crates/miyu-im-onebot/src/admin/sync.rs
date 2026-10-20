@@ -5,8 +5,13 @@
 //!
 //! 一条连接另起一个任务照先后办（[`start`]）：要问 NapCat 两个人的名字和她的身份，回应在读这条连接的那一头读到，不能在那一头等。
 //! 踢走的人问不到名字，写号。
+//!
+//! 她自己踢的照旧不在这里记（工具那一头记过了），只记进「刚踢走的」（[`Removals`]，施工 I-17，同旧版的 `group_decrease` 台账）：
+//! NapCat 踢成了也可能回失败，踢人的工具照它核实人走没走。
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use tokio::sync::mpsc;
@@ -69,6 +74,48 @@ pub(crate) fn read(frame: &Value) -> Option<Moderated> {
     })
 }
 
+/// 刚踢走的记多久（同旧版：踢成了一两秒内必到）。
+const REMOVED_KEPT: Duration = Duration::from_secs(60);
+
+/// 她自己刚踢走的（施工 I-17）：群号、号 → 收到通知的时刻。
+#[derive(Debug, Default)]
+pub(crate) struct Removals(HashMap<(i64, i64), Instant>);
+
+impl Removals {
+    /// 记下群 `group` 里 `user` 在 `now` 被她踢走了；过了 [`REMOVED_KEPT`] 的顺手拿掉。
+    pub(crate) fn note(&mut self, (group, user): (i64, i64), now: Instant) {
+        self.0
+            .retain(|_, at| now.duration_since(*at) < REMOVED_KEPT);
+        self.0.insert((group, user), now);
+    }
+
+    /// 群 `group` 里 `user` 是不是 `now` 以前 [`REMOVED_KEPT`] 以内被她踢走的。
+    pub(crate) fn lately(&self, (group, user): (i64, i64), now: Instant) -> bool {
+        self.0
+            .get(&(group, user))
+            .is_some_and(|at| now.duration_since(*at) < REMOVED_KEPT)
+    }
+}
+
+/// 这个进程里她刚踢走的。
+static REMOVED: LazyLock<Mutex<Removals>> = LazyLock::new(Mutex::default);
+
+/// 一帧通知 `frame` 是不是她自己把人踢出群（`group_decrease` 的 `kick`，做的人是她）：是的交回群号、号（纯逻辑）。
+pub(crate) fn removed_by_her(frame: &Value) -> Option<(i64, i64)> {
+    let number = |value: &Value| value.as_i64().filter(|number| *number > 0);
+    let (bot, operator) = (number(&frame["self_id"])?, number(&frame["operator_id"])?);
+    let kicked = frame["notice_type"] == "group_decrease" && frame["sub_type"] == "kick";
+    (kicked && operator == bot).then_some((number(&frame["group_id"])?, number(&frame["user_id"])?))
+}
+
+/// 群 `group` 里 `user` 是不是刚被她踢走了（施工 I-17：踢人的工具核实用）。
+pub(crate) fn removed_lately(group: i64, user: i64) -> bool {
+    REMOVED
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .lately((group, user), Instant::now())
+}
+
 /// 一条连接上照先后记的那一头（模块的说明）：另起一个任务一件件办，经那条连接 `link` 问名字、身份；连接断了（发的一头放下了）就停。
 pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>) -> mpsc::UnboundedSender<Moderated> {
     let (sender, mut received) = mpsc::unbounded_channel();
@@ -81,8 +128,14 @@ pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>) -> mpsc::UnboundedSe
     sender
 }
 
-/// 一帧通知 `frame` 是别的管理员做的就交给那条连接照先后记的那一头 `syncing`。
+/// 一帧通知 `frame` 是别的管理员做的就交给那条连接照先后记的那一头 `syncing`；她自己踢走的记进「刚踢走的」（施工 I-17）。
 pub(crate) fn seen(syncing: &mpsc::UnboundedSender<Moderated>, frame: &Value) {
+    if let Some(removed) = removed_by_her(frame) {
+        REMOVED
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .note(removed, Instant::now());
+    }
     if let Some(moderated) = read(frame)
         && syncing.send(moderated).is_err()
     {

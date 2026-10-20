@@ -6,6 +6,7 @@
 // - 加一项：有选项的先选再加，回 {id} 的选中它。
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
+import { tagInput } from '../../shell/tags.js';
 import { block, tone } from './widgets.js';
 
 /** sections 段。 */
@@ -78,6 +79,7 @@ export function drawForm(part, context) {
   const drafts = (context.state.drafts[part.id] ??= {});
   const box = element('div', 'w-form');
   const failures = new Map();
+  const save = element('button', 'btn primary', part.submit?.label || say('plugins-page/save'));
   for (const field of part.fields || []) {
     const failed = element('div', 'row-failed');
     failures.set(field.key, failed);
@@ -85,9 +87,11 @@ export function drawForm(part, context) {
     const label = element('div', 'label', field.label);
     if (field.hint) label.append(element('small', null, field.hint));
     const value = field.key in drafts ? drafts[field.key] : field.value;
-    const put = (next) => {
+    // `quiet` 的（标签当场画上了）不重画整张表，只让「保存」按得下去。
+    const put = (next, quiet) => {
       drafts[field.key] = next;
-      context.redraw();
+      if (quiet) save.disabled = false;
+      else context.redraw();
     };
     const side = element('span', 'inline');
     side.append(control(field, value, put));
@@ -102,7 +106,6 @@ export function drawForm(part, context) {
     box.append(wrap);
   }
   const bottom = element('div', 'row-failed');
-  const save = element('button', 'btn primary', part.submit?.label || say('plugins-page/save'));
   save.disabled = Object.keys(drafts).length === 0;
   save.addEventListener('click', async () => {
     save.disabled = true;
@@ -178,26 +181,14 @@ function control(field, value, put) {
       area.addEventListener('change', () => put(area.value === '' ? null : area.value));
       return area;
     }
-    case 'list': {
-      const box = element('div', 'tags');
-      const items = Array.isArray(value) ? value : [];
-      items.forEach((item, at) => {
-        const tag = element('span', 'tag', item);
-        const remove = element('button');
-        remove.title = say('field/remove');
-        remove.append(icon('i-x'));
-        remove.addEventListener('click', () => put(items.filter((_, index) => index !== at)));
-        tag.append(remove);
-        box.append(tag);
+    case 'list':
+      // 标签当场画上（shell/tags.js），只记进改了的格、不重画整张表（重画会把正在填的那一格换掉）。
+      return tagInput({
+        items: Array.isArray(value) ? value : null,
+        inherited: Array.isArray(fallback) ? fallback : [],
+        placeholder: field.placeholder,
+        save: (next) => put(next, true),
       });
-      const typed = element('input', 'input tag-add');
-      typed.placeholder = field.placeholder || say('field/add-word');
-      typed.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && typed.value.trim()) put([...items, typed.value.trim()]);
-      });
-      box.append(typed);
-      return box;
-    }
     default: {
       const input = element('input', 'input plug-text');
       input.value = value ?? '';

@@ -147,6 +147,7 @@ impl Link for Wire {
                 user,
                 name: None,
                 rank: None,
+                title: None,
             });
             member.user = user;
             member

@@ -3,7 +3,8 @@
 //
 // - 三个数：今天收到、今天回复、只记录。
 // - 最近判断（只有群聊的：私聊不判）：一条一行，回了的打勾、没回的一横；引号里是那条消息的开头，下面「谁 · 几点 · 为什么」。为什么照
-//   宿主给的原因编号写（noted.rs 的那几种，`skip_user` 是在跳过判断的人里），挂接点改了结论的后面写是哪个插件。
+//   宿主给的原因编号写（noted.rs 的那几种，`skip_user` 是在跳过判断的人里），挂接点改了结论的后面写是哪个插件；带了判官的理由
+//   （`why.reason_text`）的再写一行小字。
 import { element, say } from '../../shell/i18n.js';
 
 /** 画进 `holder`：`answer` 是 cards.overview 的回答，`type` 是 group、private。 */
@@ -36,6 +37,9 @@ function row(note) {
   const grow = element('div', 'grow');
   const time = new Date(note.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   grow.append(element('q', null, note.text || say('venue/no-text')), element('small', null, [note.who, time, reason(note)].join(' · ')));
+  // 判官说的理由（宿主给了 `why.reason_text` 的）：另起一行小字。
+  const said = typeof note.why?.reason_text === 'string' ? note.why.reason_text.trim() : '';
+  if (said) grow.append(element('p', 'why-said', said));
   line.append(mark, grow);
   return line;
 }
