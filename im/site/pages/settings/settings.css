@@ -1,5 +1,12 @@
-/* 设置页（施工 I-7 下一）：一段一块，照首页的面板。 */
-.settings-section { margin-bottom: 14px; padding-top: 12px; padding-bottom: 6px; }
+/* 设置页（施工 I-7 下一）：一段一块，照首页的面板；照样板左边一列切段（施工 I-7 下补），窄的切段排成一行。 */
+.set { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; }
+.set-nav { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 720px) {
+  .set { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .set-nav { flex-direction: row; overflow-x: auto; }
+  .set-nav .d-tab { flex: none; }
+}
+.settings-section { padding-top: 12px; padding-bottom: 6px; }
 .section-title { margin-bottom: 2px; font-size: 14px; font-weight: 600; }
 .section-title small { display: block; margin-top: 2px; color: var(--text-faint); font-size: 12px; font-weight: 400; }
 .settings-section .row:last-child { border-bottom: 0; }

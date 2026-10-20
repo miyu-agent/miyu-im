@@ -1,5 +1,6 @@
 // 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：会话默认值（施工 I-7 下二）、账号绑定（平台身份
-// → Miyu 账号，核心的 `external.bindings`）、通用（去掉末尾句号、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。
+// → Miyu 账号，核心的 `external.bindings`）、通用（去掉末尾句号、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。照样板左边一列
+// 切段、右边一次一段（施工 I-7 下补）；切到哪一段重画时照旧。
 //
 // - 会话默认值是一张卡（`cards.json` 的 `defaults`，项目主人 10-20 定）：照会话浮窗那几页同一套格画（form.js），卡上没改的格照它。存照
 //   cards.save_one，宿主推 cards 再读；正在填的那一格不被重画掉。
@@ -16,6 +17,8 @@ const TABS = ['persona', 'trigger', 'pace', 'send'];
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
   let platform = '';
+  // 正开着的一段。
+  let page = 'defaults';
   // 会话默认值要的：模型、能贴的表情问一次；「高级」展开着的重画时照旧。
   let models = null;
   let reactions = null;
@@ -36,7 +39,13 @@ export function mountSettings(view, { request }) {
       return;
     }
     const context = { request, platform, models, reactions, expanded, personas: cards.personas || [], friends: cards.friends || [], idWord: idWord('private', platform) };
-    view.replaceChildren(head(), defaults(cards, context), ...bindings(got, platform, save), ...general(got, save), ...site(got, save));
+    const pages = [
+      ['defaults', defaults(cards, context)],
+      ['bindings', bindings(got, platform, save)],
+      ['general', general(got, save)],
+      ['site', site(got, save)],
+    ];
+    view.replaceChildren(head(), tabbed(pages, page, (key) => (page = key)));
   };
   const save = async (key, value) => {
     try {
@@ -79,6 +88,26 @@ function defaults(cards, context) {
     rows.push(element('div', 'group-name', say(`venue/tab-${tab}`)), ...form);
   }
   return section('settings-page/defaults', 'settings-page/defaults-hint', rows);
+}
+
+/** 左边一列切段（`pages` 是 `[编号, 那一段]`），开着 `open` 那一段；切了告诉 `chose`。 */
+function tabbed(pages, open, chose) {
+  const box = element('div', 'set');
+  const nav = element('div', 'set-nav');
+  const buttons = pages.map(([key, panel]) => {
+    const button = element('button', key === open ? 'd-tab on' : 'd-tab', say(`settings-page/${key}`));
+    panel.hidden = key !== open;
+    button.addEventListener('click', () => {
+      for (const [other, shown] of pages) shown.hidden = other !== key;
+      for (const each of buttons) each.classList.toggle('on', each === button);
+      chose(key);
+    });
+    return button;
+  });
+  nav.append(...buttons);
+  box.append(nav, element('div', 'set-body'));
+  box.lastChild.append(...pages.map(([, panel]) => panel));
+  return box;
 }
 
 function head() {
@@ -135,7 +164,7 @@ function bindings(got, platform, save) {
   const adding = element('span', 'inline');
   adding.append(number, account, add);
   rows.push(row(say('settings-page/bind-new'), '', adding));
-  return [section('settings-page/bindings', 'settings-page/bindings-hint', rows)];
+  return section('settings-page/bindings', 'settings-page/bindings-hint', rows);
 }
 
 /** 通用：去掉末尾句号、回执自动撤回的命令。 */
@@ -161,12 +190,10 @@ function general(got, save) {
     if (event.key === 'Enter' && typed) save('recall_receipts', [...commands, typed]);
   });
   tags.append(adding);
-  return [
-    section('settings-page/general', null, [
-      row(say('settings-page/strip-period'), say('settings-page/strip-period-hint'), strip),
-      row(say('settings-page/recall'), say('settings-page/recall-hint'), tags),
-    ]),
-  ];
+  return section('settings-page/general', null, [
+    row(say('settings-page/strip-period'), say('settings-page/strip-period-hint'), strip),
+    row(say('settings-page/recall'), say('settings-page/recall-hint'), tags),
+  ]);
 }
 
 /** 网页服务：端口；登录用 Miyu 账号。 */
@@ -179,7 +206,5 @@ function site(got, save) {
     if (Number.isInteger(number) && number > 0 && number < 65536) save('port', number);
     else toast(say('failed/invalid'));
   });
-  return [
-    section('settings-page/site', 'settings-page/site-hint', [row(say('settings-page/port'), say('settings-page/port-hint'), port)]),
-  ];
+  return section('settings-page/site', 'settings-page/site-hint', [row(say('settings-page/port'), say('settings-page/port-hint'), port)]);
 }

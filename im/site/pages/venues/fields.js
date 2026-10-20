@@ -26,7 +26,7 @@ const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 export const FIELDS = {
   persona: [
     { key: 'persona', control: 'persona', label: 'field/persona', hint: 'field/persona-hint' },
-    { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', wide: true },
+    { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', defaultsHint: 'field/extra-prompt-hint-defaults', wide: true },
     { group: 'field/models' },
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
     { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'chat', kinds: GROUPS, dep: JUDGE },

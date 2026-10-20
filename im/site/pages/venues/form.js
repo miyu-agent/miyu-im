@@ -43,7 +43,9 @@ export function drawForm(tab, one, context) {
 function row(field, one, context) {
   const line = element('div', field.wide ? 'row wide' : 'row');
   const label = element('div', 'label', spaced(say(field.label, { id: context.idWord })));
-  if (field.hint) label.append(element('small', null, say(field.hint)));
+  // 会话默认值那张卡上说「只在这个会话」不对的格另有一句（施工 I-7 下补）。
+  const hint = (one.kind === 'defaults' && field.defaultsHint) || field.hint;
+  if (hint) label.append(element('small', null, say(hint)));
   const failed = element('div', 'row-failed');
   // 存 `key` 那一格（几项一行的照项各存各的）；和默认一样的交 null。这一格是 `clears` 的（线路规程）一起去掉卡上旧写法的那几格。
   const saveKey = async (key, value) => {
