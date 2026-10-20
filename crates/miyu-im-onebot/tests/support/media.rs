@@ -128,3 +128,21 @@ pub fn has_blob(home: &Home, account: &str, bytes: &[u8]) -> bool {
         .get(&ContentHash::of(bytes))
         .is_ok_and(|kept| kept == bytes)
 }
+
+/// 账号 `account` 的会话存东西的 `qq-files/`（真实位置）。核心 5-14 上起场所会话用自己的默认工作区
+/// （`home/<账号>/workspace/<会话编号>/`，不再几个群共用账号的工作区）：账号的工作区里直接有的用它，没有的找下一层会话的那一个。
+pub fn qq_files_in(home: &Home, account: &str) -> std::path::PathBuf {
+    let account = AccountId::parse(account).expect("合写法");
+    let workspace = std::fs::canonicalize(home.root.workspace(&account)).expect("工作区在");
+    let direct = workspace.join("qq-files");
+    if direct.is_dir() {
+        return direct;
+    }
+    std::fs::read_dir(&workspace)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path().join("qq-files"))
+        .find(|dir| dir.is_dir())
+        .unwrap_or(direct)
+}

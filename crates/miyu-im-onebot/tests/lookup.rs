@@ -8,7 +8,6 @@ use std::sync::Arc;
 use serde_json::json;
 
 use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_kernel::id::AccountId;
 
 use crate::support::group::*;
 use crate::support::media::*;
@@ -25,12 +24,9 @@ fn serving(bytes: &[u8]) -> Reply {
     }
 }
 
-/// 系统账号的工作区下的 `qq-files/`（真实位置）。
+/// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {
-    let onebot = AccountId::parse("im").expect("合写法");
-    std::fs::canonicalize(home.root.workspace(&onebot))
-        .expect("工作区在")
-        .join("qq-files")
+    crate::support::media::qq_files_in(home, "im")
 }
 
 #[tokio::test]

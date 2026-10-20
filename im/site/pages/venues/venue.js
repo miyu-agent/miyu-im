@@ -6,6 +6,8 @@
 // - 概况：是否回复（私聊白名单里的人没有这一格：在名单里就是要回），改了当场存（cards.save_one），存好了宿主推 cards、墙跟着变。
 //   下面今天的数和最近判断（施工 I-7 上补，overview.js）：开的时候问一次 cards.overview，宿主推了变了（来了消息、卡片变了）再问。
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
+// - 「插件加的」（施工 I-8 下，设计 01 第四节第 5 条）：声明了浮窗一页、在这个会话开着的插件（2026-10-20 项目主人定：开着才出现）
+//   一个一页，兜底卡上没有；内容经插件登记的 chat.panel 取（plugins/widget-host.js），这一个浮窗开着时只取一次，点了动作、存了表单再取。
 import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { face } from './face.js';
@@ -15,7 +17,8 @@ import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
 import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
-import { drawPlugins } from './plugins.js';
+import { drawPlugins, isOn, named as pick } from './plugins.js';
+import { mountWidget } from '../plugins/widget-host.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
@@ -49,6 +52,22 @@ export function openVenue(one, context, onClose) {
   let asking = 0;
   // 哪几页的「高级」展开着：重画时照旧。
   const expanded = new Set();
+  // 插件加的几页：编号 → 画好的那一块（只取一次）。
+  const panels = new Map();
+  const panelOf = (plugin) => {
+    if (!panels.has(plugin.package)) {
+      const box = element('div', 'plugin-panel');
+      mountWidget(box, plugin.package, { place: 'panel', venue: { type: shown.type, id: shown.id } }, {
+        request: context.request,
+        openPage: (id) => {
+          close();
+          location.hash = `plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(id)}`;
+        },
+      });
+      panels.set(plugin.package, box);
+    }
+    return panels.get(plugin.package);
+  };
   // 选模型的下拉：开的时候问一次宿主（models），问到了重画这一页。
   let models = null;
   context
@@ -84,6 +103,11 @@ export function openVenue(one, context, onClose) {
     who.append(face(shown.type, shown.id, shown.name), named);
     const tabs = element('div', 'd-tabs');
     side.replaceChildren(who, tabs);
+    const added = shown.id
+      ? (context.plugins || []).filter((plugin) => plugin.ui?.panel && isOn(shown, plugin, context.fallbacks?.[shown.type] || {}))
+      : [];
+    const plugin = added.find((one) => `plugin:${one.package}` === tab);
+    if (tab.startsWith('plugin:') && !plugin) tab = 'overview';
     for (const one of TABS) {
       if (one.kinds && !one.kinds.includes(shown.kind)) continue;
       const form = one.id === 'overview' ? null : FIELDS[one.id];
@@ -100,8 +124,19 @@ export function openVenue(one, context, onClose) {
       }
       tabs.append(button);
     }
-    title.textContent = say(`venue/tab-${tab}`);
-    if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
+    if (added.length > 0) tabs.append(element('div', 'd-sep', say('venue/plugins-added')));
+    for (const one of added) {
+      const id = `plugin:${one.package}`;
+      const button = element('button', id === tab ? 'd-tab on' : 'd-tab', pick(one.name) || one.package);
+      button.addEventListener('click', () => {
+        tab = id;
+        draw();
+      });
+      tabs.append(button);
+    }
+    title.textContent = plugin ? pick(plugin.name) || plugin.package : say(`venue/tab-${tab}`);
+    if (plugin) body.replaceChildren(panelOf(plugin));
+    else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));
     else {
       const idWord = idWordOf('private', context.platform);

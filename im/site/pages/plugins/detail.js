@@ -5,6 +5,7 @@
 // - README 宿主经桥自己的连接读（plugins.readme），读过的记着，重画时不再读；没写的照一句说明。
 // - 开着、没在跑的（缺批准、失败停下），头下面说一句为什么。
 import { element, icon, say } from '../../shell/i18n.js';
+import { toast } from '../../shell/dialog.js';
 import { face } from '../venues/face.js';
 import { entries } from '../venues/model.js';
 import { idLine, titleOf } from '../venues/names.js';
@@ -30,7 +31,7 @@ export function drawDetail(plugin, context) {
     parts.push(element('p', 'plug-notice', why));
   }
   const two = element('div', 'two');
-  two.append(tabs(plugin, all, context), about(plugin, all, context.platform));
+  two.append(tabs(plugin, all, context), about(plugin, all, context.platform, context));
   parts.push(two);
   return parts;
 }
@@ -53,6 +54,13 @@ function detailHead(plugin, context) {
   }
   if (links.childElementCount > 0) grow.append(links);
   head.append(pluginIcon(plugin), grow, masterSwitch(plugin, context));
+  // 声明的整页（施工 I-8 下，2026-10-20 项目主人定：详情头上一个整页一个按钮）。
+  for (const page of plugin.enabled ? plugin.ui?.pages || [] : []) {
+    const open = element('a', 'btn open-panel');
+    open.href = `#plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(page.id)}`;
+    open.textContent = named(page.title) || page.id;
+    head.append(open);
+  }
   // 有后台页、开着的：打开面板（施工 I-9 下）。
   if (plugin.page && plugin.enabled) {
     const open = element('a', 'btn primary open-panel');
@@ -127,7 +135,7 @@ function where(plugin, all, { request, platform }) {
 }
 
 /** 右边「关于」。 */
-function about(plugin, all, host) {
+function about(plugin, all, host, context) {
   const panel = element('div', 'panel plug-about');
   panel.append(element('h3', null, say('plugins-page/about')));
   const fallbacks = fallbacksOf(all);
@@ -150,5 +158,24 @@ function about(plugin, all, host) {
     row.append(element('span', null, say(`plugins-page/about-${key}`)), element('b', key === 'platform' && plugin.unusable ? 'bad' : null, value));
     panel.append(row);
   }
+  if (plugin.ui?.home) panel.append(homeSwitch(plugin, context));
   return panel;
+}
+
+/** 「放在首页」（施工 I-8 下，2026-10-20 项目主人定：只在插件详情里开关）。 */
+function homeSwitch(plugin, context) {
+  const row = element('div', 'meta-row home-switch');
+  const button = element('button', plugin.on_home !== false ? 'switch on' : 'switch');
+  button.append(element('i'));
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await context.request('plugins.home', { package: plugin.package, shown: plugin.on_home === false });
+    } catch {
+      toast(say('failed/save'));
+    }
+    context.reload();
+  });
+  row.append(element('span', null, say('plugins-page/on-home')), button);
+  return row;
 }

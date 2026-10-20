@@ -81,6 +81,7 @@ mod site_plugins;
 mod site_settings;
 mod site_today;
 mod site_venues;
+mod site_widgets;
 mod skip_ends;
 mod skipped;
 mod spawned;

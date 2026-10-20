@@ -18,6 +18,8 @@
 //! - `plugins.list`、`plugins.readme`、`plugins.enable`：插件页（施工 I-9 上，`plugins`）。
 //! - `plugins.settings.get`、`plugins.settings.set`、`plugins.call`：插件自己的设置、插件面板（施工 I-9 中，`plugin_settings`）。
 //! - `plugins.panel`：插件面板的地址（施工 I-9 下，`panels`）。
+//! - `plugins.home`：首页上放不放这个插件的卡片（施工 I-8 下，`home_cards`）。
+//! - `plugins.widget`：插件往页面加的内容（施工 I-8 下，`plugin_widgets`）。
 //! - 别的：`unknown_method`。
 
 use std::sync::Arc;
@@ -26,7 +28,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::logins::Login;
-use super::{Person, Site, logs, panels, plugin_settings, plugins, save, settings, venues};
+use super::{
+    Person, Site, home_cards, logs, panels, plugin_settings, plugin_widgets, plugins, save,
+    settings, venues,
+};
 use crate::core::methods::short_path;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
@@ -62,7 +67,9 @@ pub(super) async fn answer(
         Some("reactions") => Ok(reactions(site)),
         Some("settings.get") => settings::get(&login.person, &login.account).await,
         Some("settings.set") => settings::set(&login.person, params).await,
-        Some("plugins.list") => plugins::list(&login.person).await,
+        Some("plugins.list") => plugins::list(site, &login.person).await,
+        Some("plugins.home") => home_cards::set(site, &login.person, params).await,
+        Some("plugins.widget") => plugin_widgets::widget(site, &login.person, params).await,
         Some("plugins.readme") => plugins::readme(site, &login.person, params).await,
         Some("plugins.enable") => plugins::enable(&login.person, params).await,
         Some("plugins.settings.get") => plugin_settings::get(&login.person, params).await,

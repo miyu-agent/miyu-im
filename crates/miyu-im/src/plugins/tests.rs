@@ -158,3 +158,46 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     );
     assert!(!toggles.enabled(None, "admin", false), "认不出场所的照默认");
 }
+
+#[test]
+fn ui_declarations_read_and_bad_ones_are_refused() {
+    // 施工 I-8 下：首页卡片、浮窗一页、整页。
+    let text = "[plugin]\nname = { en = \"x\" }\n[plugin.ui]\nhome = true\npanel = true\n[[plugin.ui.pages]]\nid = \"library\"\ntitle = { zh = \"图库\" }\nmethod = \"memes.library\"\n";
+    let declared = declared::read(text).expect("读得出");
+    assert!(declared.ui.home && declared.ui.panel);
+    assert_eq!(declared.ui.pages[0].id, "library");
+    assert_eq!(declared.ui.pages[0].method, "memes.library");
+    let bare = declared::read("[plugin]\nname = { en = \"x\" }\n").expect("读得出");
+    assert_eq!(bare.ui, declared::Ui::default());
+    let page = |id: &str, title: &str, method: &str| {
+        format!(
+            "[[plugin.ui.pages]]\nid = \"{id}\"\ntitle = {{ en = \"{title}\" }}\nmethod = \"{method}\"\n"
+        )
+    };
+    let head = "[plugin]\nname = { en = \"x\" }\n";
+    let many: String = (0..=declared::PAGES)
+        .map(|n| page(&format!("p{n}"), "T", "m"))
+        .collect();
+    let wrongs = [
+        ("编号大写", page("Lib", "T", "m")),
+        ("编号太长", page(&"a".repeat(33), "T", "m")),
+        (
+            "重了",
+            format!("{}{}", page("a", "T", "m"), page("a", "T", "n")),
+        ),
+        ("方法名不对", page("a", "T", "Memes")),
+        ("没有标题", page("a", " ", "m")),
+        ("太多", many),
+        ("认不出的键", "[plugin.ui]\nwidget = true\n".to_string()),
+    ];
+    for (why, tail) in wrongs {
+        assert!(declared::read(&format!("{head}{tail}")).is_err(), "{why}");
+    }
+    assert!(
+        declared::read(&format!(
+            "{head}{}",
+            page(&"a".repeat(32), "T", &"m".repeat(64))
+        ))
+        .is_ok()
+    );
+}

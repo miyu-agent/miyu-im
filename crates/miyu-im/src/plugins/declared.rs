@@ -5,12 +5,15 @@
 //! - `platforms`：只在这几个平台上用；不写的哪个平台都行。
 //! - `needs`：要的平台能力（`chat::Cap` 的名字）。
 //! - `default`：没设过的场所开不开，不写的开。
+//! - `[plugin.ui]`（施工 I-8 下，设计 01 第四节第 5 条）：往 im 的页面加什么。`home = true` 放一张首页卡片（im 调它登记的
+//!   `chat.home`），`panel = true` 在会话浮窗加一页（`chat.panel`），`[[plugin.ui.pages]]` 一个整页一段：`id`（小写字母开头，小写
+//!   字母、数字、`-`，最多 32 个，不重）、`title`（照语言写）、`method`（交内容的方法，写法同核心登记的方法名）；最多 [`PAGES`] 个。
 //!
 //! 写错的、认不出的键、认不出的能力整份不收。「挂在哪几处」照核心清单的 `[export] methods`，这里不另写。
 
 use std::collections::BTreeMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::chat::Cap;
 
@@ -29,7 +32,35 @@ pub struct Declared {
     pub needs: Vec<Cap>,
     /// 没设过的场所开不开。
     pub default: bool,
+    /// 往 im 的页面加的（施工 I-8 下）。
+    pub ui: Ui,
 }
+
+/// 往 im 的页面加的（模块的说明）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Ui {
+    /// 放一张首页卡片。
+    pub home: bool,
+    /// 在会话浮窗加一页。
+    pub panel: bool,
+    /// 整页，照写的先后。
+    pub pages: Vec<Page>,
+}
+
+/// 一个整页。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Page {
+    /// 编号。
+    pub id: String,
+    /// 标题：语言到字。
+    pub title: BTreeMap<String, String>,
+    /// 交内容的方法。
+    pub method: String,
+}
+
+/// 一个插件最多几个整页。
+pub const PAGES: usize = 8;
 
 /// 详情页用的几样（施工 I-8 下画）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,6 +107,20 @@ struct Raw {
     needs: Vec<String>,
     #[serde(default = "on")]
     default: bool,
+    #[serde(default)]
+    ui: RawUi,
+}
+
+/// `[plugin.ui]` 原样。
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawUi {
+    #[serde(default)]
+    home: bool,
+    #[serde(default)]
+    panel: bool,
+    #[serde(default)]
+    pages: Vec<Page>,
 }
 
 /// 不写 `default` 的开。
@@ -112,5 +157,53 @@ pub fn read(text: &str) -> Result<Declared, String> {
         platforms: raw.platforms,
         needs,
         default: raw.default,
+        ui: ui(raw.ui)?,
     })
+}
+
+/// 查 `[plugin.ui]`：整页的编号、方法名的写法，编号不重，标题不空，最多 [`PAGES`] 个。
+fn ui(raw: RawUi) -> Result<Ui, String> {
+    if raw.pages.len() > PAGES {
+        return Err(format!("plugin.ui.pages has more than {PAGES} pages"));
+    }
+    for (at, page) in raw.pages.iter().enumerate() {
+        if !page_id(&page.id) {
+            return Err(format!("plugin.ui.pages: bad id {:?}", page.id));
+        }
+        if raw.pages[..at].iter().any(|before| before.id == page.id) {
+            return Err(format!("plugin.ui.pages: id {} twice", page.id));
+        }
+        if !method_name(&page.method) {
+            return Err(format!(
+                "plugin.ui.pages.{}: bad method {:?}",
+                page.id, page.method
+            ));
+        }
+        if page.title.values().all(|title| title.trim().is_empty()) {
+            return Err(format!("plugin.ui.pages.{}: no title", page.id));
+        }
+    }
+    Ok(Ui {
+        home: raw.home,
+        panel: raw.panel,
+        pages: raw.pages,
+    })
+}
+
+/// 整页的编号：小写字母开头，小写字母、数字、`-`，最多 32 个（同核心界面块的编号）。
+fn page_id(id: &str) -> bool {
+    id.len() <= 32
+        && id.starts_with(|c: char| c.is_ascii_lowercase())
+        && id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// 方法名：小写字母开头，小写字母、数字、`_`、`.`、`-`，1 到 64 个（同核心 `package.methods`）。
+fn method_name(name: &str) -> bool {
+    name.len() <= 64
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '.' | '-'))
 }

@@ -3,7 +3,7 @@
 //! - `plugins.list` → `{"plugins": [...]}`：im 认得的插件（会话浮窗的 `cards.get` 交的那一份，`crate::core::hooks`），每个并上核心说的：
 //!   `package.list` 的 `version`、`author`、`from`、`enabled`、`status`、`page`（有后台页的为真）和 `points`（导出的挂接点，照
 //!   `POINTS` 的先后），`extension.status` 的 `state`、`reason`、`capabilities`（`[{id, name, summary}]`）、`unapproved`。核心那边没有
-//!   这个包的只有 im 的几格。
+//!   这个包的只有 im 的几格。声明了首页卡片的另带 `on_home`（放不放，`home_cards`，施工 I-8 下）。
 //! - `plugins.readme {package}` → `{"text"}`：插件声明的 README（`links.readme`，经桥自己的连接 `content.read`：只有 im 读得到插件带给
 //!   它的目录）。没写的、读不成的 `not_found`，不是 UTF-8 的 `bad_readme`。
 //! - `plugins.enable {package, on, approve?}` → 核心回的那一项：人的连接上 `package.enable`（`approve` 是要一并批准的能力的编号，
@@ -13,7 +13,7 @@
 
 use serde_json::{Map, Value, json};
 
-use super::{Person, Site, venues};
+use super::{Person, Site, home_cards, venues};
 use crate::core::Gone;
 use crate::core::hooks::POINTS;
 use crate::core::methods::CARDS_GET;
@@ -34,7 +34,7 @@ pub(super) async fn core(
 }
 
 /// im 认得的插件（`cards.get` 的 `plugins`）。
-async fn known(person: &Person) -> Result<Vec<Value>, (String, String)> {
+pub(super) async fn known(person: &Person) -> Result<Vec<Value>, (String, String)> {
     let cards = venues::forward(person, CARDS_GET, &json!({})).await?;
     Ok(cards["plugins"].as_array().cloned().unwrap_or_default())
 }
@@ -48,13 +48,21 @@ pub(super) async fn is_plugin(person: &Person, package: &str) -> Result<bool, (S
 }
 
 /// `plugins.list`（模块的说明）。
-pub(super) async fn list(person: &Person) -> Result<Value, (String, String)> {
+pub(super) async fn list(site: &Site, person: &Person) -> Result<Value, (String, String)> {
     let known = known(person).await?;
+    let hidden = home_cards::hidden(&site.root);
     let packages = core(person, "package.list", json!({})).await?;
     let extensions = core(person, "extension.status", json!({})).await?;
     let plugins: Vec<Value> = known
         .into_iter()
         .map(|plugin| merged(plugin, &packages["packages"], &extensions["extensions"]))
+        .map(|mut plugin| {
+            if plugin["ui"]["home"] == true {
+                let package = plugin["package"].as_str().unwrap_or_default();
+                plugin["on_home"] = json!(!hidden.contains(package));
+            }
+            plugin
+        })
         .collect();
     Ok(json!({"plugins": plugins}))
 }

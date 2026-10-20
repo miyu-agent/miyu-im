@@ -11,8 +11,6 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use miyu_kernel::id::AccountId;
-
 use crate::support::group::*;
 use crate::support::media::*;
 use crate::support::platform::*;
@@ -60,12 +58,9 @@ fn answered(results: &[Value]) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 终端管理员的工作区下的 `qq-files/`（真实位置）：他的私聊会话归他。
+/// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {
-    let admin = AccountId::parse("admin").expect("合写法");
-    std::fs::canonicalize(home.root.workspace(&admin))
-        .expect("工作区在")
-        .join("qq-files")
+    crate::support::media::qq_files_in(home, "admin")
 }
 
 #[tokio::test]

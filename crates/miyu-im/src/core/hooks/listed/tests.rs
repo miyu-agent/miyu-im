@@ -22,6 +22,12 @@ fn written_details_go_out_and_unwritten_ones_stay_out() {
         ),
         ("full".to_string(), declared::read(full)),
         (
+            "shows".to_string(),
+            declared::read(
+                "[plugin]\nname = { en = \"s\" }\n[plugin.ui]\npanel = true\n[[plugin.ui.pages]]\nid = \"lib\"\ntitle = { en = \"Lib\" }\nmethod = \"m.lib\"\n",
+            ),
+        ),
+        (
             "wants".to_string(),
             declared::read("[plugin]\nname = { en = \"y\" }\nneeds = [\"forward\", \"mute\"]\n"),
         ),
@@ -43,8 +49,13 @@ fn written_details_go_out_and_unwritten_ones_stay_out() {
             "platforms": ["qq"], "needs": ["mute"],
         })
     );
-    assert_eq!(listed[3]["unusable"], "missing");
-    assert_eq!(listed[3]["missing"], json!(["forward"]));
+    assert!(listed[2].get("ui").is_none(), "没写的不带");
+    assert_eq!(
+        listed[3]["ui"],
+        json!({"home": false, "panel": true, "pages": [{"id": "lib", "title": {"en": "Lib"}, "method": "m.lib"}]})
+    );
+    assert_eq!(listed[4]["unusable"], "missing");
+    assert_eq!(listed[4]["missing"], json!(["forward"]));
     let elsewhere = listed_on(&plugins, "tg");
     assert_eq!(elsewhere[2]["unusable"], "other_platforms");
     assert!(elsewhere[2].get("missing").is_none());

@@ -75,3 +75,13 @@
 .logo { width: 62%; height: 62%; fill: currentColor; color: #fff; }
 .pf-badge .logo { width: 70%; height: 70%; }
 .node .logo { width: 26px; height: 26px; color: inherit; }
+/* 插件的首页卡片（施工 I-8 下）：照样板一张占两格。 */
+.plugin-cards:empty { display: none; }
+.home-card { grid-column: span 2; }
+.home-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13.5px; font-weight: 600; }
+.home-card h3 small { color: var(--text-faint); font-weight: 400; }
+.home-card h3 .ico { width: 26px; height: 26px; border-radius: 8px; }
+.home-card h3 .ico .icon { width: 14px; height: 14px; }
+@media (max-width: 720px) {
+  .home-card { grid-column: span 2; }
+}

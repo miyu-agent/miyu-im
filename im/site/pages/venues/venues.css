@@ -140,3 +140,4 @@
 .row.plugin.off .label { opacity: 0.55; }
 .plugin-why { color: var(--danger) !important; }
 .switch:disabled { opacity: 0.4; cursor: default; }
+.d-sep { margin: 10px 10px 4px; color: var(--text-faint); font-size: 11.5px; font-weight: 600; }

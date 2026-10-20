@@ -2,10 +2,12 @@
 // 头像（页面服务转的，取不到的写平台的字母）、平台的角标、名字（没问到的写号）、平台和实现、号和连了多久；断开了的卡留着，写断开
 // 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面「今天」四个数（收到、回复、只记录、没发出去）和最近
 // 的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久每分钟照本机的钟重画一次（不问宿主）。
+// 「今天」下面放插件的首页卡片（施工 I-8 下，plugin-cards.js）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { picture } from '../../shell/avatar.js';
 import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
+import { pluginCards } from './plugin-cards.js';
 import { openWizard } from './wizard.js';
 
 /** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
@@ -15,6 +17,7 @@ export function mountHome(view, { request }) {
   let today = null;
   let logs = [];
   let level = 'all';
+  const plugins = pluginCards(request);
   const refresh = async () => {
     try {
       [today, logs] = await Promise.all([
@@ -61,7 +64,7 @@ export function mountHome(view, { request }) {
     for (const one of connections) grid.append(tile(one, request));
     const todayHead = element('div', 'section-head');
     todayHead.append(element('h2', null, say('home/today')));
-    view.replaceChildren(head, section, grid, todayHead, numbers(today), logPanel(logs, level, (chosen) => {
+    view.replaceChildren(head, section, grid, todayHead, numbers(today), plugins.box, logPanel(logs, level, (chosen) => {
       level = chosen;
       refresh();
     }));

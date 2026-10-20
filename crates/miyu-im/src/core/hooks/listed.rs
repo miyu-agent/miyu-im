@@ -1,6 +1,6 @@
 //! 认得的 im 插件，交给会话浮窗「管理插件」（施工 I-7 中四）和插件页（施工 I-9 上）：每个 `{package, name, summary, default}`（名字、说明
 //! 是语言到字的表，页面照语言挑），声明里写了的另带 `icon`、`links`（`homepage`、`repository`、`issues`、`readme`）、`platforms`、
-//! `needs`（能力的名字）。在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`），缺能力的还带 `missing`（缺的那几样）；
+//! `needs`（能力的名字）、`ui`（往 im 的页面加的：`home`、`panel`、`pages` 每个 `{id, title, method}`，施工 I-8 下；都没写的不带）。在这个平台上用不了的另带 `unusable`（`broken`、`other_platforms`、`missing`），缺能力的还带 `missing`（缺的那几样）；
 //! 声明读不成的只有编号和 `unusable`。
 
 use serde_json::{Map, Value, json};
@@ -42,6 +42,10 @@ pub(super) fn listed(plugins: &Plugins, platform: Platform, caps: &[Cap]) -> Vec
                     }
                     if !declared.needs.is_empty() {
                         one["needs"] = json!(names(&declared.needs));
+                    }
+                    let ui = &declared.ui;
+                    if ui.home || ui.panel || !ui.pages.is_empty() {
+                        one["ui"] = json!({"home": ui.home, "panel": ui.panel, "pages": ui.pages});
                     }
                     one
                 }
