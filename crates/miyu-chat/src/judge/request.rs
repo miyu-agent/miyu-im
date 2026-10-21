@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 
+use miyu_kernel::template::escape;
+
 use crate::Chatty;
 
 use super::{Ask, JudgeMessage, JudgeRole, JudgeTexts, Mode};
@@ -13,8 +15,10 @@ use super::{Ask, JudgeMessage, JudgeRole, JudgeTexts, Mode};
 ///   `answer.txt`。
 /// - user：群聊记录、这一条各夹在自己的标签中间；有 base64 解出来的字的，最后再夹一段。
 ///
-/// 夹进标签的字末尾没有换行的补一个，收尾的标签才落在自己那一行；空的不补，免得标签中间多一个空行。夹进来的字
-/// 原样用，不再转义：群聊记录和这一条由渲染器转义过，人格的说明是可信的。
+/// 夹进标签的字末尾没有换行的补一个，收尾的标签才落在自己那一行；空的不补，免得标签中间多一个空行。三份夹进来的字
+/// 各自这样：群聊记录和这一条由核心的渲染器转义过，原样用；人格的说明是可信的，原样用；base64 解出来的字是桥从群消息
+/// 正文算出来的，不可信，照模板的转义（[`escape`]）写成一行再夹（漏洞排查 2026-10-22：原样夹的，解出来的字里写了收尾
+/// 标签就能提前收掉这一段）。
 ///
 /// # Panics
 ///
@@ -56,7 +60,7 @@ pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<JudgeMessa
         wrap(
             &mut user,
             &texts.decoded_open,
-            decoded,
+            &escape(decoded),
             &texts.decoded_close,
         );
     }
