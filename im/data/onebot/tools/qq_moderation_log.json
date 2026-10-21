@@ -1,4 +1,4 @@
 {
   "description": "Look up this group's moderation records, or rank who was moderated most.",
-  "parameters": {"type":"object","properties":{"view":{"type":"string","enum":["events","ranking"]},"user":{"type":"integer","description":"QQ number."},"period":{"type":"string","enum":["week","month","all"]},"action":{"type":"string","enum":["mute","unmute","kick"]},"limit":{"type":"integer","description":"At most 100."}}}
+  "parameters": {"type":"object","properties":{"view":{"type":"string","enum":["events","ranking"]},"user":{"type":"integer"},"period":{"type":"string","enum":["week","month","all"]},"action":{"type":"string","enum":["mute","unmute","kick"]},"limit":{"type":"integer"}}}
 }

@@ -1,4 +1,4 @@
 {
-  "description": "Save a QQ avatar to qq-files/ in your workspace. Without user or group, the sender of the message you are answering.",
-  "parameters": {"type":"object","properties":{"user":{"type":"integer","description":"QQ number."},"group":{"type":"integer","description":"Group number."}}}
+  "description": "Save a user's or group's avatar. Without either, the sender of the message you are answering.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"},"group":{"type":"integer"}}}
 }

@@ -1,4 +1,4 @@
 {
   "description": "Who has talked most in this group lately.",
-  "parameters": {"type":"object","properties":{"days":{"type":"integer","enum":[1,7,30],"description":"Default 7."},"limit":{"type":"integer","description":"Default 10, at most 50."}}}
+  "parameters": {"type":"object","properties":{"days":{"type":"integer","enum":[1,7,30],"description":"Default 7."},"limit":{"type":"integer","description":"Default 10."}}}
 }

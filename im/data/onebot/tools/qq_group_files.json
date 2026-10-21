@@ -1,4 +1,4 @@
 {
-  "description": "List this group's shared files, or save one (file = its id) to qq-files/ in your workspace.",
-  "parameters": {"type":"object","properties":{"folder":{"type":"string","description":"A folder id to list."},"file":{"type":"string","description":"A file id to save."}}}
+  "description": "List this group's shared files, or save one.",
+  "parameters": {"type":"object","properties":{"folder":{"type":"string","description":"Folder id to list."},"file":{"type":"string","description":"File id to save."}}}
 }

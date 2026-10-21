@@ -1,4 +1,4 @@
 {
-  "description": "List your QQ friends, or the groups you are in, with their numbers. Use it to find who to send to.",
-  "parameters": {"type":"object","properties":{"kind":{"type":"string","enum":["friends","groups"]},"query":{"type":"string","description":"Part of a name or number."}}}
+  "description": "List your friends or the groups you are in, with their numbers.",
+  "parameters": {"type":"object","properties":{"kind":{"type":"string","enum":["friends","groups"]},"query":{"type":"string"}}}
 }

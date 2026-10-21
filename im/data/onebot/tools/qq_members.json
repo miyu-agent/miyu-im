@@ -1,4 +1,4 @@
 {
-  "description": "List members of this QQ group with their QQ numbers.",
-  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Part of a name to match."},"limit":{"type":"integer","description":"At most 200."}}}
+  "description": "List this group's members with their QQ numbers.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}}}
 }

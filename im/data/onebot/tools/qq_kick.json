@@ -1,4 +1,4 @@
 {
-  "description": "Remove group members: user or users, else the one person the message you are answering quotes or @-mentions. block also refuses their later requests to join.",
-  "parameters": {"type":"object","properties":{"user":{"type":"integer","description":"QQ number."},"users":{"type":"array","items":{"type":"integer"},"description":"Up to 32."},"block":{"type":"boolean"},"reason":{"type":"string","description":"One sentence for the moderation records."}}}
+  "description": "Remove group members: user or users, else the one person the message you are answering quotes or @-mentions.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"},"users":{"type":"array","items":{"type":"integer"}},"block":{"type":"boolean","description":"Also refuse their later join requests."},"reason":{"type":"string","description":"For the moderation records."}}}
 }

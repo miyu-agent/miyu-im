@@ -1,4 +1,4 @@
 {
-  "description": "Fetch an image, video or file from a QQ message. Images come back to view; videos and files are saved to qq-files/ in your workspace.",
-  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"Which item in that message, from 1 (the #n); default 1."}},"required":["msg"]}
+  "description": "Fetch an image, video or file from a message. Images come back to view, others are saved.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"The #n item. Default 1."}},"required":["msg"]}
 }
