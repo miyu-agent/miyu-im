@@ -289,3 +289,46 @@ async fn a_private_picture_comes_along() {
     );
     stopped(home).await;
 }
+
+#[tokio::test]
+async fn pictures_over_the_limit_are_not_fetched() {
+    // 图最多 20 MB（施工 I-23，2026-10-22 项目主人定）：段里写了大小、超了的，冲她来时不取，她要也不下、答为什么；没超的照取。
+    let small = png(3, 3);
+    let lines = Lines::new([
+        Line::uses("", "qq_fetch_media", r#"{"msg":"701","index":1}"#),
+        Line::says("好。"),
+    ]);
+    let (home, napcat) = up(&lines).await;
+    let words = json!([
+        at(BOT),
+        plain(" 看看"),
+        image("big.jpg", 30 * 1024 * 1024),
+        image("small.jpg", 1024)
+    ]);
+    napcat.stock_message(701, in_group(words.clone()));
+    napcat.stock_file(
+        "small.jpg",
+        Ok(json!({"base64": format!("base64://{}", encoded(&small))})),
+    );
+    says(&home, &napcat, (ADMIN, "member"), 701, words).await;
+    let first = results(&home, 1).await;
+    assert_eq!(
+        (
+            text_of(&first[0]),
+            first[0]["status"].as_str().unwrap_or_default().to_string()
+        ),
+        refused("unfetched", &[("detail", "over 20 MB")]),
+        "{first:#?}"
+    );
+    let names: Vec<String> = pictures(&lines.requests()[0])
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(names, ["msg-701-2"], "只带了没超的那张");
+    assert!(
+        !napcat.fetched().iter().any(|(_, id)| id == "big.jpg"),
+        "超了的没去 QQ 取：{:?}",
+        napcat.fetched()
+    );
+    stopped(home).await;
+}

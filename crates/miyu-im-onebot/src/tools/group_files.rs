@@ -6,7 +6,7 @@
 use serde_json::Value;
 
 use miyu_im::chat::{GroupFiles, To};
-use miyu_im::toolset::{Call, NAME, Planned, clean};
+use miyu_im::toolset::{Call, NAME, Planned, UNLIMITED, clean};
 
 use super::QqTools;
 use super::args::{bad_args, group_only, optional_text};
@@ -180,7 +180,13 @@ async fn download(
                 .map(|one| one.name)
         });
     let name = saved_name(listed.as_deref(), &url, file);
-    let path = fetched(&url, &name, (&call.cwd, std::env::home_dir()), wait).await?;
+    let path = fetched(
+        &url,
+        &name,
+        (&call.cwd, std::env::home_dir()),
+        (wait, UNLIMITED),
+    )
+    .await?;
     Ok(call.answers.say("saved", &[("path", &path)], false))
 }
 

@@ -58,6 +58,9 @@ pub struct Tuning {
     /// 冲她来的那条（和它引用的那条）各最多带几张原图（施工 O-33，`onebot.md`「平台工具（二）」第 3 条；照旧 Miyu 的实测）。0 是
     /// 不带。
     pub message_images: usize,
+    /// 图最多多少 MB（2026-10-22 项目主人定，漏洞排查报的）：冲她来的那条自动取的、`fetch_media` 取的、头像都照它；段里写了大小、
+    /// 超了的不下，下载读到它就停。0 是不设上限。视频、文件不管（2026-10-11 定的不设上限）。
+    pub image_max_mb: usize,
     /// `fetch_media` 一轮最多取几次（施工 O-33，「平台工具（二）」第 4 条；照旧 Miyu 的配额）。0 是一次都不给。
     pub fetch_per_turn: usize,
     /// `fetch_media` 等 NapCat 回 `get_image`、`get_file`，下载，各最多几秒（施工 O-33）：大的视频 NapCat 要先下完才回。
@@ -183,6 +186,14 @@ impl Tuning {
     /// `fetch_media` 等 NapCat、下载各最多多久（施工 O-33）。
     pub fn fetch(&self) -> Duration {
         Duration::from_secs(self.fetch_seconds)
+    }
+
+    /// 图最多多少字节（`image_max_mb`，施工 I-23）：0 是不设上限。
+    pub fn image_limit(&self) -> usize {
+        match self.image_max_mb {
+            0 => crate::media::UNLIMITED,
+            mb => mb.saturating_mul(1024 * 1024),
+        }
     }
 
     /// 问挂接点的包每一次最多等多久（施工 O-43 中）。

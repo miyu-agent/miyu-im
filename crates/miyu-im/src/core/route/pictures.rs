@@ -7,6 +7,8 @@
 //! - 一条最多 `message_images` 张（`bridge.json`，出厂 4），照这一条里的先后；引用的那一条另算，排在前面（照原来的先后：它先说的）。
 //!   名字是 `msg-<编号>-<第几个>`（第几个照这一条带的东西从 1 数，和近况那一行的 `#n`、`fetch_media` 的 `index` 一个数法），
 //!   她分得清哪张是哪一条的第几样。
+//! - 一张最多 `image_max_mb`（`bridge.json`，出厂 20 MB，施工 I-23，2026-10-22 项目主人定：陌生人 @ 她就会取）：段里写了大小、超了
+//!   的不下（记 `why=unfetched`），没写的下载读到上限就停。
 //! - 取不到的不带，记一行 `WARN picture not fetched`，消息照送；几张一起取，等最慢的那一张（`call_timeout_seconds`），跟核心的
 //!   那一头这段时间不办别的（施工单「风险」）。
 
@@ -20,7 +22,7 @@ use crate::chat::Link;
 use crate::chat::{Fetch, Media, Segments};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
-use crate::media::{Missed, message, take};
+use crate::media::{Missed, message, over, take, too_large};
 
 /// 一条要带图的消息：收进它的机器人号、平台编号、带的东西、引用的那一条。
 pub(super) struct Pictures {
@@ -124,9 +126,13 @@ impl Route {
         Ok((attachments, shown))
     }
 
-    /// 取一张图，等多久照一次 OneBot 调用（`call_timeout_seconds`）：交消息以前取，不能等太久。
+    /// 取一张图，等多久照一次 OneBot 调用（`call_timeout_seconds`）：交消息以前取，不能等太久。段里写了大小、超了上限的不下。
     async fn quick(&self, link: &dyn Link, item: &Media) -> Result<Vec<u8>, Missed> {
-        take(link, Fetch::Image, &item.id, self.fetching.quick)
+        let limit = self.fetching.image_limit;
+        if too_large(item, limit) {
+            return Err(Missed::Unfetched(over(limit)));
+        }
+        take(link, Fetch::Image, &item.id, (self.fetching.quick, limit))
             .await
             .map(|(bytes, _)| bytes)
     }

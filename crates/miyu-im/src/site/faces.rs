@@ -105,7 +105,7 @@ impl Faces {
             return None;
         }
         let url = template.replace("{id}", &id.to_string());
-        let got = match bytes(&[Source::Url(url)], tuning.fetch()).await {
+        let got = match bytes(&[Source::Url(url)], tuning.fetch(), tuning.image_limit()).await {
             Ok(got) => got,
             Err(why) => {
                 tracing::debug!(target: TARGET, whose = ?whose, why, "avatar not fetched");

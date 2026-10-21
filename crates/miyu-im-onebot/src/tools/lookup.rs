@@ -116,7 +116,7 @@ pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
         return Planned::Now(call.answers.say("no-target", &[], true));
     };
     let (url, name) = avatar_of(whose, &tools.avatars);
-    let wait = tools.wait;
+    let wait = (tools.wait, tools.image_limit);
     Planned::later(async move {
         match fetched(&url, &name, (&call.cwd, std::env::home_dir()), wait).await {
             Ok(path) => call.answers.say("saved", &[("path", &path)], false),
@@ -170,14 +170,15 @@ pub(super) fn said(call: &Call, (why, detail): Undone) -> Value {
 /// 没做成的：那一句的名字、带的原因。
 pub(super) type Undone = (&'static str, Option<String>);
 
-/// 下 `url`、照 `name` 加上看出来的扩展名存进工作区：交回相对工作区的路径（头像、群文件，施工 I-12 起共用）。
+/// 下 `url`（最多 `limit` 字节：头像照图的上限，群文件不设，施工 I-23）、照 `name` 加上看出来的扩展名存进工作区：交回相对工作区的
+/// 路径（头像、群文件，施工 I-12 起共用）。
 pub(super) async fn fetched(
     url: &str,
     name: &str,
     (cwd, home): (&str, Option<std::path::PathBuf>),
-    wait: Duration,
+    (wait, limit): (Duration, usize),
 ) -> Result<String, Undone> {
-    let got = bytes(&[Source::Url(url.to_string())], wait)
+    let got = bytes(&[Source::Url(url.to_string())], wait, limit)
         .await
         .map_err(|why| ("unfetched", Some(cut(&why))))?;
     // 名字自己带了扩展名的（群文件的原名）照它；没带的认得出是图的补上（头像），认不出的照原样（施工 I-16：以前一律补 `.jpg`）。

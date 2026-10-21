@@ -15,7 +15,8 @@ use serde_json::Value;
 
 use miyu_im::chat::{DETAIL, Fetch, Fetched, Link, Source, To};
 use miyu_im::toolset::{
-    Call, Missed, Planned, QQ_FILES, Stored, file_name, kept, message, msg_id, save, take,
+    Call, Missed, Planned, QQ_FILES, Stored, UNLIMITED, file_name, kept, message, msg_id, over,
+    save, take, too_large,
 };
 
 /// 她要的那一样：消息的平台编号、第几样（从 1 数；写错的是 0，取的时候照「没有这一样」答）。
@@ -45,7 +46,11 @@ pub(crate) fn wanted(args: &Value) -> Result<Wanted, &'static str> {
 
 /// `fetch_media` 的一次调用（模块的说明）：这一轮已经取了 `limit` 次的答 `too-many`（取没取到都算一次），参数不对的答 `not-found`，
 /// 别的交给 im 另起任务去取，最多等 `wait`。
-pub(super) fn fetch_media(call: Call, limit: usize, wait: Duration) -> Planned {
+pub(super) fn fetch_media(
+    call: Call,
+    limit: usize,
+    (wait, image_limit): (Duration, usize),
+) -> Planned {
     if call.used >= limit {
         let limit = limit.to_string();
         return Planned::Now(call.answers.say("too-many", &[("count", &limit)], true));
@@ -56,7 +61,7 @@ pub(super) fn fetch_media(call: Call, limit: usize, wait: Duration) -> Planned {
     };
     Planned::later(async move {
         let home = std::env::home_dir();
-        match fetch(&call, &wanted, wait, home).await {
+        match fetch(&call, &wanted, (wait, image_limit), home).await {
             Some(Ok(answer)) => answer,
             Some(Err((name, fields))) => {
                 let fields: Vec<(&str, &str)> = fields
@@ -84,10 +89,11 @@ pub(crate) fn owned(fetched: &Fetched, to: To) -> bool {
 type Undone = (&'static str, Vec<(&'static str, String)>);
 
 /// 取那一样：成了的交回答核心的 `result`；没成的交回那一句；核心断开了的是空的。`home` 是系统的家目录（换工作目录的 `~`）。
+/// 图最多 `image_limit` 字节（施工 I-23）：段里写了大小、超了的不下，答 `unfetched`；视频、文件不设上限。
 async fn fetch(
     call: &Call,
     wanted: &Wanted,
-    wait: Duration,
+    (wait, image_limit): (Duration, usize),
     home: Option<std::path::PathBuf>,
 ) -> Option<Result<Value, Undone>> {
     let Some(link) = &call.link else {
@@ -110,15 +116,22 @@ async fn fetch(
     let Some(how) = item.fetch else {
         return Some(Err(("not-fetchable", Vec::new())));
     };
+    let limit = match how {
+        Fetch::Image => image_limit,
+        _ => UNLIMITED,
+    };
+    if too_large(item, limit) {
+        return Some(Err(undone(Missed::Unfetched(over(limit)))));
+    }
     let taken = match (how, call.to) {
         // 群里的文件（施工 I-16）：`get_file` 只认缓存的图片、语音，照群文件的下载地址取；取不到的再照 `get_file` 试。
         (Fetch::File, To::Group(group)) => {
             match group_file(link.as_ref(), group, &item.id, wait).await {
                 Some(bytes) => Ok((bytes, None)),
-                None => take(link.as_ref(), how, &item.id, wait).await,
+                None => take(link.as_ref(), how, &item.id, (wait, limit)).await,
             }
         }
-        _ => take(link.as_ref(), how, &item.id, wait).await,
+        _ => take(link.as_ref(), how, &item.id, (wait, limit)).await,
     };
     let (bytes, named) = match taken {
         Ok(taken) => taken,
@@ -166,7 +179,7 @@ async fn fetch(
 /// 群 `group` 里编号是 `id` 的群文件的字节（施工 I-16）；拿不到下载地址、下不下来的是空的。
 async fn group_file(link: &dyn Link, group: i64, id: &str, wait: Duration) -> Option<Vec<u8>> {
     let url = link.group_file_url(group, id).await.ok()?;
-    miyu_im::toolset::bytes(&[Source::Url(url)], wait)
+    miyu_im::toolset::bytes(&[Source::Url(url)], wait, UNLIMITED)
         .await
         .ok()
 }

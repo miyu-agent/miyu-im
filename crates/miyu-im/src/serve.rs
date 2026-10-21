@@ -303,6 +303,7 @@ pub async fn run(
         Fetching {
             images: serve.tuning.message_images,
             quick: serve.tuning.call_timeout(),
+            image_limit: serve.tuning.image_limit(),
         },
         Forwarding {
             per_message: serve.tuning.message_forwards,

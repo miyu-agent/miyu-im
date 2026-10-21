@@ -4,7 +4,9 @@
 //! - 拿字节（[`bytes`]）：先下 `http`、`https` 的地址（核心的 HTTP 客户端 `miyu-http`：连接的时限照它，整个最多 `fetch_seconds`；
 //!   回环地址不走代理，别的照环境变量），再读本机路径（NapCat 和桥在同一台机器上才有），再解 base64（NapCat 开了
 //!   `enableLocalFile2Url` 才给）；都不行的交回每一样为什么（2026-10-11 主会话定：很多人的 NapCat 跑在 Docker 里，路径读不到）。
-//!   不设大小上限（2026-10-11 项目主人定）：整个读进内存，大的视频吃内存（施工单「风险」）。
+//!   图有上限（2026-10-22 项目主人定，漏洞排查报的：陌生人 @ 她就会自动取图）：`limit` 字节（`bridge.json` 的 `image_max_mb`，
+//!   出厂 20 MB），下载读到上限就停、本机路径先看大小、base64 照长度估，超了不要；视频、文件照旧不设上限（2026-10-11 项目主人
+//!   定）：整个读进内存，大的视频吃内存（施工单「风险」）。
 //! - 存（[`save`]）：路径从核心给的 `cwd` 来，`~` 自己换成家目录；只写进它下面的 `qq-files/`，文件名去掉路径分隔符、开头的点；
 //!   先写临时文件再改名（同一个文件取两次照新的换掉，读的一方看不到写了一半的）；`qq-files` 和文件落到的真实位置都要还在
 //!   工作区里，不跟链接走（`qq-files` 是链接的不写，文件名那里本来是链接的被换掉、不写进它指的地方）。
@@ -62,8 +64,8 @@ pub async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
     link.message(msg).await.map_err(missed)
 }
 
-/// 经连接 `link` 照 `fetch` 取编号是 `id` 的那一样（[`Link::fetch`]），再照平台说的地方拿到字节（[`bytes`]）。平台回应、下载
-/// 各最多等 `wait`。交回字节和平台说的文件名。
+/// 经连接 `link` 照 `fetch` 取编号是 `id` 的那一样（[`Link::fetch`]），再照平台说的地方拿到字节（[`bytes`]，最多 `limit` 字节）。
+/// 平台回应、下载各最多等 `wait`。交回字节和平台说的文件名。
 ///
 /// # Errors
 ///
@@ -72,10 +74,10 @@ pub async fn take(
     link: &dyn Link,
     fetch: Fetch,
     id: &str,
-    wait: Duration,
+    (wait, limit): (Duration, usize),
 ) -> Result<(Vec<u8>, Option<String>), Missed> {
     let located = link.fetch(fetch, id, wait).await.map_err(missed)?;
-    let bytes = bytes(&located.sources, wait)
+    let bytes = bytes(&located.sources, wait, limit)
         .await
         .map_err(Missed::Unfetched)?;
     Ok((bytes, located.name))
@@ -87,17 +89,25 @@ pub const QQ_FILES: &str = "qq-files";
 /// 文件名里名字那一段最多几个字符：前面还有消息编号和第几个，整个不超过文件系统的 255 字节。
 const NAME: usize = 80;
 
-/// 照 `sources` 的先后拿字节，下载整个最多 `timeout`。都不行的交回每一样为什么，英文，`; ` 隔开；一样都没有的说没有。
+/// 不设上限（视频、文件，2026-10-11 项目主人定）。
+pub const UNLIMITED: usize = usize::MAX;
+
+/// 照 `sources` 的先后拿字节，下载整个最多 `timeout`，最多 `limit` 字节（超了的不要，同「拿不到」）。都不行的交回每一样为什么，
+/// 英文，`; ` 隔开；一样都没有的说没有。
 ///
 /// # Errors
 ///
-/// 地址下不下来、路径读不了、base64 解不出：都不行的时候。
-pub async fn bytes(sources: &[Source], timeout: Duration) -> Result<Vec<u8>, String> {
+/// 地址下不下来、路径读不了、base64 解不出、超了上限：都不行的时候。
+pub async fn bytes(sources: &[Source], timeout: Duration, limit: usize) -> Result<Vec<u8>, String> {
     let mut why = Vec::new();
     for source in sources {
         let got = match source {
-            Source::Url(url) => download(url, timeout).await,
-            Source::Path(path) => read(path.clone()).await,
+            Source::Url(url) => download(url, timeout, limit).await,
+            Source::Path(path) => read(path.clone(), limit).await,
+            // 解出来的约是字符数的四分之三：照它先挡，免得大块字先解进内存。
+            Source::Base64(encoded) if encoded.len() / 4 * 3 > limit => {
+                Err(format!("base64: {}", over(limit)))
+            }
             Source::Base64(encoded) => STANDARD
                 .decode(encoded)
                 .map_err(|_| "base64: not valid".to_string()),
@@ -113,8 +123,20 @@ pub async fn bytes(sources: &[Source], timeout: Duration) -> Result<Vec<u8>, Str
     Err(why.join("; "))
 }
 
-/// 下一个地址：回环的不走代理（开发机上设了代理也连得上本机），别的照环境变量。
-async fn download(url: &str, timeout: Duration) -> Result<Vec<u8>, String> {
+/// 段里写了大小（`file_size`）、大过 `limit` 字节的：先挡，不下（施工 I-23）。没写的照下载时读到的算。
+pub fn too_large(item: &crate::chat::Media, limit: usize) -> bool {
+    item.size
+        .is_some_and(|size| usize::try_from(size).map_or(true, |size| size > limit))
+}
+
+/// 超了上限 `limit` 字节的那一句（英文，同别的原因），按 MB 说：`over 20 MB`。
+pub fn over(limit: usize) -> String {
+    format!("over {} MB", limit.div_ceil(1024 * 1024))
+}
+
+/// 下一个地址：回环的不走代理（开发机上设了代理也连得上本机），别的照环境变量。读到 `limit` 字节就停（核心的 HTTP 客户端照它
+/// 截）。
+async fn download(url: &str, timeout: Duration, limit: usize) -> Result<Vec<u8>, String> {
     let proxy = if miyu_client::http::is_loopback_url(url) {
         Proxy::Off
     } else {
@@ -127,7 +149,7 @@ async fn download(url: &str, timeout: Duration) -> Result<Vec<u8>, String> {
         headers: &[],
         etag: None,
         timeout,
-        limit: usize::MAX,
+        limit,
     })
     .await
     .map_err(|error| format!("url: {error}"))?;
@@ -138,11 +160,17 @@ async fn download(url: &str, timeout: Duration) -> Result<Vec<u8>, String> {
     }
 }
 
-/// 读本机的一个文件（在阻塞线程里）：要是普通文件。
-async fn read(path: PathBuf) -> Result<Vec<u8>, String> {
+/// 读本机的一个文件（在阻塞线程里）：要是普通文件，不大过 `limit` 字节（先看大小，不读进来）。
+async fn read(path: PathBuf, limit: usize) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         if !path.is_file() {
             return Err("path: not a file here".to_string());
+        }
+        let size = std::fs::metadata(&path)
+            .map_err(|error| format!("path: {error}"))?
+            .len();
+        if usize::try_from(size).map_or(true, |size| size > limit) {
+            return Err(format!("path: {}", over(limit)));
         }
         std::fs::read(&path).map_err(|error| format!("path: {error}"))
     })

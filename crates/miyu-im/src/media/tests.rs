@@ -86,11 +86,18 @@ async fn bytes_come_from_the_first_source_that_works() {
         Source::Path(file),
         Source::Base64("ZnJvbSBiYXNlNjQ=".to_string()),
     ];
-    assert_eq!(bytes(&sources, wait).await.unwrap(), b"from path");
     assert_eq!(
-        bytes(&[Source::Base64("ZnJvbSBiYXNlNjQ=".to_string())], wait)
-            .await
-            .unwrap(),
+        bytes(&sources, wait, UNLIMITED).await.unwrap(),
+        b"from path"
+    );
+    assert_eq!(
+        bytes(
+            &[Source::Base64("ZnJvbSBiYXNlNjQ=".to_string())],
+            wait,
+            UNLIMITED
+        )
+        .await
+        .unwrap(),
         b"from base64"
     );
     let failed = bytes(
@@ -100,13 +107,14 @@ async fn bytes_come_from_the_first_source_that_works() {
             Source::Base64("!!".to_string()),
         ],
         wait,
+        UNLIMITED,
     )
     .await
     .unwrap_err();
     assert_eq!(failed.matches("path:").count(), 2, "{failed}");
     assert!(failed.ends_with("base64: not valid"), "{failed}");
     assert_eq!(
-        bytes(&[], wait).await.unwrap_err(),
+        bytes(&[], wait, UNLIMITED).await.unwrap_err(),
         "no url, path or base64 in the answer"
     );
 }
@@ -195,4 +203,51 @@ fn a_name_that_is_not_plain_is_refused() {
         1,
         "只建了 qq-files"
     );
+}
+
+#[tokio::test]
+async fn pictures_over_the_limit_are_not_taken() {
+    // 图有上限（施工 I-23）：本机路径先看大小、base64 照长度估，超了的不读进来，交回为什么；没超的照拿。
+    let scratch = Scratch::new();
+    let file = scratch.path().join("big.bin");
+    std::fs::write(&file, vec![0u8; 2048]).expect("写得进");
+    let wait = Duration::from_secs(5);
+    let failed = bytes(&[Source::Path(file.clone())], wait, 1024)
+        .await
+        .unwrap_err();
+    assert_eq!(failed, "path: over 1 MB", "{failed}");
+    assert_eq!(
+        bytes(&[Source::Path(file)], wait, 4096)
+            .await
+            .unwrap()
+            .len(),
+        2048
+    );
+    let encoded = STANDARD.encode(vec![1u8; 3000]);
+    let failed = bytes(&[Source::Base64(encoded.clone())], wait, 1000)
+        .await
+        .unwrap_err();
+    assert!(failed.starts_with("base64: over"), "{failed}");
+    assert_eq!(
+        bytes(&[Source::Base64(encoded)], wait, 4000)
+            .await
+            .unwrap()
+            .len(),
+        3000
+    );
+}
+
+#[test]
+fn a_size_written_in_the_segment_is_checked_first() {
+    let item = |size| crate::chat::Media {
+        kind: crate::chat::MediaKind::Image,
+        id: "a.jpg".to_string(),
+        name: None,
+        size,
+        fetch: Some(crate::chat::Fetch::Image),
+    };
+    assert!(too_large(&item(Some(30 * 1024 * 1024)), 20 * 1024 * 1024));
+    assert!(!too_large(&item(Some(1024)), 20 * 1024 * 1024));
+    assert!(!too_large(&item(None), 1), "没写大小的照下载时读到的算");
+    assert_eq!(over(20 * 1024 * 1024), "over 20 MB");
 }

@@ -227,6 +227,8 @@ pub struct QqTools {
     pub(crate) wait: Duration,
     /// `fetch_media` 一轮最多取几次（`fetch_per_turn`）。
     pub(crate) per_turn: usize,
+    /// 一张图最多多少字节（`image_max_mb`，施工 I-23）：`fetch_media` 取的图、头像照它。
+    pub(crate) image_limit: usize,
 }
 
 impl QqTools {
@@ -240,6 +242,7 @@ impl QqTools {
             members: tuning.members_shown,
             wait: tuning.fetch(),
             per_turn: tuning.fetch_per_turn,
+            image_limit: tuning.image_limit(),
         }
     }
 }
@@ -289,7 +292,7 @@ impl ToolSet for QqTools {
             GROUP_FILES => group_files::group_files(self, call),
             REACT => react::react(call),
             ACTIVITY_RANKING => ranking::ranking(&call),
-            FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, self.wait),
+            FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, (self.wait, self.image_limit)),
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
