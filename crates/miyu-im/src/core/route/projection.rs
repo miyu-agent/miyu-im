@@ -203,10 +203,6 @@ impl Projection {
                             .unwrap_or_default(),
                         name: venue.and_then(|venue| venue.name.clone()),
                     };
-                    // 她最近一轮以后说过话的人（施工 I-16：续聊被别人插话打断，照旧版）。
-                    if let Some(last) = self.replies.last_mut() {
-                        add(&mut last.after, std::slice::from_ref(&speaker.id));
-                    }
                     self.said.insert(seq, speaker);
                     self.keep(seq, event);
                 }
@@ -238,7 +234,6 @@ impl Projection {
                         self.replies.push(Reply {
                             at: event.at,
                             to: delivered.to.clone(),
-                            after: Vec::new(),
                         });
                     }
                 }

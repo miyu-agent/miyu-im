@@ -1,1 +1,0 @@
-Not done yet: the requester is not a group owner or admin. If you agree, repeat the same call with confirm: true.

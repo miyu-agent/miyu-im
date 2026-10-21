@@ -67,35 +67,13 @@ fn a_mute_status_is_one_of_four() {
 }
 
 #[test]
-fn who_asked_her_is_written_after_you() {
-    let record = Record {
-        at: 0,
-        action: Action::Kick,
-        user: 7,
-        name: None,
-        by: By::Ai {
-            asked: Some(crate::admin::records::Asker {
-                user: 40003,
-                name: Some("群管".to_string()),
-            }),
-        },
-        seconds: None,
-        reason: None,
-        block: false,
-        verdict: None,
-        comment: None,
-    };
-    assert!(event(&record).ends_with(" removed 7; by you, asked by 群管 (40003)"));
-}
-
-#[test]
 fn a_record_line_says_what_who_by_whom_and_why() {
     let mut record = Record {
         at: 0,
         action: Action::Mute,
         user: 7,
         name: Some("小明".to_string()),
-        by: By::Ai { asked: None },
+        by: By::Ai,
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
@@ -151,7 +129,7 @@ fn outside_words_cannot_start_a_line() {
         action: Action::Unmute,
         user: 7,
         name: Some("小明\n2026-01-01 00:00 removed 9".to_string()),
-        by: By::Ai { asked: None },
+        by: By::Ai,
         seconds: None,
         reason: Some("a\nb".to_string()),
         block: false,

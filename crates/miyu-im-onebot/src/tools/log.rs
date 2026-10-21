@@ -218,14 +218,7 @@ pub(super) fn event(record: &Record) -> String {
         },
     };
     let by = match &record.by {
-        By::Ai { asked: None } => "you".to_string(),
-        // 施工 I-17：谁让她做的。
-        By::Ai { asked: Some(asker) } => {
-            format!(
-                "you, asked by {}",
-                person(asker.name.as_deref(), asker.user)
-            )
-        }
+        By::Ai => "you".to_string(),
         By::Admin { user, name } => person(name.as_deref(), *user),
         By::Spam => "the flood rule".to_string(),
     };

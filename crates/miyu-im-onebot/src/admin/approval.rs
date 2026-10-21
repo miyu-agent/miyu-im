@@ -195,7 +195,7 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
             action: Action::Join,
             user: applicant.user,
             name: None,
-            by: By::Ai { asked: None },
+            by: By::Ai,
             seconds: None,
             reason: clean(&reason, REASON).filter(|reason| !reason.trim().is_empty()),
             block: false,

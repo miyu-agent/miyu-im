@@ -1,0 +1,1 @@
+Most messages in the last {days} day(s), top {count}: {list}

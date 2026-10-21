@@ -58,8 +58,6 @@ pub struct Reply {
     /// 回的是谁：平台上的人的编号，一轮可以回几个人（第七条第 4 条的投影，几条的并集）；没有明确回谁的是空的，不算谁的
     /// 续聊。
     pub to: Vec<ExternalId>,
-    /// 这一轮以后在场所里说过话的人（施工 I-16，照旧版：她回 A 以后，A 以外有人说过话，就不算 A 的续聊了）。
-    pub after: Vec<ExternalId>,
 }
 
 /// 主动回复判断的参数，代码里不写默认值（施工时定的第 5 条）：从 [`Params::chatty`](crate::Params::chatty) 拿，出厂的数
@@ -121,7 +119,7 @@ pub struct Restraint {
 /// 触发条件的种类：每个加值项一种。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// 冲她来：私聊里的每一条，群里 @ 她、引用她的消息、以触发词开头的（[`addressed()`](crate::addressed())）。免冷静。
+    /// 冲她来：私聊里的每一条，群里 @ 她、以触发词开头的（引用她不算，施工 I-20）（[`addressed()`](crate::addressed())）。免冷静。
     Direct,
     /// 续聊：她刚回过这个人，他接着说。
     Continuation,
@@ -285,9 +283,9 @@ pub enum Route {
     Judge,
 }
 
-/// 一条消息走哪条路：没有条件只记下；`skip_users` 里的人冲她来、续聊直接回，插话的（刚说过话、抽中）照常判（施工 I-16：
-/// 2026-10-20 项目主人定「跳过判断就是直接回复，除了插话系列的」，I-7 中三做成了只记下）；终端管理员、白名单成员冲她来直接回，
-/// `judge_called` 关着时谁冲她来都直接回；只有违规旗判官只查违规；别的交给判官打分（「怎么走」第 8 条）。
+/// 一条消息走哪条路：没有条件只记下；`skip_users` 里的人冲她来直接回，别的（续聊、刚说过话、抽中）照常判（施工 I-20：2026-10-21
+/// 项目主人定「跳过判断的只应该有直接触发」）；终端管理员、白名单成员冲她来直接回，`judge_called` 关着时谁冲她来都直接回；只有违规旗
+/// 判官只查违规；别的交给判官打分（「怎么走」第 8 条）。
 pub fn route(conditions: &Conditions, said: &Said, chatty: &Chatty) -> Route {
     let known = matches!(said.standing, Standing::Admin | Standing::Whitelisted);
     let skipped = chatty
@@ -295,10 +293,9 @@ pub fn route(conditions: &Conditions, said: &Said, chatty: &Chatty) -> Route {
         .iter()
         .any(|one| one.as_str() == said.sender.as_str());
     let direct = conditions.has(Kind::Direct);
-    let talking = direct || conditions.has(Kind::Continuation);
     if conditions.hits.is_empty() {
         Route::Record
-    } else if (direct && (known || !chatty.judge_called)) || (skipped && talking) {
+    } else if direct && (known || skipped || !chatty.judge_called) {
         Route::Commit
     } else if conditions.only_moderation() {
         Route::ModerationOnly

@@ -251,7 +251,6 @@ fn the_factory_continuation_window_is_thirty_seconds() {
         let replies = [Reply {
             at: ago(seconds),
             to: vec![lin()],
-            after: Vec::new(),
         }];
         let decision = decide(&Case {
             facts: facts(Standing::Member, false),

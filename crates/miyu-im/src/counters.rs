@@ -11,6 +11,19 @@
 //! - 统计页（施工 I-14）另记两样：判断的原因（`reasons`，原因的编号 → 几次，同会话浮窗「最近判断」的原因）、收到的按本机的小时
 //!   （`hours`，24 格）。[`Counters::days`] 读一段日子的（今天照手里的，别的照盘上的）。
 
+/// 几天（`days`）里群 `venue` 谁说得最多（施工 I-20，纯逻辑）：平台上的人和条数，多的在前、一样多的照编号。
+pub(crate) fn ranking(days: &[(String, Daily)], venue: &str) -> Vec<(String, u64)> {
+    let mut sum: BTreeMap<String, u64> = BTreeMap::new();
+    for (_, daily) in days {
+        for (person, count) in daily.speakers.get(venue).into_iter().flatten() {
+            *sum.entry(person.clone()).or_default() += count;
+        }
+    }
+    let mut ranked: Vec<(String, u64)> = sum.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    ranked
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -63,6 +76,9 @@ pub(crate) struct Daily {
     /// 收到的，按本机的小时（0 到 23 点，施工 I-14）；以前写的没有这一格。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) hours: Vec<u64>,
+    /// 群里每个人说了几条（施工 I-20，发言排行）：场所编号 → 平台上的人 → 条数；以前写的没有这一格。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) speakers: BTreeMap<String, BTreeMap<String, u64>>,
 }
 
 impl Day {
@@ -140,6 +156,25 @@ impl Counters {
         }
         self.dirty.notify_one();
         self.changed.notify();
+    }
+
+    /// 群 `venue` 里 `person`（平台上的人的编号）说了一条（施工 I-20，发言排行）。
+    pub(crate) fn spoke(&self, venue: &str, person: &str) {
+        {
+            let date = today();
+            let mut held = lock(&self.held);
+            if held.0 != date {
+                *held = (date, Daily::default());
+            }
+            *held
+                .1
+                .speakers
+                .entry(venue.to_string())
+                .or_default()
+                .entry(person.to_string())
+                .or_default() += 1;
+        }
+        self.dirty.notify_one();
     }
 
     /// 判断了一次，原因是 `reason`（施工 I-14，统计页「为什么回、为什么没回」）。
@@ -259,6 +294,19 @@ fn file(dir: &Path, date: &str) -> PathBuf {
 /// 本机此刻的日期：`2026-10-19` 这样。
 fn today() -> String {
     jiff::Zoned::now().date().to_string()
+}
+
+/// 本机的日子里最近的 `count` 天（今天在前，施工 I-20 发言排行）。
+pub(crate) fn last_days(count: u32) -> Vec<String> {
+    let today = jiff::Zoned::now().date();
+    (0..count)
+        .filter_map(|back| {
+            today
+                .checked_sub(jiff::Span::new().days(i64::from(back)))
+                .ok()
+        })
+        .map(|date| date.to_string())
+        .collect()
 }
 
 /// 锁里不 `await`、不会崩；真崩了，里面的照样能用。

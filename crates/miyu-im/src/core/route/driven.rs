@@ -87,7 +87,6 @@ impl Route {
             to: peer.to,
             bot: peer.bot,
             caller,
-            owner: params["by"]["kind"] == "person" || params["by"]["account"].is_string(),
             by,
             origin,
             me: self.platform.person(peer.bot).ok(),
@@ -129,6 +128,51 @@ impl Route {
             Planned::Host(Effect::Send { to, text }) => {
                 let answer = Answer::Tool(id, answers, answerer);
                 return self.reach(Some(peer.bot), (to, text), answer).await;
+            }
+            // 发言排行（施工 I-20）：照 im 自己按人数的条数排，名字照群成员的缓存，没有的写号。
+            Planned::Host(Effect::Ranking { days, limit }) => {
+                let counted = self.counters.days(&crate::counters::last_days(days));
+                let names: HashMap<i64, String> = match peer.to {
+                    To::Group(group) => self
+                        .members
+                        .names_in(group, Instant::now())
+                        .into_iter()
+                        .collect(),
+                    To::Private(_) => HashMap::new(),
+                };
+                let ranked = crate::counters::ranking(&counted, peer.venue.as_str());
+                let days_said = days.to_string();
+                let answer = if ranked.is_empty() {
+                    answers.say("no-activity", &[("days", &days_said)], false)
+                } else {
+                    let list: Vec<String> = ranked
+                        .iter()
+                        .take(limit)
+                        .enumerate()
+                        .map(|(place, (person, count))| {
+                            let number = person.rsplit(':').next().unwrap_or(person);
+                            let name = number
+                                .parse::<i64>()
+                                .ok()
+                                .and_then(|user| names.get(&user).cloned());
+                            match name {
+                                Some(name) => format!("{}. {name} ({number}): {count}", place + 1),
+                                None => format!("{}. {number}: {count}", place + 1),
+                            }
+                        })
+                        .collect();
+                    let shown = list.len().to_string();
+                    answers.say(
+                        "activity",
+                        &[
+                            ("count", &shown),
+                            ("days", &days_said),
+                            ("list", &list.join("; ")),
+                        ],
+                        false,
+                    )
+                };
+                answerer.answer(&id, answer);
             }
             // @ 谁要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
             Planned::Host(Effect::Mention(_)) => {

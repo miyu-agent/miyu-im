@@ -53,7 +53,7 @@ pub(super) struct Heard {
     pub(super) text: String,
     /// @ 了她。
     pub(super) mentions_me: bool,
-    /// 引用了她的话（投影里有、或者平台说是机器人号发的，施工 I-16）。
+    /// 引用了她的话（照投影认）：不算叫她（施工 I-20），续聊照它分引用的是不是别人。
     pub(super) quotes_me: bool,
     /// @ 了别人。
     pub(super) mentions_others: bool,
@@ -314,13 +314,7 @@ impl Route {
         let quotes_me =
             heard.quotes_me || heard.reply_to.as_deref().is_some_and(|msg| group.mine(msg));
         let keywords = applied::keywords(&applied);
-        let addressed = addressed(
-            VenueKind::Group,
-            heard.mentions_me,
-            quotes_me,
-            &heard.text,
-            &keywords,
-        );
+        let addressed = addressed(VenueKind::Group, heard.mentions_me, &heard.text, &keywords);
         // 纯图片：没有字（空白、只有占位）、带的都是图或表情（施工 I-16 照旧版：文件、视频、语音不算）。
         let media_only = (heard.wordless || heard.text.trim().is_empty())
             && !heard.media.is_empty()

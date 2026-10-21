@@ -101,16 +101,7 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
         ),
     };
     let by = match &record.by {
-        By::Ai { asked: None } => t("AI", "AI", "AI"),
-        // 施工 I-17：谁让她做的。
-        By::Ai { asked: Some(asker) } => {
-            let name = who(asker.name.as_deref(), asker.user);
-            t(
-                &format!("AI（{name} 让做的）"),
-                &format!("AI, asked by {name}"),
-                &format!("AI（{name} の依頼）"),
-            )
-        }
+        By::Ai => t("AI", "AI", "AI"),
         By::Admin { user, name } => {
             let name = who(name.as_deref(), *user);
             t(

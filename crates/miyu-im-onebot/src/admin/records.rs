@@ -72,12 +72,9 @@ pub(crate) enum Action {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum By {
-    /// AI 用工具做的。
-    Ai {
-        /// 谁让她做的（施工 I-17，照旧版的 `operator_id`）：叫她的那个人；没人叫的、老记录是空的。
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        asked: Option<Asker>,
-    },
+    /// AI 用工具做的（施工 I-20：不记谁让她做的，2026-10-21 项目主人定「只要一个备注栏」，就是 `reason`；I-17 那几天写的
+    /// `asked` 照读、不用）。
+    Ai,
     /// 群里别的管理员（施工 Q-3：平台的通知同步进来）。
     Admin {
         /// 号。
@@ -88,16 +85,6 @@ pub(crate) enum By {
     },
     /// 刷屏处理（施工 Q-5）。
     Spam,
-}
-
-/// 让 AI 做的人（施工 I-17）。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct Asker {
-    /// 号。
-    pub user: i64,
-    /// 那时在群里叫什么（洗过）；不知道的是空的。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
 }
 
 /// 一条禁言现在怎样（施工 Q-6；I-17 加「被覆盖」）。

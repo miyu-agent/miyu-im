@@ -8,35 +8,29 @@ use super::addressed;
 /// 群里一条没 @ 她、没引用她的消息，正文 `text`，场所的触发词是 `keywords`：冲不冲她来。
 fn by_keyword(text: &str, keywords: &[&str]) -> bool {
     let keywords: Vec<String> = keywords.iter().map(|keyword| keyword.to_string()).collect();
-    addressed(VenueKind::Group, false, false, text, &keywords)
+    addressed(VenueKind::Group, false, text, &keywords)
 }
 
 #[test]
 fn private_is_always_addressed() {
     // 私聊里每一条都是对她说的，不看 @、引用、触发词（施工时定的第 17 条）。
-    assert!(addressed(VenueKind::Private, false, false, "hello", &[]));
-    assert!(addressed(VenueKind::Private, false, false, "", &[]));
+    assert!(addressed(VenueKind::Private, false, "hello", &[]));
+    assert!(addressed(VenueKind::Private, false, "", &[]));
     let keywords = ["miyu".to_string()];
-    assert!(addressed(
-        VenueKind::Private,
-        false,
-        false,
-        "hello",
-        &keywords
-    ));
+    assert!(addressed(VenueKind::Private, false, "hello", &keywords));
 }
 
 #[test]
 fn plain_group_message_is_not_addressed() {
-    assert!(!addressed(VenueKind::Group, false, false, "hello", &[]));
+    assert!(!addressed(VenueKind::Group, false, "hello", &[]));
     assert!(!by_keyword("hello", &["miyu"]));
 }
 
 #[test]
-fn mention_or_quote_is_addressed() {
-    assert!(addressed(VenueKind::Group, true, false, "hello", &[]));
-    assert!(addressed(VenueKind::Group, false, true, "hello", &[]));
-    assert!(addressed(VenueKind::Group, true, true, "", &[]));
+fn a_mention_is_addressed_and_a_quote_is_not() {
+    // 施工 I-20（2026-10-21 项目主人定）：引用她的消息、不 @ 不算叫她。
+    assert!(addressed(VenueKind::Group, true, "hello", &[]));
+    assert!(addressed(VenueKind::Group, true, "", &[]));
 }
 
 #[test]

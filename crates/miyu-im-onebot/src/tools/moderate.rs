@@ -6,8 +6,8 @@
 //!
 //! - 一次能管几个人（`users`，最多 32 个）：一个个做、一个个报，成了几个、哪些没成、为什么（[`answered`]）。
 //! - 踢人不踢群主、管理员，NapCat 回失败时核实人走没走（`kick`）。
-//! - 群友（不是群主、管理员）叫她踢人的，要她再确认一次（`confirm`）。终端管理员 im 没交过来，照群友算（多确认一次，不会少）。
-//! - 管理记录记是谁让她做的（叫她的人，`records::Asker`）。
+//!
+//! 施工 I-20（2026-10-21 项目主人定）：踢人不要二次确认；管理记录不记谁让她做的，只有一个备注（`reason`）。
 //!
 //! 禁言照旧只做动作、不挡人（施工 O-48）。
 
@@ -18,7 +18,6 @@ use miyu_im::toolset::{Call, NAME, Planned, clean, duration};
 use super::acting::{Act, Undone, undone};
 use crate::admin::{self, records};
 
-mod confirm;
 mod kick;
 
 /// 群管理在这个群没生效（插件关着、她不是管理员）答的那一句（施工 Q-1）。
@@ -75,15 +74,6 @@ async fn done(call: &Call, act: &Act) -> Value {
         Ok(true) => {}
         Ok(false) => return call.answers.say(ADMIN_OFF, &[], true),
         Err(error) => return said(call, None, undone(error)),
-    }
-    // 终端管理员叫的不用确认（施工 I-16）。
-    if let (Act::Kick { .. }, Some(caller)) = (act, call.caller)
-        && caller != call.bot
-        && !call.owner
-        && !kick::requester_ranked(link.as_ref(), group, caller).await
-        && !confirm::check(&call.line, call.used, Some(caller), &call.args)
-    {
-        return call.answers.say("confirm", &[], false);
     }
     let mut outcomes = Vec::new();
     for user in users {
@@ -195,19 +185,12 @@ async fn recorded(call: &Call, act: &Act, user: i64) {
         _ => return,
     };
     let named = |user: i64| call.names.get(&user).and_then(|name| clean(name, NAME));
-    let asked = call
-        .caller
-        .filter(|caller| *caller != call.bot)
-        .map(|caller| records::Asker {
-            user: caller,
-            name: named(caller),
-        });
     let record = records::Record {
         at: records::now(),
         action,
         user,
         name: named(user),
-        by: records::By::Ai { asked },
+        by: records::By::Ai,
         seconds,
         reason: call.args["reason"]
             .as_str()

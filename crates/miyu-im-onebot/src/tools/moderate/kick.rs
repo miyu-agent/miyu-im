@@ -63,9 +63,3 @@ async fn gone(link: &dyn Link, group: i64, user: i64) -> bool {
     }
     false
 }
-
-/// 叫她的人 `caller` 在群 `group` 里是不是群主、管理员（现问，旧版 `require_ai_confirmation` 同样不用缓存：刚撤了的管理员不该还能
-/// 跳过确认）。问不到、不在群里的不是。
-pub(super) async fn requester_ranked(link: &dyn Link, group: i64, caller: i64) -> bool {
-    matches!(fresh_member(link, group, caller).await, Ok(Some(member)) if ranked(member.rank))
-}

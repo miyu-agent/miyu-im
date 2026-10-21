@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{Count, Counters, Day, today};
+use super::{Count, Counters, Daily, Day, today};
 use crate::changed::Changed;
 
 fn counters(dir: &std::path::Path) -> Counters {
@@ -121,4 +121,39 @@ fn todays_file_is_read_back() {
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里。
     }
+}
+
+#[test]
+fn the_ranking_adds_up_days_for_one_group() {
+    // 施工 I-20：几天加起来，多的在前，一样多的照编号；别的群的不算。
+    let day = |pairs: &[(&str, &str, u64)]| {
+        let mut daily = Daily::default();
+        for (venue, person, count) in pairs {
+            daily
+                .speakers
+                .entry((*venue).to_string())
+                .or_default()
+                .insert((*person).to_string(), *count);
+        }
+        daily
+    };
+    let days = [
+        (
+            "2026-10-20".to_string(),
+            day(&[("g", "qq:1", 3), ("g", "qq:2", 5), ("h", "qq:9", 99)]),
+        ),
+        (
+            "2026-10-21".to_string(),
+            day(&[("g", "qq:1", 2), ("g", "qq:3", 5)]),
+        ),
+    ];
+    assert_eq!(
+        super::ranking(&days, "g"),
+        [
+            ("qq:1".to_string(), 5),
+            ("qq:2".to_string(), 5),
+            ("qq:3".to_string(), 5)
+        ]
+    );
+    assert!(super::ranking(&days, "none").is_empty());
 }

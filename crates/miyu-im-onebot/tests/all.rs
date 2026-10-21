@@ -66,6 +66,7 @@ mod pronoun;
 mod provider;
 mod queue;
 mod queue_waits;
+mod ranking;
 mod reactions;
 mod receipts;
 mod recent;

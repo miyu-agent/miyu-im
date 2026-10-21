@@ -224,6 +224,14 @@ pub enum Effect {
         /// 发什么（去掉首尾空白、不空）。
         text: String,
     },
+    /// 这个群最近 `days` 天谁说得最多，列前 `limit` 个（`qq_activity_ranking`，施工 I-20）：im 照自己按人数的条数排，答 `activity`
+    /// （`count`、`days`、`list`），一个都没有的答 `no-activity`（`days`）。
+    Ranking {
+        /// 几天：1、7、30。
+        days: u32,
+        /// 列几个。
+        limit: usize,
+    },
 }
 
 /// 一次调用怎么办（[`ToolSet::plan`]）。
@@ -258,9 +266,6 @@ pub struct Call {
     pub bot: i64,
     /// 叫她的人的号：外部身份的照 `by.id`，私聊里认出的终端管理员照 `by.via`；私聊里没有的是对方；本机的人、没有触发的是空的。
     pub caller: Option<i64>,
-    /// 叫她的人是终端管理员（施工 I-16：踢人不用二次确认）：群里核心认出对着本机账号的（`by.account`），私聊里核心照对应表认出的
-    /// （`by.kind` 是 `person`）。
-    pub owner: bool,
     /// 叫她的人在平台上的身份（同上，施工 T-2）：私聊里没有的照空的，不补对方。
     pub by: Option<ExternalId>,
     /// 叫她做的那一条（施工 T-2）；认不出的是空的。

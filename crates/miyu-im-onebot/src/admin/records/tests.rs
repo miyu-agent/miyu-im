@@ -8,7 +8,7 @@ fn muted(at: u64, user: i64) -> Record {
         action: Action::Mute,
         user,
         name: Some("小明".to_string()),
-        by: By::Ai { asked: None },
+        by: By::Ai,
         seconds: Some(600),
         reason: Some("刷屏".to_string()),
         block: false,
@@ -87,25 +87,17 @@ fn a_record_is_written_with_only_the_fields_it_has() {
 }
 
 #[test]
-fn who_asked_is_kept_and_old_records_still_read() {
-    // 施工 I-17：AI 做的记下谁让她做的；以前的 `{"kind": "ai"}` 照样读得进，读成没人叫。
+fn ai_records_carry_no_asker_and_records_with_one_still_read() {
+    // 施工 I-20：不记谁让她做的；I-17 那几天写了 `asked` 的照样读得进。
     let old: Record = serde_json::from_value(serde_json::json!({"at": 1, "action": "mute", "user": 7, "by": {"kind": "ai"}, "seconds": 60}))
         .expect("老记录读得进");
-    assert_eq!(old.by, By::Ai { asked: None });
-    let asked = By::Ai {
-        asked: Some(Asker {
-            user: 40003,
-            name: Some("群管".to_string()),
-        }),
-    };
+    assert_eq!(old.by, By::Ai);
+    let asked: Record = serde_json::from_value(serde_json::json!({"at": 1, "action": "kick", "user": 7, "by": {"kind": "ai", "asked": {"user": 40003}}}))
+        .expect("带 asked 的读得进");
+    assert_eq!(asked.by, By::Ai);
     assert_eq!(
-        serde_json::to_value(&asked).expect("写得出"),
-        serde_json::json!({"kind": "ai", "asked": {"user": 40003, "name": "群管"}})
-    );
-    assert_eq!(
-        serde_json::to_value(By::Ai { asked: None }).expect("写得出"),
-        serde_json::json!({"kind": "ai"}),
-        "没人叫的照老样子写"
+        serde_json::to_value(By::Ai).expect("写得出"),
+        serde_json::json!({"kind": "ai"})
     );
 }
 

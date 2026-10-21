@@ -9,24 +9,17 @@ use crate::VenueKind;
 /// 一条消息是不是冲她来的（「怎么走」第 11 条）：
 ///
 /// - 私聊（`kind` 是 [`VenueKind::Private`]）：一律是。
-/// - 群：@ 了她（`mentions_me`）是；引用的是她的消息（`quotes_me`）是；正文 `text` 去掉开头的空白以后，以 `keywords` 里
-///   某个触发词开头是。
+/// - 群：@ 了她（`mentions_me`）是；正文 `text` 去掉开头的空白以后，以 `keywords` 里某个触发词开头是。引用她的消息、不 @ 不算
+///   （施工 I-20，2026-10-21 项目主人定）。
 ///
 /// `keywords` 是场所规则的触发词：区分大小写，空的不算，原样比（不去空白）。名字也算触发词，写在里面，出厂是空的；这里
 /// 不自动加上人格的名字。
-pub fn addressed(
-    kind: VenueKind,
-    mentions_me: bool,
-    quotes_me: bool,
-    text: &str,
-    keywords: &[String],
-) -> bool {
+pub fn addressed(kind: VenueKind, mentions_me: bool, text: &str, keywords: &[String]) -> bool {
     match kind {
         VenueKind::Private => true,
         VenueKind::Group => {
             let text = text.trim_start();
             mentions_me
-                || quotes_me
                 || keywords
                     .iter()
                     .any(|keyword| !keyword.is_empty() && text.starts_with(keyword.as_str()))

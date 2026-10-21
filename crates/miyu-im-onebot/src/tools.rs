@@ -22,6 +22,7 @@ mod log;
 mod lookup;
 mod mention;
 mod moderate;
+mod ranking;
 mod react;
 mod target;
 
@@ -58,6 +59,9 @@ pub const GROUP_FILES: &str = "qq_group_files";
 /// 给消息贴表情（施工 I-12）：只给群。
 pub const REACT: &str = "qq_react";
 
+/// 发言排行（施工 I-20）：只给群。
+pub const ACTIVITY_RANKING: &str = "qq_activity_ranking";
+
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
 pub const FETCH_MEDIA: &str = "qq_fetch_media";
 
@@ -72,7 +76,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 14] = [
+const TOOLS: [Decl; 15] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -143,11 +147,18 @@ const TOOLS: [Decl; 14] = [
         access: Access::Venue,
         venues: &["group"],
     },
+    Decl {
+        name: ACTIVITY_RANKING,
+        access: Access::Read,
+        venues: &["group"],
+    },
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
 const ANSWERS: [(&str, &[&str]); 43] = [
     ("skipped", &[]),
+    ("activity", &["count", "days", "list"]),
+    ("no-activity", &["days"]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
     ("sent", &[]),
@@ -174,7 +185,6 @@ const ANSWERS: [(&str, &[&str]); 43] = [
     ("no-group-files", &[]),
     ("reacted", &[]),
     ("not-found", &[]),
-    ("unknown", &["name"]),
     ("saved", &["path"]),
     ("unfetched", &["detail"]),
     ("not-saved", &["detail"]),
@@ -188,7 +198,6 @@ const ANSWERS: [(&str, &[&str]); 43] = [
     // 施工 I-17：参数写错的说哪个、私聊里调到只给群的、群友叫的踢人要确认、不踢群主管理员、一次几个人的头一行。
     ("bad-args", &["detail"]),
     ("group-only", &[]),
-    ("confirm", &[]),
     ("protected", &["who"]),
     ("batch", &["done", "total"]),
 ];
@@ -279,6 +288,7 @@ impl ToolSet for QqTools {
             CONTACTS => contacts::contacts(self.members, call),
             GROUP_FILES => group_files::group_files(self, call),
             REACT => react::react(call),
+            ACTIVITY_RANKING => ranking::ranking(&call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, self.wait),
             MENTION => mention::mention(call),
             CHAT_SEND => match send_request(&call.args) {

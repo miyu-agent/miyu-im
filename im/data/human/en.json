@@ -7,6 +7,7 @@
     "qq_contacts": { "name": "Contacts", "subject": "query" },
     "qq_group_files": { "name": "Group files", "subject": "file" },
     "qq_react": { "name": "React", "subject": "emoji" },
+    "qq_activity_ranking": { "name": "Activity ranking", "subject": "days" },
     "qq_moderation_log": { "name": "Moderation log", "subject": "view" },
     "qq_poke": { "name": "Poke" },
     "qq_fetch_media": { "name": "Fetch media", "subject": "msg" },

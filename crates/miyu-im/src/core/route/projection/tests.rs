@@ -298,12 +298,10 @@ fn her_replies_are_one_per_turn_and_her_ids_are_kept() {
             Reply {
                 at: at(10),
                 to: vec![qq(20002), qq(20003)],
-                after: Vec::new(),
             },
             Reply {
                 at: at(30),
                 to: Vec::new(),
-                after: Vec::new(),
             },
         ],
         "同一轮的几条并成一笔：时刻取第一条，回的人取并集"

@@ -7,6 +7,7 @@
     "qq_contacts": { "name": "通讯录", "subject": "query" },
     "qq_group_files": { "name": "群文件", "subject": "file" },
     "qq_react": { "name": "贴表情", "subject": "emoji" },
+    "qq_activity_ranking": { "name": "发言排行", "subject": "days" },
     "qq_moderation_log": { "name": "管理记录", "subject": "view" },
     "qq_poke": { "name": "戳一戳" },
     "qq_fetch_media": { "name": "取图和文件", "subject": "msg" },

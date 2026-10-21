@@ -80,7 +80,7 @@ async fn clearing_takes_two_clicks() {
         action: records::Action::Kick,
         user: 7,
         name: None,
-        by: records::By::Ai { asked: None },
+        by: records::By::Ai,
         seconds: None,
         reason: None,
         block: false,

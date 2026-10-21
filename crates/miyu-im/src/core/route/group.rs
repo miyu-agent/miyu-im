@@ -50,17 +50,6 @@ fn inbound_media(posted: &Posted) -> Value {
 }
 
 impl Route {
-    /// 平台编号是 `msg` 的那一条是不是机器人号 `bot` 发的（施工 I-16）：问不到的当不是。
-    async fn quotes_bot(&self, bot: i64, msg: &str) -> bool {
-        match self.bots.get(bot) {
-            Some(link) => link
-                .message(msg)
-                .await
-                .is_ok_and(|fetched| fetched.user == Some(bot)),
-            None => false,
-        }
-    }
-
     /// 群号是 `group` 的群里的一条消息 `posted`（「群消息」第 3 到 7 条）。
     pub(super) async fn group(&mut self, group: i64, posted: Posted) -> Result<(), Gone> {
         let made = self
@@ -102,25 +91,16 @@ impl Route {
             asleep: applied::asleep(&applied),
             show_ids: applied::show_ids(&applied),
         };
-        // 冲她来的取这一条和它引用的那一条的图（施工 O-33，`pictures`）：照「群里怎么叫她」第 4 条认，引用她照这个群的投影；投影
-        // 里没有的问平台那一条是不是机器人号发的（施工 I-16 照旧版：换会话以前、不经她回合发的也算）。
-        let mut quotes_me = posted.segments.reply_to.as_deref().is_some_and(|msg| {
+        // 冲她来的取这一条和它引用的那一条的图（施工 O-33，`pictures`）：照「群里怎么叫她」第 4 条认（引用她不算叫她，施工 I-20）；
+        // 引用她照这个群的投影认，交给挂接点、续聊（引用的不是她的才算对别人说）。
+        let quotes_me = posted.segments.reply_to.as_deref().is_some_and(|msg| {
             self.venues
                 .get(venue.id().as_str())
                 .and_then(|session| self.groups.get(session))
                 .is_some_and(|group| group.mine(msg))
         });
-        if let (false, Some(msg)) = (quotes_me, posted.segments.reply_to.as_deref()) {
-            quotes_me = self.quotes_bot(posted.bot, msg).await;
-        }
         let keywords = applied::keywords(&applied);
-        let calls_her = addressed(
-            VenueKind::Group,
-            flags.mentions_me,
-            quotes_me,
-            &text,
-            &keywords,
-        );
+        let calls_her = addressed(VenueKind::Group, flags.mentions_me, &text, &keywords);
         let message = Message {
             id: self
                 .platform
@@ -168,6 +148,11 @@ impl Route {
         let Some((session, reply)) = self.submit(message).await? else {
             return Ok(());
         };
+        // 发言排行（施工 I-20）：核心收下了的才数。
+        if crate::core::reason(&reply).is_none() {
+            self.counters
+                .spoke(heard.venue.id().as_str(), heard.sender.as_str());
+        }
         // 群名、附加提示词放进 system（施工 O-49、O-58 上，`titled`）：判以前放好，这一条开的轮就带上。
         self.titled(&session, group, posted.bot).await?;
         self.noted(&session, note.as_deref()).await?;

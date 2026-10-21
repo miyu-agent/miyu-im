@@ -58,6 +58,7 @@ fn messages_add_up_the_days() {
             hours[9] = received;
             hours
         },
+        speakers: std::collections::BTreeMap::new(),
     };
     let now = vec![
         ("2026-10-19".to_string(), day(3, 1)),

@@ -49,7 +49,7 @@ pub struct Said {
     pub sender: ExternalId,
     /// 发的人是谁。
     pub standing: Standing,
-    /// 是不是冲她来的：私聊一律是，群里 @ 她、引用她的消息、以触发词开头（名字写在触发词里），由外面用 [`addressed()`]
+    /// 是不是冲她来的：私聊一律是，群里 @ 她、以触发词开头（引用她不算，施工 I-20）（名字写在触发词里），由外面用 [`addressed()`]
     /// 算好。限流满了只给冲她来的回一句；冲她来的加 `direct` 分。
     pub addressed: bool,
 }

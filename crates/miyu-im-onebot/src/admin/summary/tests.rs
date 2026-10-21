@@ -15,7 +15,7 @@ fn record(
         action,
         user,
         name: Some(format!("u{user}")),
-        by: By::Ai { asked: None },
+        by: By::Ai,
         seconds,
         reason: reason.map(str::to_string),
         block: false,

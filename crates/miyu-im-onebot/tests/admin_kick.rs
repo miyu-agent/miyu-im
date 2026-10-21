@@ -1,5 +1,5 @@
-//! 踢人照旧版（施工 I-17）：真核心拉起真桥、假 NapCat，她照台词说。群友叫的踢人头一次不做、要她同一轮带 `confirm` 再调一次；群主
-//! 叫的直接做。一次几个人：一个个做、一个个报，群主和管理员不踢、不在群里的不踢；NapCat 踢成了却回失败的（实测的毛病）现问成员
+//! 踢人照旧版（施工 I-17）：真核心拉起真桥、假 NapCat，她照台词说。谁叫的都直接做（施工 I-20：不要二次确认，2026-10-21 项目主人
+//! 定）。一次几个人：一个个做、一个个报，群主和管理员不踢、不在群里的不踢；NapCat 踢成了却回失败的（实测的毛病）现问成员
 //! 核实，走了的算成、记进管理记录。禁言一次几个人同样一个个报。
 
 use std::sync::Arc;
@@ -71,37 +71,27 @@ fn records(home: &Home) -> Vec<Value> {
 }
 
 #[tokio::test]
-async fn a_member_asking_for_a_kick_needs_her_to_confirm_in_the_same_turn() {
+async fn a_member_asking_for_a_kick_gets_it_done_at_once() {
+    // 施工 I-20：群友叫的也不用确认；记录只有备注，不记谁叫的。
     let lines = Lines::new([
-        Line::uses("", "qq_kick", r#"{"user":40002}"#),
-        Line::uses("", "qq_kick", r#"{"user":40002,"confirm":true}"#),
-        Line::says("好。"),
-        // 下一轮直接带 confirm：上一轮的不算，照样要确认。
-        Line::uses("", "qq_kick", r#"{"user":40002,"confirm":true}"#),
+        Line::uses("", "qq_kick", r#"{"user":40002,"reason":"刷广告"}"#),
         Line::says("好。"),
     ]);
     let (home, mut napcat) = kicking(&lines).await;
     let words = json!([plain("把 40002 踢了")]);
-    let seq = says(&home, &napcat, (MANAGER, "member"), 1101, words.clone()).await;
+    let seq = says(&home, &napcat, (MANAGER, "member"), 1101, words).await;
     respond(&home, &venue(), "open-1101", &[json!(seq)]).await;
-    let said = results(&home, 1).await;
     assert_eq!(
-        said,
-        [done("confirm", &[]), done("kicked", &[("who", "40002")])],
-        "头一次不做，带 confirm 的那一次做"
+        results(&home, 1).await,
+        [done("kicked", &[("who", "40002")])]
     );
     let kicked = next_platform(&mut napcat).await;
     assert_eq!(kicked["action"], "set_group_kick", "{kicked}");
     assert_eq!(kicked["params"]["user_id"], IMPOSTOR);
-    asks(&home, &napcat, MANAGER, 1102, words, 2).await;
-    assert_eq!(results(&home, 2).await[2], done("confirm", &[]));
-    no_platform(&mut napcat);
-    let asked = records(&home);
-    assert_eq!(asked.len(), 1, "{asked:?}");
-    assert_eq!(
-        asked[0]["by"],
-        json!({"kind": "ai", "asked": {"user": MANAGER, "name": "群管"}})
-    );
+    let written = records(&home);
+    assert_eq!(written.len(), 1, "{written:?}");
+    assert_eq!(written[0]["by"], json!({"kind": "ai"}));
+    assert_eq!(written[0]["reason"], "刷广告");
     stopped(home).await;
 }
 

@@ -259,9 +259,9 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
             record
         })
         .collect();
-    // 施工 I-17：记下是谁让她做的（那时的名字）。
-    let manager = json!({"kind": "ai", "asked": {"user": MANAGER, "name": "群管"}});
-    let owner = json!({"kind": "ai", "asked": {"user": OWNER, "name": "群主"}});
+    // 施工 I-20：不记谁让她做的，备注只有 `reason`。
+    let manager = json!({"kind": "ai"});
+    let owner = json!({"kind": "ai"});
     assert_eq!(
         shape,
         [
@@ -351,13 +351,12 @@ async fn the_moderation_log_lists_records_and_a_ranking() {
     let template = sentence("log-events", &[("shown", "2"), ("total", "2")]);
     assert_eq!(lines[0], template.trim_end(), "{events}");
     assert!(
-        lines[1].ends_with(" unmuted 小明 (40001); by you, asked by 群管 (40003)"),
+        lines[1].ends_with(" unmuted 小明 (40001); by you"),
         "新的在前：{events}"
     );
     assert!(
-        lines[2].ends_with(
-            " muted 小明 (40001) for 10 minutes; by you, asked by 群管 (40003); reason: 刷屏; status: unmuted"
-        ),
+        lines[2]
+            .ends_with(" muted 小明 (40001) for 10 minutes; by you; reason: 刷屏; status: unmuted"),
         "{events}"
     );
     assert_eq!(

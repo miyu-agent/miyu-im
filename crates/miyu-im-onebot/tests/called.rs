@@ -1,5 +1,5 @@
 //! 群里叫她就回（施工 O-23，`onebot.md` 第一条「群里怎么叫她」）：真核心照开关拉起真桥，假 NapCat 发群消息，模型替身照剧本
-//! 说。终端管理员 @ 她、叫她的名字（触发词开头）、引用她的消息，各开一轮，她的回话转成纯文本发回群里、记 `venue.delivered`；别人的
+//! 说。终端管理员 @ 她、叫她的名字（触发词开头）、引用她的消息再 @ 她，各开一轮，她的回话转成纯文本发回群里、记 `venue.delivered`；别人的
 //! @ 要问判官，照剧本回的核心没有一次性入口、回 `no_model`，判不了，冲她来的照回（O-23 下；O-37 起照回，原来不回；判官说回、说不回的在 `judged.rs`）；没条件的只记下；每一条都记一笔 `ext.im.chat.decided`。睡觉时间里终端管理员照回、别人只记下；终端管理员连发两条，
 //! 正在跑的一轮并进去；同一条消息平台重发不再判。她的话拆成几段发，NapCat 回的先后和发的先后不一样，`venue.delivered` 也照
 //! 发的先后记。
@@ -119,9 +119,12 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     ));
     assert_eq!(napcat.group_reply(GROUP).await, "叫我？");
     until_answered(&home, GROUP, 2, 2).await;
-    // 4：引用她说的第一句（假 NapCat 回的编号）。
-    let quoting =
-        json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, plain("这个呢")]);
+    // 4：引用她说的第一句（假 NapCat 回的编号）再 @ 她（引用不 @ 不算叫她，施工 I-20）。
+    let quoting = json!([
+        {"type": "reply", "data": {"id": FIRST_SENT.to_string()}},
+        at(BOT),
+        plain(" 这个呢")
+    ]);
     napcat.send(group_frame(GROUP, ADMIN, 4, quoting, ("终端管理员", "o")));
     assert_eq!(
         napcat.group_reply(GROUP).await,

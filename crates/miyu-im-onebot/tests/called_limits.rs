@@ -184,7 +184,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     );
     bridge_up(&home.root, listen).await.expect("桥重新起来");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
-    // 6：小林冲她来：限流照旧满，只记下。7：终端管理员引用她以前的「一」：照样认得，回。
+    // 6：小林冲她来：限流照旧满，只记下。7：终端管理员引用她以前的「一」再 @ 她（引用不 @ 不算叫她，施工 I-20）：回。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -192,7 +192,8 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         json!([at(BOT), plain(" 还在吗")]),
         ("小林", "lin"),
     ));
-    let quoting = json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, plain("这个")]);
+    let quoting =
+        json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, at(BOT), plain(" 这个")]);
     napcat.send(group_frame(GROUP, ADMIN, 7, quoting, ("终端管理员", "o")));
     assert_eq!(
         napcat.group_reply(GROUP).await,
