@@ -425,7 +425,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
     - `Rejudge`：放下那一条在判的（桥这边拿掉它，那一次判官请求不取消，回来的回答丢掉，施工单「要定的」第 1 条），几条一起照合起来的条件走路（第 10 条）：要问判官的一起问（第 12 条，`Judging` 的 `msg` 是这一条、`absorbed` 是前面几条），开一轮的 `session.respond {to: 这几条}`；记判断时 `msgs` 是这几条、`supersede: {rejudge: 放下的那一条}`。
 12. **问判官**（O-23 下）：交给一个另起的任务（`judges.rs`、`ask.rs`），跟核心的那一头接着办别的消息；任务经并着发的调用口（`core/caller.rs`）调核心，不等那一头手上的事。
     1. **排队**：全局最多同时问 `bridge.json` 的 `judge_concurrency` 个（出厂 4），名额满了排队，最多等 `judge_queue_seconds`（出厂 15 秒），等不到的当判不了（`unjudged: queue`），不重试。一个名额占到这一次问完：重试接着占着；被放下的那一次照样等到回答才放（「施工时定的」第 95 条）。
-    2. **群聊记录**：`venue.records {session, msg: 判的最后一条, count}`，`count` 是这个群的 `Params::judge.records`（1 到 100，和核心收的一样，`chat.md` 第八条，「施工时定的」第 93 条）。被拒的当判不了（`refused`，`detail` 是原因码），不重试。几条一起判的，前面几条在记录里（「施工时定的」第 92 条）。
+    2. **群聊记录**：`venue.records {session, msg: 判的最后一条, count, grow?}`，`count` 是这个群的 `Params::judge.records`（1 到 100，和核心收的一样，`chat.md` 第八条，「施工时定的」第 93 条）；`grow` 是 `count` 的两倍（施工 I-22，生长窗口：核心把起点对齐到步长、往后追加，判官的前缀不变、缓存接得上），和 `count` 加起来超过 100 的截到 `100 − count`，截成 0 的不交。被拒的当判不了（`refused`，`detail` 是原因码），不重试。几条一起判的，前面几条在记录里（「施工时定的」第 92 条）。
     3. **拼请求**：`Ask { persona, records, current, decoded, mode }`。`persona` 是这个群会话所用的人格的说明（O-23 补，2026-10-09 项目主人定：判官也带人格，给一个开关，默认开）：
        - 哪一个人格：第 1 条记下的订阅回应的 `persona`；没有的（无人格）不带。这个群的 `Params::judge.persona` 是假的（场所规则写 `judge = { persona = false }`，`chat.md` 第八条）也不带、不读。不带的是 `None`，那一段整个不出现。
        - 原文：拿到群聊记录以后读 `persona.read {"persona": <编号>, "prompt": "persona"}` 的 `text`：属主那几层叠好的、现在文件里的那一份，不是会话快照里冻着的（施工单「不做什么」第 1 条）。`text` 是 `null` 或空的（这个人格没写人设）不带。

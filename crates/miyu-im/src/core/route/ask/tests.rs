@@ -182,7 +182,8 @@ async fn the_records_come_first_then_the_call_shaped_as_drawn() {
     let records = core.records("R1\n", "C1\n").await;
     assert_eq!(
         records["params"],
-        json!({"session": "s", "msg": 12, "count": 20})
+        json!({"session": "s", "msg": 12, "count": 20, "grow": 40}),
+        "出厂照步长往后长（施工 I-22）"
     );
     let call = core
         .says(&format!("```json\n{}\n```", verdict("asked")))
@@ -233,6 +234,7 @@ async fn records_are_asked_as_many_as_set_and_the_model_if_written() {
     );
     let records = core.records("R1\n", "C1\n").await;
     assert_eq!(records["params"]["count"], 3);
+    assert_eq!(records["params"]["grow"], 6);
     let call = core.says(&verdict("x")).await;
     assert_eq!(call["params"]["model"], "@cheap");
     let user = call["params"]["messages"][1]["text"]
@@ -394,4 +396,25 @@ async fn refused_records_are_not_asked_again_and_a_gone_core_gives_nothing() {
     core.waiting.close();
     assert_eq!(task.await.expect("没崩"), None);
     assert!(matches!(caller.call("x", json!({})).await, Err(Gone)));
+}
+
+#[tokio::test(start_paused = true)]
+async fn growing_follows_twice_the_records_within_a_hundred() {
+    // 生长窗口（施工 I-22）：步长照条数的两倍；count + grow 不超过 100（核心的上限），超了的截掉；100 条的不交步长。
+    let (caller, mut core) = connected();
+    for (records, grow) in [(30, Some(60)), (50, Some(50)), (100, None)] {
+        let task = asked(
+            asking(|asking| asking.judge.records = records),
+            &caller,
+            &slots(),
+        );
+        let request = core.records("R1\n", "C1\n").await;
+        assert_eq!(
+            request["params"].get("grow").and_then(Value::as_u64),
+            grow,
+            "{request}"
+        );
+        core.says(&verdict("x")).await;
+        task.await.expect("没崩").expect("核心在");
+    }
 }

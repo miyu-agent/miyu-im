@@ -597,7 +597,7 @@ restraint_half_life = "3m"
 | `chatty.severity_min` | 整数 1 到 10 | 7 | `Chatty::severity_min` |
 | `dispatch.supersede_window` | 时长 1 秒到 1 天 | `7s` | `Params::supersede_window` |
 | `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照 `models.chat` |
-| `judge.records` | 整数 1 到 100（O-23 下改，原来 0 到 1000：和核心的 `venue.records` 收的一样） | 20 | `Judge::records`：判官看几条记录 |
+| `judge.records` | 整数 1 到 100（O-23 下改，原来 0 到 1000：和核心的 `venue.records` 收的一样） | 20 | `Judge::records`：判官至少看几条记录。施工 I-22 起桥照它的两倍交生长步长（核心把起点对齐到步长、往后追加，前缀不变省缓存），实际看 `records` 到 `3 × records − 1` 条，不超过 100；2026-10-21 项目主人定只留这一项，不另设步长 |
 | `judge.persona` | 开关（O-23 补） | `true` | `Judge::persona`：判官带不带这个群会话所用的人格的说明（第六条 `Ask::persona`）；某个群想省 token，场所规则写 `judge = { persona = false }` 关掉 |
 | `judge.max_tokens` | 整数 1 到 100000 | 400 | `Judge::max_tokens` |
 | `judge.timeout` | 时长 1 秒到 1 小时 | `60s` | `Judge::timeout` |

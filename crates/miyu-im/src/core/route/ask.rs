@@ -188,8 +188,15 @@ pub(super) async fn ask(
 ///
 /// 核心断开了。
 async fn records(asking: &Asking, caller: &Caller) -> Result<Result<Ask, Unjudged>, Gone> {
-    let params =
+    let mut params =
         json!({"session": asking.session, "msg": asking.msg, "count": asking.judge.records});
+    // 生长窗口（施工 I-22，2026-10-21 项目主人定只留 `judge.records` 一项）：步长照条数的两倍，核心把起点对齐到步长、往后追加，
+    // 看 records 到 3 × records − 1 条；count + grow 不超过 100（核心的上限）。
+    let records = asking.judge.records;
+    let grow = (2 * records).min(100usize.saturating_sub(records));
+    if grow > 0 {
+        params["grow"] = json!(grow);
+    }
     let reply = caller.call("venue.records", params).await?;
     if let Some(reason) = reason(&reply) {
         return Ok(Err(Unjudged::Refused(reason.to_string())));
