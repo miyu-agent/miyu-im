@@ -1,22 +1,29 @@
 //! 分派和支线（施工 O-36，`onebot.md` 第一条「群里怎么叫她」第 1、6、7、9 条；`chat.md` 第四条；`session/fork.md`）：判下来要回
 //! 的照群聊内核的 `dispatch` 做，支线推来的事件收进主线的投影。纯逻辑的那一半在 `projection/lanes.rs`。
 //!
-//! - `StartMain`：`session.respond` 主线，给每条支线在回的每一条带一块「另一条线正在回」（模板是出厂数据，`rules/facts.rs`）。
-//! - `JoinMain`：`session.respond` 主线，不带事实。
+//! - 回对人（施工 I-21）：开轮、并进都带一块「你只回这几条，别的另有安排」（模板是出厂数据，`rules/facts.rs`，[`Route::own_line`]）：
+//!   几个人同时叫她时，原来主线什么都不带、支线只写一条别的线，她把别人的题一起答（实测 6 轮全有）；改了以后答别人的题 1%。
+//! - `StartMain`：`session.respond` 主线。
+//! - `JoinMain`：`session.respond` 主线。
 //! - `Queue`：排在这个群会话后面，主线这一轮结束了开下一轮（施工 I-16 照旧版，`waiting`；原来并进主线这一轮）。
 //! - `JoinLane`：判的几条里比分叉点晚、还没抄进去的先抄（`session.send`，命令编号加 `/branch`，`venue` 带 `ambient`），再
 //!   `session.respond` 支线。
 //! - `Fork`：`session.fork {seal_after: 1}`、订阅子会话（`after` 是分叉点）、把留着的人话里比分叉点晚的照先后抄进去，最后
-//!   `session.respond` 支线，给主线在回的每一条带一块。分叉被拒的照 `Queue` 办；订阅不上、开不了轮的支线当场去掉（不然它不会
+//!   `session.respond` 支线。分叉被拒的照 `Queue` 办；订阅不上、开不了轮的支线当场去掉（不然它不会
 //!   封存，一直占着位置）。
+//! - 覆盖打断重来（施工 I-21，2026-10-21 项目主人：「相当于在终端里发错了、打断重新编辑再请求」）：顶替接过去的（[`Route::redone`]），
+//!   在回前一条的那条线这一轮还一段话都没入队的，`session.interrupt` 那条线（排着队的留着），再照这几条开一轮：核心不让已经当过
+//!   触发的再当（`already_answered`），所以 `to` 只交新的这几条，「你只回这几条」写全。已经说过话的照旧并进去。实测（旧版也这样）：
+//!   补发的那条并进正在跑的一轮，那次请求已经发出去，她先回一句过时的再答。
 //! - 支线刚好封存了（`session_sealed`）：先把留着的推送收进来（封存的那一条在里面，支线跟着去掉），重新分派一次，只重来一次。
 //! - 支线推来的（[`Route::lane_heard`]）：换回主线序号收进主线的投影，贴着的表情照 `(line, turn)` 记、摘，「不说话」照子会话
 //!   编号认，她的话照主线的出站链发；`session.sealed` 退订。
 
-use miyu_chat::{Dispatch, Venue, dispatch};
+use miyu_chat::{Dispatch, Supersede, Venue, dispatch};
 use miyu_client::events::Event;
 use serde_json::{Value, json};
 
+use super::decide::Decision;
 use super::judges::Tag;
 use super::projection::{Carry, Seen};
 use super::voicing::Voice;
@@ -24,7 +31,7 @@ use super::{Route, applied, reply_text};
 use crate::TARGET;
 use crate::core::{Gone, reason};
 
-/// 「另一条线正在回」那一块事实的 `kind`（「群里怎么叫她」第 7 条「事实」）。
+/// 「你只回这几条」那一块事实的 `kind`（「群里怎么叫她」第 7 条「事实」，施工 I-21 改字）。
 const ANOTHER_LINE: &str = "another-line";
 
 /// 拒绝码：支线封存了（`session/fork.md`「封存」）。
@@ -90,35 +97,78 @@ impl Route {
             Some(sender) => dispatch(sender, &lines),
             None => Dispatch::JoinMain,
         };
+        let facts = self.own_line(session, msgs);
         match decided {
-            Dispatch::StartMain => {
-                let aim = msgs
-                    .last()
-                    .and_then(|seq| group.msg(*seq))
-                    .map(str::to_string);
-                let facts = self.another_line(group.answering(true), aim.as_deref());
+            Dispatch::StartMain | Dispatch::JoinMain => {
                 self.respond(session, msgs, &facts, tag).await
             }
-            Dispatch::JoinMain => self.respond(session, msgs, &[], tag).await,
             Dispatch::Queue => Ok(if self.wait(session, msgs, tag) {
                 Responded::Asked
             } else {
                 Responded::Refused
             }),
             Dispatch::JoinLane(index) => match group.lane_at(index).map(str::to_string) {
-                Some(lane) => self.join_lane(session, &lane, msgs, tag).await,
-                None => self.respond(session, msgs, &[], tag).await,
+                Some(lane) => self.join_lane(session, &lane, msgs, &facts, tag).await,
+                None => self.respond(session, msgs, &facts, tag).await,
             },
             Dispatch::Fork => self.fork(session, msgs, tag).await,
         }
     }
 
-    /// 并进群会话 `session` 的支线 `lane`：判的几条 `msgs` 里还没抄进去的先抄，再 `session.respond` 支线，不带事实。
+    /// 覆盖打断重来（模块的说明）：`decision` 是顶替接过去的、回前一条的那条线这一轮还没说过话的，打断它、照几条开一轮，交回开成了
+    /// 没有；不是这种的（没顶替、说过话了、核心说没在跑）交回假，照常分派。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn redone(
+        &mut self,
+        session: &str,
+        decision: &Decision,
+        tag: &Tag,
+    ) -> Result<bool, Gone> {
+        let Some(Supersede::Inherit { msg, .. }) =
+            decision.passed.as_ref().map(|passed| &passed.supersede)
+        else {
+            return Ok(false);
+        };
+        let Some((line, mut msgs)) = self
+            .groups
+            .get(session)
+            .and_then(|group| group.redo(msg.get()))
+        else {
+            return Ok(false);
+        };
+        let params = json!({"session": line, "queued": "keep"});
+        let reply = self.core.call("session.interrupt", params).await?;
+        if let Some(reason) = reason(&reply) {
+            tracing::debug!(target: TARGET, venue = %tag.venue, message = tag.number, reason, "turn not interrupted for a supersede");
+            return Ok(false);
+        }
+        tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, line, "turn interrupted for a supersede");
+        for seq in &decision.msgs {
+            if !msgs.contains(seq) {
+                msgs.push(*seq);
+            }
+        }
+        let facts = self.own_line(session, &msgs);
+        let responded = match line == session {
+            true => self.respond(session, &decision.msgs, &facts, tag).await?,
+            false => {
+                self.join_lane(session, &line, &decision.msgs, &facts, tag)
+                    .await?
+            }
+        };
+        Ok(responded == Responded::Asked)
+    }
+
+    /// 并进群会话 `session` 的支线 `lane`：判的几条 `msgs` 里还没抄进去的先抄，再 `session.respond` 支线，带上事实 `facts`。
     async fn join_lane(
         &mut self,
         session: &str,
         lane: &str,
         msgs: &[u64],
+        facts: &[Value],
         tag: &Tag,
     ) -> Result<Responded, Gone> {
         let carries = self
@@ -131,7 +181,7 @@ impl Route {
                 return Ok(Responded::Sealed);
             }
         }
-        self.respond_lane(session, lane, msgs, &[], tag).await
+        self.respond_lane(session, lane, msgs, facts, tag).await
     }
 
     /// 给群会话 `session` 分叉一条支线回 `msgs`（第 7 条 `Fork`）。
@@ -149,15 +199,9 @@ impl Route {
         let Some(group) = self.groups.get_mut(session) else {
             return Ok(Responded::Refused);
         };
-        // 主线这一轮在回的，照分叉这一刻定死（18 第八节「要守的三条」第 2 条）。
-        let answering = group.answering(false);
-        let aim = msgs
-            .last()
-            .and_then(|seq| group.msg(*seq))
-            .map(str::to_string);
         group.forked(&lane, upto, msgs);
         tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, lane, upto, "lane forked");
-        let facts = self.another_line(answering, aim.as_deref());
+        let facts = self.own_line(session, msgs);
         // 群名那一段照主线的给支线也放一份（施工 O-49）：开轮以前放好，支线第一次请求的 system 和主线的一样。
         self.title_lane(session, &lane).await?;
         let responded = match self.follow_lane(&lane, upto).await? {
@@ -266,24 +310,29 @@ impl Route {
         }
     }
 
-    /// 别的线在回的、平台编号是 `msgs` 的那几条各写一块「另一条线正在回」，末尾点明这条线回的是平台编号 `aim` 的那一条（第 7 条
-    /// 「事实」）。这条线回的那一条没有平台编号的（照说不会）不带；写不出的（照说不会：起来时查过字段）记一行、不带。
-    fn another_line(&self, msgs: Vec<String>, aim: Option<&str>) -> Vec<Value> {
-        let Some(aim) = aim else {
+    /// 群会话 `session` 里这一轮回的几条 `msgs`（主线序号）写一块「你只回这几条，别的另有安排」（施工 I-21）：照先后写平台编号
+    /// （`msg=1, msg=2`）。一条平台编号都没有的（照说不会）不带；写不出的（照说不会：起来时查过字段）记一行、不带。
+    fn own_line(&self, session: &str, msgs: &[u64]) -> Vec<Value> {
+        let Some(group) = self.groups.get(session) else {
             return Vec::new();
         };
-        msgs.iter()
-            .filter_map(|msg| {
-                let fields = [("msg", msg.as_str()), ("aim", aim)].into_iter().collect();
-                match self.rules.another_line().render(&fields) {
-                    Ok(text) => Some(json!({"kind": ANOTHER_LINE, "text": text})),
-                    Err(error) => {
-                        tracing::warn!(target: TARGET, error = %error, "another line not written");
-                        None
-                    }
-                }
-            })
-            .collect()
+        let ids: Vec<String> = msgs
+            .iter()
+            .filter_map(|seq| group.msg(*seq))
+            .map(|msg| format!("msg={msg}"))
+            .collect();
+        if ids.is_empty() {
+            return Vec::new();
+        }
+        let joined = ids.join(", ");
+        let fields = [("msgs", joined.as_str())].into_iter().collect();
+        match self.rules.another_line().render(&fields) {
+            Ok(text) => vec![json!({"kind": ANOTHER_LINE, "text": text})],
+            Err(error) => {
+                tracing::warn!(target: TARGET, error = %error, "own line not written");
+                Vec::new()
+            }
+        }
     }
 
     /// 订阅支线 `lane`，补 `after` 以后的（第 1 条：分叉点、掉了队收到的最后一条）。订阅不上的记一行、交回假。

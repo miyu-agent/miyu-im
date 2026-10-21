@@ -3,6 +3,7 @@
 //! 叫她的，核心接着开下一轮，她在新一轮里的回答照常发；同一步别的工具照常跑完。
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
@@ -16,7 +17,7 @@ use crate::support::*;
 const GROUP: i64 = 778;
 
 /// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\ndispatch = { supersede_window = \"1s\" }\n";
 
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
@@ -61,7 +62,8 @@ async fn a_call_joined_into_a_skipped_turn_is_answered_in_the_next_turn() {
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
     admin_calls(&napcat, 1, "在吗");
     until_count(&home, "turn.started", 1).await;
-    // 她那次请求还压着，终端管理员又 @ 她：并进这一轮。
+    // 她那次请求还压着，过了顶替窗口终端管理员又 @ 她：并进这一轮（窗口里的是打断重来，施工 I-21）。
+    tokio::time::sleep(Duration::from_millis(1100)).await;
     admin_calls(&napcat, 2, "问你呢");
     let events = until_count(&home, "turn.joined", 1).await;
     let joined = of_kind(&events, "turn.joined")[0]["seq"].clone();

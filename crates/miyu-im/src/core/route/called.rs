@@ -215,8 +215,11 @@ impl Route {
                 Ok(())
             }
             Finale::Reply => {
-                // 照分派开一轮、并进一轮（施工 O-36，`lanes`），成了的贴表情（施工 O-25 下，「贴表情」第 1 条）。
-                if self.dispatched(session, &decision.msgs, tag).await? {
+                // 覆盖打断重来（施工 I-21），不然照分派开一轮、并进一轮（施工 O-36，`lanes`），成了的贴表情（施工 O-25 下，「贴表情」
+                // 第 1 条）。
+                if self.redone(session, decision, tag).await?
+                    || self.dispatched(session, &decision.msgs, tag).await?
+                {
                     self.react(session, decision);
                 }
                 Ok(())
@@ -353,11 +356,13 @@ impl Route {
             .chain(self.judges.pendings(session))
             .cloned()
             .collect();
+        let serving = group.serving();
         let decision = decide(&Case {
             facts,
             text: heard.text.clone(),
             ctx,
             replies: group.replies(),
+            serving: &serving,
             clock,
             chatty: &applied.params.chatty,
             discipline: Discipline::read(applied::discipline(&applied)),

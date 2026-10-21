@@ -1,5 +1,6 @@
 //! 顶替（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 11 条，`chat.md` 第四条）：同一个人在顶替窗口里补发一条。前一条
-//! 判过要回、她还没回完的，这一条接过去、并进她这一轮；前一条还在判的，放下那一次（晚回来的回答丢掉），几条一起重判。
+//! 判过要回、她还没开口的，这一条接过去，打断她这一轮、照两条重来（施工 I-21）；前一条还在判的，放下那一次（晚回来的回答丢掉），
+//! 几条一起重判。过了顶替窗口、她还在为他跑一轮的是跟进（施工 I-21）：照常判，判下来要回的并进那一轮。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,11 +60,12 @@ fn seq_of(events: &[Value], message: i64) -> Value {
 }
 
 #[tokio::test]
-async fn a_follow_up_joins_the_turn_she_is_in() {
-    // 小林 @ 她，判官说回；她还没开口，小林补一句没 @ 的：接过去，并进她这一轮，不再问判官。
+async fn a_quick_correction_restarts_her_turn() {
+    // 小林 @ 她，判官说回；她还没开口，小林补一句没 @ 的：接过去、不再问判官，打断她这一轮，照两条重来（施工 I-21，「相当于在终端
+    // 里发错了、打断重新编辑再请求」）。
     let server = judge(vec![yes("asked her")]).await;
-    let script = Script::new([Play::Stalls]);
-    let (home, napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
+    let script = Script::new([Play::Stalls, Play::Says("后天三点")]);
+    let (home, mut napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -82,23 +84,39 @@ async fn a_follow_up_joins_the_turn_she_is_in() {
         json!([plain("我是说后天")]),
         ("小林", "lin"),
     ));
-    let events = until_event(&home.root, &venue(), |event| event["kind"] == "turn.joined").await;
-    let joined = &of_kind(&events, "turn.joined")[0];
-    assert_eq!(joined["body"]["triggers"], json!([seq_of(&events, 2)]));
-    assert_eq!(joined["cause"], cause(2, "respond"));
-    let events = until_events(&home.root, &venue(), |events| decided(events, 2).is_some()).await;
+    assert_eq!(napcat.group_reply(GROUP).await, "后天三点");
+    let events = until_events(&home.root, &venue(), |events| {
+        of_kind(events, "turn.ended").len() == 2 && decided(events, 2).is_some()
+    })
+    .await;
     assert_eq!(
         decided(&events, 2),
         Some(json!({
             "msgs": [seq_of(&events, 2)], "standing": "member", "inbound": "pass", "discipline": "chatty",
-            "conditions": [{"kind": "direct", "bonus": 0.3}], "supersede": {"inherit": seq_of(&events, 1)},
-            "route": "commit", "outcome": "reply",
+            "conditions": [{"kind": "direct", "bonus": 0.3}, {"kind": "followup", "bonus": 0.1}],
+            "supersede": {"inherit": seq_of(&events, 1)}, "route": "commit", "outcome": "reply",
         })),
-        "条件是前一条的，接过去不再判"
+        "条件是前一条的加上跟进，接过去不再判"
     );
     assert_eq!(server.received().len(), 1, "补的那一句不再问判官");
-    assert_eq!(of_kind(&events, "turn.started").len(), 1, "不另开一轮");
-    assert_eq!(script.requests().len(), 1);
+    let ended = of_kind(&events, "turn.ended");
+    assert_eq!(ended[0]["body"]["reason"], "interrupted", "{ended:#?}");
+    let started = of_kind(&events, "turn.started");
+    assert_eq!(started.len(), 2, "重来一轮：{started:#?}");
+    assert_eq!(started[1]["body"]["triggers"], json!([seq_of(&events, 2)]));
+    assert_eq!(started[1]["cause"], cause(2, "respond"));
+    assert!(
+        of_kind(&events, "turn.joined").is_empty(),
+        "不并进打断了的那一轮"
+    );
+    let requests = script.requests();
+    assert_eq!(requests.len(), 2);
+    let last =
+        serde_json::to_string(requests[1].1.messages.last().expect("有消息")).expect("写得成");
+    assert!(
+        last.contains("You are replying to msg=1, msg=2 only."),
+        "重来的那一轮回两条：{last}"
+    );
     stopped(home).await;
 }
 
@@ -197,14 +215,21 @@ async fn a_follow_up_while_judging_is_judged_together() {
 
 #[tokio::test]
 async fn the_turn_opened_for_a_follow_up_answers_that_person() {
-    // 小林 @ 她、判官说回；她这一轮还没说完（头一次请求压着），小林补一句：并进这一轮。这一轮没再请求就结束了，核心接着开
-    // 一轮（`turn.started` 只有指向那条 `turn.joined` 的 `trigger`）：这一轮的话也是回小林的，他再说一句认得出是续聊。
-    let server = judge(vec![yes("asked her"), no("not this time")]).await;
+    // 小林 @ 她、判官说回；她这一轮还没说完（头一次请求压着），过了顶替窗口小林补一句：跟进（施工 I-21），判官说回，并进这一轮。
+    // 这一轮没再请求就结束了，核心接着开一轮（`turn.started` 只有指向那条 `turn.joined` 的 `trigger`）：这一轮的话也是回小林的，
+    // 他再说一句认得出是续聊。
+    let server = judge(vec![
+        yes("asked her"),
+        yes("more for her"),
+        no("not this time"),
+    ])
+    .await;
     let script = Script::new([Play::Says("在"), Play::Says("补上")]);
     let (release, held) = tokio::sync::oneshot::channel();
     let models = holding(&script, held);
+    let rules = format!("{RULES}dispatch = {{ supersede_window = \"1s\" }}\n");
     let (home, mut napcat, _) =
-        started_with_models(models, &server, (RULES, ""), "", MEMBERS).await;
+        started_with_models(models, &server, (&rules, ""), "", MEMBERS).await;
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -216,6 +241,8 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
         event["kind"] == "turn.started"
     })
     .await;
+    // 顶替窗口（这里 1 秒）过了再补。
+    tokio::time::sleep(Duration::from_millis(1100)).await;
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -225,6 +252,13 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     ));
     let events = until_event(&home.root, &venue(), |event| event["kind"] == "turn.joined").await;
     let joined = of_kind(&events, "turn.joined")[0]["seq"].clone();
+    let follow = decided(&events, 2).expect("记了判断");
+    assert_eq!(
+        follow["conditions"],
+        json!([{"kind": "followup", "bonus": 0.1}]),
+        "跟进：{follow}"
+    );
+    assert_eq!(follow["route"], "judge", "跟进照常判：{follow}");
     release.send(()).expect("还在等");
     assert_eq!(napcat.group_reply(GROUP).await, "在");
     // 她连着说：前一句先记下了的，这一句引用小林补的那一条（O-25 上，「施工时定的」第 111、112 条），剧本说得快，记没记下
@@ -274,5 +308,6 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     );
     assert_eq!(body["outcome"], "record", "判官说不回：{body}");
     assert_eq!(script.requests().len(), 2);
+    assert_eq!(server.received().len(), 3);
     stopped(home).await;
 }

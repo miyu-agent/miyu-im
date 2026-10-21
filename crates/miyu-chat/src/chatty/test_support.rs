@@ -5,7 +5,7 @@ use miyu_kernel::time::{Timestamp, UtcOffset};
 
 use crate::{Clock, Flag, Said, Standing};
 
-use super::{Chatty, Conditions, Facts, Reply, Restraint, Window, conditions};
+use super::{Chatty, Conditions, Facts, Followup, Reply, Restraint, Window, conditions};
 
 /// 一秒的毫秒数。
 pub(crate) const SECOND: i64 = 1_000;
@@ -39,6 +39,10 @@ pub(crate) fn chatty() -> Chatty {
         continuation: Window {
             bonus: 0.1,
             window: 15 * SECOND,
+        },
+        followup: Followup {
+            on: true,
+            bonus: 0.1,
         },
         after_speaking: Window {
             bonus: 0.1,
@@ -118,7 +122,12 @@ pub(crate) fn hits(
     replies: &[Reply],
     chatty: &Chatty,
 ) -> Conditions {
-    conditions(facts, flags, replies, now(), chatty)
+    conditions(facts, flags, (replies, &[]), now(), chatty)
+}
+
+/// 同 [`hits`]，她这时正在为 `serving` 这几个人跑一轮（跟进，施工 I-21）。
+pub(crate) fn hits_serving(facts: &Facts, serving: &[ExternalId], chatty: &Chatty) -> Conditions {
+    conditions(facts, &[], (&[], serving), now(), chatty)
 }
 
 /// 四舍五入到两位小数，比的是百分之几：曲线的值、例子里的分都比到这一位（施工单「风险」第 1 条）。

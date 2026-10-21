@@ -215,9 +215,10 @@ pub(super) fn kind_of(name: &str) -> Option<Kind> {
 }
 
 /// 条件的种类和写法。
-const KINDS: [(Kind, &str); 5] = [
+const KINDS: [(Kind, &str); 6] = [
     (Kind::Direct, "direct"),
     (Kind::Continuation, "continuation"),
+    (Kind::FollowUp, "followup"),
     (Kind::AfterSpeaking, "after_speaking"),
     (Kind::Probability, "probability"),
     (Kind::Moderation, "moderation"),

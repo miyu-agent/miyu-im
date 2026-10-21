@@ -44,9 +44,9 @@ mod params;
 mod rules;
 
 pub use chatty::{
-    Bonus, BonusCtx, Chatty, Conditions, Dispatch, Facts, Hit, Judgement, Kind, Lift, LiftCtx,
-    Line, Lines, Pending, Reply, Restraint, Route, Score, Status, Supersede, Window, conditions,
-    dispatch, nudged, pressure, route, score, supersede,
+    Bonus, BonusCtx, Chatty, Conditions, Dispatch, Facts, Followup, Hit, Judgement, Kind, Lift,
+    LiftCtx, Line, Lines, Pending, Reply, Restraint, Route, Score, Status, Supersede, Window,
+    conditions, dispatch, nudged, pressure, route, score, supersede,
 };
 
 pub use inbound::{

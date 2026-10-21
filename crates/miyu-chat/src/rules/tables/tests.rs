@@ -13,7 +13,7 @@ use super::super::test_support::{factory, group, rules, system, text, value};
 use super::super::{Entry, Origin, Resolved, Rules, Source};
 use crate::params::test_support::defaults;
 use crate::rules::File;
-use crate::{Base64, Chatty, Judge, Outbound, Params, Restraint, Window};
+use crate::{Base64, Chatty, Followup, Judge, Outbound, Params, Restraint, Window};
 
 /// 一份系统的规则文件 `a.toml`，字是 `body`。
 fn file(body: &str) -> [File; 1] {
@@ -287,7 +287,7 @@ fn every_item_lands_in_its_own_field() {
          [rule.inbound]\nbase64_min_chars = 31\nbase64_max_chars = 4001\nbase64_printable = 801\n\
          [rule.chatty]\nprobability = 41\nbase = 1.1\nrelevance = 1.2\nwillingness = 1.3\nsocial = 1.4\n\
          timing = 1.5\ncontinuity = 1.6\nadjust = 1.7\ndirect = 1.8\ncontinuation = 1.9\n\
-         continuation_window = \"21s\"\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
+         continuation_window = \"21s\"\nfollowup = false\nfollowup_bonus = 2.4\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
          severity_min = 9\njudge_called = false\nskip_media = false\nskip_users = [\"qq:1\"]\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
@@ -311,6 +311,10 @@ fn every_item_lands_in_its_own_field() {
             continuation: Window {
                 bonus: 1.9,
                 window: 21_000,
+            },
+            followup: Followup {
+                on: false,
+                bonus: 2.4,
             },
             after_speaking: Window {
                 bonus: 2.1,

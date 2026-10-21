@@ -49,6 +49,8 @@ export const FIELDS = {
     { key: 'rules.chatty.base', control: 'float', label: 'field/threshold', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.relevance', control: 'multi', keys: WEIGHTS, label: 'field/weights', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.restraint', control: 'switch', label: 'field/restraint', hint: 'field/restraint-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
+    // 跟进（施工 I-21）：她正在为这个人跑一轮时他又说了一条，过了判断并进那一轮。
+    { key: 'rules.chatty.followup', control: 'switch', label: 'field/followup', hint: 'field/followup-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.continuation_window', control: 'seconds', label: 'field/continuation', hint: 'field/continuation-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.after_speaking_window', control: 'seconds', label: 'field/after-speaking', hint: 'field/after-speaking-hint', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.dispatch.supersede_window', control: 'seconds', label: 'field/supersede', hint: 'field/supersede-hint', kinds: GROUPS, dep: JUDGE, advanced: true },

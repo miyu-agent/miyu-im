@@ -4,16 +4,18 @@
 //! - 进站链就只记下的：`off`（这个会话关着回复）、`asleep`（睡眠时间）、`muted`（她被禁言着）、`rate`（限流满了）。
 //! - 放行了的：没有成立的条件（没叫她、没抽中）的 `quiet`；有条件却只记下的 `skip_user`（在跳过判断的人里，施工 I-7 中三；I-16 起跳过判断的人只有插话的才判、不再只记下，这一格只剩以前记的）；直接回的 `called`（叫了她）、`continued`（续聊）、`after_speaking`
 //!   （她刚说过话）；问了判官、算了分的 `judged`，带 `total`、`threshold`；判不了的 `unjudged`；只做管理检查的 `moderation`。
-//! - 问判官、直接回的带 `trigger`：主触发是哪一种条件（`direct`、`continuation`、`after_speaking`、`probability`、`moderation`）。
+//! - 问判官、直接回的带 `trigger`：主触发是哪一种条件（`direct`、`continuation`、`followup`（施工 I-21）、`after_speaking`、`probability`、
+//!   `moderation`）。
 //! - 进站挂接点改了结论的带 `hook`：哪个包。
 //! - 判官给了理由的带 `reason_text`（施工 I-16：浮窗照它写一行小字），照原样。
 
 use serde_json::{Value, json};
 
 /// 主触发照这个先后挑（同群聊内核的 `Conditions::primary`）。
-const PRIMARY: [&str; 5] = [
+const PRIMARY: [&str; 6] = [
     "direct",
     "continuation",
+    "followup",
     "after_speaking",
     "probability",
     "moderation",

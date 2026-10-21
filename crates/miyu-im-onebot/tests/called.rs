@@ -217,9 +217,9 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
 
 #[tokio::test]
 async fn asleep_joined_and_resent() {
-    let script = Script::new([Play::Stalls, Play::Says("醒着呢\n\n别吵")]);
+    let script = Script::new([Play::Stalls, Play::Stalls, Play::Says("醒着呢\n\n别吵")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    // 终端管理员 @ 她，她还没开口；终端管理员又 @ 一次：并进正在跑的这一轮。
+    // 终端管理员 @ 她，她还没开口；终端管理员又 @ 一次：接过去、打断重来（施工 I-21）。
     let first = json!([at(BOT), plain(" 在吗")]);
     napcat.send(group_frame(GROUP, ADMIN, 1, first, ("终端管理员", "o")));
     until_event(&home.root, &venue(GROUP), |event| {
@@ -234,13 +234,16 @@ async fn asleep_joined_and_resent() {
         again.clone(),
         ("终端管理员", "o"),
     ));
-    let events = until_event(&home.root, &venue(GROUP), |event| {
-        event["kind"] == "turn.joined"
+    let events = until_events(&home.root, &venue(GROUP), |events| {
+        of_kind(events, "turn.started").len() == 2
     })
     .await;
-    let joined = &of_kind(&events, "turn.joined")[0];
-    assert_eq!(joined["body"]["triggers"], json!([seq_of(&events, 2)]));
-    assert_eq!(joined["cause"], cause(2, "respond"));
+    let again_started = &of_kind(&events, "turn.started")[1];
+    assert_eq!(
+        again_started["body"]["triggers"],
+        json!([seq_of(&events, 2)])
+    );
+    assert_eq!(again_started["cause"], cause(2, "respond"));
     // 平台重发第 2 条：不再判。终端管理员 /stop 停下这一轮，她没开口，不发空的。
     napcat.send(group_frame(GROUP, ADMIN, 2, again, ("终端管理员", "o")));
     napcat.send(group_frame(
@@ -286,8 +289,8 @@ async fn asleep_joined_and_resent() {
     let events = venue_events(&home.root, &venue(GROUP));
     assert_eq!(
         of_kind(&events, "turn.started").len(),
-        1,
-        "并进去的、重发的不另开一轮"
+        2,
+        "打断重来的一轮，重发的不另开一轮"
     );
     let twice = of_kind(&events, "ext.im.chat.decided")
         .iter()
@@ -306,8 +309,8 @@ async fn asleep_joined_and_resent() {
     );
     assert_eq!(
         script.requests().len(),
-        2,
-        "并进去的没再请求，睡着的群终端管理员那一轮"
+        3,
+        "打断前、重来的那一轮，睡着的群终端管理员那一轮"
     );
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;

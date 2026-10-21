@@ -13,6 +13,7 @@ mod after_speaking;
 mod continuation;
 mod direct;
 mod dispatch;
+mod followup;
 mod moderation;
 mod probability;
 mod restraint;
@@ -79,6 +80,8 @@ pub struct Chatty {
     pub(crate) direct: f64,
     /// 续聊的加分和窗口。
     pub(crate) continuation: Window,
+    /// 跟进的开关和加分（施工 I-21）。
+    pub(crate) followup: Followup,
     /// 刚说过话的加分和窗口。
     pub(crate) after_speaking: Window,
     /// 冷静的开关和曲线。
@@ -102,6 +105,15 @@ pub struct Window {
     pub(crate) window: i64,
 }
 
+/// 跟进的参数（施工 I-21）：她正在为这个人跑一轮时他又说了一条。[`Chatty`] 的一格，格只在 crate 里可见。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Followup {
+    /// 开没开：关着的不算跟进。
+    pub(crate) on: bool,
+    /// 成立时加多少分。
+    pub(crate) bonus: f64,
+}
+
 /// 冷静的参数（「怎么走」第 10 条）：抬 `cap × p³ ÷ (p³ + k³)`。曲线只留开关，不上界面（18 第七节）。[`Chatty`] 的一格，
 /// 格只在 crate 里可见：半衰期、`k` 不会是 0（施工 O-15）。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -123,6 +135,8 @@ pub enum Kind {
     Direct,
     /// 续聊：她刚回过这个人，他接着说。
     Continuation,
+    /// 跟进：她正在为这个人跑一轮，他又说了一条（施工 I-21）。
+    FollowUp,
     /// 刚说过话：她刚在场所里说过话，任何人接着说。
     AfterSpeaking,
     /// 抽样：别的都不成立时照千分比抽中。
@@ -157,12 +171,13 @@ impl Chatty {
 }
 
 impl Conditions {
-    /// 主触发：照冲她来、续聊、刚说过话、抽样、违规旗的先后取第一个成立的（「怎么走」第 7 条）；一个都没有是 `None`。
+    /// 主触发：照冲她来、续聊、跟进、刚说过话、抽样、违规旗的先后取第一个成立的（「怎么走」第 7 条）；一个都没有是 `None`。
     /// 只用来归类：日志、贴不贴表情、回合开头那句「为什么叫你」写哪一种。注意抽样排在违规旗前面，和插槽的先后不一样。
     pub fn primary(&self) -> Option<Kind> {
         [
             Kind::Direct,
             Kind::Continuation,
+            Kind::FollowUp,
             Kind::AfterSpeaking,
             Kind::Probability,
             Kind::Moderation,
@@ -191,6 +206,8 @@ pub struct BonusCtx<'a> {
     pub flags: &'a [Flag],
     /// 她在这个场所最近的回复，先后不要紧。
     pub replies: &'a [Reply],
+    /// 她这时正在为谁跑一轮（主线、支线在回的人，施工 I-21），先后不要紧。
+    pub serving: &'a [ExternalId],
     /// 此刻。
     pub clock: Clock,
     /// 参数。
@@ -229,11 +246,12 @@ pub trait Lift {
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64;
 }
 
-/// 自带的加值项，照这个先后：冲她来、续聊、刚说过话、违规旗、抽样（「怎么走」第 1 条）。抽样排最后，它要看前面的。
-fn bonuses() -> [&'static dyn Bonus; 5] {
+/// 自带的加值项，照这个先后：冲她来、续聊、跟进、刚说过话、违规旗、抽样（「怎么走」第 1 条）。抽样排最后，它要看前面的。
+fn bonuses() -> [&'static dyn Bonus; 6] {
     [
         &direct::Item,
         &continuation::Item,
+        &followup::Item,
         &after_speaking::Item,
         &moderation::Item,
         &probability::Item,
@@ -246,11 +264,11 @@ fn lifts() -> [&'static dyn Lift; 1] {
 }
 
 /// 算一条消息成立了哪些触发条件：自带的加值项照先后过，成立的都记下（「怎么走」第 1 到 6 条）。`flags` 是进站链插的旗，
-/// `replies` 是她在这个场所最近的回复，先后不要紧。
+/// `replies` 是她在这个场所最近的回复，`serving` 是她这时正在为谁跑一轮（施工 I-21），先后都不要紧。
 pub fn conditions(
     facts: &Facts,
     flags: &[Flag],
-    replies: &[Reply],
+    (replies, serving): (&[Reply], &[ExternalId]),
     clock: Clock,
     chatty: &Chatty,
 ) -> Conditions {
@@ -258,6 +276,7 @@ pub fn conditions(
         facts,
         flags,
         replies,
+        serving,
         clock,
         chatty,
     };

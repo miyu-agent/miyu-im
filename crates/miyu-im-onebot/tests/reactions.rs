@@ -149,30 +149,29 @@ async fn superseding_moves_the_mark() {
     admin_says(&napcat, GROUP, 1, "帮我看看", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
     until_count(&home, GROUP, "turn.started", 1).await;
-    // 终端管理员马上补了一句：接过前一条，前一条的摘掉，贴到这一条上（谁先到不一定）。
+    // 终端管理员马上补了一句：她还没开口，接过前一条、打断重来（施工 I-21）；前一条的摘掉，贴到这一条上（谁先到不一定）。
     admin_says(&napcat, GROUP, 2, "就是这个", false);
     let mut moved = vec![napcat.reacted().await, napcat.reacted().await];
     moved.sort_by_key(|params| params["set"].as_bool());
     assert_eq!(moved, [reaction(1, false), reaction(2, true)]);
-    let events = until_count(&home, GROUP, "turn.joined", 1).await;
+    // 重来的那一轮说了第一段：摘这一条的。压着的头一次请求被打断，「在」不会说。
+    assert_eq!(next_words(&mut napcat, GROUP).await, "明白");
+    assert_eq!(napcat.reacted().await, reaction(2, false));
+    let events = until_count(&home, GROUP, "turn.ended", 2).await;
     let decided = of_kind(&events, "ext.im.chat.decided");
     assert_eq!(
         decided[1]["body"]["supersede"],
         json!({"inherit": said(&events)[0]["seq"]}),
         "{decided:#?}"
     );
-    // 她回了第一段：收了第二条的那一轮发出去了，摘它。
-    release.send(()).expect("还在等");
-    assert_eq!(next_words(&mut napcat, GROUP).await, "在");
-    assert_eq!(napcat.reacted().await, reaction(2, false));
-    assert_eq!(next_words(&mut napcat, GROUP).await, "明白");
-    until_count(&home, GROUP, "turn.ended", 2).await;
+    assert!(of_kind(&events, "turn.joined").is_empty(), "{events:#?}");
     admin_says(&napcat, GROUP, 3, "还在吗", true);
     assert_eq!(
         napcat.reacted().await,
         reaction(3, true),
         "前面的都只摘一次"
     );
+    drop(release);
     stopped(home).await;
 }
 

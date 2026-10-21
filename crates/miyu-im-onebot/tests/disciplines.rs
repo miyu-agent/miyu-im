@@ -86,6 +86,7 @@ async fn each_discipline_goes_its_own_way() {
     let script = Script::new([
         Play::Says("好"),
         Play::Stalls,
+        Play::Stalls,
         Play::Says("别这样"),
         Play::Stalls,
         Play::Says("三点"),
@@ -113,7 +114,7 @@ async fn each_discipline_goes_its_own_way() {
         "{only_image}"
     );
 
-    // when-called：没叫她的只记下（不抽样）；@ 她开一轮；她还没回完，同一个人补一句接过去；违规旗直接开一轮。
+    // when-called：没叫她的只记下（不抽样）；@ 她开一轮；她还没开口，同一个人补一句接过去、打断重来（施工 I-21）；违规旗直接开一轮。
     napcat.send(send(CALLED, LIN, 3, json!([plain("随便聊聊")])));
     let idle = until_decided(&home, CALLED, 3).await;
     assert_eq!(idle["discipline"], "when-called", "{idle}");
@@ -128,9 +129,13 @@ async fn each_discipline_goes_its_own_way() {
     let follow = until_decided(&home, CALLED, 5).await;
     assert!(follow["supersede"]["inherit"].is_u64(), "{follow}");
     assert_eq!(way(&follow), (json!("commit"), json!("reply")));
+    until_events(&home.root, &venue(CALLED), |events| {
+        of_kind(events, "turn.started").len() == 2
+    })
+    .await;
     napcat.send(send(CALLED, ADMIN, 6, json!([plain("/stop")])));
     assert_eq!(napcat.group_reply(CALLED).await, STOPPED);
-    until_turns(&home, CALLED, 1).await;
+    until_turns(&home, CALLED, 2).await;
     // 有人说了违规词、没叫她：关键词只把判官拉起来。判官说严重程度 2，不够，不回；再一句判官说 8，回。
     napcat.send(send(CALLED, JIE, 7, json!([plain(&format!("这有{BAD}"))])));
     let mild = until_decided(&home, CALLED, 7).await;
@@ -197,7 +202,11 @@ async fn each_discipline_goes_its_own_way() {
     assert_eq!(way(&other), (json!("record"), json!("record")));
 
     assert_eq!(server.received().len(), 2, "只为那两句违规的问过判官");
-    assert_eq!(script.requests().len(), 6);
+    assert_eq!(
+        script.requests().len(),
+        7,
+        "when-called 那一轮打断重来多一次"
+    );
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;
 }

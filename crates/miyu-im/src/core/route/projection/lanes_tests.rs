@@ -1,6 +1,6 @@
 //! 主线投影里的支线（施工 O-36，`onebot.md` 第一条「群里怎么叫她」第 2 条「支线」）：支线的序号换回主线序号；分派要的 `Lines`；
 //! 开轮带的事实指哪几条；两条线的回合编号撞上时这一轮发出去的、她的最后一段、判过要回的不串线；接着开的一轮照支线自己并进来的
-//! 找回；抄进支线用的人话照抄的写法、留到用不着；封存了去掉。夹具在 `tests.rs`。
+//! 找回；抄进支线用的人话照抄的写法、留到用不着；封存了去掉；覆盖打断重来找没开口的那条线（施工 I-21）。夹具在 `tests.rs`。
 
 use miyu_chat::{Line, Lines};
 use miyu_client::events::Event;
@@ -89,8 +89,6 @@ fn a_fresh_lane_answers_whom_it_was_given_and_copies_what_came_after_the_fork() 
             parallel: 1
         }
     );
-    assert_eq!(projection.answering(true), ["m3"], "还没开轮：分派给它的");
-    assert_eq!(projection.answering(false), ["m1"]);
     let carries = projection.to_copy(LANE, None);
     assert_eq!(carries.len(), 1, "第 1 条在分叉点以内，不抄");
     assert_eq!((carries[0].msg, carries[0].id.as_str()), (3, "c3/branch"));
@@ -125,7 +123,6 @@ fn a_lane_speaks_in_main_numbers_and_its_turns_count() {
         }
     );
     assert_eq!(projection.turns(&[]).len(), 2, "支线开的回合也算进限流");
-    assert_eq!(projection.answering(true), ["m3"]);
     assert_eq!(
         projection.origin(LANE).map(|origin| origin.sender),
         Some(qq(20003))
@@ -155,7 +152,6 @@ fn a_lane_speaks_in_main_numbers_and_its_turns_count() {
         [Line::Idle],
         "完了、还没封存：照样占着"
     );
-    assert!(projection.answering(true).is_empty());
     assert_eq!(projection.lane_take(LANE, &sealed(7)), Seen::Sealed);
     assert!(!projection.has_lane(LANE));
     assert!(projection.lines(1).lanes.is_empty());
@@ -248,4 +244,28 @@ fn messages_are_kept_only_while_a_line_may_still_need_them() {
     );
     projection.dropped("又一条");
     assert!(!projection.has_lane("又一条"));
+}
+
+#[test]
+fn a_silent_line_answering_the_message_is_redone() {
+    // 覆盖打断重来（施工 I-21）：在回那一条、还没开口的线才打断；开过口的、没在回它的照旧并进去。
+    let mut projection = forked();
+    assert_eq!(
+        projection.redo(1),
+        Some((LINE.to_string(), vec![1])),
+        "主线第 2 轮在回第 1 条"
+    );
+    assert_eq!(projection.redo(3), None, "支线还没开轮");
+    projection.queued(LINE, 2, "在");
+    assert_eq!(projection.redo(1), None, "主线开过口了");
+    projection.copied(LANE, 3, 3);
+    projection.lane_take(LANE, &started(4, 0, &[3]));
+    assert_eq!(
+        projection.redo(3),
+        Some((LANE.to_string(), vec![3])),
+        "支线在回第 3 条"
+    );
+    projection.queued(LANE, 4, "支线的");
+    assert_eq!(projection.redo(3), None, "支线开过口了");
+    assert_eq!(projection.redo(9), None, "谁都没在回");
 }

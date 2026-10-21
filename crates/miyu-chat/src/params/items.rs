@@ -153,6 +153,12 @@ pub(crate) const ITEMS: &[Item] = &[
     item("chatty.continuation_window", WINDOW, |p, v| {
         p.chatty.continuation.window = millis(v)
     }),
+    item("chatty.followup", Kind::Bool, |p, v| {
+        p.chatty.followup.on = flag(v)
+    }),
+    item("chatty.followup_bonus", SCORE, |p, v| {
+        p.chatty.followup.bonus = float(v)
+    }),
     item("chatty.after_speaking", SCORE, |p, v| {
         p.chatty.after_speaking.bonus = float(v)
     }),

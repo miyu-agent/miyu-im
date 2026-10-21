@@ -3,7 +3,7 @@
 //! 那一轮发出去第一段、那一轮结束、贴了以后过了 `reaction_seconds`，先到哪个算哪个，摘掉。
 //!
 //! - 什么时候贴（[`Route::react`]）：`called.rs` 判下来要回、`session.respond` 成了以后（「施工时定的」第 133 条），主触发是冲她来、
-//!   续聊的；贴在判的几条里最后一条上（和引用同一条）。顶替接过去的，前一条贴着的摘掉（第 134 条）。
+//!   续聊、跟进（施工 I-21）的；贴在判的几条里最后一条上（和引用同一条）。顶替接过去的，前一条贴着的摘掉（第 134 条）。
 //! - 贴着的几条（[`Reactions`]）：会话、序号 → 进了哪条线的哪一轮、摘的信号。推来的事件（[`Reactions::seen`]）：`turn.started`、
 //!   `turn.joined` 记下进了哪一轮，那一轮的 `venue.delivered`、`turn.ended` 发摘的信号。支线（施工 O-36）推来的由 `lanes.rs`
 //!   换回主线序号交进来（[`Reactions::taken`]、[`Reactions::done`]）：照 `(line, turn)` 认，两条线的回合编号撞上也不串。
@@ -141,7 +141,7 @@ impl Route {
         };
         if !matches!(
             passed.conditions.primary(),
-            Some(Kind::Direct | Kind::Continuation)
+            Some(Kind::Direct | Kind::Continuation | Kind::FollowUp)
         ) {
             return;
         }

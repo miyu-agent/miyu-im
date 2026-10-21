@@ -345,7 +345,7 @@ fn admin_addressing_commits_end_to_end() {
     let mut msg = facts();
     msg.said.standing = Standing::Admin;
     msg.said.addressed = true;
-    let got = conditions(&msg, &[], &[], now(), &chatty());
+    let got = conditions(&msg, &[], (&[], &[]), now(), &chatty());
     assert_eq!(route(&got, &msg.said, &chatty()), Route::Commit);
     assert_eq!(got.primary(), Some(Kind::Direct));
 }
@@ -388,13 +388,13 @@ fn media_only_messages_are_drawn_only_when_not_skipped_but_always_followed() {
     let mut chatty = chatty();
     chatty.probability = 1000;
     let replies = [reply(SECOND, &[SENDER])];
-    let found = conditions(&picture, &[], &replies, now(), &chatty);
+    let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty);
     assert!(found.has(Kind::Continuation), "{found:?}");
-    let found = conditions(&picture, &[], &[], now(), &chatty);
+    let found = conditions(&picture, &[], (&[], &[]), now(), &chatty);
     assert!(!found.has(Kind::Probability), "{found:?}");
     chatty.skip_media = false;
-    let found = conditions(&picture, &[], &replies, now(), &chatty);
+    let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty);
     assert!(found.has(Kind::Continuation), "{found:?}");
-    let found = conditions(&picture, &[], &[], now(), &chatty);
+    let found = conditions(&picture, &[], (&[], &[]), now(), &chatty);
     assert!(found.has(Kind::Probability), "{found:?}");
 }

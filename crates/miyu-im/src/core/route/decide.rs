@@ -11,6 +11,8 @@ use miyu_chat::{
     Supersede, VenueKind, Verdict, conditions, rate_full, supersede,
 };
 
+use miyu_client::ids::ExternalId;
+
 use super::discipline::Discipline;
 use crate::core::hooks::Steered;
 
@@ -24,6 +26,8 @@ pub(super) struct Case<'a> {
     pub(super) ctx: Ctx,
     /// 她在这个群最近的回复（投影）。
     pub(super) replies: &'a [Reply],
+    /// 她这时正在为谁跑一轮（投影，跟进，施工 I-21）。
+    pub(super) serving: &'a [ExternalId],
     /// 此刻。
     pub(super) clock: Clock,
     /// 这个群的参数。
@@ -116,7 +120,7 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
     let found = conditions(
         &case.facts,
         &verdict.flags,
-        case.replies,
+        (case.replies, case.serving),
         case.clock,
         case.chatty,
     );

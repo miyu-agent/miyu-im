@@ -22,7 +22,7 @@ const UNDELIVERED_FIELDS: &[&str] = &["why", "detail", "text"];
 const ANOTHER_LINE: &str = "facts/another-line.txt";
 
 /// 「另一条线正在回」认的字段：别的线在回的那一条、这条线回的那一条的平台编号（「群里怎么叫她」第 7 条「事实」）。
-const ANOTHER_LINE_FIELDS: &[&str] = &["msg", "aim"];
+const ANOTHER_LINE_FIELDS: &[&str] = &["msgs"];
 
 /// 抽中插话的那一轮带的一句（施工 I-16，照旧版 `<qq-join-in>`：压「没 @ 我就不接」）在出厂目录里的位置。
 const JOIN_IN: &str = "facts/join-in.txt";

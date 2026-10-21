@@ -7,6 +7,7 @@
 //! 发不出去，退信记在她看得到的那一处。
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
@@ -37,9 +38,10 @@ const MEMBERS: &[Member] = &[
 
 /// 系统的场所规则：叫她才回（不过判官），总引用她回的那一条，限流照 `rate`；支线照出厂的 1 条。
 fn rules(rate: &str) -> String {
-    // 最多一条支线（出厂 I-16 起是三条）：「支线满了」那几步照一条写。
+    // 最多一条支线（出厂 I-16 起是三条）：「支线满了」那几步照一条写。顶替窗口 1 秒：再催的过了窗口才发，并进去而不是打断重来
+    // （施工 I-21），这里看的是分派。
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\ndiscipline = \"when-called\"\nrate = \"{rate}\"\nparallel = 1\noutbound = {{ quote_after = 0 }}\n"
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\ndiscipline = \"when-called\"\nrate = \"{rate}\"\nparallel = 1\noutbound = {{ quote_after = 0 }}\ndispatch = {{ supersede_window = \"1s\" }}\n"
     )
 }
 
@@ -65,13 +67,13 @@ fn calls(napcat: &Answering, user: i64, message: i64, text: &str, more: &[i64]) 
     ));
 }
 
-/// 出厂的「另一条线正在回」那一块：别的线在回第 `message` 条、这条线回第 `aim` 条，去掉行尾。
-fn another_line(message: i64, aim: i64) -> String {
+/// 出厂的「你只回这几条」那一块（施工 I-21）：这条线回第 `msgs` 条，去掉行尾。
+fn own_line(msgs: &[i64]) -> String {
     let path = resources().join("packages/im/data/facts/another-line.txt");
+    let ids: Vec<String> = msgs.iter().map(|msg| format!("msg={msg}")).collect();
     std::fs::read_to_string(path)
         .expect("读得出")
-        .replace("{msg}", &message.to_string())
-        .replace("{aim}", &aim.to_string())
+        .replace("{msgs}", &ids.join(", "))
         .trim_end()
         .to_string()
 }
@@ -179,20 +181,22 @@ async fn a_second_caller_gets_a_lane_of_his_own() {
     let requests = lines.requests();
     same_prefix(&requests[1], &requests[2]);
     assert!(
-        last(&requests[2]).contains(&another_line(102, 201)),
-        "支线开轮带主线在回的那一条：{}",
+        last(&requests[2]).contains(&own_line(&[201])),
+        "支线开轮带它回的那一条：{}",
         last(&requests[2])
     );
     assert!(
-        !last(&requests[1]).contains("another-line"),
-        "主线开轮时没有支线"
+        last(&requests[1]).contains(&own_line(&[102])),
+        "主线开轮也带：{}",
+        last(&requests[1])
     );
     let lanes = until_lanes(&home, |lanes| lanes.len() == 1).await;
     let (lane, events) = &lanes[0];
     let main = venue_session(&home.root, &venue()).expect("有主线").0;
     assert_eq!(events[0]["body"]["forked"]["from"], main.as_str());
     assert_eq!(events[0]["body"]["forked"]["seal_after"], 1);
-    // A 再催并进主线；B 再催抄进支线并进；支线满了，C 排着。
+    // 过了顶替窗口：A 再催并进主线；B 再催抄进支线并进；支线满了，C 排着。
+    tokio::time::sleep(Duration::from_millis(1100)).await;
     calls(&napcat, A, 103, "？", &[]);
     until_main(&home, "turn.joined", 1).await;
     calls(&napcat, B, 202, "？？", &[]);
@@ -281,11 +285,11 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     release_a.send(()).expect("还在等");
     assert_eq!(next_said(&mut napcat).await.1, "回A");
     until_main(&home, "turn.ended", 1).await;
-    // 主线闲了、支线还在回 B：C 开主线，带上 B 那一条。
+    // 主线闲了、支线还在回 B：C 开主线，带上它回的那一条。
     calls(&napcat, C, 301, "在吗", &[]);
     until_requests(&lines, 3).await;
     assert!(
-        last(&lines.requests()[2]).contains(&another_line(201, 301)),
+        last(&lines.requests()[2]).contains(&own_line(&[301])),
         "{}",
         last(&lines.requests()[2])
     );
@@ -297,7 +301,7 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     })
     .await;
     until_main(&home, "venue.delivered", 3).await;
-    // 支线封存了：B 再叫她，主线开一轮，近况里有支线说的那句、不再带那一块。
+    // 支线封存了：B 再叫她，主线开一轮，近况里有支线说的那句，那一块只写这一条。
     calls(&napcat, B, 202, "还在吗", &[]);
     assert_eq!(next_said(&mut napcat).await.1, "又回B");
     let request = last(&lines.requests()[3]);
@@ -305,7 +309,10 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
         request.contains("[you]") && request.contains("回B"),
         "{request}"
     );
-    assert!(!request.contains("another-line"), "{request}");
+    assert!(
+        request.contains(&own_line(&[202])) && !request.contains(&own_line(&[201])),
+        "只带这一轮回的那一条：{request}"
+    );
     let events = until_main(&home, "turn.started", 3).await;
     let started = of_kind(&events, "turn.started");
     assert_eq!(

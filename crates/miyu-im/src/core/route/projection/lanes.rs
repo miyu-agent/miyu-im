@@ -5,7 +5,8 @@
 //!   `upto` 以内的两边一样（子会话的底子就是主线到那一点为止的日志）；抄进去的一条一对（[`Projection::copied`]）。
 //! - 支线推来的事件（[`Projection::lane_take`]）：触发换回主线序号，再照主线那一套算（`track.rs`），交回调的一方要做的
 //!   （[`Seen`]：表情记进了哪一轮、摘，她的话照主线发，封存了退订）。
-//! - 分派要的 `Lines`（[`Projection::lines`]）、开轮带的事实指哪几条（[`Projection::answering`]）。
+//! - 分派要的 `Lines`（[`Projection::lines`]）、她这时正在为谁跑一轮（跟进，[`Projection::serving`]）、覆盖打断重来找没开口的那条线
+//!   （[`Projection::redo`]，施工 I-21）。
 //! - 抄进支线用的人话（[`Kept`]）：推来的 `message.user` 当场写成 `session.send` 的参数留着（施工单「要拍板的」第 2 条），留到
 //!   用不着为止：比主线在跑的这一轮的开始、各条支线的分叉点里最早的那一个晚的留着，主线闲着、又没有支线的一条不留
 //!   （[`Projection::prune`]）。
@@ -210,9 +211,42 @@ impl Projection {
         }
     }
 
+    /// 她这时正在为谁跑一轮（跟进，施工 I-21）：主线、各条支线在回的人（[`Self::lines`] 里忙着的），不重。
+    pub(in crate::core::route) fn serving(&self) -> Vec<ExternalId> {
+        let lines = self.lines(0);
+        let mut serving = Vec::new();
+        for line in std::iter::once(&lines.main).chain(&lines.lanes) {
+            if let Line::Busy { targets } = line {
+                super::add(&mut serving, targets.iter());
+            }
+        }
+        serving
+    }
+
     /// 第 `index` 条支线（分派的 `JoinLane`）的子会话编号。
     pub(in crate::core::route) fn lane_at(&self, index: usize) -> Option<&str> {
         self.lanes.get(index).map(|lane| lane.session.as_str())
+    }
+
+    /// 覆盖打断重来（施工 I-21）：在跑的一轮里在回主线序号 `seq` 的那条线（主线或者开过轮的支线），这一轮她还一段话都没入队的，
+    /// 交回那条线的会话编号和这一轮在回的几条（主线序号，照先后）；说过话的、没在回它的是空的（照旧并进去）。
+    pub(in crate::core::route) fn redo(&self, seq: u64) -> Option<(String, Vec<u64>)> {
+        let silent = |track: &Track| {
+            track
+                .running
+                .as_ref()
+                .filter(|running| {
+                    running.msgs.contains(&seq) && track.sent(running.turn).is_empty()
+                })
+                .map(|running| running.msgs.clone())
+        };
+        if let Some(msgs) = silent(&self.main) {
+            return Some((self.session.clone(), msgs));
+        }
+        self.lanes
+            .iter()
+            .filter(|lane| lane.started)
+            .find_map(|lane| silent(&lane.track).map(|msgs| (lane.session.clone(), msgs)))
     }
 
     /// 正在跑的支线的子会话编号，照分叉的先后。
@@ -239,31 +273,6 @@ impl Projection {
     /// 序号是 `seq` 的人话是谁说的（分派看这个人）；没收过的是空的。
     pub(in crate::core::route) fn sender(&self, seq: u64) -> Option<&ExternalId> {
         self.said.get(&seq).map(|speaker| &speaker.id)
-    }
-
-    /// 开轮带的事实指哪几条，平台编号照先后（「群里怎么叫她」第 7 条「事实」）：`lanes` 是真的，各条支线这一轮在回的（还没开轮的
-    /// 照分派给它的）；假的，主线这一轮在回的。没有平台编号的不要。
-    pub(in crate::core::route) fn answering(&self, lanes: bool) -> Vec<String> {
-        let msgs: Vec<u64> = match lanes {
-            true => self
-                .lanes
-                .iter()
-                .flat_map(|lane| match &lane.track.running {
-                    Some(running) => running.msgs.clone(),
-                    None if !lane.started => lane.asked.clone(),
-                    None => Vec::new(),
-                })
-                .collect(),
-            false => self
-                .main
-                .running
-                .as_ref()
-                .map(|running| running.msgs.clone())
-                .unwrap_or_default(),
-        };
-        msgs.iter()
-            .filter_map(|seq| self.msg(*seq).map(str::to_string))
-            .collect()
     }
 
     /// 序号是 `seq` 的人话 `event` 留着抄进支线用（见模块开头）：主线闲着、又没有支线的不留；写不成参数的（不是外部身份说的、没有
