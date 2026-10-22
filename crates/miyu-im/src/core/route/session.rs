@@ -50,7 +50,9 @@ impl Place {
         (bot, user): (i64, i64),
         listed: Option<&Applied>,
     ) -> Place {
-        let mut opening = json!({"venue": venue.id(), "kind": "private", "peer": external});
+        // 场所会话不自动起标题（施工 O-43）：群名、对方就是它的名字，起出来的只是第一句话的概括。
+        let mut opening =
+            json!({"venue": venue.id(), "kind": "private", "peer": external, "titles": false});
         match listed {
             Some(applied) => {
                 for (key, value) in super::applied::opening(applied) {
@@ -75,7 +77,7 @@ impl Place {
 
     /// 机器人号 `bot` 收进来的、群号是 `group` 的群 `venue`，场所规则照 `applied`（「群消息」第 3 条）。
     pub(super) fn group(venue: &Venue, applied: &Applied, bot: i64, group: i64) -> Place {
-        let mut opening = json!({"venue": venue.id(), "kind": "group"});
+        let mut opening = json!({"venue": venue.id(), "kind": "group", "titles": false});
         for (key, value) in super::applied::opening(applied) {
             opening[key] = json!(value);
         }

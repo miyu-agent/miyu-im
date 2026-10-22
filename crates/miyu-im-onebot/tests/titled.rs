@@ -1,5 +1,5 @@
 //! 群名、群号（施工 O-49，`onebot.md` 第一条「群名」）：真核心拉起真桥、假 NapCat（每个群都叫 [`GROUP_NAME`]）。群会话 system
-//! 的最后是那一段，名字、号对；群里再来一条不再问、不再放；私聊没有。
+//! 的最后是那一段，名字、号对；群里再来一条不再问、不再放；私聊没有。群的、私聊的会话都不自动起标题（施工 O-43）。
 
 use std::sync::Arc;
 
@@ -69,6 +69,13 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
     assert_eq!(action["params"]["message"][0]["data"]["text"], "私聊在");
     let private = &script.requests()[2].1.system;
     assert!(!private.contains("<venue>"), "私聊没有：{private}");
+    // 场所会话不自动起标题（施工 O-43）：群的、私聊的造的时候都说了。
+    let (_, group) = venue_session(&home.root, &format!("qq:group:{GROUP}")).expect("有群会话");
+    assert_eq!(group[0]["body"]["titles"], json!(false), "{}", group[0]);
+    let admins = home.sessions();
+    assert_eq!(admins.len(), 1, "管理员名下只有私聊那一个");
+    let created = &home.events(&admins[0])[0];
+    assert_eq!(created["body"]["titles"], json!(false), "{created}");
     stopped(home).await;
 }
 
