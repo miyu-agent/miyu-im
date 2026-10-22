@@ -33,4 +33,9 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           add-rust-environment-hash-key: false
       - name: 门禁
+        if: runner.os != 'macOS'
         run: cargo xtask check
+      # macOS 上偶尔卡住（I-15、I-24 各见过）：过了 30 分钟抓测试进程的栈再判失败，不白等到 45 分钟被掐。
+      - name: 门禁（卡住抓栈）
+        if: runner.os == 'macOS'
+        run: .github/hang-watch.sh cargo xtask check
