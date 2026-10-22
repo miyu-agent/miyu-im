@@ -96,6 +96,7 @@ pub(super) fn facts(standing: Standing, addressed: bool) -> Facts {
         quotes_other: false,
         textless: false,
         media_only: false,
+        hollow: false,
     }
 }
 

@@ -27,7 +27,8 @@ fn scored(
     replies: &[Reply],
     chatty: &Chatty,
 ) -> Score {
-    score(judgement, conditions, replies, now(), chatty)
+    let sender = facts().said.sender;
+    score(judgement, conditions, (replies, &sender), now(), chatty)
 }
 
 /// 只有一个加 0 分的抽样：冷静不抬（没有回复），门槛就是 `base`。

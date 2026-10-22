@@ -18,7 +18,7 @@ mod rate;
 mod repeat;
 mod sleep;
 
-pub use addressed::addressed;
+pub use addressed::{addressed, hollow};
 pub use base64::Base64;
 pub use gate::{Gate, gate};
 pub use moderation::Moderation;

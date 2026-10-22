@@ -1,7 +1,7 @@
 //! 冷静（`chat.md` 第三条「守着它的」）：p 从 0 到 8 的曲线，各到两位小数；冲她来、`to_bot` 不抬；关着的不抬；晚于此刻的
 //! 回复不算；近期发言量照半衰期衰减。
 
-use super::super::test_support::{MINUTE, OTHER, cents, chatty, mills, now, reply};
+use super::super::test_support::{MINUTE, OTHER, SENDER, cents, chatty, mills, now, person, reply};
 use super::super::{Chatty, Conditions, Hit, Judgement, Kind, Lift, LiftCtx, Reply, Restraint};
 use super::{Item, pressure};
 
@@ -25,10 +25,12 @@ fn chiming() -> (Judgement, Conditions) {
 
 /// 冷静抬多少。
 fn lift(judgement: &Judgement, conditions: &Conditions, replies: &[Reply], chatty: &Chatty) -> f64 {
+    let sender = person(SENDER);
     let ctx = LiftCtx {
         judgement,
         conditions,
         replies,
+        sender: &sender,
         clock: now(),
         chatty,
     };

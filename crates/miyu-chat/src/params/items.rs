@@ -181,6 +181,22 @@ pub(crate) const ITEMS: &[Item] = &[
     positive("chatty.restraint_k", SCORE, |p, v| {
         p.chatty.restraint.k = float(v)
     }),
+    // 按人冷静（施工 I-29）。
+    item("chatty.person_restraint", Kind::Bool, |p, v| {
+        p.chatty.person.on = flag(v)
+    }),
+    item("chatty.person_half_life", WINDOW, |p, v| {
+        p.chatty.person.half_life = millis(v)
+    }),
+    item("chatty.person_start", SCORE, |p, v| {
+        p.chatty.person.start = float(v)
+    }),
+    item("chatty.person_full", SCORE, |p, v| {
+        p.chatty.person.full = float(v)
+    }),
+    item("chatty.person_cap", SCORE, |p, v| {
+        p.chatty.person.cap = float(v)
+    }),
     item("chatty.severity_min", SEVERITY, |p, v| {
         p.chatty.severity_min = count(v)
     }),

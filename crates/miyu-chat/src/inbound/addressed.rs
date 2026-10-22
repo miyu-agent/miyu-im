@@ -27,5 +27,19 @@ pub fn addressed(kind: VenueKind, mentions_me: bool, text: &str, keywords: &[Str
     }
 }
 
+/// 冲她来的这一条是不是只叫了她、没说别的（施工 I-29）：正文 `text` 里的触发词 `keywords` 去掉、`@` 开头的词（@ 她、@ 别人，
+/// 桥写成名字）去掉以后，一个字母、数字、汉字这类字都不剩（只有名字、标点、表情）。只带了图、没有字的由外面另算。旧 Miyu
+/// 主群 3 天里冲她来的四分之一是这样的：「miyu」「😭」、一张图。
+pub fn hollow(text: &str, keywords: &[String]) -> bool {
+    let mut rest = text.to_string();
+    for keyword in keywords.iter().filter(|keyword| !keyword.is_empty()) {
+        rest = rest.replace(keyword.as_str(), " ");
+    }
+    !rest
+        .split_whitespace()
+        .filter(|word| !word.starts_with('@'))
+        .any(|word| word.chars().any(char::is_alphanumeric))
+}
+
 #[cfg(test)]
 mod tests;

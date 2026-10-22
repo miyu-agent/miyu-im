@@ -344,6 +344,10 @@ impl Route {
             quotes_other: heard.reply_to.is_some() && !quotes_me,
             textless: heard.wordless,
             media_only,
+            // 只叫了她、没说别的（I-29）：冲她来不加分。没有字、只带东西的也算。
+            hollow: heard.wordless
+                || heard.text.trim().is_empty()
+                || miyu_chat::hollow(&heard.text, &keywords),
         };
         let pendings: Vec<Pending> = group
             .committed()

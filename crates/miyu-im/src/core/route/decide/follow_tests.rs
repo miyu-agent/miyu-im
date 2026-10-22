@@ -104,6 +104,7 @@ fn other_disciplines_ask_the_judge_only_about_violations() {
     assert_eq!(flagged.conclusion, Conclusion::Reply, "违规旗不改它");
     let image = Facts {
         media_only: true,
+        hollow: true,
         ..facts(Standing::Member, false)
     };
     let pictured = judged_in(image, "", ctx(&params), chatty, &every);

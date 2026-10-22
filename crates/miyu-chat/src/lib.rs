@@ -45,13 +45,15 @@ mod rules;
 
 pub use chatty::{
     Bonus, BonusCtx, Chatty, Conditions, Dispatch, Facts, Followup, Hit, Judgement, Kind, Lift,
-    LiftCtx, Line, Lines, Pending, Reply, Restraint, Route, Score, Status, Supersede, Window,
-    conditions, dispatch, nudged, pressure, route, score, supersede,
+    LiftCtx, Line, Lines, Pending, PersonRestraint, Reply, Restraint, Route, Score, Status,
+    Supersede, Window, conditions, dispatch, nudged, person_pressure, pressure, route, score,
+    supersede,
 };
 
 pub use inbound::{
     Base64, Chain, Clock, Ctx, Flag, Gate, Inbound, InboundRule, Moderation, Outcome, Rate, Said,
-    Sleep, Spoken, Standing, Step, Verdict, Why, addressed, echo, echoed, gate, rate_full, repeats,
+    Sleep, Spoken, Standing, Step, Verdict, Why, addressed, echo, echoed, gate, hollow, rate_full,
+    repeats,
 };
 pub use judge::{
     Answering, Ask, Judge, JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable,

@@ -5,7 +5,9 @@ use miyu_kernel::time::{Timestamp, UtcOffset};
 
 use crate::{Clock, Flag, Said, Standing};
 
-use super::{Chatty, Conditions, Facts, Followup, Reply, Restraint, Window, conditions};
+use super::{
+    Chatty, Conditions, Facts, Followup, PersonRestraint, Reply, Restraint, Window, conditions,
+};
 
 /// 一秒的毫秒数。
 pub(crate) const SECOND: i64 = 1_000;
@@ -54,6 +56,13 @@ pub(crate) fn chatty() -> Chatty {
             cap: 0.35,
             k: 2.5,
         },
+        person: PersonRestraint {
+            on: true,
+            half_life: 10 * MINUTE,
+            start: 2.0,
+            full: 6.0,
+            cap: 0.5,
+        },
         severity_min: 7,
         judge_called: true,
         skip_media: true,
@@ -89,6 +98,7 @@ pub(crate) fn facts() -> Facts {
         quotes_other: false,
         textless: false,
         media_only: false,
+        hollow: false,
     }
 }
 

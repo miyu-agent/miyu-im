@@ -40,7 +40,7 @@ impl Route {
                 let scored = score(
                     judgement,
                     conditions,
-                    group.replies(),
+                    (group.replies(), &judging.pending.sender),
                     clock,
                     &judging.chatty,
                 );

@@ -24,14 +24,14 @@ fn factory() -> Params {
             max_chars: 5000,
             printable: 850,
         },
-        chatty: Chatty {
+        chatty: halved(Chatty {
             probability: 50,
             continuation: Window {
                 bonus: 0.1,
                 window: 30_000,
             },
             ..chatty_support::chatty()
-        },
+        }),
         repeat_window: 120_000,
         supersede_window: 7_000,
         judge: Judge {
@@ -58,14 +58,23 @@ fn the_repository_defaults_read_without_problems_and_hold_the_old_values() {
     assert_eq!(Params::read(&file(DEFAULTS)), Ok(factory()));
 }
 
+/// 加分减半（施工 I-29，照旧 Miyu 0.7.3）：冲她来 0.15，续聊、跟进、刚说过话 0.05。
+fn halved(mut chatty: Chatty) -> Chatty {
+    chatty.direct = 0.15;
+    chatty.continuation.bonus = 0.05;
+    chatty.followup.bonus = 0.05;
+    chatty.after_speaking.bonus = 0.05;
+    chatty
+}
+
 #[test]
 fn the_factory_chatty_scores_the_two_examples_like_the_hand_written_one() {
-    // 18 第七节的两个例子：刚说过话时有人接一句，0.785 对 0.92 不回；同一句 @ 了她，1.085 对 0.8 回。
+    // 18 第七节的两个例子（I-29 加分减半以后）：刚说过话时有人接一句，0.735 对 0.92 不回；同一句 @ 了她（冲她来加刚说过话），0.885 对 0.8 回。
     let read = defaults();
-    let written = Chatty {
+    let written = halved(Chatty {
         probability: 50,
         ..chatty_support::chatty()
-    };
+    });
     let judged = Judgement {
         scores: [6.0, 5.0, 4.0, 6.0, 3.0],
         should_reply: Some(true),
@@ -79,14 +88,14 @@ fn the_factory_chatty_scores_the_two_examples_like_the_hand_written_one() {
     ];
     let mut addressed = facts();
     addressed.said.addressed = true;
-    for (facts, total, threshold, reply) in [(facts(), 785, 92, false), (addressed, 1085, 80, true)]
+    for (facts, total, threshold, reply) in [(facts(), 735, 92, false), (addressed, 885, 80, true)]
     {
         let scored = |chatty: &Chatty| {
             let conditions = hits(&facts, &[], &replies, chatty);
             score(
                 &judged,
                 &conditions,
-                &replies,
+                (&replies, &facts.said.sender),
                 chatty_support::now(),
                 chatty,
             )
@@ -243,7 +252,7 @@ fn a_badly_written_value_is_reported_once_and_not_again_as_missing() {
     let text = edited("supersede_window = \"7s\"", "supersede_window = 7");
     assert_eq!(code_of(&text, "dispatch.supersede_window"), Code::WrongType);
     // 开关写成了字。
-    let text = edited("restraint = true", "restraint = \"yes\"");
+    let text = edited("\nrestraint = true", "\nrestraint = \"yes\"");
     assert_eq!(code_of(&text, "chatty.restraint"), Code::WrongType);
 }
 

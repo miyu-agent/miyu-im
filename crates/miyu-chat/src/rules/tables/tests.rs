@@ -13,7 +13,9 @@ use super::super::test_support::{factory, group, rules, system, text, value};
 use super::super::{Entry, Origin, Resolved, Rules, Source};
 use crate::params::test_support::defaults;
 use crate::rules::File;
-use crate::{Base64, Chatty, Followup, Judge, Outbound, Params, Restraint, Window};
+use crate::{
+    Base64, Chatty, Followup, Judge, Outbound, Params, PersonRestraint, Restraint, Window,
+};
 
 /// 一份系统的规则文件 `a.toml`，字是 `body`。
 fn file(body: &str) -> [File; 1] {
@@ -289,6 +291,7 @@ fn every_item_lands_in_its_own_field() {
          timing = 1.5\ncontinuity = 1.6\nadjust = 1.7\ndirect = 1.8\ncontinuation = 1.9\n\
          continuation_window = \"21s\"\nfollowup = false\nfollowup_bonus = 2.4\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
+         person_restraint = false\nperson_half_life = \"34s\"\nperson_start = 3.1\nperson_full = 3.2\nperson_cap = 3.3\n\
          severity_min = 9\njudge_called = false\nskip_media = false\nskip_users = [\"qq:1\"]\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
@@ -325,6 +328,13 @@ fn every_item_lands_in_its_own_field() {
                 half_life: 23_000,
                 cap: 2.2,
                 k: 2.3,
+            },
+            person: PersonRestraint {
+                on: false,
+                half_life: 34_000,
+                start: 3.1,
+                full: 3.2,
+                cap: 3.3,
             },
             severity_min: 9,
             judge_called: false,

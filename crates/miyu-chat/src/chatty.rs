@@ -15,6 +15,7 @@ mod direct;
 mod dispatch;
 mod followup;
 mod moderation;
+mod person;
 mod probability;
 mod restraint;
 mod sample;
@@ -22,6 +23,7 @@ mod score;
 mod supersede;
 
 pub use dispatch::{Dispatch, Line, Lines, dispatch};
+pub use person::person_pressure;
 pub use restraint::pressure;
 pub use score::{Judgement, Score, nudged, score};
 pub use supersede::{Pending, Status, Supersede, supersede};
@@ -48,6 +50,9 @@ pub struct Facts {
     pub textless: bool,
     /// 是不是只有图：只有图的不抽样。
     pub media_only: bool,
+    /// 冲她来的这一条是不是只叫了她、没说别的（施工 I-29，[`hollow()`](crate::hollow())，没有字、只有图的也算）：冲她来照样
+    /// 成立，不加 `direct` 分。
+    pub hollow: bool,
 }
 
 /// 她在这个场所真发出的一轮回复，外面从场所会话的日志（`venue.delivered`）投影出来交进来。一轮拆成几段发也只算一轮
@@ -86,6 +91,8 @@ pub struct Chatty {
     pub(crate) after_speaking: Window,
     /// 冷静的开关和曲线。
     pub(crate) restraint: Restraint,
+    /// 按人冷静的开关和曲线（施工 I-29）。
+    pub(crate) person: PersonRestraint,
     /// 违规的门槛：判官给的严重程度不低于它，不管分数够不够都回。
     pub(crate) severity_min: u8,
     /// 普通群友冲她来也先过判官（施工 I-7 中三）：关着的冲她来就直接回（[`route`]）。
@@ -197,6 +204,23 @@ impl Conditions {
     }
 }
 
+/// 按人冷静的参数（施工 I-29，「怎么走」第 10 条之后的第 11 条）：同一个人冲她来得勤，抬门槛。这个人最近被她回过的每一轮记
+/// 一笔、照半衰期衰减，加起来是 p；p 不超过 `start` 不抬，往上照直线抬，到 `full` 抬满 `cap`。[`Chatty`] 的一格，格只在 crate
+/// 里可见：半衰期不会是 0，`full` 大于 `start`（施工 O-15 的规矩）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PersonRestraint {
+    /// 开没开：关着的不抬。
+    pub(crate) on: bool,
+    /// 回他的一轮的分量衰减一半要多少毫秒，出厂 10 分钟。
+    pub(crate) half_life: i64,
+    /// p 超过它才抬，出厂 `2`。
+    pub(crate) start: f64,
+    /// p 到它抬满，出厂 `6`。
+    pub(crate) full: f64,
+    /// 最多抬多少，出厂 `0.5`。
+    pub(crate) cap: f64,
+}
+
 /// 加值项看一条消息时能看到的。
 #[derive(Debug, Clone, Copy)]
 pub struct BonusCtx<'a> {
@@ -232,6 +256,8 @@ pub struct LiftCtx<'a> {
     pub conditions: &'a Conditions,
     /// 她在这个场所最近的回复，先后不要紧。
     pub replies: &'a [Reply],
+    /// 发这一条的人（施工 I-29：按人冷静数她最近回过他几轮）。
+    pub sender: &'a ExternalId,
     /// 此刻。
     pub clock: Clock,
     /// 参数。
@@ -258,9 +284,9 @@ fn bonuses() -> [&'static dyn Bonus; 6] {
     ]
 }
 
-/// 自带的门槛修正：只有冷静（「怎么走」第 10 条）。
-fn lifts() -> [&'static dyn Lift; 1] {
-    [&restraint::Item]
+/// 自带的门槛修正：冷静（「怎么走」第 10 条）、按人冷静（第 11 条，施工 I-29）。
+fn lifts() -> [&'static dyn Lift; 2] {
+    [&restraint::Item, &person::Item]
 }
 
 /// 算一条消息成立了哪些触发条件：自带的加值项照先后过，成立的都记下（「怎么走」第 1 到 6 条）。`flags` 是进站链插的旗，

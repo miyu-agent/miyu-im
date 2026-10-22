@@ -68,6 +68,22 @@ fn direct_holds_when_addressed() {
 }
 
 #[test]
+fn a_hollow_call_holds_but_adds_nothing() {
+    // 施工 I-29：只叫了她、没说别的，冲她来照样成立（走路照它），加 0 分。
+    let mut msg = facts();
+    msg.said.addressed = true;
+    msg.hollow = true;
+    let got = hits(&msg, &[], &[], &chatty());
+    assert_eq!(
+        got.hits,
+        [Hit {
+            kind: Kind::Direct,
+            bonus: 0.0
+        }]
+    );
+}
+
+#[test]
 fn continuation_and_after_speaking_add_up() {
     // 她 5 秒前回了这个人：续聊、刚说过话都成立，加分相加。
     let got = hits(&facts(), &[], &[reply(5 * SECOND, &[SENDER])], &chatty());

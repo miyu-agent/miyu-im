@@ -3,6 +3,8 @@
 //!
 //! 数都是 `f64`，比较时不另留余量：同一台机器上回放字字相同，跨平台末位的差别只在正好压线时可能翻，接受。
 
+use miyu_kernel::id::ExternalId;
+
 use crate::Clock;
 
 use super::{Chatty, Conditions, LiftCtx, Reply, lifts};
@@ -44,11 +46,12 @@ pub struct Score {
 }
 
 /// 算分、跟门槛比（「怎么走」第 9、10 条）。`conditions` 只有违规旗的（走 [`Route::ModerationOnly`](super::Route) 的）
-/// 不打分，`reply` 只看 `severity`。`replies` 是她在这个场所最近的回复，冷静照它算；先后不要紧。
+/// 不打分，`reply` 只看 `severity`。`replies` 是她在这个场所最近的回复，冷静照它算；先后不要紧。`sender` 是发这一条的人，
+/// 按人冷静照它数（施工 I-29）。
 pub fn score(
     judgement: &Judgement,
     conditions: &Conditions,
-    replies: &[Reply],
+    (replies, sender): (&[Reply], &ExternalId),
     clock: Clock,
     chatty: &Chatty,
 ) -> Score {
@@ -78,6 +81,7 @@ pub fn score(
         judgement,
         conditions,
         replies,
+        sender,
         clock,
         chatty,
     };

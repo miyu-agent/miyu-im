@@ -15,7 +15,7 @@ pub(crate) mod items;
 use miyu_config::Value;
 
 use crate::rules::{File, Problem, Resolved};
-use crate::{Base64, Chatty, Followup, Judge, Outbound, Restraint, Window};
+use crate::{Base64, Chatty, Followup, Judge, Outbound, PersonRestraint, Restraint, Window};
 
 /// 第二到第六条要的参数（第八条「对外的样子」）：出厂文件读出来（[`Params::read`]），再套上场所规则改的几项
 /// （[`Params::at`]）。
@@ -175,6 +175,13 @@ fn blank() -> Params {
                 half_life: 0,
                 cap: 0.0,
                 k: 0.0,
+            },
+            person: PersonRestraint {
+                on: false,
+                half_life: 0,
+                start: 0.0,
+                full: 0.0,
+                cap: 0.0,
             },
             severity_min: 0,
             judge_called: false,

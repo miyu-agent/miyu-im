@@ -72,3 +72,23 @@ fn empty_keyword_does_not_count() {
     // 触发词不去空白：写成 ` miyu` 的，正文去掉开头的空白以后对不上。
     assert!(!by_keyword(" miyu", &[" miyu"]));
 }
+
+#[test]
+fn a_call_with_nothing_else_is_hollow() {
+    // 施工 I-29：去掉触发词、@ 开头的词以后，没有字母、数字、汉字这类字的是只叫了她。
+    let keywords = vec!["miyu".to_string(), "米尤".to_string()];
+    for text in [
+        "miyu",
+        "miyu？",
+        "@米尤",
+        "@米尤 😭",
+        "米尤 ！！",
+        "",
+        "miyu miyu",
+    ] {
+        assert!(super::hollow(text, &keywords), "{text}");
+    }
+    for text in ["miyu 在吗", "@米尤 帮我看看", "miyu似了", "@阿甲 @米尤 3"] {
+        assert!(!super::hollow(text, &keywords), "{text}");
+    }
+}

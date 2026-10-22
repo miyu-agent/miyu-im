@@ -258,7 +258,7 @@ Rust 这一边：
 
 | 名字 | 是什么 |
 |---|---|
-| `Facts { venue, msg, said, mentions_others, quotes_other, textless, media_only }` | 一条消息的平台事实：场所编号（`VenueId`）、这条消息在场所主线会话日志里的序号（内核的 `Seq`，第七条第 1 条）、`Said`（第二条）、@ 了别人没有、引用的是不是别人的消息、是不是没有字（只带了东西、只有占位的都算，桥照正文认，O-37）、是不是只有图 |
+| `Facts { venue, msg, said, mentions_others, quotes_other, textless, media_only, hollow }` | 一条消息的平台事实：场所编号（`VenueId`）、这条消息在场所主线会话日志里的序号（内核的 `Seq`，第七条第 1 条）、`Said`（第二条）、@ 了别人没有、引用的是不是别人的消息、是不是没有字（只带了东西、只有占位的都算，桥照正文认，O-37）、是不是只有图 |
 | `Reply { at, to }` | 她在这个场所真发出的一轮回复：时刻（`Timestamp`），回的是谁（平台上的人的列表，一轮可以回几个人；没有明确回谁的是空的）。一轮拆成几段发也只算一轮 |
 | `Chatty { … }` | 参数：抽样的千分比、基础门槛、五维的权重、`should_reply` 的调整、各加值项的加分和窗口、冷静的开关和曲线、违规的门槛。从第八条的 `Params::chatty` 拿：`Chatty`、`Window`、`Restraint` 的格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工 O-15）；代码里不写默认值 |
 | `Bonus` | 加值项的插槽：`judge` 看这条消息成不成立，成立了给一笔 `Hit { kind, bonus }` |
@@ -268,14 +268,14 @@ Rust 这一边：
 | `Route::{Record, Commit, ModerationOnly, Judge}`、`route(&conditions, standing) -> Route` | 走哪条路：只记下、直接回（终端管理员、白名单成员冲她来）、判官只查违规、交给判官打分 |
 | `Judgement { scores, should_reply, to_bot, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
 | `Lift` | 门槛修正的插槽：`lift` 给出抬多少 |
-| `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, &replies, clock, &chatty) -> Score` | 算分的每一项和结论 |
+| `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, (&replies, &sender), clock, &chatty) -> Score`（`sender` 施工 I-29 加：按人冷静照它数） | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
 | `nudged(&score, extra, &judgement, &conditions, &chatty) -> Score` | 在算好的分上再加扩展给的加分（O-43 末，接入通讯平台 的判断打分挂接点 `chat.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（不低于门槛，或者违规够重）；门槛、修正、`raw`、`adjust` 不动；只查违规的、`extra` 是 0 的原样交回 |
 
 **怎么走**
 
 1. **加值项的先后**：冲她来、续聊、跟进、刚说过话、违规旗、抽样。各自看成不成立，成立的都记下，加分相加，不封顶（18 第七节）。
-2. **冲她来** `Direct`：`addressed` 是真。加 `direct` 分。
+2. **冲她来** `Direct`：`addressed` 是真。加 `direct` 分；只叫了她、没说别的加 0 分（第 13 条，I-29）。
 3. **续聊** `Continuation`：`replies` 里最近一轮回的人里有这个发的人，并且离此刻不到 `continuation.window`（`0 ≤ now − at < window`）；这条消息 @ 了别人、或者引用的是别人的消息，不算（18 第七节，2026-10-07 项目主人定）。加 `continuation` 分。
    - **跟进** `FollowUp`（施工 I-21，2026-10-21 项目主人定「群聊三段：覆盖、跟进、续聊」）：她这时正在为这个发的人跑一轮（`serving`：主线、支线忙着回的人，桥照投影交），`chatty.followup` 开着；@ 了别人、引用别人的不算，只有图的照算（同续聊）。加 `followup_bonus` 分。先照「这条线还在跑」算，不用固定的秒数。判下来要回的分派照常：这条线在回他，并进那一轮。
 4. **刚说过话** `AfterSpeaking`：`replies` 里最近一轮（回谁都算）离此刻不到 `after_speaking.window`；没有字（`textless`）的消息不算：只带了图、文件、表情，或者只有占位的（O-37 改，原来只有都是表情的算，2026-10-11 项目主人定，照旧版）。加 `after_speaking` 分。
@@ -296,15 +296,22 @@ Rust 这一边：
    - `threshold = max(0, base + lift)`。
    - `reply`：`total ≥ threshold`，或者 `severity` 不低于 `severity_min`。
    - 只查违规（`ModerationOnly`）的不打分：`reply` 只看 `severity`。
-10. **冷静**（门槛修正，自带的只有这一个）：
+10. **冷静**（门槛修正，自带的两个之一；另一个是第 12 条的按人冷静）：
     - 关着的，抬 0。
     - 冲她来（条件里有 `Direct`）或者判官说 `to_bot`：抬 0。冷静只管插嘴（18 第七节）。
     - 近期发言量 `p = Σ 0.5^((now − at) ÷ half_life)`，对 `replies` 里不晚于此刻的每一轮。
     - 抬 `cap × p³ ÷ (p³ + k³)`。出厂的 `half_life` 是 3 分钟、`cap` 0.35、`k` 2.5（18 第七节），只留开关，不上界面。
 11. **数是小数**：分、权重、加分、门槛都是 `f64`，比较时不另留余量。同一台机器上回放字字相同；跨平台末位的差别只在正好压线时可能翻，接受。
+12. **按人冷静**（门槛修正，施工 I-29，2026-10-23 项目主人定；`chatty/person.rs`）：同一个人冲她来得勤，抬门槛。
+    - 关着的、条件里没有 `Direct` 的，抬 0：插嘴归第 10 条管。
+    - `p = Σ 0.5^((now − at) ÷ person_half_life)`，对 `replies` 里不晚于此刻、`to` 有这个发的人的每一轮。
+    - `p ≤ person_start` 抬 0；往上抬 `person_cap × min(1, (p − person_start) ÷ (person_full − person_start))`；`person_full` 不大于 `person_start` 的一过就抬满。出厂半衰期 10 分钟、起点 2、满点 6、最多 0.5。
+    - 数从哪来：旧 Miyu 主群 2026-10-20 到 22 的判断日志按时间重放（`~/.cache/miyu-remake/im-livetest/bonus/person.py`）：日志里她每天判回 962 次，冲她来的占九成六，判官给冲她来的原始分中位 0.82，已经过了 0.8 的门槛。只把加分减半少回 2%（944），再加「只叫了她不加分」到 898，再加这一档到 807（少 16%）；温和一档（起 3、满 10、抬 0.3）887，狠一档（半衰期 30 分钟）688。同一个人相邻两次叫她隔 p50 2.4 分钟、p75 16 分钟；10 分钟内接着叫算一段，一段 p50 2 次、p90 6 次。项目主人看了几档定中间这档。
+13. **只叫了她**（施工 I-29）：`Facts::hollow` 是真的（桥算：没有字、只带东西的，或者 `hollow(text, keywords)`：去掉触发词、`@` 开头的词以后不剩字母、数字、汉字这类字），冲她来照样成立（走路照它），加 0 分。旧 Miyu 主群 3 天里冲她来的四分之一是这样的（「miyu」、一个表情、一张图）。
 
 **守着它的**（`crates/miyu-chat/src/chatty/tests.rs` 等，O-7）
 
+- 按人冷静、只叫了她（I-29，`chatty/person/tests.rs`、`inbound/addressed/tests.rs`、`chatty/tests.rs`）：起点以内不抬、直线抬到满点、满点以后不再抬；只数回他的轮次、一轮回几个人的算；过一个半衰期算一半；晚于此刻的不算；插嘴不抬；关着的不抬；满点不比起点大的一过就抬满。只有名字、标点、表情、@ 的算只叫了她，冲她来成立、加 0 分。
 - 加值项：每一种成立和不成立；几个同时成立加分相加；窗口两头（正好 `window` 以前不算、此刻的算）；续聊只认最近一轮回的人，那一轮回了几个人的每个都算；@ 了别人、引用别人的不算续聊；没有字的不算刚说过话；回谁是空的不算续聊、算刚说过话。几样同时成立时 `Conditions.hits` 照插槽的先后排，抽样看得到前面的：调换相邻两个加值项有测试红（O-12 下）。
 - 抽样：两个种子钉死（拿 Python 的 hashlib 另算）；同样的场所、序号，结果一样；千分比 0 永不中、1000 必中；只有图的不抽；别的条件成立时不抽。
 - 主触发的先后；走哪条路的四种，包括终端管理员 @、白名单成员 @（O-27 起直接回，没冲她来的照旧过判官）、只有违规旗。
@@ -601,15 +608,20 @@ restraint_half_life = "3m"
 | `chatty.base` | 小数 0 到 10 | 0.8 | `Chatty::base` |
 | `chatty.relevance`、`willingness`、`social`、`timing`、`continuity` | 小数 0 到 10 | 0.25、0.25、0.15、0.15、0.20 | `Chatty::weights`，照这个先后 |
 | `chatty.adjust` | 小数 0 到 10 | 0.2 | `Chatty::adjust` |
-| `chatty.direct` | 小数 0 到 10 | 0.3 | `Chatty::direct` |
-| `chatty.continuation` | 小数 0 到 10 | 0.1 | `Chatty::continuation` 的加分 |
+| `chatty.direct` | 小数 0 到 10 | 0.15 | `Chatty::direct`（I-29 照旧 Miyu 0.7.3 减半，原来 0.3） |
+| `chatty.continuation` | 小数 0 到 10 | 0.05 | `Chatty::continuation` 的加分（I-29 减半，原来 0.1） |
 | `chatty.continuation_window` | 时长 1 秒到 1 天 | `30s`（旧版 15 秒，O-37 改） | `Chatty::continuation` 的窗口 |
-| `chatty.after_speaking` | 小数 0 到 10 | 0.1 | `Chatty::after_speaking` 的加分 |
+| `chatty.after_speaking` | 小数 0 到 10 | 0.05 | `Chatty::after_speaking` 的加分（I-29 减半，原来 0.1） |
 | `chatty.after_speaking_window` | 时长 1 秒到 1 天 | `30s` | `Chatty::after_speaking` 的窗口 |
 | `chatty.restraint` | 开关 | `true` | 冷静开没开 |
 | `chatty.restraint_half_life` | 时长 1 秒到 1 天 | `3m` | 冷静的半衰期 |
 | `chatty.restraint_cap` | 小数 0 到 10 | 0.35 | 冷静最多抬多少 |
 | `chatty.restraint_k` | 小数，大于 0，最大 10 | 2.5 | 冷静抬到一半时的近期发言量 |
+| `chatty.person_restraint` | 开关 | `true` | 按人冷静开没开（I-29，第三条第 12 条） |
+| `chatty.person_half_life` | 时长 1 秒到 1 天 | `10m` | 按人冷静：回他的一轮的分量衰减一半要多久 |
+| `chatty.person_start` | 小数 0 到 10 | 2 | 按人冷静：p 超过它才抬 |
+| `chatty.person_full` | 小数 0 到 10 | 6 | 按人冷静：p 到它抬满 |
+| `chatty.person_cap` | 小数 0 到 10 | 0.5 | 按人冷静：最多抬多少 |
 | `chatty.severity_min` | 整数 1 到 10 | 7 | `Chatty::severity_min` |
 | `dispatch.supersede_window` | 时长 1 秒到 1 天 | `7s` | `Params::supersede_window` |
 | `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照 `models.chat` |
