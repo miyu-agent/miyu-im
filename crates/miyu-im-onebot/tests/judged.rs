@@ -169,10 +169,10 @@ async fn others_calling_her_are_judged() {
     assert!(
         close(&score["raw"], 0.9)
             && close(&score["adjust"], 0.2)
-            && close(&score["bonus"], 0.3)
+            && close(&score["bonus"], 0.15)
             && close(&score["lift"], 0.0)
             && close(&score["threshold"], 0.8)
-            && close(&score["total"], 1.4)
+            && close(&score["total"], 1.25)
             && score["reply"] == true,
         "冲她来的免冷静：{score}"
     );

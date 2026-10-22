@@ -81,15 +81,15 @@ async fn a_package_lifts_a_no_into_a_reply_and_is_named() {
         json!({"bonus": 1.0, "packages": ["boost"]}),
         "{lifted}"
     );
-    // 条件的加分（冲她来 0.3）加上包的 1。
-    assert_eq!(lifted["score"]["bonus"], json!(1.3));
+    // 条件的加分（冲她来 0.15，I-29 减半）加上包的 1。
+    assert_eq!(lifted["score"]["bonus"], json!(1.15));
     let asked = &std::fs::read_to_string(log_of(&home.root, "boost")).expect("记了");
     let asked: Value = serde_json::from_str(asked.lines().next().expect("一次")).expect("JSON");
     assert_eq!(asked["method"], "chat.score");
     assert_eq!(
         asked["params"],
         json!({
-            "platform": "qq", "venue": venue, "msg": "1", "conditions": [{"kind": "direct", "bonus": 0.3}],
+            "platform": "qq", "venue": venue, "msg": "1", "conditions": [{"kind": "direct", "bonus": 0.15}],
             "scores": [1.0, 1.0, 1.0, 1.0, 1.0], "should_reply": false, "to_bot": false,
         })
     );

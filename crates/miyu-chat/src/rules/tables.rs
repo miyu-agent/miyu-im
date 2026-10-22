@@ -149,4 +149,6 @@ pub(crate) fn defaults(file: &File) -> Result<Vec<(&'static Item, Value)>, Vec<P
 }
 
 #[cfg(test)]
+mod fields_tests;
+#[cfg(test)]
 mod tests;

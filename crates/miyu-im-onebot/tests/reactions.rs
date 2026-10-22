@@ -131,7 +131,7 @@ async fn a_continuation_is_marked_too() {
     let second = &of_kind(&events, "ext.im.chat.decided")[1]["body"];
     assert_eq!(
         second["conditions"],
-        json!([{"kind": "continuation", "bonus": 0.1}]),
+        json!([{"kind": "continuation", "bonus": 0.05}]),
         "{second}"
     );
     stopped(home).await;

@@ -192,7 +192,7 @@ async fn each_discipline_goes_its_own_way() {
     let continued = until_decided(&home, WAKE, 13).await;
     assert_eq!(
         continued["conditions"],
-        json!([{"kind": "continuation", "bonus": 0.1}]),
+        json!([{"kind": "continuation", "bonus": 0.05}]),
         "{continued}"
     );
     until_turns(&home, WAKE, 3).await;

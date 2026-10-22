@@ -172,7 +172,7 @@ fn the_admin_calling_her_is_answered_and_the_decision_reads_as_drawn() {
         written(&decision, Standing::Admin, None),
         json!({
             "msgs": [12], "standing": "admin", "inbound": "pass", "discipline": "chatty",
-            "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
+            "conditions": [{"kind": "direct", "bonus": 0.15}], "route": "commit", "outcome": "reply",
         })
     );
 }
@@ -192,7 +192,7 @@ fn the_whitelist_calling_her_is_answered_without_the_judge() {
         written(&decision, Standing::Whitelisted, None),
         json!({
             "msgs": [12], "standing": "whitelisted", "inbound": "pass", "discipline": "chatty",
-            "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
+            "conditions": [{"kind": "direct", "bonus": 0.15}], "route": "commit", "outcome": "reply",
         })
     );
 }

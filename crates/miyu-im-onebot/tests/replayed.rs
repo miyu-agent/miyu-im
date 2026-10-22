@@ -89,7 +89,7 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
     let called = decided(&events, 1).expect("记了判断");
     assert_eq!(
         called["conditions"],
-        json!([{"kind": "direct", "bonus": 0.3}])
+        json!([{"kind": "direct", "bonus": 0.15}])
     );
     assert_eq!(called["route"], "judge", "{called}");
     assert_eq!(
@@ -104,7 +104,7 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
     let followed = decided(&events, 2).expect("记了判断");
     assert_eq!(
         followed["conditions"],
-        json!([{"kind": "after_speaking", "bonus": 0.1}])
+        json!([{"kind": "after_speaking", "bonus": 0.05}])
     );
     assert_eq!(followed["judge"]["unjudged"], "unreadable", "{followed}");
     assert_eq!(
@@ -176,7 +176,7 @@ async fn textless_messages_after_she_speaks_are_only_recorded() {
     let worded = decided(&events, 4).expect("记了判断");
     assert_eq!(
         worded["conditions"],
-        json!([{"kind": "after_speaking", "bonus": 0.1}])
+        json!([{"kind": "after_speaking", "bonus": 0.05}])
     );
     assert_eq!(
         worded["judge"]["answer"]["reason"], "just chatting",

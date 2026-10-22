@@ -93,7 +93,7 @@ async fn a_quick_correction_restarts_her_turn() {
         decided(&events, 2),
         Some(json!({
             "msgs": [seq_of(&events, 2)], "standing": "member", "inbound": "pass", "discipline": "chatty",
-            "conditions": [{"kind": "direct", "bonus": 0.3}, {"kind": "followup", "bonus": 0.1}],
+            "conditions": [{"kind": "direct", "bonus": 0.15}, {"kind": "followup", "bonus": 0.05}],
             "supersede": {"inherit": seq_of(&events, 1)}, "route": "commit", "outcome": "reply",
         })),
         "条件是前一条的加上跟进，接过去不再判"
@@ -170,7 +170,7 @@ async fn a_follow_up_while_judging_is_judged_together() {
     );
     assert_eq!(
         together["conditions"],
-        json!([{"kind": "direct", "bonus": 0.3}])
+        json!([{"kind": "direct", "bonus": 0.15}])
     );
     assert_eq!(together["judge"]["answer"]["reason"], "both together");
     assert_eq!(together["outcome"], "reply");
@@ -255,7 +255,7 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     let follow = decided(&events, 2).expect("记了判断");
     assert_eq!(
         follow["conditions"],
-        json!([{"kind": "followup", "bonus": 0.1}]),
+        json!([{"kind": "followup", "bonus": 0.05}]),
         "跟进：{follow}"
     );
     assert_eq!(follow["route"], "judge", "跟进照常判：{follow}");
