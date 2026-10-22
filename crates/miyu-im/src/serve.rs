@@ -94,8 +94,10 @@ pub struct Serve {
 /// 说给人听的（「样子」）：怎么说照 `texts`。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Notice {
-    /// 听上了：实际的端口（设的是 0 的，系统挑的那一个）。
+    /// 听上了：地址（施工 I-27）、实际的端口（设的是 0 的，系统挑的那一个）。
     Listening {
+        /// 听的地址：`0.0.0.0` 是谁都能连。
+        host: String,
         /// 实际听的端口。
         port: u16,
     },

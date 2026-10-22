@@ -67,7 +67,10 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
     let said = text(&exited.stderr);
     let zh = Texts::load(ResourceRoot::at(resources()), package_in(resources()), "zh")
         .expect("读得出来");
-    let listening = zh.notice(&Notice::Listening { port: listen });
+    let listening = zh.notice(&Notice::Listening {
+        host: "127.0.0.1".to_string(),
+        port: listen,
+    });
     assert!(
         said.starts_with(&listening),
         "说给人听的在标准错误上：{said}"
@@ -174,7 +177,10 @@ async fn the_old_web_port_in_the_handshake_is_not_opened() {
         text(&exited.stderr),
         format!(
             "{}\n{}\n",
-            zh.notice(&Notice::Listening { port: listen }),
+            zh.notice(&Notice::Listening {
+                host: "127.0.0.1".to_string(),
+                port: listen,
+            }),
             zh.notice(&Notice::Page { port: page })
         ),
         "标准错误上先说在哪等 NapCat，再说页面在哪"

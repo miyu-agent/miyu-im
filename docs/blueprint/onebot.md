@@ -119,7 +119,8 @@
 
 | 键 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `im.qq.listen` | 整数 1024 到 65535 | 8301 | NapCat 反连进来的端口，只听本机 `127.0.0.1`；改了当场换（先开新的再换上，第 1 条，O-20） |
+| `im.qq.host` | 字，写一个 IP 地址 | `0.0.0.0` | NapCat 反连进来时听的地址（I-27，2026-10-22 项目主人定：照旧 Miyu 谁都能连，外人靠令牌挡；只给本机的写 `127.0.0.1`）；写的不是 IP 地址的照默认值；改了当场换（同端口） |
+| `im.qq.listen` | 整数 1024 到 65535 | 8301 | NapCat 反连进来的端口，听 `im.qq.host` 那个地址；改了当场换（先开新的再换上，第 1 条，O-20） |
 | `im.qq.token` | 密钥（`{ secret = … }` 或 `{ env = … }`） | 没有 | NapCat 连进来时出示的访问令牌；没设、取不到，桥照样起来，NapCat 连进来一律 401；设了、换了、删了不用重启（第 1、2 条，O-16 补二、O-20） |
 | `im.whitelist`（O-17；O-27 以前叫 `im.trusted`，旧键不认） | 平台身份的列表（`["qq:20017"]`），元素是文字、最多 128 个字 | 没有 | 白名单成员：不写的当没有；在后台页的「白名单成员」页上整张写回；桥照它认白名单成员（O-23 起群里，O-27 起私聊、好友请求，「群里怎么叫她」第 3 条） |
 | `im.sleep`（O-41） | 文字，最多 11 个字符 | 没有 | 睡觉时间，写法同规则的 `sleep`；群和私聊都算 |
@@ -243,8 +244,10 @@ description = { … }
 
 | 键 | 中文 | 英文 | 日文 |
 |---|---|---|---|
+| `host` 名字（I-27） | 监听地址 | Listen address | 待ち受けアドレス |
+| 说明 | NapCat 反向 WebSocket 连进来的地址。0.0.0.0 是别的机器、Docker 里的也能连，外人靠令牌挡；127.0.0.1 是只收本机的。 | The address NapCat's reverse WebSocket connects to. 0.0.0.0 accepts other machines and Docker too, and the token keeps strangers out. 127.0.0.1 accepts only this machine. | NapCat のリバース WebSocket が接続してくるアドレスです。0.0.0.0 はほかのマシンや Docker からも受け付け、部外者はトークンで防ぎます。127.0.0.1 はこのマシンからだけ受け付けます。 |
 | `listen` 名字 | 端口 | Port | ポート |
-| 说明 | NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。 | The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. | NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。 |
+| 说明 | NapCat 反向 WebSocket 连进来的端口。NapCat 在这台机器上的，那边的地址填 ws://127.0.0.1:<端口>/ws；在别的机器上的，填这台机器的地址。 | The port NapCat's reverse WebSocket connects to. With NapCat on this machine use ws://127.0.0.1:<port>/ws; on another machine use this machine's address. | NapCat のリバース WebSocket が接続してくるポートです。NapCat がこのマシンにあるなら ws://127.0.0.1:<ポート>/ws、ほかのマシンにあるならこのマシンのアドレスを使います。 |
 | `token` 名字 | 令牌 | Token | トークン |
 | 说明 | NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入通讯平台的网页上能生成一个。 | The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect Messaging web page. | NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。メッセージング接続の Web ページで生成できます。 |
 | `whitelist` 名字 | 白名单成员 | Whitelist | ホワイトリスト |
@@ -260,7 +263,7 @@ description = { … }
 - 什么时候写：端口听上以后写一次；NapCat 连上、断开、认出号、问到是哪个实现，换了端口（推送来的），照这一刻的再写。和磁盘上一样的不写；先写旁边的临时文件再改名盖上（`miyu_store::generated::write`），读的人看不到写了一半的。写不进记一行 `WARN status not written`，桥照跑。
 - 桥退出不删它：`status` 只在 `extension.status` 说在跑、进程号和文件里的一样时才用它，旧的、上一个进程的、读不懂的都不用。
 
-NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「WebSocket 客户端」），地址 `ws://127.0.0.1:<im.qq.listen>/ws`（`/onebot/v11/ws` 也认，后台页上写短的那个，O-16 补二），访问令牌和 `im.qq.token` 一样，消息格式选数组（字符串格式也认，第 6 条）。
+NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「WebSocket 客户端」），地址 `ws://127.0.0.1:<im.qq.listen>/ws`（NapCat 在别的机器、Docker 里的把 `127.0.0.1` 换成这台机器的地址，`im.qq.host` 要是 `0.0.0.0` 或那个地址，I-27；`/onebot/v11/ws` 也认，后台页上写短的那个，O-16 补二），访问令牌和 `im.qq.token` 一样，消息格式选数组（字符串格式也认，第 6 条）。
 
 **怎么走**
 
@@ -643,7 +646,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 握手交来的照它拼（`Venues::new`）；推来的 `extension.config` 里三项变了的当场整份重读、记运行日志（第 4 条），下一条消息就照新的；没变的不读。
    - **没认出来的配置项**（O-41 补，2026-10-17 网页的会话验 O-41 时提的：限流、睡觉时间在清单里是文字，核心只查长度，写错了照样存进去）：拼出来的这一份自己交群聊内核读，有问题的那几条规则是哪几项（`Configured::misread`：配置项的键，照拼的先后；一条规则只设一项、一项写错只报一处；规则文件写错的不算）。桥手里另记一份三项（`current.rs`，和端口、令牌一起照推送换），后台页的 `status`、状态文件带 `misread`（「后台页」第 2 条、「状态文件」），`miyu im status` 说 `status/misread`（O-41 补二：键换成清单里给人看的名字，照说的语言挑，没写的照 `en`、`zh`、`ja`，清单里没有的照键；几项用 `status/misread-separator` 连），后台页「连接」页 NapCat 那张卡下面画一行（O-41 补二：琥珀色，是提醒，和真出错的红字分开；O-45 补：颜色是 `--warn`，深色下就是 `--gold`，浅色下 `--gold` 掺 35% 的字色压暗，卡片底上对比度约 5:1，原来约 2.9:1 看着发虚）。不挡着不让存：存不存由核心照清单的类型定。
 
-**样子**：桥起来时在标准错误上说一行「在 127.0.0.1:8301 等 NapCat 连进来」，照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
+**样子**：桥起来时在标准错误上说一行「在 0.0.0.0:8301 等 NapCat 连进来」（地址照 `im.qq.host`，I-27），照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
 
 **出错**
 
@@ -672,7 +675,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 | 编号 | 什么时候 | 中文 | 英文 |
 |---|---|---|---|
-| `notice/listening` | 起来了 | 在 127.0.0.1:{port} 等 NapCat 连进来。 | Waiting for NapCat on 127.0.0.1:{port}. |
+| `notice/listening` | 起来了 | 在 {host}:{port} 等 NapCat 连进来。 | Waiting for NapCat on {host}:{port}. |
 | `notice/connected-as`、`notice/connected` | 连上了 | NapCat 连上了（{bot}）。 | NapCat connected ({bot}). |
 | `notice/disconnected-as`、`notice/disconnected` | 断开了 | NapCat 断开了（{bot}），等它重连。 | NapCat disconnected ({bot}); waiting for it to reconnect. |
 | `notice/no-token`（O-16 补，原来的 `unready/no-token`；补二、O-28 下、O-28 补改了说法） | 令牌没设：照样起来，跟在 `notice/listening` 后面 | 还没设令牌（im.qq.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu im web），填进 NapCat，几秒内就连上。 | No token (im.token) yet, so NapCat will be refused. Generate one on its page in the web app (miyu im web) and put it into NapCat; it connects within seconds. |

@@ -94,7 +94,10 @@ fn everything(texts: &Texts) -> Vec<String> {
         texts.web_opened("http://127.0.0.1:8302/", false),
     ];
     for notice in [
-        Notice::Listening { port: 8301 },
+        Notice::Listening {
+            host: "127.0.0.1".to_string(),
+            port: 8301,
+        },
         Notice::Connected { bot: Some(30003) },
         Notice::Connected { bot: None },
         Notice::Disconnected { bot: Some(30003) },
@@ -202,7 +205,10 @@ fn every_sentence_turns_into_words_in_every_language() {
 #[test]
 fn chinese_reads_as_drawn_and_fields_go_in() {
     let texts = Texts::load(resources(), crate::support::package(), "zh").expect("读得出来");
-    let listening = Notice::Listening { port: 8301 };
+    let listening = Notice::Listening {
+        host: "127.0.0.1".to_string(),
+        port: 8301,
+    };
     assert_eq!(
         texts.notice(&listening),
         "在 127.0.0.1:8301 等 NapCat 连进来。"

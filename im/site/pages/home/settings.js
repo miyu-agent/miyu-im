@@ -1,5 +1,5 @@
 // 连接设置（设计 01 第八节第 2 条，施工 I-6 中；样子照样板 d-im.html 的 conn-layer）：连接卡的齿轮打开。驱动声明的几格（QQ：
-// 反向 WebSocket 端口、验证 Token），下面一行要填到那边的地址（照这时格里的端口拼，能复制）。保存只交改了的：端口变了的、Token
+// 监听地址（施工 I-27）、反向 WebSocket 端口、验证 Token），下面一行要填到那边的地址（照这时格里的端口拼，能复制）。保存只交改了的：端口变了的、Token
 // 填了的（已设的 Token 留空就不改，不把它的值拿到页面上）；经宿主的 connection.save 存。
 import { element, say } from '../../shell/i18n.js';
 import { copy, openDialog, toast } from '../../shell/dialog.js';
@@ -41,6 +41,9 @@ export async function openSettings(request, one) {
         input.inputMode = 'numeric';
         input.value = String(status[field.name] ?? '');
         input.addEventListener('input', () => { addressShown.textContent = address(); });
+      } else if (field.kind === 'text') {
+        input.value = String(status[field.name] ?? '');
+        input.spellcheck = false;
       } else {
         input.type = 'password';
         input.autocomplete = 'off';

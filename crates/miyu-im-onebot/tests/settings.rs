@@ -25,7 +25,7 @@ use crate::support::{TOKEN, admin, defaults, package_in, resources, temp_root};
 fn fallback() -> Defaults {
     Defaults {
         recall_receipts: vec!["x".to_string()],
-        driver: keys(json!({"listen": 18301})),
+        driver: keys(json!({"host": "127.0.0.1", "listen": 18301})),
         site: keys(json!({"port": 18302})),
     }
 }
@@ -40,7 +40,7 @@ fn handed(config: &Value, defaults: &Defaults) -> Settings {
 
 /// 驱动读宿主交来的那几项：端口读不出的照默认值。
 fn read(driver: &Map<String, Value>, defaults: &Defaults) -> Settings {
-    Settings::read(driver, defaults.driver.get("listen")).expect("有端口")
+    Settings::read(driver, |name| defaults.driver.get(name).cloned()).expect("有端口")
 }
 
 /// 令牌 `token`。
@@ -61,6 +61,7 @@ fn the_shipped_manifest_gives_the_default_port() {
         Defaults {
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
             driver: keys(json!({
+                "host": "0.0.0.0",
                 "listen": 8301,
                 "identity_on": true,
                 "identity_admin": true,
@@ -117,10 +118,11 @@ fn a_missing_manifest_or_default_is_named() {
 
 #[test]
 fn the_handed_config_is_taken_as_it_comes() {
-    let config = json!({"im.qq.listen": 9000, "im.qq.token": TOKEN, "im.whitelist": ["qq:20017"]});
+    let config = json!({"im.qq.host": "192.168.1.5", "im.qq.listen": 9000, "im.qq.token": TOKEN, "im.whitelist": ["qq:20017"]});
     assert_eq!(
         handed(&config, &fallback()),
         Settings {
+            host: "192.168.1.5".parse().expect("是地址"),
             port: 9000,
             token: secret(TOKEN)
         }
@@ -129,6 +131,11 @@ fn the_handed_config_is_taken_as_it_comes() {
         handed(&json!({"im.qq.token": format!("  {TOKEN}\n")}), &fallback()).token,
         secret(TOKEN),
         "前后的空白去掉"
+    );
+    assert_eq!(
+        handed(&json!({"im.qq.host": " ::1\n"}), &fallback()).host,
+        "::1".parse::<std::net::IpAddr>().expect("是地址"),
+        "地址也去掉前后的空白，IPv6 也认"
     );
     assert_eq!(
         handed(&json!({"im.qq.listen": 0}), &fallback()).port,
@@ -145,6 +152,7 @@ fn the_handed_config_is_taken_as_it_comes() {
 #[test]
 fn what_is_not_handed_falls_back_to_the_manifest() {
     let nothing = Settings {
+        host: "127.0.0.1".parse().expect("是地址"),
         port: 18301,
         token: None,
     };
@@ -157,6 +165,11 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
         json!({"im.qq.listen": -1}),
         json!({"im.qq.listen": "8301", "im.qq.token": 42}),
         json!({"im.qq.listen": 8302.5}),
+        // 地址（施工 I-27）：不是 IP 地址的字、不是字的照默认值。
+        json!({"im.qq.host": "localhost"}),
+        json!({"im.qq.host": "999.1.1.1", "im.qq.listen": "x"}),
+        json!({"im.qq.host": 42}),
+        json!({"im.qq.host": ""}),
         json!({"listen": 9000, "web.port": 9001, "onebotx.token": TOKEN, "onebot.tokens": TOKEN}),
         // 原来桥自己的网页的端口（施工 O-28 下去掉）：不认。
         json!({"im.web": 9001}),
@@ -171,8 +184,8 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
     let defaults = fallback();
     assert_eq!(
         driver_config(&json!({}), (QQ, NAMES), &defaults.driver),
-        keys(json!({"listen": 18301})),
-        "没交的端口照默认值，令牌没有默认值不放"
+        keys(json!({"host": "127.0.0.1", "listen": 18301})),
+        "没交的地址、端口照默认值，令牌没有默认值不放"
     );
     assert_eq!(
         driver_config(
@@ -180,7 +193,7 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
             (QQ, NAMES),
             &defaults.driver
         ),
-        keys(json!({"listen": 18301, "token": TOKEN})),
+        keys(json!({"host": "127.0.0.1", "listen": 18301, "token": TOKEN})),
         "别的键不给驱动"
     );
 }
@@ -200,6 +213,7 @@ fn a_push_changes_only_the_keys_it_carries() {
     assert_eq!(
         read(&driver, &defaults),
         Settings {
+            host: "127.0.0.1".parse().expect("是地址"),
             port: 9000,
             token: secret("new")
         }
@@ -210,6 +224,7 @@ fn a_push_changes_only_the_keys_it_carries() {
     assert_eq!(
         read(&driver, &defaults),
         Settings {
+            host: "127.0.0.1".parse().expect("是地址"),
             port: 9100,
             token: None
         },
@@ -231,9 +246,16 @@ fn a_push_changes_only_the_keys_it_carries() {
     assert_eq!(
         read(&driver, &defaults),
         Settings {
+            host: "127.0.0.1".parse().expect("是地址"),
             port: 18301,
             token: None
         }
+    );
+    pushed(json!({"im.qq.host": "10.0.0.2"}), &mut driver);
+    assert_eq!(
+        read(&driver, &defaults).host,
+        "10.0.0.2".parse::<std::net::IpAddr>().expect("是地址"),
+        "地址也照推来的换"
     );
 }
 
@@ -356,5 +378,16 @@ fn recall_receipts_fall_back_to_the_default_and_take_names_with_a_slash() {
     assert!(
         recall_receipts(&json!([]), &defaults).is_empty(),
         "空的就是都不撤"
+    );
+}
+
+#[test]
+fn without_a_usable_address_anyone_can_connect() {
+    // 交来的、清单的都读不出地址：照旧 Miyu 听 0.0.0.0（施工 I-27）。
+    let read =
+        Settings::read(&keys(json!({"host": "nope", "listen": 9000})), |_| None).expect("有端口");
+    assert_eq!(
+        read.host,
+        std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)
     );
 }

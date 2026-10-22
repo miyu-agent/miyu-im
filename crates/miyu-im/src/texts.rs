@@ -127,9 +127,10 @@ impl Texts {
     /// 起来了（令牌没设的说怎么设）、连上了、断开了。号没认出来的不说号。
     pub fn notice(&self, notice: &Notice) -> String {
         match notice {
-            Notice::Listening { port, .. } => {
-                self.say("notice/listening", &[("port", port.to_string())])
-            }
+            Notice::Listening { host, port } => self.say(
+                "notice/listening",
+                &[("host", host.clone()), ("port", port.to_string())],
+            ),
             Notice::Connected { bot: Some(bot) } => {
                 self.say("notice/connected-as", &[("bot", bot.to_string())])
             }

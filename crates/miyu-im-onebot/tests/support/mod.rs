@@ -352,9 +352,13 @@ pub fn settings() -> Settings {
     with_token(Some(TOKEN))
 }
 
-/// 端口是 0，令牌是 `token`；空的是没有令牌。
+/// 测试里的桥只听本机（施工 I-27：出厂的 `0.0.0.0` 谁都能连，测试不往外开）。
+pub const LOCAL: std::net::IpAddr = std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
+
+/// 只听本机，端口是 0，令牌是 `token`；空的是没有令牌。
 pub fn with_token(token: Option<&str>) -> Settings {
     Settings {
+        host: LOCAL,
         port: 0,
         token: token.map(|token| Secret::new(token).expect("合写法")),
     }
@@ -367,7 +371,8 @@ pub fn no_token() -> Notice {
 
 /// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：端口、令牌的真值；没有令牌的不放这一键。
 pub fn handed(settings: &Settings) -> Value {
-    let mut config = json!({"im.qq.listen": settings.port});
+    let mut config =
+        json!({"im.qq.host": settings.host.to_string(), "im.qq.listen": settings.port});
     if let Some(token) = &settings.token {
         config["im.qq.token"] = json!(token.expose());
     }
@@ -439,7 +444,7 @@ pub async fn start(serve: Serve) -> Bridge {
     ));
     let port = within("桥开始听", async {
         loop {
-            if let Notice::Listening { port } = telling.recv().await.expect("说了端口") {
+            if let Notice::Listening { port, .. } = telling.recv().await.expect("说了端口") {
                 return port;
             }
         }

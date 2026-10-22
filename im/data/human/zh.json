@@ -38,7 +38,7 @@
     "web/not-running": "接入通讯平台没在运行，先执行 miyu im start。",
     "web/open-by-hand": "在浏览器中打开（1 分钟内有效）：{url}",
     "web/opened": "已在浏览器中打开：{url}",
-    "notice/listening": "在 127.0.0.1:{port} 等 NapCat 连进来。",
+    "notice/listening": "在 {host}:{port} 等 NapCat 连进来。",
     "notice/page": "网页：http://127.0.0.1:{port}/",
     "notice/page-in-use": "网页服务的端口 {port} 被占了，网页打不开；换一个端口（im.web.port）就好，NapCat 照常收发。",
     "notice/connected": "NapCat 连上了。",

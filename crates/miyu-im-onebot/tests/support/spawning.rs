@@ -395,6 +395,10 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
     if config.get("im.web.port").is_none() {
         config["im.web.port"] = serde_json::json!(0);
     }
+    // 测试里的桥只听本机（施工 I-27：出厂的 0.0.0.0 谁都能连），握手没写地址的补上。
+    if config.get("im.qq.host").is_none() {
+        config["im.qq.host"] = serde_json::json!("127.0.0.1");
+    }
     let reply = serde_json::json!({
         "jsonrpc": "2.0",
         "id": hello["id"],
@@ -477,7 +481,7 @@ pub fn ports_config(listen: u16) -> String {
 /// `[im.qq]` 表），`onebot` 里也能写 `qq.` 开头的驱动配置项（施工 I-10 上：识人术的设置）。
 pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
-        "\n[im]\n{onebot}\nqq.listen = {listen}\nqq.token = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
+        "\n[im]\n{onebot}\nqq.host = \"127.0.0.1\"\nqq.listen = {listen}\nqq.token = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
         free_port()
     )
 }

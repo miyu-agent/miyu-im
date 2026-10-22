@@ -38,7 +38,7 @@
     "web/not-running": "メッセージング接続が動いていません。先に miyu im start を実行してください。",
     "web/open-by-hand": "ブラウザで開いてください（1 分間有効）：{url}",
     "web/opened": "ブラウザで開きました：{url}",
-    "notice/listening": "127.0.0.1:{port} で NapCat の接続を待っています。",
+    "notice/listening": "{host}:{port} で NapCat の接続を待っています。",
     "notice/page": "Web ページ：http://127.0.0.1:{port}/",
     "notice/page-in-use": "Web ページのポート {port} は使用中のため、ページは開けません。別のポート（im.web.port）にしてください。NapCat はそのまま使えます。",
     "notice/connected": "NapCat がつながりました。",

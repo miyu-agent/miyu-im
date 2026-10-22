@@ -62,7 +62,16 @@ dir = "page"
 
 # 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
 # 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。NapCat 的两项在
-# 平台那一组（键 im.qq.listen、im.qq.token，施工 I-3 补）。
+# 平台那一组（键 im.qq.host、im.qq.listen、im.qq.token，施工 I-3 补；地址是施工 I-27 加的）。
+
+[settings.qq.host]
+type = "text"
+max = 45
+default = "0.0.0.0"
+layers = ["system"]
+applies = "now"
+name = { en = "Listen address", zh = "监听地址", ja = "待ち受けアドレス" }
+description = { en = "The address NapCat's reverse WebSocket connects to. 0.0.0.0 accepts other machines and Docker too, and the token keeps strangers out. 127.0.0.1 accepts only this machine.", zh = "NapCat 反向 WebSocket 连进来的地址。0.0.0.0 是别的机器、Docker 里的也能连，外人靠令牌挡；127.0.0.1 是只收本机的。", ja = "NapCat のリバース WebSocket が接続してくるアドレスです。0.0.0.0 はほかのマシンや Docker からも受け付け、部外者はトークンで防ぎます。127.0.0.1 はこのマシンからだけ受け付けます。" }
 
 [settings.qq.listen]
 type = "int"
@@ -72,7 +81,7 @@ default = 8301
 layers = ["system"]
 applies = "now"
 name = { en = "Port", zh = "端口", ja = "ポート" }
-description = { en = "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.", zh = "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。", ja = "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。" }
+description = { en = "The port NapCat's reverse WebSocket connects to. With NapCat on this machine use ws://127.0.0.1:<port>/ws; on another machine use this machine's address.", zh = "NapCat 反向 WebSocket 连进来的端口。NapCat 在这台机器上的，那边的地址填 ws://127.0.0.1:<端口>/ws；在别的机器上的，填这台机器的地址。", ja = "NapCat のリバース WebSocket が接続してくるポートです。NapCat がこのマシンにあるなら ws://127.0.0.1:<ポート>/ws、ほかのマシンにあるならこのマシンのアドレスを使います。" }
 
 [settings.qq.token]
 type = "secret"

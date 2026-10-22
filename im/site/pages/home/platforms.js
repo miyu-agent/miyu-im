@@ -1,5 +1,5 @@
 // 各个平台在页面上的样子（施工 I-6 中，设计 01 第八节第 2 条「后面的步子照驱动声明的连接设置一步步画」）：驱动报它的配置项
-// （Driver::settings，OneBot 是 listen、token），这里写每个平台怎么画：角标、名字、新建连接的几步、连接设置的几格、要填到那边的
+// （Driver::settings，OneBot 是 host、listen、token），这里写每个平台怎么画：角标、名字、新建连接的几步、连接设置的几格、要填到那边的
 // 地址怎么拼（照宿主 status 交的 listen、path）。加平台就加一项。
 import { element, say } from '../../shell/i18n.js';
 
@@ -44,6 +44,7 @@ export const PLATFORMS = {
     node: () => say('wizard/qq-node'),
     // 连接设置的几格。
     settings: [
+      { kind: 'text', name: 'host', label: () => say('settings/qq-host'), hint: () => say('settings/qq-host-hint') },
       { kind: 'port', name: 'listen', label: () => say('settings/qq-listen'), hint: () => say('settings/qq-listen-hint') },
       { kind: 'secret', name: 'token', label: () => say('settings/qq-token'), hint: () => say('settings/qq-token-hint') },
       { kind: 'address', label: () => say('settings/qq-address') },

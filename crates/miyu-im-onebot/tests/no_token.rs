@@ -58,7 +58,7 @@ async fn without_a_token_the_port_listens_and_napcat_is_refused() {
     assert!(
         matches!(
             &notices[..2],
-            [Notice::Listening { port }, Notice::NoToken] if *port == bridge.port
+            [Notice::Listening { port, .. }, Notice::NoToken] if *port == bridge.port
         ),
         "先说在哪等 NapCat，再说怎么设令牌：{notices:?}"
     );
@@ -69,7 +69,7 @@ async fn without_a_token_the_port_listens_and_napcat_is_refused() {
     let web = crate::support::browser::page_port(&bridge, 1).await;
     assert_eq!(
         page_status(&push, "core-1").await,
-        json!({"napcat": {"connected": false}, "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq", "web": web})
+        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq", "web": web})
     );
     bridge.stop().await.expect("停得下");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -129,7 +129,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
         status,
-        json!({"napcat": {"connected": false}, "listen": listen, "path": "/ws", "token": "none", "platform": "qq"})
+        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": listen, "path": "/ws", "token": "none", "platform": "qq"})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");
@@ -157,7 +157,10 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
         .expect("等得到");
     assert_eq!(served.status.code(), Some(0), "读到头好好停下");
     let said = String::from_utf8_lossy(&served.stderr).to_string();
-    let listening = zh(&Notice::Listening { port: listen });
+    let listening = zh(&Notice::Listening {
+        host: "127.0.0.1".to_string(),
+        port: listen,
+    });
     let first = format!("{listening}\n{}\n", zh(&no_token()));
     assert!(
         said.starts_with(&first),

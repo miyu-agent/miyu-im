@@ -117,6 +117,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         status,
         json!({
             "napcat": {"connected": false},
+            "host": "127.0.0.1",
             "listen": listen,
             "path": "/ws",
             "token": "set",
@@ -254,6 +255,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         status,
         json!({
             "napcat": {"connected": false},
+            "host": "127.0.0.1",
             "listen": listen,
             "path": "/ws",
             "token": "none",
