@@ -286,7 +286,7 @@ async fn the_main_line_names_what_a_lane_answers_and_later_sees_what_it_said() {
     assert_eq!(next_said(&mut napcat).await.1, "回A");
     until_main(&home, "turn.ended", 1).await;
     // 主线闲了、支线还在回 B：C 开主线，带上它回的那一条。
-    calls(&napcat, C, 301, "在吗", &[]);
+    calls(&napcat, C, 301, "能帮个忙吗", &[]);
     until_requests(&lines, 3).await;
     assert!(
         last(&lines.requests()[2]).contains(&own_line(&[301])),
@@ -375,10 +375,10 @@ async fn turns_opened_on_a_lane_count_toward_the_rate() {
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), &rules("2/1h"), MEMBERS).await;
     calls(&napcat, A, 101, "在吗", &[]);
     until_requests(&lines, 1).await;
-    calls(&napcat, B, 201, "在吗", &[]);
+    calls(&napcat, B, 201, "有空吗", &[]);
     until_requests(&lines, 2).await;
     // 两轮了（一条主线、一条支线）：C 再叫她，满了。
-    calls(&napcat, C, 301, "在吗", &[]);
+    calls(&napcat, C, 301, "能帮个忙吗", &[]);
     let events = until_main(&home, "ext.im.chat.decided", 3).await;
     let decided = &of_kind(&events, "ext.im.chat.decided")[2]["body"];
     assert_eq!(decided["inbound"], "record_only", "{decided}");
@@ -412,7 +412,7 @@ async fn what_a_lane_could_not_send_is_noted_where_she_will_see_it() {
     .await;
     calls(&napcat, A, 101, "在吗", &[]);
     until_requests(&lines, 1).await;
-    calls(&napcat, B, 201, "在吗", &[]);
+    calls(&napcat, B, 201, "有空吗", &[]);
     // 支线那句发不出去：退信记在她看得到的地方。支线一般说完就封存了，记在主线；还没封存的记在支线，只记一处。
     let noted = |events: &[Value]| {
         of_kind(events, "context.injected")

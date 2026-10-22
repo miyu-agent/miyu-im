@@ -84,6 +84,7 @@ pub(super) fn asleep(applied: &Applied) -> bool {
         sleep: Some(sleep),
         allow: None,
         muted: false,
+        repeated: false,
         turns: Vec::new(),
         moderation: Moderation {
             keywords: Vec::new(),

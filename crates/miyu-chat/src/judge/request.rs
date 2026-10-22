@@ -1,4 +1,4 @@
-//! 拼判官的请求（`chat.md` 第六条「怎么走」第 1、2 条）：十三份原文照先后接起来，每份之间不加别的字。
+//! 拼判官的请求（`chat.md` 第六条「怎么走」第 1、2 条）：十六份原文照先后接起来，每份之间不加别的字。
 
 use std::collections::BTreeMap;
 
@@ -13,7 +13,8 @@ use super::{Ask, JudgeMessage, JudgeRole, JudgeTexts, Mode};
 /// - system：`system.txt`；有人格的，人格的说明夹在 `persona-open.txt`、`persona-close.txt` 中间；打分的接 `reply.txt`，
 ///   只查违规的接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成 `chatty` 里的违规门槛，门槛只有这一份）；
 ///   `answer.txt`。
-/// - user：群聊记录、这一条各夹在自己的标签中间；有 base64 解出来的字的，最后再夹一段。
+/// - user：群聊记录、这一条各夹在自己的标签中间；她已经决定要回的几条（施工 I-28）有的，夹在这两段中间，一条一行照
+///   `answering-line.txt` 换（名字、正文照模板转义）；有 base64 解出来的字的，最后再夹一段。
 ///
 /// 夹进标签的字末尾没有换行的补一个，收尾的标签才落在自己那一行；空的不补，免得标签中间多一个空行。三份夹进来的字
 /// 各自这样：群聊记录和这一条由核心的渲染器转义过，原样用；人格的说明是可信的，原样用；base64 解出来的字是桥从群消息
@@ -50,6 +51,20 @@ pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<JudgeMessa
         &ask.records,
         &texts.records_close,
     );
+    if !ask.answering.is_empty() {
+        user.push_str(&texts.answering_open);
+        for one in &ask.answering {
+            let fields = BTreeMap::from([("name", one.name.as_str()), ("text", one.text.as_str())]);
+            // `JudgeTexts::new` 拿这两个字段试换过，这里换得出。
+            user.push_str(
+                &texts
+                    .answering_line
+                    .render(&fields)
+                    .expect("造的时候试换过"),
+            );
+        }
+        user.push_str(&texts.answering_close);
+    }
     wrap(
         &mut user,
         &texts.current_open,

@@ -1,0 +1,2 @@
+<bot-already-answering>
+The bot is already answering these messages. If the current message says the same thing or repeats one of them, do not reply again.

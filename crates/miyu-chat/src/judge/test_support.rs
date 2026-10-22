@@ -14,7 +14,7 @@ macro_rules! judge {
 }
 pub(crate) use judge;
 
-/// 出厂的十三份原文。
+/// 出厂的十六份原文。
 pub(crate) fn texts() -> JudgeTexts {
     JudgeTexts::new(JudgeSources {
         system: judge!("system.txt").to_string(),
@@ -30,6 +30,9 @@ pub(crate) fn texts() -> JudgeTexts {
         current_close: judge!("current-close.txt").to_string(),
         decoded_open: judge!("decoded-open.txt").to_string(),
         decoded_close: judge!("decoded-close.txt").to_string(),
+        answering_open: judge!("answering-open.txt").to_string(),
+        answering_line: judge!("answering-line.txt").to_string(),
+        answering_close: judge!("answering-close.txt").to_string(),
     })
     .expect("出厂的模板合写法")
 }
@@ -42,5 +45,6 @@ pub(crate) fn ask() -> Ask {
         current: "[3] 阿明: @Miyu 你想吃什么".to_string(),
         decoded: None,
         mode: Mode::Reply,
+        answering: Vec::new(),
     }
 }

@@ -121,6 +121,7 @@ impl Route {
             sleep: None,
             allow: None,
             muted: false,
+            repeated: false,
             turns: group.turns(&self.whitelist),
             moderation: Moderation {
                 keywords: Vec::new(),

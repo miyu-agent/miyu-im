@@ -28,6 +28,8 @@ pub struct Params {
     pub base64: Base64,
     /// 主动回复判断（`[chatty]`）。
     pub chatty: Chatty,
+    /// 复读的窗口，毫秒（`[inbound]` 的 `repeat_window`，施工 I-28）：交给 [`repeats()`](crate::repeats())。
+    pub repeat_window: i64,
     /// 顶替窗口，毫秒（`[dispatch]` 的 `supersede_window`）：交给 [`supersede()`](crate::supersede())。
     pub supersede_window: i64,
     /// 判官的几项（`[judge]`）。
@@ -179,6 +181,7 @@ fn blank() -> Params {
             skip_media: false,
             skip_users: Vec::new(),
         },
+        repeat_window: 0,
         supersede_window: 0,
         judge: Judge {
             model: None,

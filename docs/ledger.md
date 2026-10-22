@@ -42,6 +42,7 @@
 - 施工 O-58 上的一份（`im/data/system/note.txt`）2026-10-17 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量，量法同 O-49：system 写成「You are Miyu.」和接一个空行再接这一段的两次请求相减，外壳本身（`text` 空的）10，`他在备考。` 13，两行的 `大家都知道你是 AI。`、`别刷屏。` 18。中间那段是管理员在卡片里写的原文，不算进外壳。
 - 施工 O-36 的一份（`im/data/facts/another-line.txt`）2026-10-11 照开发端点（magpie 网关）在真实位置量：真核心拉起真桥、真模型（`kimi-k3`）跑一遍「两个人几乎同时 @ 她」，抓下支线第一次请求的原样字节（人格、示范对话、工具面、事实外壳、近况都是真的），只换那一块，`kimi-k3`、`deepseek-v4.1-flash` 各 15 次：候选 a（原句 `Another line is already replying to msg=504.` 带外壳）重复回 A 1/15、3/15，`skip` 0、1；候选 b（末尾加 `You are replying to msg=505.`）重复回 A 0/15、0/15，`skip` 0、0，回 B 15/15、15/15；不带外壳的原句（草稿 `lane-marker/` 那种，另量的对照）0/15、2/15，`skip` 1、0。定 b。接在 `hi` 和一个换行后面量，带行尾换行，`msg`、`aim` 填十位的 QQ 消息编号：b 是 33，a 是 21。只在有别的线还在回的那一轮开头有，一条一块。
 - 施工 I-21 改的一份（`im/data/facts/another-line.txt`）2026-10-21 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量：写法照录下的真实请求（测具 `~/.cache/miyu-remake/im-livetest` 的 `exp_target.py`，20 个请求、每种写法 3 次）挑，数见登记那一行。接在 `hi` 和一个换行后面量，带行尾换行，`msgs` 填一条十位的 QQ 消息编号是 27、两条 34；原来那一句（一条别的线）34。
+- 施工 I-28 的三份（`im/data/judge/answering-open.txt`、`answering-line.txt`、`answering-close.txt`）2026-10-23 照开发端点（magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash`）量：接在 `hi` 和一个换行后面量，带行尾换行，`answering-line.txt` 的 `name` 填 `阿甲`、`text` 填 `miyu似了`。一段两条照这三个数加起来是 63。
 
 ### 登记簿
 
@@ -60,6 +61,9 @@
 | `im/data/judge/current-close.txt` | 判官那一次请求的 user，不进主对话 | 同上：这一条的收尾 | 5 | 同上 | `868e765a` |
 | `im/data/judge/decoded-open.txt` | 判官那一次请求的 user，不进主对话 | 这一条里有 base64、进站链解出了字的：解出来的字的开头，接在这一条后面 | 6 | base64 里藏的话判官看不出来，解出来另给一段；标签写明是解出来的（施工时定的第 3 条） | `70ea8264` |
 | `im/data/judge/decoded-close.txt` | 判官那一次请求的 user，不进主对话 | 同上：解出来的字的收尾 | 6 | 同上 | `d9c0d974` |
+| `im/data/judge/answering-open.txt` | 判官那一次请求的 user，不进主对话 | 她已经决定要回、还没回完的几条不空时（施工 I-28）：那一段的开头，接在群聊记录后面，带一句说明 | 35 | 10-22 群里 5 个人刷「miyu似了」，判官每条都判回、理由里写着「回一句就够」：它看不到自己刚判过回。只在有的时候出现（能按需出现的不常驻），system 不动、判官的缓存前缀不变 | `ce5ef2d0` |
+| `im/data/judge/answering-line.txt` | 同上 | 同上：一条一行，字段 `name`、`text`（照模板转义） | 10（`阿甲`、`miyu似了`） | 同上 | `b1b35732` |
+| `im/data/judge/answering-close.txt` | 同上 | 同上：那一段的收尾 | 8 | 同上 | `98626df0` |
 | `im/data/facts/undelivered.txt` | 事实（`kind` 是 `undelivered`），桥经核心的 `session.note` 记 | 她的一段话没发出去（NapCat 拒了、等不到、连接断了、排过期了），一段一块；这一轮还在跑的下一次请求看到，不在跑的下一轮开头看到（`onebot.md`「退信」，施工 O-25 下） | 49（出厂的样子：`why` 填 `expired`、`detail` 空的、`text` 填 30 个字符的中文开头；`why` 填 `rejected`、`detail` 填 `发送失败` 是 52；只有模板、`text` 空的是 29） | 她的话没发出去，她自己不知道，会以为群里看到了（18 第十节「发不出去就退回给她，像退信」、Q15）：说清是哪一句（开头 30 个字符）、没人看到、为什么；要不要再说由她定，不加指令 | `789148e2` |
 | `im/data/facts/another-line.txt` | 事实（`kind` 是 `another-line`），桥经核心的 `session.respond` 的 `facts` 交 | 群里每开一轮、并进一轮都有一块（主线、支线都是），`msgs` 是这一轮回的几条（施工 I-21 改；原来只在有别的线还在回时、一条一块，`onebot.md`「群里怎么叫她」第 7 条） | 27（`msgs` 填一条十位的 QQ 消息编号；两条 34；施工 I-21 改；原来一条别的线 33） | 施工 I-21（2026-10-21）实测：几个人同时叫她，主线不带、支线只写一条别的线，6 轮全有把别人的题一起答的；照录下的 20 个真实请求换写法各 3 次（`deepseek-v4.1-flash`），原样 21%（主线 33%，判官照人设不回的 @ 被顺带答 50%），「你只回 X，别的另有安排」1%、一条 @ 多人 0、自己那题答到 42/49；列出别人编号说「不归你」的 5%、反倒 @ 多人 25 次；旧版那种本轮单独成块的 33%。不列编号的那种对别的线在回、排着、在判、判官定了不回都是真话 | `9171ed1d` |
 | `im/data/facts/join-in.txt` | 事实（`kind` 是 `join-in`），桥经 `session.respond` 的 `facts` 交 | 群里主触发是随机抽中的那一轮（施工 I-16） | 41 | 照旧版 `<qq-join-in>` 原句：旧版 08-29 实测不带她会回「没被艾特不接」；让步句堵死这个结论 | `1397e2ad` |

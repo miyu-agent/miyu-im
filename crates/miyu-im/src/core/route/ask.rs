@@ -18,7 +18,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_chat::{
-    Ask, Chatty, Judge, JudgeRole, JudgeTexts, Judgement, Mode, Unreadable, read, request,
+    Answering, Ask, Chatty, Judge, JudgeRole, JudgeTexts, Judgement, Mode, Unreadable, read,
+    request,
 };
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
@@ -48,6 +49,8 @@ pub(super) struct Asking {
     /// 判官带的人格：这个群会话用的人格的编号（订阅回应的 `persona`）；无人格的、这个群的 `judge.persona` 关了的是空的，
     /// 不带、不读（施工 O-23 补）。
     pub(super) persona: Option<String>,
+    /// 她已经决定要回、还没回完的几条（施工 I-28）：判官看得到「已经在回了」。
+    pub(super) answering: Vec<Answering>,
 }
 
 /// 全局的名额：几个任务共用（`bridge.json` 的 `judge_concurrency`、`judge_queue_seconds`）。
@@ -213,6 +216,7 @@ async fn records(asking: &Asking, caller: &Caller) -> Result<Result<Ask, Unjudge
         current: text("current"),
         decoded: asking.decoded.clone(),
         mode: asking.mode,
+        answering: asking.answering.clone(),
     }))
 }
 

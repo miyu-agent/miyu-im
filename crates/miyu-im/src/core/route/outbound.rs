@@ -70,14 +70,16 @@ pub(super) fn pass(
 }
 
 /// 群里的情形（第 9 条第 1 项）：照投影交出的 `speaking`，此刻是 `now`，参数是这个群此刻的 `outbound`。本来想要的引用、@ 要
-/// 她回的那一条有平台编号、发的人解得出号。
+/// 她回的那一条有平台编号、发的人解得出号，后来没有别人跟着复读（I-28）。
 pub(super) fn group_ctx(speaking: &Speaking, now: Timestamp, outbound: Outbound) -> OutCtx {
     let aim = speaking.aim.as_ref();
+    // 回的是一串复读（I-28）：不是回哪一个人，不引用、不 @。
+    let single = !speaking.echoed;
     OutCtx {
         sent: sent(speaking.sent.clone()),
         target: Target {
-            quote: aim.is_some_and(|aim| aim.msg.is_some()),
-            mention: aim.and_then(number).is_some(),
+            quote: single && aim.is_some_and(|aim| aim.msg.is_some()),
+            mention: single && aim.and_then(number).is_some(),
         },
         since: Since {
             others: speaking.others,

@@ -51,6 +51,7 @@ pub(crate) fn ctx() -> Ctx {
         sleep: None,
         allow: None,
         muted: false,
+        repeated: false,
         turns: Vec::new(),
         moderation: Moderation {
             keywords: Vec::new(),

@@ -422,6 +422,9 @@ fn sources_with_violations(violations: &str) -> JudgeSources {
         current_close: String::new(),
         decoded_open: String::new(),
         decoded_close: String::new(),
+        answering_open: String::new(),
+        answering_line: "{name}{text}".to_string(),
+        answering_close: String::new(),
     }
 }
 

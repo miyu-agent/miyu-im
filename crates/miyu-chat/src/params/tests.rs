@@ -32,6 +32,7 @@ fn factory() -> Params {
             },
             ..chatty_support::chatty()
         },
+        repeat_window: 120_000,
         supersede_window: 7_000,
         judge: Judge {
             model: None,

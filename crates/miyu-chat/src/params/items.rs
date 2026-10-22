@@ -125,6 +125,9 @@ pub(crate) const ITEMS: &[Item] = &[
     item("inbound.base64_printable", PER_MILLE, |p, v| {
         p.base64.printable = count(v)
     }),
+    item("inbound.repeat_window", WINDOW, |p, v| {
+        p.repeat_window = millis(v)
+    }),
     item("chatty.probability", PER_MILLE, |p, v| {
         p.chatty.probability = count(v)
     }),

@@ -186,6 +186,7 @@ pub(super) fn why_name(why: Why) -> &'static str {
         Why::Muted => "muted",
         Why::NotAllowed => "not_allowed",
         Why::RateLimited => "rate_limited",
+        Why::Repeated => "repeated",
     }
 }
 

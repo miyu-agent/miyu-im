@@ -32,9 +32,9 @@ fn venue() -> String {
     format!("qq:group:{GROUP}")
 }
 
-/// `who` 在群里 @ 她：第 `message` 条。
+/// `who` 在群里 @ 她：第 `message` 条。各人说的不一样，不成复读（施工 I-28）。
 fn calls(napcat: &Answering, who: i64, message: i64) {
-    let words = json!([at(BOT), plain(" 在吗")]);
+    let words = json!([at(BOT), plain(&format!(" 在吗，我是{who}"))]);
     napcat.send(group_frame(GROUP, who, message, words, ("某人", "x")));
 }
 

@@ -67,6 +67,7 @@ pub(super) fn ctx(params: &Params) -> Ctx {
         sleep: None,
         allow: None,
         muted: false,
+        repeated: false,
         turns: Vec::new(),
         moderation: Moderation {
             keywords: vec!["违规".to_string()],

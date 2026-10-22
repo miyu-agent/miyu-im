@@ -32,6 +32,7 @@ use miyu_client::time::Timestamp;
 use serde_json::Value;
 
 use super::body::kind_of;
+use echo::words;
 pub(super) use lanes::{Carry, Seen};
 use lanes::{Kept, Lane};
 use track::Track;
@@ -68,6 +69,10 @@ struct Speaker {
     mentions: Vec<ExternalId>,
     /// 发的人这一条时叫什么（`venue.name`，O-53：冒充提醒照终端管理员用过的名字比）；没写的是空的。
     name: Option<String>,
+    /// 正文的指纹（群聊内核的 `echo`，I-28：复读照它比）；没有字的是空的。
+    echo: Option<u64>,
+    /// 判过了没有（I-28）：记下的判断里进站链放行了它（`ext.im.chat.decided` 的 `inbound` 是 `pass`）。
+    passed: bool,
 }
 
 /// 判过要回、她还没回完的一笔（O-23 下）。
@@ -110,6 +115,8 @@ pub(super) struct Speaking {
     pub(super) to: Vec<ExternalId>,
     /// 她回的那一条（O-25 上）；这一轮没有触发的、主线这时不在跑这一轮的是空的。
     pub(super) aim: Option<Aim>,
+    /// 她回的那一条后来有别人跟着复读了（I-28）：回的是一串复读，不引用、不 @。
+    pub(super) echoed: bool,
     /// 她回的那一条以后（照序号）来的人说的话里，不是发它的人说的有几条；没有她回的那一条的是 0。
     pub(super) others: u64,
     /// 群里最后一条是不是她的：她发出去的最后一段比最后一条人说的话晚（照序号；她的一段照她说它的序号，见 [`Projection::own`]）。
@@ -158,6 +165,8 @@ pub(super) struct Projection {
     muted_since: Option<Timestamp>,
     /// 判过要回、她还没回完的，照先后（O-23 下）。
     committed: Vec<Committed>,
+    /// 最近的人话的正文开头：序号 → 开头（I-28，`echo.rs`：给判官看她已经在回的几条）。
+    heads: BTreeMap<u64, String>,
 }
 
 impl Projection {
@@ -192,6 +201,7 @@ impl Projection {
             Body::MessageUser(user) => {
                 if let By::External(external) = &event.by {
                     let venue = user.venue.as_ref();
+                    let text = words(&user.blocks);
                     let speaker = Speaker {
                         id: external.id.clone(),
                         admin: external.account.is_some(),
@@ -202,8 +212,11 @@ impl Projection {
                             .map(|venue| venue.mentions.clone())
                             .unwrap_or_default(),
                         name: venue.and_then(|venue| venue.name.clone()),
+                        echo: miyu_chat::echo(&text),
+                        passed: false,
                     };
                     self.said.insert(seq, speaker);
+                    self.remember(seq, &text);
                     self.keep(seq, event);
                 }
             }
@@ -275,6 +288,7 @@ impl Projection {
             }
             Body::Unknown { kind, body } if kind.as_str() == DECIDED => {
                 let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
+                self.passed(&body);
                 if let Some(committed) = self.committed_from(&body) {
                     self.committed.push(committed);
                 }
@@ -310,6 +324,7 @@ impl Projection {
                 sender: aimed.id.clone(),
                 at: aimed.at,
             }),
+            echoed: aimed.is_some_and(|(seq, _)| self.echoed(seq)),
             others,
             last_is_own: self.own > last_said,
             sent: track.map(|track| track.sent(turn)).unwrap_or_default(),
@@ -455,6 +470,7 @@ fn add<'a>(to: &mut Vec<ExternalId>, more: impl IntoIterator<Item = &'a External
     }
 }
 
+mod echo;
 mod lanes;
 mod origin;
 mod track;

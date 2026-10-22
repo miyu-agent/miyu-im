@@ -284,7 +284,7 @@ fn every_item_lands_in_its_own_field() {
     // 每一项写一个和别的都不一样的数：出厂有几项的数一样（两个 0.25、两个 0.15、两个 0.1、两个 30 秒），放错了格看不出来。
     let files = file(
         "[[rule]]\n\
-         [rule.inbound]\nbase64_min_chars = 31\nbase64_max_chars = 4001\nbase64_printable = 801\n\
+         [rule.inbound]\nbase64_min_chars = 31\nbase64_max_chars = 4001\nbase64_printable = 801\nrepeat_window = \"33s\"\n\
          [rule.chatty]\nprobability = 41\nbase = 1.1\nrelevance = 1.2\nwillingness = 1.3\nsocial = 1.4\n\
          timing = 1.5\ncontinuity = 1.6\nadjust = 1.7\ndirect = 1.8\ncontinuation = 1.9\n\
          continuation_window = \"21s\"\nfollowup = false\nfollowup_bonus = 2.4\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
@@ -331,6 +331,7 @@ fn every_item_lands_in_its_own_field() {
             skip_media: false,
             skip_users: vec!["qq:1".to_string()],
         },
+        repeat_window: 33_000,
         supersede_window: 24_000,
         judge: Judge {
             model: Some("@cheap".to_string()),

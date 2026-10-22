@@ -72,6 +72,7 @@ mod reactions;
 mod receipts;
 mod recent;
 mod reload;
+mod repeat;
 mod replaced_bridge;
 mod replayed;
 mod replies;

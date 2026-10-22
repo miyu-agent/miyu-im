@@ -115,7 +115,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         GROUP,
         WANG,
         4,
-        json!([at(BOT), plain(" 嗨")]),
+        json!([at(BOT), plain(" 嗨呀")]),
         ("老王", "w"),
     ));
     napcat.send(group_frame(
@@ -227,7 +227,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         GROUP,
         WANG,
         8,
-        json!([at(BOT), plain(" 嗨")]),
+        json!([at(BOT), plain(" 嗨，又是我")]),
         ("老王", "w"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, "五");

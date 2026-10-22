@@ -2,7 +2,7 @@
 //! 施工 O-11）。
 //!
 //! 主动回复判断要问判官的那一次：[`request()`] 照 `model.call` 的形状拼出一条 `system`、一条 `user`，[`read()`] 从回答里
-//! 读出第三条的 [`Judgement`](crate::Judgement)。说明的原文是接入通讯平台 包文件夹的 `data/judge/` 下的十三份（[`JudgeSources`]，
+//! 读出第三条的 [`Judgement`](crate::Judgement)。说明的原文是接入通讯平台 包文件夹的 `data/judge/` 下的十六份（[`JudgeSources`]，
 //! 查过的是 [`JudgeTexts`]），
 //! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 
 use miyu_kernel::template::{Template, TemplateError};
 
-/// 判官的十三份原文，读资源的一方照文件原样读出来（行尾的换行也算），交给 [`JudgeTexts::new`]。
+/// 判官的十六份原文，读资源的一方照文件原样读出来（行尾的换行也算），交给 [`JudgeTexts::new`]。
 ///
 /// 每份对应一个同名文件（`_` 换成 `-`，加 `.txt`）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,9 +50,15 @@ pub struct JudgeSources {
     pub decoded_open: String,
     /// `decoded-close.txt`：base64 解出来的字的收尾标签。
     pub decoded_close: String,
+    /// `answering-open.txt`：她已经决定要回的那几条的开头（施工 I-28），连同一句说明。
+    pub answering_open: String,
+    /// `answering-line.txt`：那几条一条一行，字段 `name`、`text`。模板的写法由 [`JudgeTexts::new`] 查。
+    pub answering_line: String,
+    /// `answering-close.txt`：那几条的收尾标签。
+    pub answering_close: String,
 }
 
-/// 判官的说明：[`JudgeSources`] 查过的十三份原文，原样用，行尾的换行也算。
+/// 判官的说明：[`JudgeSources`] 查过的十六份原文，原样用，行尾的换行也算。
 ///
 /// 只能由 [`JudgeTexts::new`] 造：`violations.txt` 是读好的模板，造的时候拿门槛试换过，换得出才造得出，所以 [`request()`]
 /// 拼的时候不会失败（照 08 第五节「模板与转义怎么写」，读的时候报错，不等到请求里）。
@@ -85,20 +91,28 @@ pub struct JudgeTexts {
     decoded_open: String,
     /// `decoded-close.txt`：base64 解出来的字的收尾标签。
     decoded_close: String,
+    /// `answering-open.txt`：她已经决定要回的那几条的开头（施工 I-28）。
+    answering_open: String,
+    /// `answering-line.txt` 读成的模板：一条一行，字段 `name`、`text`。
+    answering_line: Template,
+    /// `answering-close.txt`：那几条的收尾标签。
+    answering_close: String,
 }
 
 impl JudgeTexts {
     /// 查过 `violations.txt` 的写法和字段，造出判官的说明。
     ///
     /// 模板只认 `severity_min` 一个字段：拿一个门槛试换一次，写坏了、认不得的字段都在这里报错，不等到拼请求的时候
-    /// 悄悄少了整段违规说明（`chat.md` 第六条施工时定的第 9 条）。
+    /// 悄悄少了整段违规说明（`chat.md` 第六条施工时定的第 9 条）。`answering-line.txt` 同样只认 `name`、`text`（施工 I-28）。
     ///
     /// # Errors
     ///
-    /// `violations.txt` 不合模板写法，或者要了 `severity_min` 以外的字段（[`TemplateError`]）。
+    /// `violations.txt`、`answering-line.txt` 不合模板写法，或者要了别的字段（[`TemplateError`]）。
     pub fn new(sources: JudgeSources) -> Result<JudgeTexts, TemplateError> {
         let violations = Template::parse(&sources.violations)?;
         violations.render(&BTreeMap::from([("severity_min", "0")]))?;
+        let answering_line = Template::parse(&sources.answering_line)?;
+        answering_line.render(&BTreeMap::from([("name", ""), ("text", "")]))?;
         Ok(JudgeTexts {
             system: sources.system,
             persona_open: sources.persona_open,
@@ -113,6 +127,9 @@ impl JudgeTexts {
             current_close: sources.current_close,
             decoded_open: sources.decoded_open,
             decoded_close: sources.decoded_close,
+            answering_open: sources.answering_open,
+            answering_line,
+            answering_close: sources.answering_close,
         })
     }
 }
@@ -174,6 +191,17 @@ pub struct Ask {
     pub decoded: Option<String>,
     /// 打分还是只查违规。
     pub mode: Mode,
+    /// 她已经决定要回、还没回完的几条（施工 I-28），照先后：判官看得到「已经在回了」，同一件事不再判回。空的那一段整个不出现。
+    pub answering: Vec<Answering>,
+}
+
+/// 她已经决定要回的一条：谁说的、说了什么。都是群里来的字，不可信：拼请求时照模板转义（[`request()`]）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Answering {
+    /// 发的人的名字（群名片、昵称；没有的写号）。
+    pub name: String,
+    /// 正文的开头。
+    pub text: String,
 }
 
 /// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。名字带 `Judge`，免得和内核的
@@ -195,6 +223,8 @@ pub enum JudgeRole {
     User,
 }
 
+#[cfg(test)]
+mod answering_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 #[cfg(test)]

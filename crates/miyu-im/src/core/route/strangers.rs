@@ -74,6 +74,7 @@ impl Route {
             sleep: applied::sleep(&applied).filter(|_| sleep),
             allow,
             muted: false,
+            repeated: false,
             turns: self.strangers.of(venue.id().as_str()),
             moderation: Moderation {
                 keywords: loaded.keywords.clone(),

@@ -266,7 +266,14 @@ impl Route {
             status: Status::Judging,
             conditions: passed.conditions.clone(),
         };
+        // 她已经决定要回、还没回完的（I-28）：这一次在判的那几条不算。
+        let answering = self
+            .groups
+            .get(session)
+            .map(|group| group.answering(&decision.msgs))
+            .unwrap_or_default();
         let asking = Asking {
+            answering,
             session: session.to_string(),
             msg: seq,
             mode,
@@ -338,6 +345,26 @@ impl Route {
             textless: heard.wordless,
             media_only,
         };
+        let pendings: Vec<Pending> = group
+            .committed()
+            .chain(self.judges.pendings(session))
+            .cloned()
+            .collect();
+        let serving = group.serving();
+        // 复读（I-28）：别人刚说过同一句、判过了的只记下，一串只判第一条。正在判的几条（还没记下判断）算判过。她正在回、判过要回
+        // 的那个人再说的是跟进，不算复读：照跟进、顶替办。
+        let judging: Vec<u64> = self
+            .judges
+            .pendings(session)
+            .flat_map(|pending| pending.absorbed.iter().chain([&pending.msg]))
+            .map(|msg| msg.get())
+            .collect();
+        let followed = serving.contains(&heard.sender)
+            || pendings
+                .iter()
+                .any(|pending| pending.sender == heard.sender);
+        let repeated =
+            !followed && group.repeated(seq, clock.now, applied.params.repeat_window, &judging);
         let ctx = Ctx {
             rate: applied::rate(&applied),
             sleep: applied::sleep(&applied),
@@ -348,15 +375,10 @@ impl Route {
                 clock.now.unix_millis() - since.unix_millis()
                     >= i64::try_from(self.mute_window.as_millis()).unwrap_or(i64::MAX)
             }),
+            repeated,
             turns: group.turns(&self.whitelist),
             moderation,
         };
-        let pendings: Vec<Pending> = group
-            .committed()
-            .chain(self.judges.pendings(session))
-            .cloned()
-            .collect();
-        let serving = group.serving();
         let decision = decide(&Case {
             facts,
             text: heard.text.clone(),

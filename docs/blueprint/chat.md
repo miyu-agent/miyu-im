@@ -28,7 +28,7 @@
 | `crates/miyu-chat/src/chatty/supersede.rs`、`chatty/dispatch.rs` | 顶替、分派，各一个文件（施工 O-9，O-12 下分开） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带四条（清理、去末尾句号、去重、引用和 @）；按段拆开（施工 O-10；去句号 O-47 加，Markdown 转纯文本 O-47 去掉） |
 | `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
-| `im/data/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `docs/ledger.md`） |
+| `im/data/judge/` | 判官的说明，十六份原文（I-28 加「她已经在回的」三份）（给模型看的字，登记在 `docs/ledger.md`） |
 | `crates/miyu-chat/src/params.rs` | 出厂参数：`Params`、读出厂文件、套上场所规则改的几项（第八条，施工 O-15） |
 | `crates/miyu-chat/src/params/items.rs` | 参数的声明：五张表、每一项的名字、类型、范围、落在 `Params` 的哪一格，只此一份 |
 | `im/data/defaults.toml` | 出厂参数的数据（数据，不发给模型，不进登记簿；门禁的登记簿豁免它，`xtask/src/ledger.rs`） |
@@ -166,22 +166,23 @@ Rust 这一边：
 | `addressed(kind, mentions_me, quotes_me, text, keywords) -> bool` | 是不是冲她来的（「怎么走」第 11 条）：场所是群还是私聊、@ 了她没有、引用的是不是她的消息、正文、场所规则的触发词 `keywords` |
 | `Inbound { kind, said, text }` | 一条进来的消息：场所是群还是私聊（`VenueKind`）、`Said`、正文 |
 | `Clock { now, offset }` | 此刻（内核的 `Timestamp`）；场所会话的时区（内核的 `UtcOffset`） |
-| `Ctx { rate, sleep, allow, muted, turns, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻（`Timestamp`）、违规关键词的参数。原来的 `notices`（限流提示过的时刻）施工 O-47 去掉 |
+| `Ctx { rate, sleep, allow, muted, repeated, turns, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、这一条是不是在复读（I-28，外面用 `repeats` 算好）、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻（`Timestamp`）、违规关键词的参数。原来的 `notices`（限流提示过的时刻）施工 O-47 去掉 |
 | `Rate::read(text) -> Option<Rate>` | 从 `rate` 的原文读出来：几个回合（不会是 0）、窗口多少毫秒（不会是 0，时长照旧是毫秒数）；不限、写错的读成 `None`。几格私有，只能这样造 |
 | `Sleep::read(text) -> Option<Sleep>` | 从 `sleep` 的原文读出来：一天里的第几分钟开始、第几分钟结束（不会相等）；开始晚于结束的跨午夜；`off`、写错的读成 `None`。几格私有，只能这样造 |
 | `Moderation { keywords, base64 }`、`Base64 { min_chars, max_chars, printable }` | 违规关键词（违规词表读出来的，`Moderation::parse_keywords`），和 base64 的三个数：至少多长才去解、解出来最多看多少个字符、可打印的字符至少占几成（千分比）。`Base64` 从第八条的 `Params::base64` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `Moderation::parse_keywords(text) -> Vec<String>` | 读违规词表的原文（「怎么走」第 12 条）：一行一个，空行、`#` 开头的不要，重复的只留第一个。不会失败：词表里没有写错这一说（施工 O-15 下） |
 | `Base64::reveal(text) -> Option<String>` | 正文里的 base64 解出来的字（「怎么走」第 10 条）：违规关键词查它，桥拿它填判官的 `Ask.decoded`（第六条）；一段都没有是 `None` |
 | `InboundRule` | 进站链的插槽：一条规则，`judge` 给出 `Step::Continue`、`Step::Flag(Flag)`（插旗、往下走）或 `Step::Stop(Outcome)` |
-| `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的五条照顺序过；`Verdict { outcome, flags }` |
-| `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, RateLimited}` | 放行、只记下；为什么。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
+| `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的六条照顺序过；`Verdict { outcome, flags }` |
+| `Spoken { sender, at, echo }`、`echo(text) -> Option<u64>`、`repeats(echo, &sender, now, earlier, window) -> bool`、`echoed(echo, &sender, later) -> bool` | 复读（I-28，「怎么走」第 13 条）：一条人话的发的人、时刻、正文的指纹；指纹怎么算；这一条是不是在复读（`earlier` 从新到旧）；她回的那一条后来有没有别人跟着说（`later` 从旧到新，第五条第 6 条用） |
+| `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, Repeated, RateLimited}` | 放行、只记下；为什么。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
 | `Flag::Moderation` | 违规旗 |
 | `rate_full(&ctx, clock) -> bool` | 额度满了没有：满了的这段时间线路规程不抽样、不调判官（18 第六节） |
 | `gate(&ctx, clock) -> Gate::{Now, Later(at)}` | 回合闸的回答：现在开，或者推迟到某个时刻（`Timestamp`）再问 |
 
 **怎么走**
 
-1. **先后**：睡眠、她被禁言、谁能叫她、违规关键词、限流。哪一条给出 `Stop` 就停，后面的不看；插旗的接着往下走，旗都记在 `Verdict.flags` 里。五条都过了是 `Pass`。
+1. **先后**：睡眠、她被禁言、谁能叫她、复读（I-28，第 13 条）、违规关键词、限流。哪一条给出 `Stop` 就停，后面的不看；插旗的接着往下走，旗都记在 `Verdict.flags` 里。六条都过了是 `Pass`。复读排在限流前面：只记下的不占额度。
 2. **睡眠**：设了睡眠，此刻（照 `offset` 换成当地时间，取一天里的第几分钟：内核的 `Timestamp::local_minute` 交回的是字，这里照 `unix_millis`、`UtcOffset::minutes` 自己算，内核不加）落在 `[start, end)` 里算睡着；跨午夜的，落在 `[start, 1440)` 或 `[0, end)` 里。睡着时：终端管理员、白名单成员继续，私聊、群里都是（白名单成员原来只在私聊，O-27，2026-10-10 项目主人定）；别的一律 `RecordOnly(Asleep)`。
 3. **她被禁言**：谁说的都 `RecordOnly(Muted)`：她开不了口。
 4. **谁能叫她**：`allow` 是 `false` 时，终端管理员继续；白名单成员在私聊里继续；别的 `RecordOnly(NotAllowed)`。没设 `allow` 当 `true`。
@@ -205,12 +206,14 @@ Rust 这一边：
     - 群：@ 了她（`mentions_me`）是；引用的是她的消息（`quotes_me`）是；正文去掉开头的空白以后，以某个触发词开头是（场所规则的 `keywords`；空的不算；区分大小写）。
     - 触发词只认开头，不认中间：中间出现就算，「为什么」这类词会误叫（旧版 `group_trigger_text`，08-29 实测）。名字也算触发词，写在 `keywords` 里，出厂是空的。
 12. **违规词表**（`Moderation::parse_keywords`，O-15 下）：开头的 BOM 去掉；一行一个；每一行去掉首尾的空白（`\r` 也去）；去完是空的、以 `#` 开头的不要；一字不差重复的只留第一个，照出现的先后。不会失败：一行一个字，没什么能写错的。出厂的词表是 `im/data/moderation.txt`：旧版的 153 个词（旧版 `real_context.rs` 的 `default_real_context_moderation_keywords`）照原样搬，一个不改；开头几行 `#` 写着这是什么、改了要拿真实聊天记录审一遍（旧版 `OD` 一个词 7 天误报 447 次）。读文件、系统里放同名的文件 `system/modules/onebot/moderation.txt` 替换出厂的那一份，由桥读（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21；第七条第 5 条）。
+13. **复读**（I-28，2026-10-23 项目主人定：几个人接连发同一句，她只回一次；10-22 群里 5 个人刷「miyu似了」她挨个回了 4 句）：`ctx.repeated` 是真的，终端管理员继续，别的 `RecordOnly(Repeated)`。外面照最近的人话用 `repeats` 算：正文的指纹（`echo`：只留 `char::is_alphanumeric` 的字、字母小写，照 UTF-8 算 FNV-1a；一个字都不剩的没有指纹）一样，从此刻往回一串首尾相接、相邻两条隔得不超过 `inbound.repeat_window`（出厂 2 分钟，含）的同一句里有别人说的、判过了的（`Spoken::counted`：进站链放行了，正在判或者判完了；睡着、限流这类只记下的不算，一串里谁都没被判过，后面的照常判），就是复读；中间夹着别的话不断，隔得太久就断；同一个人自己重复的不算（照顶替办），没有指纹的不算。一串里只有第一条往下走。
 
 **守着它的**（`crates/miyu-chat/src/inbound/tests.rs` 等，O-5）
 
 - 先后：前面停了后面不看；旗和放行同时有；五条都过是放行。比的是结果：相邻的两条同时成立时前面那条的结果胜出，调换任意相邻两条都有测试红（O-12 下）。
 - 睡眠：不跨午夜、跨午夜、正好在 `start`（睡着）、正好在 `end`（醒着）；时区差正的、负的、跨日；终端管理员、私聊的白名单成员、群里的白名单成员（O-27 起也放行）、别的人。
 - 禁言、谁能叫她：各种人；没设 `allow`。
+- 复读（I-28，`inbound/repeat/tests.rs`）：指纹去掉空白、标点、大小写；别人说过同一句、正好窗口的算、多一毫秒的不算；中间夹着别的话不断，首尾相接能往回接；自己重复的、没有字的不算；终端管理员照样放行；后来有别人跟着说的认得出。
 - 违规关键词：大小写、中文、空关键词、终端管理员不查；base64：够长的、不够长的、解出来不可打印的、读不成 UTF-8 的（O-12 下）、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的。
 - 限流：边界（正好 `window` 以前的不算、`now` 那一刻的算）、不冲她来的、第一次满提示、再来只记下、降下去再满又提示、不限、终端管理员和白名单成员。
 - `rate_full`、回合闸：只睡着、只满了、两样都占取晚的、跨午夜醒来的时刻、都不占是 `Now`；醒来、出窗口的时刻过了 9999 年的推迟到此刻（O-12）。
@@ -384,7 +387,7 @@ Rust 这一边：
 |---|---|
 | `Outgoing { text, images }` | 要发的一条：正文，几张图（每张是内容的哈希，内核的 `ContentHash`，就是 blob 的编号） |
 | `Sent { texts, images }` | 这一回合已经发出去的：正文、图的哈希（`ContentHash`；去重只看这一回合） |
-| `Target { quote, mention }` | 引用、@ 那个人：这一条要不要 |
+| `Target { quote, mention }` | 引用、@ 那个人：这一条要不要。她回的那一条后来有别人跟着复读了的（第二条第 13 条的 `echoed`），外面交进来两样都是假：回的是一串复读，不是哪一个人（I-28，2026-10-23 项目主人定） |
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
 | `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike }` | 参数：隔几条别人的消息才引用（出厂 4）、隔多少毫秒才 @（出厂 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
@@ -462,16 +465,16 @@ Rust 这一边：
 
 | 名字 | 是什么 |
 |---|---|
-| `JudgeSources` | `im/data/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
-| `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十三份：`violations.txt` 读成模板，拿一个门槛试换一次，写坏了、要了 `severity_min` 以外的字段都在这里报错。字段不公开，只能这样造 |
-| `Ask { persona, records, current, decoded, mode }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，条数从第八条的 `Params::judge.records` 拿，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（第二条的 `Base64::reveal` 解的，没有是 `None`）、`Mode::{Reply, ModerationOnly}` |
+| `JudgeSources` | `im/data/judge/` 下的十六份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
+| `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十六份：`violations.txt`、`answering-line.txt` 读成模板，各拿字段试换一次，写坏了、要了别的字段都在这里报错。字段不公开，只能这样造 |
+| `Ask { persona, records, current, decoded, mode, answering }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，条数从第八条的 `Params::judge.records` 拿，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（第二条的 `Base64::reveal` 解的，没有是 `None`）、`Mode::{Reply, ModerationOnly}`、她已经决定要回、还没回完的几条（`Answering { name, text }`：谁说的、正文的开头，I-28） |
 | `request(&texts, &ask, &chatty) -> Vec<JudgeMessage>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`JudgeMessage { role, text }`，`JudgeRole::{System, User}`；不会失败（`JudgeTexts` 造的时候查过） |
 | `read(answer, mode, reason_chars) -> Result<Judgement, Unreadable>` | 读回答；`mode` 是这一次问的什么（只查违规的少了 `severity` 判不了）；`reason_chars` 是 `reason` 最多留几个字符，从第八条的 `Params::judge.reason_chars` 拿（出厂 500），代码里不写死。读不出来的是 `Unreadable::{NoObject, Dimension(名字), NoSeverity}`：找不到对象、五维少了一维或不是数、只查违规的没有 `severity` |
 
 **怎么走**
 
 1. **system 那一条**，照这个先后接起来，每份之间不加别的字（每份末尾自带的换行照留）：`system.txt`；有人格的，`persona-open.txt`、人格的说明（末尾没有换行的补一个）、`persona-close.txt`；`Mode::Reply` 接 `reply.txt`，`Mode::ModerationOnly` 接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成第三条参数 `Chatty::severity_min` 那个门槛，照模板的规矩，核心的 `docs/designs/08-上下文投影.md` 第五节「模板与转义」）；`answer.txt`。
-2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
+2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。她已经决定要回的几条（`Ask.answering`）不空的，夹在 `records-close.txt` 和 `current-open.txt` 中间：`answering-open.txt`（开头标签和一句说明：她已经在回这几条，这一条说的是同一件事或者只是复读的，不用再回）、一条一行照 `answering-line.txt` 换（字段 `name`、`text`，照模板转义成一行，群里来的字不可信）、`answering-close.txt`。空的那一段整个不出现，system 和群聊记录都不变，判官的缓存前缀不受影响（I-28，2026-10-23 项目主人定：判官看不到自己刚判过回，同一串挨个判回）。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
 3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照第八条的 `Params::judge.model`：出厂不写，照 `models.chat`；要用便宜的，场所规则里写 `judge = { model = "@池" }`（不写 `match` 就是所有场所），指的在不在由桥调用时照核心的回答说；`max_tokens` 照 `Params::judge.max_tokens`（出厂 400）。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
 4. **读回答**：
    - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
@@ -593,6 +596,7 @@ restraint_half_life = "3m"
 | `inbound.base64_min_chars` | 整数 1 到 100000 | 24 | `Base64::min_chars` |
 | `inbound.base64_max_chars` | 整数 1 到 100000 | 5000 | `Base64::max_chars` |
 | `inbound.base64_printable` | 整数 0 到 1000，千分比 | 850 | `Base64::printable` |
+| `inbound.repeat_window` | 时长 1 秒到 1 天 | `2m` | `Params::repeat_window`：复读首尾相接、相邻两条最多隔多久（I-28；旧群 363 串复读，相邻间隔 p50 7 秒、p95 48 秒、p99 123 秒） |
 | `chatty.probability` | 整数 0 到 1000，千分比 | 50 | `Chatty::probability` |
 | `chatty.base` | 小数 0 到 10 | 0.8 | `Chatty::base` |
 | `chatty.relevance`、`willingness`、`social`、`timing`、`continuity` | 小数 0 到 10 | 0.25、0.25、0.15、0.15、0.20 | `Chatty::weights`，照这个先后 |

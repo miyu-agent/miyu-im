@@ -259,7 +259,7 @@ async fn the_whitelist_is_answered_while_she_sleeps_and_skips_the_judge() {
         AWAKE,
         JIE,
         4,
-        json!([at(BOT), plain(" 嗨")]),
+        json!([at(BOT), plain(" 你好呀")]),
         ("阿杰", "jie"),
     ));
     assert_eq!(napcat.group_reply(AWAKE).await, "来了");

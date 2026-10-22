@@ -55,6 +55,9 @@ fn texts() -> Arc<JudgeTexts> {
             current_close: tag("/current"),
             decoded_open: tag("decoded"),
             decoded_close: tag("/decoded"),
+            answering_open: tag("answering"),
+            answering_line: "{name}: {text}\n".to_string(),
+            answering_close: tag("/answering"),
         })
         .expect("造得出"),
     )
@@ -139,6 +142,7 @@ pub(super) fn asking(change: impl FnOnce(&mut Asking)) -> Asking {
         judge: params.judge,
         chatty: params.chatty,
         persona: None,
+        answering: Vec::new(),
     };
     change(&mut asking);
     asking
@@ -417,4 +421,30 @@ async fn growing_follows_twice_the_records_within_a_hundred() {
         core.says(&verdict("x")).await;
         task.await.expect("没崩").expect("核心在");
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn what_she_is_already_answering_reaches_the_judge() {
+    // 施工 I-28：她已经决定要回的几条夹在群聊记录和这一条中间；没有的不夹（上面那一问）。
+    let (caller, mut core) = connected();
+    let task = asked(
+        asking(|asking| {
+            asking.answering = vec![miyu_chat::Answering {
+                name: "阿甲".to_string(),
+                text: "miyu似了".to_string(),
+            }];
+        }),
+        &caller,
+        &slots(),
+    );
+    core.records("R1\n", "C1\n").await;
+    let call = core.says(&verdict("asked")).await;
+    let user = call["params"]["messages"][1]["text"]
+        .as_str()
+        .expect("是字");
+    assert!(
+        user.contains("</records>\n<answering>\n阿甲: miyu似了\n</answering>\n<current>"),
+        "{user}"
+    );
+    task.await.expect("没崩").expect("核心在");
 }

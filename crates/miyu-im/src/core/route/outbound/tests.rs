@@ -42,6 +42,7 @@ fn speaking(others: u64) -> Speaking {
         turn: 3,
         to: Vec::new(),
         aim: Some(aim()),
+        echoed: false,
         others,
         last_is_own: false,
         sent: vec!["说过的".to_string()],

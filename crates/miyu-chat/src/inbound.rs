@@ -1,7 +1,8 @@
 //! 进站链与限流的判定（`docs/blueprint/chat.md` 第二条，`docs/designs/18-通讯平台.md` 第六节、第十六节，施工 O-5）。
 //!
 //! 进来的每条消息先过进站链，像 netfilter 的 INPUT 链：一条条规则（[`InboundRule`]）照顺序过，每条给出往下走、插旗往下走、
-//! 或者停下给结果（[`Step`]）。自带五条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、违规关键词、限流，每条一个文件。
+//! 或者停下给结果（[`Step`]）。自带六条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、复读（施工 I-28）、违规关键词、限流，
+//! 每条一个文件。
 //! 核心自己开的回合不过链，先问回合闸（[`gate()`]）。
 //!
 //! 纯逻辑：此刻和时区（[`Clock`]）、她被禁言没有、最近开过哪些回合，都由外面交进来（[`Ctx`]），
@@ -14,6 +15,7 @@ mod gate;
 mod moderation;
 mod muted;
 mod rate;
+mod repeat;
 mod sleep;
 
 pub use addressed::addressed;
@@ -21,6 +23,7 @@ pub use base64::Base64;
 pub use gate::{Gate, gate};
 pub use moderation::Moderation;
 pub use rate::{Rate, rate_full};
+pub use repeat::{Spoken, echo, echoed, repeats};
 pub use sleep::Sleep;
 
 use miyu_kernel::id::ExternalId;
@@ -85,6 +88,8 @@ pub struct Ctx {
     pub allow: Option<bool>,
     /// 她在这个场所被禁言了没有。
     pub muted: bool,
+    /// 这一条是不是在复读（施工 I-28）：外面照最近的人话用 [`repeats()`] 算好。
+    pub repeated: bool,
     /// 最近开过的回合的开始时刻，不算终端管理员、白名单成员开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了不要紧。
     pub turns: Vec<Timestamp>,
     /// 违规关键词的参数。
@@ -111,6 +116,8 @@ pub enum Why {
     NotAllowed,
     /// 限流的额度满了。
     RateLimited,
+    /// 在复读：别人刚说过同一句（施工 I-28）。
+    Repeated,
 }
 
 /// 插在消息上的旗：不拦，交给线路规程。
@@ -156,13 +163,15 @@ pub struct Chain {
 }
 
 impl Chain {
-    /// 自带的五条，照这个顺序：睡眠、她被禁言、谁能叫她、违规关键词、限流（「怎么走」第 1 条）。
+    /// 自带的六条，照这个顺序：睡眠、她被禁言、谁能叫她、复读、违规关键词、限流（「怎么走」第 1 条）。复读排在限流前面：只记下的
+    /// 不占额度。
     pub fn builtin() -> Self {
         Self {
             rules: vec![
                 Box::new(sleep::Rule),
                 Box::new(muted::Rule),
                 Box::new(allow::Rule),
+                Box::new(repeat::Rule),
                 Box::new(moderation::Rule),
                 Box::new(rate::Rule),
             ],
