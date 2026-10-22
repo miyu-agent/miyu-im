@@ -14,7 +14,9 @@ use miyu_im::texts::Texts;
 use miyu_store::resources::ResourceRoot;
 
 use crate::support::ports::on_free_port;
-use crate::support::spawning::{free_port, program, served, served_up, served_with, text};
+use crate::support::spawning::{
+    free_port, program, ran_to_end, served, served_up, served_with, text,
+};
 use crate::support::*;
 
 #[tokio::test]
@@ -109,11 +111,8 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
     let en = Texts::load(ResourceRoot::at(resources()), package_in(resources()), "en")
         .expect("读得出来");
     for flag in ["-h", "--help"] {
-        let mut command = program(&root, &[flag]);
-        let shown = tokio::task::spawn_blocking(move || command.output())
-            .await
-            .expect("没崩")
-            .expect("跑得了");
+        let command = program(&root, &[flag]);
+        let shown = ran_to_end(command).await;
         assert_eq!(shown.status.code(), Some(0), "{flag}");
         assert_eq!(text(&shown.stdout), format!("{}\n", en.usage()), "{flag}");
         assert_eq!(text(&shown.stderr), "", "{flag}");
@@ -125,11 +124,8 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
         &[],
         &["web", "--print"],
     ] {
-        let mut command = program(&root, wrong);
-        let refused = tokio::task::spawn_blocking(move || command.output())
-            .await
-            .expect("没崩")
-            .expect("跑得了");
+        let command = program(&root, wrong);
+        let refused = ran_to_end(command).await;
         assert_eq!(refused.status.code(), Some(2), "{wrong:?}");
         assert_eq!(
             text(&refused.stderr),
@@ -213,9 +209,9 @@ async fn texts_come_from_the_package_folder_it_is_handed() {
             Some(folder) => command.env("MIYU_PACKAGE_DIR", folder),
             None => command.env_remove("MIYU_PACKAGE_DIR"),
         };
-        tokio::task::spawn_blocking(move || command.output())
+        ran_to_end(command)
     };
-    let shown = run(Some(&folder)).await.expect("没崩").expect("跑得了");
+    let shown = run(Some(&folder)).await;
     assert_eq!(shown.status.code(), Some(0), "{}", text(&shown.stderr));
     assert_eq!(
         text(&shown.stdout),
@@ -223,7 +219,7 @@ async fn texts_come_from_the_package_folder_it_is_handed() {
         "读到了包文件夹里的字"
     );
     // 没交的退回资源目录：那里没有，照实印出说法的编号。
-    let fallback = run(None).await.expect("没崩").expect("跑得了");
+    let fallback = run(None).await;
     assert!(
         text(&fallback.stdout).starts_with("software/onebot/usage"),
         "{}",

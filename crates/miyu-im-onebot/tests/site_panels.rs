@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 use crate::support::browser::{call, channel, heard, post, request, say};
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::install;
+use crate::support::hooked::{install, until_plugged};
 use crate::support::*;
 
 /// 假 NapCat 认得的群成员：她自己。
@@ -36,6 +36,8 @@ fn plugins(root: &DataRoot) {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_plugin_panel_is_served_in_a_sandbox_by_ticket() {
     let (home, _napcat, _) = started_installed(&Script::new([]), "", MEMBERS, plugins).await;
+    // 桥读到三个插件以后才认得它们（I-24：CI 的 Windows 上没等，`dice` 还不认得，回的是错）。
+    until_plugged(&home, 3, 3).await;
     let mut head = Head::connect(&home.root).await;
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
@@ -54,7 +56,7 @@ async fn a_plugin_panel_is_served_in_a_sandbox_by_ticket() {
     let opened = call(&mut open, 1, "plugins.panel", json!({"package": "dice"})).await;
     let url = opened["result"]["url"]
         .as_str()
-        .expect("有地址")
+        .unwrap_or_else(|| panic!("有地址：{opened}"))
         .to_string();
     assert!(
         url.starts_with("/p/") && url.ends_with("/dice/"),

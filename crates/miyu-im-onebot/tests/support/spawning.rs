@@ -3,8 +3,9 @@
 //! 的办法）。不拷：拷的时候开着写的句柄，同一个测试程序里别的测试这时起的子进程会带着它，接着拉起时 Linux 回 `ETXTBSY`。
 //! 等真的程序端口听上照状态文件（[`bridge_up`]、[`served_up`]）：挑的空端口被别人先占了的报出来，换一个再来（`ports.rs`）。
 
+use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -102,10 +103,45 @@ pub fn program(root: &DataRoot, args: &[&str]) -> Command {
 pub async fn cli(root: &DataRoot, args: &[&str]) -> Output {
     let mut command = program(root, args);
     command.env("LC_ALL", "zh_CN.UTF-8");
-    tokio::task::spawn_blocking(move || command.output())
+    ran_to_end(command).await
+}
+
+/// 同 [`finished`]，不占着测试的异步线程。
+pub async fn ran_to_end(command: Command) -> Output {
+    tokio::task::spawn_blocking(move || finished(command))
         .await
         .expect("没崩")
-        .expect("跑得了")
+}
+
+/// 跑 `command` 到完，交回它的输出。输出写进临时文件、等进程退出再读，不接管道（I-24）：macOS 没有 `pipe2`，管道建好、
+/// 设上 close-on-exec 以前，同一个测试程序里的核心这时拉起的扩展（`miyu-im serve`、测试挂接包）会带走写的那一头，
+/// 读管道要等那个扩展退出才读得到结尾——拉起的正是自己这个测试的桥时就一直等下去（CI 的 macOS 卡到 45 分钟被掐，
+/// 抓栈卡在 `start` 的 `read`）。文件被带走了不碍事。
+pub fn finished(mut command: Command) -> Output {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let base = std::env::temp_dir().join(format!(
+        "miyu-im-out-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    let (out, err) = (base.with_extension("out"), base.with_extension("err"));
+    command
+        .stdin(Stdio::null())
+        .stdout(File::create(&out).expect("建得了"))
+        .stderr(File::create(&err).expect("建得了"));
+    let status = command.status().expect("跑得了");
+    let read = |path: &Path| {
+        let bytes = std::fs::read(path).expect("读得了");
+        if std::fs::remove_file(path).is_err() {
+            // 删不掉的留在临时目录里，不碍测试。
+        }
+        bytes
+    };
+    Output {
+        status,
+        stdout: read(&out),
+        stderr: read(&err),
+    }
 }
 
 /// 字节照 UTF-8 读。

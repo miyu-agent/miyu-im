@@ -8,6 +8,8 @@ use std::process::Command;
 
 use serde_json::Value;
 
+use crate::support::spawning::finished;
+
 /// 桥不许依赖的：核心的两个 crate。
 const CORE: [&str; 2] = ["miyu-core", "miyu-endpoint"];
 
@@ -94,11 +96,11 @@ fn the_chat_kernel_depends_only_on_the_kernel_and_config() {
 fn used(package: &str) -> Vec<String> {
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
-    let output = Command::new(cargo)
+    let mut command = Command::new(cargo);
+    command
         .args(["metadata", "--format-version", "1", "--no-deps"])
-        .args(["--manifest-path", manifest])
-        .output()
-        .expect("跑得了 cargo metadata");
+        .args(["--manifest-path", manifest]);
+    let output = finished(command);
     assert!(
         output.status.success(),
         "{}",

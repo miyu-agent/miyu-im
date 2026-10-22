@@ -13,7 +13,7 @@ use miyu_store::root::DataRoot;
 
 use crate::rules::{copied_resources, system_rule};
 use crate::support::ports::on_free_port;
-use crate::support::spawning::{program, served_up, text};
+use crate::support::spawning::{finished, program, ran_to_end, served_up, text};
 use crate::support::*;
 
 /// 中文的字，资源目录是 `resources`。
@@ -231,11 +231,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
 
 /// 跑一次真的程序 `miyu-im <args>` 到完（系统的语言是英文），不占着测试的异步线程。
 async fn ran(root: &DataRoot, args: &[&str]) -> std::process::Output {
-    let mut command = program(root, args);
-    tokio::task::spawn_blocking(move || command.output())
-        .await
-        .expect("没崩")
-        .expect("跑得了")
+    ran_to_end(program(root, args)).await
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -299,7 +295,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
         .env("MIYU_RESOURCES", &resources)
         .env("MIYU_PACKAGE_DIR", package_in(&resources).dir())
         .stdin(std::process::Stdio::null());
-    let exited = command.output().expect("跑得了");
+    let exited = finished(command);
     assert_eq!(exited.status.code(), Some(1), "{}", text(&exited.stderr));
     assert_eq!(
         text(&exited.stdout),
