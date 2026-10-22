@@ -8,9 +8,8 @@
 //!   （[`Route::wake`]，跟核心的那一头睡到那一刻）：先把过期的记了，再交门开着的（「施工时定的」第 123、125 条）。
 //! - 她的话入队记成了就算进这一回合发出去的（去重照它）：群里先算进投影，私聊记进 `Spoken`（「施工时定的」第 112、113 条）。
 //! - 退信（施工 O-25 下，「退信」）：她的话记了 `failed` 以后，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，写着
-//!   为什么和那一段的开头（模板是出厂数据，`rules/facts.rs`）；一段一块，提示、回执不退（「施工时定的」第 129、130 条）。
+//!   为什么和那一段的开头（模板是出厂数据，`rules/facts.rs`）；一段一块，提示、回执不退（「施工时定的」第 129、130 条）。在 `bounce`。
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,8 +23,10 @@ use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::{CallError, Lead, Outgoing, To};
-use crate::core::{Gone, reason};
+use crate::core::Gone;
 use crate::counters::Count;
+
+mod bounce;
 
 /// 失败记成的事件（第 4 条）。
 const FAILED: &str = "ext.im.venues.failed";
@@ -110,6 +111,8 @@ pub(super) struct Piece {
     pub(super) lead: Lead,
     /// 正文发成什么样（施工 O-59 下）：字、图、合并转发。
     pub(super) body: Body,
+    /// 离同一个会话前一段过多久才发（施工 I-26，模拟真人一条分多条发送）：只有她一句话拆出来的第二段起有，别的是零。
+    pub(super) pause: Duration,
 }
 
 /// 正文发成什么样（施工 O-59 下，`onebot.md`「长文」）：她发出去的图、长文画成的一页照旧在 [`What`] 里带着图。
@@ -203,8 +206,9 @@ impl Route {
         if let Some(why) = self.shut(session, clock.now) {
             tracing::info!(target: TARGET, venue = %peer.venue, why, chars, "reply waiting");
         }
+        let pause = piece.pause;
         self.waiting
-            .push(session, clock.now, Item { queued, piece });
+            .push(session, (clock.now, pause), Item { queued, piece });
         self.pump().await
     }
 
@@ -237,7 +241,7 @@ impl Route {
         let now = applied::clock()?.now;
         let queued = self
             .waiting
-            .wake(|session| self.groups.get(session)?.muted(now));
+            .wake(now, |session| self.groups.get(session)?.muted(now));
         // 还没记解禁的禁言到点也醒（施工 O-50，`muted`）。
         let at = queued.into_iter().chain(self.mute_wake()).min()?;
         let millis = at.unix_millis().saturating_sub(now.unix_millis());
@@ -338,6 +342,7 @@ impl Route {
                 return self.failed(&session, &item, (why, detail)).await;
             }
         };
+        self.bounced.remove(&session);
         let (venue, chars) = (&peer.venue, item.piece.text.chars().count());
         let text = crate::recent::Note::excerpt(&item.piece.text);
         tracing::info!(target: TARGET, venue = %venue, chars, text = %text, "reply sent");
@@ -379,90 +384,6 @@ impl Route {
                 Ok(())
             }
         }
-    }
-
-    /// 没成的一段记 `failed {queued, why, detail?}`（第 4 条），运行日志记一行（不记原文）；她的话再退信（施工 O-25 下，「退信」）。
-    async fn failed(
-        &mut self,
-        session: &str,
-        item: &Item,
-        (why, detail): (&str, Option<String>),
-    ) -> Result<(), Gone> {
-        let venue = self
-            .peers
-            .get(session)
-            .map_or_else(String::new, |peer| peer.venue.to_string());
-        let chars = item.piece.text.chars().count();
-        tracing::warn!(target: TARGET, venue = %venue, why, chars, "reply not sent");
-        if said(&item.piece.what) {
-            self.counters.bump(Count::Undelivered, &venue);
-        }
-        let mut body = json!({"queued": item.queued, "why": why});
-        if let Some(detail) = &detail {
-            body["detail"] = json!(detail);
-        }
-        self.append(session, None, FAILED, body).await?;
-        match item.piece.what {
-            What::Reply { ref line, .. } => {
-                let detail = detail.unwrap_or_default();
-                self.undelivered((session, line), &venue, item, (why, &detail))
-                    .await
-            }
-            What::Image(ref image) => {
-                let detail = detail.unwrap_or_default();
-                self.unsent_image(image, (why, &detail)).await
-            }
-            // 长文的第一页照她的话退信，后面几页照发图记 `unshown`（施工 O-59 上）。
-            What::Page(ref page) if page.first => {
-                let detail = detail.unwrap_or_default();
-                self.undelivered((session, &page.image.line), &venue, item, (why, &detail))
-                    .await
-            }
-            What::Page(ref page) => {
-                let detail = detail.unwrap_or_default();
-                self.unsent_image(&page.image, (why, &detail)).await
-            }
-            What::Receipt { .. } => Ok(()),
-        }
-    }
-
-    /// 她的一段 `item` 没发出去（为什么 `why`、NapCat 说的 `detail`，没有的是空的）：照退信的模板写一块，经核心的 `session.note`
-    /// 记进她说它的那条线 `line`，命令编号是入队那一条的序号加 `/note`（「退信」第 2、3 条）；那条线是支线、已经封存了的
-    /// （`session_sealed`）改记进会话 `session`（主线，施工 O-36）。`venue` 只记运行日志。核心拒了的（照说不会）记一行，不再试。
-    ///
-    /// # Errors
-    ///
-    /// 写不出去、等的时候核心断开。
-    async fn undelivered(
-        &mut self,
-        (session, line): (&str, &str),
-        venue: &str,
-        item: &Item,
-        (why, detail): (&str, &str),
-    ) -> Result<(), Gone> {
-        let head: String = item.piece.text.trim().chars().take(HEAD).collect();
-        let fields = BTreeMap::from([("why", why), ("detail", detail), ("text", head.as_str())]);
-        let text = match self.rules.undelivered().render(&fields) {
-            Ok(text) => text,
-            Err(error) => {
-                // 照说不会：起来时查过模板只要这三个字段（`rules/facts.rs`）。
-                tracing::warn!(target: TARGET, venue, error = %error, "undelivered not written");
-                return Ok(());
-            }
-        };
-        let id = format!("{}/note", item.queued);
-        let facts = json!([{"kind": UNDELIVERED, "text": text}]);
-        let params = json!({"session": line, "facts": facts});
-        let mut reply = self.core.call_as(&id, "session.note", params).await?;
-        if line != session && reason(&reply) == Some("session_sealed") {
-            let params = json!({"session": session, "facts": facts});
-            reply = self.core.call_as(&id, "session.note", params).await?;
-        }
-        match reason(&reply) {
-            None => tracing::info!(target: TARGET, venue, why, "undelivered noted"),
-            Some(reason) => tracing::warn!(target: TARGET, venue, reason, "note refused"),
-        }
-        Ok(())
     }
 }
 

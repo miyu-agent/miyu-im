@@ -142,6 +142,7 @@ impl Route {
                     what: what.clone(),
                     text: passed.text.clone(),
                     lead: Lead::default(),
+                    pause: Duration::ZERO,
                     body: Body::Forward {
                         nodes: nodes(&params, &passed.text),
                         nickname: self.nickname(&peer),
@@ -179,6 +180,7 @@ impl Route {
                 },
                 lead: std::mem::take(lead),
                 body: Body::Text,
+                pause: Duration::ZERO,
             };
             self.enqueue(session, None, piece).await?;
         }

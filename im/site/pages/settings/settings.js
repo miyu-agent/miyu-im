@@ -1,5 +1,5 @@
 // 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：账号绑定（平台身份 → Miyu 账号，核心的
-// `external.bindings`）、通用（去掉末尾句号、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。照样板左边一列切段、右边一次一段
+// `external.bindings`）、通用（去掉末尾句号、模拟真人一条分多条发送、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
 // - 读写都经宿主的 settings.get、settings.set（宿主在这份登录的人的连接上改核心的配置）。改了当场存，存不成的提示一句、重读一遍；
@@ -131,18 +131,22 @@ function bindings(got, platform, save) {
   return section('settings-page/bindings', 'settings-page/bindings-hint', rows);
 }
 
-/** 通用：去掉末尾句号、回执自动撤回的命令。 */
+/** 通用：去掉末尾句号、模拟真人一条分多条发送（施工 I-26）、回执自动撤回的命令。 */
 function general(got, save) {
-  const strip = element('button', got.strip_period ? 'switch on' : 'switch');
-  strip.append(element('i'));
-  strip.addEventListener('click', () => save('strip_period', !got.strip_period));
+  const toggle = (key) => {
+    const button = element('button', got[key] ? 'switch on' : 'switch');
+    button.append(element('i'));
+    button.addEventListener('click', () => save(key, !got[key]));
+    return button;
+  };
   const tags = tagInput({
     items: got.recall_receipts || [],
     normalize: (typed) => typed.replace(/^\//, '').trim(),
     save: (list) => save('recall_receipts', list, true),
   });
   return section('settings-page/general', null, [
-    row(say('settings-page/strip-period'), say('settings-page/strip-period-hint'), strip),
+    row(say('settings-page/strip-period'), say('settings-page/strip-period-hint'), toggle('strip_period')),
+    row(say('settings-page/humanlike'), say('settings-page/humanlike-hint'), toggle('humanlike')),
     row(say('settings-page/recall'), say('settings-page/recall-hint'), tags),
   ]);
 }

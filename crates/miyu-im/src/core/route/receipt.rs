@@ -43,6 +43,7 @@ impl Route {
             text,
             lead: Lead::default(),
             body,
+            pause: Duration::ZERO,
         };
         let peer = self.peers.get(session).cloned();
         let params = peer

@@ -336,12 +336,13 @@ impl Route {
         if self.say_long(session, (&passed, &what), &mut lead).await? {
             return Ok(());
         }
-        for text in passed.pieces {
+        for (index, text) in passed.pieces.into_iter().enumerate() {
             let piece = Piece {
                 what: what.clone(),
                 text,
                 lead: std::mem::take(&mut lead),
                 body: Body::Text,
+                pause: passed.pauses.get(index).copied().unwrap_or_default(),
             };
             self.enqueue(session, None, piece).await?;
         }

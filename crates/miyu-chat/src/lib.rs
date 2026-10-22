@@ -57,8 +57,8 @@ pub use judge::{
     Ask, Judge, JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable, read, request,
 };
 pub use outbound::{
-    Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since, Target,
-    split,
+    Bubble, Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since,
+    Target, bubbles, split,
 };
 pub use params::{LongText, Params};
 pub use rules::{

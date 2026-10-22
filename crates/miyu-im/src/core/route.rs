@@ -187,6 +187,8 @@ pub(crate) struct Route {
     whitelist: Vec<String>,
     /// 出站排着的（施工 O-25 中，「出站队列」）：门关着（她被禁言、号没连着）的照会话排着，过了期作废。
     waiting: Queue<Item>,
+    /// 每个会话最近退过信的那一句（线、回合；I-26）：她一句话拆成的几段，后面接着没成的不再退（`sending/bounce.rs`）。
+    bounced: HashMap<String, (String, u64)>,
     /// 在等 NapCat 回应的一段段（她的话、提示、回执）：一段一个任务，结果照放进写队列的先后交出来（NapCat 并着办动作，回的
     /// 先后不一定照发的先后；`venue.delivered` 要照发的先后记，核心照日志的先后画她说的话，「施工时定的」第 84 条），由这一头记
     /// 结局（施工 O-25 中，`sending`）。放下 `Route` 时不掐：任务只等回应，连接断了、到了时限自己就完。
@@ -315,6 +317,7 @@ impl Route {
             groups: HashMap::new(),
             whitelist,
             waiting: Queue::new(expire),
+            bounced: HashMap::new(),
             sending: FuturesOrdered::new(),
             spoken: HashMap::new(),
             chores: JoinSet::new(),

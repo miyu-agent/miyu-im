@@ -36,6 +36,7 @@ mod frames;
 mod group;
 mod group_settings;
 mod hooks;
+mod humanlike;
 mod ids;
 mod impostor;
 mod judged;

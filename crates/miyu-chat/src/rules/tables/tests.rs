@@ -294,7 +294,7 @@ fn every_item_lands_in_its_own_field() {
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nattempt_timeout = \"15s\"\nretries = 2\nreason_chars = 29\n\
          [rule.outbound]\nquote = false\nmention = false\nquote_after = 5\nmention_after = \"31s\"\nmin_bigrams = 17\nsimilar = 67\n\
-         strip_period = false\nsplit_chars = 3001\nlong_text = \"split\"\nlong_chars = 301\nfinal_only = true\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
+         strip_period = false\nhumanlike = true\nsplit_chars = 3001\nlong_text = \"split\"\nlong_chars = 301\nfinal_only = true\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
     );
     let expected = Params {
         base64: Base64 {
@@ -354,6 +354,7 @@ fn every_item_lands_in_its_own_field() {
             leak_open: vec!["<c".to_string()],
             leak_close: vec!["c>".to_string()],
             strip_period: false,
+            humanlike: true,
         },
         split_chars: 3001,
         long_text: crate::LongText::Split,

@@ -9,6 +9,7 @@
 //! - 补来的（订阅时从头补的）、这一轮不说话了的（`skip_reply`）不发：调的一方不交进来。
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -100,6 +101,7 @@ impl Route {
                 text: String::new(),
                 lead: Lead::default(),
                 body: Body::Text,
+                pause: Duration::ZERO,
             };
             self.enqueue(session, None, piece).await?;
         }

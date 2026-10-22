@@ -13,7 +13,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use miyu_chat::{LongText, Venue, VenueKind};
+use miyu_chat::{LongText, Venue, VenueKind, split};
 use miyu_client::ids::VenueId;
 use miyu_client::protocol::Template;
 use serde_json::{Value, json};
@@ -134,7 +134,11 @@ impl Route {
             ),
             Some(LongText::Split) | None => Long::Split,
         };
-        let pieces = passed.pieces;
+        // 发到别处的照旧按长度拆、一口气发（施工 I-26）：她调工具等着发完，照真人停会把这一步拖长几十秒。
+        let pieces = match passed.pauses.is_empty() {
+            true => passed.pieces,
+            false => split(&passed.text, applied.params.split_chars),
+        };
         let session = self.target_session(&target, to, bot).await?;
         let job = Job {
             bot,

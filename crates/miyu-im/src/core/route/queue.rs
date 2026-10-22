@@ -1,6 +1,7 @@
 //! 出站队列的纯逻辑（施工 O-25 中，`onebot.md` 第一条「出站队列」第 3 到 8 条，「施工时定的」第 116 条）：每个场所会话一条先进
 //! 先出的队，门开着的照先后交出来，排到了期限的作废（门关着的也是）；下一次该醒的时刻；禁言到什么时候；NapCat 的回应算成功
-//! 还是失败、为什么。不碰 I/O、时钟：此刻、门开没开、禁言到什么时候都由调的一方交进来（`sending.rs`），停住的钟测得了。
+//! 还是失败、为什么。一段可以带停顿（施工 I-26，模拟真人一条分多条发送）：离前一段过了这么久才交，没到的连同排在它后面的都
+//! 等着，先后不乱。不碰 I/O、时钟：此刻、门开没开、禁言到什么时候都由调的一方交进来（`sending.rs`），停住的钟测得了。
 //!
 //! 门开没开、禁言到什么时候不记在这里：禁言照投影（日志算得出，桥重启照样重建），号连没连着照连着的号（「施工时定的」第 117 条）。
 
@@ -24,10 +25,12 @@ pub(super) const DISCONNECTED: &str = "disconnected";
 /// `failed` 的 `why`：排着过了期限（第 5 条）。
 pub(super) const EXPIRED: &str = "expired";
 
-/// 排着的一段：入队的时刻、要发的。
+/// 排着的一段：入队的时刻、最早什么时候交、要发的。
 struct Waiting<T> {
-    /// 入队的时刻（本机的钟，「施工时定的」第 118 条）。
+    /// 入队的时刻（本机的钟，「施工时定的」第 118 条）：期限照它算。
     at: Timestamp,
+    /// 最早什么时候交，毫秒：前一段的这个时刻（排空了的照入队的时刻）加上这一段的停顿。
+    ready: i64,
     /// 要发的。
     item: T,
 }
@@ -64,12 +67,19 @@ impl<T> Queue<T> {
         now.unix_millis().saturating_sub(self.expire)
     }
 
-    /// 会话 `session` 在 `at` 入队了一段 `item`：排在这个会话的最后。
-    pub(super) fn push(&mut self, session: &str, at: Timestamp, item: T) {
-        self.lines
-            .entry(session.to_string())
-            .or_default()
-            .push_back(Waiting { at, item });
+    /// 会话 `session` 在 `at` 入队了一段 `item`，离前一段停 `pause`：排在这个会话的最后。前一段还排着的从它最早交的时刻
+    /// 算起，排空了的从入队的时刻算起（前一段刚交出去）。
+    pub(super) fn push(&mut self, session: &str, (at, pause): (Timestamp, Duration), item: T) {
+        let line = self.lines.entry(session.to_string()).or_default();
+        let after = line
+            .back()
+            .map_or(at.unix_millis(), |last| last.ready.max(at.unix_millis()));
+        let pause = i64::try_from(pause.as_millis()).unwrap_or(i64::MAX);
+        line.push_back(Waiting {
+            at,
+            ready: after.saturating_add(pause),
+            item,
+        });
     }
 
     /// 有东西排着的会话，照编号排。
@@ -78,7 +88,7 @@ impl<T> Queue<T> {
     }
 
     /// 看一遍会话 `session`，此刻是 `now`，门开着是 `open`：入队时刻加期限不晚于此刻的交出来作废（门关着的也是）；门开着的，
-    /// 别的照先后交出去。门关着、没过期的留着。
+    /// 别的照先后交出去，碰到还没到最早交的时刻的，它和排在后面的都留着。门关着、没过期的留着。
     pub(super) fn take(&mut self, session: &str, now: Timestamp, open: bool) -> Taken<T> {
         let mut taken = Taken {
             expired: Vec::new(),
@@ -92,7 +102,7 @@ impl<T> Queue<T> {
         for waiting in line.drain(..) {
             if deadline(&waiting, expire) <= now.unix_millis() {
                 taken.expired.push(waiting.item);
-            } else if open {
+            } else if open && kept.is_empty() && waiting.ready <= now.unix_millis() {
                 taken.ready.push(waiting.item);
             } else {
                 kept.push_back(waiting);
@@ -107,19 +117,30 @@ impl<T> Queue<T> {
     }
 
     /// 下一次该看一遍的时刻（第 8 条）：排着的里最早的过期时刻；会话被禁言着的（`muted` 交回禁言到期的时刻，没禁言着的是空的）
-    /// 禁言到期的时刻也算。没有排着的是空的：不用醒。
-    pub(super) fn wake(&self, muted: impl Fn(&str) -> Option<Timestamp>) -> Option<Timestamp> {
+    /// 禁言到期的时刻也算；每个会话排在最前的那一段还没到最早交的时刻（此刻是 `now`）的，那个时刻也算（到了的不算：门关着时
+    /// 算它会一直醒）。没有排着的是空的：不用醒。
+    pub(super) fn wake(
+        &self,
+        now: Timestamp,
+        muted: impl Fn(&str) -> Option<Timestamp>,
+    ) -> Option<Timestamp> {
         let deadlines = self
             .lines
             .values()
             .flatten()
             .map(|waiting| deadline(waiting, self.expire));
+        let readies = self
+            .lines
+            .values()
+            .filter_map(|line| line.front())
+            .map(|waiting| waiting.ready)
+            .filter(|ready| *ready > now.unix_millis());
         let ends = self
             .lines
             .keys()
             .filter_map(|session| muted(session))
             .map(Timestamp::unix_millis);
-        let first = deadlines.chain(ends).min()?;
+        let first = deadlines.chain(ends).chain(readies).min()?;
         Timestamp::from_unix_millis(first)
     }
 }

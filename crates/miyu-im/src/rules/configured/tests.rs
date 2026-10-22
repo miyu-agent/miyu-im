@@ -153,7 +153,7 @@ fn a_bad_value_drops_only_that_item_and_names_the_setting() {
 
 #[test]
 fn rules_name_their_settings_in_order() {
-    let keys: Vec<_> = (0..=5).map(key_of).collect();
+    let keys: Vec<_> = (0..=6).map(key_of).collect();
     assert_eq!(
         keys,
         [
@@ -162,6 +162,7 @@ fn rules_name_their_settings_in_order() {
             Some("im.sleep".to_string()),
             Some("im.show_ids".to_string()),
             Some("im.strip_period".to_string()),
+            Some("im.humanlike".to_string()),
             None,
         ]
     );
@@ -238,4 +239,16 @@ fn turning_off_the_final_period_reaches_every_venue() {
     for venue in [group("10"), private("10")] {
         assert_eq!(values(&rules, &venue), std::slice::from_ref(&off));
     }
+}
+
+#[test]
+fn turning_off_humanlike_sending_reaches_every_venue() {
+    // 模拟真人一条分多条发送（施工 I-26）：同去句号，开着不写，关了的群和私聊都拼进出站表，排在第五条。
+    let off_rules = rules(json!({"im.humanlike": false}));
+    let off = ("outbound.humanlike".to_string(), Value::Bool(false), 5);
+    for venue in [group("10"), private("10")] {
+        assert_eq!(values(&off_rules, &venue), std::slice::from_ref(&off));
+    }
+    let both = rules(json!({"im.humanlike": false, "im.strip_period": false}));
+    assert_eq!(values(&both, &group("10")).len(), 2, "两项各一条，不互相盖");
 }

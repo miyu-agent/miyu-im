@@ -202,6 +202,7 @@ fn blank() -> Params {
             leak_open: Vec::new(),
             leak_close: Vec::new(),
             strip_period: false,
+            humanlike: false,
         },
         split_chars: 0,
         long_text: LongText::Split,

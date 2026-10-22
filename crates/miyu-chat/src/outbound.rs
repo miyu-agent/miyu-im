@@ -4,7 +4,8 @@
 //! 往下走，或者整条丢掉（[`OutStep`]）。自带四条（[`OutChain::builtin`]）：清理、去末尾句号（施工 O-47）、去重、引用和 @，
 //! 每条一个文件。
 //!
-//! 过了链的原样发（施工 O-47 去掉了 Markdown 转纯文本：她怎么写由提示词管），[`split()`] 把太长的按段拆开。
+//! 过了链的原样发（施工 O-47 去掉了 Markdown 转纯文本：她怎么写由提示词管），[`split()`] 把太长的按段拆开，[`bubbles()`]
+//! 照真人的样子一句分几条发（施工 I-26）。
 //!
 //! 纯逻辑：这一回合已经发出去的（[`Sent`]）、她回的那条之后群里的动静（[`Since`]）、参数（[`Outbound`]），都由外面交进来
 //! （[`OutCtx`]）；出站队列（禁言暂停、过期作废、回执撤回、退信）随桥（「怎么走」第 7 条）。
@@ -13,10 +14,12 @@ use miyu_kernel::id::ContentHash;
 
 mod clean;
 mod dedupe;
+mod human;
 mod period;
 mod split;
 mod target;
 
+pub use human::{Bubble, bubbles};
 pub use split::split;
 
 /// 要发的一条。
@@ -88,6 +91,8 @@ pub struct Outbound {
     pub(crate) leak_close: Vec<String>,
     /// 去掉一条话末尾的一个 `。`（出厂开，照旧版；施工 O-47）。
     pub(crate) strip_period: bool,
+    /// 模拟真人一条分多条发送（出厂开；施工 I-26，[`bubbles()`]）。
+    pub(crate) humanlike: bool,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -164,6 +169,12 @@ impl Outbound {
     #[must_use]
     pub fn strip_period(&self) -> bool {
         self.strip_period
+    }
+
+    /// 照不照真人的样子一句分几条发（施工 I-26，[`bubbles()`]）。
+    #[must_use]
+    pub fn humanlike(&self) -> bool {
+        self.humanlike
     }
 }
 

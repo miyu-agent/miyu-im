@@ -33,8 +33,13 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 系统的场所规则：群都不抽样，[`GROUP`] 一小时一轮。
 fn rules() -> String {
+    rules_with("outbound = { humanlike = false }\n")
+}
+
+/// 同 [`rules`]，群的那一条另加 `more`：她的一句话拆不拆（I-26）由各个测试定，退信这几个默认不拆，好照整句的开头比。
+fn rules_with(more: &str) -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n{more}\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\n"
     )
 }
@@ -289,6 +294,64 @@ async fn expired_words_come_back_at_the_next_turn_once() {
     assert!(fact < trigger, "排在触发前面：{request}");
     assert_eq!(request.matches("<undelivered").count(), 1, "{request}");
     assert_eq!(undelivered(&events).len(), 1, "同一段只退一次");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_split_sentence_that_expires_comes_back_once() {
+    // 她一句话拆成的几段（I-26）一起过期：每段记 `failed`，退信只一块，写着头一段的开头。
+    let long = "大家说得都有道理。那就这么定了：周六上午十点在东门集合，别迟到。";
+    let pieces = miyu_chat::bubbles(long);
+    assert!(pieces.len() >= 2, "这一句拆得开：{pieces:?}");
+    let script = Script::new([Play::Says(long), Play::Says("嗯")]);
+    let tuned = json!({"queue_expire_seconds": 1});
+    let (home, mut napcat, _) = started_tuned(
+        Arc::new(script.clone()),
+        &rules_with(""),
+        &tuned,
+        |napcat| napcat.answering(MEMBERS),
+    )
+    .await;
+    napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
+    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
+    napcat.send(group_frame(
+        QUIET,
+        ADMIN,
+        1,
+        json!([at(BOT), plain(" 在吗")]),
+        ("终端管理员", "o"),
+    ));
+    let events = until_count(&home, QUIET, "message.user", 1).await;
+    respond(
+        &home,
+        &venue(QUIET),
+        "expired-split",
+        &[said(&events)[0]["seq"].clone()],
+    )
+    .await;
+    until_count(&home, QUIET, FAILED, pieces.len()).await;
+    let events = until_notes(&home, QUIET, 1).await;
+    let head: String = pieces[0].text.chars().take(30).collect();
+    assert_eq!(
+        notes(&events)[0].1,
+        json!({"kind": "undelivered", "text": fact("expired", "", &head)}),
+        "头一段的开头"
+    );
+    // 解禁以后再叫她：下一轮的请求里只有那一块。
+    napcat.send(group_ban(QUIET, BOT, "lift_ban", None));
+    napcat.send(group_frame(
+        QUIET,
+        ADMIN,
+        2,
+        json!([at(BOT), plain(" 还有别的吗")]),
+        ("终端管理员", "o"),
+    ));
+    let words = napcat.group_message(QUIET).await;
+    assert_eq!(words.last().expect("有段")["data"]["text"], "嗯");
+    let request = format!("{:?}", script.requests()[1].1);
+    assert_eq!(request.matches("<undelivered").count(), 1, "{request}");
+    let events = venue_events(&home.root, &venue(QUIET));
+    assert_eq!(undelivered(&events).len(), 1, "一句只退一块");
     stopped(home).await;
 }
 

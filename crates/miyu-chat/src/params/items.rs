@@ -240,6 +240,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.strip_period", Kind::Bool, |p, v| {
         p.outbound.strip_period = flag(v)
     }),
+    // 模拟真人一条分多条发送（施工 I-26）。
+    item("outbound.humanlike", Kind::Bool, |p, v| {
+        p.outbound.humanlike = flag(v)
+    }),
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)
     }),

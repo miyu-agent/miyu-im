@@ -1,6 +1,6 @@
 //! 出站队列的纯逻辑（施工 O-25 中，`onebot.md` 第一条「出站队列」第 3 到 8 条）：钟是停住的，此刻都由测试交进去。门开着的照
 //! 先后交出来、关着的留着；排到了期限的作废（门关着也是），先交过期的；会话各排各的；该醒的时刻是最早的过期、禁言到期；禁言到
-//! 此刻加几秒；NapCat 的回应算成功还是失败、为什么。
+//! 此刻加几秒；NapCat 的回应算成功还是失败、为什么。带停顿的（施工 I-26）没到不交、后面的跟着等，该醒的时刻算上它。
 
 use std::time::Duration;
 
@@ -21,7 +21,7 @@ fn at(millis: i64) -> Timestamp {
 fn queued(items: &[&'static str]) -> Queue<&'static str> {
     let mut queue = Queue::new(EXPIRE);
     for item in items {
-        queue.push("s", at(0), *item);
+        queue.push("s", (at(0), Duration::ZERO), *item);
     }
     queue
 }
@@ -44,8 +44,8 @@ fn an_open_door_hands_out_in_order_and_a_shut_one_keeps_them() {
 #[test]
 fn waiting_until_the_deadline_expires_even_behind_a_shut_door() {
     let mut queue = Queue::new(EXPIRE);
-    queue.push("s", at(0), "一");
-    queue.push("s", at(30_000), "二");
+    queue.push("s", (at(0), Duration::ZERO), "一");
+    queue.push("s", (at(30_000), Duration::ZERO), "二");
     let taken = queue.take("s", at(59_999), false);
     assert!(taken.expired.is_empty(), "差一毫秒不算");
     let taken = queue.take("s", at(60_000), false);
@@ -58,8 +58,8 @@ fn waiting_until_the_deadline_expires_even_behind_a_shut_door() {
 #[test]
 fn the_expired_come_out_before_the_ready() {
     let mut queue = Queue::new(EXPIRE);
-    queue.push("s", at(0), "旧");
-    queue.push("s", at(50_000), "新");
+    queue.push("s", (at(0), Duration::ZERO), "旧");
+    queue.push("s", (at(50_000), Duration::ZERO), "新");
     let taken = queue.take("s", at(61_000), true);
     assert_eq!(taken.expired, ["旧"]);
     assert_eq!(taken.ready, ["新"], "过期的不交，没过期的照交");
@@ -68,9 +68,9 @@ fn the_expired_come_out_before_the_ready() {
 #[test]
 fn sessions_wait_apart() {
     let mut queue = Queue::new(EXPIRE);
-    queue.push("甲", at(0), "一");
-    queue.push("乙", at(0), "二");
-    queue.push("甲", at(1), "三");
+    queue.push("甲", (at(0), Duration::ZERO), "一");
+    queue.push("乙", (at(0), Duration::ZERO), "二");
+    queue.push("甲", (at(1), Duration::ZERO), "三");
     assert_eq!(queue.sessions(), ["乙", "甲"]);
     let taken = queue.take("甲", at(10), true);
     assert_eq!(taken.ready, ["一", "三"]);
@@ -85,16 +85,66 @@ fn sessions_wait_apart() {
 #[test]
 fn it_wakes_at_the_first_deadline_or_the_end_of_a_mute() {
     let empty: Queue<&str> = Queue::new(EXPIRE);
-    assert_eq!(empty.wake(|_| Some(at(5))), None, "没排着的不醒");
+    assert_eq!(empty.wake(at(0), |_| Some(at(5))), None, "没排着的不醒");
     let mut queue = Queue::new(EXPIRE);
-    queue.push("甲", at(10_000), "一");
-    queue.push("甲", at(20_000), "二");
-    queue.push("乙", at(15_000), "三");
-    assert_eq!(queue.wake(|_| None), Some(at(70_000)), "最早的过期");
+    queue.push("甲", (at(10_000), Duration::ZERO), "一");
+    queue.push("甲", (at(20_000), Duration::ZERO), "二");
+    queue.push("乙", (at(15_000), Duration::ZERO), "三");
+    assert_eq!(
+        queue.wake(at(20_000), |_| None),
+        Some(at(70_000)),
+        "最早的过期"
+    );
     let muted = |session: &str| (session == "乙").then(|| at(30_000));
-    assert_eq!(queue.wake(muted), Some(at(30_000)), "禁言先到期");
+    assert_eq!(
+        queue.wake(at(20_000), muted),
+        Some(at(30_000)),
+        "禁言先到期"
+    );
     let later = |_: &str| Some(at(90_000));
-    assert_eq!(queue.wake(later), Some(at(70_000)), "过期先到");
+    assert_eq!(queue.wake(at(20_000), later), Some(at(70_000)), "过期先到");
+}
+
+#[test]
+fn a_paused_piece_waits_and_holds_the_ones_behind() {
+    let mut queue = Queue::new(EXPIRE);
+    let pause = Duration::from_secs(5);
+    queue.push("s", (at(0), Duration::ZERO), "一");
+    queue.push("s", (at(0), pause), "二");
+    queue.push("s", (at(0), Duration::ZERO), "三");
+    assert_eq!(
+        queue.take("s", at(1000), true).ready,
+        ["一"],
+        "第二段没到点"
+    );
+    assert_eq!(
+        queue.wake(at(1000), |_| None),
+        Some(at(5000)),
+        "醒在第二段到点"
+    );
+    assert!(
+        queue.take("s", at(4999), true).ready.is_empty(),
+        "第三段不抢先"
+    );
+    assert_eq!(queue.take("s", at(5000), true).ready, ["二", "三"]);
+    // 停顿从前一段最早交的时刻接着算：两段各停 5 秒，第二段在第 10 秒。
+    queue.push("t", (at(0), pause), "甲");
+    queue.push("t", (at(1000), pause), "乙");
+    assert!(queue.take("t", at(9999), true).ready == ["甲"]);
+    assert_eq!(queue.take("t", at(10_000), true).ready, ["乙"]);
+}
+
+#[test]
+fn a_shut_door_does_not_wake_for_pieces_already_due() {
+    let mut queue = Queue::new(EXPIRE);
+    queue.push("s", (at(0), Duration::from_secs(5)), "一");
+    assert_eq!(
+        queue.wake(at(6000), |_| None),
+        Some(at(60_000)),
+        "到了点的不算，只等过期"
+    );
+    let taken = queue.take("s", at(6000), false);
+    assert!(taken.ready.is_empty() && taken.expired.is_empty());
 }
 
 #[test]

@@ -22,6 +22,7 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
 
     let got = call(&mut open, 1, "settings.get", json!({})).await["result"].clone();
     assert_eq!(got["strip_period"], true, "出厂开：{got}");
+    assert_eq!(got["humanlike"], true, "出厂开（施工 I-26）：{got}");
     assert_eq!(
         got["recall_receipts"],
         json!(["clear", "clear-memory"]),
@@ -39,11 +40,20 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
     )
     .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    let saved = call(
+        &mut open,
+        20,
+        "settings.set",
+        set("humanlike", json!(false)),
+    )
+    .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let added = set("binding:qq:30009", json!("admin"));
     let saved = call(&mut open, 3, "settings.set", added).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let got = call(&mut open, 4, "settings.get", json!({})).await["result"].clone();
     assert_eq!(got["strip_period"], false, "{got}");
+    assert_eq!(got["humanlike"], false, "{got}");
     assert_eq!(got["bindings"]["qq:30009"], "admin", "{got}");
 
     // 去掉一条绑定，别的照旧；别的键不让改。

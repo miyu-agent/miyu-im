@@ -161,6 +161,8 @@ impl Route {
             }
             if passed.pieces.first() != first.as_ref() {
                 passed.lead = Lead::default();
+                // 剩下的接着补发，不再照真人停（施工 I-26）：停顿和段对不上了。
+                passed.pauses.clear();
                 // 发出去了一部分：长文照剩下的几段判、画（施工 O-59 上），不把发过的再画一遍。
                 passed.text = passed.pieces.join("\n\n");
             }

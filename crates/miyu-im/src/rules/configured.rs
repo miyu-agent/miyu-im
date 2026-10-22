@@ -1,5 +1,5 @@
 //! 配置项那一层（`onebot.md` 第一条「场所规则和出厂数据」第 8 条，施工 O-41；O-58 上群白名单、白名单以外的群、两档限流挪进
-//! 卡片，`super::cards`）：睡觉时间、群里的触发词、看不看得到 QQ 号、去句号（O-58 补二从卡片挪来）这四项是包的配置项，网页、终端的设置页照清单自己画，卡片里
+//! 卡片，`super::cards`）：睡觉时间、群里的触发词、看不看得到 QQ 号、去句号（O-58 补二从卡片挪来）、模拟真人一条分多条发送（I-26）这五项是包的配置项，网页、终端的设置页照清单自己画，卡片里
 //! 没设的照它们。桥照它们拼一份规则文件
 //! [`FILE`]，来处是 [`Source::Settings`]，和出厂的、系统的一起交群聊内核读：写法、怎么套、写错了丢哪一项都照规则文件的规矩。
 //!
@@ -17,8 +17,8 @@ use crate::PACKAGE;
 /// 拼出来的那一份的文件名：排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的盖它，同名的整份替换它。
 pub const FILE: &str = "60-settings.toml";
 
-/// 四项在清单里的名字，照拼出来的规则的先后：第 n 条规则是第 n 项。
-const ORDER: [&str; 4] = [KEYWORDS, SLEEP, SHOW_IDS, STRIP_PERIOD];
+/// 五项在清单里的名字，照拼出来的规则的先后：第 n 条规则是第 n 项。
+const ORDER: [&str; 5] = [KEYWORDS, SLEEP, SHOW_IDS, STRIP_PERIOD, HUMANLIKE];
 
 /// 睡觉时间：写法同规则的 `sleep`，群和私聊都算。
 const SLEEP: &str = "sleep";
@@ -35,6 +35,9 @@ const WHITELIST: &str = "whitelist";
 /// 去掉末尾的句号（施工 O-58 补二，从卡片挪来：项目主人 10-19 定是通用配置）：开关，默认开（同出厂参数），关了的拼进规则。
 const STRIP_PERIOD: &str = "strip_period";
 
+/// 模拟真人一条分多条发送（施工 I-26，2026-10-22 项目主人定：内置功能、给开关、默认开）：同去句号，关了的拼进规则。
+const HUMANLIKE: &str = "humanlike";
+
 /// 四项这一刻的值：握手交来的，推来变了的照换。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Configured {
@@ -46,6 +49,8 @@ pub struct Configured {
     show_ids: bool,
     /// 去掉末尾的句号。
     strip_period: bool,
+    /// 模拟真人一条分多条发送。
+    humanlike: bool,
     /// 白名单成员的号（`im.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
     whitelist: Vec<u64>,
 }
@@ -57,6 +62,7 @@ impl Default for Configured {
             keywords: Vec::new(),
             show_ids: false,
             strip_period: true,
+            humanlike: true,
             whitelist: Vec::new(),
         }
     }
@@ -91,6 +97,7 @@ impl Configured {
                 STRIP_PERIOD => {
                     self.strip_period = value.as_bool().unwrap_or(fallback.strip_period);
                 }
+                HUMANLIKE => self.humanlike = value.as_bool().unwrap_or(fallback.humanlike),
                 WHITELIST => {
                     self.whitelist = texts(value)
                         .iter()
@@ -149,11 +156,15 @@ impl Configured {
                     None,
                     self.show_ids.then(|| ("show_ids", "true".to_string())),
                 ),
-                // 开着是出厂参数本来的样子：关了才写。
-                _ => (
+                // 这两项开着是出厂参数本来的样子：关了才写。
+                STRIP_PERIOD => (
                     None,
                     (!self.strip_period)
                         .then(|| ("outbound", "{ strip_period = false }".to_string())),
+                ),
+                _ => (
+                    None,
+                    (!self.humanlike).then(|| ("outbound", "{ humanlike = false }".to_string())),
                 ),
             };
             text.push_str("[[rule]]\n");
