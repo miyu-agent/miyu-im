@@ -76,7 +76,12 @@ async fn the_page_lists_reads_and_deletes_her_sessions() {
         "{page}"
     );
     let id = user["id"].as_str().expect("有编号");
-    assert_eq!(page["judged"][id]["outcome"], "reply", "{page}");
+    assert_eq!(
+        page["judged"][id],
+        json!({"outcome": "reply", "why": {"reason": "called"}}),
+        "{page}"
+    );
+    assert_eq!(page["names"][id], "终端管理员", "{page}");
     // 不认得的会话：拒。
     let stranger = head
         .page_call_with(

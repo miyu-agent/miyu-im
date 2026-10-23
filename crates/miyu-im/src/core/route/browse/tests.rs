@@ -43,28 +43,26 @@ fn sessions_are_grouped_by_the_bot_that_took_them_in() {
 }
 
 #[test]
-fn each_message_gets_its_latest_judgement() {
+fn each_message_gets_its_latest_judgement_and_its_speaker() {
     let events = json!([
-        {"kind": "message.user", "seq": 5},
-        {"kind": "ext.im.chat.decided", "body": {"msgs": [5], "outcome": "record", "inbound": "pass", "judge": {"reason": "在跟别人说"}}},
+        {"kind": "message.user", "seq": 5, "body": {"venue": {"msg": "1", "name": " 小林 "}}},
+        {"kind": "message.user", "seq": 6, "body": {"venue": {"msg": "2", "name": "  "}}},
+        {"kind": "ext.im.chat.decided", "body": {"msgs": [5], "outcome": "record", "inbound": "pass", "route": "judge"}},
         {"kind": "ext.im.chat.decided", "body": {"msgs": [6, 7], "outcome": "record", "why": "repeated", "inbound": "record_only"}},
-        {"kind": "ext.im.chat.decided", "body": {"msgs": [5], "outcome": "reply", "inbound": "pass", "judge": {"reason": "问她的"}}},
-        {"kind": "ext.im.chat.decided", "body": {"msgs": [8], "outcome": "record", "inbound": "rate_limited"}},
+        {"kind": "ext.im.chat.decided", "body": {"msgs": [5], "outcome": "reply", "inbound": "pass", "route": "commit", "conditions": [{"kind": "direct"}]}},
     ]);
-    let judged = judged(&events);
+    let (judged, names) = marks(&events);
     assert_eq!(
         judged["m5"],
-        json!({"outcome": "reply", "why": null, "reason": "问她的"}),
+        json!({"outcome": "reply", "why": {"reason": "called"}}),
         "同一条照后一次"
     );
     assert_eq!(
         judged["m6"],
-        json!({"outcome": "record", "why": "repeated", "reason": null})
+        json!({"outcome": "record", "why": {"reason": "repeated"}})
     );
     assert_eq!(judged["m7"], judged["m6"], "一笔管几条的每条都记");
-    assert_eq!(
-        judged["m8"]["why"], "rate_limited",
-        "没写 why 的照进站链的结果"
-    );
-    assert_eq!(judged.len(), 4);
+    assert_eq!(judged.len(), 3);
+    assert_eq!(names["m5"], "小林", "去掉两头的空白");
+    assert!(names.get("m6").is_none(), "空白的名字不算");
 }

@@ -1,7 +1,8 @@
 //! 一笔判断说成会话浮窗「最近判断」的一条原因（施工 I-7 上补，`crate::recent`）：照记进会话的那一份判断（`body`，`body.rs`）说，
 //! 纯逻辑。页面照原因的编号写字。
 //!
-//! - 进站链就只记下的：`off`（这个会话关着回复）、`asleep`（睡眠时间）、`muted`（她被禁言着）、`rate`（限流满了）。
+//! - 进站链就只记下的：`off`（这个会话关着回复）、`asleep`（睡眠时间）、`muted`（她被禁言着）、`rate`（限流满了）、`repeated`（几个人
+//!   在复读，施工 I-28；I-34 下以前说成 `off`）。
 //! - 放行了的：没有成立的条件（没叫她、没抽中）的 `quiet`；有条件却只记下的 `skip_user`（在跳过判断的人里，施工 I-7 中三；I-16 起跳过判断的人只有插话的才判、不再只记下，这一格只剩以前记的）；直接回的 `called`（叫了她）、`continued`（续聊）、`after_speaking`
 //!   （她刚说过话）；问了判官、算了分的 `judged`，带 `total`、`threshold`；判不了的 `unjudged`；只做管理检查的 `moderation`。
 //! - 问判官、直接回的带 `trigger`：主触发是哪一种条件（`direct`、`continuation`、`followup`（施工 I-21）、`after_speaking`、`probability`、
@@ -43,6 +44,7 @@ fn reason(body: &Value) -> Value {
             Some("asleep") => "asleep",
             Some("muted") => "muted",
             Some("rate_limited") => "rate",
+            Some("repeated") => "repeated",
             _ => "off",
         };
         return json!({"reason": reason});

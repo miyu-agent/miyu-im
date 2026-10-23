@@ -10,6 +10,7 @@ fn record_only_says_why_it_was_held_back() {
         ("asleep", "asleep"),
         ("muted", "muted"),
         ("rate_limited", "rate"),
+        ("repeated", "repeated"),
         ("not_allowed", "off"),
     ] {
         let body = json!({"inbound": "record_only", "why": written, "outcome": "record"});
