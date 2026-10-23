@@ -1,6 +1,6 @@
 //! 赞助记录的程序（施工 S-1 上b）：测试扮核心，经管道拉起真的 `miyu-im-sponsor serve`，照协议握手、收 `provide`、发 `tool.call`、
 //! 答它回头问 im 的 `package.call`；汇率照本机的假服务（`MIYU_SPONSOR_RATES_URL`）。管理员叫的那一轮记上美元、换成人民币；
-//! 普通成员叫的记不上；关了标准输入程序照常退出，账本落了盘。
+//! 普通成员叫的记不上；后台页经 `method.call` 查得到合计（施工 S-1 下）；关了标准输入程序照常退出，账本落了盘。
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
@@ -135,6 +135,14 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
         (&json!("sponsor"), &json!(["private", "group"]))
     );
     assert!(tool["description"].is_string() && tool["input_schema"]["type"] == "object");
+    // 后台页的方法（施工 S-1 下）。
+    let methods = sponsor.answers("package.methods", &json!({"methods": 7}));
+    assert!(
+        methods["params"]["methods"]
+            .as_array()
+            .is_some_and(|all| all.iter().any(|one| one["name"] == "totals")),
+        "{methods}"
+    );
 
     // 场所的管理的人叫的：没写号，照引用的小明记，美元照假服务的汇率换成人民币。
     let manager =
@@ -154,6 +162,16 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
         json!({"kind": "external", "venue": "qq:group:777", "id": "qq:3", "role": "member"});
     let refused = sponsor.calls("c2", (member, false), json!({"action": "add", "amount": 5}));
     assert_eq!(refused["error"], true, "{refused}");
+
+    // 后台页查合计：只有管理员记的那一笔，换成了人民币。
+    sponsor.send(&json!({"jsonrpc": "2.0", "id": "m1", "method": "method.call", "params": {"method": "totals", "params": {}}}));
+    let totals = sponsor.next();
+    assert_eq!(totals["id"], "m1", "{totals}");
+    assert_eq!(
+        (&totals["result"]["all"], &totals["result"]["pending"]),
+        (&json!(71.44), &json!(0)),
+        "{totals}"
+    );
 
     // 关了标准输入：照常退出，账本落了盘，只有那一笔。
     sponsor.input = None;

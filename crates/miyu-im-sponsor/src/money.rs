@@ -119,39 +119,55 @@ pub fn total<'a>(entries: impl IntoIterator<Item = &'a Entry>, base: &str) -> To
     total
 }
 
-/// 排行榜（纯逻辑）：`entries` 里 `since` 以后的，照赞助人合计（默认币种 `base`），多的在前，一样多的照先赞助的在前；最多
-/// [`SHOWN`] 个。交回赞助人、最近一次记下的名字、合计。
-pub fn ranking(
-    entries: &[Entry],
-    base: &str,
-    since: Option<i64>,
-) -> Vec<(Sponsor, Option<String>, f64)> {
-    let mut rows: Vec<(Sponsor, Option<String>, f64, i64)> = Vec::new();
-    for entry in entries
-        .iter()
-        .filter(|entry| since.is_none_or(|since| entry.at >= since))
-    {
+/// 排行榜的一行。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Row {
+    /// 赞助人。
+    pub sponsor: Sponsor,
+    /// 平台。
+    pub platform: String,
+    /// 最近一次记下的名字。
+    pub name: Option<String>,
+    /// 换成默认币种的合计。
+    pub sum: f64,
+    /// 算进合计的几笔。
+    pub count: usize,
+    /// 第一笔的时刻（一样多的照先赞助的在前）。
+    first: i64,
+}
+
+/// 排行榜（纯逻辑）：`entries` 照赞助人合计（默认币种 `base`；没换算成它的不算），多的在前，一样多的照先赞助的在前；最多
+/// `most` 个。时间段、平台由调的一方先筛好。
+pub fn ranking(entries: &[Entry], base: &str, most: usize) -> Vec<Row> {
+    let mut rows: Vec<Row> = Vec::new();
+    for entry in entries {
         let (Some(sponsor), Some(converted)) = (
             Sponsor::of(entry),
             entry.converted.filter(|_| entry.base == base),
         ) else {
             continue;
         };
-        match rows.iter_mut().find(|row| row.0 == sponsor) {
+        match rows.iter_mut().find(|row| row.sponsor == sponsor) {
             Some(row) => {
-                row.2 += converted;
+                row.sum += converted;
+                row.count += 1;
                 if entry.name.is_some() {
-                    row.1.clone_from(&entry.name);
+                    row.name.clone_from(&entry.name);
                 }
             }
-            None => rows.push((sponsor, entry.name.clone(), converted, entry.at)),
+            None => rows.push(Row {
+                sponsor,
+                platform: entry.platform.clone(),
+                name: entry.name.clone(),
+                sum: converted,
+                count: 1,
+                first: entry.at,
+            }),
         }
     }
-    rows.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.3.cmp(&b.3)));
-    rows.truncate(SHOWN);
-    rows.into_iter()
-        .map(|(sponsor, name, sum, _)| (sponsor, name, sum))
-        .collect()
+    rows.sort_by(|a, b| b.sum.total_cmp(&a.sum).then(a.first.cmp(&b.first)));
+    rows.truncate(most);
+    rows
 }
 
 #[cfg(test)]

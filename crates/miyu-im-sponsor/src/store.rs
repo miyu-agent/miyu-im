@@ -148,6 +148,45 @@ impl Book {
         self.file = file;
         Ok(entry)
     }
+
+    /// 改编号是 `id` 的那一笔（`change` 改它）、写回：交回改过的那一笔；没有这一笔的是空的。
+    ///
+    /// # Errors
+    ///
+    /// 写不进去：原话；这时不算改了。
+    pub fn update(
+        &mut self,
+        id: u64,
+        change: impl FnOnce(&mut Entry),
+    ) -> Result<Option<Entry>, String> {
+        let mut file = self.file.clone();
+        let Some(entry) = file.entries.iter_mut().find(|entry| entry.id == id) else {
+            return Ok(None);
+        };
+        change(entry);
+        entry.id = id;
+        let changed = entry.clone();
+        write(&self.path, &file)?;
+        self.file = file;
+        Ok(Some(changed))
+    }
+
+    /// 删编号是 `id` 的那一笔、写回：交回删没删（没有这一笔的是假的）。编号不再用。
+    ///
+    /// # Errors
+    ///
+    /// 写不进去：原话；这时不算删了。
+    pub fn delete(&mut self, id: u64) -> Result<bool, String> {
+        let mut file = self.file.clone();
+        let before = file.entries.len();
+        file.entries.retain(|entry| entry.id != id);
+        if file.entries.len() == before {
+            return Ok(false);
+        }
+        write(&self.path, &file)?;
+        self.file = file;
+        Ok(true)
+    }
 }
 
 /// 整份写到旁边的临时文件、再换过去。

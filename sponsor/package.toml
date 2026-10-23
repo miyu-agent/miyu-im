@@ -20,6 +20,10 @@ start = "always"
 # network：查汇率（open.er-api.com）。
 capabilities = ["tools", "packages.call", "network"]
 
+# 后台页（施工 S-1 下，设计 03 第一节第 6 条）：网页的「软件后台」、im 插件卡片的「打开面板」打开的都是它。
+[page]
+dir = "page"
+
 # im 的插件（设计 01 第四节）：给 im 带 `im/plugin.toml`，出现在 im 的插件页，场所开关照 im 的场所卡片。
 [content.im]
 dir = "im"

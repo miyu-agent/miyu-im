@@ -76,6 +76,21 @@ async fn download(url: &str) -> Option<Vec<u8>> {
     }
 }
 
+/// 一笔 `amount` `currency` 换成默认币种 `base`：交回（汇率，换成的金额，四舍五入到分）；同币种的汇率是 1，查不到的两样都空。
+pub fn frozen(
+    rates: &dyn Rates,
+    amount: f64,
+    currency: &str,
+    base: &str,
+) -> (Option<f64>, Option<f64>) {
+    let rate = if currency == base {
+        Some(1.0)
+    } else {
+        rates.rate(currency, base)
+    };
+    (rate, rate.map(|rate| crate::money::cents(amount * rate)))
+}
+
 /// 回的那一份里 1 原币种合多少 `to`（纯逻辑）：`result` 是 `success`、那一项是正数才算。
 pub fn parsed(bytes: &[u8], to: &str) -> Option<f64> {
     let body: Value = serde_json::from_slice(bytes).ok()?;

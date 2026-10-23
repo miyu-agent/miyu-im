@@ -274,11 +274,7 @@ fn add(params: &Value, asked: &Asked, venue: &Value, context: &Context<'_>) -> V
     };
     let base = context.settings.currency.clone();
     let currency = asked.currency.clone().unwrap_or_else(|| base.clone());
-    let rate = if currency == base {
-        Some(1.0)
-    } else {
-        context.rates.rate(&currency, &base)
-    };
+    let (rate, converted) = crate::rates::frozen(context.rates, amount, &currency, &base);
     let new = New {
         platform: platform.to_string(),
         user: who.user.clone(),
@@ -286,7 +282,7 @@ fn add(params: &Value, asked: &Asked, venue: &Value, context: &Context<'_>) -> V
         amount,
         currency: currency.clone(),
         base: base.clone(),
-        converted: rate.map(|rate| money::cents(amount * rate)),
+        converted,
         rate,
         at: context.now,
         note: asked.note.clone(),
@@ -400,18 +396,24 @@ fn ranking(asked: &Asked, context: &Context<'_>) -> Value {
     let base = &context.settings.currency;
     let since = asked.period.since(context.now, &context.zone);
     let book = context.book.lock().unwrap_or_else(PoisonError::into_inner);
-    let rows = money::ranking(book.entries(), base, since);
+    let within: Vec<Entry> = book
+        .entries()
+        .iter()
+        .filter(|entry| since.is_none_or(|since| entry.at >= since))
+        .cloned()
+        .collect();
+    let rows = money::ranking(&within, base, SHOWN);
     if rows.is_empty() {
         return answer(say("none", &[]), false);
     }
     let list: Vec<String> = rows
         .iter()
         .enumerate()
-        .map(|(index, (sponsor, name, sum))| {
-            let who = match sponsor {
+        .map(|(index, row)| {
+            let who = match &row.sponsor {
                 Sponsor::Id(user) => Who {
                     user: Some(user.clone()),
-                    name: name.clone(),
+                    name: row.name.clone(),
                 },
                 Sponsor::Name(name) => Who {
                     user: None,
@@ -422,7 +424,7 @@ fn ranking(asked: &Asked, context: &Context<'_>) -> Value {
                 "{}. {} {} {base}",
                 index + 1,
                 who.spoken(),
-                money::amount(*sum)
+                money::amount(row.sum)
             )
         })
         .collect();

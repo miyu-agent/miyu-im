@@ -3,7 +3,9 @@
 //!
 //! 起来先握手（核心交设置的最终值），经 `provide` 登记工具 `sponsor`（只给场所会话：群、私聊），然后一直读标准输入，读到头退出。
 //! 每次 `tool.call` 先经 `package.call` 问 im 的 `chat.venue`：是哪个平台、哪个场所、叫她的那一条引用了谁、@ 了谁（S-1 上a）。
+//! 后台页（`sponsor/page/`）经 `package.methods` 登记的方法读、改账本（施工 S-1 下，`methods.rs`）。
 
+mod methods;
 mod money;
 mod rates;
 mod settings;
@@ -88,6 +90,11 @@ fn serve() -> ExitCode {
         eprintln!("provide refused: {error}");
         return ExitCode::from(2);
     }
+    // 后台页调的方法（施工 S-1 下）。
+    if let Err(error) = wire.call("package.methods", &methods::register()) {
+        eprintln!("package.methods refused: {error}");
+        return ExitCode::from(2);
+    }
     drop(reading.join());
     ExitCode::SUCCESS
 }
@@ -151,6 +158,10 @@ fn read(state: &Arc<State>) {
 fn request(state: &State, method: &str, params: &Value) -> wire::Answer {
     match method {
         "tool.call" if params["tool"] == TOOL => Ok(called(state, params)),
+        "method.call" => {
+            let now = jiff::Timestamp::now().as_millisecond();
+            methods::call(state, params, (now, &TimeZone::system()))
+        }
         _ => Err(wire::unknown_method()),
     }
 }

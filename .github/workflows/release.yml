@@ -1,7 +1,7 @@
 # 发包（施工 S-6 中，设计 32 第九节第 4 条）：推 `v*` 标签时三个平台各编 release 的 `miyu-im`，拼成 `im/` 文件夹
 # （`package.toml`、`page/`、`data/`、`bin/miyu-im`，Windows 带 `.exe`），打成 `miyu-im-<版本>-<平台>.tar.gz`
 # （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./im`。施工 S-1 上b 起同一趟另编赞助记录
-# `miyu-im-sponsor`，拼成 `sponsor/` 文件夹（`package.toml`、`im/plugin.toml`、`bin/miyu-im-sponsor`；给模型看的字编进了程序），
+# `miyu-im-sponsor`，拼成 `sponsor/` 文件夹（`package.toml`、`im/plugin.toml`、后台页 `page/`、`bin/miyu-im-sponsor`；给模型看的字编进了程序），
 # 打成 `miyu-im-sponsor-<版本>-<平台>`，装法同上（`miyu pkg install ./sponsor`）。
 #
 # 手动跑（workflow_dispatch，在 `step/**` 上试打）只编、打包、传成这一次跑的产物，不建 Release；版本写 `dev-<提交前 8 位>`。
@@ -73,8 +73,9 @@ jobs:
           mkdir -p dist/sponsor/bin dist/sponsor/im
           cp sponsor/package.toml dist/sponsor/
           cp sponsor/im/plugin.toml dist/sponsor/im/
+          cp -R sponsor/page dist/sponsor/page
           cp "target/release/miyu-im-sponsor$exe" "dist/sponsor/bin/miyu-im-sponsor$exe"
-          for need in package.toml im/plugin.toml "bin/miyu-im-sponsor$exe"; do
+          for need in package.toml im/plugin.toml page/index.html "bin/miyu-im-sponsor$exe"; do
             [ -f "dist/sponsor/$need" ] || { echo "包里少了 sponsor/$need"; exit 1; }
           done
       - name: 打包
