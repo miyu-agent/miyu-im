@@ -1,5 +1,5 @@
 //! 聊天记录（设计 04，施工 C-1 上）：真核心照开关拉起真桥、假 NapCat。群里别人说的（没叫她也记）、她回的、撤回（标上、不删）、她
-//! 被禁言（一件事），都记进 im 自己的库（`state/packages/im/records.db`），带的东西只记占位和编号。
+//! 被禁言、群里别人被禁言和踢（施工 C-1 上补，一件件事），都记进 im 自己的库（`state/packages/im/records.db`），带的东西只记占位和编号。
 
 use std::time::Duration;
 
@@ -89,6 +89,15 @@ async fn messages_her_words_recalls_and_mutes_are_recorded() {
         &home,
         &format!("SELECT count(*) FROM happenings WHERE venue = '{venue}' AND kind = 'muted' AND seconds = 600 AND target = 'qq:{BOT}'"),
         1,
+    )
+    .await;
+    // 群里别的管理员禁言了小林、又把他踢了（施工 C-1 上补）：两件事，谁做的、对谁都记。
+    napcat.send(group_ban(GROUP, LIN, "ban", Some(60)));
+    napcat.send(json!({"time": TIME, "self_id": BOT, "post_type": "notice", "notice_type": "group_decrease", "sub_type": "kick", "group_id": GROUP, "user_id": LIN, "operator_id": 40004}));
+    until(
+        &home,
+        &format!("SELECT count(*) FROM happenings WHERE venue = '{venue}' AND target = 'qq:{LIN}' AND ((kind = 'muted' AND seconds = 60) OR (kind = 'kicked' AND actor = 'qq:40004'))"),
+        2,
     )
     .await;
     stopped(home).await;

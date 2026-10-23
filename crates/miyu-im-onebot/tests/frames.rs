@@ -171,7 +171,7 @@ fn ban(user: Value, sub_type: &str, duration: Value) -> Value {
 }
 
 #[test]
-fn only_her_own_ban_is_read() {
+fn her_own_ban_is_a_mute_and_others_are_group_changes() {
     let muted = |seconds| Event::Muted {
         bot: 30003,
         group: 555,
@@ -213,8 +213,19 @@ fn only_her_own_ban_is_read() {
             }
         );
     }
+    // 禁别人的（施工 C-1 上补）：群里的一件事，只记进聊天记录。
+    assert_eq!(
+        event(ban(json!(20002), "ban", json!(600))),
+        Event::Happened(miyu_im::chat::Happened {
+            bot: 30003,
+            group: 555,
+            change: miyu_im::chat::GroupChange::Muted,
+            user: 20002,
+            operator: Some(40004),
+            seconds: Some(600),
+        })
+    );
     for (name, frame) in [
-        ("别人", ban(json!(20002), "ban", json!(600))),
         ("全员", ban(json!(0), "ban", json!(600))),
         ("没带秒数", ban(json!(30003), "ban", Value::Null)),
         ("负的", ban(json!(30003), "ban", json!(-1))),

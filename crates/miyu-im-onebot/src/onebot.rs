@@ -13,6 +13,7 @@
 
 mod calls;
 mod forwards;
+mod happenings;
 pub mod media;
 mod members;
 pub(crate) mod reactions;
@@ -57,7 +58,9 @@ pub fn read(frame: Value) -> Frame {
     }
     let event = match kind.as_str() {
         "message" => posted(&frame),
-        "notice" => recall(&frame).or_else(|| ban(&frame)),
+        "notice" => recall(&frame)
+            .or_else(|| ban(&frame))
+            .or_else(|| happenings::happened(&frame)),
         "request" => request(&frame),
         _ => None,
     };

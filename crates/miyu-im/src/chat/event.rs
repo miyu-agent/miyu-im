@@ -121,6 +121,9 @@ pub enum Event {
         /// 答到哪。
         reply: Replier,
     },
+    /// 群里的一件事（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。只记进聊天记录；她自己被禁言、解禁照
+    /// [`Event::Muted`]、[`Event::Unmuted`]。
+    Happened(Happened),
     /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
     Invited {
         /// 收到邀请的机器人的号。
@@ -130,6 +133,51 @@ pub enum Event {
         /// 邀请的人。
         user: i64,
     },
+}
+
+/// 群里的一件事（[`Event::Happened`]）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Happened {
+    /// 收到通知的机器人的号。
+    pub bot: i64,
+    /// 群号。
+    pub group: i64,
+    /// 哪一种。
+    pub change: GroupChange,
+    /// 对谁：被禁言、被踢、退群、进群的那个人。
+    pub user: i64,
+    /// 谁做的（禁言、解禁、踢人的管理员，进群时同意、邀请的人）；没带的、0 是空的。
+    pub operator: Option<i64>,
+    /// 禁言几秒（[`GroupChange::Muted`]）。
+    pub seconds: Option<u64>,
+}
+
+/// 群里的一件事是哪一种。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupChange {
+    /// 被禁言。
+    Muted,
+    /// 被解禁。
+    Unmuted,
+    /// 被踢出群。
+    Kicked,
+    /// 自己退群。
+    Left,
+    /// 进群。
+    Joined,
+}
+
+impl GroupChange {
+    /// 记进聊天记录的写法。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GroupChange::Muted => "muted",
+            GroupChange::Unmuted => "unmuted",
+            GroupChange::Kicked => "kicked",
+            GroupChange::Left => "left",
+            GroupChange::Joined => "joined",
+        }
+    }
 }
 
 /// 发给谁：私聊的对方、群（第 10 条，「群消息」第 7 条）。

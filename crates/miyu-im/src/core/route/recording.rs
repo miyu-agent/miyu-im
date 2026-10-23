@@ -6,8 +6,9 @@ use miyu_client::ids::ExternalId;
 use serde_json::{Map, Value, json};
 
 use super::Route;
-use crate::chat::{Media, Posted};
+use crate::chat::{Happened, Media, Posted};
 use crate::records::{self, Happening, Said, Write};
+use miyu_chat::VenueKind;
 
 impl Route {
     /// 场所 `venue` 里 `sender` 说的 `posted`，正文 `text`（@ 已经写成名字、合并转发写了占位）。
@@ -86,6 +87,20 @@ impl Route {
             msg: msg.map(|msg| msg.to_string()),
         };
         self.records.write(Write::Happened(happening));
+    }
+}
+
+impl Route {
+    /// 群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
+    pub(super) fn group_happened(&self, happened: Happened) {
+        let Ok(venue) = self.platform.venue(VenueKind::Group, happened.group) else {
+            return;
+        };
+        self.record_happening(
+            (venue.id().as_str(), happened.change.as_str()),
+            (Some(happened.user), happened.operator),
+            (happened.seconds, None),
+        );
     }
 }
 

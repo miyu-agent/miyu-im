@@ -17,7 +17,7 @@ mod source;
 pub use bots::Bots;
 pub use calls::{CallError, DETAIL};
 pub use cap::{CAPS, Cap};
-pub use event::{Event, Lead, Posted, Recall, Replier, To};
+pub use event::{Event, GroupChange, Happened, Lead, Posted, Recall, Replier, To};
 pub use forwards::Node;
 pub use link::{
     Fetched, Friend, Group, GroupFile, GroupFiles, Implementation, Link, Located, Member, Msg,

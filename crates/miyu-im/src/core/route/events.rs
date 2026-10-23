@@ -36,6 +36,10 @@ impl Route {
                 self.ask_model(to, request, reply);
                 Ok(())
             }
+            Event::Happened(happened) => {
+                self.group_happened(happened);
+                Ok(())
+            }
             Event::Invited { bot, group, user } => {
                 request::invited(bot, group, user);
                 Ok(())
