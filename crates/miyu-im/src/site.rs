@@ -24,6 +24,7 @@ mod password;
 mod plugin_settings;
 mod plugin_widgets;
 mod plugins;
+mod records_page;
 mod request;
 mod save;
 mod settings;

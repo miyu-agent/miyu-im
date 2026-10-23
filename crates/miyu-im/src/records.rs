@@ -7,7 +7,8 @@
 //! - 带的东西只记占位和平台编号（种类、编号、名字、大小），不存内容：要看的时候拿编号去取，取不到的说可能已经失效。
 //! - 写：一个专门的线程排着写（[`Records::write`] 只是交过去，跟核心的那一头不等它）；同一个场所、同一个平台编号的消息只记一次
 //!   （断线重发、补拉）。写不进的记一行运行日志，照跑。
-//! - 读：随消息记录页（施工 C-1 中），另开只读的连接（WAL，读写不互相挡）。
+//! - 判断（施工 C-1 中）：一条消息的回没回、为什么另记一张表 `judgments`，消息记录页照它画；她查聊天记录的工具不读它。
+//! - 读、删（施工 C-1 中，`read.rs`、`delete.rs`）：页面服务另开连接（WAL，读写不互相挡；删的时候等写的线程让出锁）。
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -16,6 +17,9 @@ use rusqlite::{Connection, params};
 use serde_json::Value;
 
 use crate::TARGET;
+
+pub(crate) mod delete;
+pub(crate) mod read;
 
 /// 库文件的名字（im 状态目录里）。
 pub(crate) const FILE: &str = "records.db";
@@ -63,6 +67,14 @@ CREATE TABLE IF NOT EXISTS happenings (
     msg TEXT
 );
 CREATE INDEX IF NOT EXISTS happenings_venue_at ON happenings (venue, at);
+CREATE TABLE IF NOT EXISTS judgments (
+    venue TEXT NOT NULL,
+    msg TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    outcome TEXT NOT NULL,
+    why TEXT NOT NULL,
+    PRIMARY KEY (venue, msg)
+);
 ";
 
 /// 一条消息（人说的、她说的）。
@@ -116,6 +128,18 @@ pub(crate) enum Write {
     Said(Box<Said>),
     /// 一件事；撤回的另把那一条标成撤回了（什么时候、谁撤的）。
     Happened(Happening),
+    /// 一条消息的判断（施工 C-1 中，`judgments` 表）：同一条判过几次的照后一次。消息记录页照它在那一条底下写回没回、为什么；她查
+    /// 聊天记录的工具不读这张表（项目主人 10-23：判断日志不让她查到）。
+    Judged {
+        /// 场所编号。
+        venue: String,
+        /// 那一条的平台编号。
+        msg: String,
+        /// 结论：`reply`、`record`、`deferred`。
+        outcome: String,
+        /// 为什么（`noted` 说的，同会话浮窗的最近判断）。
+        why: Value,
+    },
 }
 
 /// 聊天记录：交写的（读的随消息记录页，施工 C-1 中）。
@@ -225,8 +249,30 @@ pub(crate) fn written(connection: &Connection, write: &Write) -> rusqlite::Resul
                 )?;
             }
         }
+        Write::Judged {
+            venue,
+            msg,
+            outcome,
+            why,
+        } => {
+            connection.execute(
+                "INSERT OR REPLACE INTO judgments (venue, msg, at, outcome, why) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![venue, msg, now(), outcome, why.to_string()],
+            )?;
+        }
     }
     Ok(())
+}
+
+/// 页面服务读、删用的连接（施工 C-1 中）：打开 `path` 的库（没有的建上表），写的线程占着锁时最多等几秒。
+///
+/// # Errors
+///
+/// 打不开。
+pub(crate) fn connection(path: &Path) -> rusqlite::Result<Connection> {
+    let connection = prepared(path)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    Ok(connection)
 }
 
 /// 撤回那一种事件的 `kind`。

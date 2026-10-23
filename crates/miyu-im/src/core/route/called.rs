@@ -174,6 +174,13 @@ impl Route {
             judge = why["reason_text"].as_str().unwrap_or_default(),
             "chat decided"
         );
+        // 聊天记录里这一条的判断（施工 C-1 中）：消息记录页照它写回没回、为什么。
+        self.records.write(crate::records::Write::Judged {
+            venue: tag.venue.clone(),
+            msg: tag.number.to_string(),
+            outcome: outcome.to_string(),
+            why: why.clone(),
+        });
         // 会话浮窗的最近判断（施工 I-7 上补）。
         let note = Note {
             at: crate::recent::now(),

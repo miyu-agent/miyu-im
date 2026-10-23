@@ -93,6 +93,7 @@ mod site_overview;
 mod site_panels;
 mod site_plugin_settings;
 mod site_plugins;
+mod site_records;
 mod site_settings;
 mod site_today;
 mod site_venues;
