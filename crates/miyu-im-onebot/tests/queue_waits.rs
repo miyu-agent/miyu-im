@@ -9,7 +9,6 @@ use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 use miyu_im::serve::Notice;
-use miyu_session::testkit::{Play, Script};
 
 use crate::support::group::*;
 use crate::support::spawning::{bridge_up, cli, forget_status, text};
@@ -78,28 +77,26 @@ async fn next_words(napcat: &mut Answering) -> Value {
 
 #[tokio::test]
 async fn waiting_past_the_deadline_expires_muted_or_away() {
-    let script = Script::new([
-        Play::Says("看到了"),
-        Play::Says("嗯"),
-        Play::Says("好"),
-        Play::Says("在"),
+    // 施工 I-33：她的话要在禁言、断开以后才出来，照真路径先开一轮压着，禁言、断开了再放行（不再以人的身份代判官开轮）。
+    let (first, first_held) = oneshot::channel();
+    let (third, third_held) = oneshot::channel();
+    let lines = Lines::new([
+        Line::says("看到了").released_by(first_held),
+        Line::says("嗯"),
+        Line::says("好").released_by(third_held),
+        Line::says("在"),
     ]);
     let tuned = json!({"queue_expire_seconds": 1});
-    let models = Arc::new(script);
-    let (home, mut napcat, listen) =
-        started_tuned(models, RULES, &tuned, |napcat| napcat.answering(MEMBERS)).await;
+    let (home, mut napcat, listen) = started_tuned(Arc::new(lines), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
     // 禁言着排过了期限：记 `expired`，解禁以后不发。
+    admin_calls(&napcat, 1);
+    until_count(&home, "turn.started", 1).await;
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
     until_count(&home, "ext.im.venues.muted", 1).await;
-    admin_calls(&napcat, 1);
-    let events = until_count(&home, "message.user", 1).await;
-    respond(
-        &home,
-        &venue(),
-        "expire-1",
-        &[said(&events)[0]["seq"].clone()],
-    )
-    .await;
+    first.send(()).expect("她在等");
     let events = until_count(&home, FAILED, 1).await;
     let queued = &of_kind(&events, QUEUED)[0];
     assert_eq!(queued["body"]["text"], "看到了");
@@ -111,18 +108,11 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
     admin_calls(&napcat, 2);
     assert_eq!(next_words(&mut napcat).await, "嗯", "过了期的那一句不发");
     // 没连着排过了期限：同样记 `expired`，连上以后不发。
-    napcat.send(group_frame(
-        GROUP,
-        LIN,
-        3,
-        json!([plain("随便聊聊")]),
-        ("小林", "lin"),
-    ));
-    let events = until_count(&home, "message.user", 3).await;
-    let lin = said(&events)[2]["seq"].clone();
+    admin_calls(&napcat, 3);
+    until_count(&home, "turn.started", 3).await;
     drop(napcat);
     until_log(&home, "napcat disconnected", 1).await;
-    respond(&home, &venue(), "expire-2", &[lin]).await;
+    third.send(()).expect("她在等");
     until_count(&home, FAILED, 2).await;
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
     admin_calls(&napcat, 4);

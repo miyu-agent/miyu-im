@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use miyu_kernel::request::Request;
 
@@ -11,8 +11,8 @@ use super::group::*;
 use super::speaking::{Line, Lines};
 use super::*;
 
-/// 不抽样、不让别人叫她（`allow = false`）的群：别人的话只记下，终端管理员 @ 她开一轮。别人叫她做的那一条由测试照判官点了头
-/// 的样子开（[`asks`]）：这里没配判官，判不了，冲她来的（引用她的）桥会自己开一轮（O-37），和测试开的撞上。
+/// 不抽样、谁 @ 她都直接回（`judge_called = false`）、不限流、不贴表情的群：别人没 @ 她的话只记下。别人叫她做的那一条在前面加一个 @ 她（[`asks`]、
+/// [`called`]）：施工 I-33 以前测试以本机的人对场所会话调 `session.respond` 代判官开轮，核心 Y-2 起人碰不到场所会话，改走桥真走的路。
 pub const GROUP: i64 = 31;
 
 /// 普通成员。
@@ -39,7 +39,7 @@ pub const ALT: i64 = 10007;
 /// 系统的场所规则：群都不抽样、不让别人叫她（[`GROUP`]），[`MANAGER`] 是管理的人。
 pub fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\nallow = false\nmanagers = [\"qq:{MANAGER}\"]\n"
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0, judge_called = false }}\nreaction = \"off\"\nrate = \"0\"\nmanagers = [\"qq:{MANAGER}\"]\n"
     )
 }
 
@@ -133,7 +133,7 @@ pub async fn says(
         .expect("有序号")
 }
 
-/// 普通成员 `user` 说第 `message` 条，照判官点了头的样子拿它开第 `turn` 轮，等这一轮完：交回这一轮的工具结果（字，状态）。
+/// 普通成员 `user` 说第 `message` 条（前面加一个 @ 她），开第 `turn` 轮，等这一轮完：交回这一轮的工具结果（字，状态）。
 pub async fn asks(
     home: &Home,
     napcat: &Answering,
@@ -142,9 +142,16 @@ pub async fn asks(
     words: Value,
     turn: usize,
 ) -> (String, String) {
-    let seq = says(home, napcat, (user, "member"), message, words).await;
-    respond(home, &venue(), &format!("open-{message}"), &[json!(seq)]).await;
+    says(home, napcat, (user, "member"), message, called(words)).await;
     ended(home, turn).await
+}
+
+/// 段 `words` 前面加一个 @ 她（引用段照旧在最前，同 QQ 发的样子）。
+pub fn called(words: Value) -> Value {
+    let mut words = words.as_array().cloned().unwrap_or_default();
+    let place = usize::from(words.first().is_some_and(|first| first["type"] == "reply"));
+    words.insert(place, at(BOT));
+    Value::Array(words)
 }
 
 /// 等这个群的第 `turn` 轮完：交回最后一个工具结果（字，状态）。

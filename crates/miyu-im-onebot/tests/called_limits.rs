@@ -1,5 +1,5 @@
 //! 群里的限流和桥重启（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2、5、7 条）：真核心照开关拉起真桥，假 NapCat 发群
-//! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），终端管理员照样回；白名单成员
+//! 消息。限流满了（规则 `rate = "1/1h"`，别人 @ 她开的那一轮算进去；群里 `judge_called = false`，施工 I-33 起不再以人的身份代判官开轮），终端管理员照样回；白名单成员
 //! （握手交来的 `im.whitelist`）不受限流，冲她来的不过判官、照样回（施工 O-27，「群里怎么叫她」第 14 条）；别人冲她来回一句
 //! 提示、记 `ext.im.venues.queued`，再来只记下。桥重启以后照日志
 //! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了白名单成员，推来就照新的认。
@@ -26,7 +26,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 /// 系统的场所规则：[`GROUP`] 一小时一轮、不抽样。
 fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\nchatty = {{ probability = 0 }}\n"
+        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\nchatty = {{ probability = 0, judge_called = false }}\n"
     )
 }
 
@@ -68,27 +68,14 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     let whitelist = format!("whitelist = [\"qq:{JIE}\"]\n");
     let (home, mut napcat, listen) = started(&script, &rules(), &whitelist, MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
-    // 1：小林说一句，只记下；测试照判官点了头的样子开一轮（别人开的，算进限流）：一小时一轮满了。
+    // 1：小林 @ 她开一轮（别人开的，算进限流）：一小时一轮满了。
     napcat.send(group_frame(
         GROUP,
         LIN,
         1,
-        json!([plain("大家好")]),
+        json!([at(BOT), plain(" 大家好")]),
         ("小林", "lin"),
     ));
-    let events = until_decided(&home, 1).await;
-    let (session, _) = venue_session(&home.root, &venue).expect("有会话");
-    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
-        .await
-        .expect("连得上核心");
-    let seq = said(&events)[0]["seq"].clone();
-    core.call(
-        "judged-1",
-        "session.respond",
-        json!({"session": session, "to": [seq]}),
-    )
-    .await
-    .expect("开得了一轮");
     assert_eq!(napcat.group_reply(GROUP).await, "一", "她的话发回群里");
     until_events(&home.root, &venue, |events| {
         of_kind(events, "turn.ended").len() == 1
@@ -219,6 +206,9 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     let changes = json!({"layer": "system", "changes": [
         {"key": "im.whitelist", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
     ]});
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
     core.call("whitelist-1", "config.set", changes)
         .await
         .expect("改得了");

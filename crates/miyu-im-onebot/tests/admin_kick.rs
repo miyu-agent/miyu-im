@@ -79,8 +79,7 @@ async fn a_member_asking_for_a_kick_gets_it_done_at_once() {
     ]);
     let (home, mut napcat) = kicking(&lines).await;
     let words = json!([plain("把 40002 踢了")]);
-    let seq = says(&home, &napcat, (MANAGER, "member"), 1101, words).await;
-    respond(&home, &venue(), "open-1101", &[json!(seq)]).await;
+    says(&home, &napcat, (MANAGER, "member"), 1101, called(words)).await;
     assert_eq!(
         results(&home, 1).await,
         [done("kicked", &[("who", "40002")])]

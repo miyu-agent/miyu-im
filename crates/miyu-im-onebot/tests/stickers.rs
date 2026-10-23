@@ -3,15 +3,18 @@
 //! 发：先甩图再说字；图是带 `sub_type=1`、`subType=1` 的图片段，内容是那张图；群里发出去了记 `venue.delivered`（`images`）。
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
+use tokio::sync::oneshot;
 
 use miyu_session::testkit::{Play, Script};
 
 use crate::support::group::*;
 use crate::support::hooked::install_with;
+use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
 /// 群号。
@@ -129,30 +132,34 @@ async fn a_sticker_that_never_got_out_is_noted_for_her() {
     let install =
         move |root: &miyu_store::root::DataRoot| install_with(root, "stickers", &args, &["tools"]);
     let tuned = json!({"queue_expire_seconds": 1, "mute_window_seconds": 0});
-    let (home, napcat, _) = started_installed_tuned(&script(), &tuned, MEMBERS, install).await;
+    // 施工 I-33：她的话要在禁言以后才出来，照真路径先开一轮压着，禁言了再放行（不再以人的身份代判官开轮）。
+    let (release, held) = oneshot::channel();
+    let lines = Lines::new([
+        Line::uses("", "sticker", "{}").released_by(held),
+        Line::says("看这个"),
+    ]);
+    let (home, napcat, _) =
+        started_installed_tuned_by(Arc::new(lines), &tuned, MEMBERS, install).await;
     until_provided(&home).await;
     let venue = format!("qq:group:{GROUP}");
+    // 终端管理员 @ 她开一轮，她调 `sticker`、再说一句：禁言了才放行，都排着，过期作废。
+    napcat.send(group_frame(
+        GROUP,
+        ADMIN,
+        1,
+        json!([at(BOT), plain(" 在吗")]),
+        ("老板", "boss"),
+    ));
+    until_events(&home.root, &venue, |events| {
+        !of_kind(events, "turn.started").is_empty()
+    })
+    .await;
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
     until_events(&home.root, &venue, |events| {
         !of_kind(events, "ext.im.venues.muted").is_empty()
     })
     .await;
-    // 禁言时有人说一句，照判官点了头的样子开一轮：她调 `sticker`、再说一句，都排着，过期作废。
-    napcat.send(group_frame(
-        GROUP,
-        ADMIN,
-        1,
-        json!([plain("在吗")]),
-        ("老板", "boss"),
-    ));
-    let events = until_events(&home.root, &venue, |events| !said(events).is_empty()).await;
-    respond(
-        &home,
-        &venue,
-        "sticker-1",
-        &[said(&events)[0]["seq"].clone()],
-    )
-    .await;
+    release.send(()).expect("她在等");
     let events = until_events(&home.root, &venue, |events| {
         of_kind(events, "context.injected")
             .iter()

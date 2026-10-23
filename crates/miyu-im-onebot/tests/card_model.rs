@@ -15,7 +15,7 @@ use crate::support::*;
 /// 群号。
 const GROUP: i64 = 3921;
 
-/// 卡片不设模型的群：人在别处给它的会话换的模型照旧。
+/// 卡片不设模型的群：存了几次卡也不钉（施工 I-33 起核心 Y-2 不让人碰场所会话，原来「人在终端里换的模型照旧」那一手做不了了）。
 const MANUAL: i64 = 3922;
 
 /// 群里的人。
@@ -68,7 +68,7 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
         events.iter().any(|event| event["kind"] == "message.user")
     })
     .await;
-    // 另一个群：卡片没设，人在终端里给它的会话换了模型。
+    // 另一个群：卡片没设。
     napcat.send(group_frame(
         MANUAL,
         LIN,
@@ -78,14 +78,6 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
     ));
     let manual = format!("qq:group:{MANUAL}");
     until_events(&home.root, &manual, |events| !events.is_empty()).await;
-    let (session, _) = venue_session(&home.root, &manual).expect("有会话");
-    let set = head
-        .call(
-            "session.configure",
-            json!({"session": session, "model": "judge/manual"}),
-        )
-        .await;
-    assert!(set.get("result").is_some(), "{set}");
     let kinds: Vec<&str> = events
         .iter()
         .filter_map(|event| event["kind"].as_str())
@@ -114,9 +106,9 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let events = until_events(&home.root, &venue, |events| pinned(events).len() >= 4).await;
     assert_eq!(pinned(&events)[3], json!("judge/page"));
-    // 卡片没设的群，存了几次卡也不碰：照旧是人换的那一个。
+    // 卡片没设的群，存了几次卡也不碰。
     let (_, events) = venue_session(&home.root, &manual).expect("有会话");
-    assert_eq!(pinned(&events), [json!("judge/manual")]);
+    assert!(pinned(&events).is_empty(), "{events:?}");
     stopped(home).await;
 }
 

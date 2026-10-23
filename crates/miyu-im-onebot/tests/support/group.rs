@@ -1,6 +1,6 @@
 //! 群的测试共用的（施工 O-22，`onebot.md` 第一条「群消息」「撤回」；O-23 从 `group.rs` 测试挪过来）：照 NapCat 的样子拼群消息、
 //! 撤回、禁言（施工 O-25 中）的事件；真核心照开关拉起真桥、系统的场所规则写好、假 NapCat 连上交给任务应答（[`started`]，应答
-//! 在 `answering.rs`）；读一个群的会话的事件（[`venue_events`]、[`until_event`]）；照判官点了头的样子开一轮（[`respond`]）。
+//! 在 `answering.rs`）；读一个群的会话的事件（[`venue_events`]、[`until_event`]）。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -302,8 +302,18 @@ pub async fn started_installed_tuned(
     members: &[Member],
     install: impl Fn(&DataRoot) + Clone,
 ) -> (Home, Answering, u16) {
+    started_installed_tuned_by(Arc::new(script.clone()), tuned, members, install).await
+}
+
+/// 同 [`started_installed_tuned`]，她照 `models` 说（施工 I-33：要压着某一句的照台词 `Lines` 说）。
+pub async fn started_installed_tuned_by(
+    models: Arc<dyn Models>,
+    tuned: &Value,
+    members: &[Member],
+    install: impl Fn(&DataRoot) + Clone,
+) -> (Home, Answering, u16) {
     up_installed(
-        Arc::new(script.clone()),
+        models,
         ("", tuned),
         ("", ""),
         "",
@@ -420,19 +430,4 @@ pub async fn stopped(home: Home) {
     let stopped = within("桥停下", cli(&home.root, &["stop"])).await;
     assert_eq!(stopped.status.code(), Some(0), "{}", text(&stopped.stderr));
     within("核心停下扩展", home.stop_extensions()).await;
-}
-
-/// 照判官点了头的样子开一轮（施工 O-23 的 `called_limits.rs` 那样，O-25 中挪来共用）：场所 `venue` 的会话里经
-/// `session.respond` 拿序号是 `to` 的那几条开，命令编号是 `id`。核心拒了的照实报出来。
-pub async fn respond(home: &Home, venue: &str, id: &str, to: &[Value]) {
-    let (session, _) = venue_session(&home.root, venue).expect("有会话");
-    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
-        .await
-        .expect("连得上核心");
-    let params = json!({"session": session, "to": to});
-    let reply = core
-        .call(id, "session.respond", params)
-        .await
-        .expect("开得了一轮");
-    assert!(reply.get("error").is_none(), "{reply}");
 }

@@ -32,15 +32,14 @@ async fn the_ranking_counts_who_talked_most() {
         json!([plain("嗯")]),
     )
     .await;
-    let seq = says(
+    says(
         &home,
         &napcat,
         (MEMBER, "member"),
         2004,
-        json!([plain("谁最能说")]),
+        called(json!([plain("谁最能说")])),
     )
     .await;
-    respond(&home, &venue(), "open-2004", &[json!(seq)]).await;
     let events = until_events(&home.root, &venue(), |events| {
         !of_kind(events, "turn.ended").is_empty()
     })

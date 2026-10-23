@@ -133,8 +133,14 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
     let lines = Lines::new([Line::says("好。"), Line::says("好。")]);
     let (home, napcat) = up(&lines).await;
     let words = json!([plain("在吗")]);
-    let seq = says(&home, &napcat, (MEMBER, "member"), 701, words.clone()).await;
-    respond(&home, &venue(), "open-701", &[json!(seq)]).await;
+    says(
+        &home,
+        &napcat,
+        (MEMBER, "member"),
+        701,
+        called(words.clone()),
+    )
+    .await;
     until_events(&home.root, &venue(), |events| {
         !of_kind(events, "turn.ended").is_empty()
     })
@@ -159,8 +165,7 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
         }
     })
     .await;
-    let seq = says(&home, &napcat, (MEMBER, "member"), 702, words).await;
-    respond(&home, &venue(), "open-702", &[json!(seq)]).await;
+    says(&home, &napcat, (MEMBER, "member"), 702, called(words)).await;
     until_events(&home.root, &venue(), |events| {
         of_kind(events, "turn.ended").len() >= 2
     })
@@ -211,20 +216,21 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
         .flatten(),
     );
     let (home, mut napcat) = up(&lines).await;
-    let words = json!([at(MEMBER), plain(" 管一下")]);
+    // 每次说的不一样：几个人接连说同一句会被当成复读只记下（施工 I-28）。
+    let words = |said: &str| json!([at(MEMBER), plain(&format!(" {said}"))]);
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 801, words.clone(), 1).await,
+        asks(&home, &napcat, MANAGER, 801, words("管一下"), 1).await,
         done("muted", &[("who", "小明"), ("duration", "10m")])
     );
     next_platform(&mut napcat).await;
     assert_eq!(
-        asks(&home, &napcat, MANAGER, 802, words.clone(), 2).await,
+        asks(&home, &napcat, MANAGER, 802, words("放了吧"), 2).await,
         done("unmuted", &[("who", "小明")])
     );
     next_platform(&mut napcat).await;
     // 踢 @ 的那个人，拉黑；再踢她给的号（没在群里说过话：名字没缓存，结果写号、记录不带名字）。群主叫的：不用确认（施工 I-17）。
     assert_eq!(
-        asks(&home, &napcat, OWNER, 803, words.clone(), 3).await,
+        asks(&home, &napcat, OWNER, 803, words("踢了"), 3).await,
         done("kicked-blocked", &[("who", "小明")])
     );
     let kicked = next_platform(&mut napcat).await;
@@ -234,7 +240,7 @@ async fn kick_and_mute_are_done_and_recorded_with_her_reason() {
         json!({"group_id": GROUP, "user_id": MEMBER, "reject_add_request": true})
     );
     assert_eq!(
-        asks(&home, &napcat, OWNER, 804, words, 4).await,
+        asks(&home, &napcat, OWNER, 804, words("那个也踢"), 4).await,
         done("kicked", &[("who", "40002")])
     );
     let kicked = next_platform(&mut napcat).await;

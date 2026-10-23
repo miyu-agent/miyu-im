@@ -1,5 +1,5 @@
 //! 平台工具（一）：撤回、禁言、戳一戳（施工 O-31，`onebot.md` 第一条「平台工具（一）」；18 第十一节）：真核心拉起真桥、假 NapCat、
-//! 她照台词说（`support/speaking.rs`）。叫她做的那一条开一轮（终端管理员 @ 她的自己开，别的照判官点了头的样子开），她调工具，
+//! 她照台词说（`support/speaking.rs`）。叫她做的那一条 @ 她开一轮（夹具的群谁 @ 她都直接回，施工 I-33），她调工具，
 //! 看 NapCat 收到的动作和参数、她收到的结果。施工 O-48 起不挡人：昵称冒充终端管理员的、普通成员叫她撤别人的、禁群主和终端管理员
 //! 的都照做。往坏里测：目标是她自己、没引用也没 @、@ 了两个人、引用的是她自己的消息叫她禁言、她给的编号是别的群的、号写错。
 
@@ -37,8 +37,7 @@ async fn recall_takes_the_quoted_message_or_the_msg_she_gives_for_anyone() {
     .await;
     // 终端管理员回复小明那一条叫她撤：撤的是引用的那一条，编号照原样。
     let words = json!([quote(101), plain("撤了吧")]);
-    let seq = says(&home, &napcat, (ADMIN, "member"), 102, words).await;
-    respond(&home, &venue(), "open-102", &[json!(seq)]).await;
+    says(&home, &napcat, (ADMIN, "member"), 102, called(words)).await;
     assert_eq!(napcat.recalled().await, json!({"message_id": "101"}));
     assert_eq!(ended(&home, 1).await, done("recalled", &[]));
     assert_eq!(
@@ -137,8 +136,7 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
     .await;
     // 终端管理员回复小明、又 @ 了他（QQ 回复时常带上 @）：同一个人，禁 600 秒，结果写成 10 分钟。
     let words = json!([quote(201), at(MEMBER), plain(" 禁他十分钟")]);
-    let seq = says(&home, &napcat, (ADMIN, "member"), 202, words).await;
-    respond(&home, &venue(), "open-202", &[json!(seq)]).await;
+    says(&home, &napcat, (ADMIN, "member"), 202, called(words)).await;
     let action = next_platform(&mut napcat).await;
     assert_eq!(action["action"], "set_group_ban", "{action}");
     assert_eq!(
@@ -151,8 +149,7 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
     );
     // 0 秒是解禁。
     let words = json!([at(MEMBER), plain(" 解了吧")]);
-    let seq = says(&home, &napcat, (ADMIN, "member"), 203, words).await;
-    respond(&home, &venue(), "open-203", &[json!(seq)]).await;
+    says(&home, &napcat, (ADMIN, "member"), 203, called(words)).await;
     let action = next_platform(&mut napcat).await;
     assert_eq!(
         action["params"],

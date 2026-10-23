@@ -31,7 +31,7 @@ const LIN: i64 = 20002;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样，[`GROUP`] 一小时一轮。
+/// 系统的场所规则：群都不抽样、谁 @ 她都直接回（施工 I-33：不再以人的身份代判官开轮），[`GROUP`] 一小时一轮。
 fn rules() -> String {
     rules_with("outbound = { humanlike = false }\n")
 }
@@ -39,7 +39,7 @@ fn rules() -> String {
 /// 同 [`rules`]，群的那一条另加 `more`：她的一句话拆不拆（I-26）由各个测试定，退信这几个默认不拆，好照整句的开头比。
 fn rules_with(more: &str) -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n{more}\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0, judge_called = false }}\n{more}\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\n"
     )
 }
@@ -129,22 +129,14 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         napcat.refusing(MEMBERS)
     })
     .await;
-    // 小林说一句，只记下；测试照判官点了头的样子开一轮（别人开的，一小时一轮满了）。
+    // 小林 @ 她开一轮（别人开的，一小时一轮满了）。
     napcat.send(group_frame(
         GROUP,
         LIN,
         1,
-        json!([plain("大家好")]),
+        json!([at(BOT), plain(" 大家好")]),
         ("小林", "lin"),
     ));
-    let events = until_count(&home, GROUP, "message.user", 1).await;
-    respond(
-        &home,
-        &venue(GROUP),
-        "refused-1",
-        &[said(&events)[0]["seq"].clone()],
-    )
-    .await;
     // 「在。」被拒了：这一轮还在跑（第二句压着），退信带这一轮的回合编号。
     let events = until_notes(&home, GROUP, 1).await;
     let turn = of_kind(&events, "turn.started")[0]["seq"].clone();
@@ -237,16 +229,16 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
 #[tokio::test]
 async fn expired_words_come_back_at_the_next_turn_once() {
     let long = "大家说得都有道理。那就这么定了：周六上午十点在东门集合，别迟到。";
-    let script = Script::new([Play::Says(long), Play::Says("嗯")]);
+    // 施工 I-33：禁言以前开一轮、她的话压着，禁言了再放行（不再以人的身份代判官开轮）。
+    let (release, held) = oneshot::channel();
+    let script = Lines::new([Line::says(long).released_by(held), Line::says("嗯")]);
     let tuned = json!({"queue_expire_seconds": 1});
     let (home, mut napcat, _) =
         started_tuned(Arc::new(script.clone()), &rules(), &tuned, |napcat| {
             napcat.answering(MEMBERS)
         })
         .await;
-    // 禁言着，主线开的一轮她的话排着，过了期限记 `expired`：这一轮早完了，退信不带回合编号。
-    napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
-    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
+    // 禁言着，她的话排着，过了期限记 `expired`：这一轮早完了，退信不带回合编号。
     napcat.send(group_frame(
         QUIET,
         ADMIN,
@@ -254,14 +246,10 @@ async fn expired_words_come_back_at_the_next_turn_once() {
         json!([at(BOT), plain(" 在吗")]),
         ("终端管理员", "o"),
     ));
-    let events = until_count(&home, QUIET, "message.user", 1).await;
-    respond(
-        &home,
-        &venue(QUIET),
-        "expired-1",
-        &[said(&events)[0]["seq"].clone()],
-    )
-    .await;
+    until_count(&home, QUIET, "turn.started", 1).await;
+    napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
+    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
+    release.send(()).expect("她在等");
     let events = until_notes(&home, QUIET, 1).await;
     let head: String = long.chars().take(30).collect();
     assert_eq!(head.chars().count(), 30);
@@ -286,7 +274,7 @@ async fn expired_words_come_back_at_the_next_turn_once() {
     let words = napcat.group_message(QUIET).await;
     assert_eq!(words.last().expect("有段")["data"]["text"], "嗯");
     let events = until_count(&home, QUIET, "venue.delivered", 1).await;
-    let request = format!("{:?}", script.requests()[1].1);
+    let request = format!("{:?}", script.requests()[1]);
     let (Some(fact), Some(trigger)) = (request.find("<undelivered"), request.find("还有别的吗"))
     else {
         panic!("请求里两样都有：{request}");
@@ -303,7 +291,8 @@ async fn a_split_sentence_that_expires_comes_back_once() {
     let long = "大家说得都有道理。那就这么定了：周六上午十点在东门集合，别迟到。";
     let pieces = miyu_chat::bubbles(long);
     assert!(pieces.len() >= 2, "这一句拆得开：{pieces:?}");
-    let script = Script::new([Play::Says(long), Play::Says("嗯")]);
+    let (release, held) = oneshot::channel();
+    let script = Lines::new([Line::says(long).released_by(held), Line::says("嗯")]);
     let tuned = json!({"queue_expire_seconds": 1});
     let (home, mut napcat, _) = started_tuned(
         Arc::new(script.clone()),
@@ -312,8 +301,6 @@ async fn a_split_sentence_that_expires_comes_back_once() {
         |napcat| napcat.answering(MEMBERS),
     )
     .await;
-    napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
-    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
     napcat.send(group_frame(
         QUIET,
         ADMIN,
@@ -321,14 +308,10 @@ async fn a_split_sentence_that_expires_comes_back_once() {
         json!([at(BOT), plain(" 在吗")]),
         ("终端管理员", "o"),
     ));
-    let events = until_count(&home, QUIET, "message.user", 1).await;
-    respond(
-        &home,
-        &venue(QUIET),
-        "expired-split",
-        &[said(&events)[0]["seq"].clone()],
-    )
-    .await;
+    until_count(&home, QUIET, "turn.started", 1).await;
+    napcat.send(group_ban(QUIET, BOT, "ban", Some(600)));
+    until_count(&home, QUIET, "ext.im.venues.muted", 1).await;
+    release.send(()).expect("她在等");
     until_count(&home, QUIET, FAILED, pieces.len()).await;
     let events = until_notes(&home, QUIET, 1).await;
     let head: String = pieces[0].text.chars().take(30).collect();
@@ -348,7 +331,7 @@ async fn a_split_sentence_that_expires_comes_back_once() {
     ));
     let words = napcat.group_message(QUIET).await;
     assert_eq!(words.last().expect("有段")["data"]["text"], "嗯");
-    let request = format!("{:?}", script.requests()[1].1);
+    let request = format!("{:?}", script.requests()[1]);
     assert_eq!(request.matches("<undelivered").count(), 1, "{request}");
     let events = venue_events(&home.root, &venue(QUIET));
     assert_eq!(undelivered(&events).len(), 1, "一句只退一块");

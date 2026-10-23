@@ -1,12 +1,13 @@
 //! 出站队列（施工 O-25 中，`onebot.md` 第一条「出站队列」）：真核心拉起真桥、假 NapCat，她照剧本、台词说。群里她的每一段先记
 //! `ext.im.venues.queued` 再发，日志里入队在送达前面；NapCat 回失败的记 `failed {why: rejected, detail}`；她被禁言（假
-//! NapCat 推 `group_ban`）记 `muted {until, by}`，禁言以后不久终端管理员 @ 她排着（施工 O-50），主线开的一轮她的话排着，解禁的
+//! NapCat 推 `group_ban`）记 `muted {until, by}`，禁言以后不久终端管理员 @ 她排着（施工 O-50），禁言以前开的一轮她的话排着，解禁的
 //! 通知来了照先后发、记 `unmuted {why: lifted, by}`，`until` 到了自己发、补记 `unmuted {why: expired}`；别人被禁言、全员禁言不认；
 //! 去重照入队算（排着的也算）。要等过期、断开再连、桥重启、私聊的在 `queue_waits.rs`；禁言的事实、排着的怎么回在 `muted.rs`。
 
 use std::sync::Arc;
 
 use serde_json::{Value, json};
+use tokio::sync::oneshot;
 
 use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::{Play, Script};
@@ -28,8 +29,9 @@ const LIN: i64 = 20002;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样（别人的话只记下）；[`SPLIT`] 一段最多 4 个字。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n\n\
+/// 系统的场所规则：群都不抽样（别人没 @ 她的话只记下）、谁 @ 她都直接回（施工 I-33：禁言以前先开一轮，不再以人的身份代判官开）；
+/// [`SPLIT`] 一段最多 4 个字。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0, judge_called = false }\n\n\
     [[rule]]\nmatch = { kind = \"group\", group = [666] }\noutbound = { split_chars = 4 }\n";
 
 /// 入队、失败、禁言、解禁记成的事件。
@@ -74,11 +76,6 @@ async fn decided(home: &Home, group: i64, message: i64) -> Value {
     let events = until_event(&home.root, &venue(group), |event| event["cause"] == cause).await;
     let found = events.iter().find(|event| event["cause"] == cause);
     found.expect("记了")["body"].clone()
-}
-
-/// 群 `group` 里第 `n` 条人说的话的序号。
-fn seq_of(events: &[Value], n: usize) -> Value {
-    said(events)[n]["seq"].clone()
 }
 
 #[tokio::test]
@@ -145,21 +142,29 @@ fn said_words(message: Vec<Value>) -> String {
         .collect()
 }
 
-/// 小林在群 `group` 里说一句（只记下）：第 `message` 条。
-fn lin_says(napcat: &Answering, group: i64, message: i64) {
+/// 小林在群 `group` 里 @ 她：第 `message` 条（施工 I-33：禁言以前开一轮）。
+fn lin_calls(napcat: &Answering, group: i64, message: i64) {
     napcat.send(group_frame(
         group,
         LIN,
         message,
-        json!([plain("大家好")]),
+        json!([at(BOT), plain(" 大家好")]),
         ("小林", "lin"),
     ));
 }
 
 #[tokio::test]
 async fn while_muted_her_words_wait_and_a_call_waits_until_the_lift() {
-    let script = Script::new([Play::Says("看到大家了"), Play::Says("嗯"), Play::Says("好")]);
-    let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
+    let (release, released) = oneshot::channel();
+    let lines = Lines::new([
+        Line::says("看到大家了").released_by(released),
+        Line::says("嗯"),
+        Line::says("好"),
+    ]);
+    let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    // 禁言以前小林 @ 她：开一轮，她还没开口。
+    lin_calls(&napcat, SPLIT, 2);
+    until_count(&home, SPLIT, "turn.started", 1).await;
     let before = Timestamp::from_unix_millis(now_millis()).expect("在范围里");
     napcat.send(group_ban(SPLIT, BOT, "ban", Some(600)));
     let events = until_count(&home, SPLIT, MUTED, 1).await;
@@ -179,11 +184,8 @@ async fn while_muted_her_words_wait_and_a_call_waits_until_the_lift() {
         (&json!("pass"), &json!("deferred")),
         "{body}"
     );
-    // 主线照判官点了头的样子拿小林的一句开一轮：她的话排着。
-    lin_says(&napcat, SPLIT, 2);
-    decided(&home, SPLIT, 2).await;
-    let events = venue_events(&home.root, &venue(SPLIT));
-    respond(&home, &venue(SPLIT), "muted-1", &[seq_of(&events, 1)]).await;
+    // 禁言以前开的那一轮她说了：她的话排着。
+    release.send(()).expect("她在等");
     let events = until_count(&home, SPLIT, QUEUED, 2).await;
     let log = run_log(&home.root);
     assert!(log.contains("reply waiting"), "{log}");
@@ -213,16 +215,16 @@ async fn while_muted_her_words_wait_and_a_call_waits_until_the_lift() {
 
 #[tokio::test]
 async fn a_shorter_ban_ends_by_itself_and_is_noted() {
-    let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
-    let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
+    let (release, released) = oneshot::channel();
+    let lines = Lines::new([Line::says("在").released_by(released), Line::says("嗯")]);
+    let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    lin_calls(&napcat, PLAIN, 2);
+    until_count(&home, PLAIN, "turn.started", 1).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
     admin_calls(&napcat, PLAIN, 1);
     assert_eq!(decided(&home, PLAIN, 1).await["outcome"], "deferred");
-    lin_says(&napcat, PLAIN, 2);
-    decided(&home, PLAIN, 2).await;
-    let events = venue_events(&home.root, &venue(PLAIN));
-    respond(&home, &venue(PLAIN), "muted-2", &[seq_of(&events, 1)]).await;
+    release.send(()).expect("她在等");
     until_count(&home, PLAIN, QUEUED, 1).await;
     // 管理员把禁言改短成 1 秒（NapCat 再推一次 `ban`）：到了就发；QQ 到点不推解禁，桥补记 `unmuted {why: expired}`（施工 O-50），
     // 排着的那一条开一轮回。
@@ -265,18 +267,18 @@ async fn someone_else_or_everyone_banned_is_not_her() {
 
 #[tokio::test]
 async fn what_waits_in_the_queue_counts_for_repeats() {
+    let (release, released) = oneshot::channel();
     let lines = Lines::new([
-        Line::calls("我在看这个问题"),
+        Line::calls("我在看这个问题").released_by(released),
         Line::calls("我在看这个问题！"),
         Line::says("看完了"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    admin_calls(&napcat, PLAIN, 1);
+    until_count(&home, PLAIN, "turn.started", 1).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
-    admin_calls(&napcat, PLAIN, 1);
-    decided(&home, PLAIN, 1).await;
-    let events = venue_events(&home.root, &venue(PLAIN));
-    respond(&home, &venue(PLAIN), "muted-3", &[seq_of(&events, 0)]).await;
+    release.send(()).expect("她在等");
     // 等入队的事件本身：`turn.ended` 记下的时候，桥可能还没办完她最后一句。最后一句入队了，前面那句差个标点的也办完了。
     let events = until_count(&home, PLAIN, QUEUED, 2).await;
     let texts: Vec<Value> = of_kind(&events, QUEUED)
