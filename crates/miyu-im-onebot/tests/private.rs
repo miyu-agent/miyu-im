@@ -285,7 +285,7 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
         napcat.admin_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在", "{venue:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
-        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头四个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了），第四个是订阅软件包列表（施工 O-43 上：挂接点），第五个是列插件（施工 I-8 上）。
+        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。// 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头四个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了），第四个是订阅软件包列表（施工 O-43 上：挂接点），第五个是列插件（施工 I-8 上）。
         assert_eq!(
             relay.asked(),
             [
@@ -296,6 +296,7 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
                 "content.list",
                 "venue.session",
                 "subscribe",
+                "venue.plugins",
                 "session.send",
                 "events.append"
             ],

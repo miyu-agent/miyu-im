@@ -318,6 +318,11 @@ impl ToolSet for QqTools {
         Some(SKIP_REPLY)
     }
 
+    fn plugin(&self, tool: &str) -> Option<&'static str> {
+        // 群管理的三件（施工 S-1 上c，核心 O-60）：群管理在这个场所关着的，工具表里没有它们。
+        matches!(tool, MUTE | KICK | MODERATION_LOG).then_some(crate::admin::ID)
+    }
+
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
         // 群管理的工具照它的开关（施工 Q-1、Q-2）。
         match tool {

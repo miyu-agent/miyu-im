@@ -135,6 +135,10 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
         (&json!("sponsor"), &json!(["private", "group"]))
     );
     assert!(tool["description"].is_string() && tool["input_schema"]["type"] == "object");
+    assert_eq!(
+        tool["plugin"], "miyu-im-sponsor",
+        "关着的场所没有它（核心 O-60）"
+    );
     // 后台页的方法（施工 S-1 下）。
     let methods = sponsor.answers("package.methods", &json!({"methods": 7}));
     assert!(

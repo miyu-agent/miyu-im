@@ -340,6 +340,13 @@ pub trait ToolSet: Send + Sync {
         true
     }
 
+    /// 工具 `tool` 属于驱动带的哪个插件（施工 S-1 上c，核心 O-60）：登记时带上 `plugin`，场所会话里只有那个场所开着这个插件时核心
+    /// 才给（im 照场所卡片经 `venue.plugins` 告诉核心）。不属于插件的是空的。
+    fn plugin(&self, tool: &str) -> Option<&'static str> {
+        let _ = tool;
+        None
+    }
+
     /// 哪一件是「这一轮不说话」（施工 T-4，`providers.md`「提供者和不说话」）：读的一头当场答它（答的话 `skipped`，带 `end_turn`），
     /// 她的回复里有这件的调用块的，这一轮写的都不发。没有的是空的。
     fn silence(&self) -> Option<&'static str> {

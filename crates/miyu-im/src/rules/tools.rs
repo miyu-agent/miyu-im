@@ -86,6 +86,14 @@ impl Tools {
                     "access": spec.access,
                     "venues": venues,
                 });
+                // 场所插件的工具（施工 S-1 上c，核心 O-60）：只给开着它的场所。
+                if let Some(plugin) = self
+                    .driven
+                    .as_ref()
+                    .and_then(|driven| driven.set.plugin(&spec.name))
+                {
+                    tool["plugin"] = json!(plugin);
+                }
                 if let Some(face) = self.names.get(&spec.name) {
                     tool["display_name"] = json!(face.names);
                     if let Some(subject) = &face.subject {

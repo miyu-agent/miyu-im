@@ -45,12 +45,17 @@ pub fn shipped_tools() -> Value {
     };
     let both: &[&str] = &["private", "group"];
     let group: &[&str] = &["group"];
+    // 群管理的三件是场所插件的工具（施工 S-1 上c，核心 O-60）：带 `plugin`。
+    let admin = |mut tool: Value| {
+        tool["plugin"] = json!("miyu-im-qq-admin");
+        tool
+    };
     json!({"tools": [
         entry("qq_skip_reply", "read", both),
         entry("qq_recall", "venue", both),
-        entry("qq_mute", "venue", group),
-        entry("qq_kick", "venue", group),
-        entry("qq_moderation_log", "read", group),
+        admin(entry("qq_mute", "venue", group)),
+        admin(entry("qq_kick", "venue", group)),
+        admin(entry("qq_moderation_log", "read", group)),
         entry("qq_poke", "venue", both),
         entry("qq_fetch_media", "venue", both),
         entry("qq_avatar", "venue", both),

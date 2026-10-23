@@ -29,6 +29,32 @@ impl Hooks {
             .collect()
     }
 
+    /// 在场所 `to` 开着的插件的编号，软件包的和驱动带的都算，照编号排（施工 S-1 上c：经 `venue.plugins` 告诉核心，核心 O-60 照它给
+    /// 带 `plugin` 的工具）。驱动带的另看总开关。
+    pub(crate) fn plugins_on(&self, to: To) -> Vec<String> {
+        let config = self.driver_config();
+        let known: Vec<String> = self
+            .plugins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .all()
+            .map(|(package, _)| package.to_string())
+            .collect();
+        known
+            .into_iter()
+            .filter(|package| {
+                match self
+                    .builtins
+                    .iter()
+                    .find(|builtin| builtin.id() == package.as_str())
+                {
+                    Some(builtin) => self.on(builtin.as_ref(), Some(to), &config),
+                    None => self.allowed(package, Some(to)),
+                }
+            })
+            .collect()
+    }
+
     /// 驱动这一刻的配置（没写的照清单的默认补上了）。
     pub(crate) fn driver_config(&self) -> Map<String, Value> {
         self.driver.borrow().clone()

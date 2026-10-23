@@ -64,25 +64,54 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
         next_platform(&mut napcat).await["params"]["user_id"],
         MEMBER
     );
-    // 在这个群关掉群管理（「陌生群」卡上的插件开关，同识人术）：不做，不调 NapCat。
+    // 在这个群关掉群管理（「陌生群」卡上的插件开关，同识人术）：从下一轮起工具表里没有群管理的三件（施工 S-1 上c，核心 O-60），她
+    // 照旧调的核心直接回没有这件工具，不转给桥、不调 NapCat。
     let mut head = crate::support::head::Head::connect(&home.root).await;
     let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    let missing = |name: &str| {
+        (
+            format!("There is no tool named \"{name}\"."),
+            "error".to_string(),
+        )
+    };
     assert_eq!(
         asks(&home, &napcat, MANAGER, 503, words.clone(), 3).await,
-        refused("admin-off", &[])
+        missing("qq_mute")
     );
     assert_eq!(
         asks(&home, &napcat, MANAGER, 504, words.clone(), 4).await,
-        refused("admin-off", &[]),
+        missing("qq_kick"),
         "踢人同禁言"
     );
     assert_eq!(
         asks(&home, &napcat, MANAGER, 505, words, 5).await,
-        refused("admin-off", &[]),
+        missing("qq_moderation_log"),
         "查记录同禁言"
     );
+    let admin = ["qq_mute", "qq_kick", "qq_moderation_log"];
+    let offered = |request: &miyu_kernel::request::Request| -> Vec<String> {
+        request
+            .tools
+            .iter()
+            .map(|tool| tool.name.clone())
+            .filter(|name| admin.contains(&name.as_str()))
+            .collect()
+    };
+    let requests = lines.requests();
+    assert_eq!(
+        offered(&requests[0]),
+        ["qq_kick", "qq_moderation_log", "qq_mute"],
+        "开着的时候三件都在（照名字排）"
+    );
+    for request in &requests[4..] {
+        assert!(
+            offered(request).is_empty(),
+            "关掉以后的几轮没有：{:?}",
+            offered(request)
+        );
+    }
     no_platform(&mut napcat);
     stopped(home).await;
 }

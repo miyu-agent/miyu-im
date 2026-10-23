@@ -99,7 +99,7 @@ fn serve() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// `provide` 的参数：一件 `sponsor`，只给场所会话（设计 03 第二节第 2 条）。
+/// `provide` 的参数：一件 `sponsor`，只给场所会话、开着这个插件的（设计 03 第二节第 2 条、2026-10-24 补定第 2 条）。
 fn provided() -> Value {
     let spec: Value = serde_json::from_str(texts::TOOL).unwrap_or_default();
     json!({"tools": [{
@@ -110,6 +110,8 @@ fn provided() -> Value {
         "venues": ["private", "group"],
         "display_name": {"zh": "赞助记录", "en": "Sponsorships", "ja": "スポンサー記録"},
         "subject": "action",
+        // 场所插件（施工 S-1 上c，核心 O-60）：im 在这个场所关着赞助记录的，工具表里没有它。
+        "plugin": PACKAGE,
     }]})
 }
 

@@ -237,6 +237,9 @@ impl Route {
         if !subscribed {
             return Ok(None);
         }
+        // 这个场所开着的插件先告诉核心，第一轮的工具表就照它（施工 S-1 上c）。
+        self.tell_plugins(place.peer.venue.as_str(), place.peer.to)
+            .await?;
         // 规则设了模型、人格、预设的先发，第一轮就照它（施工 O-58 补三、补四）。
         self.pin_found(&session, &place.wanted).await;
         self.venues.insert(venue.to_string(), session.clone());

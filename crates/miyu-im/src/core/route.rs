@@ -102,6 +102,7 @@ mod strangers;
 #[cfg(test)]
 mod tests;
 mod titled;
+mod venue_plugins;
 mod voicing;
 mod waiting;
 
@@ -194,6 +195,8 @@ pub(crate) struct Route {
     venues: HashMap<String, String>,
     /// 会话编号 → 回执、回话发到哪（第 10 条）。
     peers: HashMap<String, Peer>,
+    /// 每个场所上一次告诉核心开着的插件（施工 S-1 上c，`venue_plugins`）。
+    plugins_told: HashMap<String, Vec<String>>,
     /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是终端管理员、也不在白名单里的，群的规则写错的。
     refused: HashSet<String>,
     /// 群会话编号 → 这个群的投影（施工 O-23，「群里怎么叫她」第 1、2 条）：订阅了的群才有。
@@ -323,6 +326,7 @@ impl Route {
             members,
             venues: HashMap::new(),
             peers: HashMap::new(),
+            plugins_told: HashMap::new(),
             refused: HashSet::new(),
             groups: HashMap::new(),
             whitelist,
@@ -373,6 +377,7 @@ impl Route {
             || self.revive().await.is_err()
             || self.follow_packages().await.is_err()
             || self.reload_plugins().await.is_err()
+            || self.sync_plugins().await.is_err()
         {
             return None;
         }
@@ -432,6 +437,10 @@ impl Route {
             };
             if let Err(ended) = handled {
                 return ended;
+            }
+            // 场所开着的插件变了的告诉核心（施工 S-1 上c）：卡片、插件、驱动的配置都是办事时变的。
+            if self.sync_plugins().await.is_err() {
+                return None;
             }
         }
     }
