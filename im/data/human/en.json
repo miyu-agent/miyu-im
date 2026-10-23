@@ -15,6 +15,7 @@
     "qq_members": { "name": "Group members", "subject": "query" },
     "qq_mention": { "name": "Mention" },
     "qq_quote": { "name": "Quote" },
+    "qq_set_card": { "name": "Set group card" },
     "qq_send": { "name": "Send message", "subject": "text" }
   },
   "said": {

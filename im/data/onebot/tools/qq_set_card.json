@@ -1,0 +1,4 @@
+{
+  "description": "Set the group card of user, or yours.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"},"card":{"type":"string"}}}
+}

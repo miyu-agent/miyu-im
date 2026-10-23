@@ -15,6 +15,7 @@ use serde_json::{Map, Value};
 
 mod acting;
 mod args;
+mod card;
 mod contacts;
 mod fetch;
 mod group_files;
@@ -57,6 +58,9 @@ pub const CONTACTS: &str = "qq_contacts";
 /// 群文件（施工 I-12）：只给群。
 pub const GROUP_FILES: &str = "qq_group_files";
 
+/// 改群名片（施工 I-36）：只给群。
+pub const SET_CARD: &str = "qq_set_card";
+
 /// 引用指定的一条（施工 I-31）：私聊、群都给。
 pub const QUOTE: &str = "qq_quote";
 
@@ -80,7 +84,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 16] = [
+const TOOLS: [Decl; 17] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -132,6 +136,11 @@ const TOOLS: [Decl; 16] = [
         venues: &["group"],
     },
     Decl {
+        name: SET_CARD,
+        access: Access::Venue,
+        venues: &["group"],
+    },
+    Decl {
         name: QUOTE,
         access: Access::Venue,
         venues: VENUES,
@@ -164,13 +173,15 @@ const TOOLS: [Decl; 16] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 44] = [
+const ANSWERS: [(&str, &[&str]); 46] = [
     ("skipped", &[]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
     ("quoted", &[]),
+    ("renamed", &["who", "card"]),
+    ("renamed-me", &["card"]),
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),
@@ -305,6 +316,7 @@ impl ToolSet for QqTools {
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, (self.wait, self.image_limit)),
             MENTION => mention::mention(call),
             QUOTE => quote::quote(call),
+            SET_CARD => card::set_card(call),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
                 // 没写发给谁（施工 I-16：以前借禁言那句「要对方引用或 @」，把她带偏去反复试）：回这个会话直接写字。

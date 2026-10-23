@@ -53,7 +53,8 @@ pub fn unrecallable() -> String {
 }
 
 /// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
-const PLATFORM: [&str; 5] = [
+const PLATFORM: [&str; 6] = [
+    "set_group_card",
     "set_group_ban",
     "group_poke",
     "friend_poke",

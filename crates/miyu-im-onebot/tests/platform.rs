@@ -332,6 +332,49 @@ async fn poke_takes_the_member_she_names() {
 }
 
 #[tokio::test]
+async fn she_sets_her_own_or_someone_elses_group_card() {
+    // 施工 I-36：没写 user 的改她自己的，写了的改那个人的；谁叫的都改（不设限，成不成由 QQ 说）。
+    let lines = Lines::new(
+        [
+            uses("qq_set_card", r#"{"card":" 米尤酱 "}"#),
+            uses("qq_set_card", r#"{"user":40001,"card":"小明同学"}"#),
+        ]
+        .into_iter()
+        .flatten(),
+    );
+    let (home, mut napcat) = up(&lines).await;
+    assert_eq!(
+        asks(&home, &napcat, MEMBER, 501, json!([plain("改个名吧")]), 1).await,
+        done("renamed-me", &[("card", "米尤酱")])
+    );
+    let action = next_platform(&mut napcat).await;
+    assert_eq!(action["action"], "set_group_card", "{action}");
+    assert_eq!(
+        action["params"],
+        json!({"group_id": GROUP, "user_id": BOT, "card": "米尤酱"})
+    );
+    assert_eq!(
+        asks(
+            &home,
+            &napcat,
+            IMPOSTOR,
+            502,
+            json!([plain("把小明改成小明同学")]),
+            2
+        )
+        .await,
+        done("renamed", &[("who", "小明"), ("card", "小明同学")])
+    );
+    let action = next_platform(&mut napcat).await;
+    assert_eq!(
+        action["params"],
+        json!({"group_id": GROUP, "user_id": MEMBER, "card": "小明同学"})
+    );
+    no_platform(&mut napcat);
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_have_none() {
     let lines = Lines::new(
         [uses("qq_recall", "{}"), uses("qq_poke", "{}")]
