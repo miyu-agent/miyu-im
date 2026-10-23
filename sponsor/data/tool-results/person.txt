@@ -1,0 +1,1 @@
+{who}: {count} records, {total}. Newest first: {list}

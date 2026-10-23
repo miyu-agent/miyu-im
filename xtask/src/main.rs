@@ -91,7 +91,11 @@ fn check() -> ExitCode {
             true,
         ),
     ];
-    println!("\n── 文档：登记簿 {} 和 {}/ ──", ledger::PATH, ledger::DATA);
+    println!(
+        "\n── 文档：登记簿 {} 和 {} ──",
+        ledger::PATH,
+        ledger::dirs()
+    );
     if let Some(docs) = outcomes.last_mut() {
         docs.problems.extend(ledger::check(&root));
     }

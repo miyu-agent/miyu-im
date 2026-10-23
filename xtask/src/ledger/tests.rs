@@ -54,7 +54,7 @@ fn every_mismatch_is_named() {
     let problems = compare(&recorded, &files(&[("im/data/a.txt", "hello")]));
     assert_eq!(
         problems,
-        ["登记簿里有 im/data/b.txt，im/data/ 下却没有这份文件"]
+        ["登记簿里有 im/data/b.txt，im/data/、sponsor/data/ 下却没有这份文件"]
     );
 }
 

@@ -1,0 +1,1 @@
+Not done: only a turn started by an admin can record a sponsorship.

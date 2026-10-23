@@ -1,5 +1,5 @@
 //! 登记簿对账（照核心仓库的 `xtask/src/ledger.rs`，核心设计 26 第十节 J12、设计 32 第九节第 3 条；这个仓库施工 S-6 中）：
-//! 包文件夹 `im/data/` 里给模型看的每一份字都登记在 [`PATH`] 的那张表里。
+//! 包文件夹 `im/data/`（施工 S-1 上b 起还有赞助记录的 `sponsor/data/`）里给模型看的每一份字都登记在 [`PATH`] 的那张表里。
 //!
 //! 门禁查两边一一对上：`im/data/` 下每一份给模型看的文件都在表里，表里每一行都有文件，指纹对得上。指纹是文件字节的
 //! SHA-256 的前 8 位：字改了就对不上，逼着回登记簿重新量 token、写上为什么改。算在「文档」那一项里。
@@ -24,8 +24,9 @@ const HEADER: [&str; 6] = [
     "指纹",
 ];
 
-/// 给模型看的字都在这个目录里（相对仓库根）：判官的说明、平台工具的说明、事实、工具结果。
-pub(crate) const DATA: &str = "im/data";
+/// 给模型看的字都在这几个目录里（相对仓库根）：im 的判官的说明、平台工具的说明、事实、工具结果；赞助记录的工具说明、工具结果
+/// （施工 S-1 上b）。
+pub(crate) const DATA: [&str; 2] = ["im/data", "sponsor/data"];
 
 /// 给人看的字放在这样的目录里，不登记（核心施工 4-5 上）。
 const HUMAN: &str = "human";
@@ -40,6 +41,11 @@ const EXEMPT: [&str; 4] = [
     "im/data/venues.d/50-defaults.toml",
 ];
 
+/// 几个目录写成一句：`im/data/、sponsor/data/`。
+pub(crate) fn dirs() -> String {
+    DATA.map(|dir| format!("{dir}/")).join("、")
+}
+
 /// 查一遍，交回对不上的地方。
 pub fn check(root: &Path) -> Vec<String> {
     let text = match std::fs::read_to_string(root.join(PATH)) {
@@ -51,10 +57,12 @@ pub fn check(root: &Path) -> Vec<String> {
         Err(e) => return vec![format!("登记簿 {PATH} 读不出来：{e}")],
     };
     let mut files = BTreeMap::new();
-    match walk(&root.join(DATA), &format!("{DATA}/"), &mut files) {
-        Ok(()) => compare(&rows, &files),
-        Err(e) => vec![e],
+    for dir in DATA {
+        if let Err(e) = walk(&root.join(dir), &format!("{dir}/"), &mut files) {
+            return vec![e];
+        }
     }
+    compare(&rows, &files)
 }
 
 /// 表里的每一行：文件（相对仓库根的路径）到登记的指纹。
@@ -118,7 +126,7 @@ fn compare(rows: &BTreeMap<String, String>, files: &BTreeMap<String, Vec<u8>>) -
         }
     }
     for file in rows.keys().filter(|file| !files.contains_key(*file)) {
-        problems.push(format!("登记簿里有 {file}，{DATA}/ 下却没有这份文件"));
+        problems.push(format!("登记簿里有 {file}，{} 下却没有这份文件", dirs()));
     }
     problems
 }

@@ -1,6 +1,8 @@
 # 发包（施工 S-6 中，设计 32 第九节第 4 条）：推 `v*` 标签时三个平台各编 release 的 `miyu-im`，拼成 `im/` 文件夹
 # （`package.toml`、`page/`、`data/`、`bin/miyu-im`，Windows 带 `.exe`），打成 `miyu-im-<版本>-<平台>.tar.gz`
-# （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./im`。
+# （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./im`。施工 S-1 上b 起同一趟另编赞助记录
+# `miyu-im-sponsor`，拼成 `sponsor/` 文件夹（`package.toml`、`im/plugin.toml`、`bin/miyu-im-sponsor`；给模型看的字编进了程序），
+# 打成 `miyu-im-sponsor-<版本>-<平台>`，装法同上（`miyu pkg install ./sponsor`）。
 #
 # 手动跑（workflow_dispatch，在 `step/**` 上试打）只编、打包、传成这一次跑的产物，不建 Release；版本写 `dev-<提交前 8 位>`。
 name: Release
@@ -52,7 +54,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "版本：$version"
       - name: 编 release
-        run: cargo build --release --locked -p miyu-im-onebot --bin miyu-im
+        run: cargo build --release --locked -p miyu-im-onebot --bin miyu-im -p miyu-im-sponsor --bin miyu-im-sponsor
       - name: 拼 im/ 文件夹
         run: |
           exe=""
@@ -64,31 +66,51 @@ jobs:
           for need in package.toml page/index.html data/bridge.json "bin/miyu-im$exe"; do
             [ -f "dist/im/$need" ] || { echo "包里少了 im/$need"; exit 1; }
           done
+      - name: 拼 sponsor/ 文件夹
+        run: |
+          exe=""
+          if [ "$RUNNER_OS" = "Windows" ]; then exe=".exe"; fi
+          mkdir -p dist/sponsor/bin dist/sponsor/im
+          cp sponsor/package.toml dist/sponsor/
+          cp sponsor/im/plugin.toml dist/sponsor/im/
+          cp "target/release/miyu-im-sponsor$exe" "dist/sponsor/bin/miyu-im-sponsor$exe"
+          for need in package.toml im/plugin.toml "bin/miyu-im-sponsor$exe"; do
+            [ -f "dist/sponsor/$need" ] || { echo "包里少了 sponsor/$need"; exit 1; }
+          done
       - name: 打包
         id: pack
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TARGET: ${{ matrix.target }}
         run: |
-          name="miyu-im-$VERSION-$TARGET"
           cd dist
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a -tzip "$name.zip" im >/dev/null
-            file="$name.zip"
-          else
-            tar -czf "$name.tar.gz" im
-            file="$name.tar.gz"
-          fi
-          echo "file=dist/$file" >> "$GITHUB_OUTPUT"
-          echo "打好了 $file"
+          files=""
+          for pair in "im:miyu-im" "sponsor:miyu-im-sponsor"; do
+            dir="${pair%%:*}"
+            name="${pair#*:}-$VERSION-$TARGET"
+            if [ "$RUNNER_OS" = "Windows" ]; then
+              7z a -tzip "$name.zip" "$dir" >/dev/null
+              file="$name.zip"
+            else
+              tar -czf "$name.tar.gz" "$dir"
+              file="$name.tar.gz"
+            fi
+            files="$files dist/$file"
+            echo "打好了 $file"
+          done
+          {
+            echo "files<<EOF"
+            for one in $files; do echo "$one"; done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: 传成这一次跑的产物
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
-          path: ${{ steps.pack.outputs.file }}
+          path: ${{ steps.pack.outputs.files }}
           if-no-files-found: error
 
-  # 只有推标签的那一次建 Release，把三个包挂上去；手动跑的到上一步为止。
+  # 只有推标签的那一次建 Release，把六个包（三个平台各 im、赞助记录）挂上去；手动跑的到上一步为止。
   release:
     if: github.ref_type == 'tag'
     needs: build
@@ -100,9 +122,9 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: 建 Release、挂上三个包
+      - name: 建 Release、挂上六个包
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "接入通讯平台 $GITHUB_REF_NAME：下载自己平台的包，解开以后 miyu pkg install ./im。"
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "接入通讯平台 $GITHUB_REF_NAME：下载自己平台的包，解开以后 miyu pkg install ./im；赞助记录插件另一个包，miyu pkg install ./sponsor。"

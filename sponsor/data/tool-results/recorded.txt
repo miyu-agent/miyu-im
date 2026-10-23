@@ -1,0 +1,1 @@
+Recorded #{id}: {who} gave {amount}{converted}.

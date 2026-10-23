@@ -1590,6 +1590,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-im-sponsor"
+version = "0.0.0"
+dependencies = [
+ "jiff",
+ "miyu-client",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "miyu-ipc"
 version = "0.0.0"
 source = "git+https://github.com/miyu-agent/miyu?rev=55e2a59dfa3a48016dfbc802e84d2306731038a3#55e2a59dfa3a48016dfbc802e84d2306731038a3"

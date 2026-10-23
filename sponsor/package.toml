@@ -1,0 +1,32 @@
+# 赞助记录（设计 03，施工 S-1 上b）：im 的插件，通讯平台上的人给主人赞助了，主人叫她记一笔；谁都能查。给人看的字，不发给模型。
+
+[package]
+protocol = [1, 1]
+name = { en = "Sponsorships", zh = "赞助记录", ja = "スポンサー記録" }
+summary = { en = "She records sponsorships when an admin asks, and anyone can look them up", zh = "管理员叫她记赞助，谁都能查", ja = "管理者に頼まれてスポンサーを記録し、誰でも確認できる" }
+icon = "hand-coins"
+author = "miyu-agent"
+upstream = "https://github.com/miyu-agent/miyu-im"
+
+[command]
+name = "sponsor"
+program = "miyu-im-sponsor"
+about = { en = "Sponsorships", zh = "赞助记录", ja = "スポンサー記録" }
+
+[process]
+args = ["serve"]
+start = "always"
+# tools：登记 `sponsor`；packages.call：调 im 的 `chat.venue` 认是哪个场所、叫她的那一条引用了谁、@ 了谁（设计 03 补定第 1 条）；
+# network：查汇率（open.er-api.com）。
+capabilities = ["tools", "packages.call", "network"]
+
+# im 的插件（设计 01 第四节）：给 im 带 `im/plugin.toml`，出现在 im 的插件页，场所开关照 im 的场所卡片。
+[content.im]
+dir = "im"
+
+[settings.currency]
+type = "string"
+default = "CNY"
+layers = ["system"]
+applies = "now"
+name = { en = "Default currency", zh = "默认币种", ja = "既定の通貨" }

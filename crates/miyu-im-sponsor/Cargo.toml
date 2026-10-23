@@ -1,0 +1,30 @@
+[package]
+name = "miyu-im-sponsor"
+description = "赞助记录（设计 03，施工 S-1 上b）：im 的插件，管理员叫她记赞助、谁都能查；独立的软件包，经标准输入输出跟核心说协议"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "miyu-im-sponsor"
+path = "src/main.rs"
+
+[dependencies]
+# 查汇率照核心的 HTTP 客户端下（只 http、https，超时、代理照它），同 im。
+miyu-client = { workspace = true }
+# 核心的 HTTP 客户端是异步的：查一次汇率起一个当前线程的运行时等它。
+tokio = { version = "1", features = ["rt", "time"] }
+# 跟核心说的是一行一条的 JSON-RPC；账本是一份 JSON。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 明细里的日子照本机的时区写（同 im）。
+jiff = "0.2"
+
+[dev-dependencies]
+# 测试里起一个本机的假汇率服务。
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+
+[lints]
+workspace = true
