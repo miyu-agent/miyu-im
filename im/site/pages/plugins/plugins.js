@@ -17,6 +17,8 @@ export function mountPlugins(view, { request, path }) {
   const [wanted, sub, pageId] = path.split('/');
   // 开着的面板：只画一次，页面换走时收掉。
   let panel = null;
+  // 外壳问到的连接（施工 P-1：开面板时交给框，页面知道是从 im 的哪个平台、哪几个机器人号打开的）。
+  let connections = [];
   const load = async () => {
     let listed;
     let cards;
@@ -29,7 +31,7 @@ export function mountPlugins(view, { request, path }) {
     }
     if (disposed) return;
     const plugins = listed.plugins || [];
-    const context = { request, platform: status.platform || '', cards, reload: load };
+    const context = { request, platform: status.platform || '', cards, reload: load, connections: () => connections };
     if (wanted) {
       const plugin = plugins.find((one) => one.package === wanted);
       if (!plugin) {
@@ -54,7 +56,9 @@ export function mountPlugins(view, { request, path }) {
   };
   load();
   return {
-    update() {},
+    update(latest) {
+      connections = latest || [];
+    },
     event(name) {
       const typing = view.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
       if (name === 'cards' && !typing && !panel) load();
