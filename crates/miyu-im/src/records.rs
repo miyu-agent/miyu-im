@@ -9,6 +9,7 @@
 //!   （断线重发、补拉）。写不进的记一行运行日志，照跑。
 //! - 判断（施工 C-1 中）：一条消息的回没回、为什么另记一张表 `judgments`，消息记录页照它画；她查聊天记录的工具不读它。
 //! - 读、删（施工 C-1 中，`read.rs`、`delete.rs`）：页面服务另开连接（WAL，读写不互相挡；删的时候等写的线程让出锁）。
+//! - 她查（施工 C-1 下，`history.rs`）：驱动的工具经 [`Records::history`] 只读地搜，判断不读。
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -19,6 +20,7 @@ use serde_json::Value;
 use crate::TARGET;
 
 pub(crate) mod delete;
+pub(crate) mod history;
 pub(crate) mod read;
 
 /// 库文件的名字（im 状态目录里）。
@@ -146,6 +148,8 @@ pub(crate) enum Write {
 pub(crate) struct Records {
     /// 交给写的线程；库打不开的是空的（照跑，不记）。
     writes: Option<mpsc::Sender<Write>>,
+    /// 库文件。
+    path: PathBuf,
 }
 
 impl Records {
@@ -155,7 +159,7 @@ impl Records {
             Ok(connection) => connection,
             Err(error) => {
                 tracing::warn!(target: TARGET, path = %path.display(), error = %error, "records not opened");
-                return Records { writes: None };
+                return Records { writes: None, path };
             }
         };
         let (sender, received) = mpsc::channel();
@@ -164,11 +168,17 @@ impl Records {
             .spawn(move || writer(connection, &received));
         if let Err(error) = spawned {
             tracing::warn!(target: TARGET, error = %error, "records writer not started");
-            return Records { writes: None };
+            return Records { writes: None, path };
         }
         Records {
             writes: Some(sender),
+            path,
         }
+    }
+
+    /// 只读地搜的口子（她查聊天记录的工具用，施工 C-1 下）。
+    pub(crate) fn history(&self) -> history::History {
+        history::History::new(self.path.clone())
     }
 
     /// 交一件去写，不等。

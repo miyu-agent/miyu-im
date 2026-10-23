@@ -64,6 +64,7 @@ pub fn shipped_tools() -> Value {
         entry("qq_group_files", "venue", group),
         entry("qq_react", "venue", group),
         entry("qq_activity_ranking", "read", group),
+        entry("qq_chat_history", "read", both),
     ]})
 }
 

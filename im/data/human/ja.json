@@ -17,6 +17,7 @@
     "qq_quote": { "name": "引用" },
     "qq_set_card": { "name": "グループ名刺の変更" },
     "qq_notices": { "name": "グループのお知らせ" },
+    "qq_chat_history": { "name": "メッセージ履歴の検索", "subject": "query" },
     "qq_send": { "name": "メッセージを送る", "subject": "text" }
   },
   "said": {

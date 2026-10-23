@@ -19,6 +19,7 @@ mod card;
 mod contacts;
 mod fetch;
 mod group_files;
+mod history;
 mod log;
 mod lookup;
 mod mention;
@@ -74,6 +75,9 @@ pub const REACT: &str = "qq_react";
 /// 发言排行（施工 I-20）：只给群。
 pub const ACTIVITY_RANKING: &str = "qq_activity_ranking";
 
+/// 查聊天记录（施工 C-1 下）：私聊、群都给，只读；跨场所要终端管理员叫的那一轮。
+pub const CHAT_HISTORY: &str = "qq_chat_history";
+
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
 pub const FETCH_MEDIA: &str = "qq_fetch_media";
 
@@ -88,7 +92,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 18] = [
+const TOOLS: [Decl; 19] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -179,10 +183,15 @@ const TOOLS: [Decl; 18] = [
         access: Access::Read,
         venues: &["group"],
     },
+    Decl {
+        name: CHAT_HISTORY,
+        access: Access::Read,
+        venues: VENUES,
+    },
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 48] = [
+const ANSWERS: [(&str, &[&str]); 51] = [
     ("skipped", &[]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
@@ -193,6 +202,9 @@ const ANSWERS: [(&str, &[&str]); 48] = [
     ("renamed-me", &["card"]),
     ("notices", &["count", "list"]),
     ("no-notices", &[]),
+    ("history", &["count"]),
+    ("no-history", &[]),
+    ("history-admin-only", &[]),
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),
@@ -329,6 +341,7 @@ impl ToolSet for QqTools {
             QUOTE => quote::quote(call),
             SET_CARD => card::set_card(call),
             NOTICES => notices::notices_of(call),
+            CHAT_HISTORY => history::history(call),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
                 // 没写发给谁（施工 I-16：以前借禁言那句「要对方引用或 @」，把她带偏去反复试）：回这个会话直接写字。

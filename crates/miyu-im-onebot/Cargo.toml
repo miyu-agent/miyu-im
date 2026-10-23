@@ -36,6 +36,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 查聊天记录的时间段（施工 C-1 下）：本机时区的日子、时刻换成毫秒。宿主用的同一份，本来就在依赖图里。Unlicense 或 MIT。
+jiff = "0.2"
 
 [lints]
 workspace = true
@@ -64,9 +66,8 @@ miyu-session = { workspace = true, features = ["testkit"] }
 # 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。
 miyu-http = { workspace = true, features = ["testkit"] }
 miyu-models = { workspace = true }
-# 测试里拼图、文件的 base64，算当地时间（同宿主用的那两份）。
+# 测试里拼图、文件的 base64（同宿主用的那一份）。
 base64 = "0.22"
-jiff = "0.2"
 # 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
 # `process`：测试当核心跑真的 `serve`、`logs -f`（施工 O-18）。

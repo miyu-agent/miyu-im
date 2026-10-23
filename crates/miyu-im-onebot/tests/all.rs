@@ -36,6 +36,7 @@ mod forwards;
 mod frames;
 mod group;
 mod group_settings;
+mod history;
 mod hooks;
 mod humanlike;
 mod ids;

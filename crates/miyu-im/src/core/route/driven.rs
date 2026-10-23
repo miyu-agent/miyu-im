@@ -80,6 +80,13 @@ impl Route {
                 .or_insert((turn, 0)),
             turn,
         );
+        // 这一轮是不是终端管理员叫的（施工 C-1 下）：私聊里核心认出了人（`by` 是 `person`），群里照投影里他说的话带的 `account`。
+        let admin = params["by"]["kind"] == "person"
+            || by.as_ref().is_some_and(|by| {
+                self.groups
+                    .get(&session)
+                    .is_some_and(|group| group.is_admin(by))
+            });
         let call = Call {
             tool: tool.to_string(),
             args: params["args"].clone(),
@@ -102,6 +109,8 @@ impl Route {
             plugins: self.hooks.active(peer.to),
             config: self.hooks.driver_config(),
             store: self.store.clone(),
+            admin,
+            history: self.records.history(),
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
         let answers = Arc::clone(&call.answers);

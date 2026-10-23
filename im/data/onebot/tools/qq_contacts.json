@@ -1,4 +1,4 @@
 {
-  "description": "List your friends or the groups you are in, with their numbers.",
+  "description": "List your friends or the groups you are in.",
   "parameters": {"type":"object","properties":{"kind":{"type":"string","enum":["friends","groups"]},"query":{"type":"string"}}}
 }

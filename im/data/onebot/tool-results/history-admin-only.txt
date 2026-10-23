@@ -1,0 +1,1 @@
+Not done: only an admin can search all chats.

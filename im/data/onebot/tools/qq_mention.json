@@ -1,4 +1,4 @@
 {
-  "description": "@ these group members at the start of your next message.",
+  "description": "@ these members at the start of your next message.",
   "parameters": {"type":"object","properties":{"users":{"type":"array","items":{"type":"integer"}}},"required":["users"]}
 }

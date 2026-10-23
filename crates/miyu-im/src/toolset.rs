@@ -23,6 +23,9 @@ use crate::chat::{Link, Media, Platform, To};
 use crate::core::Caller;
 use crate::core::blobs::{Unstored, put};
 
+/// 她查聊天记录（施工 C-1 下）：只读的口子和搜的条件。
+pub use crate::records::history::{History, HistoryQuery};
+
 /// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
 /// 先核对）。
 pub use crate::media::{
@@ -300,6 +303,10 @@ pub struct Call {
     pub config: Map<String, Value>,
     /// 驱动自己的状态目录（施工 Q-2：im 的状态目录下照平台的名字，`qq/`）：驱动要记的东西放这里，没建的自己建。
     pub store: PathBuf,
+    /// 这一轮是不是终端管理员叫的（施工 C-1 下：私聊里核心认出了人，群里他说的话带着账号）。
+    pub admin: bool,
+    /// im 的聊天记录，只读（施工 C-1 下）。
+    pub history: History,
 }
 
 /// 驱动交的一套工具。

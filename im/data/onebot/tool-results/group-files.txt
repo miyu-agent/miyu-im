@@ -1,1 +1,1 @@
-Showing {shown} of {total}: {list}
+Showing {shown} of {total} (pass an id as folder to open it, as file to save it): {list}

@@ -1,4 +1,4 @@
 {
-  "description": "List this group's members with their QQ numbers.",
+  "description": "List this group's members.",
   "parameters": {"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}}}
 }

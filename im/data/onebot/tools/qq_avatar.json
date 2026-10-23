@@ -1,4 +1,4 @@
 {
-  "description": "Save a user's or group's avatar. Without either, the sender of the message you are answering.",
+  "description": "Save the avatar of user or group, else of the sender you are answering.",
   "parameters": {"type":"object","properties":{"user":{"type":"integer"},"group":{"type":"integer"}}}
 }
