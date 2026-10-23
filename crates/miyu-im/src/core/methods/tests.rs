@@ -6,9 +6,9 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn twelve_methods_are_registered_without_a_timeout() {
+fn fifteen_methods_are_registered_without_a_timeout() {
     // 后台页的两个、给别的包调的四个（施工 O-42；O-56 多 `chat.send`，I-8 上多插件用的 `chat.note`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）、
-    // 会话浮窗的概况（施工 I-7 上补）。
+    // 会话浮窗的概况（施工 I-7 上补）、平台会话页的三个（施工 I-34 上）。
     assert_eq!(
         registered(),
         json!({"methods": [
@@ -24,6 +24,9 @@ fn twelve_methods_are_registered_without_a_timeout() {
             {"name": "cards.add"},
             {"name": "cards.remove"},
             {"name": "cards.overview"},
+            {"name": "sessions.list"},
+            {"name": "sessions.page"},
+            {"name": "sessions.delete"},
         ]})
     );
 }
@@ -43,6 +46,9 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "cards.add",
         "cards.remove",
         "cards.overview",
+        "sessions.list",
+        "sessions.page",
+        "sessions.delete",
         "chat.inbound",
         "",
     ]
@@ -61,7 +67,10 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
             "cards.save_one",
             "cards.add",
             "cards.remove",
-            "cards.overview"
+            "cards.overview",
+            "sessions.list",
+            "sessions.page",
+            "sessions.delete"
         ]
     );
 }

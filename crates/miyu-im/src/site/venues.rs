@@ -11,11 +11,22 @@ use serde_json::{Value, json};
 
 use super::Person;
 use crate::PACKAGE;
-use crate::core::methods::{CARDS_GET, CARDS_OVERVIEW};
+use crate::core::methods::{
+    CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST, SESSIONS_PAGE,
+};
 use crate::rules::card_page::{ADD, REMOVE, SAVE_ONE};
 
-/// 转给读的一头的几个方法。
-pub(super) const FORWARDED: [&str; 5] = [CARDS_GET, SAVE_ONE, ADD, REMOVE, CARDS_OVERVIEW];
+/// 转给读的一头的几个方法：会话页的，平台会话页的三个（施工 I-34 上，在 `crate::core::route` 的 `browse`）。
+pub(super) const FORWARDED: [&str; 8] = [
+    CARDS_GET,
+    SAVE_ONE,
+    ADD,
+    REMOVE,
+    CARDS_OVERVIEW,
+    SESSIONS_LIST,
+    SESSIONS_PAGE,
+    SESSIONS_DELETE,
+];
 
 /// 在 `person` 的连接上调 im 自己的 `method`：交回答的，拒了的交回（原因、原话）。
 pub(super) async fn forward(

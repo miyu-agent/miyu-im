@@ -46,6 +46,7 @@ mod backfill;
 mod backlog;
 mod bindings;
 mod body;
+mod browse;
 mod called;
 mod cards;
 mod command;
