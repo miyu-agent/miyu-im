@@ -38,6 +38,7 @@
 //!   会话都忘掉，下一条照新的白名单再找（施工 O-27）。
 
 mod acting;
+mod aims;
 mod applied;
 mod ask;
 mod asked;
@@ -63,7 +64,6 @@ mod judged;
 mod judges;
 mod lanes;
 mod long;
-mod mentions;
 mod message;
 mod migrate;
 mod muted;
@@ -129,6 +129,7 @@ use crate::recent::Recent;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
+use aims::Aims;
 pub(crate) use ask::Slots;
 use backlog::Backlog;
 use bindings::Bindings;
@@ -137,7 +138,6 @@ pub(crate) use fetching::Fetching;
 pub(crate) use forwards::Forwarding;
 use impostor::Noted;
 use judges::Judges;
-use mentions::Mentions;
 use outbound::Spoken;
 use parts::sent;
 pub(crate) use parts::{Asking, Recalling};
@@ -222,8 +222,8 @@ pub(crate) struct Route {
     titles: Titles,
     /// 记过的冒充提醒（施工 O-53，`impostor`）。
     impostors: Noted,
-    /// 她要 @ 的人（施工 O-55，`mentions`）。
-    mentions: Mentions,
+    /// 她指定下一句 @ 谁、引用哪条（施工 O-55、I-31，`aims`）。
+    aims: Aims,
     /// 禁言时判了要回的，按群会话排着（施工 O-50，`deferred`）。
     deferred: HashMap<String, Vec<Deferred>>,
     /// 禁言以后多久以内来的排着（施工 O-50）。
@@ -332,7 +332,7 @@ impl Route {
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
             impostors: Noted::default(),
-            mentions: Mentions::default(),
+            aims: Aims::default(),
             deferred: HashMap::new(),
             mute_window: asking.mute_window,
             mute_replies: asking.mute_replies,

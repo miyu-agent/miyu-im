@@ -217,6 +217,8 @@ impl From<Value> for Done {
 pub enum Effect {
     /// 这条线这一轮她的下一句第一段前面 @ 这几个号（`mention`）。
     Mention(Vec<i64>),
+    /// 这条线这一轮她的下一句第一段引用这一条（平台编号，`quote`，施工 I-31）：这一句不再自动引用、自动 @。
+    Quote(String),
     /// 以她的名义发到 `to`（`chat_send`）：im 照对方场所的出站链发、找对方的会话记一句，发成了答 `sent`，没成的照原因答（`failed`、
     /// `unreachable`、`unanswered`、`no-target`，用这一套的答的话）。
     Send {

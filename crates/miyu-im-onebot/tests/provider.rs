@@ -56,6 +56,7 @@ pub fn shipped_tools() -> Value {
         entry("qq_avatar", "venue", both),
         entry("qq_members", "read", group),
         entry("qq_mention", "venue", group),
+        entry("qq_quote", "venue", both),
         entry("qq_send", "venue", both),
         entry("qq_contacts", "read", both),
         entry("qq_group_files", "venue", group),

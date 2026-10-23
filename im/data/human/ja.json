@@ -14,6 +14,7 @@
     "qq_avatar": { "name": "アイコン" },
     "qq_members": { "name": "グループのメンバー", "subject": "query" },
     "qq_mention": { "name": "メンション" },
+    "qq_quote": { "name": "引用" },
     "qq_send": { "name": "メッセージを送る", "subject": "text" }
   },
   "said": {

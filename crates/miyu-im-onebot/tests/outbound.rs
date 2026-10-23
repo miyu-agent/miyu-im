@@ -1,7 +1,7 @@
 //! 出站链（施工 O-25 上，`onebot.md` 第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条）：真核心拉起真桥、假 NapCat、她照台词
 //! 说（`support/speaking.rs`）。漏进正文的工具调用清掉；只有空白的、整条括号旁白的、整条是工具调用的不发；同一轮说两遍一样的
 //! 只发一次（她连着说的后一句引用）；隔了 4 条别人的话以后回，第一段带引用、后面几段不带；隔够了时候、期间有人说过话，第一段带 @；刚说完紧接着回，
-//! 两样都不带。私聊（进程里的桥）不带，同一轮说两遍一样的也只发一次。
+//! 两样都不带；她自己用 `qq_quote` 挑了的（施工 I-31）引用她挑的、不 @。私聊（进程里的桥）不带，同一轮说两遍一样的也只发一次。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -202,4 +202,36 @@ async fn private_replies_carry_neither_and_are_not_repeated() {
     assert_eq!(napcat.reply().await, "我在看这个问题");
     assert_eq!(napcat.reply().await, "看完了", "同一轮重复的那一句不发");
     bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn a_quote_she_picks_replaces_the_automatic_quote_and_mention() {
+    // 同上一条的情形（该自动 @ 叫她的人了），她先 `qq_quote` 挑了一条（施工 I-31）：引用她挑的，不再 @。
+    let (release, released) = oneshot::channel();
+    let lines = Lines::new([
+        Line::says("在"),
+        Line::uses("", "qq_quote", r#"{"msg":"555"}"#),
+        Line::says("说的是这条").released_by(released),
+    ]);
+    let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    napcat.stock_message(
+        555,
+        json!({"message_type": "group", "group_id": PROMPT, "user_id": LIN, "message": []}),
+    );
+    admin_calls(&napcat, PROMPT, 31);
+    assert_eq!(napcat.group_message(PROMPT).await, [words("在")]);
+    until_count(&home, PROMPT, "turn.ended", 1).await;
+    admin_calls(&napcat, PROMPT, 32);
+    until_count(&home, PROMPT, "turn.started", 2).await;
+    other_says(&napcat, PROMPT, LIN, 33);
+    until_count(&home, PROMPT, "message.user", 3).await;
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    release.send(()).expect("她在等");
+    let quote = json!({"type": "reply", "data": {"id": "555"}});
+    assert_eq!(
+        napcat.group_message(PROMPT).await,
+        [quote, words("说的是这条")],
+        "引用她挑的那一条，不 @"
+    );
+    stopped(home).await;
 }

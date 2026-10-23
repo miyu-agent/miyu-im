@@ -174,15 +174,15 @@ impl Route {
                 };
                 answerer.answer(&id, answer);
             }
-            // @ 谁要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
-            Planned::Host(Effect::Mention(_)) => {
+            // @ 谁、引用哪条要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
+            Planned::Host(Effect::Mention(_) | Effect::Quote(_)) => {
                 answerer.answer(&id, answers.say("unreachable", &[], true));
             }
         }
         Ok(())
     }
 
-    /// 驱动交回的任务办完了（施工 T-4）：先做它交回的那件事（@ 谁记在那条线、那一轮上），再答、记一行运行日志。
+    /// 驱动交回的任务办完了（施工 T-4）：先做它交回的那件事（@ 谁、引用哪条记在那条线、那一轮上），再答、记一行运行日志。
     pub(super) fn finished(&mut self, finished: Finished) {
         let Finished {
             id,
@@ -193,8 +193,10 @@ impl Route {
             turn,
             done,
         } = finished;
-        if let (Some(Effect::Mention(users)), Some(turn)) = (done.effect, turn) {
-            self.mention(line, turn, &users);
+        match (done.effect, turn) {
+            (Some(Effect::Mention(users)), Some(turn)) => self.mention(line, turn, &users),
+            (Some(Effect::Quote(msg)), Some(turn)) => self.quote(line, turn, msg),
+            _ => {}
         }
         logged(&venue, &tool, &done.answer);
         answerer.answer(&id, done.answer);

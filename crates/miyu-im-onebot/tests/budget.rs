@@ -15,7 +15,7 @@
 //! 加 `moderation_log`（同一个端点、同一个办法，十一件一起）：第一稿 124，说明删到一句、参数不写说明以后 96；十一件合计 1098 个
 //! token、3071 字节，预算是实测加一成，1208 个 token，合 3378 字节。施工 I-12 工具名统一加 `qq_`（2026-10-20 项目主人定；`chat_send`
 //! 改回 `qq_send`）：十一件合计 1115 个 token（多 17），说明字节不变；同一张加 `qq_contacts`、`qq_group_files`、`qq_react`（边际
-//! 89、90、89），十四件合计 1383 个 token、3920 字节（I-17 补参数以后 1508、4292，还在预算以内），预算是实测加一成，1521 个 token，合 4312 字节。施工 I-20 踢人去掉 `confirm`、加 `qq_activity_ranking`（2026-10-21 项目主人定要做；边际 88，`qq_kick` 131）：十五件合计 1587 个 token、4514 字节，超了；照 `docs/工具说明怎么写.md` 改短以后 1415 个 token、3914 字节，预算不动。加工具、改说明超了，重新量过
+//! 89、90、89），十四件合计 1383 个 token、3920 字节（I-17 补参数以后 1508、4292，还在预算以内），预算是实测加一成，1521 个 token，合 4312 字节。施工 I-20 踢人去掉 `confirm`、加 `qq_activity_ranking`（2026-10-21 项目主人定要做；边际 88，`qq_kick` 131）：十五件合计 1587 个 token、4514 字节，超了；照 `docs/工具说明怎么写.md` 改短以后 1415 个 token、3914 字节，预算不动。施工 I-31 加 `qq_quote`（2026-10-23 同一个端点、同一个办法，十六件一起）：边际 58，说明合计 4100 字节，还在预算以内。加工具、改说明超了，重新量过
 //! 再改这里和设计。
 
 use std::path::Path;
@@ -24,7 +24,7 @@ use std::path::Path;
 const BUDGET: usize = 4312;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 15] = [
+const TOOLS: [&str; 16] = [
     "qq_activity_ranking",
     "qq_avatar",
     "qq_contacts",
@@ -36,6 +36,7 @@ const TOOLS: [&str; 15] = [
     "qq_moderation_log",
     "qq_mute",
     "qq_poke",
+    "qq_quote",
     "qq_react",
     "qq_recall",
     "qq_send",

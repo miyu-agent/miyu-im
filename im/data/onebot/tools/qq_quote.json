@@ -1,0 +1,4 @@
+{
+  "description": "Quote this message in your next message.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."}},"required":["msg"]}
+}
