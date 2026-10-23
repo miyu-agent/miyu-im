@@ -1,4 +1,4 @@
 {
-  "description": "Poke the one person @-mentioned in the message you are answering, or its sender if nobody is.",
-  "parameters": {"type":"object","properties":{}}
+  "description": "Poke user, or else the one person @-mentioned in the message you are answering, or its sender if nobody is.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"}}}
 }

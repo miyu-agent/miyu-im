@@ -8,6 +8,9 @@
 //!
 //! 施工 I-17（照旧版）：禁言、踢人能给 `users`（号的列表，最多 [`MOST`] 个，和 `user` 二选一）；号写错了的不再当认不出人，交回
 //! 哪个参数不对（[`Why::Bad`]），秒数写成数字的字也认。
+//!
+//! 施工 I-32（2026-10-23 项目主人定：以后的 loop 里没有「她在回的那一条」，她要能戳群里任何人）：戳一戳能给 `user`，群里戳这个号
+//! （是不是群成员由调的一方核对），私聊里只能是对方；没给的照旧。
 
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
@@ -75,8 +78,8 @@ pub(crate) enum Order {
         /// 她给的 QQ 号（施工 O-48；I-17 起能给几个）。
         users: Arg<Vec<i64>>,
     },
-    /// 戳一戳。
-    Poke,
+    /// 戳一戳：她给的 QQ 号（施工 I-32）。
+    Poke(Arg<i64>),
     /// 移出群（施工 Q-2）：她给的 QQ 号，以后不收他的加群申请没有。
     Kick {
         /// 她给的 QQ 号（施工 I-17 起能给几个）。
@@ -107,7 +110,11 @@ impl Order {
                     users: people(args),
                 })
             }
-            POKE => Some(Order::Poke),
+            POKE => Some(Order::Poke(Arg::read(
+                &args["user"],
+                qq_number,
+                "user must be a QQ number",
+            ))),
             KICK => Some(Order::Kick {
                 users: people(args),
                 block: args["block"].as_bool().unwrap_or(false),
@@ -177,7 +184,7 @@ pub(crate) enum Why {
     ManyTargets,
     /// 禁言：秒数没写、不是整数、出了范围。
     BadSeconds,
-    /// 禁言、踢人：号写错了（施工 I-17）：哪个参数、期望什么。
+    /// 禁言、踢人、戳一戳：号写错了（施工 I-17、I-32）：哪个参数、期望什么。
     Bad(Bad),
 }
 
@@ -202,7 +209,7 @@ pub(crate) fn plan(order: Order, caller: &Caller, origin: Option<&Origin>, scene
     match order {
         Order::Recall(msg) => recall(msg, origin),
         Order::Mute { seconds, users } => mute(seconds, users, origin, scene),
-        Order::Poke => poke(caller, origin, scene),
+        Order::Poke(user) => poke(user, caller, origin, scene),
         Order::Kick { users, block } => match people_of(users, origin, scene) {
             Ok(users) => Plan::Kick { users, block },
             Err(why) => Plan::Refuse(why),
@@ -266,10 +273,24 @@ fn people_of(
     }
 }
 
-/// 戳一戳：私聊戳对方；群里 @ 的那一个，没有的戳叫她的人。
-fn poke(caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
+/// 戳一戳：她给了号的戳这个号（私聊里只能是对方，施工 I-32）；没给的私聊戳对方，群里 @ 的那一个，没有的戳叫她的人。
+fn poke(user: Arg<i64>, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
+    let given = match user {
+        Arg::Given(number) => match scene.platform.person(number) {
+            Ok(person) => Some(person),
+            Err(_) => return Plan::Refuse(Why::NoTarget),
+        },
+        Arg::Bad(bad) => return Plan::Refuse(Why::Bad(bad)),
+        Arg::Absent => None,
+    };
     if let Some(peer) = scene.peer {
-        return Plan::Poke(peer.clone());
+        return match given {
+            Some(person) if &person != peer => Plan::Refuse(Why::NoTarget),
+            _ => Plan::Poke(peer.clone()),
+        };
+    }
+    if let Some(person) = given {
+        return Plan::Poke(person);
     }
     let mentions = origin
         .map(|origin| origin.mentions.as_slice())

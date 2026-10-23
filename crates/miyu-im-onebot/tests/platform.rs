@@ -303,6 +303,38 @@ async fn poke_takes_the_mention_or_the_one_who_asked() {
 }
 
 #[tokio::test]
+async fn poke_takes_the_member_she_names() {
+    // 施工 I-32：她给了号的戳这个号（@ 的不管）；不在群里的不戳，答哪个号。
+    let lines = Lines::new(
+        [
+            uses("qq_poke", r#"{"user":40001}"#),
+            uses("qq_poke", r#"{"user":59999}"#),
+        ]
+        .into_iter()
+        .flatten(),
+    );
+    let (home, mut napcat) = up(&lines).await;
+    let words = json!([at(MANAGER), plain(" 戳一下小明")]);
+    assert_eq!(
+        asks(&home, &napcat, IMPOSTOR, 401, words, 1).await,
+        done("poked", &[("who", "小明")])
+    );
+    let action = next_platform(&mut napcat).await;
+    assert_eq!(action["action"], "group_poke", "{action}");
+    assert_eq!(
+        action["params"],
+        json!({"group_id": GROUP, "user_id": MEMBER})
+    );
+    let words = json!([plain("戳 59999")]);
+    assert_eq!(
+        asks(&home, &napcat, IMPOSTOR, 402, words, 2).await,
+        refused("not-members", &[("who", "59999")])
+    );
+    no_platform(&mut napcat);
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_have_none() {
     let lines = Lines::new(
         [uses("qq_recall", "{}"), uses("qq_poke", "{}")]

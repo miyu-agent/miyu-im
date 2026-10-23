@@ -6,12 +6,13 @@
 
 use serde_json::Value;
 
-use miyu_im::chat::{CallError, Msg, To};
-use miyu_im::toolset::{Call, Missed, Planned, message};
+use miyu_im::chat::{CallError, Link, Msg, To};
+use miyu_im::toolset::{Call, Missed, NAME, Planned, clean, message};
 
 use super::args::{bad_args, group_only};
 use super::moderate;
 use super::target::{Caller, Order, Plan, Scene, Why, plan, recallable};
+use crate::onebot::fresh_member;
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -24,8 +25,8 @@ pub(super) enum Act {
         users: Vec<i64>,
         seconds: u64,
     },
-    /// 戳这个号。
-    Poke(i64),
+    /// 戳这个号；`check` 的是她在群里给的号，先核对是不是群成员（施工 I-32）。
+    Poke { user: i64, check: bool },
     /// 把这几个号移出这个群，`block` 的以后不收他们的加群申请（施工 Q-2；I-17 起能几个）。
     Kick {
         group: i64,
@@ -90,7 +91,10 @@ fn act(call: &Call, plan: Plan) -> Result<Act, Why> {
     match plan {
         Plan::Refuse(why) => Err(why),
         Plan::Recall { msg, check } => Ok(Act::Recall { msg, check }),
-        Plan::Poke(user) => Ok(Act::Poke(number(&user)?)),
+        Plan::Poke(user) => Ok(Act::Poke {
+            user: number(&user)?,
+            check: matches!(call.to, To::Group(_)) && !call.args["user"].is_null(),
+        }),
         Plan::Mute { users, seconds } => Ok(Act::Mute {
             group: group()?,
             users: users.iter().map(number).collect::<Result<_, _>>()?,
@@ -110,8 +114,8 @@ fn act(call: &Call, plan: Plan) -> Result<Act, Why> {
 pub(super) struct Undone(pub(super) &'static str, pub(super) Option<String>);
 
 /// 调撤回、戳一戳，经那个机器人号这时的连接；她给的撤回编号先 `get_msg` 核对（施工 O-48）：平台说没有、不在这个会话里的答
-/// `not-found`。禁言、踢人在群管理（`moderate`），到不了这里。
-async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
+/// `not-found`。禁言、踢人在群管理（`moderate`），到不了这里。成了的交回现问群成员时知道的名字（施工 I-32，没问的是空的）。
+async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
     let Some(link) = &call.link else {
         return Err(Undone("unreachable", None));
     };
@@ -130,14 +134,28 @@ async fn done(call: &Call, act: &Act) -> Result<(), Undone> {
             }
             link.recall(Msg::Text(msg)).await
         }
-        Act::Poke(user) => link.poke(call.to, *user).await,
+        Act::Poke { user, check } => {
+            let name = if *check {
+                match member(call, link.as_ref(), *user).await? {
+                    Some(name) => name,
+                    None => return Err(Undone("not-members", Some(user.to_string()))),
+                }
+            } else {
+                None
+            };
+            return link
+                .poke(call.to, *user)
+                .await
+                .map(|()| name)
+                .map_err(undone);
+        }
         Act::Mute { .. } | Act::Kick { .. } => return Err(Undone("unreachable", None)),
     };
-    result.map_err(undone)
+    result.map(|()| None).map_err(undone)
 }
 
 /// 答的那一句：成了的照动作说，没成的说为什么。
-fn answered(call: &Call, act: &Act, outcome: Result<(), Undone>) -> Value {
+fn answered(call: &Call, act: &Act, outcome: Result<Option<String>, Undone>) -> Value {
     let who = |user: i64| {
         call.names
             .get(&user)
@@ -145,8 +163,15 @@ fn answered(call: &Call, act: &Act, outcome: Result<(), Undone>) -> Value {
             .unwrap_or_else(|| user.to_string())
     };
     match (outcome, act) {
-        (Ok(()), Act::Poke(user)) => call.answers.say("poked", &[("who", &who(*user))], false),
-        (Ok(()), _) => call.answers.say("recalled", &[], false),
+        (Ok(learned), Act::Poke { user, .. }) => {
+            let who = learned.unwrap_or_else(|| who(*user));
+            call.answers.say("poked", &[("who", &who)], false)
+        }
+        // 她给的号不在群里（施工 I-32）：照 `mention` 答哪个号。
+        (Err(Undone("not-members", Some(number))), _) => {
+            call.answers.say("not-members", &[("who", &number)], true)
+        }
+        (Ok(_), _) => call.answers.say("recalled", &[], false),
         (Err(Undone(why, detail)), _) => {
             let fields: Vec<(&str, &str)> = detail
                 .as_deref()
@@ -155,6 +180,25 @@ fn answered(call: &Call, act: &Act, outcome: Result<(), Undone>) -> Value {
                 .collect();
             call.answers.say(why, &fields, true)
         }
+    }
+}
+
+/// `user` 是不是这个群的成员（施工 I-32）：缓存着名字的算是，没有的现问一次（同踢人的 `fresh_member`）。是的交回现问到的名字
+/// （洗过；缓存着的、没名字的是空的，照缓存、号写），不是的是空的。私聊的不问。
+async fn member(call: &Call, link: &dyn Link, user: i64) -> Result<Option<Option<String>>, Undone> {
+    let To::Group(group) = call.to else {
+        return Ok(Some(None));
+    };
+    if call.names.contains_key(&user) {
+        return Ok(Some(None));
+    }
+    match fresh_member(link, group, user).await {
+        Ok(found) => {
+            Ok(found.map(|member| member.name.as_deref().and_then(|name| clean(name, NAME))))
+        }
+        // NapCat 对不在群里的人回失败（同踢人）。
+        Err(CallError::Failed { .. }) => Ok(None),
+        Err(error) => Err(undone(error)),
     }
 }
 

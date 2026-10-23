@@ -85,7 +85,10 @@ fn recall(msg: &str, check: bool) -> Plan {
 #[test]
 fn orders_are_read_from_the_tool_with_what_she_gives() {
     assert_eq!(Order::read("qq_recall", &json!({})), Some(RECALL));
-    assert_eq!(Order::read("qq_poke", &json!({})), Some(Order::Poke));
+    assert_eq!(
+        Order::read("qq_poke", &json!({})),
+        Some(Order::Poke(Arg::Absent))
+    );
     assert_eq!(Order::read("qq_skip_reply", &json!({})), None);
     for (msg, wanted) in [
         (json!("123"), Arg::Given("123".to_string())),
@@ -218,13 +221,17 @@ fn the_origin_must_come_from_the_caller() {
         Plan::Refuse(Why::NoTarget)
     );
     assert_eq!(
-        in_group(Order::Poke, &caller(BOSS), Some(&someone_elses)),
+        in_group(
+            Order::Poke(Arg::Absent),
+            &caller(BOSS),
+            Some(&someone_elses)
+        ),
         Plan::Poke(qq(BOSS)),
         "戳叫她的人"
     );
     let unknown = Caller { id: None };
     assert_eq!(
-        in_group(Order::Poke, &unknown, Some(&someone_elses)),
+        in_group(Order::Poke(Arg::Absent), &unknown, Some(&someone_elses)),
         Plan::Refuse(Why::NoTarget)
     );
 }
@@ -325,19 +332,47 @@ fn poke_takes_one_mention_or_the_caller() {
     let anyone = caller(40001);
     let at_one = origin(40001, None, &[ME, 40002]);
     assert_eq!(
-        in_group(Order::Poke, &anyone, Some(&at_one)),
+        in_group(Order::Poke(Arg::Absent), &anyone, Some(&at_one)),
         Plan::Poke(qq(40002))
     );
     let at_two = origin(40001, None, &[40002, 40003]);
     assert_eq!(
-        in_group(Order::Poke, &anyone, Some(&at_two)),
+        in_group(Order::Poke(Arg::Absent), &anyone, Some(&at_two)),
         Plan::Refuse(Why::ManyTargets)
     );
     let bare = origin(40001, quote("101", Some(40002)), &[]);
     assert_eq!(
-        in_group(Order::Poke, &anyone, Some(&bare)),
+        in_group(Order::Poke(Arg::Absent), &anyone, Some(&bare)),
         Plan::Poke(qq(40001)),
         "引用不算，戳叫她的人"
+    );
+}
+
+#[test]
+fn poke_takes_the_user_she_gives_over_the_mention() {
+    // 施工 I-32：给了号的戳这个号，@ 的、叫她的都不管；号写错的说哪个参数。
+    let anyone = caller(BOSS);
+    let at_one = origin(BOSS, None, &[40002]);
+    assert_eq!(
+        Order::read("qq_poke", &json!({"user": "40003"})),
+        Some(Order::Poke(Arg::Given(40003)))
+    );
+    assert_eq!(
+        in_group(Order::Poke(Arg::Given(40003)), &anyone, Some(&at_one)),
+        Plan::Poke(qq(40003))
+    );
+    assert_eq!(
+        in_group(Order::Poke(Arg::Given(40003)), &anyone, None),
+        Plan::Poke(qq(40003)),
+        "没有她在回的那一条也戳得了"
+    );
+    assert_eq!(
+        in_group(
+            Order::read("qq_poke", &json!({"user": "小明"})).expect("是戳一戳"),
+            &anyone,
+            None
+        ),
+        Plan::Refuse(Why::Bad("user must be a QQ number"))
     );
 }
 
@@ -357,9 +392,19 @@ fn a_private_chat_recalls_any_quote_and_pokes_the_peer() {
         recall("77", false)
     );
     assert_eq!(
-        plan(Order::Poke, &anyone, Some(&quoted), &scene),
+        plan(Order::Poke(Arg::Absent), &anyone, Some(&quoted), &scene),
         Plan::Poke(peer.clone()),
         "私聊只戳对方"
+    );
+    assert_eq!(
+        plan(Order::Poke(Arg::Given(BOSS)), &anyone, None, &scene),
+        Plan::Poke(peer.clone()),
+        "给的是对方照戳"
+    );
+    assert_eq!(
+        plan(Order::Poke(Arg::Given(40002)), &anyone, None, &scene),
+        Plan::Refuse(Why::NoTarget),
+        "私聊里戳不了别人"
     );
     assert_eq!(
         plan(RECALL, &anyone, Some(&origin(BOSS, None, &[])), &scene),
