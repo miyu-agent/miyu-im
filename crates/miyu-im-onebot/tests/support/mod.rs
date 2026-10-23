@@ -19,6 +19,7 @@ pub mod judge;
 pub mod kicking;
 pub mod media;
 pub mod napcat;
+pub mod notices;
 pub mod pipe;
 pub mod platform;
 pub mod ports;

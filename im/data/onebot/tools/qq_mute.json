@@ -1,4 +1,4 @@
 {
-  "description": "Mute group members: user or users, else the one person the message you are answering quotes or @-mentions.",
-  "parameters": {"type":"object","properties":{"seconds":{"type":"integer","description":"0 unmutes."},"user":{"type":"integer"},"users":{"type":"array","items":{"type":"integer"}},"reason":{"type":"string","description":"For the moderation records."}},"required":["seconds"]}
+  "description": "Mute group members: user or users, else the one quoted or @-mentioned in the message you are answering.",
+  "parameters": {"type":"object","properties":{"seconds":{"type":"integer","description":"0 unmutes."},"user":{"type":"integer"},"users":{"type":"array","items":{"type":"integer"}},"reason":{"type":"string"}},"required":["seconds"]}
 }

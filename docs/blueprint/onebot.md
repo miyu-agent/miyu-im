@@ -1330,6 +1330,8 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **改群名片**（I-36，2026-10-23 项目主人定：她自己的、别人的都能改，「让它自己判断就行，这个没什么危害不用做限制」）：一件工具 `qq_set_card {user?, card}`（驱动的 `tools/card.rs`），只给群，`access` 是 `venue`。没写 `user` 的改她自己的，写了的改那个人的；`card` 去掉首尾空白，空的是清掉，最多 60 个字，写错的答 `bad-args`。调 `set_group_card`，成不成由 QQ 说（她不是管理员、改的是群主和管理员的被拒，照原话答 `failed`）；成了的答 `renamed-me {card}`、`renamed {who, card}`。不放进群管理插件的开关里。QQ 昵称、群名、专属头衔不做。
 
+**读群公告**（I-37，2026-10-23 项目主人定）：一件工具 `qq_notices`（驱动的 `tools/notices.rs`），没有参数，只给群，`access` 是 `read`。调 NapCat 的 `_get_group_notice {group_id}`，新的在前、最多 10 条，一条 `[日期（UTC） 名字] 正文`（正文最多 500 个字、换行写成空格、洗掉控制字符；名字照这个群缓存着的，没有的写号；读不出正文的不列），`; ` 隔开，答 `notices {count, list}`；没有的答 `no-notices`；NapCat 拒了的照原话答 `failed`。只读，不发公告。
+
 **冒充提醒**（O-53，2026-10-17 项目主人定：识人术，免得她在群里被别人的名字带着走；照旧版的 `protected_identity_conflict`）：群里一条消息记下以后、判以前（「群消息」第 6 条），发的人的名字借了别人的，经核心的 `session.note` 在这一条后面记一块 `impostor` 事实（`core/route/impostor.rs`）。不占编号的几段同「提供者和不说话」。
 
 1. **护着的名字**：终端管理员在这个群用过的名字（投影里带 `account` 的人说的话的 `venue.name`），和她自己在这个群的群名片（群成员缓存，没有的每个群问一次 `get_group_member_info`，问不到的不再问）。

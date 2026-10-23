@@ -181,6 +181,8 @@ impl NapCat {
                             fetched(&action, &stocked)
                         } else if kind == "get_group_info" {
                             group_info(&action, &stocked)
+                        } else if kind == "_get_group_notice" {
+                            super::notices::group_notices(&action)
                         } else {
                             answer(&action, (&members, &ranks), &noted, &mut sent)
                         };
@@ -194,6 +196,7 @@ impl NapCat {
                             && kind != "get_group_member_info"
                             && kind != "get_group_member_list"
                             && kind != "get_group_info"
+                            && kind != "_get_group_notice"
                             && kind != "get_group_list"
                             && kind != "get_friend_list"
                             && !FETCHING.contains(&kind);

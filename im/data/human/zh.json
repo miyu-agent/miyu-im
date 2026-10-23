@@ -16,6 +16,7 @@
     "qq_mention": { "name": "@ 群成员" },
     "qq_quote": { "name": "引用" },
     "qq_set_card": { "name": "改群名片" },
+    "qq_notices": { "name": "读群公告" },
     "qq_send": { "name": "主动发消息", "subject": "text" }
   },
   "said": {

@@ -375,6 +375,19 @@ async fn she_sets_her_own_or_someone_elses_group_card() {
 }
 
 #[tokio::test]
+async fn she_reads_the_group_announcements_newest_first() {
+    // 施工 I-37：谁叫的都能读，新的在前，日期照 UTC；名字照缓存着的群名片，没缓存的（群主没说过话）写号。
+    let lines = Lines::new(uses("qq_notices", "{}"));
+    let (home, napcat) = up(&lines).await;
+    let list = "[2025-10-23 40004] 周六十点东门集合; [2025-10-09 小明] 群规：不刷屏";
+    assert_eq!(
+        asks(&home, &napcat, MEMBER, 701, json!([plain("群规是什么")]), 1).await,
+        done("notices", &[("count", "2"), ("list", list)])
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_have_none() {
     let lines = Lines::new(
         [uses("qq_recall", "{}"), uses("qq_poke", "{}")]

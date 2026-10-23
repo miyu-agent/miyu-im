@@ -16,6 +16,7 @@
     "qq_mention": { "name": "Mention" },
     "qq_quote": { "name": "Quote" },
     "qq_set_card": { "name": "Set group card" },
+    "qq_notices": { "name": "Group announcements" },
     "qq_send": { "name": "Send message", "subject": "text" }
   },
   "said": {

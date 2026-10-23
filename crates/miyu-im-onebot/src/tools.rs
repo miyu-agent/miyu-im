@@ -23,6 +23,7 @@ mod log;
 mod lookup;
 mod mention;
 mod moderate;
+mod notices;
 mod quote;
 mod ranking;
 mod react;
@@ -58,6 +59,9 @@ pub const CONTACTS: &str = "qq_contacts";
 /// 群文件（施工 I-12）：只给群。
 pub const GROUP_FILES: &str = "qq_group_files";
 
+/// 读群公告（施工 I-37）：只给群。
+pub const NOTICES: &str = "qq_notices";
+
 /// 改群名片（施工 I-36）：只给群。
 pub const SET_CARD: &str = "qq_set_card";
 
@@ -84,7 +88,7 @@ const VENUES: &[&str] = &["private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 17] = [
+const TOOLS: [Decl; 18] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -136,6 +140,11 @@ const TOOLS: [Decl; 17] = [
         venues: &["group"],
     },
     Decl {
+        name: NOTICES,
+        access: Access::Read,
+        venues: &["group"],
+    },
+    Decl {
         name: SET_CARD,
         access: Access::Venue,
         venues: &["group"],
@@ -173,7 +182,7 @@ const TOOLS: [Decl; 17] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 46] = [
+const ANSWERS: [(&str, &[&str]); 48] = [
     ("skipped", &[]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
@@ -182,6 +191,8 @@ const ANSWERS: [(&str, &[&str]); 46] = [
     ("quoted", &[]),
     ("renamed", &["who", "card"]),
     ("renamed-me", &["card"]),
+    ("notices", &["count", "list"]),
+    ("no-notices", &[]),
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),
@@ -317,6 +328,7 @@ impl ToolSet for QqTools {
             MENTION => mention::mention(call),
             QUOTE => quote::quote(call),
             SET_CARD => card::set_card(call),
+            NOTICES => notices::notices_of(call),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
                 // 没写发给谁（施工 I-16：以前借禁言那句「要对方引用或 @」，把她带偏去反复试）：回这个会话直接写字。
