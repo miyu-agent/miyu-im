@@ -2,6 +2,7 @@
 // 原来的样子。列表页跨场所搜，一个场所的页只在那里搜（records.search 带 venue）。搜到的新的在前，点一条去它所在的场所、从那一条往回看。
 import { element, say } from '../../shell/i18n.js';
 import { drawItem } from './items.js';
+import { openMedia } from './media.js';
 import { openVenue } from './shared.js';
 
 /** 一天的毫秒数。 */
@@ -82,7 +83,8 @@ export async function drawFound(body, { request, conditions, venue, who, venueNa
   const rows = items.map((item) => {
     const row = element('button', 'records-found');
     if (!venue) row.append(element('div', 'records-found-venue', venueName(item.venue)));
-    const drawn = drawItem(item, { who, quoted: () => null });
+    const open = (found, one) => openMedia(request, { venue: found.venue, msg: found.msg, id: one.id, name: one.name });
+    const drawn = drawItem(item, { who, quoted: () => null, open });
     row.append(drawn);
     row.addEventListener('click', () => openVenue(item.venue, item.id));
     return row;

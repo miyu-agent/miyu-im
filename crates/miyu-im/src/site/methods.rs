@@ -12,6 +12,7 @@
 //!   不写的 50）。
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
 //! - `sessions.list`、`sessions.delete`：消息记录页列场所会话、删她的上下文（施工 I-34 上），同样转给读的一头。
+//! - `records.media`：消息记录页现取一条带的图片、文件（施工 C-1 中下补，`records_media`）。
 //! - `records.venues`、`records.page`、`records.search`、`records.delete`：消息记录页读、搜、删 im 自己的聊天记录库（施工 C-1 中，`records_page`）。
 //! - `models`：会话浮窗选模型（施工 I-7 中一，`venues::models`）。
 //! - `reactions` → `{"reactions": [{id, name, glyph?}], "default"}`：能贴的表情（驱动给的，空的是这个平台不支持贴表情）和桥出厂
@@ -32,7 +33,7 @@ use serde_json::{Map, Value, json};
 use super::logins::Login;
 use super::{
     Person, Site, home_cards, logs, moderation, panels, plugin_settings, plugin_widgets, plugins,
-    records_page, save, settings, stats, store, venues,
+    records_media, records_page, save, settings, stats, store, venues,
 };
 use crate::core::methods::short_path;
 
@@ -88,6 +89,7 @@ pub(super) async fn answer(
         Some("records.page") => records_page::page(site, params).await,
         Some("records.search") => records_page::search(site, params).await,
         Some("records.delete") => records_page::remove(site, params).await,
+        Some("records.media") => records_media::media(site, params).await,
         Some(method) if venues::FORWARDED.contains(&method) => {
             venues::forward(&login.person, method, params).await
         }

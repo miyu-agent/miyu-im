@@ -1,13 +1,16 @@
 // 消息记录里的一项（施工 C-1 中下，设计 04 第一节第 1、3 条）：一条话一个气泡（名字、时刻、引用的那一条、字、带的东西的占位），
 // 她说的靠右；撤回的划掉，底下写谁什么时候撤回的；人说的底下一行回没回、为什么（同会话浮窗「最近判断」的说法，venues/overview.js
 // 的 reason），判官给了理由的点开看。群里的事件（禁言、解禁、踢人、进群、退群）是时间线上居中的一行小字，做的人照名字写；撤回已经
-// 划在气泡上，不另写一行。
+// 划在气泡上，不另写一行。带的东西的占位点了现取现看（media.js）。
 import { element, say } from '../../shell/i18n.js';
 import { reason } from '../venues/overview.js';
 import { when } from './shared.js';
 
-/** 画 `item`（records.page、records.search 的一项）：`who(sender, name)` 认人，`quoted(msg)` 找引用的那一条（找不到的是空的）。 */
-export function drawItem(item, { who, quoted }) {
+/**
+ * 画 `item`（records.page、records.search 的一项）：`who(sender, name)` 认人，`quoted(msg)` 找引用的那一条（找不到的是空的），
+ * `open(item, one)` 是点了带的那一样（有平台编号的才能点，现取现看，media.js）。
+ */
+export function drawItem(item, { who, quoted, open }) {
   if (item.type === 'event') return drawEvent(item, who);
   const box = element('div', `records-msg ${item.mine ? 'her' : 'them'}`);
   if (item.recalled_at) box.classList.add('recalled');
@@ -24,7 +27,23 @@ export function drawItem(item, { who, quoted }) {
   const text = element('div', 'records-msg-text', item.text || '');
   for (const one of item.media || []) {
     if (text.textContent) text.append(' ');
-    text.append(element('span', 'records-media', placeholder(one)));
+    const chip = element('span', 'records-media', placeholder(one));
+    if (open && one.id) {
+      // 不用 button：搜到的那一行整个是按钮，按钮里不能再套按钮。
+      chip.classList.add('can-open');
+      chip.tabIndex = 0;
+      chip.setAttribute('role', 'button');
+      chip.title = say('records/media-open');
+      const go = (event) => {
+        event.stopPropagation();
+        open(item, one);
+      };
+      chip.addEventListener('click', go);
+      chip.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') go(event);
+      });
+    }
+    text.append(chip);
   }
   box.append(text);
   if (item.recalled_at) {

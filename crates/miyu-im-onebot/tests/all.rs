@@ -90,6 +90,7 @@ mod site;
 mod site_admin;
 mod site_connections;
 mod site_login;
+mod site_media;
 mod site_overview;
 mod site_panels;
 mod site_plugin_settings;

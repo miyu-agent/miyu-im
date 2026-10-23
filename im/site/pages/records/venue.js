@@ -9,6 +9,7 @@ import { toast } from '../../shell/dialog.js';
 import { face } from '../venues/face.js';
 import { drawFound, filterBar } from './filter.js';
 import { drawItem } from './items.js';
+import { openMedia } from './media.js';
 import { openPurge } from './purge.js';
 import { botNames, namer, openVenue, throttled, venueParts } from './shared.js';
 import { detailOf, titleOf } from './venues.js';
@@ -163,7 +164,11 @@ export function mountVenue(view, { request, venue, at }) {
     older.hidden = !before;
     latest.hidden = !at;
     const sorted = [...items.values()].sort((a, b) => a.at - b.at || (a.id ?? Infinity) - (b.id ?? Infinity));
-    const context = { who: namer(bots, people), quoted: (msg) => byMsg.get(msg) || null };
+    const context = {
+      who: namer(bots, people),
+      quoted: (msg) => byMsg.get(msg) || null,
+      open: (item, one) => openMedia(request, { venue, msg: item.msg, id: one.id, name: one.name }),
+    };
     const shown = sorted.map((item) => {
       const drawn = drawItem(item, context);
       if (drawn && at && item.id === at) drawn.classList.add('marked');

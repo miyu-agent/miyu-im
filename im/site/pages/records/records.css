@@ -78,3 +78,13 @@
   .records-msg { max-width: 92%; }
   .records-filter .input[type="date"] { width: 132px; }
 }
+
+/* 带的东西现取现看（施工 C-1 中下补）。 */
+.records-media.can-open { cursor: pointer; transition: background-color 0.15s ease; }
+.records-media.can-open:hover { background: var(--surface-3); color: var(--text); }
+.records-media.can-open:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
+.records-viewer { width: min(900px, 100%); }
+.records-viewer-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px 20px; color: var(--text-soft); font-size: 13px; }
+.records-viewer-head .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-viewer-body { display: grid; min-height: 160px; place-items: center; padding: 8px 20px 20px; color: var(--text-faint); overflow: auto; }
+.records-viewer-image { max-width: 100%; max-height: calc(100vh - 140px); border-radius: 10px; object-fit: contain; }
