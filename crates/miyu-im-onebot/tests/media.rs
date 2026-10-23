@@ -176,8 +176,9 @@ async fn fetch_media_brings_back_pictures_and_saves_files() {
         (Some(5), Some(5))
     );
     assert_eq!(first[0]["status"], "ok");
-    assert!(has_blob(&home, "admin", &picture));
-    assert!(has_blob(&home, "im", &picture), "核心照会话属主拷了 blob");
+    // 施工 I-35（核心 Y-5 上：资源归替谁干活的那一个）：桥传的 blob 只在它的系统账号 im 名下，不再另放一份在管理员名下。
+    assert!(!has_blob(&home, "admin", &picture));
+    assert!(has_blob(&home, "im", &picture), "在会话属主名下");
     assert_eq!(
         (text_of(&first[1]), first[1]["status"].as_str()),
         (saved_text.clone(), Some("ok"))

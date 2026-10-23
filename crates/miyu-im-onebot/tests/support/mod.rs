@@ -22,11 +22,11 @@ pub mod napcat;
 pub mod pipe;
 pub mod platform;
 pub mod ports;
+mod roots;
 pub mod spawning;
 pub mod speaking;
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -44,11 +44,12 @@ use miyu_im_onebot::settings::Settings;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::Models;
 use miyu_session::testkit::Script;
-use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
+
+pub use roots::temp_root;
 
 #[allow(unused_imports, reason = "读配置的测试用不上假 NapCat")]
 pub use napcat::*;
@@ -98,31 +99,6 @@ pub fn package_in(resources: impl AsRef<Path>) -> Package {
 /// 这个仓库的包文件夹 `im/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。
 pub fn package() -> Package {
     Package::at(assembled::package_dir())
-}
-
-/// 一个新的临时数据根（`MIYU_HOME` 指到它），建好骨架：交回目录（用完调的一方删）和数据根。
-pub fn temp_root() -> (PathBuf, DataRoot) {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| since.as_nanos());
-    let dir = std::env::temp_dir().join(format!(
-        "miyu-im-{}-{nanos}-{}",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    ));
-    let root = DataRoot::locate(&Env {
-        platform: Platform::current(),
-        miyu_home: Some(dir.clone().into_os_string()),
-        home: None,
-        xdg_cache_home: None,
-        local_app_data: None,
-        miyu_resources: None,
-        exe: None,
-    })
-    .expect("MIYU_HOME 是绝对路径");
-    root.prepare().expect("临时目录里建得了骨架");
-    (dir, root)
 }
 
 /// 源码树的资源目录抄一份到 `dir/resources`，`bridge.json` 照 `keys` 改那几格（施工 O-25 中）：交回抄好的目录。
