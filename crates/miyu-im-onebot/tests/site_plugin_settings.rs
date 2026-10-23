@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 use crate::support::browser::{call, logged_in};
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::install;
+use crate::support::hooked::{install, until_hooked};
 use crate::support::*;
 
 /// 假 NapCat 认得的群成员：她自己。
@@ -64,6 +64,8 @@ async fn a_plugin_s_own_settings_and_methods_are_reached_from_the_page() {
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
+    // 桥读到骰子插件以前问的回 `bad_params`（不是 im 插件）：先等它读到（Windows 跑得慢时撞上过）。
+    until_hooked(&home, 1).await;
 
     let got = call(
         &mut open,
