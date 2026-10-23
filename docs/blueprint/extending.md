@@ -41,7 +41,7 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 
 照那个场所的出站链过一遍（去末尾的句号这些），太长的拆成几段发；对方那个场所的会话找得到的，给它记一块事实，AI 下次在那里说话时知道是自己先找的人。回答 `{"sent": <几段>}`。拒绝：`bad_params`（写错）、`not_connected`（没连着）、`failed`（NapCat 说没成）、`unanswered`（NapCat 没回）。
 
-**`chat.venue`**：`{"session": <会话编号>}` → `{"platform": "qq", "venue": "qq:group:<群号>" | "qq:private:<号>", "bot": <机器人号>}`；接入通讯平台 认不得的会话是 `{"venue": null}`（还没来过消息的群、回完封存了的支线）。你提供的工具被调时，核心的 `tool.call` 交来的是会话编号，用它查是哪个群。
+**`chat.venue`**：`{"session": <会话编号>}` → `{"platform": "qq", "venue": "qq:group:<群号>" | "qq:private:<号>", "bot": <机器人号>}`；接入通讯平台 认不得的会话是 `{"venue": null}`（还没来过消息的群、回完封存了的支线）。你提供的工具被调时，核心的 `tool.call` 交来的是会话编号，用它查是哪个群。施工 S-1 上起多一格 `origin`：那条线这一轮叫她做的那一条，`{"sender": 人, "quote": {"msg", "sender": 人 | null} | null, "mentions": [人…]}`，人是 `{"id": "qq:<号>", "name": <名字> | null}`（群里照成员缓存、他说过的话；私聊的引用不知道是谁的，`sender` 是 `null`）；这一轮没在回的是 `null`。你的工具要认「说的是谁」（记账、点名）照它：没写号的照引用的那个人、唯一 @ 的那一个。
 
 ### 二、插进接入通讯平台 里面
 

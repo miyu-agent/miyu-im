@@ -44,6 +44,15 @@ impl Projection {
             .any(|speaker| speaker.admin && speaker.id == *who)
     }
 
+    /// 平台上的 `who` 在这个群最近一次说话时叫什么（施工 S-1 上：`chat.venue` 交给插件的名字）；没说过、没写名字的是空的。
+    pub(in crate::core::route) fn name_of(&self, who: &ExternalId) -> Option<String> {
+        self.said
+            .values()
+            .rev()
+            .filter(|speaker| speaker.id == *who)
+            .find_map(|speaker| speaker.name.clone())
+    }
+
     /// 终端管理员在这个群用过的名字（O-53：冒充提醒照它比），去重，照第一次出现的先后。
     pub(in crate::core::route) fn admin_names(&self) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();

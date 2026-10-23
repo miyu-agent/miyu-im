@@ -466,7 +466,7 @@ async fn a_lane_names_its_group_to_other_packages() {
         started_by(Arc::new(lines.clone()), &rules("100/1h"), MEMBERS).await;
     calls(&napcat, A, 101, "在吗", &[]);
     until_requests(&lines, 1).await;
-    calls(&napcat, B, 201, "你好", &[]);
+    calls(&napcat, B, 201, "你好", &[C]);
     // 支线的第一次请求到了：桥先记下支线（`forked`）再开轮，这时一定认得它。
     until_requests(&lines, 2).await;
     let lanes = until_lanes(&home, |lanes| lanes.len() == 1).await;
@@ -477,9 +477,14 @@ async fn a_lane_names_its_group_to_other_packages() {
             json!({"package": "im", "method": "chat.venue", "params": {"session": lanes[0].0}}),
         )
         .await;
+    // 施工 S-1 上：多叫她做的那一条（这条线这一轮回的是阿乙那一条，他 @ 了阿丙），人带号和名字。
     assert_eq!(
         reply["result"],
-        json!({"platform": "qq", "venue": venue(), "bot": BOT}),
+        json!({"platform": "qq", "venue": venue(), "bot": BOT, "origin": {
+            "sender": {"id": format!("qq:{B}"), "name": "阿乙"},
+            "quote": null,
+            "mentions": [{"id": format!("qq:{C}"), "name": "阿丙"}],
+        }}),
         "{reply}"
     );
     release_b.send(()).expect("还在等");

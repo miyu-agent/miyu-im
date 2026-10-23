@@ -4,16 +4,20 @@
 //!
 //! - `chat.action`：替别的包调一个 OneBot 动作，NapCat 回什么交回什么（拿掉桥自己编的 `echo`）。不挑动作：调得到的包是人批过
 //!   `packages.call` 的（施工单「要拍板的」第 1 条）。另起任务等 NapCat（`chores`，同平台工具），跟核心的那一头不等。
-//! - `chat.venue`：一个会话是哪个场所、收进它的机器人号；支线照它的群（同平台工具，施工 O-36）。认不得的场所是 `null`。
+//! - `chat.venue`：一个会话是哪个场所、收进它的机器人号；支线照它的群（同平台工具，施工 O-36）。认不得的场所是 `null`。施工
+//!   S-1 上多 `origin`：那条线这一轮叫她做的那一条（同平台工具的 `Call::origin`）：谁发的、引用了哪条谁的、@ 了谁，每个人带号
+//!   和名字（群里照这个群的成员缓存、他说过的话；私聊的引用不知道是谁）；没有的是 `null`。别的包（赞助记录）照它认「记谁」。
 
 use std::sync::Arc;
+use std::time::Instant;
 
+use miyu_client::ids::ExternalId;
 use serde_json::{Map, Value, json};
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::Bots;
 use crate::chat::CallError;
+use crate::chat::{Bots, To};
 use crate::core::Answerer;
 use crate::core::methods::VENUE;
 
@@ -91,16 +95,61 @@ impl Route {
         self.chores.spawn(act(id, from, request, bots, answerer));
     }
 
-    /// 会话 `session` 是哪个场所、收进它的机器人号：支线照它的群；认不得的场所是 `null`、没有 `bot`。
+    /// 会话 `session` 是哪个场所、收进它的机器人号、那条线这一轮叫她做的那一条：支线照它的群；认不得的场所是 `null`、没有
+    /// `bot`。
     fn venue_of(&self, session: &str) -> Value {
         let main = self.main_of(session);
         match self.peers.get(&main) {
             Some(peer) => {
-                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot})
+                let origin = self.origin_of(session, &main, peer.to);
+                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin})
             }
             None => json!({"venue": null}),
         }
     }
+
+    /// 线 `line`（主线 `main`，对方 `to`）这一轮叫她做的那一条（模块的说明）；没有的是 `null`。
+    fn origin_of(&self, line: &str, main: &str, to: To) -> Value {
+        match to {
+            To::Group(group) => {
+                let Some(projection) = self.groups.get(main) else {
+                    return Value::Null;
+                };
+                let Some(origin) = projection.origin(line) else {
+                    return Value::Null;
+                };
+                let cached = self.members.names_in(group, Instant::now());
+                let person = |who: &ExternalId| {
+                    let name = number(who)
+                        .and_then(|user| cached.get(&user).cloned())
+                        .or_else(|| projection.name_of(who));
+                    json!({"id": who.as_str(), "name": name})
+                };
+                let quote = origin.quote.map(
+                    |quote| json!({"msg": quote.msg, "sender": quote.sender.as_ref().map(&person)}),
+                );
+                let mentions: Vec<Value> = origin.mentions.iter().map(&person).collect();
+                json!({"sender": person(&origin.sender), "quote": quote, "mentions": mentions})
+            }
+            To::Private(user) => {
+                let Ok(other) = self.platform.person(user) else {
+                    return Value::Null;
+                };
+                let quote = self
+                    .quotes
+                    .get(main)
+                    .cloned()
+                    .flatten()
+                    .map(|msg| json!({"msg": msg, "sender": null}));
+                json!({"sender": {"id": other.as_str(), "name": null}, "quote": quote, "mentions": []})
+            }
+        }
+    }
+}
+
+/// 平台上的人 `id` 的号。
+fn number(id: &ExternalId) -> Option<i64> {
+    id.as_str().rsplit_once(':')?.1.parse().ok()
 }
 
 /// 办一次 `chat.action`：经那个号这时的连接调动作，NapCat 回了的（成没成）原样交回、拿掉 `echo`；没连着的、断了的拒
