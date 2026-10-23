@@ -283,3 +283,55 @@ fn delete_takes_a_venue_a_span_or_a_person_and_never_everything_by_accident() {
     drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
+
+#[test]
+fn venues_are_listed_newest_first_and_several_go_in_one_delete() {
+    let (dir, mut connection) = fresh("venues");
+    let in_venue = |venue: &str, msg: &str, seconds: i64| {
+        let Write::Said(mut said) = said_at(msg, "qq:1", "x", seconds, "话") else {
+            unreachable!()
+        };
+        said.venue = venue.to_string();
+        Write::Said(said)
+    };
+    for (venue, msg, seconds) in [
+        ("qq:group:31", "1", 10),
+        ("qq:group:31", "2", 50),
+        ("qq:group:32", "3", 30),
+        ("qq:private:7", "4", 40),
+    ] {
+        written(&connection, &in_venue(venue, msg, seconds)).expect("记得上");
+    }
+    let listed = read::venues(&connection).expect("读得出");
+    let rows: Vec<(String, i64, i64)> = listed["venues"]
+        .as_array()
+        .expect("是一串")
+        .iter()
+        .map(|one| {
+            let venue = one["venue"].as_str().expect("有场所").to_string();
+            (
+                venue,
+                one["last"].as_i64().expect("有时刻"),
+                one["count"].as_i64().expect("有条数"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("qq:group:31".to_string(), 50_000, 2),
+            ("qq:private:7".to_string(), 40_000, 1),
+            ("qq:group:32".to_string(), 30_000, 1),
+        ]
+    );
+    let two = delete::Scope {
+        venues: vec!["qq:group:31".to_string(), "qq:private:7".to_string()],
+        ..delete::Scope::default()
+    };
+    assert_eq!(delete::delete(&mut connection, &two).expect("删得了"), 3);
+    let left = read::venues(&connection).expect("读得出");
+    assert_eq!(left["venues"][0]["venue"], "qq:group:32");
+    assert_eq!(left["venues"].as_array().map(Vec::len), Some(1));
+    drop(connection);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}

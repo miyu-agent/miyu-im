@@ -24,7 +24,7 @@ fn venue() -> String {
     format!("qq:group:{GROUP}")
 }
 
-/// 一页，等到有 `least` 条消息。
+/// 一页，等到有 `least` 条消息、每条都判过。
 async fn page(open: &mut Channel, least: usize) -> Value {
     within("聊天记录记上了", async {
         let mut id = 100;
@@ -32,17 +32,18 @@ async fn page(open: &mut Channel, least: usize) -> Value {
             id += 1;
             let answer = call(open, id, "records.page", json!({"venue": venue()})).await;
             let result = answer["result"].clone();
-            let messages = result["items"].as_array().map_or(0, |items| {
-                items
-                    .iter()
-                    .filter(|item| item["type"] == "message")
-                    .count()
-            });
-            if messages >= least
-                && result["items"]
-                    .as_array()
-                    .is_some_and(|items| items.iter().any(|item| item.get("judged").is_some()))
-            {
+            // 每一条都判过了才算（判断和消息是两次写，后一条的判断可能还在路上）。
+            let messages: Vec<&Value> = result["items"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|item| item["type"] == "message")
+                .collect();
+            let judged = messages
+                .iter()
+                .filter(|item| item["mine"] != true)
+                .all(|item| item.get("judged").is_some());
+            if messages.len() >= least && judged {
                 return result;
             }
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -104,16 +105,22 @@ async fn the_records_page_reads_searches_and_deletes() {
         Some(1),
         "{by}"
     );
+    // 有记录的场所：这一个群，两条。
+    let venues = call(&mut open, 9, "records.venues", json!({})).await;
+    assert_eq!(venues["result"]["venues"][0]["venue"], venue(), "{venues}");
+    assert_eq!(venues["result"]["venues"][0]["count"], 2, "{venues}");
     // 删：参数写错的拒；什么都没写的不删；删小林的；全部删。
     let wrong = call(&mut open, 4, "records.delete", json!({"from": "昨天"})).await;
     assert_eq!(wrong["error"]["reason"], "bad_params", "{wrong}");
+    let listed = call(&mut open, 10, "records.delete", json!({"venues": "一个群"})).await;
+    assert_eq!(listed["error"]["reason"], "bad_params", "{listed}");
     let nothing = call(&mut open, 5, "records.delete", json!({})).await;
     assert_eq!(nothing["result"], json!({"deleted": 0}));
     let lin = call(
         &mut open,
         6,
         "records.delete",
-        json!({"venue": venue(), "sender": format!("qq:{LIN}")}),
+        json!({"venues": [venue()], "sender": format!("qq:{LIN}")}),
     )
     .await;
     assert_eq!(lin["result"], json!({"deleted": 1}), "{lin}");

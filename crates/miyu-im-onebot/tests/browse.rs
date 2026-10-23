@@ -1,5 +1,5 @@
-//! 后台「平台会话」页（施工 I-34 上）：真核心拉起真桥、假 NapCat，人的头经核心的 `package.call` 调 im 的三个方法。会话照收进它的
-//! 机器人号分组、带群名；读一页是核心的视图条目，人说的那一条带判断；删得掉自己的，不认得的会话拒 `session_not_found`。
+//! 后台「消息记录」页的场所会话（施工 I-34 上）：真核心拉起真桥、假 NapCat，人的头经核心的 `package.call` 调 im 的两个方法。会话照
+//! 收进它的机器人号分组、带群名；删得掉自己的，不认得的会话拒 `session_not_found`。
 
 use serde_json::{Value, json};
 
@@ -26,7 +26,7 @@ fn result(reply: &Value) -> &Value {
 }
 
 #[tokio::test]
-async fn the_page_lists_reads_and_deletes_her_sessions() {
+async fn the_page_lists_and_deletes_her_sessions() {
     let script = Script::new([Play::Says("在呢")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
@@ -61,31 +61,10 @@ async fn the_page_lists_reads_and_deletes_her_sessions() {
         "{one}"
     );
     let session = one["session"].as_str().expect("有会话").to_string();
-    // 读一页：人说的、她回的都在，人说的那一条带判断。
-    let page = head
-        .page_call_with("sessions.page", json!({"session": session}))
-        .await;
-    let page = result(&page);
-    let entries = page["entries"].as_array().expect("有条目");
-    let user = entries
-        .iter()
-        .find(|entry| entry["kind"] == "user")
-        .expect("有人说的");
-    assert!(
-        entries.iter().any(|entry| entry["kind"] == "reply"),
-        "{page}"
-    );
-    let id = user["id"].as_str().expect("有编号");
-    assert_eq!(
-        page["judged"][id],
-        json!({"outcome": "reply", "why": {"reason": "called"}}),
-        "{page}"
-    );
-    assert_eq!(page["names"][id], "终端管理员", "{page}");
     // 不认得的会话：拒。
     let stranger = head
         .page_call_with(
-            "sessions.page",
+            "sessions.delete",
             json!({"session": "0190f3a1-0000-7000-8000-000000000009"}),
         )
         .await;

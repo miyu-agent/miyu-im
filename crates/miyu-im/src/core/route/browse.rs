@@ -1,33 +1,25 @@
-//! 后台「平台会话」页要的三个方法（施工 I-34 上，项目主人 2026-10-23 定：场所会话只读，看的地方放进 im 自己的后台页，一个「平台
-//! 会话」页按连接分组列会话，点进去看只读的记录；管理员能删）。核心 Y-2 上起人碰不到场所会话，这几个都在桥自己的连接上问核心
-//! （场所会话的属主就是桥的系统账号）：
+//! 后台「消息记录」页要的两个方法（施工 I-34 上，项目主人 2026-10-23 定：场所会话只读，看的地方放进 im 自己的后台页，按连接分组
+//! 列会话，管理员能删；C-1 中下起记录改读 im 自己的库，这里只剩认连接、删她的上下文，项目主人 10-24 定删掉读一页的
+//! `sessions.page`）。核心 Y-2 上起人碰不到场所会话，这两个都在桥自己的连接上问核心（场所会话的属主就是桥的系统账号）：
 //!
 //! - `sessions.list` → `{connections: [{platform, bot, sessions: [{session, venue, kind, id, name}]}]}`：照核心的
 //!   `venue.sessions`（从新到旧），桥认得是哪个机器人号收进来的照它分组，认不得的（还没来过消息）放进 `bot` 是空的那一组；
 //!   名字照 NapCat 问到的群名、好友名（同会话页的 `cards.get`），问不到的是空的。
-//! - `sessions.page {session, before?}` → 核心 `view.page {view: true}` 的回答原样，多两张表（照同一页的原始事件）：`judged`，
-//!   条目编号（`m<序号>`）→ 那一条的判断 `{outcome, why}`（`why` 同会话浮窗「最近判断」的原因，`noted`；I-34 下改）；`names`，
-//!   条目编号 → 发的人的名字（视图条目只带平台上的身份，I-34 下加）。只认桥自己的会话。
 //! - `sessions.delete {session}` → 核心 `session.delete` 的回答：只删桥自己的会话。
 //!
 //! 不认得的会话拒 `session_not_found`，参数写错的拒 `bad_params`；核心拒了的照它的原因拒。
 
 use std::collections::HashMap;
 
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use super::Route;
 use super::cards::lists;
 use crate::chat::{Bots, To};
 use crate::core::Answerer;
 use crate::core::caller::Caller;
-use crate::core::methods::{
-    SESSIONS_DELETE as DELETE, SESSIONS_LIST as LIST, SESSIONS_PAGE as PAGE,
-};
+use crate::core::methods::{SESSIONS_DELETE as DELETE, SESSIONS_LIST as LIST};
 use crate::core::reason;
-
-/// 一页最多几轮（核心 `view.page` 的 `turns`）。
-const TURNS: u64 = 20;
 
 /// 桥认得的一个场所会话：收进它的机器人号、对方。
 #[derive(Clone)]
@@ -37,10 +29,10 @@ struct Known {
 }
 
 impl Route {
-    /// 核心转来的一次 `method.call`（`pushed`）是不是这三个：是的照答，交回真。
+    /// 核心转来的一次 `method.call`（`pushed`）是不是这两个：是的照答，交回真。
     pub(super) fn browse_called(&mut self, pushed: &Value) -> bool {
         let method = pushed["params"]["method"].as_str().unwrap_or_default();
-        if ![LIST, PAGE, DELETE].contains(&method) {
+        if ![LIST, DELETE].contains(&method) {
             return false;
         }
         let (id, args) = (pushed["id"].clone(), &pushed["params"]["params"]);
@@ -71,13 +63,7 @@ impl Route {
             answerer.refuse(&id, "session_not_found");
             return true;
         }
-        if method == PAGE {
-            let before = args["before"].as_u64();
-            self.chores
-                .spawn(paged(id, (session, before), caller, answerer));
-        } else {
-            self.chores.spawn(deleted(id, session, caller, answerer));
-        }
+        self.chores.spawn(deleted(id, session, caller, answerer));
         true
     }
 }
@@ -152,64 +138,6 @@ fn grouped(
         })
         .collect();
     json!({"connections": connections})
-}
-
-/// `sessions.page`（模块的说明）。
-async fn paged(
-    id: Value,
-    (session, before): (String, Option<u64>),
-    caller: Caller,
-    answerer: Answerer,
-) {
-    let mut params = json!({"session": session, "turns": TURNS, "view": true});
-    if let Some(before) = before {
-        params["before"] = json!(before);
-    }
-    let Ok(viewed) = caller.call("view.page", params.clone()).await else {
-        return;
-    };
-    if let Some(why) = reason(&viewed) {
-        answerer.refuse(&id, why);
-        return;
-    }
-    params["view"] = json!(false);
-    let (judged, names) = match caller.call("view.page", params).await {
-        Ok(raw) if reason(&raw).is_none() => marks(&raw["result"]["events"]),
-        _ => (Map::new(), Map::new()),
-    };
-    let mut answer = viewed["result"].clone();
-    answer["judged"] = Value::Object(judged);
-    answer["names"] = Value::Object(names);
-    answerer.answer(&id, answer);
-}
-
-/// 一页原始事件 `events` 里的判断和发的人的名字（纯逻辑）：条目编号 `m<序号>` → `{outcome, why}`（`why` 照 `noted`），条目编号 →
-/// 名字（记进会话的那一份场所的格里的 `name`，空白的不算）。一笔判断管几条的，每条都记；同一条判过几次的照后一次。
-fn marks(events: &Value) -> (Map<String, Value>, Map<String, Value>) {
-    let (mut judged, mut names) = (Map::new(), Map::new());
-    for event in events.as_array().into_iter().flatten() {
-        let body = &event["body"];
-        match event["kind"].as_str() {
-            Some("message.user") => {
-                let name = body["venue"]["name"].as_str().map(str::trim);
-                if let (Some(seq), Some(name)) =
-                    (event["seq"].as_u64(), name.filter(|name| !name.is_empty()))
-                {
-                    names.insert(format!("m{seq}"), json!(name));
-                }
-            }
-            Some("ext.im.chat.decided") => {
-                let note = json!({"outcome": body["outcome"], "why": super::noted::why(body)});
-                for seq in body["msgs"].as_array().into_iter().flatten() {
-                    if let Some(seq) = seq.as_u64() {
-                        judged.insert(format!("m{seq}"), note.clone());
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    (judged, names)
 }
 
 /// `sessions.delete`（模块的说明）。

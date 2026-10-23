@@ -8,7 +8,7 @@ import { element, icon, say } from './i18n.js';
 import { choose, chosen } from './theme.js';
 import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
-import { mountSessions } from '../pages/sessions/sessions.js';
+import { mountRecords } from '../pages/records/records.js';
 import { mountSettings } from '../pages/settings/settings.js';
 import { mountPlugins } from '../pages/plugins/plugins.js';
 import { mountStore } from '../pages/store/store.js';
@@ -18,7 +18,7 @@ import { mountStats } from '../pages/stats/stats.js';
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
-  { id: 'sessions', name: () => say('nav/sessions'), mount: mountSessions },
+  { id: 'records', name: () => say('nav/records'), mount: mountRecords },
   { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins },
   { id: 'store', name: () => say('nav/store'), mount: mountStore },
   { id: 'stats', name: () => say('nav/stats'), mount: mountStats },

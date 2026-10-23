@@ -25,7 +25,6 @@ fn fifteen_methods_are_registered_without_a_timeout() {
             {"name": "cards.remove"},
             {"name": "cards.overview"},
             {"name": "sessions.list"},
-            {"name": "sessions.page"},
             {"name": "sessions.delete"},
         ]})
     );
@@ -47,7 +46,6 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "cards.remove",
         "cards.overview",
         "sessions.list",
-        "sessions.page",
         "sessions.delete",
         "chat.inbound",
         "",
@@ -69,7 +67,6 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
             "cards.remove",
             "cards.overview",
             "sessions.list",
-            "sessions.page",
             "sessions.delete"
         ]
     );

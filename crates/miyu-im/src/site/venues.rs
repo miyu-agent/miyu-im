@@ -11,20 +11,17 @@ use serde_json::{Value, json};
 
 use super::Person;
 use crate::PACKAGE;
-use crate::core::methods::{
-    CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST, SESSIONS_PAGE,
-};
+use crate::core::methods::{CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST};
 use crate::rules::card_page::{ADD, REMOVE, SAVE_ONE};
 
-/// 转给读的一头的几个方法：会话页的，平台会话页的三个（施工 I-34 上，在 `crate::core::route` 的 `browse`）。
-pub(super) const FORWARDED: [&str; 8] = [
+/// 转给读的一头的几个方法：会话页的，消息记录页的两个（施工 I-34 上，在 `crate::core::route` 的 `browse`）。
+pub(super) const FORWARDED: [&str; 7] = [
     CARDS_GET,
     SAVE_ONE,
     ADD,
     REMOVE,
     CARDS_OVERVIEW,
     SESSIONS_LIST,
-    SESSIONS_PAGE,
     SESSIONS_DELETE,
 ];
 

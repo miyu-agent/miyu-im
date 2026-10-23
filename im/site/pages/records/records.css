@@ -1,0 +1,80 @@
+/* 消息记录页（施工 C-1 中下；I-34 下的平台会话页改的）。 */
+.records-head { position: sticky; top: 0; z-index: 2; margin: -4px -8px 10px; padding: 4px 8px; background: var(--surface); }
+.records-head .grow { flex: 1; min-width: 0; }
+.records-venue-title { display: flex; align-items: center; gap: 10px; }
+.records-venue-title .avatar { width: 32px; height: 32px; flex: none; }
+.records-venue-name { display: flex; flex-direction: column; min-width: 0; }
+.records-venue-name strong, .records-venue-name .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-venue-name .muted { font-size: 12px; }
+.records-actions { display: flex; flex: none; gap: 4px; }
+
+/* 搜的那一行。 */
+.records-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+.records-filter .grow { flex: 1 1 200px; min-width: 0; }
+.records-filter-date { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.records-filter .input[type="date"] { width: 150px; }
+
+/* 列表。 */
+.records-groups { display: flex; flex-direction: column; gap: 22px; }
+.records-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.records-group-title .avatar { width: 28px; height: 28px; }
+.records-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.records-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 0; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); color: inherit; text-align: left; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.15s var(--ease-out); }
+.records-row:hover { box-shadow: var(--card-shadow); transform: translateY(-1px); }
+.records-row .avatar { width: 36px; height: 36px; flex: none; }
+.records-row .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.records-row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-row .id { color: var(--text-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-row-side { display: flex; flex-direction: column; align-items: flex-end; flex: none; color: var(--text-faint); font-size: 12px; }
+
+/* 一个场所的记录。 */
+.records-older { margin: 0 auto 12px; display: flex; }
+.records-timeline { display: flex; flex-direction: column; gap: 10px; max-width: 820px; margin-bottom: 12px; }
+.records-msg { align-self: flex-start; max-width: 80%; padding: 8px 12px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.records-msg.her { align-self: flex-end; background: var(--accent-soft); }
+.records-msg.marked { background: color-mix(in srgb, var(--accent) 22%, var(--surface-1)); }
+.records-msg.her.marked { background: color-mix(in srgb, var(--accent) 38%, var(--surface-1)); }
+.records-msg-top { display: flex; align-items: baseline; gap: 8px; font-size: 12px; margin-bottom: 2px; }
+.records-msg-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.records-msg.recalled .records-msg-text { text-decoration: line-through; color: var(--text-faint); }
+.records-recalled { margin-top: 2px; color: var(--text-faint); font-size: 12px; }
+.records-quote { margin: 2px 0 4px; padding-left: 8px; border-left: 2px solid var(--line); color: var(--text-soft); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-media { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--surface-2); color: var(--text-soft); font-size: 12.5px; }
+.records-judged { margin-top: 4px; color: var(--text-faint); font-size: 12px; }
+.records-judged.yes { color: var(--text-soft); }
+.records-judged.more { cursor: pointer; text-decoration: underline dotted; }
+.records-judge-said { margin-top: 2px; color: var(--text-soft); font-size: 12px; }
+.records-event { align-self: center; color: var(--text-faint); font-size: 12px; text-align: center; }
+
+/* 搜到的。 */
+.records-found-count { margin: 0 0 8px; font-size: 12px; }
+.records-found { display: flex; flex-direction: column; align-items: flex-start; width: 100%; max-width: 820px; padding: 4px 0; border: 0; border-radius: 12px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.records-found .records-msg { max-width: 100%; }
+.records-found .records-msg.her { align-self: flex-start; }
+.records-found:hover .records-msg { box-shadow: var(--card-shadow); }
+.records-found-venue { margin: 0 0 4px 4px; color: var(--text-faint); font-size: 12px; }
+
+/* 删的浮窗。 */
+.records-purge-section { margin-bottom: 16px; }
+.records-purge-label { margin-bottom: 6px; font-weight: 600; }
+.records-purge-hint { margin-top: 4px; font-size: 12px; }
+.records-purge-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.records-purge-person { width: 220px; }
+.records-purge-note { font-size: 12.5px; }
+.records-checks { display: flex; flex-direction: column; max-height: 240px; overflow-y: auto; border-radius: 10px; background: var(--surface-1); }
+.records-check-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.records-check-row:hover { background: var(--surface-2); }
+.records-check-row .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.records-check-row .muted { font-size: 12px; }
+.records-check { display: grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 5px; background: var(--surface-3); color: transparent; transition: background-color 0.15s ease; }
+.records-check .icon { width: 13px; height: 13px; stroke-width: 3; }
+.records-check-row.on .records-check { background: var(--accent); color: var(--on-primary); }
+
+/* 窄屏：钉在顶上的那一行让出左上角收起左栏的按钮。 */
+@media (max-width: 720px) {
+  .records-head { flex-wrap: wrap; row-gap: 4px; padding-left: 48px; }
+  .records-head .records-venue-title { flex: 1 1 calc(100% - 48px); }
+  .records-actions { flex: 1 1 100%; justify-content: flex-end; }
+  .records-msg { max-width: 92%; }
+  .records-filter .input[type="date"] { width: 132px; }
+}

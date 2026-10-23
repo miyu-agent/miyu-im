@@ -45,9 +45,8 @@ pub(crate) const CARDS_SAVE: &str = "cards.save";
 /// 会话浮窗的「概况」：一张卡今天的数、最近判断（施工 I-7 上补）。
 pub(crate) const CARDS_OVERVIEW: &str = "cards.overview";
 
-/// 后台「平台会话」页（施工 I-34 上，`route/browse.rs`）：列会话、读一页记录、删一个会话。
+/// 后台「消息记录」页（施工 I-34 上，`route/browse.rs`；C-1 中下起记录改读 im 自己的库）：列场所会话、删一个会话。
 pub(crate) const SESSIONS_LIST: &str = "sessions.list";
-pub(crate) const SESSIONS_PAGE: &str = "sessions.page";
 pub(crate) const SESSIONS_DELETE: &str = "sessions.delete";
 
 /// 场所卡片两页的三个方法（施工 O-58 下，`rules::card_page`）：页面上存一张表单、加一项、删一项。
@@ -56,7 +55,7 @@ use crate::rules::card_page::{
 };
 
 /// 方法 `method` 是不是交给跟核心的那一头答的：给别的包调的那几个（施工 O-42；O-56 多 `chat.send`），场所卡片的两个（施工 O-58
-/// 上：卡片、场所规则、连接都在那一头），平台会话页的三个（施工 I-34 上：桥认得的会话在那一头）。
+/// 上：卡片、场所规则、连接都在那一头），消息记录页的两个（施工 I-34 上：桥认得的会话在那一头）。
 pub(super) fn exported(method: &str) -> bool {
     matches!(
         method,
@@ -71,7 +70,6 @@ pub(super) fn exported(method: &str) -> bool {
             | CARDS_REMOVE
             | CARDS_OVERVIEW
             | SESSIONS_LIST
-            | SESSIONS_PAGE
             | SESSIONS_DELETE
     )
 }
@@ -153,7 +151,6 @@ fn registered() -> Value {
         {"name": CARDS_REMOVE},
         {"name": CARDS_OVERVIEW},
         {"name": SESSIONS_LIST},
-        {"name": SESSIONS_PAGE},
         {"name": SESSIONS_DELETE},
     ]})
 }

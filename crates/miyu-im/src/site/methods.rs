@@ -11,8 +11,8 @@
 //! - `logs {level?, limit?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，`limit`
 //!   不写的 50）。
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
-//! - `sessions.list`、`sessions.page`、`sessions.delete`：平台会话页的（施工 I-34 上），同样转给读的一头。
-//! - `records.page`、`records.search`、`records.delete`：消息记录页读、搜、删 im 自己的聊天记录库（施工 C-1 中，`records_page`）。
+//! - `sessions.list`、`sessions.delete`：消息记录页列场所会话、删她的上下文（施工 I-34 上），同样转给读的一头。
+//! - `records.venues`、`records.page`、`records.search`、`records.delete`：消息记录页读、搜、删 im 自己的聊天记录库（施工 C-1 中，`records_page`）。
 //! - `models`：会话浮窗选模型（施工 I-7 中一，`venues::models`）。
 //! - `reactions` → `{"reactions": [{id, name, glyph?}], "default"}`：能贴的表情（驱动给的，空的是这个平台不支持贴表情）和桥出厂
 //!   贴的那一个（`bridge.json` 的 `reaction_emoji`，施工 I-7 中三下二）。
@@ -84,6 +84,7 @@ pub(super) async fn answer(
         Some("stats") => stats::stats(site, &login.person, params).await,
         Some("store.list") => store::list(&login.person, params).await,
         Some("store.install") => store::install(&login.person, params).await,
+        Some("records.venues") => records_page::listed(site).await,
         Some("records.page") => records_page::page(site, params).await,
         Some("records.search") => records_page::search(site, params).await,
         Some("records.delete") => records_page::remove(site, params).await,

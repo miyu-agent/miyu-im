@@ -2,6 +2,7 @@
 //!
 //! - 一页（[`page`]）：一个场所的消息，从新到旧取 `limit` 条（`before` 是上一页最早那一条的行号），带上这几条的判断，和落在
 //!   这段时间里的群事件；交回时照时刻从旧到新排好。
+//! - 有记录的场所（[`venues`]）：每个场所最后一条的时刻、一共几条，新的在前。
 //! - 搜（[`search`]）：关键词三个字以上照全文索引（`trigram`），一两个字照子串；能按场所、按人（号或名字）、按时间段筛；新的在前。
 
 use rusqlite::{Connection, Row, params_from_iter, types::Value as Sql};
@@ -112,6 +113,27 @@ pub(crate) fn page(
         )
     });
     Ok(json!({"items": items, "more": more, "before": oldest_id}))
+}
+
+/// 有记录的场所：交回 `{venues: [{venue, last, count}]}`，`last` 是最后一条的时刻，最近说过话的在前。
+///
+/// # Errors
+///
+/// 库读不出。
+pub(crate) fn venues(connection: &Connection) -> rusqlite::Result<Value> {
+    let mut statement = connection.prepare(
+        "SELECT venue, MAX(at), COUNT(*) FROM messages GROUP BY venue ORDER BY MAX(at) DESC, venue",
+    )?;
+    let venues: Vec<Value> = statement
+        .query_map([], |row| {
+            Ok(json!({
+                "venue": row.get::<_, String>(0)?,
+                "last": row.get::<_, i64>(1)?,
+                "count": row.get::<_, i64>(2)?,
+            }))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(json!({"venues": venues}))
 }
 
 /// 给场所 `venue` 的几条消息 `messages` 带上判断（`judged: {outcome, why}`，没判过的不带）。
