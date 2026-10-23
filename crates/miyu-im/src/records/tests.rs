@@ -54,6 +54,8 @@ fn a_message_is_kept_once_and_found_by_a_chinese_substring() {
         media, r#"[{"id":"abc.jpg","kind":"image"}]"#,
         "只记占位和编号"
     );
+    // 先关掉连接（Windows 上开着的文件删不掉）。
+    drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
 
@@ -91,6 +93,8 @@ fn a_recall_marks_the_message_and_is_an_event() {
         )
         .expect("数得出");
     assert_eq!(kinds, 1);
+    // 先关掉连接（Windows 上开着的文件删不掉）。
+    drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
 
