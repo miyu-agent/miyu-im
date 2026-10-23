@@ -36,6 +36,12 @@ impl Route {
                 return Ok(());
             }
         };
+        // 聊天记录（设计 04，施工 C-1 上）：撤回不删，那一条标上撤回了、谁撤的，另记一件事。
+        self.record_happening(
+            (venue.id().as_str(), crate::records::RECALLED),
+            (Some(recall.user), Some(recall.by)),
+            (None, Some(recall.message_id)),
+        );
         let applied = self.applied(&venue);
         let place = match recall.group {
             Some(group) => Place::group(&venue, &applied, recall.bot, group),

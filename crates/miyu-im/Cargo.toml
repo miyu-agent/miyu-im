@@ -35,6 +35,9 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 # NapCat 回的 base64 解出来、`blob.write` 分块上传时编成 base64（施工 O-33）。本来就在依赖图里，和核心用的同一份。MIT OR
 # Apache-2.0。
 base64 = "0.22"
+# 聊天记录（设计 04，施工 C-1 上）：im 自己的 SQLite 库，正文的全文索引用 FTS5。和核心用的同一版、同一份（`bundled`，不靠系统的
+# SQLite）。MIT。
+rusqlite = { version = "0.40", features = ["bundled"] }
 # 读插件的声明 `plugin.toml`（施工 I-8 上）：照类型读、认不出的键不收。和群聊内核读规则用的 `toml_edit` 是同一家、同一份
 # 解析器。MIT OR Apache-2.0。
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }

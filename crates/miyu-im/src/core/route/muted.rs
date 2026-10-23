@@ -51,6 +51,17 @@ impl Route {
                 return Ok(());
             }
         };
+        // 聊天记录（设计 04，施工 C-1 上）：她被禁言、解禁也是群里的一件事。
+        let kind = if seconds.is_some() {
+            "muted"
+        } else {
+            "unmuted"
+        };
+        self.record_happening(
+            (venue.id().as_str(), kind),
+            (Some(bot), operator),
+            (seconds, None),
+        );
         let place = Place::group(&venue, &self.applied(&venue), bot, group);
         let Some(seconds) = seconds else {
             // 解禁：投影里本来就没禁着的（到点已经补记过、通知重了）不再记（O-50）。

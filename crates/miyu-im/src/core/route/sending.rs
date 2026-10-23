@@ -346,6 +346,11 @@ impl Route {
         let (venue, chars) = (&peer.venue, item.piece.text.chars().count());
         let text = crate::recent::Note::excerpt(&item.piece.text);
         tracing::info!(target: TARGET, venue = %venue, chars, text = %text, "reply sent");
+        // 聊天记录（设计 04，施工 C-1 上）：她发出去了的照记（回了编号的）。
+        if let Some(msg) = msg {
+            let image = matches!(item.piece.what, What::Image(_) | What::Page(_));
+            self.record_mine(&venue.to_string(), peer.bot, (msg, &item.piece.text), image);
+        }
         if said(&item.piece.what) {
             self.counters.bump(Count::Replied, &venue.to_string());
         }

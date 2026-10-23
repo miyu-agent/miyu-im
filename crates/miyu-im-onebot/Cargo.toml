@@ -41,6 +41,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 workspace = true
 
 [dev-dependencies]
+# 测试里读 im 的聊天记录库（设计 04，施工 C-1 上）：和 im 用的同一版、同一份。
+rusqlite = { version = "0.40", features = ["bundled"] }
 # 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
 miyu-ipc = { workspace = true }
 # 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/im/`，

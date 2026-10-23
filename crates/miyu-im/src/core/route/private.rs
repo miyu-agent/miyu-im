@@ -37,6 +37,8 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
+        // 聊天记录（设计 04，施工 C-1 上）：谁的私聊都记，接不接是后面的事。
+        self.record_heard(&venue, &external, &posted, &text);
         // 陌生人（施工 O-60，`strangers`）：不在白名单里、「其他私聊」卡让接的才问是不是终端管理员（卡关着的照原来办，不多问一趟），
         // 是的这张卡不再管他；不是的照这张卡过进站链。
         let stranger = !self.whitelisted(&external)

@@ -44,6 +44,7 @@ mod media;
 pub mod package;
 pub mod plugins;
 mod recent;
+mod records;
 pub mod rules;
 mod running;
 pub mod serve;

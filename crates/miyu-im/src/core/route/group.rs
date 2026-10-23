@@ -133,6 +133,8 @@ impl Route {
                 .map(|media| media.kind)
                 .collect(),
         };
+        // 聊天记录（设计 04，施工 C-1 上）：照记进会话的同一处记一份。
+        self.record_heard(&heard.venue, &heard.sender, &posted, &heard.text);
         // 问进站挂接点的那一条（施工 O-43 中，`onebot.md`「挂接点」第 3 条）。
         let ask = json!({
             "venue": heard.venue.id().as_str(),

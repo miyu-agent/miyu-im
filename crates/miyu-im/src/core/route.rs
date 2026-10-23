@@ -89,6 +89,7 @@ mod quiet;
 mod reaction;
 mod recall;
 mod receipt;
+mod recording;
 mod request;
 mod revive;
 mod sending;
@@ -127,6 +128,7 @@ use crate::core::{Core, Gone, reason};
 use crate::counters::{Count, Counters};
 use crate::plugins::Toggles;
 use crate::recent::Recent;
+use crate::records::Records;
 use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
@@ -160,6 +162,16 @@ struct Peer {
     venue: VenueId,
 }
 
+/// 路由和页面、写盘的任务共用的几样：挂接点、今天的数、卡片变了叫一声、最近判断、im 的状态目录、聊天记录。
+type Shared = (
+    Arc<Hooks>,
+    Arc<Counters>,
+    Arc<Changed>,
+    Arc<Recent>,
+    PathBuf,
+    Arc<Records>,
+);
+
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
@@ -169,6 +181,8 @@ pub(crate) struct Route {
     cards_changed: Arc<Changed>,
     /// 最近判断（施工 I-7 上补，`crate::recent`）。
     recent: Arc<Recent>,
+    /// 聊天记录（设计 04，施工 C-1 上，`recording`）。
+    records: Arc<Records>,
     /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
     platform: Platform,
     bots: Arc<Bots>,
@@ -280,13 +294,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters, cards_changed, recent, store): (
-            Arc<Hooks>,
-            Arc<Counters>,
-            Arc<Changed>,
-            Arc<Recent>,
-            PathBuf,
-        ),
+        (hooks, counters, cards_changed, recent, store, records): Shared,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -308,6 +316,7 @@ impl Route {
             counters,
             cards_changed,
             recent,
+            records,
             platform,
             bots,
             rules,

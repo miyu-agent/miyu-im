@@ -42,6 +42,8 @@ impl Route {
         if text.trim().is_empty() && posted.segments.media.is_empty() {
             return Ok(());
         }
+        // 聊天记录（设计 04，施工 C-1 上）：补拉回来的同样记（同一条只记一次）。
+        self.record_heard(&venue, &external, &posted, &text);
         let at = posted.segments.at();
         let mentions: Vec<_> = at
             .iter()

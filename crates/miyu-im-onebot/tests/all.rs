@@ -73,6 +73,7 @@ mod ranking;
 mod reactions;
 mod receipts;
 mod recent;
+mod records;
 mod reload;
 mod repeat;
 mod replaced_bridge;
