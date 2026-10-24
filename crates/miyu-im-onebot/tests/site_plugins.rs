@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 use crate::support::browser::{call, logged_in};
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::{install, install_starting};
+use crate::support::hooked::{install, install_starting, until_plugged};
 use crate::support::*;
 
 /// 假 NapCat 认得的群成员：她自己。
@@ -43,6 +43,8 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
+    // 桥从软件包列表的订阅里读到两个插件要一会儿（Windows 上撞上过：列出来只有驱动带的）：先等挂上一个、读到两个。
+    until_plugged(&home, 1, 2).await;
 
     let listed = call(&mut open, 1, "plugins.list", json!({})).await;
     let dice = one(&listed, "dice");
