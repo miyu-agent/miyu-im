@@ -7,6 +7,8 @@
 //! - `chat.venue`：一个会话是哪个场所、收进它的机器人号；支线照它的群（同平台工具，施工 O-36）。认不得的场所是 `null`。施工
 //!   S-1 上多 `origin`：那条线这一轮叫她做的那一条（同平台工具的 `Call::origin`）：谁发的、引用了哪条谁的、@ 了谁，每个人带号
 //!   和名字（群里照这个群的成员缓存、他说过的话；私聊的引用不知道是谁）；没有的是 `null`。别的包（赞助记录）照它认「记谁」。
+//!   施工 P-1 中多 `plugins`：这个场所开着的插件的编号（同告诉核心的 `venue.plugins`）：工具以外的东西（表情包包每轮的提醒）照它
+//!   决定在这个场所出不出声。
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -102,7 +104,8 @@ impl Route {
         match self.peers.get(&main) {
             Some(peer) => {
                 let origin = self.origin_of(session, &main, peer.to);
-                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin})
+                let plugins = self.hooks.plugins_on(peer.to);
+                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin, "plugins": plugins})
             }
             None => json!({"venue": null}),
         }

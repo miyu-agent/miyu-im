@@ -4,7 +4,7 @@
 //! - `chat.action`：NapCat 没连着的 `not_connected`；连着的原样转过去（动作名、参数），NapCat 回什么交回什么（成了的、失败的），
 //!   不带桥编的 `echo`；`bot` 写了连着的号照它，写了没连着的号 `not_connected`；写错的 `bad_params`；NapCat 不回的
 //!   `unanswered`。运行日志记谁调了什么动作，不记参数。
-//! - `chat.venue`：群会话照回场所和机器人号，不在回的没有叫她的那一条，认不得的 `null`。
+//! - `chat.venue`：群会话照回场所和机器人号，不在回的没有叫她的那一条，带开着的插件（卡片上关掉的不在里面），认不得的 `null`。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -225,8 +225,18 @@ async fn a_group_session_names_its_venue_and_bot() {
     let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"],
-        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null}),
+        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null, "plugins": ["miyu-im-identity", "miyu-im-qq-admin"]}),
         "这一轮没在回：没有叫她的那一条（施工 S-1 上）{reply}"
+    );
+    // 施工 P-1 中：卡片上关掉群管理（「陌生群」卡），交回的插件里就没有它。
+    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
+    let saved = head.page_call_with("cards.save_one", off).await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
+    assert_eq!(
+        reply["result"]["plugins"],
+        json!(["miyu-im-identity"]),
+        "{reply}"
     );
     let reply = exported(&mut head, "chat.venue", json!({"session": "nope"})).await;
     assert_eq!(reply["result"], json!({"venue": null}));
