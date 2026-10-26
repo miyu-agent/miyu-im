@@ -86,6 +86,7 @@ impl Route {
         }
         // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
+        let my_name = self.my_name(posted.bot, None).await;
         let message = Message {
             id: self
                 .platform
@@ -93,7 +94,7 @@ impl Route {
             number: posted.message_id,
             text,
             acting: json!({"external": external}),
-            fields: fields(&posted, &[], flags),
+            fields: fields(&posted, &[], flags, my_name.as_deref()),
             place: Place::private(&venue, &external, (posted.bot, posted.user), listed),
             pictures: Some(pictures),
             forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),

@@ -68,6 +68,7 @@ mod long;
 mod message;
 mod migrate;
 mod muted;
+mod my_name;
 mod names;
 mod noted;
 mod notes;

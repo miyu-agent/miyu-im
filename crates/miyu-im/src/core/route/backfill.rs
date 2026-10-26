@@ -56,7 +56,8 @@ impl Route {
             asleep: false,
             show_ids: applied::show_ids(&applied),
         };
-        let mut venue_fields = fields(&posted, &mentions, flags);
+        let my_name = self.my_name(posted.bot, Some(group)).await;
+        let mut venue_fields = fields(&posted, &mentions, flags, my_name.as_deref());
         venue_fields["backfill"] = json!(true);
         if let Some(sent) = sent(posted.time) {
             venue_fields["sent"] = json!(sent);

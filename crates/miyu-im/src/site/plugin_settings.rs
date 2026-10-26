@@ -145,7 +145,9 @@ async fn items(person: &Person, scope: &Scope) -> Result<Vec<Value>, (String, St
     Ok(own_items(&schema["items"], scope))
 }
 
-/// `config.schema` 的 `items` 里 `scope` 的项：软件包的照 `package`；驱动带的照键的开头，总开关不列，`hidden` 拿掉（只在插件页改）。
+/// `config.schema` 的 `items` 里 `scope` 的项：软件包的照 `package`，键还要是 `<编号>.` 开头（核心给每个包加的「只对你自己关掉」
+/// `packages.<编号>.off` 也标着这个包，它不是插件自己的设置，这一页也存不了它，施工 I-38 换钉时撞上的）；驱动带的照键的开头，总开关
+/// 不列，`hidden` 拿掉（只在插件页改）。
 pub(super) fn own_items(items: &Value, scope: &Scope) -> Vec<Value> {
     let switch = format!("{}on", scope.prefix);
     items
@@ -156,7 +158,12 @@ pub(super) fn own_items(items: &Value, scope: &Scope) -> Vec<Value> {
             true => item["key"]
                 .as_str()
                 .is_some_and(|key| key.starts_with(&scope.prefix) && key != switch),
-            false => item["package"] == scope.package.as_str(),
+            false => {
+                item["package"] == scope.package.as_str()
+                    && item["key"]
+                        .as_str()
+                        .is_some_and(|key| key.starts_with(&scope.prefix))
+            }
         })
         .map(|item| {
             let mut item = item.clone();

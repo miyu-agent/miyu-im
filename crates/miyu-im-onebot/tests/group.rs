@@ -184,26 +184,28 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     let fields: Vec<&Value> = said.iter().map(|said| &said["body"]["venue"]).collect();
     assert_eq!(
         *fields[0],
-        json!({"msg": "1", "name": "小林", "ambient": true, "show_ids": true})
+        json!({"msg": "1", "name": "小林", "my_name": "米尤", "ambient": true, "show_ids": true}),
+        "施工 I-38：她在这个群叫什么（群名片）也带上"
     );
     assert_eq!(fields[1]["name"], "阿杰", "群名片空白的取昵称");
     assert_eq!(
         *fields[2],
         json!({
-            "msg": "3", "name": "小林", "mentions": ["qq:20003", "qq:20005", "qq:20009", "qq:20010"], "mentions_me": true,
+            "msg": "3", "name": "小林", "my_name": "米尤", "mentions": ["qq:20003", "qq:20005", "qq:20009", "qq:20010"], "mentions_me": true,
             "ambient": true, "show_ids": true,
         }),
         "@ 她的不进 mentions，@ 同一个人两次只进一次"
     );
-    // 头一个 `BOT` 是冒充提醒问她自己的群名片（施工 O-53：每个群只问一次，假 NapCat 认不得她，问不到也不再问）。
+    // `BOT` 是问她自己的群名片（冒充提醒、`my_name` 共用，施工 O-53、I-38：假 NapCat 认不得她，问不到的这个群缓存时长以内不再问）：
+    // 这个群一次，睡着的群、规则写错的群各一次（施工 I-38 起规则写错的群也带 `my_name`）。
     assert_eq!(
         napcat.asked(),
-        [BOT, WANG, NOBODY, BOT],
+        [BOT, WANG, NOBODY, BOT, BOT],
         "发过言的照缓存，问不到一次后面的不再问"
     );
     assert_eq!(
         *fields[3],
-        json!({"msg": "4", "name": "阿杰", "reply_to": "1", "mentions_all": true, "ambient": true, "show_ids": true})
+        json!({"msg": "4", "name": "阿杰", "my_name": "米尤", "reply_to": "1", "mentions_all": true, "ambient": true, "show_ids": true})
     );
     assert_eq!(
         fields[4]["media"],

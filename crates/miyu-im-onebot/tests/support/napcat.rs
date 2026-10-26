@@ -154,8 +154,10 @@ impl NapCat {
             let kind = action["action"].as_str().unwrap_or_default();
             // 取东西（施工 O-33）：这个假 NapCat 什么都没存，回失败、不交出去。
             let fetching = ["get_msg", "get_image", "get_file", "get_forward_msg"].contains(&kind);
-            // 群名（施工 O-49）：照 `answering` 的回，不交出去。机器人自己的名字（施工 I-6 中，页面问的）也是。
-            let asking = kind == "get_group_info" || kind == "get_login_info";
+            // 群名（施工 O-49）：照 `answering` 的回，不交出去。机器人自己的名字（施工 I-6 中，页面问的；施工 I-38 起私聊每条都带）、
+            // 群名片（施工 I-38：她在群里叫什么，这里回空的、照昵称）也是。
+            let asking =
+                ["get_group_info", "get_login_info", "get_group_member_info"].contains(&kind);
             let data = match kind {
                 "get_version_info" => json!({
                     "app_name": "NapCat.Onebot",
@@ -166,6 +168,13 @@ impl NapCat {
                     json!({"group_id": action["params"]["group_id"], "group_name": super::answering::GROUP_NAME})
                 }
                 "get_login_info" => json!({"user_id": BOT, "nickname": NICKNAME}),
+                "get_group_member_info" => json!({
+                    "group_id": action["params"]["group_id"],
+                    "user_id": action["params"]["user_id"],
+                    "card": "",
+                    "nickname": NICKNAME,
+                    "role": "member",
+                }),
                 _ => json!({"message_id": 1}),
             };
             let status = if fetching { "failed" } else { "ok" };

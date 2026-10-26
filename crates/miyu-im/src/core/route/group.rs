@@ -100,6 +100,7 @@ impl Route {
                 .is_some_and(|group| group.mine(msg))
         });
         let keywords = applied::keywords(&applied);
+        let my_name = self.my_name(posted.bot, Some(group)).await;
         let calls_her = addressed(VenueKind::Group, flags.mentions_me, &text, &keywords);
         let message = Message {
             id: self
@@ -107,7 +108,7 @@ impl Route {
                 .command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             acting: json!({"external": external, "role": applied::role(&applied, &external)}),
-            fields: fields(&posted, &mentions, flags),
+            fields: fields(&posted, &mentions, flags, my_name.as_deref()),
             place: Place::group(&venue, &applied, posted.bot, group),
             text,
             pictures: calls_her

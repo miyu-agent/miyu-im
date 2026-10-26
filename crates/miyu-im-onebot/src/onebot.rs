@@ -17,6 +17,7 @@ mod happenings;
 pub mod media;
 mod members;
 pub(crate) mod reactions;
+mod renamed;
 mod replies;
 mod segments;
 mod send;
@@ -60,7 +61,8 @@ pub fn read(frame: Value) -> Frame {
         "message" => posted(&frame),
         "notice" => recall(&frame)
             .or_else(|| ban(&frame))
-            .or_else(|| happenings::happened(&frame)),
+            .or_else(|| happenings::happened(&frame))
+            .or_else(|| renamed::renamed(&frame)),
         "request" => request(&frame),
         _ => None,
     };

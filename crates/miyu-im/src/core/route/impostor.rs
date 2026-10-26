@@ -20,13 +20,11 @@ use crate::plugins::Seen;
 /// 冒充提醒那一块事实的 `kind`。
 const IMPOSTOR: &str = "impostor";
 
-/// 记过的：群会话、发的人、借的名字；问过她群名片的群（缓存里没有的每个群只问一次 NapCat，问不到的不再问）。
+/// 记过的：群会话、发的人、借的名字。
 #[derive(Debug, Default)]
 pub(super) struct Noted {
     /// 记过的（群会话、发的人、借的名字）。
     noted: HashSet<(String, String, String)>,
-    /// 问过她群名片的群。
-    asked: HashSet<i64>,
 }
 
 impl Route {
@@ -53,9 +51,8 @@ impl Route {
             return Ok(());
         }
         let admin_names = projection.admin_names();
-        // 她自己的群名片：缓存里没有的每个群问一次 NapCat（问到的记进缓存，问不到的不再问）。
-        let mut asking = self.impostors.asked.insert(group);
-        let own_card = self.member(group, bot, bot, &mut asking).await;
+        // 她自己的群名片：同场所消息的 `my_name`（施工 I-38 起两处共用，缓存里没有的问一次 NapCat，问不到的缓存时长以内不再问）。
+        let own_card = self.my_name(bot, Some(group)).await;
         let number = sender.as_str().rsplit(':').next().unwrap_or_default();
         let seen = Seen {
             name,

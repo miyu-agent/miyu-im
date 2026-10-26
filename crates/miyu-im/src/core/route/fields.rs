@@ -29,13 +29,22 @@ pub(super) struct Flags {
     pub(super) show_ids: bool,
 }
 
-/// 消息 `posted` 的场所的格：@ 了的别人是 `mentions`（她自己的在 `flags.mentions_me`），开关照 `flags`。
-pub(super) fn fields(posted: &Posted, mentions: &[ExternalId], flags: Flags) -> Value {
+/// 消息 `posted` 的场所的格：@ 了的别人是 `mentions`（她自己的在 `flags.mentions_me`），开关照 `flags`，她在这个场所叫
+/// `my_name`（施工 I-38，同 `name` 洗过；没有的不写）。
+pub(super) fn fields(
+    posted: &Posted,
+    mentions: &[ExternalId],
+    flags: Flags,
+    my_name: Option<&str>,
+) -> Value {
     let segments = &posted.segments;
     let mut venue = Map::new();
     venue.insert("msg".into(), json!(posted.message_id.to_string()));
     if let Some(name) = posted.name.as_deref().and_then(|name| clean(name, NAME)) {
         venue.insert("name".into(), json!(name));
+    }
+    if let Some(name) = my_name.and_then(|name| clean(name, NAME)) {
+        venue.insert("my_name".into(), json!(name));
     }
     if let Some(reply_to) = segments.reply_to.as_deref().filter(|id| fits(id)) {
         venue.insert("reply_to".into(), json!(reply_to));

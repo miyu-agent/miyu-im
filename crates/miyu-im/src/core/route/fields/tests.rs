@@ -52,7 +52,7 @@ fn a_size_is_written_when_known() {
         ..Segments::default()
     };
     assert_eq!(
-        fields(&posted(None, segments), &[], Flags::default())["media"],
+        fields(&posted(None, segments), &[], Flags::default(), None)["media"],
         json!([
             {"kind": "file", "id": "f-1", "name": "a.pdf", "size": 1_234_567},
             {"kind": "file", "id": "f-2", "size": 0},
@@ -64,7 +64,12 @@ fn a_size_is_written_when_known() {
 #[test]
 fn only_what_is_there_is_written() {
     assert_eq!(
-        fields(&posted(None, Segments::default()), &[], Flags::default()),
+        fields(
+            &posted(None, Segments::default()),
+            &[],
+            Flags::default(),
+            None
+        ),
         json!({"msg": "9"})
     );
     let all = Flags {
@@ -81,9 +86,14 @@ fn only_what_is_there_is_written() {
     };
     let mentions = [QQ.person(20003).expect("拼得出")];
     assert_eq!(
-        fields(&posted(Some("小林"), segments), &mentions, all),
+        fields(
+            &posted(Some("小林"), segments),
+            &mentions,
+            all,
+            Some("美羽")
+        ),
         json!({
-            "msg": "9", "name": "小林", "reply_to": "8", "mentions": ["qq:20003"], "mentions_me": true,
+            "msg": "9", "name": "小林", "my_name": "美羽", "reply_to": "8", "mentions": ["qq:20003"], "mentions_me": true,
             "mentions_all": true, "media": [{"kind": "file", "id": "f-1", "name": "a.pdf"}], "ambient": true,
             "asleep": true, "show_ids": true,
         })
@@ -98,13 +108,17 @@ fn names_lose_control_characters_and_are_cut() {
             &posted(Some(name), Segments::default()),
             &[],
             Flags::default(),
+            Some(name),
         )
     };
-    assert_eq!(written(&long)["name"], "名".repeat(NAME));
-    assert_eq!(written("小\u{0}林\n")["name"], "小林");
-    assert_eq!(written(" 小林 ")["name"], " 小林 ", "照原样，只去控制字符");
-    for blank in ["", "  ", "\u{7}\u{1b}", " \n "] {
-        assert!(written(blank).get("name").is_none(), "{blank:?}");
+    // 她在这个场所叫什么（施工 I-38）照同一个规矩洗。
+    for key in ["name", "my_name"] {
+        assert_eq!(written(&long)[key], "名".repeat(NAME));
+        assert_eq!(written("小\u{0}林\n")[key], "小林");
+        assert_eq!(written(" 小林 ")[key], " 小林 ", "照原样，只去控制字符");
+        for blank in ["", "  ", "\u{7}\u{1b}", " \n "] {
+            assert!(written(blank).get(key).is_none(), "{key} {blank:?}");
+        }
     }
     let segments = Segments {
         media: vec![
@@ -113,7 +127,7 @@ fn names_lose_control_characters_and_are_cut() {
         ],
         ..Segments::default()
     };
-    let written = fields(&posted(None, segments), &[], Flags::default());
+    let written = fields(&posted(None, segments), &[], Flags::default(), None);
     assert_eq!(
         written["media"],
         json!([{"kind": "file", "id": "f-1", "name": "文".repeat(MEDIA_NAME)}, {"kind": "file", "id": "f-2"}])
@@ -133,7 +147,7 @@ fn ids_that_do_not_fit_are_left_out_and_the_message_is_kept() {
             reply_to: Some(reply_to.clone()),
             ..Segments::default()
         };
-        let written = fields(&posted(None, segments), &[], Flags::default());
+        let written = fields(&posted(None, segments), &[], Flags::default(), None);
         assert_eq!(written.get("reply_to").is_some(), kept, "{reply_to:?}");
         assert_eq!(written["msg"], "9");
     }
@@ -145,14 +159,14 @@ fn ids_that_do_not_fit_are_left_out_and_the_message_is_kept() {
         ],
         ..Segments::default()
     };
-    let written = fields(&posted(None, segments), &[], Flags::default());
+    let written = fields(&posted(None, segments), &[], Flags::default(), None);
     assert_eq!(written["media"], json!([{"kind": "file", "id": longest}]));
     let segments = Segments {
         media: vec![media(&"x".repeat(129), None)],
         ..Segments::default()
     };
     assert!(
-        fields(&posted(None, segments), &[], Flags::default())
+        fields(&posted(None, segments), &[], Flags::default(), None)
             .get("media")
             .is_none(),
         "一样都不剩的不写"

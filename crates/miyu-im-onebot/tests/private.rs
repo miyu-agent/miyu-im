@@ -331,7 +331,7 @@ async fn the_private_chat_carries_its_venue_fields_and_a_recall_is_noted() {
     assert_eq!(
         said[0]["body"]["venue"],
         json!({
-            "msg": "501", "name": "someone", "reply_to": "77", "media": [{"kind": "image", "id": "p.jpg"}],
+            "msg": "501", "name": "someone", "my_name": "米尤", "reply_to": "77", "media": [{"kind": "image", "id": "p.jpg"}],
             "show_ids": true,
         })
     );

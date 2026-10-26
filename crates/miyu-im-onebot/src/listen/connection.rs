@@ -190,6 +190,9 @@ fn noted(event: &Event) {
         Event::Invited { group, user, .. } => {
             tracing::debug!(target: TARGET, group, user, "group invite");
         }
+        Event::Renamed { group, user, .. } => {
+            tracing::debug!(target: TARGET, group, user, "group card changed");
+        }
         Event::Happened(happened) => tracing::debug!(
             target: TARGET,
             group = happened.group,

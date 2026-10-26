@@ -124,6 +124,17 @@ pub enum Event {
     /// 群里的一件事（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。只记进聊天记录；她自己被禁言、解禁照
     /// [`Event::Muted`]、[`Event::Unmuted`]。
     Happened(Happened),
+    /// 群里有人的群名片改了（施工 I-38，`group_card`）：群成员的名字缓存跟着改，改的是她自己的，下一条场所消息的 `my_name` 就带新的。
+    Renamed {
+        /// 收到通知的机器人的号。
+        bot: i64,
+        /// 群号。
+        group: i64,
+        /// 改了群名片的人。
+        user: i64,
+        /// 新的群名片，照原样；清掉了（显示回昵称）的是空的。
+        card: Option<String>,
+    },
     /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
     Invited {
         /// 收到邀请的机器人的号。

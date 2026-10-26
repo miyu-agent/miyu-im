@@ -34,6 +34,10 @@ pub struct Members {
     names: HashMap<(i64, i64), (String, Instant)>,
     /// （群号，号）→（身份，记下的时刻）（施工 O-31）。
     ranks: HashMap<(i64, i64), (Rank, Instant)>,
+    /// 机器人号 → 它的 QQ 昵称、记下的时刻（施工 I-38：私聊里她叫什么）。
+    nicknames: HashMap<i64, (String, Instant)>,
+    /// （机器人号，群号；私聊的没有群号）→ 上次去问她叫什么的时刻（施工 I-38）：问不到的，`keep` 以内不再问。
+    asked: HashMap<(i64, Option<i64>), Instant>,
 }
 
 impl Members {
@@ -43,6 +47,8 @@ impl Members {
             keep,
             names: HashMap::new(),
             ranks: HashMap::new(),
+            nicknames: HashMap::new(),
+            asked: HashMap::new(),
         }
     }
 
@@ -71,6 +77,40 @@ impl Members {
             .get(&(group, user))
             .filter(|(_, at)| now.saturating_duration_since(*at) < self.keep)
             .map(|(name, _)| name.as_str())
+    }
+
+    /// 群 `group` 里号是 `user` 的人记着的名字不要了（施工 I-38：群名片清掉了，下回问到的是昵称）。是她自己的，「这个群刚问过」
+    /// 也一起忘掉（[`Members::ask_due`]），下一条就去问，不等缓存时长过去。
+    pub fn forget(&mut self, group: i64, user: i64) {
+        self.names.remove(&(group, user));
+        self.asked.remove(&(user, Some(group)));
+    }
+
+    /// 机器人号 `bot` 此刻 `now` 的 QQ 昵称是 `name`：记下（施工 I-38）。
+    pub fn nicknamed(&mut self, bot: i64, name: String, now: Instant) {
+        self.nicknames.insert(bot, (name, now));
+    }
+
+    /// 机器人号 `bot` 的 QQ 昵称：同 [`Members::name`]，过了的不用。
+    pub fn nickname(&self, bot: i64, now: Instant) -> Option<&str> {
+        self.nicknames
+            .get(&bot)
+            .filter(|(_, at)| now.saturating_duration_since(*at) < self.keep)
+            .map(|(name, _)| name.as_str())
+    }
+
+    /// 此刻 `now` 该不该去问机器人号 `bot` 在群 `group`（私聊的没有）里叫什么：`keep` 以内问过的不该；该的记下这一次。
+    pub fn ask_due(&mut self, bot: i64, group: Option<i64>, now: Instant) -> bool {
+        let keep = self.keep;
+        self.asked
+            .retain(|_, at| now.saturating_duration_since(*at) < keep);
+        match self.asked.entry((bot, group)) {
+            std::collections::hash_map::Entry::Occupied(_) => false,
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(now);
+                true
+            }
+        }
     }
 
     /// 群 `group` 里号是 `user` 的人此刻 `now` 的身份是 `rank`（施工 O-31）：记下（盖掉原来的），顺手扔掉过了的。

@@ -54,6 +54,7 @@ mod media_export;
 mod members;
 mod mention;
 mod muted;
+mod my_name;
 mod no_token;
 mod outbound;
 mod outreach;

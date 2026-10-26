@@ -40,6 +40,12 @@ impl Route {
                 self.group_happened(happened);
                 Ok(())
             }
+            Event::Renamed {
+                group, user, card, ..
+            } => {
+                self.renamed(group, user, card);
+                Ok(())
+            }
             Event::Invited { bot, group, user } => {
                 request::invited(bot, group, user);
                 Ok(())

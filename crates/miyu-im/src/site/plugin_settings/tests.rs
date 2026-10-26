@@ -48,6 +48,8 @@ fn a_builtin_plugin_lists_its_own_hidden_items_but_not_its_switch() {
         {"key": "im.qq.identity_admin", "package": "im", "hidden": true},
         {"key": "im.qq.listen", "package": "im"},
         {"key": "dice.sides", "package": "dice"},
+        // 核心给每个包加的「只对你自己关掉」（施工 I-38 换钉撞上的）：标着这个包，不是它自己的设置，不列。
+        {"key": "packages.dice.off", "package": "dice"},
     ]);
     let builtin = Scope {
         package: "miyu-im-identity".into(),

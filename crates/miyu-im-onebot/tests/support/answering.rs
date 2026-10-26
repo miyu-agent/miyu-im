@@ -1,5 +1,5 @@
 //! 群里的假 NapCat 交给一个任务应答（施工 O-22，O-25 中从 `group.rs` 挪出来）：桥调的动作照 NapCat 的样子回。
-//! `get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），别的（`send_group_msg`、
+//! `get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），`get_login_info` 回昵称，别的（`send_group_msg`、
 //! `send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后从 [`FIRST_SENT`] 起一条
 //! 加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照
 //! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。贴、摘表情
@@ -20,7 +20,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 
-use super::{NapCat, within};
+use super::{BOT, NICKNAME, NapCat, within};
 /// 假 NapCat 回的第一个发出去的消息编号。
 pub const FIRST_SENT: i64 = 90001;
 
@@ -196,6 +196,7 @@ impl NapCat {
                             && kind != "get_group_member_info"
                             && kind != "get_group_member_list"
                             && kind != "get_group_info"
+                            && kind != "get_login_info"
                             && kind != "_get_group_notice"
                             && kind != "get_group_list"
                             && kind != "get_friend_list"
@@ -349,6 +350,8 @@ fn answer(
                 .collect();
             ("ok", Value::Array(list))
         }
+        // 她自己的昵称（施工 I-38：私聊里她叫什么，`my_name`）：照 NapCat 的样子回，不交出去。
+        Some("get_login_info") => ("ok", json!({"user_id": BOT, "nickname": NICKNAME})),
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);
