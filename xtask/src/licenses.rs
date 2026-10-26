@@ -1,6 +1,7 @@
 //! 门禁的「许可证」一项（照核心仓库的 `xtask/src/licenses.rs`，核心施工 4-12、蓝图 `licenses.md`；这个仓库施工 S-6 中）：
-//! 仓库是 GPL-3.0-or-later，发布的四个平台上用得到的第三方依赖，许可证都要能和它合在一起发。照每个包 `license` 里的 SPDX
-//! 表达式算，自己算，不加依赖。照 git 钉住的核心的几个 crate 不是这个工作区的，也算在里面：它们和这里一样是 GPL-3.0-or-later。
+//! 仓库是 AGPL-3.0-or-later（2026-10-26 由 GPL-3.0-or-later 换过来），发布的四个平台上用得到的第三方依赖，许可证都要能和它合在一起发。照每个包 `license` 里的 SPDX
+//! 表达式算，自己算，不加依赖。照 git 钉住的核心的几个 crate 不是这个工作区的，也算在里面：核心换许可证以前是 GPL-3.0-or-later，
+//! 和 AGPL-3.0-or-later 能合在一起发（两份第 13 条互相允许）。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -16,8 +17,9 @@ pub const PLATFORMS: [&str; 4] = [
     "x86_64-pc-windows-msvc",
 ];
 
-/// 能和 GPL-3.0-or-later 合在一起发的许可证。最后一个是它自己：照 git 钉住的核心的 crate 都是它（施工 S-6 中）。
-const ALLOWED: [&str; 15] = [
+/// 能和 AGPL-3.0-or-later 合在一起发的许可证。最后两个：GPL-3.0-or-later 是照 git 钉住的核心的 crate（施工 S-6 中，核心换许可证
+/// 以前），AGPL-3.0-or-later 是它自己。
+const ALLOWED: [&str; 16] = [
     "MIT",
     "Apache-2.0",
     "BSD-2-Clause",
@@ -33,6 +35,7 @@ const ALLOWED: [&str; 15] = [
     "MPL-2.0",
     "CDLA-Permissive-2.0",
     "GPL-3.0-or-later",
+    "AGPL-3.0-or-later",
 ];
 
 /// 认得的例外条款：`WITH` 后面写它，不影响前面那个许可证。
@@ -73,7 +76,7 @@ pub(crate) fn judge(found: &[(Package, &str)]) -> Vec<String> {
         match &package.license {
             None => problems.push(format!("{head}：没写 license，要人看过")),
             Some(license) if !allowed(license) => {
-                problems.push(format!("{head}：{license} 和 GPL-3.0-or-later 合不到一起"));
+                problems.push(format!("{head}：{license} 和 AGPL-3.0-or-later 合不到一起"));
             }
             Some(_) => {}
         }

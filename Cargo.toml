@@ -6,7 +6,7 @@ members = ["crates/*", "xtask"]
 version = "0.0.0"
 edition = "2024"
 rust-version = "1.97"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 publish = false
 
 # 核心的 crate 照 git 依赖钉住核心的同一个提交（施工 S-6 中，设计 32 第三节、第九节）：升级就是改这里的 `rev`、刷

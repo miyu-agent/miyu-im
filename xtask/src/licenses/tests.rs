@@ -69,7 +69,7 @@ fn each_bad_package_is_named_once_with_its_platforms() {
         judge(&found),
         [
             "bare 1.0.0（x86_64-pc-windows-msvc）：没写 license，要人看过",
-            "gpl-thing 1.0.0（aarch64-apple-darwin、x86_64-unknown-linux-gnu）：GPL-2.0-only 和 GPL-3.0-or-later 合不到一起",
+            "gpl-thing 1.0.0（aarch64-apple-darwin、x86_64-unknown-linux-gnu）：GPL-2.0-only 和 AGPL-3.0-or-later 合不到一起",
         ]
     );
 }

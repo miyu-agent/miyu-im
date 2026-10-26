@@ -30,6 +30,9 @@ const SCHEMES = ['system', 'light', 'dark'];
 const SCHEME_ICONS = { system: 'i-monitor', light: 'i-sun', dark: 'i-moon' };
 const SCHEME_NAMES = { system: () => say('theme/system'), light: () => say('theme/light'), dark: () => say('theme/dark') };
 
+/** 这个程序的源码。 */
+const SOURCE = 'https://github.com/miyu-agent/miyu-im';
+
 /** 在 `root` 里起外壳：`request` 调宿主的方法，`handed` 是网页软件交来了主题（不给手动切），`onSignOut` 登出。交回
  *  refresh()（变了再问）、event(name)（宿主推的别的）、offline()（通道断了）、dispose()。 */
 export function mountShell(root, { request, handed, onSignOut }) {
@@ -69,7 +72,12 @@ export function mountShell(root, { request, handed, onSignOut }) {
   if (!handed) foot.append(scheme);
   const out = element('button', 'btn ghost', say('sign-out'));
   out.addEventListener('click', onSignOut);
-  foot.append(element('span', 'grow'), out);
+  // 源码（2026-10-26 换 AGPL-3.0-or-later）：经网络用到这个页面的人也拿得到源码。
+  const source = element('a', 'btn ghost', say('source'));
+  source.href = SOURCE;
+  source.target = '_blank';
+  source.rel = 'noopener';
+  foot.append(element('span', 'grow'), source, out);
   side.append(foot);
   const main = element('main', 'main');
   shell.append(toggle, peekZone, side, main);
