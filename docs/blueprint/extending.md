@@ -43,6 +43,8 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 
 **`chat.venue`**：`{"session": <会话编号>}` → `{"platform": "qq", "venue": "qq:group:<群号>" | "qq:private:<号>", "bot": <机器人号>}`；接入通讯平台 认不得的会话是 `{"venue": null}`（还没来过消息的群、回完封存了的支线）。你提供的工具被调时，核心的 `tool.call` 交来的是会话编号，用它查是哪个群。施工 S-1 上起多一格 `origin`：那条线这一轮叫她做的那一条，`{"sender": 人, "quote": {"msg", "sender": 人 | null} | null, "mentions": [人…]}`，人是 `{"id": "qq:<号>", "name": <名字> | null}`（群里照成员缓存、他说过的话；私聊的引用不知道是谁的，`sender` 是 `null`）；这一轮没在回的是 `null`。你的工具要认「说的是谁」（记账、点名）照它：没写号的照引用的那个人、唯一 @ 的那一个。施工 P-1 中起再多一格 `plugins`：这个场所开着的插件的编号（场所卡片的开关，同 im 告诉核心的 `venue.plugins`）。你的工具带了 `plugin` 的，关着的场所核心本来就不给；工具以外的东西（每轮往上下文里放一句提醒这类）照它决定在这个场所出不出声。
 
+**`chat.media`**（施工 I-39，表情包包偷图）：`{"session": <会话编号>, "msg": <平台编号>, "index": <第几样，从 1 数，不写是 1>}` → `{"kind": "image" | "sticker", "data": <图的 base64>, "name": <QQ 说的文件名> | null, "origin": {"platform", "venue", "msg", "sender": {"id": "qq:<号>", "name": <那时的名字> | null}, "at": <毫秒> | null}}`。`msg`、`index` 就是 AI 看到的 `[msg=…]`、`#n`：你的工具让她写这两个，被调时拿 `tool.call` 交来的会话编号来取。只取那个会话所在场所里的消息（同 AI 的取图工具：别的群、别人私聊的编号当没有），只取图（表情包照图取的也算）；来历照接入通讯平台 的聊天记录，没记下的只有号。拒的原因在核心转回来的 `data.message`：`bad_params`、`unknown_session`、`not_connected`、`not_found`、`no_item`、`not_image`（视频、文件、语音、小黄脸、商城表情）、`unfetched`（QQ 回失败、等不到、超了图的上限）。
+
 ### 二、插进接入通讯平台 里面
 
 导出约定名字的方法，接入通讯平台 在那一处经核心调你（施工 O-43）。不用另外登记：接入通讯平台 照核心的软件包列表找，你的包装上、跑起来就挂上，停了、卸了就没了。几个包挂在同一处的照包的编号排先后。

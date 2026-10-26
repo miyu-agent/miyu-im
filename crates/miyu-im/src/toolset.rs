@@ -29,8 +29,8 @@ pub use crate::records::history::{History, HistoryQuery};
 /// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
 /// 先核对）。
 pub use crate::media::{
-    Missed, QQ_FILES, UNLIMITED, bytes, extension, file_name, image_extension, message, over, save,
-    take, too_large,
+    Missed, QQ_FILES, UNLIMITED, bytes, extension, file_name, image_extension, message, over,
+    owned, save, take, too_large,
 };
 
 /// 叫她做的那一条（施工 T-2，原来路由的 `platform::Origin`）：群里是投影里调用所在那条线这一轮她回的那一条，私聊是最近一条人说的话。

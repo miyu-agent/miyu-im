@@ -7,7 +7,7 @@ use super::{Methods, exported, registered};
 
 #[test]
 fn fifteen_methods_are_registered_without_a_timeout() {
-    // 后台页的两个、给别的包调的四个（施工 O-42；O-56 多 `chat.send`，I-8 上多插件用的 `chat.note`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）、
+    // 后台页的两个、给别的包调的五个（施工 O-42；O-56 多 `chat.send`，I-8 上多插件用的 `chat.note`，I-39 多 `chat.media`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）、
     // 会话浮窗的概况（施工 I-7 上补）、平台会话页的三个（施工 I-34 上）。
     assert_eq!(
         registered(),
@@ -16,6 +16,7 @@ fn fifteen_methods_are_registered_without_a_timeout() {
             {"name": "connection.token"},
             {"name": "chat.action"},
             {"name": "chat.venue"},
+            {"name": "chat.media"},
             {"name": "chat.send"},
             {"name": "chat.note"},
             {"name": "cards.get"},
@@ -37,6 +38,7 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "connection.token",
         "chat.action",
         "chat.venue",
+        "chat.media",
         "chat.send",
         "chat.note",
         "cards.get",
@@ -58,6 +60,7 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         [
             "chat.action",
             "chat.venue",
+            "chat.media",
             "chat.send",
             "chat.note",
             "cards.get",

@@ -13,10 +13,10 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use miyu_im::chat::{DETAIL, Fetch, Fetched, Link, Source, To};
+use miyu_im::chat::{DETAIL, Fetch, Link, Source, To};
 use miyu_im::toolset::{
     Call, Missed, Planned, QQ_FILES, Stored, UNLIMITED, file_name, kept, message, msg_id, over,
-    save, take, too_large,
+    owned, save, take, too_large,
 };
 
 /// 她要的那一样：消息的平台编号、第几样（从 1 数；写错的是 0，取的时候照「没有这一样」答）。
@@ -74,15 +74,6 @@ pub(super) fn fetch_media(
             None => call.answers.say("unreachable", &[], true),
         }
     })
-}
-
-/// 取回来的那一条在不在会话 `to` 里（纯逻辑，施工 O-35 核对归属；群里的 O-33 起就查）：群里是这个群的，私聊里是这个人在
-/// 私聊里发的。编号是她给的，人打得出假的 `[msg=…]`：这个人在群里说的、别人的私聊、她自己发的都当没有。
-pub(crate) fn owned(fetched: &Fetched, to: To) -> bool {
-    match to {
-        To::Group(group) => fetched.group == Some(group),
-        To::Private(user) => fetched.private && fetched.user == Some(user),
-    }
 }
 
 /// 没做成的：答的那一句的名字和字段。

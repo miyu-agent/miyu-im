@@ -19,7 +19,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use miyu_client::http::{Get, Got, Proxy};
 
-use crate::chat::{CallError, Fetch, Fetched, Link, Source};
+use crate::chat::{CallError, Fetch, Fetched, Link, Source, To};
 
 /// 没取到。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +52,16 @@ fn missed(error: CallError) -> Missed {
         CallError::Failed { said, .. } => Missed::Failed(said),
         CallError::Timeout => Missed::Unanswered,
         CallError::Closed => Missed::Unreachable,
+    }
+}
+
+/// 取回来的那一条在不在会话 `to` 里（纯逻辑，施工 O-35 核对归属；群里的 O-33 起就查；施工 I-39 从驱动挪来，`chat.media` 也照它）：
+/// 群里是这个群的，私聊里是这个人在私聊里发的。编号是她（或别的包）给的，人打得出假的 `[msg=…]`：这个人在群里说的、别人的私聊、
+/// 她自己发的都当没有。
+pub fn owned(fetched: &Fetched, to: To) -> bool {
+    match to {
+        To::Group(group) => fetched.group == Some(group),
+        To::Private(user) => fetched.private && fetched.user == Some(user),
     }
 }
 

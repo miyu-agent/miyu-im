@@ -44,7 +44,7 @@
 | `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」） |
 | `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
-| `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」） |
+| `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」）；`exports/media.rs`（I-39）`chat.media` 取一张图和来历 |
 | `crates/miyu-im/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-im/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
 | `crates/miyu-im/src/core/route/private.rs`（O-36 从 `route.rs` 挪出来） | 一条私聊：拼场所、套规则、带上场所的格，交 `submit`（「怎么走」第 6 到 8 条） |
@@ -1452,8 +1452,9 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 运行日志：答了的 `INFO export action from=<包> action=<名字> retcode=…`；拒的 `INFO export action failed … why=…`、写错的 `INFO export action refused from=…`。不记参数、不记回答。
    - 她自己说的话不走这里：`chat.action` 发出去的消息不过出站链、不进出站队列、不记 `venue.delivered`，她不知道是她说的。要她知道的随出站挂接点（O-43）。
 4. **`chat.venue {"session"}`**：回 `{"venue": "<场所编号>", "bot": <收进它的机器人号>}`，支线照它的群（同平台工具，O-36）；桥这一刻认不得的会话回 `{"venue": null}`：还没来过消息的群、封存了的支线（支线回完一轮就封存，桥不再记着它；别的包的工具只在那一轮里被调）。`session` 不是字的拒 `bad_params`。别的包提供的工具被调时核心交来的是会话编号，场所会话归系统账号，`venue.sessions` 只给系统账号的连接，别的包问不到，由桥答。
+5. **`chat.media {"session", "msg", "index"?}`**（I-39，2026-10-26 项目主人定偷表情包）：那个会话所在场所里平台编号是 `msg` 的那一条的第 `index` 样（不写是 1）图和来历。读参数：`session` 不空的字、`msg` 同平台工具的写法、`index` 正整数，写错的 `bad_params`；认会话、找那个号的连接当场办（`unknown_session`、`not_connected`），另起任务照取图工具取：`get_msg` 现认段、核归属（`miyu_im::media::owned`，和取图工具共用）、数第几样（`kept`）、只要照图取的（别的 `not_image`）、`image_max_mb` 上限、`get_image`。答 `{kind, data, name, origin}`：`origin` 的发的人、时间照 im 的聊天记录（`History::sender_of`，场所加编号查），没记下的照 QQ 回的号、名字和时间是 `null`。拒的另有 `not_found`（QQ 回失败、不在这个场所）、`no_item`、`unfetched`。运行日志 `INFO export media from=… msg=… index=…`，没成的 `export media failed … why=…`。
 
-**守着它的**（`exports.rs`、`src/core/route/exports/tests.rs`、`src/core/methods/tests.rs`、`settings.rs`、`backstage.rs`、`lanes.rs`）：参数怎么读（字符、长度、`params`、`bot` 的类型）；清单只导出这两个；登记四个方法。真核心拉起真桥、头照别的包的样子经 `package.call` 调：NapCat 没连着 `not_connected`；连上以后原样转过去、原样交回、没有 `echo`；写的动作、写了连着的号照转；不写参数的是 `{}`；NapCat 回失败也原样交回；写了没连着的号 `not_connected`；九种写错的 `bad_params`；`call_timeout_seconds` 改成 1 秒、NapCat 不回的 `unanswered`；运行日志有谁调了什么、没有参数里的数。拒的 `data.code` 写错的 -32602、别的 -32010。群会话照回场所和机器人号，支线还在回的时候照它的群，认不得的 `null`。读的一头只把这两个交给跟核心的那一头。
+**守着它的**（`exports.rs`、`media_export.rs`（I-39：别的包取到一张图的字节和来历，五种拒）、`src/core/route/exports/tests.rs`、`exports/media/tests.rs`、`src/core/methods/tests.rs`、`settings.rs`、`backstage.rs`、`lanes.rs`）：参数怎么读（字符、长度、`params`、`bot` 的类型）；清单只导出这两个；登记四个方法。真核心拉起真桥、头照别的包的样子经 `package.call` 调：NapCat 没连着 `not_connected`；连上以后原样转过去、原样交回、没有 `echo`；写的动作、写了连着的号照转；不写参数的是 `{}`；NapCat 回失败也原样交回；写了没连着的号 `not_connected`；九种写错的 `bad_params`；`call_timeout_seconds` 改成 1 秒、NapCat 不回的 `unanswered`；运行日志有谁调了什么、没有参数里的数。拒的 `data.code` 写错的 -32602、别的 -32010。群会话照回场所和机器人号，支线还在回的时候照它的群，认不得的 `null`。读的一头只把这两个交给跟核心的那一头。
 
 **挂接点**（O-43 上，2026-10-17 项目主人定：别的包能插进接入通讯平台 里面，先开进站、出站、QQ 事件、判断打分四处；施工单「要拍板的」两条照推荐定：照软件包列表找、不另外登记，`chat.event` 原样交、不等回应）：别的包导出约定名字的方法，桥在那一处经核心的 `package.call` 调它（桥的清单 `capabilities` 有 `packages.call`）。写给作者的约定在 `extending.md` 第二条。O-43 上有找谁和 `chat.event`，O-43 中有进站 `chat.inbound`，O-43 下有出站 `chat.outbound`，O-43 末有判断打分 `chat.score`。不占编号的几段同「提供者和不说话」。
 

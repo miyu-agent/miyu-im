@@ -179,7 +179,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
 
     let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");
-    assert!(log.contains("methods registered count=14"), "{log}");
+    assert!(log.contains("methods registered count=15"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
     napcat.close().await;
@@ -191,7 +191,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     let (dir, root) = temp_root();
     let (mut served, listen) =
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
-    // 握手以后先登记工具，再登记方法（不写时限）：后台页的两个、给别的包调的三个（施工 O-42、O-56）、场所卡片的两个（施工 O-58 上）、
+    // 握手以后先登记工具，再登记方法（不写时限）：后台页的两个、给别的包调的五个（施工 O-42、O-56、I-8 上、I-39）、场所卡片的两个（施工 O-58 上）、
     // 两页的三个（施工 O-58 下）、会话浮窗的概况（施工 I-7 上补）、平台会话页的三个（施工 I-34 上）。
     let registered = within("桥登记方法", async {
         loop {
@@ -216,6 +216,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
             {"name": "connection.token"},
             {"name": "chat.action"},
             {"name": "chat.venue"},
+            {"name": "chat.media"},
             {"name": "chat.send"},
             {"name": "chat.note"},
             {"name": "cards.get"},

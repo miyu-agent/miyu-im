@@ -315,13 +315,19 @@ fn the_platform_and_page_keys_are_grouped() {
 
 #[test]
 fn the_manifest_exports_only_the_methods_for_other_packages() {
-    // 施工 O-42：别的包只调得到 `chat.action`、`chat.venue`（O-56 多 `chat.send`）；后台页的两个不导出。
+    // 施工 O-42：别的包只调得到 `chat.action`、`chat.venue`（O-56 多 `chat.send`，I-39 多 `chat.media`）；后台页的两个不导出。
     let text = std::fs::read_to_string(package_in(resources()).dir().join("package.toml"))
         .expect("读得了");
     let manifest = miyu_client::manifest::read(&text).expect("读得出");
     assert_eq!(
         manifest.export,
-        ["chat.action", "chat.venue", "chat.send", "chat.note"]
+        [
+            "chat.action",
+            "chat.venue",
+            "chat.media",
+            "chat.send",
+            "chat.note"
+        ]
     );
 }
 

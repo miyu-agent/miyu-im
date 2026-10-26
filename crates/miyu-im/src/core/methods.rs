@@ -33,6 +33,9 @@ pub(crate) const VENUE: &str = "chat.venue";
 /// 给别的包调的：以她的名义发一条（施工 O-56，同工具 `chat_send`）。
 pub(crate) const SEND: &str = "chat.send";
 
+/// 给别的包调的：一条消息里第几样图和它的来历（施工 I-39，表情包包偷图）。
+pub(crate) const MEDIA: &str = "chat.media";
+
 /// 给 im 的插件调的：往场所会话里记一句给 AI 的事实（施工 I-8 上，设计 01 第四节第 6 条）。
 pub(crate) const NOTE: &str = "chat.note";
 
@@ -61,6 +64,7 @@ pub(super) fn exported(method: &str) -> bool {
         method,
         ACTION
             | VENUE
+            | MEDIA
             | SEND
             | NOTE
             | CARDS_GET
@@ -142,6 +146,7 @@ fn registered() -> Value {
         {"name": TOKEN},
         {"name": ACTION},
         {"name": VENUE},
+        {"name": MEDIA},
         {"name": SEND},
         {"name": NOTE},
         {"name": CARDS_GET},

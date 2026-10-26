@@ -9,6 +9,7 @@
 //!   和名字（群里照这个群的成员缓存、他说过的话；私聊的引用不知道是谁）；没有的是 `null`。别的包（赞助记录）照它认「记谁」。
 //!   施工 P-1 中多 `plugins`：这个场所开着的插件的编号（同告诉核心的 `venue.plugins`）：工具以外的东西（表情包包每轮的提醒）照它
 //!   决定在这个场所出不出声。
+//! - `chat.media`（施工 I-39，`media`）：那个会话所在场所里一条消息的第几样图和它的来历（表情包包偷图）。
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -21,7 +22,9 @@ use crate::TARGET;
 use crate::chat::CallError;
 use crate::chat::{Bots, To};
 use crate::core::Answerer;
-use crate::core::methods::VENUE;
+use crate::core::methods::{MEDIA, VENUE};
+
+mod media;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;
@@ -67,8 +70,8 @@ impl Request {
 }
 
 impl Route {
-    /// 核心转来的一次 `method.call`（`pushed`），方法是 `chat.action` 或 [`VENUE`]（读的一头只交这两个）：写错的当场拒（`bad_params`），`chat.venue` 当场答，
-    /// `chat.action` 另起任务等 NapCat 再答。
+    /// 核心转来的一次 `method.call`（`pushed`），方法是 `chat.action`、[`VENUE`] 或 [`MEDIA`]：写错的当场拒（`bad_params`），`chat.venue`
+    /// 当场答，`chat.action`、`chat.media` 另起任务等 NapCat 再答。
     pub(super) fn exported(&mut self, pushed: &Value) {
         let id = pushed["id"].clone();
         let params = &pushed["params"];
@@ -86,6 +89,10 @@ impl Route {
                 Some(session) => answerer.answer(&id, self.venue_of(session)),
                 None => answerer.refuse(&id, "bad_params"),
             }
+            return;
+        }
+        if params["method"] == MEDIA {
+            self.media_exported(id, from, args, answerer);
             return;
         }
         let Some(request) = Request::read(args) else {

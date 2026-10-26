@@ -50,6 +50,7 @@ mod logs;
 mod long_text;
 mod lookup;
 mod media;
+mod media_export;
 mod members;
 mod mention;
 mod muted;
