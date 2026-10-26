@@ -1,6 +1,6 @@
 //! 驱动交的工具的调用（施工 T-1，`crate::toolset`）：读的一头把它们的 `tool.call` 照推送交到这里。照会话填好场景（发到哪、机器人
 //! 号、谁叫的、工作区、那个机器人号的连接；施工 T-2 多叫她做的那一条、她自己、私聊的对方、这个群缓存着的名字）交给驱动：当场答的写回去；要去平台上办的另起一个任务（`chores`，同取图）等它办完再
-//! 答，跟核心的那一头不等。桥不认识这个会话的答 `unreachable`。
+//! 答，跟核心的那一头不等。桥不认识这个会话的（本机的会话）照驱动的 `ToolSet::local` 办（施工 I-40：主动发消息），别的答 `unreachable`。
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,8 +40,18 @@ impl Route {
         let answerer = self.core.answerer();
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
-            tracing::warn!(target: TARGET, session, tool, why = "unreachable", "platform tool failed");
-            answerer.answer(&id, answers.say("unreachable", &[], true));
+            // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经连着的号里最小的那一个）。
+            match set.local(tool, &params["args"], &answers) {
+                Some(Planned::Host(Effect::Send { to, text })) => {
+                    let answer = Answer::Tool(id, answers, answerer);
+                    return self.reach(None, (to, text), answer).await;
+                }
+                Some(Planned::Now(answer)) => answerer.answer(&id, answer),
+                _ => {
+                    tracing::warn!(target: TARGET, session, tool, why = "unreachable", "platform tool failed");
+                    answerer.answer(&id, answers.say("unreachable", &[], true));
+                }
+            }
             return Ok(());
         };
         let by = by_of(params);

@@ -45,6 +45,8 @@ pub fn shipped_tools() -> Value {
     };
     let both: &[&str] = &["private", "group"];
     let group: &[&str] = &["group"];
+    // 主动发消息本机的会话也给（施工 I-40）。
+    let everywhere: &[&str] = &["local", "private", "group"];
     // 群管理的三件是场所插件的工具（施工 S-1 上c，核心 O-60）：带 `plugin`。
     let admin = |mut tool: Value| {
         tool["plugin"] = json!("miyu-im-qq-admin");
@@ -64,7 +66,7 @@ pub fn shipped_tools() -> Value {
         entry("qq_notices", "read", group),
         entry("qq_set_card", "venue", group),
         entry("qq_quote", "venue", both),
-        entry("qq_send", "venue", both),
+        entry("qq_send", "venue", everywhere),
         entry("qq_contacts", "read", both),
         entry("qq_group_files", "venue", group),
         entry("qq_react", "venue", group),

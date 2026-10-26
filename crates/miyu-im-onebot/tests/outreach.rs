@@ -1,6 +1,6 @@
 //! 主动发消息（施工 O-56，`onebot.md` 第一条「主动发消息」）：真核心拉起真桥、假 NapCat。她调 `chat_send` 发到别的群、白名单成员、
 //! 陌生人：照那个场所的出站链（去末尾句号）发、答 `sent`；对方的场所会话找得到的记一块 `reached`，陌生人的不记。别的包经
-//! `package.call` 调 `chat.send` 一样发，回 `{sent: <几段>}`，写错的 `bad_params`。
+//! `package.call` 调 `chat.send` 一样发，回 `{sent: <几段>}`，写错的 `bad_params`。本机的会话里她也能调（施工 I-40）。
 
 use serde_json::{Value, json};
 
@@ -152,5 +152,50 @@ async fn other_packages_send_in_her_name() {
     assert_eq!(ours["result"], json!({"sent": 1}), "{ours}");
     let sent = next_send(&mut napcat, "send_group_msg", "group_id", ELSEWHERE).await;
     assert_eq!(sent["params"]["message"][0]["data"]["text"], "第二条");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn from_a_local_session_she_messages_a_group() {
+    // 施工 I-40：终端、网页里叫她去 QQ 上发。本机的会话也有 `qq_send`（完全放开的会话照对外发消息直接放行），经连着的号发，答 `sent`。
+    let lines = Lines::new(uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#));
+    let (home, mut napcat) = up(&lines).await;
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    let cwd = home.root.path().to_string_lossy().into_owned();
+    let made = core
+        .call("local-1", "session.create", json!({"cwd": cwd}))
+        .await
+        .expect("造得出");
+    let session = made["session"].clone();
+    let full = json!({"session": session, "level": "full"});
+    core.call("local-2", "session.set_permission_level", full)
+        .await
+        .expect("切得了");
+    let asked = json!({"session": session, "text": "去 999 打个招呼"});
+    core.call("local-3", "session.send", asked)
+        .await
+        .expect("发得进");
+    let sent = next_send(&mut napcat, "send_group_msg", "group_id", ELSEWHERE).await;
+    assert_eq!(
+        sent["params"]["message"],
+        json!([{"type": "text", "data": {"text": "大家晚上好"}}]),
+        "照那个群的出站链去掉末尾句号"
+    );
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    while lines.requests().len() < 2 {
+        assert!(tokio::time::Instant::now() < deadline, "等不到她拿到结果");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let requests = lines.requests();
+    assert!(
+        requests[0].tools.iter().any(|tool| tool.name == "qq_send"),
+        "本机的会话的工具面里有它"
+    );
+    assert!(
+        format!("{:?}", requests[1]).contains(sentence("sent", &[]).trim()),
+        "答了 sent"
+    );
     stopped(home).await;
 }

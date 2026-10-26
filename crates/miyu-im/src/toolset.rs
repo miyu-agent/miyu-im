@@ -323,6 +323,13 @@ pub trait ToolSet: Send + Sync {
     /// 认一次调用：当场答的、交 im 等着的（模块的说明）。在跟核心的那一头当场调，不许等平台。
     fn plan(&self, call: Call) -> Planned;
 
+    /// 本机的会话（终端、网页）里的一次调用（施工 I-40：登记时 `venues` 带 `local` 的那几件）：没有场所、对方、机器人号，只有参数
+    /// `args` 和答的话 `answers`。认得的交回怎么办，别的是空的（im 照「够不着」答）。
+    fn local(&self, tool: &str, args: &Value, answers: &Answers) -> Option<Planned> {
+        let _ = (tool, args, answers);
+        None
+    }
+
     /// 驱动带的插件给场所会话记一句时用的模板（施工 Q-3）：名字（`facts/<名字>.txt`）和认的字段。经 `Gate::note` 换好交给 im 记。
     fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
         &[]

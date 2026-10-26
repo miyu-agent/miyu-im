@@ -9,7 +9,7 @@
 use std::time::Duration;
 
 use miyu_client::tooltext::Access;
-use miyu_im::toolset::{Call, Decl, Effect, Planned, ToolSet, send_request};
+use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
 
@@ -90,6 +90,9 @@ pub const MEMBERS: &str = "qq_members";
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
 
+/// 本机的会话也给（施工 I-40，项目主人 10-26：终端、网页里叫她去 QQ 上给人发一句）：核心照对外发消息问人。
+const EVERYWHERE: &[&str] = &["local", "private", "group"];
+
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
 const TOOLS: [Decl; 19] = [
@@ -161,7 +164,7 @@ const TOOLS: [Decl; 19] = [
     Decl {
         name: CHAT_SEND,
         access: Access::Venue,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: CONTACTS,
@@ -331,6 +334,14 @@ impl ToolSet for QqTools {
             MODERATION_LOG => crate::admin::offers_log(config),
             _ => true,
         }
+    }
+
+    fn local(&self, tool: &str, args: &Value, answers: &Answers) -> Option<Planned> {
+        // 本机的会话只有主动发消息（施工 I-40）：同场所会话里那一条路，交给 im 发。
+        (tool == CHAT_SEND).then(|| match send_request(args) {
+            Some((to, text)) => Planned::Host(Effect::Send { to, text }),
+            None => Planned::Now(answers.say("no-recipient", &[], true)),
+        })
     }
 
     fn plan(&self, call: Call) -> Planned {
