@@ -25,5 +25,5 @@
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 720px) {
   .row { flex-wrap: wrap; }
-  .row .input.mono { width: 100%; }
+  .row .input.mono, .row .secret { width: 100%; }
 }

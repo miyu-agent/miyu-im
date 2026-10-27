@@ -3,6 +3,7 @@
 // 存设置经宿主的 connection.save（人的连接替人存）；等的时候照外壳推来的连接看，有连着的就算连上。
 import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
+import { secretInput } from '../../shell/secret.js';
 import { PLATFORMS, mark, platform } from './platforms.js';
 
 /** 开新建连接的浮窗：`request` 调宿主的方法。交回 update(connections)（外壳推来的连接，等连上用）。 */
@@ -17,6 +18,14 @@ export function openWizard(request) {
   const dialog = openDialog(say('wizard/pick'), () => { waiting = false; });
   const steps = () => (chosen ? platform(chosen).steps : []);
   const total = () => 1 + steps().length + 1;
+  // 中间换成第 `to` 屏（选平台 0、平台的几步、等连上、连上了）：往前翻的从右边滑进来、往回翻的从左边（施工 I-47）；头一屏随浮窗
+  // 一起出来，同一屏重画的不动。
+  let shownAt = null;
+  const show = (to, ...children) => {
+    if (shownAt === null || shownAt === to) dialog.body.replaceChildren(...children);
+    else dialog.swap(children, to < shownAt);
+    shownAt = to;
+  };
 
   const buttons = (back, next, label, enabled = true) => {
     const backButton = element('button', 'btn ghost', say('wizard/back'));
@@ -45,7 +54,7 @@ export function openWizard(request) {
       });
       list.append(choice);
     }
-    dialog.body.replaceChildren(list);
+    show(0, list);
     buttons(null, () => step(1), say('wizard/next'), Boolean(chosen));
   };
 
@@ -65,7 +74,7 @@ export function openWizard(request) {
       const code = element('code', null, '…');
       const copier = element('button', 'btn', say('dialog/copy'));
       fill.append(element('span', 'soft', say('wizard/address')), code, copier);
-      dialog.body.replaceChildren(text, fill);
+      show(n, text, fill);
       buttons(back, () => step(n + 1), shown.next());
       try {
         const address = platform(chosen).address(await request('status'));
@@ -78,12 +87,12 @@ export function openWizard(request) {
     }
     // 粘贴一个密钥，存了就连。
     const fill = element('div', 'fill');
-    const input = element('input', 'input mono');
+    // 密钥默认圆点遮着、眼睛按钮看原文（施工 I-47）。
+    const { box, input } = secretInput('input mono');
     input.placeholder = shown.placeholder();
-    input.autocomplete = 'off';
-    fill.append(element('span', 'soft', shown.label()), input, element('span'));
+    fill.append(element('span', 'soft', shown.label()), box, element('span'));
     const failed = element('p', 'failed');
-    dialog.body.replaceChildren(text, fill, failed);
+    show(n, text, fill, failed);
     const next = buttons(back, async () => {
       next.disabled = true;
       try {
@@ -117,7 +126,7 @@ export function openWizard(request) {
     link.append(ours, wire, theirs);
     const box = element('div', 'center');
     box.append(link, element('p', 'soft', shown.waiting()));
-    dialog.body.replaceChildren(box);
+    show(steps().length + 1, box);
     buttons(() => step(steps().length), () => {}, say('wizard/next'), false).hidden = true;
     check();
   };
@@ -150,7 +159,7 @@ export function openWizard(request) {
       ? say('wizard/done', { name: up.name, platform: shown.name() })
       : say('wizard/done-unnamed', { platform: shown.name() });
     box.append(mark, element('p', 'done-line', line), element('p', 'soft', detail));
-    dialog.body.replaceChildren(box);
+    show(steps().length + 2, box);
     const finish = element('button', 'btn primary', say('wizard/finish'));
     finish.addEventListener('click', dialog.close);
     dialog.foot.replaceChildren(element('span', 'grow'), finish);

@@ -12,7 +12,9 @@ export function openLayer(dialog, onClose) {
   const scrim = element('div', 'scrim');
   layer.append(scrim, dialog);
   document.body.append(layer);
-  requestAnimationFrame(() => layer.classList.add('open'));
+  // 先让浏览器算一遍起点的样子再加 `open`（施工 I-47）：等下一帧再加，常常和起点算在同一次里，过渡被跳过，浮窗一下子冒出来。
+  layer.getBoundingClientRect();
+  layer.classList.add('open');
   layers.push(layer);
   const keys = (event) => {
     if (event.key === 'Escape' && layers[layers.length - 1] === layer) {
@@ -42,7 +44,10 @@ export function closeButton(close) {
   return shut;
 }
 
-/** 开一个小浮窗：标题 `title`。交回 { body, foot, setTitle(text), close() }；关了调 `onClose`。 */
+/** 系统要求少动画的不做过渡。 */
+const still = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** 开一个小浮窗：标题 `title`。交回 { body, foot, setTitle(text), swap(children, back), close() }；关了调 `onClose`。 */
 export function openDialog(title, onClose) {
   const dialog = element('div', 'dialog');
   const head = element('div', 'd-head');
@@ -60,6 +65,19 @@ export function openDialog(title, onClose) {
     foot,
     setTitle(text) {
       heading.textContent = text;
+    },
+    /**
+     * 换掉中间的内容（施工 I-47，项目主人 10-27 验收：上一步、下一步没有过渡）：新内容从右边滑进来，`back` 的从左边；浮窗的高度
+     * 跟着变过去，不跳。
+     */
+    swap(children, back = false) {
+      const from = dialog.getBoundingClientRect().height;
+      body.replaceChildren(...children);
+      if (still()) return;
+      const to = dialog.getBoundingClientRect().height;
+      const timing = { duration: 220, easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)' };
+      body.animate([{ opacity: 0, transform: `translateX(${back ? -16 : 16}px)` }, { opacity: 1, transform: 'none' }], timing);
+      if (Math.abs(from - to) > 1) dialog.animate([{ height: `${from}px` }, { height: `${to}px` }], timing);
     },
     /** 头上的进度条：一共 `count` 段，前 `done` 段亮着。 */
     setSteps(done, count) {

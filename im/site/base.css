@@ -148,3 +148,7 @@ button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(
 .panel { padding: 16px 18px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
 
 @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
+/* 密钥框（施工 I-47，shell/secret.js）：输入框右边留出眼睛按钮的位置。 */
+.secret { position: relative; display: inline-flex; align-items: center; }
+.secret > .input { padding-right: 36px; }
+.secret-eye { position: absolute; right: 2px; width: 28px; height: 28px; }

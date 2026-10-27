@@ -3,6 +3,7 @@
 // 下拉加「其他」、密钥（只说设没设，粘贴新的换上）。改了当场存（plugins.settings.set），存不成的写在那一行下面；和默认不一样的给
 // 「恢复默认」。值写成引用（{ env = … } 这类）的不在这里改。
 import { element, say } from '../../shell/i18n.js';
+import { secretInput } from '../../shell/secret.js';
 import { tagInput } from '../../shell/tags.js';
 
 /** 插件 `package` 的设置：先画「读取中」，读到了换上。 */
@@ -154,12 +155,11 @@ function list(items, put) {
 
 /** 密钥：只说设没设，粘贴新的回车或离开就换上。 */
 function secret(value, put) {
-  const input = element('input', 'input plug-text');
-  input.type = 'password';
-  input.autocomplete = 'off';
+  // 默认圆点遮着、眼睛按钮看原文（施工 I-47）。
+  const { box, input } = secretInput('input plug-text');
   input.placeholder = say(value ? 'plugins-page/secret-set' : 'plugins-page/secret-unset');
   input.addEventListener('change', () => {
     if (input.value.trim()) put({ value: input.value.trim() });
   });
-  return input;
+  return box;
 }

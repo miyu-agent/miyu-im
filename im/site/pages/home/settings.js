@@ -3,6 +3,7 @@
 // 填了的（已设的 Token 留空就不改，不把它的值拿到页面上）；经宿主的 connection.save 存。
 import { element, say } from '../../shell/i18n.js';
 import { copy, openDialog, toast } from '../../shell/dialog.js';
+import { secretInput } from '../../shell/secret.js';
 import { platform } from './platforms.js';
 
 /** 给连接 `one` 开连接设置：`request` 调宿主的方法。 */
@@ -21,6 +22,8 @@ export async function openSettings(request, one) {
     rows.push(element('p', 'faint lead', say('settings/driver', { implementation: one.implementation, version: one.version })));
   }
   const inputs = new Map();
+  // 密钥那几格的名字。
+  const secrets = new Set();
   const addressShown = element('span', 'mono soft');
   const address = () => {
     const port = inputs.get('listen')?.value || status.listen;
@@ -36,7 +39,9 @@ export async function openSettings(request, one) {
       copier.addEventListener('click', () => copy(address()));
       row.append(addressShown, copier);
     } else {
-      const input = element('input', field.kind === 'port' ? 'input num' : 'input mono');
+      // 密钥默认圆点遮着、眼睛按钮看原文（施工 I-47）；别的照原样一个输入框。
+      const secret = field.kind === 'port' || field.kind === 'text' ? null : secretInput('input mono');
+      const input = secret ? secret.input : element('input', field.kind === 'port' ? 'input num' : 'input mono');
       if (field.kind === 'port') {
         input.inputMode = 'numeric';
         input.value = String(status[field.name] ?? '');
@@ -45,12 +50,11 @@ export async function openSettings(request, one) {
         input.value = String(status[field.name] ?? '');
         input.spellcheck = false;
       } else {
-        input.type = 'password';
-        input.autocomplete = 'off';
         input.placeholder = status[field.name] === 'set' ? say('settings/token-set') : '';
+        secrets.add(field.name);
       }
       inputs.set(field.name, input);
-      row.append(input);
+      row.append(secret ? secret.box : input);
     }
     rows.push(row);
   }
@@ -63,7 +67,8 @@ export async function openSettings(request, one) {
   save.addEventListener('click', async () => {
     const values = {};
     for (const [name, input] of inputs) {
-      const changed = input.type === 'password' ? input.value.trim() !== '' : input.value !== String(status[name]);
+      // 密钥照填没填算改没改（点了眼睛以后输入框的类型是 text，不能照类型认）。
+      const changed = secrets.has(name) ? input.value.trim() !== '' : input.value !== String(status[name]);
       if (changed) values[name] = input.value;
     }
     if (Object.keys(values).length === 0) {

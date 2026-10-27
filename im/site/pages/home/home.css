@@ -28,7 +28,7 @@
 .pi.pf-qq { background: #12b7f5; }
 .fill { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; margin-top: 14px; }
 .fill code { padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fill .input { width: 100%; }
+.fill .input, .fill .secret { width: 100%; }
 .center { text-align: center; }
 .link { display: flex; align-items: center; justify-content: center; margin: 22px auto 10px; }
 .node { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); font-weight: 600; }
