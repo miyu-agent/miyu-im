@@ -155,11 +155,8 @@ async fn other_packages_send_in_her_name() {
     stopped(home).await;
 }
 
-#[tokio::test]
-async fn from_a_local_session_she_messages_a_group() {
-    // 施工 I-40：终端、网页里叫她去 QQ 上发。本机的会话也有 `qq_send`（完全放开的会话照对外发消息直接放行），经连着的号发，答 `sent`。
-    let lines = Lines::new(uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#));
-    let (home, mut napcat) = up(&lines).await;
+/// 造一个本机的会话（终端、网页那种），切成完全放开，叫她做 `text`。
+async fn local_session(home: &Home, text: &str) {
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
@@ -173,22 +170,35 @@ async fn from_a_local_session_she_messages_a_group() {
     core.call("local-2", "session.set_permission_level", full)
         .await
         .expect("切得了");
-    let asked = json!({"session": session, "text": "去 999 打个招呼"});
+    let asked = json!({"session": session, "text": text});
     core.call("local-3", "session.send", asked)
         .await
         .expect("发得进");
+}
+
+/// 等她拿到第二次请求（工具的结果交回去了），交回她发出的请求。
+async fn second_request(lines: &Lines) -> Vec<miyu_kernel::request::Request> {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    while lines.requests().len() < 2 {
+        assert!(tokio::time::Instant::now() < deadline, "等不到她拿到结果");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    lines.requests()
+}
+
+#[tokio::test]
+async fn from_a_local_session_she_messages_a_group() {
+    // 施工 I-40：终端、网页里叫她去 QQ 上发。本机的会话也有 `qq_send`（完全放开的会话照对外发消息直接放行），经连着的号发，答 `sent`。
+    let lines = Lines::new(uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#));
+    let (home, mut napcat) = up(&lines).await;
+    local_session(&home, "去 999 打个招呼").await;
     let sent = next_send(&mut napcat, "send_group_msg", "group_id", ELSEWHERE).await;
     assert_eq!(
         sent["params"]["message"],
         json!([{"type": "text", "data": {"text": "大家晚上好"}}]),
         "照那个群的出站链去掉末尾句号"
     );
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
-    while lines.requests().len() < 2 {
-        assert!(tokio::time::Instant::now() < deadline, "等不到她拿到结果");
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-    let requests = lines.requests();
+    let requests = second_request(&lines).await;
     assert!(
         requests[0].tools.iter().any(|tool| tool.name == "qq_send"),
         "本机的会话的工具面里有它"
@@ -196,6 +206,27 @@ async fn from_a_local_session_she_messages_a_group() {
     assert!(
         format!("{:?}", requests[1]).contains(sentence("sent", &[]).trim()),
         "答了 sent"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn from_a_local_session_with_qq_disconnected_she_is_told_it_is_unreachable() {
+    // 施工 I-43（项目主人 10-27）：QQ 没连着时 `qq_send` 照样在工具面里（工具面会话内不变，前缀缓存不掰），调了答够不着。
+    let lines = Lines::new(uses("qq_send", r#"{"group":999,"text":"大家晚上好。"}"#));
+    let (home, napcat) = up(&lines).await;
+    drop(napcat);
+    until_logged(&home.root, |line| line.contains("napcat disconnected")).await;
+    local_session(&home, "去 999 打个招呼").await;
+    let requests = second_request(&lines).await;
+    assert!(
+        requests[0].tools.iter().any(|tool| tool.name == "qq_send"),
+        "没连着也在工具面里"
+    );
+    assert!(
+        format!("{:?}", requests[1]).contains(sentence("unreachable", &[]).trim()),
+        "答了够不着：{:?}",
+        requests[1]
     );
     stopped(home).await;
 }
