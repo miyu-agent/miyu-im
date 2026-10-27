@@ -3,6 +3,7 @@
 //! - `name`：显示名，照语言写（`zh`、`en`、`ja`），至少一种；`summary`：一句说明，同样照语言写。
 //! - `icon`、`homepage`、`repository`、`issues`、`readme`：图标、主页、仓库、问题反馈、README 的路径（目录里的相对路径）。
 //! - `platforms`：只在这几个平台上用；不写的哪个平台都行。
+//! - `venues`：只在这几种场所用（`group` 群、`private` 私聊）；不写的都行（施工 I-50 后的 I-51：群管理不该出现在私聊卡片上）。
 //! - `needs`：要的平台能力（`chat::Cap` 的名字）。
 //! - `default`：没设过的场所开不开，不写的开。
 //! - `[plugin.ui]`（施工 I-8 下，设计 01 第四节第 5 条）：往 im 的页面加什么。`home = true` 放一张首页卡片（im 调它登记的
@@ -28,6 +29,8 @@ pub struct Declared {
     pub links: Links,
     /// 只在这几个平台上用；空的是哪个平台都行。
     pub platforms: Vec<String>,
+    /// 只在这几种场所用：`group`、`private`；空的是都行（施工 I-51）。
+    pub venues: Vec<String>,
     /// 要的平台能力。
     pub needs: Vec<Cap>,
     /// 没设过的场所开不开。
@@ -57,6 +60,17 @@ pub struct Page {
     pub title: BTreeMap<String, String>,
     /// 交内容的方法。
     pub method: String,
+}
+
+/// `venues` 认的场所种类（施工 I-51）。
+pub const VENUES: [&str; 2] = ["group", "private"];
+
+impl Declared {
+    /// 在这种场所（`group`、`private`）用不用得上：没写 `venues` 的都用得上（施工 I-51）。
+    #[must_use]
+    pub fn fits(&self, kind: &str) -> bool {
+        self.venues.is_empty() || self.venues.iter().any(|one| one == kind)
+    }
 }
 
 /// 一个插件最多几个整页。
@@ -104,6 +118,8 @@ struct Raw {
     #[serde(default)]
     platforms: Vec<String>,
     #[serde(default)]
+    venues: Vec<String>,
+    #[serde(default)]
     needs: Vec<String>,
     #[serde(default = "on")]
     default: bool,
@@ -139,6 +155,13 @@ pub fn read(text: &str) -> Result<Declared, String> {
     if raw.name.values().all(|name| name.trim().is_empty()) {
         return Err("plugin.name has no name in any language".to_string());
     }
+    if let Some(bad) = raw
+        .venues
+        .iter()
+        .find(|kind| !VENUES.contains(&kind.as_str()))
+    {
+        return Err(format!("unknown venue kind: {bad}"));
+    }
     let needs = raw
         .needs
         .iter()
@@ -155,6 +178,7 @@ pub fn read(text: &str) -> Result<Declared, String> {
             readme: raw.readme,
         },
         platforms: raw.platforms,
+        venues: raw.venues,
         needs,
         default: raw.default,
         ui: ui(raw.ui)?,

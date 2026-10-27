@@ -11,7 +11,7 @@ import { cardOf } from './model.js';
 /** 画 `one` 的这一页：`context` 是 { request, plugins（宿主认得的插件）, fallbacks（{group, private}：兜底卡上的开关） }。 */
 export function drawPlugins(one, context) {
   const parts = [element('p', 'faint pane-hint', say('plugins/hint'))];
-  const plugins = context.plugins || [];
+  const plugins = (context.plugins || []).filter((plugin) => fits(one, plugin));
   if (plugins.length === 0) parts.push(element('p', 'faint', say('plugins/none')));
   const fallback = one.id ? context.fallbacks?.[one.type] || {} : {};
   for (const plugin of plugins) parts.push(row(one, plugin, fallback, context.request));
@@ -42,6 +42,12 @@ export function fallbacksOf(all) {
     group: all.find((card) => card.kind === 'other_groups')?.set.plugins || {},
     private: all.find((card) => card.kind === 'other_privates')?.set.plugins || {},
   };
+}
+
+/** 插件 `plugin` 用不用得上卡 `one` 这种场所（施工 I-51）：声明了只在群（`group`）或只在私聊（`private`）用的，别的卡上不列。 */
+export function fits(one, plugin) {
+  const kind = one.type === 'private' ? 'private' : 'group';
+  return !plugin.venues || plugin.venues.includes(kind);
 }
 
 /** 插件 `plugin` 在卡 `one` 上开没开（模块的说明）：`fallback` 是这张卡的兜底卡上的开关；用不了的算关着。 */

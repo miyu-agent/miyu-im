@@ -3,6 +3,8 @@
 
 use serde_json::json;
 
+use miyu_session::testkit::{Play, Script};
+
 use crate::support::group::*;
 use crate::support::head::Head;
 use crate::support::platform::*;
@@ -75,5 +77,31 @@ async fn the_records_and_info_plugins_switch_their_tools() {
     until_provided_again(&home, before).await;
     called_once(&home, &napcat, 803, 3).await;
     assert!(offered(&lines, 2, &INFO).is_empty(), "群资料的总开关关了");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn group_only_plugins_are_off_in_a_private_chat() {
+    // 施工 I-51（项目主人 10-27：群管理不该出现在私聊卡片里）：群管理、识人术声明了只在群里用，私聊里 im 告诉核心开着的插件里
+    // 没有它们；群聊记录、群资料没限场所，私聊里照样开着。
+    let script = Script::new([Play::Says("在")]);
+    let (home, napcat, _) = started(&script, "", "", &[(BOT, "米尤", "miyu")]).await;
+    napcat.send(private_frame(ADMIN, 1, json!([plain("在吗")])));
+    let venue = format!("venue=qq:private:{ADMIN}");
+    let log = until_logged(&home.root, |log| {
+        log.lines()
+            .any(|line| line.contains("venue plugins told") && line.contains(&venue))
+    })
+    .await;
+    let told = log
+        .lines()
+        .find(|line| line.contains("venue plugins told") && line.contains(&venue))
+        .expect("说过");
+    for off in ["miyu-im-qq-admin", "miyu-im-identity"] {
+        assert!(!told.contains(off), "只在群里用的私聊里没有 {off}：{told}");
+    }
+    for on in ["miyu-im-qq-records", "miyu-im-qq-info"] {
+        assert!(told.contains(on), "没限场所的照样开着 {on}：{told}");
+    }
     stopped(home).await;
 }

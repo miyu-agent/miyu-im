@@ -56,6 +56,7 @@ fn declared(
             ..Links::default()
         },
         platforms: vec!["qq".to_string()],
+        venues: Vec::new(),
         needs: Vec::new(),
         default: true,
         ui: Ui::default(),

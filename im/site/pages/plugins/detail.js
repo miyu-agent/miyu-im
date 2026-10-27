@@ -9,7 +9,7 @@ import { toast } from '../../shell/dialog.js';
 import { face } from '../venues/face.js';
 import { entries } from '../venues/model.js';
 import { idLine, titleOf } from '../venues/names.js';
-import { fallbacksOf, isOn, named, pluginSwitch } from '../venues/plugins.js';
+import { fallbacksOf, fits, isOn, named, pluginSwitch } from '../venues/plugins.js';
 import { back } from './plugins.js';
 import { pluginIcon, subtitle, usable } from './card.js';
 import { drawSettings } from './config-form.js';
@@ -124,7 +124,8 @@ function where(plugin, all, { request, platform }) {
   const rows = [element('p', 'faint pane-hint', say('plugins-page/where-hint'))];
   if (plugin.unusable) rows.push(element('p', 'plugin-why', usable(plugin, '')));
   const fallbacks = fallbacksOf(all);
-  for (const one of all) {
+  // 只在群或只在私聊用的插件（施工 I-51），另一种会话不列。
+  for (const one of all.filter((card) => fits(card, plugin))) {
     const line = element('div', 'row');
     const label = element('div', 'label', titleOf(one));
     label.append(element('small', null, idLine(one, { platform, bots: new Map() })));

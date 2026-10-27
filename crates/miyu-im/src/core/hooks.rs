@@ -236,6 +236,15 @@ impl Hooks {
             To::Group(group) => (VenueKind::Group, group),
             To::Private(user) => (VenueKind::Private, user),
         });
+        // 只在群、只在私聊用的插件（施工 I-51）：别的场所当关着。
+        let kind = match to {
+            Some(To::Group(_)) => Some("group"),
+            Some(To::Private(_)) => Some("private"),
+            None => None,
+        };
+        if kind.is_some_and(|kind| !declared.fits(kind)) {
+            return false;
+        }
         let toggles = self.toggles.lock().unwrap_or_else(PoisonError::into_inner);
         toggles.enabled(venue, package, declared.default)
     }

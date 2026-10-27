@@ -35,6 +35,12 @@ fn a_declaration_reads_with_its_links_and_needs() {
     let bare = declared::read("[plugin]\nname = { en = \"x\" }\n").expect("只写名字也行");
     assert!(bare.default, "default 不写的开");
     assert!(bare.platforms.is_empty() && bare.needs.is_empty());
+    // 施工 I-51：只在几种场所用；不写的都行，认不出的种类整份不收。
+    assert!(bare.venues.is_empty() && bare.fits("group") && bare.fits("private"));
+    let group =
+        declared::read("[plugin]\nname = { en = \"x\" }\nvenues = [\"group\"]\n").expect("读得出");
+    assert!(group.fits("group") && !group.fits("private"));
+    assert!(declared::read("[plugin]\nname = { en = \"x\" }\nvenues = [\"channel\"]\n").is_err());
 }
 
 #[test]

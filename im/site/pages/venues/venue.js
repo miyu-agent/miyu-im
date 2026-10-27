@@ -18,7 +18,7 @@ import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
 import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
-import { drawPlugins, isOn, named as pick } from './plugins.js';
+import { drawPlugins, fits, isOn, named as pick } from './plugins.js';
 import { mountWidget } from '../plugins/widget-host.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
@@ -115,7 +115,7 @@ export function openVenue(one, context, onClose) {
     const tabs = element('div', 'd-tabs');
     side.replaceChildren(who, tabs);
     const added = shown.id
-      ? (context.plugins || []).filter((plugin) => plugin.ui?.panel && isOn(shown, plugin, context.fallbacks?.[shown.type] || {}))
+      ? (context.plugins || []).filter((plugin) => plugin.ui?.panel && fits(shown, plugin) && isOn(shown, plugin, context.fallbacks?.[shown.type] || {}))
       : [];
     const plugin = added.find((one) => `plugin:${one.package}` === tab);
     if (tab.startsWith('plugin:') && !plugin) tab = shown.kind === 'defaults' ? 'persona' : 'overview';

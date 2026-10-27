@@ -66,6 +66,8 @@ impl Builtin for Identity {
                 ..Links::default()
             },
             platforms: vec!["qq".to_string()],
+            // 识人术认的是群里借名字的（施工 I-51）。
+            venues: vec!["group".to_string()],
             needs: Vec::new(),
             default: true,
             ui: Ui::default(),

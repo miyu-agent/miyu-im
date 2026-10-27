@@ -42,6 +42,9 @@ pub(super) fn listed(plugins: &Plugins, platform: Platform, caps: &[Cap]) -> Vec
                     if !declared.platforms.is_empty() {
                         one["platforms"] = json!(declared.platforms);
                     }
+                    if !declared.venues.is_empty() {
+                        one["venues"] = json!(declared.venues);
+                    }
                     if !declared.needs.is_empty() {
                         one["needs"] = json!(names(&declared.needs));
                     }

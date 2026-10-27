@@ -102,6 +102,8 @@ impl Builtin for Admin {
                 ..Links::default()
             },
             platforms: vec!["qq".to_string()],
+            // 群管理只在群里（施工 I-51）。
+            venues: vec!["group".to_string()],
             needs: Vec::new(),
             default: true,
             // 会话浮窗的「群管理」页、面板（施工 Q-6，设计 02 第四节第 4、5 条）。
