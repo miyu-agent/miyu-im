@@ -228,3 +228,28 @@ fn anyone_looks_up_a_sponsor_and_the_ranking() {
     assert_eq!(text(&nobody), "No sponsorship records.");
     std::fs::remove_dir_all(dir).expect("删得掉");
 }
+
+#[test]
+fn the_ranking_lists_every_sponsor() {
+    // 施工 I-60（10-27 项目主人：榜单默认只给前十不对，应该给完整的）：十二个人都列出来，照合计排。
+    let (dir, book) = book("everyone");
+    let context = context(&book);
+    for n in 1..=12 {
+        let args =
+            json!({"action": "add", "user": 41000 + n, "name": format!("人{n}"), "amount": n});
+        assert_eq!(
+            call(&by_manager(args), &venue(None, &[]), &context)["error"],
+            false
+        );
+    }
+    let top = call(
+        &by_manager(json!({"action": "ranking"})),
+        &venue(None, &[]),
+        &context,
+    );
+    let said = text(&top);
+    assert_eq!(said.matches(" CNY").count(), 12, "{said}");
+    assert!(said.contains("1. 人12 (qq:41012) 12 CNY"), "{said}");
+    assert!(said.ends_with("12. 人1 (qq:41001) 1 CNY"), "{said}");
+    std::fs::remove_dir_all(dir).expect("删得掉");
+}

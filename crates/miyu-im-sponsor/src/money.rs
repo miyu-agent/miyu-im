@@ -136,9 +136,9 @@ pub struct Row {
     first: i64,
 }
 
-/// 排行榜（纯逻辑）：`entries` 照赞助人合计（默认币种 `base`；没换算成它的不算），多的在前，一样多的照先赞助的在前；最多
-/// `most` 个。时间段、平台由调的一方先筛好。
-pub fn ranking(entries: &[Entry], base: &str, most: usize) -> Vec<Row> {
+/// 排行榜（纯逻辑）：`entries` 照赞助人合计（默认币种 `base`；没换算成它的不算），多的在前，一样多的照先赞助的在前；全部
+/// 列出（施工 I-60，10-27 项目主人：只给前十不对）。时间段、平台由调的一方先筛好。
+pub fn ranking(entries: &[Entry], base: &str) -> Vec<Row> {
     let mut rows: Vec<Row> = Vec::new();
     for entry in entries {
         let (Some(sponsor), Some(converted)) = (
@@ -166,7 +166,6 @@ pub fn ranking(entries: &[Entry], base: &str, most: usize) -> Vec<Row> {
         }
     }
     rows.sort_by(|a, b| b.sum.total_cmp(&a.sum).then(a.first.cmp(&b.first)));
-    rows.truncate(most);
     rows
 }
 

@@ -62,7 +62,7 @@ fn the_ranking_sums_per_sponsor_and_keeps_the_latest_name() {
         entry(3, Some("qq:1"), Some("明明"), Some(40.0), 30),
         entry(4, Some("qq:2"), None, None, 40),
     ];
-    let rows = ranking(&entries, "CNY", SHOWN);
+    let rows = ranking(&entries, "CNY");
     let seen: Vec<(Sponsor, Option<String>, f64, usize)> = rows
         .into_iter()
         .map(|row| (row.sponsor, row.name, row.sum, row.count))
@@ -85,7 +85,6 @@ fn the_ranking_sums_per_sponsor_and_keeps_the_latest_name() {
         ],
         "号一样的合在一起、名字照最近的；只有昵称的单成一行；没换算的不进榜"
     );
-    assert_eq!(ranking(&entries, "CNY", 1).len(), 1, "条数照调的一方");
 }
 
 #[test]

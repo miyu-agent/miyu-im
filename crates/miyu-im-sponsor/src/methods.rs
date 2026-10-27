@@ -3,7 +3,7 @@
 //!
 //! - `totals` → `{base, month, year, all, pending}`：本月、今年、全部换成默认币种的合计（照本机时区），待补汇率的笔数。
 //! - `list {query?, platform?, from?, to?}` → `{base, entries}`：明细，新的在前；`query` 搜号或名字（不分大小写）。
-//! - `ranking {platform?, from?, to?}` → `{base, rows: [{user, name, platform, sum, count}]}`：最多 [`MOST`] 个。
+//! - `ranking {platform?, from?, to?}` → `{base, rows: [{user, name, platform, sum, count}]}`：全部（施工 I-60）。
 //! - `add {platform, user?, name?, amount, currency?, note?}` → `{entry}`：记一笔（照汇率换算、冻结），号、名字至少一样。
 //! - `update {id, user?, name?, amount?, currency?, note?, rate?}` → `{entry}`：改一笔；写了 `rate` 的照它重算（补汇率），改了
 //!   金额、币种的照原来的汇率重算（币种变了的汇率作废、照现在的再查一次）。
@@ -28,9 +28,6 @@ use crate::wire::Answer;
 pub const NAMES: [&str; 7] = [
     "totals", "list", "ranking", "add", "update", "delete", "rate",
 ];
-
-/// 排行榜最多几个。
-const MOST: usize = 100;
 
 /// 名字、号最多几个字。
 const NAME: usize = 64;
@@ -87,7 +84,7 @@ pub fn call(state: &State, request: &Value, (now, zone): (i64, &TimeZone)) -> An
                 .filter(|entry| wanted.keeps(entry))
                 .cloned()
                 .collect();
-            let rows: Vec<Value> = money::ranking(&within, &base, MOST)
+            let rows: Vec<Value> = money::ranking(&within, &base)
                 .into_iter()
                 .map(|row| {
                     let (user, name) = match row.sponsor {

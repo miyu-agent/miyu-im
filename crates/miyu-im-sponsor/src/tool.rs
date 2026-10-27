@@ -5,7 +5,8 @@
 //!   的那一个（im 的 `chat.venue` 交的 `origin`）；都没有、写了 `name` 的记成只有昵称的赞助人。币种不写的照默认；别的币种照记账那
 //!   一刻的汇率换成默认币种、冻结进这一笔，查不到的记原币种、标未换算。
 //! - `person` 查一个人：谁的认法同上；累计（换成默认币种的）和最近 [`SHOWN`] 笔，新的在前。谁都能查。
-//! - `ranking` 排行榜：`period` 是 `month`、`year`、`all`（出厂 `all`），最多 [`SHOWN`] 个。谁都能查。
+//! - `ranking` 排行榜：`period` 是 `month`、`year`、`all`（出厂 `all`），全部列出（施工 I-60，10-27 项目主人：只给前十不对）。
+//!   谁都能查。
 //!
 //! 改、删只在后台页（S-1 下），不给 AI。参数写错的说哪个（`not-done`）。
 
@@ -402,7 +403,7 @@ fn ranking(asked: &Asked, context: &Context<'_>) -> Value {
         .filter(|entry| since.is_none_or(|since| entry.at >= since))
         .cloned()
         .collect();
-    let rows = money::ranking(&within, base, SHOWN);
+    let rows = money::ranking(&within, base);
     if rows.is_empty() {
         return answer(say("none", &[]), false);
     }
