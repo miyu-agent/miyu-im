@@ -184,14 +184,14 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     let fields: Vec<&Value> = said.iter().map(|said| &said["body"]["venue"]).collect();
     assert_eq!(
         *fields[0],
-        json!({"msg": "1", "name": "小林", "my_name": "米尤", "ambient": true, "show_ids": true}),
-        "施工 I-38：她在这个群叫什么（群名片）也带上"
+        json!({"msg": "1", "name": "小林", "my_name": "米尤", "place": GROUP_NAME, "ambient": true, "show_ids": true}),
+        "施工 I-38：她在这个群叫什么（群名片）也带上；I-54：群名也带上"
     );
     assert_eq!(fields[1]["name"], "阿杰", "群名片空白的取昵称");
     assert_eq!(
         *fields[2],
         json!({
-            "msg": "3", "name": "小林", "my_name": "米尤", "mentions": ["qq:20003", "qq:20005", "qq:20009", "qq:20010"], "mentions_me": true,
+            "msg": "3", "name": "小林", "my_name": "米尤", "place": GROUP_NAME, "mentions": ["qq:20003", "qq:20005", "qq:20009", "qq:20010"], "mentions_me": true,
             "ambient": true, "show_ids": true,
         }),
         "@ 她的不进 mentions，@ 同一个人两次只进一次"
@@ -205,7 +205,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     );
     assert_eq!(
         *fields[3],
-        json!({"msg": "4", "name": "阿杰", "my_name": "米尤", "reply_to": "1", "mentions_all": true, "ambient": true, "show_ids": true})
+        json!({"msg": "4", "name": "阿杰", "my_name": "米尤", "place": GROUP_NAME, "reply_to": "1", "mentions_all": true, "ambient": true, "show_ids": true})
     );
     assert_eq!(
         fields[4]["media"],

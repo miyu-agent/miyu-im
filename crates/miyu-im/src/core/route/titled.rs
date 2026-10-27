@@ -4,8 +4,11 @@
 //!
 //! - 放在 system：一直在、压缩不掉；群名很少改，改了才换一次（system 一换，这个会话前面的缓存就作废）。群名是群里的人改得了的字，
 //!   照模板的规矩转义（`Template::render`），截到 64 个字符，裹在标签里只当名字看。
-//! - 问到了隔 `bridge.json` 的 `group_info_seconds` 再问；问不到的（没连着、失败、名字是空的）这一次不放，下一条消息照样隔这么久
-//!   再问：NapCat 一卡，不能每条消息都等一个时限。写的和上一次放的一样的不再交（核心照快照比，交了也不换）。
+//! - 问到了隔 `bridge.json` 的 `group_info_seconds` 再问，按群记；问不到的（没连着、失败、名字是空的）照上一次问到的，从没问到的
+//!   这一次不放，下一条消息照样隔这么久再问：NapCat 一卡，不能每条消息都等一个时限。写的和上一次放的一样的不再交（核心照快照比，
+//!   交了也不换）。
+//! - 问到的群名同时交给场所的格的 `place`（施工 I-54，核心 E-4：她记下的记忆知道是在哪个群），所以在交消息以前问（[`Route::place`]），
+//!   交了以后再照它放 system（[`Route::titled`]）。
 //! - 支线（施工 O-36）是另一个会话：分叉以后照主线放的那一段给它也放一份，支线第一次请求的 system 和主线的一样。
 //! - 附加提示词（施工 O-58 上，「场所卡片」）：场所规则的 `extra_prompt` 照模板 `system/note.txt` 写一段，和群名那一段拼成一段
 //!   交（核心照扩展、照会话只留一层，后交的整段替换前面的）。每一条消息进来都照这一刻的规则放：群里判以前放好，私聊交以前
@@ -24,13 +27,15 @@ use crate::core::{Gone, reason};
 /// 附加提示词的模板先填这一段占位，再换成原文（施工 O-58 上）：只有字母和下划线，模板的填法不会改它。
 const SLOT: &str = "VENUE_NOTE_TEXT";
 
-/// 问过的群名、放过的那一段：按会话记。
+/// 问过的群名（按群记）、放过的那一段（按会话记）。
 #[derive(Debug)]
 pub(super) struct Titles {
     /// 问到了隔多久再问。
     every: Duration,
-    /// 会话 → 上一次问的时刻。
-    asked: HashMap<String, Instant>,
+    /// 群号 → 上一次问的时刻。
+    asked: HashMap<i64, Instant>,
+    /// 群号 → 问到的群名（洗过的）。
+    names: HashMap<i64, String>,
     /// 会话 → 问到的群名那一段（照模板写好的）。
     titles: HashMap<String, String>,
     /// 会话 → 附加提示词那一段（照模板写好的，施工 O-58 上）。
@@ -45,20 +50,21 @@ impl Titles {
         Titles {
             every,
             asked: HashMap::new(),
+            names: HashMap::new(),
             titles: HashMap::new(),
             notes: HashMap::new(),
             set: HashMap::new(),
         }
     }
 
-    /// 会话 `session` 此刻 `now` 该不该问：没问过的、上一次问到此刻不止 `every` 的该问，记下这一次。
-    fn due(&mut self, session: &str, now: Instant) -> bool {
+    /// 群 `group` 此刻 `now` 该不该问：没问过的、上一次问到此刻不止 `every` 的该问，记下这一次。
+    fn due(&mut self, group: i64, now: Instant) -> bool {
         let due = self
             .asked
-            .get(session)
+            .get(&group)
             .is_none_or(|at| now.saturating_duration_since(*at) >= self.every);
         if due {
-            self.asked.insert(session.to_string(), now);
+            self.asked.insert(group, now);
         }
         due
     }
@@ -80,33 +86,50 @@ pub(super) fn group_name(name: &str) -> Option<String> {
 }
 
 impl Route {
-    /// 群号是 `group` 的群会话 `session`（收进它的机器人号 `bot`）：该问的问群名，名字换了的照模板写一段放进它的 system 尾部。
+    /// 群 `group`（收进它的机器人号 `bot`）此刻叫什么：该问的问 NapCat，问到的记下；问不到的照上一次问到的，从没问到的是空的。
+    pub(super) async fn place(&mut self, group: i64, bot: i64) -> Option<String> {
+        if self.titles.due(group, Instant::now()) {
+            let asked = match self.bots.get(bot) {
+                Some(link) => link
+                    .group_name(group)
+                    .await
+                    .map_err(|error| format!("{error:?}")),
+                None => Err("bot not connected".to_string()),
+            };
+            match asked
+                .as_ref()
+                .ok()
+                .and_then(|name| name.as_deref().and_then(group_name))
+            {
+                Some(name) => {
+                    self.titles.names.insert(group, name);
+                }
+                None => {
+                    let error = asked.err().unwrap_or_default();
+                    tracing::debug!(target: TARGET, group, error, "group name unknown");
+                }
+            }
+        }
+        self.titles.names.get(&group).cloned()
+    }
+
+    /// 群号是 `group` 的群会话 `session`，群叫 `name`（[`Route::place`] 问到的，没有的不放）：照模板写一段放进它的 system 尾部，
+    /// 和上一次放的一样的不交。
     ///
     /// # Errors
     ///
     /// 写不出去、等的时候核心断开。
-    pub(super) async fn titled(&mut self, session: &str, group: i64, bot: i64) -> Result<(), Gone> {
-        if !self.titles.due(session, Instant::now()) {
-            return Ok(());
-        }
-        let asked = match self.bots.get(bot) {
-            Some(link) => link
-                .group_name(group)
-                .await
-                .map_err(|error| format!("{error:?}")),
-            None => Err("bot not connected".to_string()),
-        };
-        let Some(name) = asked
-            .as_ref()
-            .ok()
-            .and_then(|name| name.as_deref().and_then(group_name))
-        else {
-            let error = asked.err().unwrap_or_default();
-            tracing::debug!(target: TARGET, group, error, "group name unknown");
+    pub(super) async fn titled(
+        &mut self,
+        session: &str,
+        group: i64,
+        name: Option<&str>,
+    ) -> Result<(), Gone> {
+        let Some(name) = name else {
             return Ok(());
         };
         let id = group.to_string();
-        let fields = BTreeMap::from([("name", name.as_str()), ("id", id.as_str())]);
+        let fields = BTreeMap::from([("name", name), ("id", id.as_str())]);
         let content = match self.rules.group_title().render(&fields) {
             Ok(content) => content,
             Err(error) => {

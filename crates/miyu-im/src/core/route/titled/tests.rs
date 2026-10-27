@@ -14,16 +14,16 @@ fn the_group_name_is_cleaned_and_capped() {
 }
 
 #[test]
-fn a_session_is_asked_again_only_after_the_interval() {
+fn a_group_is_asked_again_only_after_the_interval() {
     let mut titles = Titles::new(Duration::from_secs(60));
     let now = Instant::now();
-    assert!(titles.due("a", now), "没问过的问");
+    assert!(titles.due(1, now), "没问过的问");
     assert!(
-        !titles.due("a", now + Duration::from_secs(59)),
+        !titles.due(1, now + Duration::from_secs(59)),
         "不到一分钟不问"
     );
-    assert!(titles.due("b", now), "各会话各算");
-    assert!(titles.due("a", now + Duration::from_secs(60)), "到了再问");
+    assert!(titles.due(2, now), "各群各算");
+    assert!(titles.due(1, now + Duration::from_secs(60)), "到了再问");
     let mut every = Titles::new(Duration::ZERO);
-    assert!(every.due("a", now) && every.due("a", now), "0 是每次都问");
+    assert!(every.due(1, now) && every.due(1, now), "0 是每次都问");
 }

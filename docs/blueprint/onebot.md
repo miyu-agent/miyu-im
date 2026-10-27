@@ -321,6 +321,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
    - `msg`：消息编号写成十进制的字。
    - `name`：`sender.card` 去掉首尾空白不空的照它，不然 `sender.nickname`；去掉控制字符，截到 64 个字符；去掉首尾空白是空的不写。
    - `my_name`（I-38，核心 E-1修三，2026-10-26 项目主人定）：她在这个群叫什么，核心拿它认出群里说的「Miyu」是她自己（不然会把她记成一个认识的人）。照群成员的缓存取收进这条消息的那个机器人号（第 5 条，同问别人的名字：群名片空着的就是昵称）；缓存里没有的问一次 `get_group_member_info`，问不到的这个群 `member_names_seconds` 以内不再问、不写。`group_card` 通知来了缓存跟着改（清掉的忘掉，下回问到的是昵称），下一条就带新名字。洗法同 `name`。补拉回来的（O-40）带此刻的。
+   - `place`（I-54，核心 E-4，2026-10-27 项目主人定「她看得到每条记忆在哪儿发生的」）：这个群此刻叫什么，只给记忆（核心记下记忆时存成它的 `place`，渲染她上下文的地方都不读，请求一个字节都不因它变）。照「群名」第 1 条问到的（按群记，问不到的照上一次问到的，从没问到的不写）；洗法同 `name`。私聊不写。
    - `reply_to`：引用的编号，1 到 128 个字符、没有控制字符的才写。
    - `mentions`（平台身份 `qq:<号>`）、`mentions_me`、`mentions_all`：第 2 条。
    - `media`：第 2 条；编号 1 到 128 个字符、没有控制字符的才记，不合的那一样不记、消息照记；`name` 同 `name` 的洗法，截到 200 个字符（「施工时定的」第 63 条）；有大小的写 `size`（O-33）。
@@ -1439,13 +1440,13 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **群名**（O-49，2026-10-17 项目主人定：她在群里要知道是哪个群，群名、群号都带上；施工时定：放在 system 尾部、隔一阵问一次）：群会话的 system 最后一段写着群名和群号（`core/route/titled.rs`）。不占编号的几段同「提供者和不说话」。
 
-1. **什么时候问**：群里一条消息记进场所会话以后、判以前（「群消息」第 6 条），这个会话上一次问到此刻不到 `bridge.json` 的 `group_info_seconds`（出厂 3600）的不问；该问的经收进这条消息的那个机器人号现在的连接调 `get_group_info {group_id}`，取回应的 `data.group_name`：去掉控制字符、截到 64 个字符（同发的人的名字），空的、没连着、失败、等不到的这一次不放，记一行 `DEBUG group name unknown`，下一次照样隔这么久再问（NapCat 一卡，不能每条消息都等一个时限）。
+1. **什么时候问**：群里一条消息交给核心以前（I-54 起：问到的群名要带进这条消息的格的 `place`，原来是记进场所会话以后），这个群上一次问到此刻不到 `bridge.json` 的 `group_info_seconds`（出厂 3600）的不问（I-54 起按群记，原来按会话）；该问的经收进这条消息的那个机器人号现在的连接调 `get_group_info {group_id}`，取回应的 `data.group_name`：去掉控制字符、截到 64 个字符（同发的人的名字），记下。空的、没连着、失败、等不到的记一行 `DEBUG group name unknown`，照上一次问到的；从没问到的这一次不放，下一次照样隔这么久再问（NapCat 一卡，不能每条消息都等一个时限）。补拉回来的（「补拉」）照同一份。
 2. **写成什么**：照出厂的模板 `im/data/system/group.txt`（给模型看的字，登记在 `docs/ledger.md`；桥起来时和事实的模板一起读、查字段，只认 `name`、`id`）：`<venue>QQ group "{name}" ({id})</venue>`，字段照模板的规矩转义（群名是群里的人改得了的字）。
-3. **怎么放**：经核心的 `system.append {content, session}` 放进这个群会话的 system 尾部（核心的 `extensions.md`「放在 system 尾部的」；清单 `[process] capabilities` 加 `context.system`）。写的和上一次放的一样的不交；成了记一行 `INFO venue tail set session=…`（O-58 上和附加提示词拼成一段，原来是 `group title set`），核心拒了的记 `WARN venue tail not set session=… reason=…`、不再试（下一次该问时照样再交）。放在 system：一直在、压缩不掉；群名很少改，改了才换一次（system 一换，这个会话前面的缓存作废）。核心只在内存里记着、照快照钉着：核心重启以后照钉的，桥重启以后再交一样的不换。
+3. **怎么放**：消息记进场所会话以后、判以前，经核心的 `system.append {content, session}` 放进这个群会话的 system 尾部（核心的 `extensions.md`「放在 system 尾部的」；清单 `[process] capabilities` 加 `context.system`）。写的和上一次放的一样的不交；成了记一行 `INFO venue tail set session=…`（O-58 上和附加提示词拼成一段，原来是 `group title set`），核心拒了的记 `WARN venue tail not set session=… reason=…`、不再试（下一次该问时照样再交）。放在 system：一直在、压缩不掉；群名很少改，改了才换一次（system 一换，这个会话前面的缓存作废）。核心只在内存里记着、照快照钉着：核心重启以后照钉的，桥重启以后再交一样的不换。
 4. **支线**（O-36）：分叉以后、开轮以前，照主线放过的那一段给支线也放一份：支线第一次请求的 system 和主线的一样（「守着它的」群里的支线那一条照旧逐字节比）。主线还没放过的不放。
 5. **私聊**不放。
 
-**守着它的**：`tests/titled.rs`（真核心拉起真桥、假 NapCat 每个群都叫「测试群」）：终端管理员 @ 她两次，两次请求的 system 一样、最后是那一段、只有一段，运行日志只有一行 `venue tail set`；私聊的 system 里没有；群的、私聊的会话日志第一条 `session.created` 都记着 `titles: false`（I-24）。`src/core/route/titled/tests.rs`：群名洗法、隔够了才再问、各会话各算、0 是每次都问。工厂数据少了 `system/group.txt` 当打包的错（`rules.rs` 抄出厂目录时一起抄）。
+**守着它的**：`tests/titled.rs`（真核心拉起真桥、假 NapCat 每个群都叫「测试群」）：终端管理员 @ 她两次，两次请求的 system 一样、最后是那一段、只有一段，运行日志只有一行 `venue tail set`；私聊的 system 里没有；群的、私聊的会话日志第一条 `session.created` 都记着 `titles: false`（I-24）；群里两条消息的格都带 `place`、第一条就有，私聊的不带（I-54）。`src/core/route/titled/tests.rs`：群名洗法、隔够了才再问、各群各算、0 是每次都问。`fields/tests.rs`：`place` 同 `name` 的洗法。工厂数据少了 `system/group.txt` 当打包的错（`rules.rs` 抄出厂目录时一起抄）。
 
 **给别的包调的方法**（O-42，2026-10-17 项目主人定：接入通讯平台 的新功能以后能做成单独的包装，扩展口分三步做，这是第一步；施工单「要拍板的」三条照推荐定：不挑动作、方法名带 `qq.`、`chat.venue` 照桥手里的表答）：别的包经核心的 `package.call` 调（核心 X-18：要声明 `packages.call`、人批过，只调得到对方清单 `[export]` 里的），核心反向发 `method.call {"method", "params", "from"}`。写给扩展包作者的约定在 `extending.md`。不占编号的几段同「提供者和不说话」。
 

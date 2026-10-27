@@ -52,7 +52,7 @@ fn a_size_is_written_when_known() {
         ..Segments::default()
     };
     assert_eq!(
-        fields(&posted(None, segments), &[], Flags::default(), None)["media"],
+        fields(&posted(None, segments), &[], Flags::default(), None, None)["media"],
         json!([
             {"kind": "file", "id": "f-1", "name": "a.pdf", "size": 1_234_567},
             {"kind": "file", "id": "f-2", "size": 0},
@@ -68,6 +68,7 @@ fn only_what_is_there_is_written() {
             &posted(None, Segments::default()),
             &[],
             Flags::default(),
+            None,
             None
         ),
         json!({"msg": "9"})
@@ -90,10 +91,11 @@ fn only_what_is_there_is_written() {
             &posted(Some("小林"), segments),
             &mentions,
             all,
-            Some("美羽")
+            Some("美羽"),
+            Some("摸鱼群")
         ),
         json!({
-            "msg": "9", "name": "小林", "my_name": "美羽", "reply_to": "8", "mentions": ["qq:20003"], "mentions_me": true,
+            "msg": "9", "name": "小林", "my_name": "美羽", "place": "摸鱼群", "reply_to": "8", "mentions": ["qq:20003"], "mentions_me": true,
             "mentions_all": true, "media": [{"kind": "file", "id": "f-1", "name": "a.pdf"}], "ambient": true,
             "asleep": true, "show_ids": true,
         })
@@ -109,10 +111,11 @@ fn names_lose_control_characters_and_are_cut() {
             &[],
             Flags::default(),
             Some(name),
+            Some(name),
         )
     };
-    // 她在这个场所叫什么（施工 I-38）照同一个规矩洗。
-    for key in ["name", "my_name"] {
+    // 她在这个场所叫什么（施工 I-38）、群名（施工 I-54）照同一个规矩洗。
+    for key in ["name", "my_name", "place"] {
         assert_eq!(written(&long)[key], "名".repeat(NAME));
         assert_eq!(written("小\u{0}林\n")[key], "小林");
         assert_eq!(written(" 小林 ")[key], " 小林 ", "照原样，只去控制字符");
@@ -127,7 +130,7 @@ fn names_lose_control_characters_and_are_cut() {
         ],
         ..Segments::default()
     };
-    let written = fields(&posted(None, segments), &[], Flags::default(), None);
+    let written = fields(&posted(None, segments), &[], Flags::default(), None, None);
     assert_eq!(
         written["media"],
         json!([{"kind": "file", "id": "f-1", "name": "文".repeat(MEDIA_NAME)}, {"kind": "file", "id": "f-2"}])
@@ -147,7 +150,7 @@ fn ids_that_do_not_fit_are_left_out_and_the_message_is_kept() {
             reply_to: Some(reply_to.clone()),
             ..Segments::default()
         };
-        let written = fields(&posted(None, segments), &[], Flags::default(), None);
+        let written = fields(&posted(None, segments), &[], Flags::default(), None, None);
         assert_eq!(written.get("reply_to").is_some(), kept, "{reply_to:?}");
         assert_eq!(written["msg"], "9");
     }
@@ -159,14 +162,14 @@ fn ids_that_do_not_fit_are_left_out_and_the_message_is_kept() {
         ],
         ..Segments::default()
     };
-    let written = fields(&posted(None, segments), &[], Flags::default(), None);
+    let written = fields(&posted(None, segments), &[], Flags::default(), None, None);
     assert_eq!(written["media"], json!([{"kind": "file", "id": longest}]));
     let segments = Segments {
         media: vec![media(&"x".repeat(129), None)],
         ..Segments::default()
     };
     assert!(
-        fields(&posted(None, segments), &[], Flags::default(), None)
+        fields(&posted(None, segments), &[], Flags::default(), None, None)
             .get("media")
             .is_none(),
         "一样都不剩的不写"

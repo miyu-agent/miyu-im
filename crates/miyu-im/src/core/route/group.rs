@@ -101,6 +101,8 @@ impl Route {
         });
         let keywords = applied::keywords(&applied);
         let my_name = self.my_name(posted.bot, Some(group)).await;
+        // 群名：场所的格带上给记忆（施工 I-54），交了以后照它放进 system（`titled`）。
+        let place = self.place(group, posted.bot).await;
         let calls_her = addressed(VenueKind::Group, flags.mentions_me, &text, &keywords);
         let message = Message {
             id: self
@@ -108,7 +110,13 @@ impl Route {
                 .command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             acting: json!({"external": external, "role": applied::role(&applied, &external)}),
-            fields: fields(&posted, &mentions, flags, my_name.as_deref()),
+            fields: fields(
+                &posted,
+                &mentions,
+                flags,
+                my_name.as_deref(),
+                place.as_deref(),
+            ),
             place: Place::group(&venue, &applied, posted.bot, group),
             text,
             pictures: calls_her
@@ -157,7 +165,7 @@ impl Route {
                 .spoke(heard.venue.id().as_str(), heard.sender.as_str());
         }
         // 群名、附加提示词放进 system（施工 O-49、O-58 上，`titled`）：判以前放好，这一条开的轮就带上。
-        self.titled(&session, group, posted.bot).await?;
+        self.titled(&session, group, place.as_deref()).await?;
         self.noted(&session, note.as_deref()).await?;
         // 借了终端管理员、她自己的名字的记一块冒充提醒（施工 O-53，`impostor`）：判以前记好，这一条开的轮就看得到。
         if let Some(name) = posted.name.as_deref() {

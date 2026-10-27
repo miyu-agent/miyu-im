@@ -30,12 +30,13 @@ pub(super) struct Flags {
 }
 
 /// 消息 `posted` 的场所的格：@ 了的别人是 `mentions`（她自己的在 `flags.mentions_me`），开关照 `flags`，她在这个场所叫
-/// `my_name`（施工 I-38，同 `name` 洗过；没有的不写）。
+/// `my_name`（施工 I-38），这个群叫 `place`（施工 I-54，核心 E-4：只给记忆，私聊不写）；都同 `name` 洗过，没有的不写。
 pub(super) fn fields(
     posted: &Posted,
     mentions: &[ExternalId],
     flags: Flags,
     my_name: Option<&str>,
+    place: Option<&str>,
 ) -> Value {
     let segments = &posted.segments;
     let mut venue = Map::new();
@@ -45,6 +46,9 @@ pub(super) fn fields(
     }
     if let Some(name) = my_name.and_then(|name| clean(name, NAME)) {
         venue.insert("my_name".into(), json!(name));
+    }
+    if let Some(place) = place.and_then(|place| clean(place, NAME)) {
+        venue.insert("place".into(), json!(place));
     }
     if let Some(reply_to) = segments.reply_to.as_deref().filter(|id| fits(id)) {
         venue.insert("reply_to".into(), json!(reply_to));

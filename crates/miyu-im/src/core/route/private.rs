@@ -94,7 +94,7 @@ impl Route {
             number: posted.message_id,
             text,
             acting: json!({"external": external}),
-            fields: fields(&posted, &[], flags, my_name.as_deref()),
+            fields: fields(&posted, &[], flags, my_name.as_deref(), None),
             place: Place::private(&venue, &external, (posted.bot, posted.user), listed),
             pictures: Some(pictures),
             forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),
