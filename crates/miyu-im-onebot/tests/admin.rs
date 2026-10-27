@@ -12,28 +12,6 @@ use crate::support::platform::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
-/// 照网页、命令行的样子改系统配置。
-async fn set(home: &Home, changes: Value) {
-    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
-        .await
-        .expect("连得上核心");
-    core.call(
-        "q1",
-        "config.set",
-        json!({"layer": "system", "changes": changes}),
-    )
-    .await
-    .unwrap_or_else(|refused| panic!("config.set 被拒：{refused}"));
-}
-
-/// 桥的运行日志里 `tools provided` 有几行（登记了几次）。
-fn provided(home: &Home) -> usize {
-    std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
-        .unwrap_or_default()
-        .matches("tools provided")
-        .count()
-}
-
 #[tokio::test]
 async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
     let lines = Lines::new(
@@ -180,7 +158,7 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
     );
     // 关掉禁言工具：im 重新登记（日志多一行 `tools provided`），之后的回合没有禁言。
     let before = provided(&home);
-    set(
+    set_system(
         &home,
         json!([
             {"key": "im.qq.admin_mute", "value": false},
@@ -188,12 +166,7 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
         ]),
     )
     .await;
-    within("重新登记", async {
-        while provided(&home) <= before {
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-    })
-    .await;
+    until_provided_again(&home, before).await;
     says(&home, &napcat, (MEMBER, "member"), 702, called(words)).await;
     until_events(&home.root, &venue(), |events| {
         of_kind(events, "turn.ended").len() >= 2

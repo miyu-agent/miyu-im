@@ -225,7 +225,7 @@ async fn a_group_session_names_its_venue_and_bot() {
     let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"],
-        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null, "plugins": ["miyu-im-identity", "miyu-im-qq-admin"]}),
+        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null, "plugins": ["miyu-im-identity", "miyu-im-qq-admin", "miyu-im-qq-info", "miyu-im-qq-records"]}),
         "这一轮没在回：没有叫她的那一条（施工 S-1 上）{reply}"
     );
     // 施工 P-1 中：卡片上关掉群管理（「陌生群」卡），交回的插件里就没有它。
@@ -235,7 +235,7 @@ async fn a_group_session_names_its_venue_and_bot() {
     let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"]["plugins"],
-        json!(["miyu-im-identity"]),
+        json!(["miyu-im-identity", "miyu-im-qq-info", "miyu-im-qq-records"]),
         "{reply}"
     );
     let reply = exported(&mut head, "chat.venue", json!({"session": "nope"})).await;

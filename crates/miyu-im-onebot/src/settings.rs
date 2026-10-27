@@ -24,7 +24,7 @@ const LISTEN: &str = "listen";
 /// 令牌：清单里的名字。
 const TOKEN: &str = "token";
 
-/// 驱动的配置项：清单里的名字（`Driver::settings`）。识人术的四项（施工 I-10 上，`crate::identity`）、群管理的几项（施工 Q-1，`crate::admin`）也是驱动的配置项。
+/// 驱动的配置项：清单里的名字（`Driver::settings`）。识人术的四项（施工 I-10 上，`crate::identity`）、群管理的几项（施工 Q-1，`crate::admin`）、群聊记录和群资料的总开关（施工 I-44，`crate::lookups`）也是驱动的配置项。
 pub const NAMES: &[&str] = &[
     HOST,
     LISTEN,
@@ -43,6 +43,8 @@ pub const NAMES: &[&str] = &[
     crate::admin::SYNC_UNMUTE,
     crate::admin::LOG,
     crate::admin::SUMMARY,
+    crate::lookups::RECORDS_ON,
+    crate::lookups::INFO_ON,
 ];
 
 /// 其中是密钥的（`Driver::secrets`，施工 I-6 中）。

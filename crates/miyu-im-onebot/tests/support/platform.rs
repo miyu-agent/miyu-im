@@ -243,3 +243,35 @@ pub async fn until_private_turns(home: &Home, n: usize) {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 }
+
+/// 照网页、命令行的样子改系统配置（施工 Q-1 起，I-44 挪来共用）。
+pub async fn set_system(home: &Home, changes: Value) {
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    core.call(
+        "q1",
+        "config.set",
+        serde_json::json!({"layer": "system", "changes": changes}),
+    )
+    .await
+    .unwrap_or_else(|refused| panic!("config.set 被拒：{refused}"));
+}
+
+/// 桥的运行日志里 `tools provided` 有几行（登记了几次）。
+pub fn provided(home: &Home) -> usize {
+    std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
+        .unwrap_or_default()
+        .matches("tools provided")
+        .count()
+}
+
+/// 等桥重新登记工具：日志里 `tools provided` 比 `before` 多。
+pub async fn until_provided_again(home: &Home, before: usize) {
+    within("重新登记", async {
+        while provided(home) <= before {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+}

@@ -143,6 +143,25 @@ hidden = true
 name = { en = "People and numbers", zh = "识人映射", ja = "人と番号の対応" }
 description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字对上、号码对不上的，提醒 AI 这不是那个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
 
+# 群聊记录、群资料（施工 I-44，设计 06 第 3.7 条）：OneBot 驱动带的插件，同群管理。总开关关了的，它的工具不登记。
+[settings.qq.records_on]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Chat records on", zh = "群聊记录开着", ja = "チャット記録を使う" }
+description = { en = "The switch of the Chat records plugin.", zh = "群聊记录插件的总开关。", ja = "チャット記録プラグインのスイッチです。" }
+
+[settings.qq.info_on]
+type = "bool"
+default = true
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Group info on", zh = "群资料开着", ja = "グループ情報を使う" }
+description = { en = "The switch of the Group info plugin.", zh = "群资料插件的总开关。", ja = "グループ情報プラグインのスイッチです。" }
+
 # 群管理（施工 Q-1，设计 02）：OneBot 驱动带的插件，同识人术。总开关关了、禁言工具的开关关了的，禁言不登记（改的时候 im 重新登记）。
 [settings.qq.admin_on]
 type = "bool"

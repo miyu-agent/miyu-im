@@ -77,10 +77,12 @@ fn the_shipped_manifest_gives_the_default_port() {
                 "admin_sync_unmute": true,
                 "admin_log": true,
                 "admin_summary": true,
+                "records_on": true,
+                "info_on": true,
             })),
             site: keys(json!({"port": 8302})),
         },
-        "令牌没写默认值，不放；识人术的四项出厂开着、映射空的（施工 I-10 上）；群管理出厂开着、禁言 1 分钟到 30 天（施工 Q-1）；页面服务的端口出厂 8302（施工 I-5 上）"
+        "令牌没写默认值，不放；识人术的四项出厂开着、映射空的（施工 I-10 上）；群管理出厂开着、禁言 1 分钟到 30 天（施工 Q-1）；群聊记录、群资料出厂开着（施工 I-44）；页面服务的端口出厂 8302（施工 I-5 上）"
     );
 }
 

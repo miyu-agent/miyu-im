@@ -1332,6 +1332,8 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **改群名片**（I-36，2026-10-23 项目主人定：她自己的、别人的都能改，「让它自己判断就行，这个没什么危害不用做限制」）：一件工具 `qq_set_card {user?, card}`（驱动的 `tools/card.rs`），只给群，`access` 是 `venue`。没写 `user` 的改她自己的，写了的改那个人的；`card` 去掉首尾空白，空的是清掉，最多 60 个字，写错的答 `bad-args`。调 `set_group_card`，成不成由 QQ 说（她不是管理员、改的是群主和管理员的被拒，照原话答 `failed`）；成了的答 `renamed-me {card}`、`renamed {who, card}`。不放进群管理插件的开关里。QQ 昵称、群名、专属头衔不做。
 
+**群聊记录、群资料**（I-44，设计 06 第 3.7 条）：驱动带的两个 im 插件，同群管理（`crate::lookups`）。工具照提供者分块：群聊记录 `miyu-im-qq-records` 管 `qq_chat_history`、`qq_fetch_media`、`qq_avatar`；群资料 `miyu-im-qq-info` 管 `qq_members`、`qq_notices`、`qq_group_files`、`qq_contacts`、`qq_activity_ranking`。登记时这几件带 `plugin`（核心 O-60），一个场所里插件关着的，那个场所的工具表里没有它们；各自一个总开关 `im.qq.records_on`、`im.qq.info_on`（藏起来，在插件页里开关，进驱动配置项的名单 `settings::NAMES`），关了的不登记、改的时候重新登记。两个都出厂开着，没有自己的页面和方法。「说话」那几件（不说话、发消息、引用、@、戳、贴表情、撤回、改群名片）不归插件，场所里一直有。
+
 **读群公告**（I-37，2026-10-23 项目主人定）：一件工具 `qq_notices`（驱动的 `tools/notices.rs`），没有参数，只给群，`access` 是 `read`。调 NapCat 的 `_get_group_notice {group_id}`，新的在前、最多 10 条，一条 `[日期（UTC） 名字] 正文`（正文最多 500 个字、换行写成空格、洗掉控制字符；名字照这个群缓存着的，没有的写号；读不出正文的不列），`; ` 隔开，答 `notices {count, list}`；没有的答 `no-notices`；NapCat 拒了的照原话答 `failed`。只读，不发公告。
 
 **冒充提醒**（O-53，2026-10-17 项目主人定：识人术，免得她在群里被别人的名字带着走；照旧版的 `protected_identity_conflict`）：群里一条消息记下以后、判以前（「群消息」第 6 条），发的人的名字借了别人的，经核心的 `session.note` 在这一条后面记一块 `impostor` 事实（`core/route/impostor.rs`）。不占编号的几段同「提供者和不说话」。

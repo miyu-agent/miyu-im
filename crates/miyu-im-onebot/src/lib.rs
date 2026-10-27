@@ -6,6 +6,7 @@ mod admin;
 mod backfill;
 mod identity;
 mod listen;
+mod lookups;
 pub mod onebot;
 pub mod settings;
 mod tools;

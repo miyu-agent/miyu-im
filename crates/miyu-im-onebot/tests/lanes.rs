@@ -484,7 +484,7 @@ async fn a_lane_names_its_group_to_other_packages() {
             "sender": {"id": format!("qq:{B}"), "name": "阿乙"},
             "quote": null,
             "mentions": [{"id": format!("qq:{C}"), "name": "阿丙"}],
-        }, "plugins": ["miyu-im-identity", "miyu-im-qq-admin"]}),
+        }, "plugins": ["miyu-im-identity", "miyu-im-qq-admin", "miyu-im-qq-info", "miyu-im-qq-records"]}),
         "{reply}"
     );
     release_b.send(()).expect("还在等");

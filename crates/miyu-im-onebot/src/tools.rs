@@ -322,16 +322,27 @@ impl ToolSet for QqTools {
     }
 
     fn plugin(&self, tool: &str) -> Option<&'static str> {
-        // 群管理的三件（施工 S-1 上c，核心 O-60）：群管理在这个场所关着的，工具表里没有它们。
-        matches!(tool, MUTE | KICK | MODERATION_LOG).then_some(crate::admin::ID)
+        // 群管理的三件（施工 S-1 上c，核心 O-60）、群聊记录、群资料的几件（施工 I-44）：插件在这个场所关着的，工具表里没有它们。
+        match tool {
+            MUTE | KICK | MODERATION_LOG => Some(crate::admin::ID),
+            CHAT_HISTORY | FETCH_MEDIA | AVATAR => Some(crate::lookups::RECORDS),
+            MEMBERS | NOTICES | GROUP_FILES | CONTACTS | ACTIVITY_RANKING => {
+                Some(crate::lookups::INFO)
+            }
+            _ => None,
+        }
     }
 
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
-        // 群管理的工具照它的开关（施工 Q-1、Q-2）。
+        // 群管理的工具照它的开关（施工 Q-1、Q-2），群聊记录、群资料照各自的总开关（施工 I-44）。
         match tool {
             MUTE => crate::admin::offers_mute(config),
             KICK => crate::admin::offers_kick(config),
             MODERATION_LOG => crate::admin::offers_log(config),
+            CHAT_HISTORY | FETCH_MEDIA | AVATAR => crate::lookups::offers_records(config),
+            MEMBERS | NOTICES | GROUP_FILES | CONTACTS | ACTIVITY_RANKING => {
+                crate::lookups::offers_info(config)
+            }
             _ => true,
         }
     }

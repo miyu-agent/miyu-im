@@ -48,10 +48,14 @@ pub fn shipped_tools() -> Value {
     // 主动发消息本机的会话也给（施工 I-40）。
     let everywhere: &[&str] = &["local", "private", "group"];
     // 群管理的三件是场所插件的工具（施工 S-1 上c，核心 O-60）：带 `plugin`。
-    let admin = |mut tool: Value| {
-        tool["plugin"] = json!("miyu-im-qq-admin");
+    let plugin = |id: &str, mut tool: Value| {
+        tool["plugin"] = json!(id);
         tool
     };
+    let admin = |tool| plugin("miyu-im-qq-admin", tool);
+    // 群聊记录、群资料的几件同样（施工 I-44）。
+    let records = |tool| plugin("miyu-im-qq-records", tool);
+    let info = |tool| plugin("miyu-im-qq-info", tool);
     json!({"tools": [
         entry("qq_skip_reply", "read", both),
         entry("qq_recall", "venue", both),
@@ -59,19 +63,19 @@ pub fn shipped_tools() -> Value {
         admin(entry("qq_kick", "venue", group)),
         admin(entry("qq_moderation_log", "read", group)),
         entry("qq_poke", "venue", both),
-        entry("qq_fetch_media", "venue", both),
-        entry("qq_avatar", "venue", both),
-        entry("qq_members", "read", group),
+        records(entry("qq_fetch_media", "venue", both)),
+        records(entry("qq_avatar", "venue", both)),
+        info(entry("qq_members", "read", group)),
         entry("qq_mention", "venue", group),
-        entry("qq_notices", "read", group),
+        info(entry("qq_notices", "read", group)),
         entry("qq_set_card", "venue", group),
         entry("qq_quote", "venue", both),
         entry("qq_send", "venue", everywhere),
-        entry("qq_contacts", "read", both),
-        entry("qq_group_files", "venue", group),
+        info(entry("qq_contacts", "read", both)),
+        info(entry("qq_group_files", "venue", group)),
         entry("qq_react", "venue", group),
-        entry("qq_activity_ranking", "read", group),
-        entry("qq_chat_history", "read", both),
+        info(entry("qq_activity_ranking", "read", group)),
+        records(entry("qq_chat_history", "read", both)),
     ]})
 }
 
