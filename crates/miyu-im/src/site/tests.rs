@@ -214,6 +214,7 @@ fn the_venue_page_gets_model_refs_pools_and_what_is_used() {
         ],
         "pools": [{"name": "快池", "models": ["a/one"]}, {"strategy": "x"}],
         "uses": {"chat": "a/one", "vision": null},
+        "side": [{"id": "compact", "resolved": "normal"}, {"id": "im/judge", "tier": "lite", "resolved": "lite"}],
         "catalog": null
     });
     assert_eq!(
@@ -221,8 +222,21 @@ fn the_venue_page_gets_model_refs_pools_and_what_is_used() {
         serde_json::json!({
             "models": [{"ref": "a/one"}, {"ref": "a/two", "state": "no_key"}, {"ref": "b/three", "state": "cooling"}],
             "pools": ["快池"],
-            "uses": {"chat": "a/one", "vision": null}
+            "uses": {"chat": "a/one", "vision": null, "judge": "@lite"}
         })
+    );
+}
+
+#[test]
+fn an_empty_judge_pool_shows_the_judge_falls_back_to_the_chat() {
+    // 施工 I-42：旁路请求 `judge` 的池空了，核心退到会话的模型，页面照「会话的模型」那一格写，`judge` 交 null。
+    let listed = serde_json::json!({
+        "providers": [], "pools": [], "uses": {"chat": "a/one"},
+        "side": [{"id": "im/judge", "resolved": "session"}]
+    });
+    assert_eq!(
+        super::venues::picked(&listed)["uses"]["judge"],
+        serde_json::Value::Null
     );
 }
 

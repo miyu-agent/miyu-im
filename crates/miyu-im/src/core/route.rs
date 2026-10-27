@@ -135,7 +135,7 @@ use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
 use aims::Aims;
-pub(crate) use ask::Slots;
+pub(crate) use ask::{SIDE as JUDGE_SIDE, Slots};
 use backlog::Backlog;
 use bindings::Bindings;
 use deferred::Deferred;

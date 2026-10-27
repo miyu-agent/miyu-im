@@ -34,7 +34,7 @@ fn plugin(root: &DataRoot, id: &str, declared: Option<&str>) {
     let record = format!("record:{}", log_of(root, id).display());
     let how = r#"answer:chat.inbound:{"route":"pass"}"#.to_string();
     install(root, id, &[record, how], &["chat.inbound"]);
-    let dir = root.path().join("home/admin/packages").join(id);
+    let dir = root.path().join("system/packages").join(id);
     match declared {
         Some(declared) => {
             std::fs::write(dir.join("im").join("plugin.toml"), declared).expect("写得进");

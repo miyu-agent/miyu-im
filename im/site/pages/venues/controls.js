@@ -56,7 +56,7 @@ export function control(field, one, context, save, saveKey) {
       return select([...names], mine, say('field/inherit', { value: fallback == null ? '—' : names.get(fallback) || fallback }), save);
     }
     case 'model':
-      return modelControl(field, mine, fallback, context.models, save);
+      return modelControl(field, mine, fallback, context.models, save, field.orKey && current(one, field.orKey));
     case 'area': {
       const area = element('textarea', 'area');
       area.value = mine ?? '';

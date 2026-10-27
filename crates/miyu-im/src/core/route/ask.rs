@@ -8,7 +8,8 @@
 //! 3. 带上人格（施工 O-23 补，第 12 条第 3 款）：调的一方交了人格的编号的（这个群会话用的人格，`judge.persona` 开着），读它的
 //!    原文（`persona.rs`：读到的记一阵，读不到的这一次不带、照样问）；没交的不带、不读。
 //! 4. 拼请求（`request`）：base64 解出来的字由调的一方交进来。
-//! 5. `model.call {purpose: "judge", model?, max_tokens?, messages}`：整次最多 `timeout`（只查违规的 `moderation_timeout`），每问
+//! 5. `model.call {purpose: "judge", model 或 side, max_tokens?, messages}`：场所卡片上配了判断模型的照它（`model`），没配的照清单
+//!    登记的旁路请求 `judge`（档位 lite，施工 I-42，核心 Q-3）带上群会话（池空了、都不行的退到这个会话的模型）；整次最多 `timeout`（只查违规的 `moderation_timeout`），每问
 //!    一次最多 `attempt_timeout`；读不出（`read`）的再问，最多再问 `retries` 次，等不到、核心拒了的不再问（施工 I-16 照旧版），交回
 //!    最后一次的为什么。`max_tokens` 是 0 的不写（不设上限）。
 //!
@@ -30,6 +31,9 @@ use crate::core::{Caller, Gone, reason};
 
 /// `model.call` 的用途（`protocol.md` 的 `model.call`）。
 const PURPOSE: &str = "judge";
+
+/// 清单 `[[side]]` 里判官那一条的编号（施工 I-42）：后台页照它找旁路请求落到哪（`site/venues.rs`）。
+pub(crate) const SIDE: &str = "judge";
 
 /// 问一次要的：调的一方交好。
 #[derive(Debug, Clone)]
@@ -140,8 +144,12 @@ pub(super) async fn ask(
     if asking.judge.max_tokens > 0 {
         params["max_tokens"] = json!(asking.judge.max_tokens);
     }
-    if let Some(model) = &asking.judge.model {
-        params["model"] = json!(model);
+    match &asking.judge.model {
+        Some(model) => params["model"] = json!(model),
+        None => {
+            params["side"] = json!(SIDE);
+            params["session"] = json!(asking.session);
+        }
     }
     let wait = match asking.mode {
         Mode::Reply => asking.judge.timeout,

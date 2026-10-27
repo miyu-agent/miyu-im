@@ -142,7 +142,7 @@ impl JudgeTexts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Judge {
     /// 用哪个模型：配置的引用（`<供应商>/<模型>` 或 `@<池>`），只查过写法，指的在不在由桥调用时照核心的回答说。`None`
-    /// 是出厂文件和场所规则都没写，照 `models.chat`（第八条施工时定的第 6 条）。
+    /// 是出厂文件和场所规则都没写，照桥登记的旁路请求 `judge`（I-42；以前照 `models.chat`，第八条施工时定的第 6 条）。
     pub model: Option<String>,
     /// 判官至少看触发这一条之前的几条记录（[`Ask::records`]）：桥照它的两倍交生长步长（施工 I-22），实际看 `records` 到
     /// `3 × records − 1` 条（不超过 100）。

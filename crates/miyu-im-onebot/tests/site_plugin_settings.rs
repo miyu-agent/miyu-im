@@ -47,7 +47,7 @@ fn dice(root: &DataRoot) {
     let roll = r#"answer:dice.roll:{"rolled":4}"#.to_string();
     let record = format!("record:{}", root.path().join("dice.calls").display());
     install(root, "dice", &[record, roll], &["chat.inbound"]);
-    let manifest = root.path().join("home/admin/packages/dice/package.toml");
+    let manifest = root.path().join("system/packages/dice/package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     std::fs::write(&manifest, format!("{text}{SETTINGS}")).expect("写得进");
 }

@@ -39,6 +39,7 @@ use caller::{Waiting, Writer, write_line};
 use methods::Methods;
 use provider::Heard;
 pub(crate) use provider::{Answerer, follow, provide};
+pub(crate) use route::JUDGE_SIDE;
 
 /// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]

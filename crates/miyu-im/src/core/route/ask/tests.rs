@@ -199,6 +199,11 @@ async fn the_records_come_first_then_the_call_shaped_as_drawn() {
         "出厂不设上限（施工 I-16 照旧版）：{params}"
     );
     assert!(params.get("model").is_none(), "没写模型的不带：{params}");
+    assert_eq!(
+        params["side"], "judge",
+        "没写模型的照清单登记的旁路请求（施工 I-42）"
+    );
+    assert_eq!(params["session"], "s", "旁路请求带上群会话");
     let messages = params["messages"].as_array().expect("是列表");
     assert_eq!(messages.len(), 2);
     assert_eq!(messages[0]["role"], "system");
@@ -241,6 +246,10 @@ async fn records_are_asked_as_many_as_set_and_the_model_if_written() {
     assert_eq!(records["params"]["grow"], 6);
     let call = core.says(&verdict("x")).await;
     assert_eq!(call["params"]["model"], "@cheap");
+    assert!(
+        call["params"].get("side").is_none(),
+        "写了模型的不再带旁路请求"
+    );
     let user = call["params"]["messages"][1]["text"]
         .as_str()
         .expect("是字");

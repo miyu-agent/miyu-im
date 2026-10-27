@@ -482,7 +482,7 @@ Rust 这一边：
 
 1. **system 那一条**，照这个先后接起来，每份之间不加别的字（每份末尾自带的换行照留）：`system.txt`；有人格的，`persona-open.txt`、人格的说明（末尾没有换行的补一个）、`persona-close.txt`；`Mode::Reply` 接 `reply.txt`，`Mode::ModerationOnly` 接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成第三条参数 `Chatty::severity_min` 那个门槛，照模板的规矩，核心的 `docs/designs/08-上下文投影.md` 第五节「模板与转义」）；`answer.txt`。
 2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。她已经决定要回的几条（`Ask.answering`）不空的，夹在 `records-close.txt` 和 `current-open.txt` 中间：`answering-open.txt`（开头标签和一句说明：她已经在回这几条，这一条说的是同一件事或者只是复读的，不用再回）、一条一行照 `answering-line.txt` 换（字段 `name`、`text`，照模板转义成一行，群里来的字不可信）、`answering-close.txt`。空的那一段整个不出现，system 和群聊记录都不变，判官的缓存前缀不受影响（I-28，2026-10-23 项目主人定：判官看不到自己刚判过回，同一串挨个判回）。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
-3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照第八条的 `Params::judge.model`：出厂不写，照 `models.chat`；要用便宜的，场所规则里写 `judge = { model = "@池" }`（不写 `match` 就是所有场所），指的在不在由桥调用时照核心的回答说；`max_tokens` 照 `Params::judge.max_tokens`（出厂 400）。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
+3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照第八条的 `Params::judge.model`：出厂不写，照清单登记的旁路请求 `judge`（I-42，核心 Q-3：档位 lite 的固定池，池空了、都不行的退到这个会话的模型）；要指定，场所规则里写 `judge = { model = "@池" }`（不写 `match` 就是所有场所），指的在不在由桥调用时照核心的回答说；`max_tokens` 照 `Params::judge.max_tokens`（出厂 400）。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
 4. **读回答**：
    - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
    - 五维（`relevance`、`willingness`、`social`、`timing`、`continuity`）都要有，是数；小于 0 的当 0，大于 10 的当 10。少了一维、不是数：`Unreadable`。
@@ -624,7 +624,7 @@ restraint_half_life = "3m"
 | `chatty.person_cap` | 小数 0 到 10 | 0.5 | 按人冷静：最多抬多少 |
 | `chatty.severity_min` | 整数 1 到 10 | 7 | `Chatty::severity_min` |
 | `dispatch.supersede_window` | 时长 1 秒到 1 天 | `7s` | `Params::supersede_window` |
-| `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照 `models.chat` |
+| `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照旁路请求 `judge` 的档位（I-42；以前照 `models.chat`） |
 | `judge.records` | 整数 1 到 100（O-23 下改，原来 0 到 1000：和核心的 `venue.records` 收的一样） | 20 | `Judge::records`：判官至少看几条记录。施工 I-22 起桥照它的两倍交生长步长（核心把起点对齐到步长、往后追加，前缀不变省缓存），实际看 `records` 到 `3 × records − 1` 条，不超过 100；2026-10-21 项目主人定只留这一项，不另设步长 |
 | `judge.persona` | 开关（O-23 补） | `true` | `Judge::persona`：判官带不带这个群会话所用的人格的说明（第六条 `Ask::persona`）；某个群想省 token，场所规则写 `judge = { persona = false }` 关掉 |
 | `judge.max_tokens` | 整数 1 到 100000 | 400 | `Judge::max_tokens` |
@@ -668,7 +668,7 @@ Rust 这一边：
 | `Params::read(&file) -> Result<Params, Vec<Problem>>` | 读出厂文件（第一条的 `File`）：每一项都在、都合声明的，交回 `Params`；有一条问题就整份不用，交回全部问题（第一条的 `Problem`） |
 | `params.at(&resolved) -> Params` | 套上场所规则改的几项：`Rules::resolve` 交出的 `Resolved` 里键是 `表.项` 的，各自换上去 |
 | `Params { base64, chatty, supersede_window, judge, outbound, split_chars, long_text, long_chars, final_only }` | 第二到第六条要的那几样：`Base64`、`Chatty`、顶替窗口（毫秒）、判官的几项、`Outbound`、拆段的长度（字符数）、长文怎么发和阈值（施工 O-59 上）、仅发送最终消息（施工 O-57）。格公开，桥照它读 |
-| `Judge { model, records, persona, max_tokens, timeout, moderation_timeout, retries, reason_chars }` | 判官的几项：模型（`None` 照 `models.chat`）、看几条记录、带不带人格的说明（O-23 补）、最多输出、超时和只查违规的超时（毫秒）、重试几次、理由最长几个字符。格公开，桥照它调 `model.call` |
+| `Judge { model, records, persona, max_tokens, timeout, moderation_timeout, retries, reason_chars }` | 判官的几项：模型（`None` 照旁路请求 `judge`，I-42）、看几条记录、带不带人格的说明（O-23 补）、最多输出、超时和只查违规的超时（毫秒）、重试几次、理由最长几个字符。格公开，桥照它调 `model.call` |
 | `Base64`、`Chatty`、`Window`、`Restraint`、`Outbound` | 格只在 crate 里可见，外面造不出，只能从 `Params` 拿（照 O-12 下 `Rate`、`Sleep` 的做法）：拿到的都照声明查过，`Outbound` 的两份标记一样长 |
 
 **怎么走**
@@ -708,7 +708,7 @@ Rust 这一边：
 | 3 | 出厂参数没有系统那一份，改用场所规则 | 一份数据一个改法：不写 `match` 的场所规则就是「所有场所」 | 系统里放同名的 `defaults.toml` 替换 |
 | 4 | `im.trusted`（O-27 改名 `im.whitelist`）随第一个用到它的那一步：O-17 的「终端管理员与白名单成员」页 | 这一步没人读它；它是桥的系统配置，跟群聊内核的参数不在一处 | 这一步就加 |
 | 5 | 判官的全局并发（4）、排队等多久（15 秒）不进表，随桥 | 是桥这个进程的，不是一个场所的；按场所改没有意义 | 放进 `[judge]` |
-| 6 | `judge.model` 出厂不写，是唯一一项可以不写的：不写照 `models.chat`；类型是配置的引用，指的在不在由桥调用时照核心的回答说 | 出厂不知道用户配了哪家的哪个模型；配置里没有「便宜的那档」这种键 | 出厂写一个池的名字 |
+| 6 | `judge.model` 出厂不写，是唯一一项可以不写的：不写照旁路请求 `judge`（I-42 起；以前照 `models.chat`）；类型是配置的引用，指的在不在由桥调用时照核心的回答说 | 出厂不知道用户配了哪家的哪个模型；配置里没有「便宜的那档」这种键 | 出厂写一个池的名字 |
 | 7 | 范围照「能算出有意义的结果」定：小数（分、权重、加分、门槛、冷静的上限和 `k`）0 到 10，分的量级是 0 到 1、加起来能过 1，负的没有意义；窗口、半衰期、@ 的间隔 1 秒到 1 天（同 `rate` 的时长），判官的超时 1 秒到 1 小时；字符数、条数的上限是只防写错的整数。0 算得出意思的收 0（总引用、不拆、不重试、理由不留、可打印的比例不筛），算不出的不收：`similar` 是 0 什么都算重复，`min_bigrams` 是 0 拿空集比相似度，`severity_min` 是 0 判官一报严重程度就回，base64 看 0 个字符什么都留不下 | 范围只挡算不出意思的、会算坏的，不替人挑值 | 照出厂值上下浮几倍 |
 | 8 | `Params::read` 收第一条的 `File`，不只收字；问题用第一条的 `Problem`（施工单写的是 `read(text)`） | 问题要说是哪个文件，和场所规则的问题一个样；读一份文件、算位置、取原文那一套照用 | 收字，问题的文件名空着；另起一个问题的类型 |
 | 9 | 缺了的报 `wrong_type`，`at`、`got` 空着 | 配置的原因码里没有「缺了」（配置的项不写照默认值）；不改配置（施工单「风险」第 1 条），配置缺的照实记在这里 | 给配置加一种原因码 |

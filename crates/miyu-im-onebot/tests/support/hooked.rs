@@ -32,13 +32,13 @@ pub fn linked() -> &'static str {
     "miyu-im-test-hook"
 }
 
-/// 往数据根 `root` 的管理员家目录装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
+/// 往数据根 `root` 的系统那一层（`system/packages/`，核心 U23 上上起；以前在管理员家目录）装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
 /// 导出 `exports` 那几个方法，核心起来就拉起（`start = "always"`），不要能力。导出了方法的是 im 的插件（施工 I-8 上）。
 pub fn install(root: &DataRoot, id: &str, args: &[String], exports: &[&str]) {
     install_starting(root, id, args, exports, "always");
 }
 
-/// 往数据根 `root` 的管理员家目录装一个编号是 `id` 的扩展包，程序照 `args` 答，声明 `capabilities` 那几样能力、在
+/// 往数据根 `root` 的系统那一层（`system/packages/`，核心 U23 上上起；以前在管理员家目录）装一个编号是 `id` 的扩展包，程序照 `args` 答，声明 `capabilities` 那几样能力、在
 /// 批过（施工 O-51：登记工具要 `tools`），核心起来就拉起。
 pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[&str]) {
     install_starting(root, id, args, &[], "always");
@@ -50,7 +50,7 @@ pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[
 pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
     let manifest = root
         .path()
-        .join("home/admin/packages")
+        .join("system/packages")
         .join(id)
         .join("package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
@@ -80,12 +80,7 @@ pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
 /// 同 [`install`]，`start` 照写的（`manual` 的要开关打开才拉起）。
 pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&str], start: &str) {
     let program = linked();
-    let dir = root
-        .path()
-        .join("home")
-        .join("admin")
-        .join("packages")
-        .join(id);
+    let dir = root.path().join("system").join("packages").join(id);
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let quote = |items: &mut dyn Iterator<Item = String>| {
         items

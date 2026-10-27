@@ -74,6 +74,8 @@ async fn the_venue_page_reads_and_changes_the_cards_through_the_core() {
     assert!(models["models"].is_array(), "{models}");
     assert!(models["pools"].is_array(), "{models}");
     assert!(models["uses"].is_object(), "{models}");
+    // 判官的旁路请求落到哪（施工 I-42）：测具没配 lite 池，核心退到会话的模型，交 null。
+    assert_eq!(models["uses"].get("judge"), Some(&Value::Null), "{models}");
     assert!(
         models["models"]
             .as_array()

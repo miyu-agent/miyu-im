@@ -57,7 +57,7 @@ skip_users = []                 # 这几个人叫 AI 直接回，没叫的只记
 [dispatch]
 supersede_window = "7s"   # 同一个人在这么久里补发，接过前一条
 
-# 判官（第六条）。model 不写：照 models.chat；要用便宜的，场所规则里写 judge = { model = "@池" }。
+# 判官（第六条）。model 不写：照清单登记的旁路请求 judge（lite 档，I-42），池空了退到这个群会话的模型；要指定，场所规则里写 judge = { model = "@池" }。
 [judge]
 records = 20                  # 判官至少看触发这一条之前的几条记录：起点对齐到它的两倍往后追加（施工 I-22），出厂看 20 到 59 条，前缀不变省缓存
 persona = true                # 判官带不带这个群会话所用的人格的说明；某个群想省 token，场所规则写 judge = { persona = false }

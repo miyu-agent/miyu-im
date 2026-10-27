@@ -4,10 +4,13 @@ import { element, say } from '../../shell/i18n.js';
 import { openPicker, pickButton } from '../../shell/picker.js';
 import { current } from './fields.js';
 
-/** 选模型：`models` 是宿主 `models` 的回答（{models: [{ref, state?}], pools, uses}），`use` 是继承到底时核心那一项（chat）。 */
-export function modelControl(field, mine, fallback, models, save) {
+/**
+ * 选模型：`models` 是宿主 `models` 的回答（{models: [{ref, state?}], pools, uses}），`use` 是继承到底时核心那一项（chat、judge）；
+ * 那一项是空的（判官的池空了）照 `orValue`（这张卡的模型），再照核心的对话模型。
+ */
+export function modelControl(field, mine, fallback, models, save, orValue) {
   const known = models || { models: [], pools: [], uses: {} };
-  const used = fallback ?? known.uses?.[field.use] ?? null;
+  const used = fallback ?? known.uses?.[field.use] ?? orValue ?? known.uses?.chat ?? null;
   const inherit = say('field/inherit', { value: used ?? '—' });
   const button = pickButton(mine ?? inherit, () =>
     openPicker({

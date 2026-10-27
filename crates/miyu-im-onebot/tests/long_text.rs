@@ -65,9 +65,7 @@ fn renderer(record: &std::path::Path) -> impl Fn(&miyu_store::root::DataRoot) + 
 
 /// 测试包的清单导出 `markdown`（`install_with` 不导出方法）。
 fn export_markdown(root: &miyu_store::root::DataRoot) {
-    let manifest = root
-        .path()
-        .join("home/admin/packages/miyu-render/package.toml");
+    let manifest = root.path().join("system/packages/miyu-render/package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     std::fs::write(
         &manifest,

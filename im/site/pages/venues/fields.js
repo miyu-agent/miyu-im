@@ -30,7 +30,8 @@ export const FIELDS = {
     { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', defaultsHint: 'field/extra-prompt-hint-defaults', wide: true },
     { group: 'field/models' },
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
-    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'chat', kinds: GROUPS, dep: JUDGE },
+    // 判官没配模型的走旁路请求 `judge`（施工 I-42）：落到池的写池，池空了的照这张卡的模型（`orKey`），再照核心的对话模型。
+    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'judge', orKey: 'model', kinds: GROUPS, dep: JUDGE },
     { group: 'field/context' },
     { key: 'recent', control: 'number', label: 'field/recent', unit: 'unit/messages', kinds: GROUPS, min: 1, max: 1000 },
     // 是否向 AI 显示号码（2026-10-20 项目主人验收：每种卡都有，原来只在群卡的触发方式页）。

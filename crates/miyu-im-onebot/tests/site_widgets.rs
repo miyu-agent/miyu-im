@@ -29,7 +29,7 @@ fn plugins(root: &DataRoot) {
     ];
     install(root, "dice", &answers, &["chat.inbound"]);
     std::fs::write(
-        root.path().join("home/admin/packages/dice/im/plugin.toml"),
+        root.path().join("system/packages/dice/im/plugin.toml"),
         DECLARED,
     )
     .expect("写得进");
@@ -37,8 +37,7 @@ fn plugins(root: &DataRoot) {
     install(root, "sloppy", &[sloppy], &["chat.inbound"]);
     let declared = "[plugin]\nname = { en = \"Sloppy\" }\n[[plugin.ui.pages]]\nid = \"p\"\ntitle = { en = \"P\" }\nmethod = \"sloppy.page\"\n";
     std::fs::write(
-        root.path()
-            .join("home/admin/packages/sloppy/im/plugin.toml"),
+        root.path().join("system/packages/sloppy/im/plugin.toml"),
         declared,
     )
     .expect("写得进");

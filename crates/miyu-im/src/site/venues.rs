@@ -5,12 +5,14 @@
 //! 卡片、白名单变了，读的一头叫一声 `Site::cards`，开着的通道推 `{"event": "cards"}`（`channel`）。
 //!
 //! 会话浮窗选模型（施工 I-7 中一）：`models` 在人的连接上问核心的 `model.list`，只交页面要的：`models`（配好的每个模型的引用
-//! `<供应商>/<模型>`，用不了的另带 `state`）、`pools`（池的名字）、`uses`（核心的对话、看图模型配的引用）。
+//! `<供应商>/<模型>`，用不了的另带 `state`）、`pools`（池的名字）、`uses`（核心的对话、看图模型配的引用；多一项 `judge`：判官没配
+//! 模型时旁路请求 `judge` 落到的池 `@<池>`，池空了落回会话的模型的是 `null`，施工 I-42）。
 
 use serde_json::{Value, json};
 
 use super::Person;
 use crate::PACKAGE;
+use crate::core::JUDGE_SIDE;
 use crate::core::methods::{CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST};
 use crate::rules::card_page::{ADD, REMOVE, SAVE_ONE};
 
@@ -103,5 +105,20 @@ pub(super) fn picked(listed: &Value) -> Value {
         .flatten()
         .filter_map(|pool| pool["name"].as_str().map(|name| json!(name)))
         .collect();
-    json!({"models": models, "pools": pools, "uses": listed["uses"]})
+    let mut uses = listed["uses"].clone();
+    if let Some(uses) = uses.as_object_mut() {
+        let judge = format!("{PACKAGE}/{JUDGE_SIDE}");
+        let resolved = listed["side"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|side| side["id"] == judge.as_str())
+            .and_then(|side| side["resolved"].as_str())
+            .filter(|pool| *pool != "session");
+        uses.insert(
+            "judge".into(),
+            json!(resolved.map(|pool| format!("@{pool}"))),
+        );
+    }
+    json!({"models": models, "pools": pools, "uses": uses})
 }

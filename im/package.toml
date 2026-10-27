@@ -36,6 +36,19 @@ platform = "qq"
 [features.qq]
 name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
 
+# 对话以外调模型的两处（施工 I-42，核心 Q-3）：照档位从固定池取，人不用为它们另配模型；场所卡片上配了判断模型的照卡片。
+[[side]]
+id = "judge"
+tier = "lite"
+name = { en = "Reply judge", zh = "判断要不要回", ja = "返信の判断" }
+summary = { en = "Decides whether to reply when someone talks in a group", zh = "群里有人说话时判断要不要回", ja = "グループで誰かが話したとき、返信するかを判断する" }
+
+[[side]]
+id = "approval"
+tier = "lite"
+name = { en = "Join approval", zh = "入群审批", ja = "参加承認" }
+summary = { en = "Checks a request to join a group against its rule", zh = "照群里写的条件判断入群申请", ja = "グループの条件に照らして参加申請を判断する" }
+
 # 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：别的包经核心的 package.call 只调得到这里列的（核心 X-18）；后台页的
 # status、connection.token 不列，只有人调得到。
 [export]
