@@ -294,10 +294,25 @@
     "en": "Back to the default",
     "ja": "既定に戻しました"
   },
-  "model-many": {
-    "zh": "对得上的有几个，说具体一点：",
-    "en": "Several match, be more specific:",
-    "ja": "いくつか当てはまります。もう少し具体的に："
+  "model-usage": {
+    "zh": "/model search <关键词> 找模型，/model <名字> 切换，/model 默认 改回跟随默认",
+    "en": "/model search <keywords> to find a model, /model <name> to switch, /model default to follow the default",
+    "ja": "/model search <キーワード> で探す、/model <名前> で切り替え、/model 既定 で既定に戻す"
+  },
+  "model-found": {
+    "zh": "找到这些，用 /model <名字> 切换：",
+    "en": "Found these, switch with /model <name>:",
+    "ja": "見つかりました。/model <名前> で切り替え："
+  },
+  "model-using-mark": {
+    "zh": "（正在用）",
+    "en": " (in use)",
+    "ja": "（使用中）"
+  },
+  "model-search-none": {
+    "zh": "没找到和「{query}」对得上的",
+    "en": "Nothing matches \"{query}\"",
+    "ja": "「{query}」に当てはまるものはありません"
   },
   "model-more": {
     "zh": "还有 {count} 个没列",
@@ -305,9 +320,9 @@
     "ja": "ほかに {count} 個"
   },
   "model-none": {
-    "zh": "没找到「{query}」",
-    "en": "Nothing matches \"{query}\"",
-    "ja": "「{query}」は見つかりません"
+    "zh": "没有叫「{query}」的模型，用 /model search {query} 找",
+    "en": "No model is called \"{query}\", find one with /model search {query}",
+    "ja": "「{query}」というモデルはありません。/model search {query} で探してください"
   },
   "model-no-card": {
     "zh": "这个会话没有自己的卡片，先在后台给它加一张",

@@ -2,10 +2,14 @@
 //! `unknown_command`，照普通的话交给她，她多半不理）：桥自己办，不交核心。只给终端管理员和场所规则 `managers` 里的人（听得到被拒的
 //! 那一句的那几个，`hears_refusals`），别人打了照原来交核心。
 //!
-//! - `/model`：说这个会话现在用哪个模型：卡片上选了的写它，没选的写「跟随默认（…）」。
-//! - `/model <词>`：照核心 `model.list` 列的模型（`<供应商>/<模型>`）和池（`@<池>`）找：一模一样的、模糊找到只有一个的写进这个会话的
-//!   卡片 `model`（同后台卡片上选，`cards.save_one`；项目主人 10-27 定：改卡片，不只管这一段对话）；找到几个的列出前 [`SHOWN`] 个，
-//!   请说具体一点；一个都没有的说找不到。模糊：照空白拆词，每个词都要有，先后不论，字照先后零散出现也算（同后台选模型，I-50）。
+//! 项目主人 10-27 又定（施工 I-57）：模型太多，不一口气全列；搜和换分开，换只认确切的名字，免得模糊找错了就换掉。
+//!
+//! - `/model`：说这个会话现在用哪个模型（卡片上选了的写它，没选的写「跟随默认（…）」），再说一行怎么用。
+//! - `/model search <关键词>`：照核心 `model.list` 列的池（`@<池>`）和模型（`<供应商>/<模型>`）模糊找，列出前 [`SHOWN`] 个，多的说
+//!   还有几个；正在用的那个标出来。模糊：照空白拆词，每个词都要有，先后不论，字照先后零散出现也算（同后台选模型，I-50）。没写
+//!   关键词的照先后列（池在前）。
+//! - `/model <名字>`：确切的名字（不分大小写）写进这个会话的卡片 `model`（同后台卡片上选，`cards.save_one`；项目主人 10-27 定：
+//!   改卡片，不只管这一段对话）。只写了模型那一段（最后一个 `/` 后面）、又只有一个对得上的也算。对不上的说没有，提示去搜。
 //! - `/model 默认`（`default` 同）：卡片上的模型去掉，跟随默认。
 //!
 //! 这个会话没有自己的卡片（陌生群、陌生私聊）的不改兜底卡（会改到所有陌生的会话），说先在后台给它加一张卡片。回的那一句照回执
@@ -25,6 +29,39 @@ const SHOWN: usize = 10;
 /// 去掉卡片上的模型的说法。
 const DEFAULTS: [&str; 3] = ["默认", "default", "既定"];
 
+/// 搜的子命令。
+const SEARCH: &str = "search";
+
+/// `/model` 后面的词说的是哪一种（见模块开头）。
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Asked<'a> {
+    /// 什么都没写：现在用哪个。
+    Now,
+    /// 搜这个关键词（可能是空的）。
+    Search(&'a str),
+    /// 去掉卡片上的模型。
+    Clear,
+    /// 换成这个名字。
+    Set(&'a str),
+}
+
+/// `/model` 后面的词 `query`（去过首尾空白）说的是哪一种。
+pub(super) fn asked(query: &str) -> Asked<'_> {
+    if query.is_empty() {
+        return Asked::Now;
+    }
+    if DEFAULTS.iter().any(|word| word.eq_ignore_ascii_case(query)) {
+        return Asked::Clear;
+    }
+    let mut parts = query.splitn(2, char::is_whitespace);
+    match (parts.next(), parts.next()) {
+        (Some(head), rest) if head.eq_ignore_ascii_case(SEARCH) => {
+            Asked::Search(rest.unwrap_or_default().trim())
+        }
+        _ => Asked::Set(query),
+    }
+}
+
 /// `text` 是不是 `/model` 命令：是的交回后面的词（去掉首尾空白，可能是空的）。
 pub(super) fn model_query(text: &str) -> Option<&str> {
     let rest = text.trim_start().strip_prefix("/model")?;
@@ -35,39 +72,37 @@ pub(super) fn model_query(text: &str) -> Option<&str> {
     }
 }
 
-/// 照 `query` 在 `names` 里找到的。
-#[derive(Debug, PartialEq, Eq)]
-pub(super) enum Found {
-    /// 正好一个。
-    One(String),
-    /// 几个，照像不像排，最多 [`SHOWN`] 个；`more` 是还有几个没列。
-    Many(Vec<String>, usize),
-    /// 一个都没有。
-    None,
+/// 确切的名字 `query` 在 `names` 里是哪个（见模块开头）：整个一样的（不分大小写），没有的看模型那一段，只有一个对得上才算。
+pub(super) fn exact(query: &str, names: &[String]) -> Option<String> {
+    if let Some(name) = names.iter().find(|name| name.eq_ignore_ascii_case(query)) {
+        return Some(name.clone());
+    }
+    let mut tails = names.iter().filter(|name| {
+        name.rsplit_once('/')
+            .is_some_and(|(_, tail)| tail.eq_ignore_ascii_case(query))
+    });
+    match (tails.next(), tails.next()) {
+        (Some(name), None) => Some(name.clone()),
+        _ => None,
+    }
 }
 
-/// 照 `query` 在 `names` 里找（见模块开头）：一模一样的（不分大小写）直接是它。
-pub(super) fn find(query: &str, names: &[String]) -> Found {
-    if let Some(exact) = names.iter().find(|name| name.eq_ignore_ascii_case(query)) {
-        return Found::One(exact.clone());
-    }
+/// 照关键词 `query` 在 `names` 里搜（见模块开头）：交回照像不像排的前 [`SHOWN`] 个和还有几个没列；关键词是空的照原来的先后。
+pub(super) fn search(query: &str, names: &[String]) -> (Vec<String>, usize) {
     let mut scored: Vec<(u32, &String)> = names
         .iter()
         .filter_map(|name| fuzzy(query, name).map(|score| (score, name)))
         .collect();
-    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
-    match scored.len() {
-        0 => Found::None,
-        1 => Found::One(scored[0].1.clone()),
-        n => Found::Many(
-            scored
-                .iter()
-                .take(SHOWN)
-                .map(|(_, name)| (*name).clone())
-                .collect(),
-            n.saturating_sub(SHOWN),
-        ),
+    if !query.trim().is_empty() {
+        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
     }
+    let more = scored.len().saturating_sub(SHOWN);
+    let shown = scored
+        .into_iter()
+        .take(SHOWN)
+        .map(|(_, name)| name.clone())
+        .collect();
+    (shown, more)
 }
 
 /// 模糊匹配的分（见模块开头）：整个出现的词 2 分，字照先后零散出现的 1 分；有一个词找不到的是空的。
@@ -89,7 +124,7 @@ fn fuzzy(query: &str, text: &str) -> Option<u32> {
     Some(score)
 }
 
-/// 核心 `model.list` 的回答 `listed` 里能选的：每个模型的引用，每个池 `@<池>`。
+/// 核心 `model.list` 的回答 `listed` 里能选的：每个池 `@<池>`，每个模型的引用（池在前，没写关键词搜的时候先看到）。
 fn choices(listed: &Value) -> Vec<String> {
     let models = listed["providers"]
         .as_array()
@@ -102,7 +137,7 @@ fn choices(listed: &Value) -> Vec<String> {
         .into_iter()
         .flatten()
         .filter_map(|pool| pool["name"].as_str().map(|name| format!("@{name}")));
-    models.chain(pools).collect()
+    pools.chain(models).collect()
 }
 
 impl Route {
@@ -126,18 +161,33 @@ impl Route {
         let lang = self.core.language.clone();
         let listed = self.core.call("model.list", json!({})).await?;
         let listed = &listed["result"];
-        let said = if query.is_empty() {
-            self.model_now(message, listed, &words, &lang)
-        } else if DEFAULTS.iter().any(|word| word.eq_ignore_ascii_case(query)) {
-            self.set_model(message, None, &words, &lang)
-        } else {
-            match find(query, &choices(listed)) {
-                Found::One(model) => self.set_model(message, Some(&model), &words, &lang),
-                Found::Many(names, more) => {
-                    let mut said = words.get("model-many", &lang);
+        let said = match asked(query) {
+            Asked::Now => {
+                let mut said = self.model_now(message, listed, &words, &lang);
+                said.push('\n');
+                said.push_str(&words.get("model-usage", &lang));
+                said
+            }
+            Asked::Clear => self.set_model(message, None, &words, &lang),
+            Asked::Set(name) => match exact(name, &choices(listed)) {
+                Some(model) => self.set_model(message, Some(&model), &words, &lang),
+                None => words.get("model-none", &lang).replace("{query}", name),
+            },
+            Asked::Search(keywords) => {
+                let (names, more) = search(keywords, &choices(listed));
+                if names.is_empty() {
+                    words
+                        .get("model-search-none", &lang)
+                        .replace("{query}", keywords)
+                } else {
+                    let using = self.using(message, listed);
+                    let mut said = words.get("model-found", &lang);
                     for name in names {
                         said.push('\n');
                         said.push_str(&name);
+                        if using.as_deref() == Some(name.as_str()) {
+                            said.push_str(&words.get("model-using-mark", &lang));
+                        }
                     }
                     if more > 0 {
                         said.push('\n');
@@ -149,7 +199,6 @@ impl Route {
                     }
                     said
                 }
-                Found::None => words.get("model-none", &lang).replace("{query}", query),
             }
         };
         tracing::info!(target: TARGET, venue = %message.place.peer.venue, message = message.number, command = "model", "command ran");
@@ -182,16 +231,28 @@ impl Route {
         if let Some(model) = self.card_model(message.place.peer.to) {
             return words.get("model-now", lang).replace("{model}", &model);
         }
-        let fallback = Venue::parse(&message.place.peer.venue)
+        let fallback = self
+            .fallback_model(message, listed)
+            .unwrap_or_else(|| "-".to_string());
+        words
+            .get("model-follows", lang)
+            .replace("{model}", &fallback)
+    }
+
+    /// 这个会话此刻真用的是哪个：卡片上写的，没写的照 [`Route::fallback_model`]。
+    fn using(&mut self, message: &Message, listed: &Value) -> Option<String> {
+        self.card_model(message.place.peer.to)
+            .or_else(|| self.fallback_model(message, listed))
+    }
+
+    /// 卡片上没写时跟随的：照规则套出来的，再没有的照核心的对话模型。
+    fn fallback_model(&mut self, message: &Message, listed: &Value) -> Option<String> {
+        Venue::parse(&message.place.peer.venue)
             .and_then(|venue| {
                 let applied = self.applied(&venue);
                 super::super::applied::text_of(&applied, "model").map(str::to_string)
             })
             .or_else(|| listed["uses"]["chat"].as_str().map(str::to_string))
-            .unwrap_or_else(|| "-".to_string());
-        words
-            .get("model-follows", lang)
-            .replace("{model}", &fallback)
     }
 
     /// 这个场所自己的卡片上写的模型。
