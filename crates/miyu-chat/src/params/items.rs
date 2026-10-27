@@ -19,6 +19,9 @@ const PER_MILLE: Kind = Kind::Int { min: 0, max: 1000 };
 /// 百分比：1 到 100（去重的相似度）。0 什么都算重复。
 const PERCENT: Kind = Kind::Int { min: 1, max: 100 };
 
+/// 打字速度，字/分钟（施工 I-49）：慢到一分钟 20 个字，快到 600 个。
+const TYPING: Kind = Kind::Int { min: 20, max: 600 };
+
 /// 字符数：1 到 100000（base64 至少多长、最多看多少）。看 0 个字符什么都留不下。上限只防写错。
 const CHARS: Kind = Kind::Int { min: 1, max: LIMIT };
 
@@ -262,6 +265,10 @@ pub(crate) const ITEMS: &[Item] = &[
     // 模拟真人一条分多条发送（施工 I-26）。
     item("outbound.humanlike", Kind::Bool, |p, v| {
         p.outbound.humanlike = flag(v)
+    }),
+    // 分条发送的打字速度（施工 I-49）。
+    item("outbound.typing_speed", TYPING, |p, v| {
+        p.outbound.typing_speed = count(v)
     }),
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)

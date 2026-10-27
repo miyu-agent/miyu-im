@@ -124,6 +124,11 @@ impl<T> Queue<T> {
         taken
     }
 
+    /// 会话 `session` 前面还有没发完的：排着的，或者交出去了还没回的（施工 I-49：新的一句第一段照想加打的工夫等）。
+    pub(super) fn busy(&self, session: &str) -> bool {
+        self.lines.contains_key(session) || self.out.contains(session)
+    }
+
     /// 会话 `session` 交出去的那一段有了结局（施工 I-48）：下一段可以交了。
     pub(super) fn answered(&mut self, session: &str) {
         self.out.remove(session);

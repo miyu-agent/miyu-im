@@ -289,7 +289,7 @@ async fn expired_words_come_back_at_the_next_turn_once() {
 async fn a_split_sentence_that_expires_comes_back_once() {
     // 她一句话拆成的几段（I-26）一起过期：每段记 `failed`，退信只一块，写着头一段的开头。
     let long = "大家说得都有道理。那就这么定了：周六上午十点在东门集合，别迟到。";
-    let pieces = miyu_chat::bubbles(long);
+    let pieces = miyu_chat::bubbles(long, 80);
     assert!(pieces.len() >= 2, "这一句拆得开：{pieces:?}");
     let (release, held) = oneshot::channel();
     let script = Lines::new([Line::says(long).released_by(held), Line::says("嗯")]);

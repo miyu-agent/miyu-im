@@ -93,6 +93,8 @@ pub struct Outbound {
     pub(crate) strip_period: bool,
     /// 模拟真人一条分多条发送（出厂开；施工 I-26，[`bubbles()`]）。
     pub(crate) humanlike: bool,
+    /// 分条发送照多快的打字速度停顿，字/分钟（出厂 80；施工 I-49，[`bubbles()`]）。
+    pub(crate) typing_speed: u32,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -175,6 +177,12 @@ impl Outbound {
     #[must_use]
     pub fn humanlike(&self) -> bool {
         self.humanlike
+    }
+
+    /// 分条发送的打字速度，字/分钟（施工 I-49，[`bubbles()`]）。
+    #[must_use]
+    pub fn typing_speed(&self) -> u32 {
+        self.typing_speed
     }
 }
 

@@ -1,5 +1,6 @@
 //! 模拟真人一条分多条发送（施工 I-26，`onebot.md`「出站队列」）：真核心拉起真桥、假 NapCat、她照台词说。她的一句话照群聊内核的
-//! `bubbles` 拆成两条：群里先后两条，引用、@（出站规则二选一）只在第一条，第二条照停顿晚发；配置项关了的一条发完。
+//! `bubbles` 拆成两条：群里先后两条，引用、@（出站规则二选一）只在第一条，第二条照停顿晚发；配置项关了的一条发完。前一句的
+//! 分段还排着时，后一句的第一条也照想加打的工夫等，不紧跟着冲出去（施工 I-49）。
 
 use std::time::{Duration, Instant};
 
@@ -37,7 +38,7 @@ fn two() -> (&'static str, Vec<miyu_chat::Bubble>) {
     ];
     candidates
         .iter()
-        .map(|text| (*text, bubbles(text)))
+        .map(|text| (*text, bubbles(text, 80)))
         .find(|(_, said)| said.len() == 2)
         .expect("候选里有拆成两条的")
 }
@@ -108,5 +109,29 @@ async fn turned_off_it_is_one_message() {
     // 开着时第二条该到的时候也没有。
     tokio::time::sleep(said[1].pause + Duration::from_secs(1)).await;
     assert!(napcat.pending().is_none(), "没有第二条");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_new_reply_waits_behind_pieces_still_queued() {
+    // 施工 I-49：前一句的第二条还排着（停顿没到），又叫她一声、她回「收到」：「收到」排在第二条后面，还照它自己想加打的工夫
+    // 等（至少 0.6 秒，群聊内核的 `SHORTEST`），不在第二条发出去以后马上跟着发（原来只隔 NapCat 回一声那几十毫秒）。
+    let (text, said) = two();
+    let script = Script::new([Play::Says(text), Play::Says("收到")]);
+    let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
+    calls(&napcat, 1);
+    let first = napcat.group_message(GROUP).await;
+    assert_eq!(words(&first), said[0].text, "{first:?}");
+    calls(&napcat, 2);
+    let second = napcat.group_message(GROUP).await;
+    let shown = Instant::now();
+    assert_eq!(words(&second), said[1].text, "先发完前一句：{second:?}");
+    let next = napcat.group_message(GROUP).await;
+    let waited = shown.elapsed();
+    assert_eq!(words(&next), "收到", "{next:?}");
+    assert!(
+        waited >= Duration::from_millis(500),
+        "前面还有没发完的，第一条也照想加打的工夫等：只等了 {waited:?}"
+    );
     stopped(home).await;
 }

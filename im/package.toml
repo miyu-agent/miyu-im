@@ -322,6 +322,7 @@ type = "bool"
 default = true
 layers = ["system"]
 applies = "now"
+hidden = true
 name = { en = "Drop the final period", zh = "去掉末尾的句号", ja = "末尾の句点を外す" }
 description = { en = "On: a reply ending in a single 。 is sent without it, like people type in chats. Applies to every group and private chat.", zh = "开着的，回话末尾的一个「。」去掉再发，像平常聊天那样。管所有群和私聊。", ja = "オン：返信の末尾の「。」を一つ外して送ります。普段のチャットと同じです。すべてのグループと個人チャットに効きます。" }
 
@@ -330,6 +331,7 @@ type = "bool"
 default = true
 layers = ["system"]
 applies = "now"
+hidden = true
 name = { en = "Send like a person, in several messages", zh = "模拟真人一条分多条发送", ja = "人のように何通かに分けて送る" }
 description = { en = "On: a reply is split like people chat, at full stops and sometimes at commas, with a short pause between messages. Long or multi-line replies stay whole. Applies to every group and private chat.", zh = "开着的，一句回复照真人聊天的样子分成几条发：句号处断，有时也在逗号处断，每条之间停一会儿。太长的、带换行的照旧一条。管所有群和私聊。", ja = "オン：返信を人のチャットのように何通かに分けて送ります。句点で区切り、ときどき読点でも区切り、間を少し空けます。長い返信や改行を含む返信は一通のままです。すべてのグループと個人チャットに効きます。" }
 

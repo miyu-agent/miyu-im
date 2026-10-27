@@ -344,13 +344,19 @@ impl Route {
         if self.say_long(session, (&passed, &what), &mut lead).await? {
             return Ok(());
         }
+        // 这个会话前面还有没发完的（施工 I-49）：第一段也照想加打的工夫等，不紧跟着前面那几段冲出去。
+        let busy = self.waiting.busy(session);
         for (index, text) in passed.pieces.into_iter().enumerate() {
+            let pause = match (index, busy) {
+                (0, true) => passed.typed,
+                _ => passed.pauses.get(index).copied().unwrap_or_default(),
+            };
             let piece = Piece {
                 what: what.clone(),
                 text,
                 lead: std::mem::take(&mut lead),
                 body: Body::Text,
-                pause: passed.pauses.get(index).copied().unwrap_or_default(),
+                pause,
             };
             self.enqueue(session, None, piece).await?;
         }

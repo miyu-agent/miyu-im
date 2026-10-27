@@ -213,6 +213,7 @@ fn blank() -> Params {
             leak_close: Vec::new(),
             strip_period: false,
             humanlike: false,
+            typing_speed: 0,
         },
         split_chars: 0,
         long_text: LongText::Split,

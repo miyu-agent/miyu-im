@@ -21,8 +21,10 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
     let mut open = logged_in(&home.root, port).await;
 
     let got = call(&mut open, 1, "settings.get", json!({})).await["result"].clone();
-    assert_eq!(got["strip_period"], true, "出厂开：{got}");
-    assert_eq!(got["humanlike"], true, "出厂开（施工 I-26）：{got}");
+    assert!(
+        got.get("strip_period").is_none() && got.get("humanlike").is_none(),
+        "去掉末尾句号、分条发送挪到会话卡片了（施工 I-49）：{got}"
+    );
     assert_eq!(
         got["recall_receipts"],
         json!(["clear", "clear-memory"]),
@@ -36,15 +38,7 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
         &mut open,
         2,
         "settings.set",
-        set("strip_period", json!(false)),
-    )
-    .await;
-    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
-    let saved = call(
-        &mut open,
-        20,
-        "settings.set",
-        set("humanlike", json!(false)),
+        set("recall_receipts", json!(["clear"])),
     )
     .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
@@ -52,8 +46,7 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
     let saved = call(&mut open, 3, "settings.set", added).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let got = call(&mut open, 4, "settings.get", json!({})).await["result"].clone();
-    assert_eq!(got["strip_period"], false, "{got}");
-    assert_eq!(got["humanlike"], false, "{got}");
+    assert_eq!(got["recall_receipts"], json!(["clear"]), "{got}");
     assert_eq!(got["bindings"]["qq:30009"], "admin", "{got}");
 
     // 去掉一条绑定，别的照旧；别的键不让改。
@@ -65,6 +58,7 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
     assert_eq!(got["bindings"]["qq:10001"], "admin", "{got}");
     let wrongs = [
         set("whitelist", json!([])),
+        set("humanlike", json!(false)),
         set("binding:", json!("admin")),
         set("binding:a\"b", json!("admin")),
         json!({"value": true}),

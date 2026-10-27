@@ -25,6 +25,8 @@ pub(super) struct Passed {
     pub(super) pieces: Vec<String>,
     /// 照真人的样子拆了的（施工 I-26）：每段离前一段停多久，和 `pieces` 一样长，第一段是零；没这么拆的是空的。
     pub(super) pauses: Vec<Duration>,
+    /// 照真人的样子发的（施工 I-49）：第一段想加打要多久，这个会话前面还有没发完的时候第一段照它等；没开的是零。
+    pub(super) typed: Duration,
     /// 过了链的全文（拆以前）：判长文、画成图照它（施工 O-59 上）。
     pub(super) text: String,
     /// 第一段前面带的引用和 @。
@@ -54,9 +56,10 @@ pub(super) fn pass(
         more: Vec::new(),
     };
     let said = match ctx.outbound.humanlike() {
-        true => bubbles(&outgoing.text),
+        true => bubbles(&outgoing.text, ctx.outbound.typing_speed()),
         false => Vec::new(),
     };
+    let typed = said.first().map_or(Duration::ZERO, |one| one.typed);
     let (pieces, pauses) = match said.len() > 1 {
         true => said.into_iter().map(|one| (one.text, one.pause)).unzip(),
         false => (split(&outgoing.text, split_chars), Vec::new()),
@@ -64,6 +67,7 @@ pub(super) fn pass(
     Ok(Passed {
         pieces,
         pauses,
+        typed,
         text: outgoing.text.trim().to_string(),
         lead,
     })

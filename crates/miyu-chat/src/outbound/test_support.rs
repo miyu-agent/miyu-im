@@ -65,6 +65,7 @@ pub(crate) fn ctx() -> OutCtx {
             leak_close: LEAKS.iter().map(|(_, close)| close.to_string()).collect(),
             strip_period: true,
             humanlike: true,
+            typing_speed: 80,
         },
     }
 }

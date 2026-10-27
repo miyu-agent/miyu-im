@@ -145,8 +145,6 @@ function general(got, save) {
     save: (list) => save('recall_receipts', list, true),
   });
   return section('settings-page/general', null, [
-    row(say('settings-page/strip-period'), say('settings-page/strip-period-hint'), toggle('strip_period')),
-    row(say('settings-page/humanlike'), say('settings-page/humanlike-hint'), toggle('humanlike')),
     row(say('settings-page/recall'), say('settings-page/recall-hint'), tags),
   ]);
 }
