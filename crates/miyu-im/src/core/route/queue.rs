@@ -4,6 +4,9 @@
 //! 等着，先后不乱。一个会话一次只交一段（施工 I-48）：交出去的那一段等到 NapCat 回了（成了、没成都算）才交下一段。NapCat
 //! 并着办动作，两段挨着交的，QQ 上可能后交的先到（10-27 项目主人在群里撞到：一句分两段，中间插进了另一句）。不碰 I/O、时钟：此刻、门开没开、禁言到什么时候都由调的一方交进来（`sending.rs`），停住的钟测得了。
 //!
+//! 施工 I-58（10-27 项目主人：并着回的几句还是秒发）：照场所排（一个群、一个私聊一条队），不照会话：同一个群里主线、支线
+//! 的话排进同一条，一段接一段。一句的第一段从这个场所上一次交出去的时刻算停顿（打字的工夫），上一次早就交了的不用等。
+//!
 //! 门开没开、禁言到什么时候不记在这里：禁言照投影（日志算得出，桥重启照样重建），号连没连着照连着的号（「施工时定的」第 117 条）。
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -36,14 +39,16 @@ struct Waiting<T> {
     item: T,
 }
 
-/// 出站队列：会话编号 → 排着的，照入队的先后。照会话编号排（`BTreeMap`）：看一遍的先后定得住。
+/// 出站队列：场所编号 → 排着的，照入队的先后。照场所编号排（`BTreeMap`）：看一遍的先后定得住。
 pub(super) struct Queue<T> {
     /// 排着的过了多久作废，毫秒（`bridge.json` 的 `queue_expire_seconds`）。
     expire: i64,
-    /// 会话编号 → 排着的；排空了的拿掉。
+    /// 场所编号 → 排着的；排空了的拿掉。
     lines: BTreeMap<String, VecDeque<Waiting<T>>>,
-    /// 交出去了、NapCat 还没回的会话（施工 I-48）：它们的下一段等着。
+    /// 交出去了、NapCat 还没回的场所（施工 I-48）：它们的下一段等着。
     out: BTreeSet<String>,
+    /// 场所编号 → 上一次交出去的时刻，毫秒（施工 I-58）：排空了以后新的一段从它算停顿。
+    last: BTreeMap<String, i64>,
 }
 
 /// 看一遍一个会话交出来的：过了期的、门开着交得出去的，都照入队的先后。
@@ -62,6 +67,7 @@ impl<T> Queue<T> {
             expire: i64::try_from(expire.as_millis()).unwrap_or(i64::MAX),
             lines: BTreeMap::new(),
             out: BTreeSet::new(),
+            last: BTreeMap::new(),
         }
     }
 
@@ -71,13 +77,14 @@ impl<T> Queue<T> {
         now.unix_millis().saturating_sub(self.expire)
     }
 
-    /// 会话 `session` 在 `at` 入队了一段 `item`，离前一段停 `pause`：排在这个会话的最后。前一段还排着的从它最早交的时刻
-    /// 算起，排空了的从入队的时刻算起（前一段刚交出去）。
-    pub(super) fn push(&mut self, session: &str, (at, pause): (Timestamp, Duration), item: T) {
-        let line = self.lines.entry(session.to_string()).or_default();
+    /// 场所 `line` 在 `at` 入队了一段 `item`，离前一段停 `pause`：排在这个场所的最后。前一段还排着的从它最早交的时刻
+    /// 算起；排空了的从这个场所上一次交出去的时刻算起（施工 I-58：早就交了的不用等），没交过的不等。
+    pub(super) fn push(&mut self, line: &str, (at, pause): (Timestamp, Duration), item: T) {
+        let sent = self.last.get(line).copied().unwrap_or(i64::MIN);
+        let line = self.lines.entry(line.to_string()).or_default();
         let after = line
             .back()
-            .map_or(at.unix_millis(), |last| last.ready.max(at.unix_millis()));
+            .map_or(sent, |last| last.ready.max(at.unix_millis()));
         let pause = i64::try_from(pause.as_millis()).unwrap_or(i64::MAX);
         line.push_back(Waiting {
             at,
@@ -86,14 +93,19 @@ impl<T> Queue<T> {
         });
     }
 
-    /// 有东西排着的会话，照编号排。
-    pub(super) fn sessions(&self) -> Vec<String> {
+    /// 有东西排着的场所，照编号排。
+    pub(super) fn lines(&self) -> Vec<String> {
         self.lines.keys().cloned().collect()
     }
 
-    /// 看一遍会话 `session`，此刻是 `now`，门开着是 `open`：入队时刻加期限不晚于此刻的交出来作废（门关着的也是）；门开着、
-    /// 上一段已经回了的，交出排在最前的那一段（到了最早交的时刻的），记下这个会话有一段在外面（施工 I-48），等 [`Queue::answered`]
-    /// 再交下一段。门关着、没过期的留着。
+    /// 场所 `line` 排在最前的那一段。
+    pub(super) fn front(&self, line: &str) -> Option<&T> {
+        self.lines.get(line)?.front().map(|waiting| &waiting.item)
+    }
+
+    /// 看一遍场所 `session`，此刻是 `now`，门开着是 `open`：入队时刻加期限不晚于此刻的交出来作废（门关着的也是）；门开着、
+    /// 上一段已经回了的，交出排在最前的那一段（到了最早交的时刻的），记下这个场所有一段在外面（施工 I-48）、这一刻交的（施工
+    /// I-58），等 [`Queue::answered`] 再交下一段。门关着、没过期的留着。
     pub(super) fn take(&mut self, session: &str, now: Timestamp, open: bool) -> Taken<T> {
         let mut taken = Taken {
             expired: Vec::new(),
@@ -111,6 +123,7 @@ impl<T> Queue<T> {
             } else if free && kept.is_empty() && waiting.ready <= now.unix_millis() {
                 taken.ready.push(waiting.item);
                 self.out.insert(session.to_string());
+                self.last.insert(session.to_string(), now.unix_millis());
                 free = false;
             } else {
                 kept.push_back(waiting);
@@ -124,12 +137,7 @@ impl<T> Queue<T> {
         taken
     }
 
-    /// 会话 `session` 前面还有没发完的：排着的，或者交出去了还没回的（施工 I-49：新的一句第一段照想加打的工夫等）。
-    pub(super) fn busy(&self, session: &str) -> bool {
-        self.lines.contains_key(session) || self.out.contains(session)
-    }
-
-    /// 会话 `session` 交出去的那一段有了结局（施工 I-48）：下一段可以交了。
+    /// 场所 `session` 交出去的那一段有了结局（施工 I-48）：下一段可以交了。
     pub(super) fn answered(&mut self, session: &str) {
         self.out.remove(session);
     }

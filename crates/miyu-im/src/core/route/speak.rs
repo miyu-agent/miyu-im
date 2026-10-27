@@ -353,11 +353,11 @@ impl Route {
         if self.say_long(session, (&passed, &what), &mut lead).await? {
             return Ok(());
         }
-        // 这个会话前面还有没发完的（施工 I-49）：第一段也照想加打的工夫等，不紧跟着前面那几段冲出去。
-        let busy = self.waiting.busy(session);
+        // 第一段也照想加打的工夫等（施工 I-49），从这个场所上一次发出去的时刻算（施工 I-58，出站队列）：刚发过的（这条线前面
+        // 的几段、别的线并着回的）不紧跟着冲出去，早就发过的不用等。
         for (index, text) in passed.pieces.into_iter().enumerate() {
-            let pause = match (index, busy) {
-                (0, true) => passed.typed,
+            let pause = match index {
+                0 => passed.typed,
                 _ => passed.pauses.get(index).copied().unwrap_or_default(),
             };
             let piece = Piece {

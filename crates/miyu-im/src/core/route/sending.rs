@@ -135,6 +135,8 @@ pub(super) enum Body {
 /// 排着的一段：入队那一条的序号和这一段。
 #[derive(Debug)]
 pub(super) struct Item {
+    /// 哪个会话要说的（主线、支线）：队照场所排（施工 I-58），记、发照它。
+    session: String,
     /// 入队那一条（`ext.im.venues.queued`）的序号：`failed` 的 `queued` 照它写。
     queued: u64,
     /// 这一段。
@@ -207,14 +209,19 @@ impl Route {
             tracing::info!(target: TARGET, venue = %peer.venue, why, chars, "reply waiting");
         }
         let pause = piece.pause;
+        let item = Item {
+            session: session.to_string(),
+            queued,
+            piece,
+        };
         self.waiting
-            .push(session, (clock.now, pause), Item { queued, piece });
+            .push(peer.venue.as_str(), (clock.now, pause), item);
         self.pump().await
     }
 
-    /// 把有东西排着的会话都看一遍（第 3 条）：过了期的记 `expired`，门开着的照先后交 NapCat，一个会话一次一段（施工 I-48）：交出去的
-    /// 回了才交下一段（[`Route::answered`] 再看一遍）；当场就交不成的照结局办，接着交下一段。本机的钟读不出的（照说不会）记一行，
-    /// 这一回不看。
+    /// 把有东西排着的场所都看一遍（第 3 条）：过了期的记 `expired`，门开着的照先后交 NapCat，一个场所一次一段（施工 I-48、I-58）：
+    /// 交出去的回了才交下一段（[`Route::answered`] 再看一遍）；当场就交不成的照结局办，接着交下一段。门开没开照排在最前的那一段的
+    /// 会话看。本机的钟读不出的（照说不会）记一行，这一回不看。
     ///
     /// # Errors
     ///
@@ -224,17 +231,21 @@ impl Route {
             tracing::warn!(target: TARGET, "clock not readable, queue not looked at");
             return Ok(());
         };
-        for session in self.waiting.sessions() {
+        for line in self.waiting.lines() {
             loop {
-                let open = self.shut(&session, clock.now).is_none();
-                let taken = self.waiting.take(&session, clock.now, open);
+                let open = self
+                    .waiting
+                    .front(&line)
+                    .is_some_and(|item| self.shut(&item.session, clock.now).is_none());
+                let taken = self.waiting.take(&line, clock.now, open);
                 for item in taken.expired {
-                    self.failed(&session, &item, (EXPIRED, None)).await?;
+                    self.failed(&item.session.clone(), &item, (EXPIRED, None))
+                        .await?;
                 }
                 let Some(item) = taken.ready.into_iter().next() else {
                     break;
                 };
-                if self.hand(&session, item).await? {
+                if self.hand(&line, item).await? {
                     break;
                 }
             }
@@ -245,9 +256,10 @@ impl Route {
     /// 离下一次该看一遍还有多久（第 8 条）：排着的里最早的过期时刻、被禁言着的会话禁言到期的时刻；没有排着的是空的，不用醒。
     pub(super) fn wake(&self) -> Option<Duration> {
         let now = applied::clock()?.now;
-        let queued = self
-            .waiting
-            .wake(now, |session| self.groups.get(session)?.muted(now));
+        let queued = self.waiting.wake(now, |venue| {
+            let session = self.venues.get(venue)?;
+            self.groups.get(session)?.muted(now)
+        });
         // 还没记解禁的禁言到点也醒（施工 O-50，`muted`）。
         let at = queued.into_iter().chain(self.mute_wake()).min()?;
         let millis = at.unix_millis().saturating_sub(now.unix_millis());
@@ -269,12 +281,13 @@ impl Route {
         (!connected).then_some(DISCONNECTED)
     }
 
-    /// 把排着的一段交 NapCat：放进收进会话 `session` 的那个机器人号现在的连接的写队列，等回应交给别的任务（第 3 条），交回真：
-    /// 这个会话等它回了再交下一段。放不进去的（那个号这时没连着、连接正在断）当场照结局办，交回假：接着交下一段。
-    async fn hand(&mut self, session: &str, item: Item) -> Result<bool, Gone> {
-        let Some(peer) = self.peers.get(session).cloned() else {
-            self.waiting.answered(session);
-            self.failed(session, &item, (DISCONNECTED, None)).await?;
+    /// 把场所 `line` 排着的一段交 NapCat：放进收进它那个会话的那个机器人号现在的连接的写队列，等回应交给别的任务（第 3 条），
+    /// 交回真：这个场所等它回了再交下一段。放不进去的（那个号这时没连着、连接正在断）当场照结局办，交回假：接着交下一段。
+    async fn hand(&mut self, line: &str, item: Item) -> Result<bool, Gone> {
+        let session = item.session.clone();
+        let Some(peer) = self.peers.get(&session).cloned() else {
+            self.waiting.answered(line);
+            self.failed(&session, &item, (DISCONNECTED, None)).await?;
             return Ok(false);
         };
         let begun = match self.bots.get(peer.bot) {
@@ -304,7 +317,6 @@ impl Route {
             }
             None => Err(CallError::Closed),
         };
-        let session = session.to_string();
         match begun {
             Ok(pending) => {
                 self.sending.push_back(tokio::spawn(async move {
@@ -319,7 +331,7 @@ impl Route {
                 Ok(true)
             }
             Err(error) => {
-                self.waiting.answered(&session);
+                self.waiting.answered(line);
                 let result = Err(error);
                 self.ended(Answered {
                     session,
@@ -339,7 +351,7 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn answered(&mut self, answered: Answered) -> Result<(), Gone> {
-        self.waiting.answered(&answered.session);
+        self.waiting.answered(answered.peer.venue.as_str());
         self.ended(answered).await?;
         self.pump().await
     }

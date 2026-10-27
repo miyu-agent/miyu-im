@@ -1,15 +1,19 @@
 //! 模拟真人一条分多条发送（施工 I-26，`onebot.md`「出站队列」）：真核心拉起真桥、假 NapCat、她照台词说。她的一句话照群聊内核的
 //! `bubbles` 拆成两条：群里先后两条，引用、@（出站规则二选一）只在第一条，第二条照停顿晚发；配置项关了的一条发完。前一句的
-//! 分段还排着时，后一句的第一条也照想加打的工夫等，不紧跟着冲出去（施工 I-49）。
+//! 分段还排着时，后一句的第一条也照想加打的工夫等，不紧跟着冲出去（施工 I-49）。两个人同时叫她、两条线并着回的，同一个群里
+//! 也一句接一句，后一句照打字的工夫晚发（施工 I-58）。
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
 use miyu_chat::bubbles;
 use miyu_session::testkit::{Play, Script};
+use tokio::sync::oneshot;
 
 use crate::support::group::*;
+use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
 /// 群号。
@@ -18,8 +22,11 @@ const GROUP: i64 = 3701;
 /// 叫她的人。
 const A: i64 = 20021;
 
+/// 另一个叫她的人。
+const B: i64 = 20022;
+
 /// 假 NapCat 认得的群成员。
-const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (A, "阿甲", "a")];
+const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (A, "阿甲", "a"), (B, "阿乙", "b")];
 
 /// 系统的场所规则：叫她才回（不过判官），总引用、马上 @：第一条一定带引用或 @。
 const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\noutbound = { quote_after = 0, mention_after = \"0s\" }\n";
@@ -132,6 +139,55 @@ async fn a_new_reply_waits_behind_pieces_still_queued() {
     assert!(
         waited >= Duration::from_millis(500),
         "前面还有没发完的，第一条也照想加打的工夫等：只等了 {waited:?}"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn replies_on_two_lines_go_out_one_after_another() {
+    // 施工 I-58（10-27 项目主人：并着回的几句还是秒发）：主线回 A 的时候 B 也叫她，支线回 B。两句同时说完：同一个群里排成一条，
+    // 后一句照它想加打的工夫晚发（至少 0.6 秒，群聊内核的 `SHORTEST`），不在前一句发出去以后马上跟着发。原来照会话排，两条线
+    // 各发各的。
+    let (release_a, hold_a) = oneshot::channel();
+    let (release_b, hold_b) = oneshot::channel();
+    let lines = Lines::new([
+        Line::says("回A").released_by(hold_a),
+        Line::says("回B").released_by(hold_b),
+    ]);
+    let rules = format!("{RULES}parallel = 1\n");
+    let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), &rules, MEMBERS).await;
+    calls(&napcat, 1);
+    within("主线收到请求", async {
+        while lines.requests().is_empty() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    napcat.send(group_frame(
+        GROUP,
+        B,
+        201,
+        json!([at(BOT), plain(" 有空吗")]),
+        ("阿乙", "b"),
+    ));
+    within("支线收到请求", async {
+        while lines.requests().len() < 2 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    release_a.send(()).expect("还在等");
+    release_b.send(()).expect("还在等");
+    let first = words(&napcat.group_message(GROUP).await);
+    let shown = Instant::now();
+    let second = words(&napcat.group_message(GROUP).await);
+    let waited = shown.elapsed();
+    let mut both = [first, second];
+    both.sort();
+    assert_eq!(both, ["回A", "回B"]);
+    assert!(
+        waited >= Duration::from_millis(500),
+        "两条线的话一句接一句，后一句照打字的工夫等：只等了 {waited:?}"
     );
     stopped(home).await;
 }

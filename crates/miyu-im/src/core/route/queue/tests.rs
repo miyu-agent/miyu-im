@@ -35,7 +35,7 @@ fn an_open_door_hands_out_in_order_and_a_shut_one_keeps_them() {
         taken.expired.is_empty() && taken.ready.is_empty(),
         "关着的留着"
     );
-    assert_eq!(queue.sessions(), ["s"]);
+    assert_eq!(queue.lines(), ["s"]);
     let taken = queue.take("s", at(1000), true);
     assert_eq!(taken.ready, ["一"], "一次一段，照入队的先后");
     assert!(taken.expired.is_empty());
@@ -52,7 +52,7 @@ fn an_open_door_hands_out_in_order_and_a_shut_one_keeps_them() {
         );
     }
     queue.answered("s");
-    assert!(queue.sessions().is_empty(), "交完了不再排");
+    assert!(queue.lines().is_empty(), "交完了不再排");
 }
 
 #[test]
@@ -96,10 +96,10 @@ fn sessions_wait_apart() {
     queue.push("甲", (at(0), Duration::ZERO), "一");
     queue.push("乙", (at(0), Duration::ZERO), "二");
     queue.push("甲", (at(1), Duration::ZERO), "三");
-    assert_eq!(queue.sessions(), ["乙", "甲"]);
+    assert_eq!(queue.lines(), ["乙", "甲"]);
     let taken = queue.take("甲", at(10), true);
     assert_eq!(taken.ready, ["一"]);
-    assert_eq!(queue.sessions(), ["乙", "甲"], "别的会话的不动");
+    assert_eq!(queue.lines(), ["乙", "甲"], "别的场所的不动");
     assert_eq!(
         queue.take("乙", at(10), true).ready,
         ["二"],
@@ -107,7 +107,7 @@ fn sessions_wait_apart() {
     );
     queue.answered("甲");
     assert_eq!(queue.take("甲", at(10), true).ready, ["三"]);
-    assert!(queue.sessions().is_empty(), "交完了不再排");
+    assert!(queue.lines().is_empty(), "交完了不再排");
     let taken = queue.take("丙", at(10), true);
     assert!(
         taken.ready.is_empty() && taken.expired.is_empty(),
@@ -163,12 +163,38 @@ fn a_paused_piece_waits_and_holds_the_ones_behind() {
     assert_eq!(queue.take("s", at(5000), true).ready, ["二"]);
     queue.answered("s");
     assert_eq!(queue.take("s", at(5000), true).ready, ["三"]);
-    // 停顿从前一段最早交的时刻接着算：两段各停 5 秒，第二段在第 10 秒。
+    // 停顿从前一段最早交的时刻接着算：前一段第 5 秒交，后一段再停 5 秒，在第 10 秒。
+    queue.push("t", (at(0), Duration::ZERO), "零");
+    assert_eq!(queue.take("t", at(0), true).ready, ["零"]);
+    queue.answered("t");
     queue.push("t", (at(0), pause), "甲");
     queue.push("t", (at(1000), pause), "乙");
-    assert!(queue.take("t", at(9999), true).ready == ["甲"]);
+    assert!(queue.take("t", at(4999), true).ready.is_empty());
+    assert_eq!(queue.take("t", at(5000), true).ready, ["甲"]);
     queue.answered("t");
+    assert!(queue.take("t", at(9999), true).ready.is_empty());
     assert_eq!(queue.take("t", at(10_000), true).ready, ["乙"]);
+}
+
+#[test]
+fn a_new_reply_counts_its_pause_from_the_last_piece_handed_out() {
+    // 施工 I-58（10-27 项目主人：并着回的几句还是秒发）：排空了以后新的一段从这个场所上一次交出去的时刻算停顿。
+    let mut queue = Queue::new(EXPIRE);
+    let typed = Duration::from_secs(3);
+    queue.push("群", (at(0), typed), "没交过的不等");
+    assert_eq!(queue.take("群", at(0), true).ready, ["没交过的不等"]);
+    queue.answered("群");
+    // 刚交过（第 0 秒）：另一句在第 1 秒到，等到第 3 秒。
+    queue.push("群", (at(1000), typed), "刚交过的等");
+    assert!(queue.take("群", at(2999), true).ready.is_empty());
+    assert_eq!(queue.take("群", at(3000), true).ready, ["刚交过的等"]);
+    queue.answered("群");
+    // 早就交了（第 3 秒）：第 60 秒到的不用等。
+    queue.push("群", (at(60_000), typed), "早就交了的不等");
+    assert_eq!(queue.take("群", at(60_000), true).ready, ["早就交了的不等"]);
+    // 别的场所各算各的。
+    queue.push("私聊", (at(60_000), typed), "别处");
+    assert_eq!(queue.take("私聊", at(60_000), true).ready, ["别处"]);
 }
 
 #[test]
