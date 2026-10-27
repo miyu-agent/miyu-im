@@ -19,6 +19,7 @@ fn every_item_lands_in_its_own_field() {
          continuation_window = \"21s\"\nfollowup = false\nfollowup_bonus = 2.4\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
          person_restraint = false\nperson_half_life = \"34s\"\nperson_start = 3.1\nperson_full = 3.2\nperson_cap = 3.3\n\
+         group_restraint = false\ngroup_half_life = \"35s\"\ngroup_start = 3.4\ngroup_full = 3.5\ngroup_cap = 3.6\n\
          severity_min = 9\njudge_called = false\nskip_media = false\nskip_users = [\"qq:1\"]\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
@@ -62,6 +63,13 @@ fn every_item_lands_in_its_own_field() {
                 start: 3.1,
                 full: 3.2,
                 cap: 3.3,
+            },
+            group: PersonRestraint {
+                on: false,
+                half_life: 35_000,
+                start: 3.4,
+                full: 3.5,
+                cap: 3.6,
             },
             severity_min: 9,
             judge_called: false,

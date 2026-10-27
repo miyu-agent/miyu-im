@@ -9,7 +9,7 @@ use miyu_kernel::id::ExternalId;
 
 use crate::Clock;
 
-use super::{Chatty, Kind, Lift, LiftCtx, Reply};
+use super::{Chatty, Kind, Lift, LiftCtx, PersonRestraint, Reply};
 
 /// `sender` 最近被她回过几轮：`replies` 里不晚于此刻、`to` 有他的每一轮加 `0.5^((now − at) ÷ half_life)`。先后不要紧。不看
 /// 开没开：开关在 [`Lift`] 那一层看。
@@ -41,15 +41,20 @@ impl Lift for Item {
             return 0.0;
         }
         let p = person_pressure(ctx.sender, ctx.replies, ctx.clock, ctx.chatty);
-        if p <= person.start {
-            return 0.0;
-        }
-        // `full` 不大于 `start` 的（参数写反了）一过 `start` 就抬满，不除以 0。
-        let span = person.full - person.start;
-        match span > 0.0 {
-            true => person.cap * ((p - person.start) / span).min(1.0),
-            false => person.cap,
-        }
+        ramp(p, &person)
+    }
+}
+
+/// 照 `curve` 把 p 换成抬多少（按人、按群冷静共用）：p 不超过 `start` 不抬，往上照直线抬，到 `full` 抬满 `cap`。
+pub(super) fn ramp(p: f64, curve: &PersonRestraint) -> f64 {
+    if p <= curve.start {
+        return 0.0;
+    }
+    // `full` 不大于 `start` 的（参数写反了）一过 `start` 就抬满，不除以 0。
+    let span = curve.full - curve.start;
+    match span > 0.0 {
+        true => curve.cap * ((p - curve.start) / span).min(1.0),
+        false => curve.cap,
     }
 }
 

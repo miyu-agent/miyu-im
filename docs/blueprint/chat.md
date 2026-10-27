@@ -308,6 +308,11 @@ Rust 这一边：
     - `p ≤ person_start` 抬 0；往上抬 `person_cap × min(1, (p − person_start) ÷ (person_full − person_start))`；`person_full` 不大于 `person_start` 的一过就抬满。出厂半衰期 10 分钟、起点 2、满点 6、最多 0.5。
     - 数从哪来：旧 Miyu 主群 2026-10-20 到 22 的判断日志按时间重放（`~/.cache/miyu-remake/im-livetest/bonus/person.py`）：日志里她每天判回 962 次，冲她来的占九成六，判官给冲她来的原始分中位 0.82，已经过了 0.8 的门槛。只把加分减半少回 2%（944），再加「只叫了她不加分」到 898，再加这一档到 807（少 16%）；温和一档（起 3、满 10、抬 0.3）887，狠一档（半衰期 30 分钟）688。同一个人相邻两次叫她隔 p50 2.4 分钟、p75 16 分钟；10 分钟内接着叫算一段，一段 p50 2 次、p90 6 次。项目主人看了几档定中间这档。
 13. **只叫了她**（施工 I-29）：`Facts::hollow` 是真的（桥算：没有字、只带东西的，或者 `hollow(text, keywords)`：去掉触发词、`@` 开头的词以后不剩字母、数字、汉字这类字），冲她来照样成立（走路照它），加 0 分。旧 Miyu 主群 3 天里冲她来的四分之一是这样的（「miyu」、一个表情、一张图）。
+14. **按群冷静**（门槛修正，施工 I-62，2026-10-27 项目主人看了重放和真模型实测定；`chatty/group.rs`）：她在这个场所最近回得多，冲她来的门槛一起抬。按人冷静只压叫得勤的那一两个人，10-27 晚主群是好几个人同时叫她（她每十分钟中位发 21 条），压不住。
+    - 关着的、条件里没有 `Direct` 的，抬 0：插嘴归第 10 条管。
+    - `p = Σ 0.5^((now − at) ÷ group_half_life)`，对 `replies` 里不晚于此刻的每一轮，不分回的是谁。
+    - 抬法同第 12 条（`ramp`）：`p ≤ group_start` 抬 0，往上直线抬，到 `group_full` 抬满 `group_cap`。出厂半衰期 10 分钟、起点 8、满点 20、最多 0.5。
+    - 数从哪来：10-27 晚主群 595 次判断按时间离线重放（`~/.cache/miyu-remake/im-livetest/restraint-1027/replay.py`，现在的档位重算和日志一致），冲她来的每小时回 73 次，这一档 51 次；真模型实测（`~/.cache/miyu-remake/i62-sim`，同一段群聊改前改后各跑一遍）高峰段判回 31→24、冲她来回 27/28→16/28，压掉的大半是逗她、刁难的。
 
 **守着它的**（`crates/miyu-chat/src/chatty/tests.rs` 等，O-7）
 
@@ -623,6 +628,11 @@ restraint_half_life = "3m"
 | `chatty.person_start` | 小数 0 到 10 | 2 | 按人冷静：p 超过它才抬 |
 | `chatty.person_full` | 小数 0 到 10 | 6 | 按人冷静：p 到它抬满 |
 | `chatty.person_cap` | 小数 0 到 10 | 0.5 | 按人冷静：最多抬多少 |
+| `chatty.group_restraint` | 开关 | `true` | 按群冷静开没开（I-62，第三条第 14 条） |
+| `chatty.group_half_life` | 时长 1 秒到 1 天 | `10m` | 按群冷静：回过的一轮的分量衰减一半要多久 |
+| `chatty.group_start` | 小数 0 到 100 | 8 | 按群冷静：p 超过它才抬 |
+| `chatty.group_full` | 小数 0 到 100 | 20 | 按群冷静：p 到它抬满 |
+| `chatty.group_cap` | 小数 0 到 10 | 0.5 | 按群冷静：最多抬多少 |
 | `chatty.severity_min` | 整数 1 到 10 | 7 | `Chatty::severity_min` |
 | `dispatch.supersede_window` | 时长 1 秒到 1 天 | `7s` | `Params::supersede_window` |
 | `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照旁路请求 `judge` 的档位（I-42；以前照 `models.chat`） |

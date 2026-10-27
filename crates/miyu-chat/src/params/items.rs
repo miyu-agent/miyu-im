@@ -13,6 +13,9 @@ use super::{LongText, Params};
 /// 分、权重、加分、门槛、冷静的上限和 `k`：0 到 10。分的量级是 0 到 1，加起来能过 1；负的没有意义。
 const SCORE: Kind = Kind::Float { min: 0, max: 10 };
 
+/// 按群冷静数的轮数（施工 I-62）：0 到 100，她在一个群里十来分钟就能回二三十轮。
+const ROUNDS: Kind = Kind::Float { min: 0, max: 100 };
+
 /// 千分比：0 到 1000（抽样、base64 可打印的比例）。
 const PER_MILLE: Kind = Kind::Int { min: 0, max: 1000 };
 
@@ -199,6 +202,22 @@ pub(crate) const ITEMS: &[Item] = &[
     }),
     item("chatty.person_cap", SCORE, |p, v| {
         p.chatty.person.cap = float(v)
+    }),
+    // 按群冷静（施工 I-62）。
+    item("chatty.group_restraint", Kind::Bool, |p, v| {
+        p.chatty.group.on = flag(v)
+    }),
+    item("chatty.group_half_life", WINDOW, |p, v| {
+        p.chatty.group.half_life = millis(v)
+    }),
+    item("chatty.group_start", ROUNDS, |p, v| {
+        p.chatty.group.start = float(v)
+    }),
+    item("chatty.group_full", ROUNDS, |p, v| {
+        p.chatty.group.full = float(v)
+    }),
+    item("chatty.group_cap", SCORE, |p, v| {
+        p.chatty.group.cap = float(v)
     }),
     item("chatty.severity_min", SEVERITY, |p, v| {
         p.chatty.severity_min = count(v)

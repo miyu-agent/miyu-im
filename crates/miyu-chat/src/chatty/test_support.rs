@@ -63,6 +63,14 @@ pub(crate) fn chatty() -> Chatty {
             full: 6.0,
             cap: 0.5,
         },
+        // 按群冷静（施工 I-62）在这里关着：别的测试照只有冷静、按人冷静的门槛算；它自己的测试另开。
+        group: PersonRestraint {
+            on: false,
+            half_life: 10 * MINUTE,
+            start: 8.0,
+            full: 20.0,
+            cap: 0.5,
+        },
         severity_min: 7,
         judge_called: true,
         skip_media: true,

@@ -14,6 +14,7 @@ mod continuation;
 mod direct;
 mod dispatch;
 mod followup;
+mod group;
 mod moderation;
 mod person;
 mod probability;
@@ -93,6 +94,8 @@ pub struct Chatty {
     pub(crate) restraint: Restraint,
     /// 按人冷静的开关和曲线（施工 I-29）。
     pub(crate) person: PersonRestraint,
+    /// 按群冷静的开关和曲线（施工 I-62）：形状同按人冷静，数的是她在这个场所回过的每一轮，不分回的是谁。
+    pub(crate) group: PersonRestraint,
     /// 违规的门槛：判官给的严重程度不低于它，不管分数够不够都回。
     pub(crate) severity_min: u8,
     /// 普通群友冲她来也先过判官（施工 I-7 中三）：关着的冲她来就直接回（[`route`]）。
@@ -284,9 +287,9 @@ fn bonuses() -> [&'static dyn Bonus; 6] {
     ]
 }
 
-/// 自带的门槛修正：冷静（「怎么走」第 10 条）、按人冷静（第 11 条，施工 I-29）。
-fn lifts() -> [&'static dyn Lift; 2] {
-    [&restraint::Item, &person::Item]
+/// 自带的门槛修正：冷静（「怎么走」第 10 条）、按人冷静（第 11 条，施工 I-29）、按群冷静（第 14 条，施工 I-62）。
+fn lifts() -> [&'static dyn Lift; 3] {
+    [&restraint::Item, &person::Item, &group::Item]
 }
 
 /// 算一条消息成立了哪些触发条件：自带的加值项照先后过，成立的都记下（「怎么走」第 1 到 6 条）。`flags` 是进站链插的旗，

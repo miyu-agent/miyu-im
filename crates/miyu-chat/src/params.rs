@@ -183,6 +183,13 @@ fn blank() -> Params {
                 full: 0.0,
                 cap: 0.0,
             },
+            group: PersonRestraint {
+                on: false,
+                half_life: 0,
+                start: 0.0,
+                full: 0.0,
+                cap: 0.0,
+            },
             severity_min: 0,
             judge_called: false,
             skip_media: false,

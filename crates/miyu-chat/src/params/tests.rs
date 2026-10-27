@@ -64,6 +64,8 @@ fn halved(mut chatty: Chatty) -> Chatty {
     chatty.continuation.bonus = 0.05;
     chatty.followup.bonus = 0.05;
     chatty.after_speaking.bonus = 0.05;
+    // 按群冷静出厂开着（施工 I-62）；测试的那一份关着，别的测试照只有冷静、按人冷静算。
+    chatty.group.on = true;
     chatty
 }
 
