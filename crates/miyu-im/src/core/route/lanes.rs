@@ -74,13 +74,9 @@ impl Route {
         Ok(false)
     }
 
-    /// 分派一次：照投影的 `Lines`、这个群的 `parallel` 问群聊内核，照结论做。发的人认不出的（照说不会）照并进主线办。
-    async fn dispatch_once(
-        &mut self,
-        session: &str,
-        msgs: &[u64],
-        tag: &Tag,
-    ) -> Result<Responded, Gone> {
+    /// 照投影的 `Lines`、这个群的 `parallel` 问群聊内核，回第 `msgs` 几条该走哪条线；不是群会话的是空的。发的人认不出的（照说
+    /// 不会）照并进主线办。
+    fn line_for(&mut self, session: &str, msgs: &[u64]) -> Option<Dispatch> {
         let parallel = match self
             .peers
             .get(session)
@@ -89,13 +85,31 @@ impl Route {
             Some(venue) => applied::parallel(&self.applied(&venue)),
             None => 0,
         };
-        let Some(group) = self.groups.get(session) else {
-            return self.respond(session, msgs, &[], tag).await;
-        };
+        let group = self.groups.get(session)?;
         let lines = group.lines(parallel);
-        let decided = match msgs.last().and_then(|seq| group.sender(*seq)) {
+        Some(match msgs.last().and_then(|seq| group.sender(*seq)) {
             Some(sender) => dispatch(sender, &lines),
             None => Dispatch::JoinMain,
+        })
+    }
+
+    /// 排着的那一轮这时是不是还该排着（施工 I-59，`waiting`）：主线又在回别人、支线满了。
+    pub(super) fn should_wait(&mut self, session: &str, msgs: &[u64]) -> bool {
+        matches!(self.line_for(session, msgs), Some(Dispatch::Queue))
+    }
+
+    /// 分派一次：照 [`Route::line_for`] 的结论做。
+    async fn dispatch_once(
+        &mut self,
+        session: &str,
+        msgs: &[u64],
+        tag: &Tag,
+    ) -> Result<Responded, Gone> {
+        let Some(decided) = self.line_for(session, msgs) else {
+            return self.respond(session, msgs, &[], tag).await;
+        };
+        let Some(group) = self.groups.get(session) else {
+            return self.respond(session, msgs, &[], tag).await;
         };
         let facts = self.own_line(session, msgs);
         match decided {

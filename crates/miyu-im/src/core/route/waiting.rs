@@ -3,6 +3,9 @@
 //!
 //! - 每个群会话最多排 [`MOST`] 轮：满了的新来的只记下（判断里照旧是要回），记一行 `WARN reply queue full`。
 //! - 只在内存里：桥重启了排着的丢了（同出站队列排着的）。
+//! - 出队以前先把这个群留着没办的推送收进投影（施工 I-59，10-27 群里撞到）：主线这一轮结束时核心可能已经照它排着的（同一个人
+//!   的追问）接着开了下一轮，`turn.started` 还在推送里没收。不收就当主线空着交上去，核心把他并进别人那一轮，她一句话 @ 了两个人。
+//!   收完照分派办：主线又在回别人、支线满了的放回队头，等下一轮结束。
 
 use std::collections::{HashMap, VecDeque};
 
@@ -29,6 +32,11 @@ impl Waiting {
         true
     }
 
+    /// 群会话 `session` 有没有排着的。
+    pub(super) fn has(&self, session: &str) -> bool {
+        self.0.contains_key(session)
+    }
+
     /// 去掉含序号 `seq` 的几轮（施工 I-16：那一条被撤回了），交回去掉了几轮。
     pub(super) fn drop_msg(&mut self, session: &str, seq: u64) -> usize {
         let Some(queue) = self.0.get_mut(session) else {
@@ -37,6 +45,14 @@ impl Waiting {
         let before = queue.len();
         queue.retain(|(msgs, _)| !msgs.contains(&seq));
         before - queue.len()
+    }
+
+    /// 放回最前面（施工 I-59：出队时主线又忙了）。不看上限：本来就是从这里取出来的。
+    pub(super) fn push_front(&mut self, session: &str, msgs: Vec<u64>, tag: Tag) {
+        self.0
+            .entry(session.to_string())
+            .or_default()
+            .push_front((msgs, tag));
     }
 
     /// 取最前面的一轮。
@@ -57,12 +73,32 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn next_waiting(&mut self, session: &str) -> Result<(), Gone> {
-        if let Some((msgs, tag)) = self.queued.pop(session) {
-            tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, "queued reply started");
-            // 开下一轮可能又收到一轮结束（补收推送时），装箱断开递归。
-            Box::pin(self.dispatched(session, &msgs, &tag)).await?;
+        if !self.queued.has(session) {
+            return Ok(());
         }
-        Ok(())
+        // 先收留着的推送（模块的说明）；收的时候又收到一轮结束的，装箱断开递归。
+        Box::pin(self.catch_up(session)).await?;
+        let Some((msgs, tag)) = self.queued.pop(session) else {
+            return Ok(());
+        };
+        tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, "queued reply started");
+        // 开下一轮可能又收到一轮结束（补收推送时），装箱断开递归。
+        Box::pin(self.dispatched_from_queue(session, msgs, tag)).await
+    }
+
+    /// 排着的那一轮照分派开（`lanes`）：又该排着的放回队头，不排到后来的后面。
+    async fn dispatched_from_queue(
+        &mut self,
+        session: &str,
+        msgs: Vec<u64>,
+        tag: Tag,
+    ) -> Result<(), Gone> {
+        if self.should_wait(session, &msgs) {
+            tracing::info!(target: TARGET, venue = %tag.venue, message = tag.number, "queued reply still waiting");
+            self.queued.push_front(session, msgs, tag);
+            return Ok(());
+        }
+        self.dispatched(session, &msgs, &tag).await.map(drop)
     }
 
     /// 支线都占满了：排上。交回排上了没有。

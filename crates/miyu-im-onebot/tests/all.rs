@@ -44,6 +44,7 @@ mod impostor;
 mod judged;
 mod judged_persona;
 mod lanes;
+mod lanes_waiting;
 mod linking;
 mod listen;
 mod logs;
