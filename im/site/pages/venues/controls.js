@@ -112,18 +112,20 @@ function tags(field, one, context, save) {
 
 /** 概率：拖动条，百分之几，存成千分比（5% 存 50）。 */
 function percent(field, one, save) {
+  // 填数值（施工 I-50，项目主人 10-27：原来是拖动条，拖不准）：存成千分比；空的是跟随默认，提示写着现在用着的。
   const box = element('span', 'inline');
-  const slider = element('input', 'slider');
-  slider.type = 'range';
-  slider.min = '0';
-  slider.max = String(field.max ?? 100);
-  slider.step = '0.5';
-  const value = current(one, field.key) ?? 0;
-  slider.value = String(value / 10);
-  const shown = element('b', 'slider-value', `${value / 10}%`);
-  slider.addEventListener('input', () => (shown.textContent = `${slider.value}%`));
-  slider.addEventListener('change', () => save(Math.round(Number(slider.value) * 10)));
-  box.append(slider, shown);
+  const input = element('input', 'input num narrow');
+  input.inputMode = 'decimal';
+  const mine = written(one, field.key);
+  input.value = mine === undefined ? '' : String(mine / 10);
+  input.placeholder = String((current(one, field.key) ?? 0) / 10);
+  input.addEventListener('change', () => {
+    const text = input.value.trim().replace(/%$/, '');
+    if (text === '') return save(null);
+    const number = Number(text);
+    return save(Number.isFinite(number) ? Math.round(number * 10) : text);
+  });
+  box.append(input, element('span', 'soft', '%'));
   return box;
 }
 

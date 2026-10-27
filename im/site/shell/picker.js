@@ -35,8 +35,8 @@ export function openPicker({ title, placeholder, groups, first, current, grid, c
   // 回车选的那一项（{value}），一项都没列出来的是 null。
   let firstShown = null;
   const draw = () => {
-    const query = search.value.trim().toLowerCase();
-    const matches = (item) => !query || `${item.text} ${item.sub || ''} ${item.value ?? ''}`.toLowerCase().includes(query);
+    const query = search.value.trim();
+    const matches = (item, group) => fuzzy(query, `${group?.name || ''} ${item.text} ${item.sub || ''} ${item.value ?? ''}`) >= 0;
     const parts = [];
     firstShown = null;
     const typed = custom ? custom(search.value.trim()) : null;
@@ -49,7 +49,12 @@ export function openPicker({ title, placeholder, groups, first, current, grid, c
       firstShown ??= { value: first.value };
     }
     for (const group of groups) {
-      const items = group.items.filter(matches);
+      // 照像不像排（施工 I-50）：每个词都整个出现的排在前面，字照先后零散出现的排在后面；一样像的照原来的先后。
+      const items = group.items
+        .map((item, at) => ({ item, at, score: fuzzy(query, `${group.name || ''} ${item.text} ${item.sub || ''} ${item.value ?? ''}`) }))
+        .filter((one) => one.score >= 0)
+        .sort((a, b) => b.score - a.score || a.at - b.at)
+        .map((one) => one.item);
       if (items.length === 0) continue;
       if (group.name) parts.push(element('div', 'pk-group', group.name));
       const box = element('div', grid ? 'pk-grid' : 'pk-list');
@@ -101,4 +106,28 @@ export function pickButton(text, open) {
     button.title = next;
   };
   return button;
+}
+
+/**
+ * 模糊匹配（施工 I-50，项目主人 10-27：选模型的搜索要模糊）：`query` 照空白拆成几个词，每个词都要在 `text` 里找得到（不分大小写，
+ * 先后不论）：整个出现的算 2 分，字照先后零散出现的（「g38f」配「gemini-3.8-flash」）算 1 分；有一个词找不到的是 -1。空的都配。
+ */
+export function fuzzy(query, text) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hay = text.toLowerCase();
+  let score = 0;
+  for (const word of words) {
+    if (hay.includes(word)) {
+      score += 2;
+      continue;
+    }
+    let at = 0;
+    for (const char of word) {
+      at = hay.indexOf(char, at);
+      if (at < 0) return -1;
+      at += 1;
+    }
+    score += 1;
+  }
+  return score;
 }

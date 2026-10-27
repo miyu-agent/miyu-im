@@ -242,16 +242,9 @@ function messages(shown, names) {
   const hours = (shown.hours || []).some((count) => count > 0)
     ? bars(say('stats/hours'), shown.hours.map((count, hour) => [String(hour), [count]]), ['p1'])
     : document.createDocumentFragment();
-  const reason = (name) => {
-    const key = `stats/reason-${name}`;
-    const said = say(key);
-    return said === key ? name : said;
-  };
-  const reasons = Object.entries(shown.reasons || {}).sort((a, b) => b[1] - a[1]);
   const grid = element('div', 'stats-grid');
   grid.append(
     list(say('stats/busiest'), (shown.venues || []).map((one) => [venueLink(one.name, names), short(one.received)])),
-    list(say('stats/reasons'), reasons.map(([name, count]) => [reason(name), short(count)])),
   );
   return section(say('stats/messages'), tiles, daily, hours, grid);
 }

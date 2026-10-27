@@ -114,11 +114,12 @@ function bindings(got, platform, save) {
     box.append(element('b', 'binding-account', String(account)), remove);
     rows.push(row(spaced(`${word} ${number}`), '', box));
   }
+  // 输入框的提示只写「ID」「账号名」，不写具体的号、账号（项目主人 10-27）。
   const number = element('input', 'input num wide-num');
-  number.placeholder = word;
+  number.placeholder = say('settings-page/bind-id');
   number.inputMode = 'numeric';
   const account = element('input', 'input');
-  account.placeholder = got.account || '';
+  account.placeholder = say('settings-page/bind-account');
   const add = element('button', 'btn', say('settings-page/bind'));
   add.addEventListener('click', () => {
     const typed = number.value.trim();
