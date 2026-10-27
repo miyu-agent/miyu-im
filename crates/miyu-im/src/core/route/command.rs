@@ -8,9 +8,13 @@
 //! 施工 O-47（2026-10-17 项目主人定：QQ 里只有管理员跑命令时才出现系统口吻的话）：被拒的那一句只回给终端管理员和场所规则
 //! `managers` 里的人，别人被拒什么都不发；群里成了的回执照 `im.recall_receipts` 撤不撤（出厂只撤 `clear`、
 //! `clear-memory`），被拒的那一句照旧撤。
+//!
+//! 施工 I-55（2026-10-27 项目主人：群里一直有人说话，她总在一轮里，`/clear` 就一直被拒）：被拒是因为这一轮还在进行的
+//! （`turn_running`：`/clear`、`/compact`、`/undo` 这些），先打断这个会话的那一轮（排着的留着），再跑一次。核心判过谁能用
+//! 以后才拒这个，所以不另查是谁打的。
 
 use miyu_client::ids::ExternalId;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::{Message, Route};
 use crate::TARGET;
@@ -18,6 +22,9 @@ use crate::core::{Gone, reason};
 
 /// `as` 的 `role`：场所规则 `managers` 里的人（「群消息」第 4 条）。
 const MANAGER: &str = "manager";
+
+/// 打断以后再跑的那一次的命令编号：这条消息的加上它（同一个编号核心只算一次，施工 I-55）。
+const FORCED: &str = ":forced";
 
 mod model;
 
@@ -37,6 +44,10 @@ impl Route {
         }
         let Some((session, reply)) = self.deliver(message, "command.run", &[]).await? else {
             return Ok(true);
+        };
+        let reply = match reason(&reply) {
+            Some("turn_running") => self.forced(message, &session, reply).await?,
+            _ => reply,
         };
         let (venue, number) = (&message.place.peer.venue, message.number);
         let (said, recall) = match reason(&reply) {
@@ -60,6 +71,31 @@ impl Route {
         };
         self.receipt(&session, &said, recall).await?;
         Ok(true)
+    }
+
+    /// 命令因为会话 `session` 这一轮还在进行被拒了（回应 `refused`，施工 I-55）：打断那一轮（排着的留着），换一个命令编号再跑
+    /// 一次，交回这一次的回应。打断不了的（没在进行的除外）交回原来的。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    async fn forced(
+        &mut self,
+        message: &Message,
+        session: &str,
+        refused: Value,
+    ) -> Result<Value, Gone> {
+        let (venue, number) = (&message.place.peer.venue, message.number);
+        let interrupt = json!({"session": session, "queued": "keep"});
+        let reply = self.core.call("session.interrupt", interrupt).await?;
+        if let Some(reason) = reason(&reply).filter(|reason| *reason != "not_running") {
+            tracing::info!(target: TARGET, venue = %venue, message = number, reason, "turn not interrupted for a command");
+            return Ok(refused);
+        }
+        tracing::info!(target: TARGET, venue = %venue, message = number, "turn interrupted for a command");
+        let params = json!({"session": session, "text": message.text, "as": message.acting});
+        let id = format!("{}{FORCED}", message.id);
+        self.core.call_as(&id, "command.run", params).await
     }
 
     /// 打命令的人听不听得到被拒的那一句（施工 O-47）：场所规则 `managers` 里的（`as.role` 是 `manager`）、终端管理员听得到，

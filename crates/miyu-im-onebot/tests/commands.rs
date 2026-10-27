@@ -1,6 +1,6 @@
 //! 斜杠命令（施工 O-19，`onebot.md` 第一条「斜杠命令」）：终端管理员的私聊里 `/` 开头的先交核心的 `command.run`。成了的回执发回
 //! QQ，她不开新的一轮；被拒的把核心照中文写的那一句发回去，不交给她；认不出的照普通的话交给她；同一条命令平台重发只执行
-//! 一次；开头的空白不算；`/stop` 打断她还没开口的一轮，不发空的、桥不卡住；运行日志记正名和原因码，不记原文。
+//! 一次；开头的空白不算；`/stop` 打断她还没开口的一轮，不发空的、桥不卡住；`/clear` 碰上她还在说先打断再清（施工 I-55）；运行日志记正名和原因码，不记原文。
 
 use serde_json::Value;
 
@@ -198,6 +198,38 @@ async fn a_reply_cut_off_halfway_is_not_sent() {
         })
         .count();
     assert_eq!(cut, 1, "核心记了被打断的那半截");
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn clear_cuts_in_on_a_turn_still_running() {
+    // 施工 I-55（10-27 项目主人：群里一直有人说话，她总在一轮里，`/clear` 一直被拒）：核心说这一轮还在进行的，桥先打断、
+    // 再用另一个编号清一次。
+    let script = Script::new([Play::Holds, Play::Says("好")]);
+    let home = Home::new(&script);
+    let bridge = bridge(&home).await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
+    within("她开了个头", async {
+        while script.requests().is_empty() {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    napcat.admin_says(2, "/clear").await;
+    assert_eq!(napcat.reply().await, CLEARED);
+    until_ended(&home, 1).await;
+    assert_eq!(
+        ran(&home),
+        [(
+            "clear".to_string(),
+            "/clear".to_string(),
+            format!("qq:{BOT}:2:{TIME}:forced/ran")
+        )],
+        "打断以后换了编号清的"
+    );
+    napcat.admin_says(3, "还在吗").await;
+    assert_eq!(napcat.reply().await, "好");
     bridge.stop().await.expect("停得下");
 }
 
