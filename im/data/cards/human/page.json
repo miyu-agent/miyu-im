@@ -273,5 +273,50 @@
     "zh": "白名单以外的人",
     "en": "People not on the whitelist",
     "ja": "ホワイトリスト外の人"
+  },
+  "model-now": {
+    "zh": "现在用的是 {model}",
+    "en": "Using {model}",
+    "ja": "今は {model} を使っています"
+  },
+  "model-follows": {
+    "zh": "现在跟随默认（{model}）",
+    "en": "Following the default ({model})",
+    "ja": "既定に従っています（{model}）"
+  },
+  "model-set": {
+    "zh": "换成 {model} 了",
+    "en": "Switched to {model}",
+    "ja": "{model} に切り替えました"
+  },
+  "model-cleared": {
+    "zh": "改回跟随默认了",
+    "en": "Back to the default",
+    "ja": "既定に戻しました"
+  },
+  "model-many": {
+    "zh": "对得上的有几个，说具体一点：",
+    "en": "Several match, be more specific:",
+    "ja": "いくつか当てはまります。もう少し具体的に："
+  },
+  "model-more": {
+    "zh": "还有 {count} 个没列",
+    "en": "{count} more not listed",
+    "ja": "ほかに {count} 個"
+  },
+  "model-none": {
+    "zh": "没找到「{query}」",
+    "en": "Nothing matches \"{query}\"",
+    "ja": "「{query}」は見つかりません"
+  },
+  "model-no-card": {
+    "zh": "这个会话没有自己的卡片，先在后台给它加一张",
+    "en": "This chat has no card of its own, add one in the backstage first",
+    "ja": "この会話には専用のカードがありません。先に管理画面で追加してください"
+  },
+  "model-refused": {
+    "zh": "没换成：{detail}",
+    "en": "Not switched: {detail}",
+    "ja": "切り替えられませんでした：{detail}"
   }
 }

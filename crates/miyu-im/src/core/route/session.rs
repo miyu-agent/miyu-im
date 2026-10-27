@@ -190,7 +190,10 @@ impl Route {
 
     /// 找回场所 `place` 的会话，私聊的再订阅它，群的从头订阅（第 7、9 条，「群消息」第 3 条，「群里怎么叫她」第 1 条）。不接的、
     /// 问不到的、订阅不上的是空的（记一行运行日志）。
-    async fn find(&mut self, place: &Place) -> Result<Option<String>, Gone> {
+    pub(in crate::core::route) async fn find(
+        &mut self,
+        place: &Place,
+    ) -> Result<Option<String>, Gone> {
         let venue = &place.peer.venue;
         let reply = self
             .core

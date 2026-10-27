@@ -1,0 +1,258 @@
+//! `/model`（施工 I-53，项目主人 10-27：QQ 里打 `/model` 没反应。核心没有这条命令，终端里那个是终端自己做的，交给核心回
+//! `unknown_command`，照普通的话交给她，她多半不理）：桥自己办，不交核心。只给终端管理员和场所规则 `managers` 里的人（听得到被拒的
+//! 那一句的那几个，`hears_refusals`），别人打了照原来交核心。
+//!
+//! - `/model`：说这个会话现在用哪个模型：卡片上选了的写它，没选的写「跟随默认（…）」。
+//! - `/model <词>`：照核心 `model.list` 列的模型（`<供应商>/<模型>`）和池（`@<池>`）找：一模一样的、模糊找到只有一个的写进这个会话的
+//!   卡片 `model`（同后台卡片上选，`cards.save_one`；项目主人 10-27 定：改卡片，不只管这一段对话）；找到几个的列出前 [`SHOWN`] 个，
+//!   请说具体一点；一个都没有的说找不到。模糊：照空白拆词，每个词都要有，先后不论，字照先后零散出现也算（同后台选模型，I-50）。
+//! - `/model 默认`（`default` 同）：卡片上的模型去掉，跟随默认。
+//!
+//! 这个会话没有自己的卡片（陌生群、陌生私聊）的不改兜底卡（会改到所有陌生的会话），说先在后台给它加一张卡片。回的那一句照回执
+//! 发（不撤回）。字照连接的语言，在出厂的 `cards/human/page.json`（`model-*`）。
+
+use miyu_chat::Venue;
+use serde_json::{Value, json};
+
+use super::super::{Message, Route};
+use crate::TARGET;
+use crate::chat::To;
+use crate::core::Gone;
+
+/// 找到几个时最多列几个。
+const SHOWN: usize = 10;
+
+/// 去掉卡片上的模型的说法。
+const DEFAULTS: [&str; 3] = ["默认", "default", "既定"];
+
+/// `text` 是不是 `/model` 命令：是的交回后面的词（去掉首尾空白，可能是空的）。
+pub(super) fn model_query(text: &str) -> Option<&str> {
+    let rest = text.trim_start().strip_prefix("/model")?;
+    match rest.chars().next() {
+        None => Some(""),
+        Some(c) if c.is_whitespace() => Some(rest.trim()),
+        Some(_) => None,
+    }
+}
+
+/// 照 `query` 在 `names` 里找到的。
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Found {
+    /// 正好一个。
+    One(String),
+    /// 几个，照像不像排，最多 [`SHOWN`] 个；`more` 是还有几个没列。
+    Many(Vec<String>, usize),
+    /// 一个都没有。
+    None,
+}
+
+/// 照 `query` 在 `names` 里找（见模块开头）：一模一样的（不分大小写）直接是它。
+pub(super) fn find(query: &str, names: &[String]) -> Found {
+    if let Some(exact) = names.iter().find(|name| name.eq_ignore_ascii_case(query)) {
+        return Found::One(exact.clone());
+    }
+    let mut scored: Vec<(u32, &String)> = names
+        .iter()
+        .filter_map(|name| fuzzy(query, name).map(|score| (score, name)))
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    match scored.len() {
+        0 => Found::None,
+        1 => Found::One(scored[0].1.clone()),
+        n => Found::Many(
+            scored
+                .iter()
+                .take(SHOWN)
+                .map(|(_, name)| (*name).clone())
+                .collect(),
+            n.saturating_sub(SHOWN),
+        ),
+    }
+}
+
+/// 模糊匹配的分（见模块开头）：整个出现的词 2 分，字照先后零散出现的 1 分；有一个词找不到的是空的。
+fn fuzzy(query: &str, text: &str) -> Option<u32> {
+    let hay = text.to_lowercase();
+    let mut score = 0;
+    for word in query.to_lowercase().split_whitespace() {
+        if hay.contains(word) {
+            score += 2;
+            continue;
+        }
+        let mut rest = hay.as_str();
+        for c in word.chars() {
+            let at = rest.find(c)?;
+            rest = &rest[at + c.len_utf8()..];
+        }
+        score += 1;
+    }
+    Some(score)
+}
+
+/// 核心 `model.list` 的回答 `listed` 里能选的：每个模型的引用，每个池 `@<池>`。
+fn choices(listed: &Value) -> Vec<String> {
+    let models = listed["providers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|provider| provider["models"].as_array().into_iter().flatten())
+        .filter_map(|model| model["ref"].as_str().map(str::to_string));
+    let pools = listed["pools"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|pool| pool["name"].as_str().map(|name| format!("@{name}")));
+    models.chain(pools).collect()
+}
+
+impl Route {
+    /// 办 `/model`（见模块开头），后面的词是 `query`。不归它管的人打的交回假，照原来交核心。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn model_command(
+        &mut self,
+        message: &Message,
+        query: &str,
+    ) -> Result<bool, Gone> {
+        if !self.hears_refusals(message).await? {
+            return Ok(false);
+        }
+        let Some(session) = self.session_of(message).await? else {
+            return Ok(true);
+        };
+        let words = self.rules.page_words().clone();
+        let lang = self.core.language.clone();
+        let listed = self.core.call("model.list", json!({})).await?;
+        let listed = &listed["result"];
+        let said = if query.is_empty() {
+            self.model_now(message, listed, &words, &lang)
+        } else if DEFAULTS.iter().any(|word| word.eq_ignore_ascii_case(query)) {
+            self.set_model(message, None, &words, &lang)
+        } else {
+            match find(query, &choices(listed)) {
+                Found::One(model) => self.set_model(message, Some(&model), &words, &lang),
+                Found::Many(names, more) => {
+                    let mut said = words.get("model-many", &lang);
+                    for name in names {
+                        said.push('\n');
+                        said.push_str(&name);
+                    }
+                    if more > 0 {
+                        said.push('\n');
+                        said.push_str(
+                            &words
+                                .get("model-more", &lang)
+                                .replace("{count}", &more.to_string()),
+                        );
+                    }
+                    said
+                }
+                Found::None => words.get("model-none", &lang).replace("{query}", query),
+            }
+        };
+        tracing::info!(target: TARGET, venue = %message.place.peer.venue, message = message.number, command = "model", "command ran");
+        self.receipt(&session, &said, false).await?;
+        Ok(true)
+    }
+
+    /// `message` 那个场所的会话：记着的，没有的找（同发消息）。
+    async fn session_of(&mut self, message: &Message) -> Result<Option<String>, Gone> {
+        let venue = message.place.peer.venue.as_str().to_string();
+        let session = match self.venues.get(&venue).cloned() {
+            Some(session) => Some(session),
+            None => self.find(&message.place).await?,
+        };
+        if let Some(session) = &session {
+            self.peers
+                .insert(session.clone(), message.place.peer.clone());
+        }
+        Ok(session)
+    }
+
+    /// 「现在用的是哪个」：卡片上写的，没写的照规则套出来的，再没有的照核心的对话模型。
+    fn model_now(
+        &mut self,
+        message: &Message,
+        listed: &Value,
+        words: &crate::rules::Words,
+        lang: &str,
+    ) -> String {
+        if let Some(model) = self.card_model(message.place.peer.to) {
+            return words.get("model-now", lang).replace("{model}", &model);
+        }
+        let fallback = Venue::parse(&message.place.peer.venue)
+            .and_then(|venue| {
+                let applied = self.applied(&venue);
+                super::super::applied::text_of(&applied, "model").map(str::to_string)
+            })
+            .or_else(|| listed["uses"]["chat"].as_str().map(str::to_string))
+            .unwrap_or_else(|| "-".to_string());
+        words
+            .get("model-follows", lang)
+            .replace("{model}", &fallback)
+    }
+
+    /// 这个场所自己的卡片上写的模型。
+    fn card_model(&self, to: To) -> Option<String> {
+        let cards = self.rules.cards();
+        match to {
+            To::Group(group) => {
+                let id = u64::try_from(group).ok()?;
+                cards
+                    .groups
+                    .iter()
+                    .find(|card| card.id == id)?
+                    .set
+                    .model
+                    .clone()
+            }
+            To::Private(user) => {
+                let id = u64::try_from(user).ok()?;
+                cards
+                    .privates
+                    .iter()
+                    .find(|card| card.id == id)?
+                    .set
+                    .model
+                    .clone()
+            }
+        }
+    }
+
+    /// 把这个场所的卡片的模型改成 `model`（空的是去掉），交回回给他的那一句。
+    fn set_model(
+        &mut self,
+        message: &Message,
+        model: Option<&str>,
+        words: &crate::rules::Words,
+        lang: &str,
+    ) -> String {
+        let card = match message.place.peer.to {
+            To::Group(group) => json!({"kind": "group", "id": group}),
+            To::Private(user) => json!({"kind": "private", "id": user}),
+        };
+        let saved = self.save_one(&json!({"card": card, "values": {"model": model}}));
+        match saved {
+            Some(answer) if answer["saved"] == true => match model {
+                Some(model) => words.get("model-set", lang).replace("{model}", model),
+                None => words.get("model-cleared", lang),
+            },
+            Some(answer) if answer.get("problems").is_some() => {
+                let detail = answer["problems"][0]["message"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string();
+                tracing::info!(target: TARGET, venue = %message.place.peer.venue, reason = "card_refused", "model not set");
+                words
+                    .get("model-refused", lang)
+                    .replace("{detail}", &detail)
+            }
+            _ => words.get("model-no-card", lang),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

@@ -125,7 +125,7 @@ impl Route {
     }
 
     /// `cards.save_one {card, values}`：部分更新那一张卡。白名单成员还没有卡的先建一张。参数写错的交回空的（拒 `bad_params`）。
-    fn save_one(&mut self, args: &Value) -> Option<Value> {
+    pub(in crate::core::route) fn save_one(&mut self, args: &Value) -> Option<Value> {
         let card = card_edit::card_of(&args["card"])?;
         let values = card_page::from_page(args["values"].as_object()?);
         let mut cards = self.rules.cards().clone();

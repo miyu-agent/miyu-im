@@ -19,6 +19,8 @@ use crate::core::{Gone, reason};
 /// `as` 的 `role`：场所规则 `managers` 里的人（「群消息」第 4 条）。
 const MANAGER: &str = "manager";
 
+mod model;
+
 impl Route {
     /// 把 `message` 当斜杠命令交给核心（「斜杠命令」第 1 到 5 条）。办完了（成了、被拒、不接、找不到会话）交回真；核心认不
     /// 出的交回假，由用的一方照普通的话发。
@@ -27,6 +29,12 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn command(&mut self, message: &Message) -> Result<bool, Gone> {
+        // `/model` 桥自己办（施工 I-53）；不归它管的人打的照原来交核心。
+        if let Some(query) = model::model_query(&message.text)
+            && self.model_command(message, query).await?
+        {
+            return Ok(true);
+        }
         let Some((session, reply)) = self.deliver(message, "command.run", &[]).await? else {
             return Ok(true);
         };
