@@ -1,11 +1,12 @@
 //! 出站队列的纯逻辑（施工 O-25 中，`onebot.md` 第一条「出站队列」第 3 到 8 条，「施工时定的」第 116 条）：每个场所会话一条先进
 //! 先出的队，门开着的照先后交出来，排到了期限的作废（门关着的也是）；下一次该醒的时刻；禁言到什么时候；NapCat 的回应算成功
 //! 还是失败、为什么。一段可以带停顿（施工 I-26，模拟真人一条分多条发送）：离前一段过了这么久才交，没到的连同排在它后面的都
-//! 等着，先后不乱。不碰 I/O、时钟：此刻、门开没开、禁言到什么时候都由调的一方交进来（`sending.rs`），停住的钟测得了。
+//! 等着，先后不乱。一个会话一次只交一段（施工 I-48）：交出去的那一段等到 NapCat 回了（成了、没成都算）才交下一段。NapCat
+//! 并着办动作，两段挨着交的，QQ 上可能后交的先到（10-27 项目主人在群里撞到：一句分两段，中间插进了另一句）。不碰 I/O、时钟：此刻、门开没开、禁言到什么时候都由调的一方交进来（`sending.rs`），停住的钟测得了。
 //!
 //! 门开没开、禁言到什么时候不记在这里：禁言照投影（日志算得出，桥重启照样重建），号连没连着照连着的号（「施工时定的」第 117 条）。
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::time::Duration;
 
 use miyu_client::time::Timestamp;
@@ -41,6 +42,8 @@ pub(super) struct Queue<T> {
     expire: i64,
     /// 会话编号 → 排着的；排空了的拿掉。
     lines: BTreeMap<String, VecDeque<Waiting<T>>>,
+    /// 交出去了、NapCat 还没回的会话（施工 I-48）：它们的下一段等着。
+    out: BTreeSet<String>,
 }
 
 /// 看一遍一个会话交出来的：过了期的、门开着交得出去的，都照入队的先后。
@@ -58,6 +61,7 @@ impl<T> Queue<T> {
         Queue {
             expire: i64::try_from(expire.as_millis()).unwrap_or(i64::MAX),
             lines: BTreeMap::new(),
+            out: BTreeSet::new(),
         }
     }
 
@@ -87,8 +91,9 @@ impl<T> Queue<T> {
         self.lines.keys().cloned().collect()
     }
 
-    /// 看一遍会话 `session`，此刻是 `now`，门开着是 `open`：入队时刻加期限不晚于此刻的交出来作废（门关着的也是）；门开着的，
-    /// 别的照先后交出去，碰到还没到最早交的时刻的，它和排在后面的都留着。门关着、没过期的留着。
+    /// 看一遍会话 `session`，此刻是 `now`，门开着是 `open`：入队时刻加期限不晚于此刻的交出来作废（门关着的也是）；门开着、
+    /// 上一段已经回了的，交出排在最前的那一段（到了最早交的时刻的），记下这个会话有一段在外面（施工 I-48），等 [`Queue::answered`]
+    /// 再交下一段。门关着、没过期的留着。
     pub(super) fn take(&mut self, session: &str, now: Timestamp, open: bool) -> Taken<T> {
         let mut taken = Taken {
             expired: Vec::new(),
@@ -99,11 +104,14 @@ impl<T> Queue<T> {
             return taken;
         };
         let mut kept = VecDeque::new();
+        let mut free = open && !self.out.contains(session);
         for waiting in line.drain(..) {
             if deadline(&waiting, expire) <= now.unix_millis() {
                 taken.expired.push(waiting.item);
-            } else if open && kept.is_empty() && waiting.ready <= now.unix_millis() {
+            } else if free && kept.is_empty() && waiting.ready <= now.unix_millis() {
                 taken.ready.push(waiting.item);
+                self.out.insert(session.to_string());
+                free = false;
             } else {
                 kept.push_back(waiting);
             }
@@ -114,6 +122,11 @@ impl<T> Queue<T> {
             *line = kept;
         }
         taken
+    }
+
+    /// 会话 `session` 交出去的那一段有了结局（施工 I-48）：下一段可以交了。
+    pub(super) fn answered(&mut self, session: &str) {
+        self.out.remove(session);
     }
 
     /// 下一次该看一遍的时刻（第 8 条）：排着的里最早的过期时刻；会话被禁言着的（`muted` 交回禁言到期的时刻，没禁言着的是空的）

@@ -1,6 +1,7 @@
 //! 出站队列的纯逻辑（施工 O-25 中，`onebot.md` 第一条「出站队列」第 3 到 8 条）：钟是停住的，此刻都由测试交进去。门开着的照
 //! 先后交出来、关着的留着；排到了期限的作废（门关着也是），先交过期的；会话各排各的；该醒的时刻是最早的过期、禁言到期；禁言到
-//! 此刻加几秒；NapCat 的回应算成功还是失败、为什么。带停顿的（施工 I-26）没到不交、后面的跟着等，该醒的时刻算上它。
+//! 此刻加几秒；NapCat 的回应算成功还是失败、为什么。带停顿的（施工 I-26）没到不交、后面的跟着等，该醒的时刻算上它。一个会话一次
+//! 交一段，回了才交下一段（施工 I-48）。
 
 use std::time::Duration;
 
@@ -36,9 +37,33 @@ fn an_open_door_hands_out_in_order_and_a_shut_one_keeps_them() {
     );
     assert_eq!(queue.sessions(), ["s"]);
     let taken = queue.take("s", at(1000), true);
-    assert_eq!(taken.ready, ["一", "二", "三"], "照入队的先后");
+    assert_eq!(taken.ready, ["一"], "一次一段，照入队的先后");
     assert!(taken.expired.is_empty());
+    assert!(
+        queue.take("s", at(1000), true).ready.is_empty(),
+        "前一段还没回，下一段等着（施工 I-48）"
+    );
+    for next in ["二", "三"] {
+        queue.answered("s");
+        assert_eq!(
+            queue.take("s", at(1000), true).ready,
+            [next],
+            "回了才交下一段"
+        );
+    }
+    queue.answered("s");
     assert!(queue.sessions().is_empty(), "交完了不再排");
+}
+
+#[test]
+fn a_piece_out_still_lets_the_ones_behind_expire() {
+    // 施工 I-48：交出去的那一段还没回，排着的过了期照样作废，不等它回。
+    let mut queue = Queue::new(EXPIRE);
+    queue.push("s", (at(0), Duration::ZERO), "一");
+    queue.push("s", (at(0), Duration::ZERO), "二");
+    assert_eq!(queue.take("s", at(0), true).ready, ["一"]);
+    let taken = queue.take("s", at(60_000), true);
+    assert_eq!((taken.expired, taken.ready), (vec!["二"], vec![]));
 }
 
 #[test]
@@ -73,8 +98,16 @@ fn sessions_wait_apart() {
     queue.push("甲", (at(1), Duration::ZERO), "三");
     assert_eq!(queue.sessions(), ["乙", "甲"]);
     let taken = queue.take("甲", at(10), true);
-    assert_eq!(taken.ready, ["一", "三"]);
-    assert_eq!(queue.sessions(), ["乙"], "别的会话的不动");
+    assert_eq!(taken.ready, ["一"]);
+    assert_eq!(queue.sessions(), ["乙", "甲"], "别的会话的不动");
+    assert_eq!(
+        queue.take("乙", at(10), true).ready,
+        ["二"],
+        "甲的那一段还没回，不挡乙的"
+    );
+    queue.answered("甲");
+    assert_eq!(queue.take("甲", at(10), true).ready, ["三"]);
+    assert!(queue.sessions().is_empty(), "交完了不再排");
     let taken = queue.take("丙", at(10), true);
     assert!(
         taken.ready.is_empty() && taken.expired.is_empty(),
@@ -122,15 +155,19 @@ fn a_paused_piece_waits_and_holds_the_ones_behind() {
         Some(at(5000)),
         "醒在第二段到点"
     );
+    queue.answered("s");
     assert!(
         queue.take("s", at(4999), true).ready.is_empty(),
         "第三段不抢先"
     );
-    assert_eq!(queue.take("s", at(5000), true).ready, ["二", "三"]);
+    assert_eq!(queue.take("s", at(5000), true).ready, ["二"]);
+    queue.answered("s");
+    assert_eq!(queue.take("s", at(5000), true).ready, ["三"]);
     // 停顿从前一段最早交的时刻接着算：两段各停 5 秒，第二段在第 10 秒。
     queue.push("t", (at(0), pause), "甲");
     queue.push("t", (at(1000), pause), "乙");
     assert!(queue.take("t", at(9999), true).ready == ["甲"]);
+    queue.answered("t");
     assert_eq!(queue.take("t", at(10_000), true).ready, ["乙"]);
 }
 

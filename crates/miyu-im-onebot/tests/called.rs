@@ -317,30 +317,20 @@ async fn asleep_joined_and_resent() {
 }
 
 #[tokio::test]
-async fn her_pieces_are_noted_in_the_order_they_were_sent() {
-    // NapCat 并着办动作：后发的那一段先回到。`venue.delivered` 照发的先后记：核心照日志的先后画她说的话。
+async fn the_next_piece_waits_until_napcat_answers_the_one_before() {
+    // 施工 I-48（10-27 项目主人在群里撞到：一句分两段，中间插进了另一句）：NapCat 并着办动作，两段挨着交的 QQ 上可能后交的先到，
+    // 所以一个会话一次只交一段，前一段 NapCat 回了才交下一段。这里假 NapCat 压着头两段的回应：第一段的回应没到，第二段不会来。
     let script = Script::new([Play::Says("醒着呢\n\n别吵")]);
     let (home, mut napcat, _) =
         started_with(&script, &rules(), "", |napcat| napcat.reversing(MEMBERS, 2)).await;
     let calling = json!([at(BOT), plain(" 在吗")]);
     napcat.send(group_frame(GROUP, ADMIN, 1, calling, ("终端管理员", "o")));
     assert_eq!(napcat.group_reply(GROUP).await, "醒着呢");
-    assert_eq!(napcat.group_reply(GROUP).await, "别吵");
-    let events = until_events(&home.root, &venue(GROUP), |events| {
-        of_kind(events, "venue.delivered").len() == 2
-    })
-    .await;
-    let noted: Vec<Value> = of_kind(&events, "venue.delivered")
-        .iter()
-        .map(|one| json!([one["body"]["msg"], one["body"]["text"]]))
-        .collect();
-    assert_eq!(
-        noted,
-        [
-            json!([FIRST_SENT.to_string(), "醒着呢"]),
-            json!([(FIRST_SENT + 1).to_string(), "别吵"]),
-        ],
-        "照发的先后记，不照 NapCat 回的先后"
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    assert!(
+        napcat.pending().is_none(),
+        "第一段还没回，第二段不交：{:?}",
+        napcat.pending()
     );
     stopped(home).await;
 }

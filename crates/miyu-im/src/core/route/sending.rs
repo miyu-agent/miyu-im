@@ -212,7 +212,8 @@ impl Route {
         self.pump().await
     }
 
-    /// 把有东西排着的会话都看一遍（第 3 条）：过了期的记 `expired`，门开着的照先后交 NapCat。本机的钟读不出的（照说不会）记一行，
+    /// 把有东西排着的会话都看一遍（第 3 条）：过了期的记 `expired`，门开着的照先后交 NapCat，一个会话一次一段（施工 I-48）：交出去的
+    /// 回了才交下一段（[`Route::answered`] 再看一遍）；当场就交不成的照结局办，接着交下一段。本机的钟读不出的（照说不会）记一行，
     /// 这一回不看。
     ///
     /// # Errors
@@ -224,13 +225,18 @@ impl Route {
             return Ok(());
         };
         for session in self.waiting.sessions() {
-            let open = self.shut(&session, clock.now).is_none();
-            let taken = self.waiting.take(&session, clock.now, open);
-            for item in taken.expired {
-                self.failed(&session, &item, (EXPIRED, None)).await?;
-            }
-            for item in taken.ready {
-                self.hand(&session, item).await?;
+            loop {
+                let open = self.shut(&session, clock.now).is_none();
+                let taken = self.waiting.take(&session, clock.now, open);
+                for item in taken.expired {
+                    self.failed(&session, &item, (EXPIRED, None)).await?;
+                }
+                let Some(item) = taken.ready.into_iter().next() else {
+                    break;
+                };
+                if self.hand(&session, item).await? {
+                    break;
+                }
             }
         }
         Ok(())
@@ -263,11 +269,13 @@ impl Route {
         (!connected).then_some(DISCONNECTED)
     }
 
-    /// 把排着的一段交 NapCat：放进收进会话 `session` 的那个机器人号现在的连接的写队列，等回应交给别的任务（第 3 条）。放不进去的
-    /// （那个号这时没连着、连接正在断）当场照结局办。
-    async fn hand(&mut self, session: &str, item: Item) -> Result<(), Gone> {
+    /// 把排着的一段交 NapCat：放进收进会话 `session` 的那个机器人号现在的连接的写队列，等回应交给别的任务（第 3 条），交回真：
+    /// 这个会话等它回了再交下一段。放不进去的（那个号这时没连着、连接正在断）当场照结局办，交回假：接着交下一段。
+    async fn hand(&mut self, session: &str, item: Item) -> Result<bool, Gone> {
         let Some(peer) = self.peers.get(session).cloned() else {
-            return self.failed(session, &item, (DISCONNECTED, None)).await;
+            self.waiting.answered(session);
+            self.failed(session, &item, (DISCONNECTED, None)).await?;
+            return Ok(false);
         };
         let begun = match self.bots.get(peer.bot) {
             Some(link) => {
@@ -308,19 +316,32 @@ impl Route {
                         result,
                     }
                 }));
-                Ok(())
+                Ok(true)
             }
             Err(error) => {
+                self.waiting.answered(&session);
                 let result = Err(error);
-                self.answered(Answered {
+                self.ended(Answered {
                     session,
                     peer,
                     item,
                     result,
                 })
-                .await
+                .await?;
+                Ok(false)
             }
         }
+    }
+
+    /// 交出去的一段 NapCat 回了（第 4 条）：照结局办，这个会话的下一段可以交了，再看一遍队（施工 I-48）。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn answered(&mut self, answered: Answered) -> Result<(), Gone> {
+        self.waiting.answered(&answered.session);
+        self.ended(answered).await?;
+        self.pump().await
     }
 
     /// 交出去的一段有了结局（第 4 条）：没成的记 `failed`；成了的记一行，群里她的话记 `venue.delivered`（回了编号的），群里的回执
@@ -329,7 +350,7 @@ impl Route {
     /// # Errors
     ///
     /// 写不出去、等的时候核心断开。
-    pub(super) async fn answered(&mut self, answered: Answered) -> Result<(), Gone> {
+    async fn ended(&mut self, answered: Answered) -> Result<(), Gone> {
         let Answered {
             session,
             peer,

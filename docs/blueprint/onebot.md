@@ -77,7 +77,7 @@
 | `crates/miyu-im/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
 | `crates/miyu-im-onebot/src/onebot/media.rs`（O-33） | 取东西的 OneBot 动作：`get_msg`、`get_image`、`get_file` 的参数，回应里东西在哪（「平台工具（二）」第 2 条） |
 | `crates/miyu-im/src/core/route/quiet.rs`（O-26） | 这一轮不说话了的（纯逻辑）：推来的她的回复里有 `skip_reply` 的调用块的，记下这个会话这一轮；`turn.ended` 清掉（「提供者和不说话」第 3 条） |
-| `crates/miyu-im/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所会话一条先进先出的队，排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
+| `crates/miyu-im/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所会话一条先进先出的队，一次只交一段、NapCat 回了才交下一段（I-48：NapCat 并着办动作，挨着交的两段 QQ 上可能后交的先到），排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
 | `crates/miyu-im/src/core/route/sending.rs`（O-25 中） | 出站队列的那一头：入队先记 `ext.im.venues.queued`、拿到序号，门开着（没被禁言、号连着）的照先后放进写队列、回应交给别的任务等；结局照放进写队列的先后交回来，群里她的话记 `venue.delivered`、群里的回执交 `receipt.rs` 撤，失败的记 `ext.im.venues.failed`，她的话失败了经 `session.note` 退信（O-25 下，「退信」）；连上了、解禁了、定时醒了把排着的再看一遍（「出站队列」） |
 | `crates/miyu-im/src/core/route/sending/bounce.rs`（I-26） | 退信：没成的一段记 `ext.im.venues.failed`，她的话经 `session.note` 退一块 `undelivered`；一句话拆成的几段一起过期的只退一块（「退信」第 2 条）。从 `sending.rs` 挪出来 |
 | `crates/miyu-im/src/core/route/muted.rs`（O-25 中） | 她被禁言、解禁：记 `ext.im.venues.muted {until}`、`unmuted`，收进投影，排着的再看一遍（「出站队列」第 7 条） |
