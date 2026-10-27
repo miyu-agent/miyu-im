@@ -29,7 +29,7 @@ dir = "page"
 dir = "im"
 
 [settings.currency]
-type = "string"
+type = "text"
 default = "CNY"
 layers = ["system"]
 applies = "now"

@@ -1686,6 +1686,7 @@ version = "0.0.0"
 dependencies = [
  "jiff",
  "miyu-client",
+ "miyu-config",
  "serde",
  "serde_json",
  "tokio",

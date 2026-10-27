@@ -25,6 +25,8 @@ jiff = "0.2"
 [dev-dependencies]
 # 测试里起一个本机的假汇率服务。
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+# 清单照核心装包时的那一道查（施工 I-46：`type = "string"` 核心不认，装不上）。
+miyu-config = { workspace = true }
 
 [lints]
 workspace = true
