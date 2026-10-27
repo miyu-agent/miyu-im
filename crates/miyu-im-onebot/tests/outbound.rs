@@ -1,7 +1,8 @@
 //! 出站链（施工 O-25 上，`onebot.md` 第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条）：真核心拉起真桥、假 NapCat、她照台词
 //! 说（`support/speaking.rs`）。漏进正文的工具调用清掉；只有空白的、整条括号旁白的、整条是工具调用的不发；同一轮说两遍一样的
 //! 只发一次（她连着说的后一句引用）；隔了 4 条别人的话以后回，第一段带引用、后面几段不带；隔够了时候、期间有人说过话，第一段带 @；刚说完紧接着回，
-//! 两样都不带；她自己用 `qq_quote` 挑了的（施工 I-31）引用她挑的、不 @。私聊（进程里的桥）不带，同一轮说两遍一样的也只发一次。
+//! 两样都不带；她自己用 `qq_quote` 挑了的（施工 I-31）引用她挑的、不 @；她自己用 `qq_mention` @ 了人的（施工 I-45）只 @ 她挑的，
+//! 不自动引用、不自动 @。私聊（进程里的桥）不带，同一轮说两遍一样的也只发一次。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,8 +32,8 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
     [[rule]]\nmatch = { kind = \"group\", group = [778] }\noutbound = { split_chars = 4, mention_after = \"1h\" }\n\n\
     [[rule]]\nmatch = { kind = \"group\", group = [779] }\noutbound = { mention_after = \"1s\" }\n";
 
-/// 假 NapCat 认得的群成员：她自己。
-const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
+/// 假 NapCat 认得的群成员：她自己，她 `qq_mention` 的小林（施工 I-45）。
+const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {
@@ -232,6 +233,31 @@ async fn a_quote_she_picks_replaces_the_automatic_quote_and_mention() {
         napcat.group_message(PROMPT).await,
         [quote, words("说的是这条")],
         "引用她挑的那一条，不 @"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_mention_she_picks_replaces_the_automatic_quote() {
+    // 同「隔了 4 条别人的话」那一条的情形（该自动引用叫她的那一条了），她先 `qq_mention` 了小林（施工 I-45，项目主人 10-27
+    // 报的）：只 @ 她挑的人，不自动引用（引用的那一条和 @ 的人对不上）、不自动 @。
+    let (release, released) = oneshot::channel();
+    let lines = Lines::new([
+        Line::uses("", "qq_mention", r#"{"users":[20002]}"#),
+        Line::says("看到了").released_by(released),
+    ]);
+    let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    admin_calls(&napcat, QUOTED, 61);
+    for (n, user) in [LIN, JIE, LIN, JIE].into_iter().enumerate() {
+        other_says(&napcat, QUOTED, user, 62 + n as i64);
+    }
+    until_count(&home, QUOTED, "message.user", 5).await;
+    release.send(()).expect("她在等");
+    let mention = json!({"type": "at", "data": {"qq": LIN.to_string()}});
+    assert_eq!(
+        napcat.group_message(QUOTED).await,
+        [mention, words(" "), words("看到了")],
+        "只 @ 她挑的小林，不引用终端管理员那一条"
     );
     stopped(home).await;
 }

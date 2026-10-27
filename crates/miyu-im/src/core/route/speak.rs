@@ -321,7 +321,8 @@ impl Route {
     }
 
     /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @；她这一轮在这条线上用 `mention`
-    /// 指定了要 @ 的（施工 O-55，`aims`），第一段也带上、用掉；用 `quote` 指定了要引用的（施工 I-31），第一段引用那一条。照场所参数是长文的先试着画成图（施工 O-59 上）。
+    /// 指定了要 @ 的（施工 O-55，`aims`），第一段也带上、用掉；用 `quote` 指定了要引用的（施工 I-31），第一段引用那一条。她挑了
+    /// 其中哪一样，这一句都不再自动引用、自动 @（施工 I-45）。照场所参数是长文的先试着画成图（施工 O-59 上）。
     pub(super) async fn say(
         &mut self,
         session: &str,
@@ -331,12 +332,13 @@ impl Route {
         let mut lead = passed.lead.clone();
         if let What::Reply { line, turn, .. } = &what {
             let aim = self.take_aim(line, *turn);
-            lead.more = aim.users;
-            // 她自己挑了引用的（施工 I-31）：引用她挑的，这一句不再自动引用、自动 @。
-            if let Some(quote) = aim.quote {
-                lead.reply = Some(quote);
+            // 她自己挑了引用（施工 I-31）或者 @ 了人（施工 I-45）的：照她挑的，这一句不再自动引用、自动 @（自动引用的那一条
+            // 和她 @ 的人会对不上）。
+            if aim.quote.is_some() || !aim.users.is_empty() {
+                lead.reply = aim.quote;
                 lead.at = None;
             }
+            lead.more = aim.users;
         }
         // 长文画成图（施工 O-59 上，`long`）：画成了的一页一段入队；不是长文、画不成的照拆段。
         if self.say_long(session, (&passed, &what), &mut lead).await? {
