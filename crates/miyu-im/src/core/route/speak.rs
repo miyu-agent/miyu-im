@@ -115,6 +115,15 @@ impl Route {
         voice: Voice,
         text: String,
     ) -> Result<(), Gone> {
+        // 被打断的回复（施工 I-52，项目主人 10-27 在群里撞到：中转把 Google 的拒绝说明当正文流回来又断开，核心记成被打断的一条，
+        // 桥照常发了出去）：不完整，不发，记一行 `reply dropped`（`why=interrupted`，不记原文）。
+        if raw["body"]["interrupted"] == true {
+            if let Some(peer) = self.peers.get(session) {
+                let chars = text.chars().count();
+                tracing::info!(target: TARGET, venue = %peer.venue, why = "interrupted", chars, "reply dropped");
+            }
+            return Ok(());
+        }
         if let Some(turn) = raw["turn"].as_u64()
             && self.final_only(session)
         {

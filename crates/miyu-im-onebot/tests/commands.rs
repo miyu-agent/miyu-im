@@ -169,6 +169,39 @@ async fn a_resent_command_runs_once_and_leading_blanks_do_not_count() {
 }
 
 #[tokio::test]
+async fn a_reply_cut_off_halfway_is_not_sent() {
+    // 施工 I-52（10-27 项目主人在群里撞到：中转把报错当正文流回来又断开，那半截发进了群）：她开了个头就被停下，核心记成被打断的
+    // 一条，不发出去；下一个到的就是下一句的回话。
+    let script = Script::new([Play::Holds, Play::Says("好")]);
+    let home = Home::new(&script);
+    let bridge = bridge(&home).await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
+    within("她开了个头", async {
+        while script.requests().is_empty() {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    napcat.admin_says(2, "/stop").await;
+    assert_eq!(napcat.reply().await, STOPPED);
+    until_ended(&home, 1).await;
+    napcat.admin_says(3, "还在吗").await;
+    assert_eq!(napcat.reply().await, "好", "被打断的那半截没发");
+    // 核心确实记了一条被打断的她的话（不然这条测不到东西）。
+    let cut = home
+        .sessions()
+        .iter()
+        .flat_map(|session| home.events(session))
+        .filter(|event| {
+            event["kind"] == "message.assistant" && event["body"]["interrupted"] == true
+        })
+        .count();
+    assert_eq!(cut, 1, "核心记了被打断的那半截");
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
 async fn stop_ends_a_turn_that_has_not_spoken_and_nothing_empty_is_sent() {
     let script = Script::new([Play::Stalls, Play::Says("好")]);
     let home = Home::new(&script);
