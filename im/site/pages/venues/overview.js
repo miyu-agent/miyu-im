@@ -2,7 +2,7 @@
 // cards.overview 交这张卡今天的数和最近判断（新的在前），这里画。
 //
 // - 三个数：今天收到、今天回复、只记录。
-// - 最近判断（只有群聊的：私聊不判）：一条一行，回了的打勾、没回的一横；引号里是那条消息的开头，下面「谁 · 几点 · 为什么」。为什么照
+// - 最近判断（群聊的）、最近处理（私聊的，施工 I-56：私聊不判，交给 AI 的写「私聊，直接回复」，只记下的写为什么）：一条一行，回了的打勾、没回的一横；引号里是那条消息的开头，下面「谁 · 几点 · 为什么」。为什么照
 //   宿主给的原因编号写（noted.rs 的那几种，`skip_user` 是在跳过判断的人里），挂接点改了结论的后面写是哪个插件；带了判官的理由
 //   （`why.reason_text`）的再写一行小字。
 import { element, say } from '../../shell/i18n.js';
@@ -20,12 +20,11 @@ export function drawOverview(holder, answer, type) {
     facts.append(fact);
   }
   const parts = [facts];
-  if (type === 'group') {
-    parts.push(element('div', 'group-name', say('venue/recent')));
-    const recent = answer.recent || [];
-    if (recent.length === 0) parts.push(element('p', 'faint', say('venue/recent-none')));
-    for (const note of recent) parts.push(row(note));
-  }
+  const titles = type === 'group' ? ['venue/recent', 'venue/recent-none'] : ['venue/handled', 'venue/handled-none'];
+  parts.push(element('div', 'group-name', say(titles[0])));
+  const recent = answer.recent || [];
+  if (recent.length === 0) parts.push(element('p', 'faint', say(titles[1])));
+  for (const note of recent) parts.push(row(note));
   holder.replaceChildren(...parts);
 }
 

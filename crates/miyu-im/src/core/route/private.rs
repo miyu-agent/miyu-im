@@ -5,6 +5,8 @@
 use miyu_chat::{Outcome, VenueKind, Why};
 use serde_json::json;
 
+use super::noted::recorded;
+
 use super::fields::{Flags, fields};
 use super::forwards::{Forwards, with_placeholders};
 use super::pictures::Pictures;
@@ -13,7 +15,8 @@ use super::strangers::Gating;
 use super::{Message, Route, applied};
 use crate::TARGET;
 use crate::chat::Posted;
-use crate::core::Gone;
+use crate::core::{Gone, reason};
+use crate::recent::{Note, now};
 
 impl Route {
     /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
@@ -59,6 +62,8 @@ impl Route {
             ..Flags::default()
         };
         let mut taken = self.whitelisted(&external);
+        // 只记下的是为什么（最近处理，施工 I-56）。
+        let mut only_recorded = None;
         if stranger {
             match self.stranger(&venue, &external, &text) {
                 Outcome::Pass => taken = true,
@@ -67,6 +72,7 @@ impl Route {
                     taken = true;
                     flags.ambient = true;
                     flags.asleep = why == Why::Asleep;
+                    only_recorded = Some(why);
                     tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "stranger recorded only");
                 }
             }
@@ -81,12 +87,17 @@ impl Route {
             {
                 flags.ambient = true;
                 flags.asleep = why == Why::Asleep;
+                only_recorded = Some(why);
                 tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "listed recorded only");
             }
         }
         // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
         let my_name = self.my_name(posted.bot, None).await;
+        let heard = (
+            Note::who(posted.name.as_deref(), external.as_str()),
+            Note::excerpt(&text),
+        );
         let message = Message {
             id: self
                 .platform
@@ -110,6 +121,26 @@ impl Route {
         {
             self.noted(&session, note.as_deref()).await?;
         }
-        self.submit(message).await.map(|_| ())
+        let submitted = self.submit(message).await?;
+        // 会话浮窗的最近处理（施工 I-56，10-27 项目主人：私聊卡片没日志）：私聊不判，核心收下了的记一笔，交给她的写 `private`，
+        // 只记下的写为什么。命令、不接的、被拒的不记。
+        if let Some((_, reply)) = &submitted
+            && reason(reply).is_none()
+        {
+            let (outcome, why) = match only_recorded {
+                None => ("reply", "private"),
+                Some(why) => ("record", recorded(why)),
+            };
+            let (who, text) = heard;
+            let note = Note {
+                at: now(),
+                who,
+                text,
+                outcome: outcome.to_string(),
+                why: json!({"reason": why}),
+            };
+            self.recent.note(&venue, note);
+        }
+        Ok(())
     }
 }

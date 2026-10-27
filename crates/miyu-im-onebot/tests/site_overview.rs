@@ -1,5 +1,6 @@
 //! 会话浮窗的「概况」（施工 I-7 上补）：真核心拉起真桥、假 NapCat，群里来消息、她回了以后，页面经通道调 `cards.overview`：名单里
-//! 的群照它自己的数和最近判断（谁、正文的开头、回了、为什么），「陌生群」是名单以外的群并起来，私聊的没有判断。
+//! 的群照它自己的数和最近判断（谁、正文的开头、回了、为什么），「陌生群」是名单以外的群并起来；私聊不判，交给她的记一笔最近处理
+//! （施工 I-56）。
 
 use serde_json::{Value, json};
 
@@ -122,7 +123,7 @@ async fn the_overview_counts_today_and_says_why_each_message_was_answered() {
     assert_eq!(others["today"]["recorded"], 1, "{others}");
     assert_eq!(others["today"]["received"], 1, "名单里的不算进来：{others}");
 
-    // 私聊的：今天的数照算，没有判断。
+    // 私聊的：今天的数照算，没来过私聊的什么都没有。
     let private = call(
         &mut open,
         2,
@@ -234,5 +235,41 @@ async fn called_ones_skip_the_judge_and_listed_people_skip_it_only_when_calling_
     let second = overview(&mut open, card, 2).await;
     assert_eq!(second["recent"][0]["why"]["reason"], "unjudged", "{second}");
     assert_eq!(second["recent"][0]["outcome"], "record", "{second}");
+    stopped(home).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_private_chat_handed_to_her_is_noted_as_handled() {
+    // 施工 I-56（10-27 项目主人：私聊卡片没日志）：私聊不判，交给她的照样记一笔，为什么是「私聊」；命令不记。
+    let script = Script::new([Play::Says("在的。")]);
+    let (home, mut napcat, _) = started(&script, "", "", MEMBERS).await;
+    let mut head = Head::connect(&home.root).await;
+    let status = head
+        .until("status", |status| {
+            status["napcat"]["connected"] == true && status["web"].is_u64()
+        })
+        .await;
+    let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
+    let mut open = logged_in(&home.root, web).await;
+    napcat.send(private_frame(ADMIN, 1, json!([plain("在吗")])));
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_private_msg", "{action}");
+    napcat.send(private_frame(ADMIN, 2, json!([plain("/workspace")])));
+    let receipt = napcat.action().await;
+    assert_eq!(receipt["action"], "send_private_msg", "{receipt}");
+    let handled = overview(&mut open, json!({"kind": "other_privates"}), 1).await;
+    let recent = handled["recent"].as_array().expect("是列表");
+    assert_eq!(recent.len(), 1, "命令不记：{handled}");
+    let note = &recent[0];
+    assert_eq!(
+        (&note["who"], &note["text"], &note["outcome"], &note["why"]),
+        (
+            &json!("someone"),
+            &json!("在吗"),
+            &json!("reply"),
+            &json!({"reason": "private"})
+        ),
+        "{handled}"
+    );
     stopped(home).await;
 }

@@ -9,7 +9,9 @@
 //!   `moderation`）。
 //! - 进站挂接点改了结论的带 `hook`：哪个包。
 //! - 判官给了理由的带 `reason_text`（施工 I-16：浮窗照它写一行小字），照原样。
+//! - 私聊不判（施工 I-56，`private.rs`）：交给她的写 `private`，只记下的照进站链的那一种（[`recorded`]）。
 
+use miyu_chat::Why;
 use serde_json::{Value, json};
 
 /// 主触发照这个先后挑（同群聊内核的 `Conditions::primary`）。
@@ -21,6 +23,17 @@ const PRIMARY: [&str; 6] = [
     "probability",
     "moderation",
 ];
+
+/// 进站链只记下的那一种（`Why`）说成原因的编号，同判断里的（私聊的最近处理照它，施工 I-56）。
+pub(super) fn recorded(why: Why) -> &'static str {
+    match why {
+        Why::Asleep => "asleep",
+        Why::Muted => "muted",
+        Why::RateLimited => "rate",
+        Why::Repeated => "repeated",
+        Why::NotAllowed => "off",
+    }
+}
 
 /// 判断 `body` 的原因：`{"reason", "trigger"?, "total"?, "threshold"?, "hook"?}`。
 pub(super) fn why(body: &Value) -> Value {
