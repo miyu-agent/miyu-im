@@ -12,3 +12,4 @@ social: whether joining respects social boundaries, without talking over someone
 timing: whether now is a good moment, or someone else is the clearer responder.
 continuity: whether a reply would continue the live conversation rather than turn to older messages.
 should_reply is your overall inclination. to_bot is true when the message speaks to the bot, talks about the bot, or reacts to what the bot just said. Sharing a topic with the bot is not enough.
+substance is true when the current message asks a real question, asks the bot to do something, or says something the bot would naturally answer. Emoji, reactions, thanks, greetings, cheering and slogans are not substance.

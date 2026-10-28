@@ -144,6 +144,10 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
                 if let Some(severity) = judgement.severity {
                     said["severity"] = json!(severity);
                 }
+                // 有没有实质内容（施工 I-63）：判官说了的才写。
+                if let Some(substance) = judgement.substance {
+                    said["substance"] = json!(substance);
+                }
                 asked["answer"] = said;
             }
             Err(unjudged) => {

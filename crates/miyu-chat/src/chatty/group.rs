@@ -4,6 +4,9 @@
 //!
 //! 她在这个场所回过的每一轮记一笔（不分回的是谁），照半衰期衰减，加起来是 p；p 不超过 `start` 不抬，往上照直线抬，到 `full`
 //! 抬满 `cap`（同按人冷静，[`super::person::ramp`]）。只管冲她来的（条件里有 `Direct`）：插嘴归冷静管。
+//!
+//! 施工 I-63（10-28 上线半天，项目主人：冷静强度太高）：热闹的半小时里「p等于np是什么」「这说明了什么」「复制总少一个字符怎么改」
+//! 跟着运势、起哄一起被压，群友问「miyu是不是卡了」。改成只抬判官说没实质内容的（`Judgement::substance` 是假），有的、没说的不抬。
 
 use super::person::ramp;
 use super::{Kind, Lift, LiftCtx};
@@ -14,7 +17,9 @@ pub(super) struct Item;
 impl Lift for Item {
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64 {
         let group = ctx.chatty.group;
-        if !group.on || !ctx.conditions.has(Kind::Direct) {
+        // 只抬判官说没实质内容的（施工 I-63）：正经问题照判官的结论回，热闹时也不压。
+        if !group.on || !ctx.conditions.has(Kind::Direct) || ctx.judgement.substance != Some(false)
+        {
             return 0.0;
         }
         // 毫秒换成 f64：差出 2⁵³ 毫秒才丢精度，用不着管。

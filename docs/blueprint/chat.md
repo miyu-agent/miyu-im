@@ -266,7 +266,7 @@ Rust 这一边：
 | `Hit { kind, bonus }`、`Conditions { hits }`、`Conditions::primary()` | 一个成立了的条件；成立了的条件，照插槽的先后；主触发 |
 | `conditions(&facts, flags, &replies, clock, &chatty) -> Conditions` | 算条件：自带的加值项照先后过 |
 | `Route::{Record, Commit, ModerationOnly, Judge}`、`route(&conditions, standing) -> Route` | 走哪条路：只记下、直接回（终端管理员、白名单成员冲她来）、判官只查违规、交给判官打分 |
-| `Judgement { scores, should_reply, to_bot, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
+| `Judgement { scores, should_reply, to_bot, substance, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、有没有内容（真问题、要她做事、她自然会接的话是真；表情、起哄、道谢、问候、口号是假；没答是 `None`，I-63 加）、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
 | `Lift` | 门槛修正的插槽：`lift` 给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, (&replies, &sender), clock, &chatty) -> Score`（`sender` 施工 I-29 加：按人冷静照它数） | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
@@ -310,9 +310,10 @@ Rust 这一边：
 13. **只叫了她**（施工 I-29）：`Facts::hollow` 是真的（桥算：没有字、只带东西的，或者 `hollow(text, keywords)`：去掉触发词、`@` 开头的词以后不剩字母、数字、汉字这类字），冲她来照样成立（走路照它），加 0 分。旧 Miyu 主群 3 天里冲她来的四分之一是这样的（「miyu」、一个表情、一张图）。
 14. **按群冷静**（门槛修正，施工 I-62，2026-10-27 项目主人看了重放和真模型实测定；`chatty/group.rs`）：她在这个场所最近回得多，冲她来的门槛一起抬。按人冷静只压叫得勤的那一两个人，10-27 晚主群是好几个人同时叫她（她每十分钟中位发 21 条），压不住。
     - 关着的、条件里没有 `Direct` 的，抬 0：插嘴归第 10 条管。
+    - 判官没说 `substance: false` 的（有内容、没答），抬 0（施工 I-63，2026-10-28 项目主人看了线上日志：冷静太强，真问题也被压；定「只压没内容的」）。
     - `p = Σ 0.5^((now − at) ÷ group_half_life)`，对 `replies` 里不晚于此刻的每一轮，不分回的是谁。
     - 抬法同第 12 条（`ramp`）：`p ≤ group_start` 抬 0，往上直线抬，到 `group_full` 抬满 `group_cap`。出厂半衰期 10 分钟、起点 8、满点 20、最多 0.5。
-    - 数从哪来：10-27 晚主群 595 次判断按时间离线重放（`~/.cache/miyu-remake/im-livetest/restraint-1027/replay.py`，现在的档位重算和日志一致），冲她来的每小时回 73 次，这一档 51 次；真模型实测（`~/.cache/miyu-remake/i62-sim`，同一段群聊改前改后各跑一遍）高峰段判回 31→24、冲她来回 27/28→16/28，压掉的大半是逗她、刁难的。
+    - 数从哪来：10-27 晚主群 595 次判断按时间离线重放（`~/.cache/miyu-remake/im-livetest/restraint-1027/replay.py`，现在的档位重算和日志一致），冲她来的每小时回 73 次，这一档 51 次；真模型实测（`~/.cache/miyu-remake/i62-sim`，同一段群聊改前改后各跑一遍）高峰段判回 31→24、冲她来回 27/28→16/28，压掉的大半是逗她、刁难的。I-63 只压没内容的：同一段群聊、判官和主模型都用 opencode-go 的 beam-free 前后各跑一遍（10-28），冲她来、有内容的 44 条回 28→40，没内容的 11 条回 2→1；判官问的次数不变。beam-free 和 deepseek-v4.1-flash 离线判同样 126 条，「有没有内容」一致 112 条，和它自己再判一遍一致 111/124。
 
 **守着它的**（`crates/miyu-chat/src/chatty/tests.rs` 等，O-7）
 
@@ -493,6 +494,7 @@ Rust 这一边：
    - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
    - 五维（`relevance`、`willingness`、`social`、`timing`、`continuity`）都要有，是数；小于 0 的当 0，大于 10 的当 10。少了一维、不是数：`Unreadable`。
    - `should_reply`、`to_bot` 是布尔，少了当假。
+   - `substance` 是布尔，少了、类型不对当没答（`None`，I-63）：没答的不当没内容，按群冷静不抬。
    - `severity` 是数，0 到 10，夹住，四舍五入成整数；少了当没查（`None`）。只查违规的那一次少了 `severity`：`Unreadable`。
    - `reason` 是字，少了当空；超过 `reason_chars`（出厂 500）个字符的截到这个数，进 `Judgement::reason`。
    - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.im.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。

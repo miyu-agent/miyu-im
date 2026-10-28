@@ -19,6 +19,9 @@ pub struct Judgement {
     pub should_reply: Option<bool>,
     /// 判官说这句是不是在跟她说话：是的，冷静不抬。
     pub to_bot: bool,
+    /// 判官说这条有没有实质内容（施工 I-63）：问了个真问题、要她办件事、说了她自然会接的事是有；表情、感叹、谢谢、打招呼、
+    /// 起哄、口号是没有。按群冷静只抬没有的（`chatty/group.rs`）；没说（读不出、老的回答）的当有，宁可多回不误压。
+    pub substance: Option<bool>,
     /// 违规的严重程度，0 到 10；没查是 `None`。不低于 [`Chatty`] 的违规门槛 `severity_min` 的，不管分数都回。
     pub severity: Option<u8>,
     /// 判官的一句理由，最多 500 个字符。只进日志（`ext.im.chat.decided`），不进她的上下文，算分不看它（18 第七节「两边

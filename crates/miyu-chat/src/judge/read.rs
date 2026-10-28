@@ -32,7 +32,8 @@ pub enum Unreadable {
 /// 读判官的回答：从第一个 `{` 到最后一个 `}` 照 JSON 读成一个对象，读出 [`Judgement`]。
 ///
 /// - 五维少了、不是数的按 0；小于 0 的当 0，大于 10 的当 10。
-/// - `should_reply`、`to_bot` 照 `flexible` 读，读不出的是没说（`should_reply` 不加不减，`to_bot` 当不是）。
+/// - `should_reply`、`to_bot`、`substance` 照 `flexible` 读，读不出的是没说（`should_reply` 不加不减，`to_bot` 当不是，
+///   `substance` 当有，施工 I-63）。
 /// - `severity` 是数的夹到 0 到 10、四舍五入成整数；不是数（包括没有）的当没查（`None`）。
 /// - `reason` 不是字（包括没有）的当空；超过 `reason_chars` 个字符的截到 `reason_chars`（出厂 500：只进日志，太长的截掉，免得一条日志被撑大，
 ///   「怎么走」第 4 条；数由外面交进来，从第八条的 `Params::judge` 拿，这里不写死）。
@@ -67,6 +68,7 @@ pub fn read(answer: &str, mode: Mode, reason_chars: usize) -> Result<Judgement, 
         scores,
         should_reply: flag("should_reply"),
         to_bot: flag("to_bot") == Some(true),
+        substance: flag("substance"),
         severity,
         reason,
     })

@@ -50,6 +50,7 @@ fn judgement(severity: Option<u8>) -> Judgement {
         scores: [8.0, 7.0, 5.0, 6.0, 7.0],
         should_reply: Some(true),
         to_bot: true,
+        substance: None,
         severity,
         reason: "asked her".to_string(),
     }

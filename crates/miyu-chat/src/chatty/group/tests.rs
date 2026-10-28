@@ -1,5 +1,5 @@
 //! 按群冷静（施工 I-62）：数她在这个场所回过的每一轮，不分回的是谁；p 不超过起点不抬，往上照直线抬，到满点抬满；照半衰期衰减；
-//! 只管冲她来的；关着的不抬。
+//! 只管冲她来的；关着的不抬；只抬判官说没实质内容的（施工 I-63），有的、没说的不抬。
 
 use super::super::score::score;
 use super::super::test_support::{MINUTE, OTHER, SENDER, chatty, now, person, reply};
@@ -28,12 +28,23 @@ fn only(kind: Kind) -> Conditions {
     }
 }
 
-/// `SENDER` 发的一条（条件 `conditions`）门槛抬多少：她最近的回复是 `replies`。
+/// `SENDER` 发的一条（条件 `conditions`）门槛抬多少：她最近的回复是 `replies`，判官说没实质内容。
 fn lift(conditions: &Conditions, replies: &[Reply], chatty: &Chatty) -> f64 {
+    lift_with(conditions, replies, chatty, Some(false))
+}
+
+/// 同 [`lift`]，判官说的有没有实质内容是 `substance`。
+fn lift_with(
+    conditions: &Conditions,
+    replies: &[Reply],
+    chatty: &Chatty,
+    substance: Option<bool>,
+) -> f64 {
     let judgement = Judgement {
         scores: [5.0; 5],
         should_reply: Some(true),
         to_bot: true,
+        substance,
         severity: None,
         reason: String::new(),
     };
@@ -94,6 +105,7 @@ fn scoring_lifts_the_threshold_by_it() {
         scores: [5.0; 5],
         should_reply: Some(true),
         to_bot: true,
+        substance: Some(false),
         severity: None,
         reason: String::new(),
     };
@@ -107,4 +119,20 @@ fn scoring_lifts_the_threshold_by_it() {
         &on(),
     );
     assert!(close(got.lift, 0.5), "{got:?}");
+}
+
+#[test]
+fn only_messages_without_substance_are_lifted() {
+    // 施工 I-63：热闹时正经问题照判官的结论回；判官没说的当有，不压。
+    let direct = only(Kind::Direct);
+    let replies = vec![reply(0, &[OTHER]); 30];
+    assert!(close(lift_with(&direct, &replies, &on(), Some(false)), 0.5));
+    assert!(
+        close(lift_with(&direct, &replies, &on(), Some(true)), 0.0),
+        "有实质内容的不抬"
+    );
+    assert!(
+        close(lift_with(&direct, &replies, &on(), None), 0.0),
+        "没说的当有"
+    );
 }

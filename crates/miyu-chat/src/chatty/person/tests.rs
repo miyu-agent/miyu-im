@@ -11,6 +11,7 @@ fn judgement() -> Judgement {
         scores: [5.0; 5],
         should_reply: Some(true),
         to_bot: true,
+        substance: None,
         severity: None,
         reason: String::new(),
     }

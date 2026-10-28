@@ -11,6 +11,7 @@ fn chiming() -> (Judgement, Conditions) {
         scores: [5.0; 5],
         should_reply: Some(true),
         to_bot: false,
+        substance: None,
         severity: None,
         reason: String::new(),
     };

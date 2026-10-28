@@ -81,6 +81,7 @@ fn the_factory_chatty_scores_the_two_examples_like_the_hand_written_one() {
         scores: [6.0, 5.0, 4.0, 6.0, 3.0],
         should_reply: Some(true),
         to_bot: false,
+        substance: None,
         severity: None,
         reason: String::new(),
     };

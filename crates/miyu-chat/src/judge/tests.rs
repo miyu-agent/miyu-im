@@ -211,6 +211,7 @@ fn full() -> Judgement {
         scores: [8.0, 6.5, 7.0, 5.0, 9.0],
         should_reply: Some(true),
         to_bot: true,
+        substance: None,
         severity: Some(2),
         reason: "ok".to_string(),
     }
@@ -462,4 +463,13 @@ fn decoded_text_cannot_close_its_own_tag() {
         1,
         "解出来的字里的收尾标签原样留在请求里：{user}"
     );
+}
+
+#[test]
+fn substance_is_read_and_missing_means_unsaid() {
+    // 施工 I-63：有没有实质内容照 `flexible` 读；没写的是没说（按群冷静当有，不压）。
+    let said = |body: &str| read(&answer(body), Mode::Reply, REASON_CHARS).map(|j| j.substance);
+    assert_eq!(said(r#", "substance": false"#), Ok(Some(false)));
+    assert_eq!(said(r#", "substance": "是""#), Ok(Some(true)));
+    assert_eq!(said(TAIL), Ok(None));
 }
