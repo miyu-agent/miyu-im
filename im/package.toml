@@ -25,8 +25,6 @@ start = "manual"
 # 「提供者和不说话」）；packages.call 是调别的包导出的方法：挂接点（施工 O-43 上，docs/blueprint/extending.md 第二条）；widgets 是终端、
 # 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。
 capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system", "widgets"]
-# 自己的系统账号 onebot（施工 O-4 下，06-多用户与身份.md U14）：群、陌生人私聊的场所会话归它，桥以它的身份连进来。
-system_account = true
 
 # 平台接入（施工 F-2，设计 30 第五节）：接入本身（开关、配置项）在头的接入页，不进预设。它登记的平台工具是一个功能「QQ 工具」，
 # 照 18 Q16 归预设管（F-3）：只有这一个功能，桥登记的工具都归它。

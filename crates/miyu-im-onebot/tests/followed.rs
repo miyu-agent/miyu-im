@@ -282,8 +282,13 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     until_log(&home, "whitelist changed count=2").await;
     napcat.send(private_frame(JIE, 2, json!([plain("又来了")])));
     assert_eq!(private_reply(&mut napcat).await, "新会话里的");
-    let mine = home.sessions();
-    assert_eq!(mine.len(), 1, "新会话归终端管理员：{mine:?}");
+    // 原来那个关着的不接着用，另开一个不关的（施工 I-71，核心 SU-4 中）。
+    let mine = home.own_sessions();
+    assert_eq!(mine.len(), 1, "新会话是终端管理员本人的：{mine:?}");
+    assert_eq!(
+        home.events(&mine[0])[0]["body"]["venue"],
+        format!("qq:private:{JIE}")
+    );
     // 重启：旧会话不列、不订阅，她在里面接着说的不发。
     let mut napcat = restarted(&home, listen, napcat).await;
     old.send(()).expect("她在等");

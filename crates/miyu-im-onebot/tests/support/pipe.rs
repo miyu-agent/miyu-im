@@ -5,7 +5,7 @@
 //!
 //! 握手交配置、推送 `extension.config` 只给核心亲手拉起的连接（施工 O-20，`extensions.md`「配置」），本机套接字上的核心不给：
 //! 这一层照它的样子在握手的回应里填上 `config`，测试要改配置的经 [`Relay`] 照推送的样子写给桥（「施工时定的」第 47 条）。
-//! 要的话再照核心拉起的桥（系统账号）的样子答 `venue.binding`（[`Bindings`]，施工 I-65），记下桥问了核心哪些方法。
+//! 要的话再照核心拉起的桥的样子答 `venue.binding`（[`Bindings`]，施工 I-65），记下桥问了核心哪些方法。
 //! 施工 O-26：照核心反向调用的样子往桥推一条请求（[`Relay::request`]），记下桥回核心的回应（[`Relay::answers`]）；回应照转给
 //! 核心，核心对不上编号的不理。
 
@@ -19,8 +19,8 @@ use tokio::sync::mpsc;
 use miyu_im::serve::Pipe;
 use miyu_store::root::DataRoot;
 
-/// 照核心拉起的桥（系统账号）的样子答 `venue.binding`（施工 I-65：im 照它认陌生人）：本机套接字上的核心当桥不是系统账号、回
-/// `no_system_account`，这一层把回应改写成 `{"account"}`，`bound` 里的身份对着 `admin`，别的是 `null`（认不出）。
+/// 照核心拉起的桥的样子答 `venue.binding`（施工 I-65：im 照它认陌生人）：本机套接字上的连接不是核心拉起的桥，核心回
+/// `needs_approval`，这一层把回应改写成 `{"owner"}`（施工 I-71，核心 SU-4 中），`bound` 里的身份是真，别的是假。
 #[derive(Debug, Clone, Copy)]
 pub struct Bindings {
     /// 对应表里有的平台身份（`qq:10001` 这样）。
@@ -213,7 +213,7 @@ pub fn pipe_to(root: &DataRoot, config: Value, bindings: Option<Bindings>) -> (P
     (Pipe::new(read, write), relay)
 }
 
-/// 核心说的一行 `line`：是桥问 `venue.binding` 的回应（编号在 `asking` 里）的，照 `bindings` 改写成系统账号会收到的样子；别的原样。
+/// 核心说的一行 `line`：是桥问 `venue.binding` 的回应（编号在 `asking` 里）的，照 `bindings` 改写成核心拉起的桥会收到的样子；别的原样。
 fn answered(line: Vec<u8>, asking: &Mutex<HashMap<String, String>>, bindings: Bindings) -> Vec<u8> {
     let Ok(reply) = serde_json::from_slice::<Value>(&line) else {
         return line;
@@ -225,7 +225,7 @@ fn answered(line: Vec<u8>, asking: &Mutex<HashMap<String, String>>, bindings: Bi
     else {
         return line;
     };
-    let account = bindings.bound.contains(&who.as_str()).then_some("admin");
-    let reply = json!({"jsonrpc": "2.0", "id": reply["id"], "result": {"account": account}});
+    let owner = bindings.bound.contains(&who.as_str());
+    let reply = json!({"jsonrpc": "2.0", "id": reply["id"], "result": {"owner": owner}});
     format!("{reply}\n").into_bytes()
 }

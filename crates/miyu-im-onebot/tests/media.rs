@@ -2,13 +2,13 @@
 //! `get_file`、本机回环上的假 HTTP 服务器给图、她照台词说。
 //!
 //! - 近况那一行写大小、一条里不止一样的标第几个；冲她来的那条和它引用的那条的图到了她的请求里（url、base64 两条路都走到），
-//!   旁听的不取；存成的 blob 拷进了会话属主（系统账号）名下。
+//!   旁听的不取；存成的 blob 在主人名下（施工 I-71，核心 SU-4 中：桥传的、会话属主都是主人）。
 //! - `fetch_media`：取图交回图片块；取文件、视频写进工作区的 `qq-files/` 回路径；编号不对、别的群的、第几个不对、语音和小黄脸、
 //!   QQ 回失败、一轮第五次各回一句；同一个文件取两次换成新的；文件名里的 `../` 和开头的点洗掉；`qq-files` 不是真目录的不写。
 //! - 私聊：只有图的照交、带图；工具面里有 `fetch_media`（施工 O-35，私聊的别的在 `private_media.rs`）。
 //!
-//! 她真的看得到：工具结果里的图片块，核心照调用它的会话属主拷 blob（核心 O-2 三补，2026-10-11 合进 main）：桥上传的存在管理员
-//! 名下，系统账号（群会话的属主）名下也要有（`fetch_media_brings_back_pictures_and_saves_files`）。O-2 三补以前的核心上这一条是红的。
+//! 她真的看得到：工具结果里的图片块要在会话属主名下（核心 O-2 三补）：核心 SU-4 中起桥上传的、群会话都在主人名下
+//! （`fetch_media_brings_back_pictures_and_saves_files`）。
 
 use std::path::PathBuf;
 
@@ -33,7 +33,7 @@ fn serving(bytes: &[u8]) -> Reply {
 
 /// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {
-    crate::support::media::qq_files_in(home, "im")
+    crate::support::media::qq_files_in(home, "admin")
 }
 
 #[tokio::test]
@@ -75,7 +75,7 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         "{text}"
     );
     assert!(text.contains("[msg=500]: 这张 [image: 2 KB]"), "{text}");
-    assert!(has_blob(&home, "im", &picture), "拷进了会话属主名下");
+    assert!(has_blob(&home, "admin", &picture), "在主人名下");
     // 群里交了原图的这一步不记 `shown`（施工 O-35 只给私聊填）。
     let events = until_events(&home.root, &venue(), |events| {
         !of_kind(events, "message.user").is_empty()
@@ -87,7 +87,7 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         !calling["body"]["venue"].to_string().contains("shown"),
         "{calling}"
     );
-    assert!(has_blob(&home, "im", &quoted));
+    assert!(has_blob(&home, "admin", &quoted));
     assert_eq!(
         napcat.fetched(),
         [
@@ -167,7 +167,7 @@ async fn fetch_media_brings_back_pictures_and_saves_files() {
     let saved = qq_files(&home).join("602-1-排班.pdf");
     let saved_text = sentence("saved", &[("path", "qq-files/602-1-排班.pdf")]);
     assert_eq!(first.len(), 5, "{first:#?}");
-    // 图：交回图片块，名字照消息编号和第几个；blob 桥传在管理员名下，核心照会话属主拷进系统账号名下：她看得到。
+    // 图：交回图片块，名字照消息编号和第几个；blob 桥传在主人名下（施工 I-71，核心 SU-4 中），会话也在主人名下：她看得到。
     let block = &first[0]["blocks"][0];
     assert_eq!(block["type"], "image", "{first:#?}");
     assert_eq!(block["name"], "msg-601-1");
@@ -176,9 +176,7 @@ async fn fetch_media_brings_back_pictures_and_saves_files() {
         (Some(5), Some(5))
     );
     assert_eq!(first[0]["status"], "ok");
-    // 施工 I-35（核心 Y-5 上：资源归替谁干活的那一个）：桥传的 blob 只在它的系统账号 im 名下，不再另放一份在管理员名下。
-    assert!(!has_blob(&home, "admin", &picture));
-    assert!(has_blob(&home, "im", &picture), "在会话属主名下");
+    assert!(has_blob(&home, "admin", &picture), "在主人名下");
     assert_eq!(
         (text_of(&first[1]), first[1]["status"].as_str()),
         (saved_text.clone(), Some("ok"))

@@ -109,7 +109,7 @@ async fn a_sticker_she_sends_reaches_the_group_before_the_words_after_it() {
     stopped(home).await;
 }
 
-/// 白名单成员（她的私聊归系统账号，同群会话）。
+/// 白名单成员（她的私聊关在沙盒里，同群会话）。
 const FRIEND: i64 = 50005;
 
 #[tokio::test]

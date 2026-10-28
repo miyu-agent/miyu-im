@@ -256,6 +256,19 @@ impl Home {
         self.root.sessions(&admin()).expect("列得出")
     }
 
+    /// 管理员名下不关在沙盒里的会话：他本人的（施工 I-71，核心 SU-4 中起群、陌生人的私聊也在他名下，`session.created` 带
+    /// `confined`）。
+    pub fn own_sessions(&self) -> Vec<SessionId> {
+        self.sessions()
+            .into_iter()
+            .filter(|session| {
+                self.events(session)
+                    .first()
+                    .is_some_and(|created| created["body"]["confined"] != true)
+            })
+            .collect()
+    }
+
     /// 会话 `session` 日志里的事件，写成 JSON。还没写出第一条的当是空的。
     pub fn events(&self, session: &SessionId) -> Vec<Value> {
         read_events(&self.root.session_dir(&admin(), session))

@@ -3,12 +3,12 @@
 //! 施工 O-32，`revive`）；会话不在了忘掉、再问一次。
 //!
 //! - 私聊：`venue.session {venue, kind: "private", peer, profile?}`；不是白名单成员的多带 `profile: true`（施工 O-39：终端管理员
-//!   本人的私聊要「关于你」，核心照属主挑；白名单成员的、群的不写）；对方不在白名单里、`venue.binding` 认不出是终端管理员的（施工 I-65：
-//!   核心 SU-1 起握手不回桥自己的账号，认不出「会话的属主是桥自己」了；问不到的照核心的）、核心回 `no_system_account` 的：不接，
-//!   不问 `venue.session`、会话编号不记、不订阅（「施工时定的」第 49 条）。白名单成员
+//!   本人的私聊要「关于你」，核心照属主挑；白名单成员的、群的不写）；对方不在白名单里、`venue.binding` 认不出是终端管理员的（施工 I-65；
+//!   问不到的照核心的：不是桥的连接核心回 `needs_approval`，施工 I-71）：不接，不问 `venue.session`、会话编号不记、不订阅（「施工时
+//!   定的」第 49 条）。白名单成员
 //!   的照接（施工 O-27，2026-10-10 项目主人定），`venue.session` 照场所规则带人格、预设、工作区（同群）。问到了订阅（第 9 条）。
-//! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
-//!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
+//! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话核心关在沙盒里，
+//!   不照对应表认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
 //!   问到了从头订阅（`after: 0`，施工 O-23，「群里怎么叫她」第 1 条）：补来的收进这个群的投影；会话不在了连投影一起忘掉。
 //!   订阅回应的 `persona`（这个群会话用的人格）交给判官那边记下（施工 O-23 补）。
 //! - 场所规则设了模型、人格、预设的，订阅上了以后先发（`session.configure`，施工 O-58 补三、补四，`policy`）：找回的已有
@@ -46,7 +46,7 @@ pub(super) struct Place {
     opening: Value,
     /// 回执、回话发到哪；场所编号在这里。
     pub(super) peer: Peer,
-    /// 私聊的对方在白名单里（施工 O-27）：会话归系统账号的也接。群的是假（群的会话本来就归系统账号，不照属主认）。
+    /// 私聊的对方在白名单里（施工 O-27）：会话关在沙盒里的也接。群的是假（群的会话本来就关着，不照对应表认）。
     listed: bool,
     /// 场所规则设的模型、人格、预设（施工 O-58 补三、补四）：找到会话以后发；没设的不碰。
     wanted: Wanted,
@@ -54,7 +54,7 @@ pub(super) struct Place {
 
 impl Place {
     /// 平台 `platform` 上机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。对方是白名单成员的，`listed` 是
-    /// 套到这个私聊上的场所规则：`venue.session` 照它带人格、预设、工作区（施工 O-27，同群），会话归系统账号的也接。
+    /// 套到这个私聊上的场所规则：`venue.session` 照它带人格、预设、工作区（施工 O-27，同群），会话关在沙盒里的也接。
     pub(super) fn private(
         (platform, venue): (Platform, &Venue),
         external: &ExternalId,
@@ -71,7 +71,7 @@ impl Place {
                 }
             }
             // 不是白名单成员：问以前认不出是不是终端管理员，都要「关于你」，核心照会话的属主挑（属主不是管理员的不带，
-            // 陌生人的会话本来就不接）。白名单成员的会话归系统账号、群的不写（不写，不是写假；`onebot.md` 第 241 条）。
+            // 陌生人的会话本来就不接）。白名单成员的会话关在沙盒里、群的不写（不写，不是写假；`onebot.md` 第 241 条）。
             None => opening["profile"] = json!(true),
         }
         Place {
@@ -220,8 +220,8 @@ impl Route {
         place: &Place,
     ) -> Result<Option<String>, Gone> {
         let venue = &place.peer.venue;
-        // 私聊的对方不在白名单里（施工 O-27）、认不出是终端管理员的是陌生人：核心照样会替系统账号造会话，先问、不让它造（施工
-        // I-65，「施工时定的」第 49 条）；问不到的照原来办，核心那头不接陌生人。群的会话本来就归桥自己的账号。
+        // 私聊的对方不在白名单里（施工 O-27）、认不出是终端管理员的是陌生人：核心照样会造一个关着的会话，先问、不让它造（施工
+        // I-65，「施工时定的」第 49 条）；问不到的照原来办，核心那头不接陌生人。群的会话本来就关着，不照对应表认。
         let stranger = match place.opening["peer"].as_str() {
             Some(peer) if place.private_chat() && !place.listed => {
                 self.terminal_admin(peer).await? == Some(false)
@@ -238,10 +238,6 @@ impl Route {
             .await?;
         match reason(&reply) {
             None => {}
-            Some("no_system_account") => {
-                self.not_taken(venue);
-                return Ok(None);
-            }
             Some(reason @ ("unknown_persona" | "unknown_preset" | "preset_invalid")) => {
                 if self.refused.insert(venue.to_string()) {
                     tracing::warn!(target: TARGET, venue = %venue, reason, "group not recorded, fix the venue rules");

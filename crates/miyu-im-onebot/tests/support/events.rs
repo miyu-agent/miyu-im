@@ -4,21 +4,21 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use miyu_kernel::id::AccountId;
 use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
 
 use super::group::WAIT;
+use super::roots::owner_id;
 
-/// 系统账号 `onebot` 名下、场所是 `venue` 的那个会话（主线）：编号和事件（写成 JSON）；还没有的是空的。分叉出来的支线（施工
-/// O-36：`session.created` 带 `forked`，场所照主线的）不算。
+/// 关在沙盒里、场所是 `venue` 的那个会话（主线）：编号和事件（写成 JSON）；还没有的是空的。分叉出来的支线（施工 O-36：
+/// `session.created` 带 `forked`，场所照主线的）不算。
 pub fn venue_session(root: &DataRoot, venue: &str) -> Option<(String, Vec<Value>)> {
     venue_sessions(root, venue)
         .into_iter()
         .find(|(_, events)| events[0]["body"]["forked"].is_null())
 }
 
-/// 系统账号 `onebot` 名下、场所是 `venue` 的分叉出来的支线（施工 O-36），照分叉的先后：编号和事件。
+/// 关在沙盒里、场所是 `venue` 的分叉出来的支线（施工 O-36），照分叉的先后：编号和事件。
 pub fn lane_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> {
     let mut lanes: Vec<_> = venue_sessions(root, venue)
         .into_iter()
@@ -28,14 +28,15 @@ pub fn lane_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> 
     lanes
 }
 
-/// 系统账号 `onebot` 名下、场所是 `venue` 的会话（主线、支线都算）：编号和事件。
+/// 关在沙盒里、场所是 `venue` 的会话（主线、支线都算）：编号和事件。施工 I-71（核心 SU-4 中）起场所会话都在主人名下，群、
+/// 陌生人和白名单成员的私聊带 `confined`（原来在包的账号名下）；终端管理员本人的私聊不关，不算（读它照 `Home::own_sessions`）。
 fn venue_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> {
-    let system = AccountId::parse("im").expect("合写法");
-    root.sessions(&system)
+    let owner = owner_id();
+    root.sessions(&owner)
         .unwrap_or_default()
         .iter()
         .map(|session| {
-            let events: Vec<Value> = read_events(&root.session_dir(&system, session))
+            let events: Vec<Value> = read_events(&root.session_dir(&owner, session))
                 .unwrap_or_default()
                 .iter()
                 .map(|event| serde_json::to_value(event).expect("写得成 JSON"))
@@ -43,9 +44,9 @@ fn venue_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> {
             (session.as_str().to_string(), events)
         })
         .filter(|(_, events)| {
-            events
-                .first()
-                .is_some_and(|first| first["body"]["venue"] == venue)
+            events.first().is_some_and(|first| {
+                first["body"]["venue"] == venue && first["body"]["confined"] == true
+            })
         })
         .collect()
 }

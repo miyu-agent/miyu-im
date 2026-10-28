@@ -90,7 +90,7 @@ impl Route {
                 tracing::info!(target: TARGET, venue = %venue.id(), why = ?why, "listed recorded only");
             }
         }
-        // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
+        // 白名单成员、照卡片接的陌生人的私聊会话关在沙盒里、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
         let my_name = self.my_name((platform, posted.bot), None).await;
         let heard = (

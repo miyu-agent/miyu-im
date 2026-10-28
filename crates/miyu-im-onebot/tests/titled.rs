@@ -82,8 +82,8 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
         [json!(GROUP_NAME), json!(GROUP_NAME)],
         "两条都带群名"
     );
-    let admins = home.sessions();
-    assert_eq!(admins.len(), 1, "管理员名下只有私聊那一个");
+    let admins = home.own_sessions();
+    assert_eq!(admins.len(), 1, "管理员本人的只有私聊那一个");
     let private = home.events(&admins[0]);
     let created = &private[0];
     assert_eq!(created["body"]["titles"], json!(false), "{created}");

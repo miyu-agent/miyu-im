@@ -83,7 +83,7 @@ async fn contacts_group_files_and_reactions_go_through_qq() {
         asks(&home, &napcat, MANAGER, 1204, words.clone(), 4).await,
         done("saved", &[("path", "qq-files/排班.pdf")])
     );
-    let saved = crate::support::media::qq_files_in(&home, "im").join("排班.pdf");
+    let saved = crate::support::media::qq_files_in(&home, "admin").join("排班.pdf");
     assert_eq!(std::fs::read(&saved).expect("存了"), b"%PDF-1.4 schedule");
     assert_eq!(
         asks(&home, &napcat, MANAGER, 1205, words.clone(), 5).await,

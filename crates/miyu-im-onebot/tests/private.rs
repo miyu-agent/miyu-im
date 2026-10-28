@@ -15,7 +15,7 @@ use crate::support::*;
 const ADMIN_ID: &str = "qq:10001";
 
 /// 起一个桥：`venue.binding` 照核心拉起的桥的样子答，`bound` 里的认得（空的是谁都认不出），`None` 的照本机套接字上的核心
-/// （回 `no_system_account`，问不到）。交回桥和转接。
+/// （不是核心拉起的桥，回 `needs_approval`，问不到）。交回桥和转接。
 async fn bound(home: &Home, bound: Option<&'static [&'static str]>) -> (Bridge, Relay) {
     let bindings = bound.map(|bound| Bindings { bound });
     let (serve, relay) = serve_relayed(home.root.clone(), settings(), bindings);
@@ -214,7 +214,7 @@ async fn someone_the_binding_does_not_know_is_a_stranger_and_not_asked_about() {
     assert_eq!(
         peers,
         [json!(ADMIN_ID)],
-        "陌生人的不问 venue.session，免得核心替系统账号造会话"
+        "陌生人的不问 venue.session，免得核心造会话"
     );
     assert!(
         relay.asked().iter().any(|method| method == "venue.binding"),
@@ -226,7 +226,7 @@ async fn someone_the_binding_does_not_know_is_a_stranger_and_not_asked_about() {
 
 #[tokio::test]
 async fn an_open_strangers_card_without_an_answer_on_the_binding_leaves_it_to_the_core() {
-    // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（本机套接字上的桥不是系统账号）：问不到的照原来办，交给
+    // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（本机套接字上的桥不是核心拉起的桥）：问不到的照原来办，交给
     // 核心，核心不接对应表里没有的人。
     let home = Home::new(&Script::new([Play::Says("在")]));
     let cards = home.root.state().join("packages").join("im");
@@ -259,7 +259,7 @@ async fn the_admin_is_taken_whether_the_binding_knows_him_or_cannot_be_asked() {
         napcat.admin_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在", "{known:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{known:?}");
-        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头几个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了）、订阅软件包列表（施工 O-43 上：挂接点）、列插件（施工 I-8 上）；找会话以前先问对方是不是终端管理员（施工 I-65）。
+        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头几个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是核心拉起的桥，核心拒了）、订阅软件包列表（施工 O-43 上：挂接点）、列插件（施工 I-8 上）；找会话以前先问对方是不是终端管理员（施工 I-65）。
         assert_eq!(
             relay.asked(),
             [

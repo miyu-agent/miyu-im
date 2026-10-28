@@ -21,7 +21,7 @@ use crate::chat::{Lead, To};
 use crate::core::{Gone, reason};
 
 impl Route {
-    /// 起来时订阅名下的场所会话（见模块开头）。核心拒了的（进程里的测试不是系统账号，回 `no_system_account`）记一行，照旧等
+    /// 起来时订阅名下的场所会话（见模块开头）。核心拒了的（进程里的测试不是核心拉起的桥，回 `needs_approval`）记一行，照旧等
     /// 每个场所来一条消息再找。认不出的场所（别的平台、写法不对）、不接的私聊（[`Route::taken`]）不订阅。
     ///
     /// # Errors
@@ -76,7 +76,7 @@ impl Route {
 
     /// 列出来的私聊，对方是 `peer`：照私聊的办法接不接（「怎么走」第 7 条）。白名单成员的接；终端管理员的接（核心列出来的他在这个
     /// 平台的私聊）：问核心的 `venue.binding`，问到的记下（同「平台工具（一）」第 3 条）；别的（陌生人、从白名单里删了的）不接。
-    /// 核心拒了的（照说不会：桥是系统账号）记一行，不接。
+    /// 核心拒了的（照说不会：桥是核心拉起的、清单写了平台的包）记一行，不接。
     ///
     /// # Errors
     ///
@@ -88,8 +88,8 @@ impl Route {
         Ok(self.terminal_admin(peer.as_str()).await?.unwrap_or(false))
     }
 
-    /// 平台身份 `who` 是不是终端管理员：问到的照记的，没记着的问核心的 `venue.binding`、记下（「平台工具（一）」第 3 条）。核心拒了
-    /// 的（照说不会：桥是系统账号）记一行 `WARN binding not asked`，交回空的。
+    /// 平台身份 `who` 是不是终端管理员：问到的照记的，没记着的问核心的 `venue.binding`（施工 I-71：回 `{"owner": 布尔}`）、记下
+    /// （「平台工具（一）」第 3 条）。核心拒了的（照说不会：桥是核心拉起的、清单写了平台的包）记一行 `WARN binding not asked`，交回空的。
     ///
     /// # Errors
     ///
@@ -103,7 +103,7 @@ impl Route {
             tracing::warn!(target: TARGET, id = who, reason, "binding not asked");
             return Ok(None);
         }
-        let admin = reply["result"]["account"].is_string();
+        let admin = reply["result"]["owner"].as_bool() == Some(true);
         self.bindings.note(who, admin, Instant::now());
         Ok(Some(admin))
     }

@@ -4,8 +4,8 @@
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。核心改了桥的
 //! 配置（施工 O-20）：令牌、NapCat 的端口不重启当场换，令牌删了一律 401。`status` 在跑时说 NapCat 那边的地址（施工 O-28 下）；
 //! `start`、`status` 末尾一律接一句设置和状态在网页里、用 `miyu im web` 打开（施工 O-28 补），`restart` 不说。陌生人的
-//! 私聊（「施工时定的」第 49 条，核心 O-4 下合了以后补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧
-//! 不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
+//! 私聊（「施工时定的」第 49 条）：桥问 `venue.binding` 认出不是终端管理员，不问 `venue.session`、不接，主人名下没有它的会话；
+//! 终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
 
 use std::time::Duration;
 
@@ -14,7 +14,6 @@ use serde_json::{Value, json};
 use miyu_im::control::{Halt, Report};
 use miyu_im::status_file;
 use miyu_im::texts::Texts;
-use miyu_kernel::id::AccountId;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -355,10 +354,10 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     napcat.admin_says(3, "在吗").await;
     assert_eq!(napcat.reply().await, "在", "终端管理员的私聊照常来回");
     assert_eq!(home.said_texts(), ["在吗"]);
-    // 核心拉起的桥是系统账号，`venue.binding` 答得了：认不出的陌生人不问 `venue.session`（施工 I-65），核心不替系统账号造会话。
-    let system = AccountId::parse("im").expect("合写法");
-    let theirs = home.root.sessions(&system).expect("列得出");
-    assert!(theirs.is_empty(), "陌生人的私聊不造会话：{theirs:?}");
+    // 核心拉起的桥 `venue.binding` 答得了：认不出的陌生人不问 `venue.session`（施工 I-65），核心不造会话（施工 I-71：场所会话都
+    // 在主人名下，照场所找）。
+    let theirs = crate::support::events::venue_session(&home.root, "qq:private:20002");
+    assert!(theirs.is_none(), "陌生人的私聊不造会话：{theirs:?}");
     // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
     let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");

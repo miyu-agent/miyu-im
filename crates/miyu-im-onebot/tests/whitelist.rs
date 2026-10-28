@@ -1,7 +1,7 @@
 //! 白名单成员（施工 O-27，`onebot.md` 第一条「怎么走」第 7 条、「好友请求」、「群里怎么叫她」第 3、5 条；18 第三节，2026-10-10
 //! 项目主人定）：真核心照开关拉起真桥（系统配置写 `im.whitelist`），假 NapCat 发私聊、好友请求、群消息。
 //!
-//! - 白名单成员私聊她，每一条都开一轮、她的话发回去，会话归系统账号、照场所规则造（规则的预设）；陌生人的照旧不接；终端
+//! - 白名单成员私聊她，每一条都开一轮、她的话发回去，会话关在沙盒里、照场所规则造（规则的预设）；陌生人的照旧不接；终端
 //!   管理员的私聊不照规则；从白名单里删了，下一条就不接。
 //! - 白名单成员加她好友，桥调 `set_friend_add_request {flag, approve: true}`；陌生人的放着、不回，群邀请也放着，各记一行运行日志。
 //! - 睡觉时间里白名单成员在群里 @ 她照回，冲她来的不过判官；别人照旧只记下，醒着时别人的 @ 照旧问判官。
@@ -120,7 +120,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
     .await;
     let spoken = said(&theirs);
     let texts: Vec<&str> = spoken.iter().map(words).collect();
-    assert_eq!(texts, ["在吗", "还在吗"], "会话归系统账号");
+    assert_eq!(texts, ["在吗", "还在吗"], "白名单成员的会话");
     assert_eq!(spoken[0]["by"]["id"], format!("qq:{JIE}"), "{theirs:#?}");
     assert_eq!(
         theirs[0]["body"]["preset"], "dev",
@@ -149,7 +149,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
     assert_eq!(private_reply(&mut napcat, ADMIN).await, "好");
     let theirs = venue_events(&home.root, &format!("qq:private:{JIE}"));
     assert_eq!(said(&theirs).len(), 2, "删了以后的不进会话：{theirs:#?}");
-    let admins = home.sessions();
+    let admins = home.own_sessions();
     assert_eq!(admins.len(), 1, "{admins:?}");
     let created = &home.events(&admins[0])[0];
     assert_eq!(created["body"]["venue"], format!("qq:private:{ADMIN}"));
