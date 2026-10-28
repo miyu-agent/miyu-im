@@ -10,5 +10,4 @@
 .section-title { margin-bottom: 2px; font-size: 14px; font-weight: 600; }
 .section-title small { display: block; margin-top: 2px; color: var(--text-faint); font-size: 12px; font-weight: 400; }
 .settings-section .row:last-child { border-bottom: 0; }
-.binding-account { font-weight: 500; }
 .input.num.wide-num { width: 140px; }

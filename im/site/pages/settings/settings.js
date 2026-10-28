@@ -1,5 +1,5 @@
-// 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：账号绑定（平台身份 → Miyu 账号，核心的
-// `external.bindings`）、通用（去掉末尾句号、模拟真人一条分多条发送、回执自动撤回的命令）、网页服务（端口；登录用 Miyu 账号）。照样板左边一列切段、右边一次一段
+// 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：本人的平台 ID（核心的 `external.bindings`，
+// 施工 I-68）、通用（回执自动撤回的命令）、网页服务（端口；登录用访问密码）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
 // - 读写都经宿主的 settings.get、settings.set（宿主在这份登录的人的连接上改核心的配置）。改了当场存，存不成的提示一句、重读一遍；
@@ -98,37 +98,32 @@ function row(label, hint, control) {
   return line;
 }
 
-/** 账号绑定：一个平台身份一行（号、对应的账号、去掉），最后一行加一个。只列这个平台的身份。 */
+/** 本人的平台 ID（核心的 `external.bindings`，施工 I-68）：一个身份一行（号、去掉），最后一行加一个。只列这个平台的身份；只有一个主人，不写账号。 */
 function bindings(got, platform, save) {
   const word = venueKinds(platform).private?.id() || say('venues/user-id');
   const prefix = `${platform}:`;
   const rows = [];
-  for (const [identity, account] of Object.entries(got.bindings || {})) {
+  for (const identity of got.bindings || []) {
     if (platform && !identity.startsWith(prefix)) continue;
     const number = identity.slice(prefix.length);
-    const box = element('span', 'inline');
     const remove = element('button', 'icon-button');
     remove.title = say('settings-page/unbind');
     remove.append(icon('i-x'));
     remove.addEventListener('click', () => save(`binding:${identity}`, null));
-    box.append(element('b', 'binding-account', String(account)), remove);
-    rows.push(row(spaced(`${word} ${number}`), '', box));
+    rows.push(row(spaced(`${word} ${number}`), '', remove));
   }
-  // 输入框的提示只写「ID」「账号名」，不写具体的号、账号（项目主人 10-27）。
+  // 输入框的提示只写「ID」，不写具体的号（项目主人 10-27）。
   const number = element('input', 'input num wide-num');
   number.placeholder = say('settings-page/bind-id');
   number.inputMode = 'numeric';
-  const account = element('input', 'input');
-  account.placeholder = say('settings-page/bind-account');
   const add = element('button', 'btn', say('settings-page/bind'));
   add.addEventListener('click', () => {
     const typed = number.value.trim();
     if (!/^\d+$/.test(typed)) return toast(say('settings-page/bind-bad'));
-    // 核心 SU-1 起只有主人：对应表里不空的值都当主人，没填的照已经绑了的那个写，一个都没绑的写 owner。
-    save(`binding:${prefix}${typed}`, account.value.trim() || Object.values(got.bindings || {})[0] || 'owner');
+    save(`binding:${prefix}${typed}`, true);
   });
   const adding = element('span', 'inline');
-  adding.append(number, account, add);
+  adding.append(number, add);
   rows.push(row(say('settings-page/bind-new'), '', adding));
   return section('settings-page/bindings', 'settings-page/bindings-hint', rows);
 }

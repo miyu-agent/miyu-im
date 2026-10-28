@@ -1,19 +1,23 @@
 //! 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：通用（回执自动撤回的命令；去掉末尾句号、模拟真人一条分多条发送施工 I-49 起挪到会话
-//! 卡片的「发送消息处理」，每张卡片单独设）、网页服务的端口、账号绑定（核心的
-//! `external.bindings`：平台身份 → 本机账号）。都是核心的配置，在这份登录的人的连接上读、改（人的权限，设计第九节第 2 条），页面服务
-//! 只让改下面这几项。
+//! 卡片的「发送消息处理」，每张卡片单独设）、网页服务的端口、本人的平台 ID（核心的 `external.bindings`：键是平台身份，值不空就算
+//! 主人本人，核心 SU-3 下起，施工 I-68）。都是核心的配置，在这份登录的人的连接上读、改，页面服务只让改下面这几项。
 //!
-//! - `settings.get` → `{"recall_receipts", "port", "bindings": {身份: 账号}}`：照核心的 `config.get`，没写的照清单的默认。
-//! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`，或者 `binding:<身份>`（`value` 是
-//!   `null` 的去掉那一条）。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；别的键 `bad_params`。
+//! - `settings.get` → `{"recall_receipts", "port", "bindings": [身份]}`：照核心的 `config.get`，没写的照清单的默认；对应表只交值不空的
+//!   身份（值是什么不交：只有一个主人，写 `owner` 还是老的 `admin` 都一样）。
+//! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`，或者 `binding:<身份>`（`value` 是 `true` 的
+//!   记成主人，写 `owner`；`null` 的去掉那一条；别的 `bad_params`）。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；
+//!   别的键 `bad_params`。
 
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use super::Person;
 use crate::settings::{SITE_GROUP, key};
 
-/// 绑定那张表的键的开头。
+/// 对应表的键的开头。
 const BINDINGS: &str = "external.bindings.";
+
+/// 页面加的身份在对应表里写的值（核心 SU-3 下：值不空就算主人，搬家脚本也写它）。
+const OWNER: &str = "owner";
 
 /// 页面上的名字到配置的键：回执自动撤回的命令、网页服务的端口。
 fn config_key(name: &str) -> Option<String> {
@@ -38,16 +42,22 @@ pub(super) async fn get(person: &Person) -> Result<Value, (String, String)> {
             .and_then(|key| items.get(&key))
             .map_or(Value::Null, |item| item["value"].clone())
     };
-    let bindings: Map<String, Value> = items
+    let bindings: Vec<&str> = items
         .iter()
-        .filter_map(|(key, item)| {
+        .filter(|(_, item)| {
+            item["value"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+        })
+        .filter_map(|(key, _)| {
             let identity = key.strip_prefix(BINDINGS)?;
             // 核心照 TOML 的写法给键加了引号（`"qq:10001"`）：页面上写不带引号的。
-            let identity = identity
-                .strip_prefix('"')
-                .and_then(|rest| rest.strip_suffix('"'))
-                .unwrap_or(identity);
-            Some((identity.to_string(), item["value"].clone()))
+            Some(
+                identity
+                    .strip_prefix('"')
+                    .and_then(|rest| rest.strip_suffix('"'))
+                    .unwrap_or(identity),
+            )
         })
         .collect();
     Ok(json!({
@@ -61,17 +71,24 @@ pub(super) async fn get(person: &Person) -> Result<Value, (String, String)> {
 pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (String, String)> {
     let bad = || ("bad_params".to_string(), String::new());
     let name = params["key"].as_str().ok_or_else(bad)?;
-    let key = match name.strip_prefix("binding:") {
+    let change = match name.strip_prefix("binding:") {
         // 身份里有 `:`，照 TOML 的写法加引号（同核心交出来的键）。
         Some(identity) if !identity.is_empty() && !identity.contains('"') => {
-            format!("{BINDINGS}\"{identity}\"")
+            let key = format!("{BINDINGS}\"{identity}\"");
+            match &params["value"] {
+                Value::Null => json!({"key": key, "unset": true}),
+                Value::Bool(true) => json!({"key": key, "value": OWNER}),
+                _ => return Err(bad()),
+            }
         }
         Some(_) => return Err(bad()),
-        None => config_key(name).ok_or_else(bad)?,
-    };
-    let change = match &params["value"] {
-        Value::Null => json!({"key": key, "unset": true}),
-        value => json!({"key": key, "value": value}),
+        None => {
+            let key = config_key(name).ok_or_else(bad)?;
+            match &params["value"] {
+                Value::Null => json!({"key": key, "unset": true}),
+                value => json!({"key": key, "value": value}),
+            }
+        }
     };
     person
         .lock()
