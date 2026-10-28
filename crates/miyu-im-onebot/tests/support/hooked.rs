@@ -45,8 +45,8 @@ pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[
     approve(root, id, capabilities);
 }
 
-/// 装好的扩展包 `id` 声明 `capabilities` 那几样能力、批过（施工 I-8 上：插件调 im 的 `chat.note` 要 `packages.call`；核心 Y-5
-/// 下上起批过的记在组表 `system/groups.json` 的 `ext.<能力>` 组里）。只批这一个包。
+/// 装好的扩展包 `id` 声明 `capabilities` 那几样能力、批过（施工 I-8 上：插件调 im 的 `chat.note` 要 `packages.call`；核心 SU-2 中
+/// 起批过的记在开关文件 `system/extensions.json` 的 `approved` 里，包的编号到能力，照名字排）。别的包批过的、开关照留着。
 pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
     let manifest = root
         .path()
@@ -66,15 +66,23 @@ pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
         ),
     );
     std::fs::write(&manifest, text).expect("写得进");
-    // 核心 Y-5 下上起批过的能力记在组表的 `ext.<能力>` 组里（包的账号是成员），开关文件不再记 `approved`。
     let system = root.path().join("system");
     std::fs::create_dir_all(&system).expect("建得了");
-    let groups: serde_json::Map<String, serde_json::Value> = capabilities
-        .iter()
-        .map(|name| (format!("ext.{name}"), serde_json::json!([id])))
-        .collect();
-    let approved = serde_json::json!({"version": 1, "groups": groups});
-    std::fs::write(system.join("groups.json"), approved.to_string()).expect("写得进");
+    let path = system.join("extensions.json");
+    let mut switches: serde_json::Value = std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_else(|| serde_json::json!({"version": 1, "on": {}}));
+    let mut names: Vec<&str> = capabilities.to_vec();
+    names.sort_unstable();
+    switches["approved"][id] = serde_json::json!(names);
+    std::fs::write(&path, switches.to_string()).expect("写得进");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .expect("改得了权限");
+    }
 }
 
 /// 同 [`install`]，`start` 照写的（`manual` 的要开关打开才拉起）。
