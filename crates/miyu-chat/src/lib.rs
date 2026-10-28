@@ -61,7 +61,7 @@ pub use judge::{
 };
 pub use outbound::{
     Bubble, Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since,
-    Target, bubbles, split,
+    Target, aimed, bubbles, split,
 };
 pub use params::{LongText, Params};
 pub use rules::{

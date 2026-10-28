@@ -53,6 +53,7 @@ fn she_answers_the_last_trigger_and_counts_the_others_after_it() {
         ],
     );
     let aim = |msg: &str, user: i64, seconds: i64| Aim {
+        seq: msg.parse().expect("测试里编号就是序号"),
         msg: Some(msg.to_string()),
         sender: qq(user),
         at: at(seconds),

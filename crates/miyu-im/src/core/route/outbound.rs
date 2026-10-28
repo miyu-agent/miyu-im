@@ -31,6 +31,38 @@ pub(super) struct Passed {
     pub(super) text: String,
     /// 第一段前面带的引用和 @。
     pub(super) lead: Lead,
+    /// 群里的：本来想要的引用、@ 和她回的那一条（施工 I-64）。交给 NapCat 的那一刻照那时群里的样子再定第一段带不带
+    /// （[`relead`]）；私聊、本来就不想带的是空的。
+    pub(super) aimed: Option<Aimed>,
+}
+
+/// 本来想要的引用、@ 和她回的那一条（施工 I-64）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Aimed {
+    /// 她回的那一条。
+    pub(super) aim: Aim,
+    /// 本来想要的。
+    pub(super) want: Target,
+}
+
+/// 照这一刻群里的动静（她回的那一条以后别人说了几条 `others`、群里最后一条是不是她的 `last_is_own`、此刻 `now`）和这个群
+/// 此刻的参数 `outbound`，重定 `aimed` 带不带引用、@，填进 `lead`（施工 I-64：打字停顿、排队那几秒里群里又来了话、她前一句
+/// 先发了出去，写好那一刻定的不准了）。`lead` 里她用 `mention` 指定的 `more` 不动。交回实际带的。
+pub(super) fn relead(
+    aimed: &Aimed,
+    (others, last_is_own, now): (u64, bool, Timestamp),
+    outbound: &Outbound,
+    lead: &mut Lead,
+) -> Target {
+    let since = Since {
+        others,
+        elapsed: now.unix_millis() - aimed.aim.at.unix_millis(),
+        last_is_own,
+    };
+    let target = miyu_chat::aimed(aimed.want, &since, outbound);
+    lead.reply = aimed.aim.msg.clone().filter(|_| target.quote);
+    lead.at = number(&aimed.aim).filter(|_| target.mention);
+    target
 }
 
 /// 她的一句 `text` 过出站链，情形是 `ctx`：丢了的交回为什么；过了的照 `split`（一段最多 `split_chars` 个字符，`0`
@@ -64,12 +96,18 @@ pub(super) fn pass(
         true => said.into_iter().map(|one| (one.text, one.pause)).unzip(),
         false => (split(&outgoing.text, split_chars), Vec::new()),
     };
+    let want = ctx.target;
+    let aimed = aim.filter(|_| want.quote || want.mention).map(|aim| Aimed {
+        aim: aim.clone(),
+        want,
+    });
     Ok(Passed {
         pieces,
         pauses,
         typed,
         text: outgoing.text.trim().to_string(),
         lead,
+        aimed,
     })
 }
 

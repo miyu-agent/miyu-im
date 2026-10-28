@@ -74,6 +74,7 @@ mod provider;
 mod queue;
 mod queue_waits;
 mod quote;
+mod quote_timing;
 mod ranking;
 mod reactions;
 mod receipts;

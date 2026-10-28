@@ -44,6 +44,7 @@ impl Route {
             lead: Lead::default(),
             body,
             pause: Duration::ZERO,
+            aimed: None,
         };
         let peer = self.peers.get(session).cloned();
         let params = peer

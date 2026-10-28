@@ -102,6 +102,7 @@ impl Route {
                 lead: Lead::default(),
                 body: Body::Text,
                 pause: Duration::ZERO,
+                aimed: None,
             };
             self.enqueue(session, None, piece).await?;
         }

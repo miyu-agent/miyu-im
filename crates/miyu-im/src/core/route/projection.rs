@@ -96,6 +96,8 @@ struct Turn {
 /// 她回的那一条（O-25 上，「群里怎么叫她」第 9 条）：引用它、@ 发它的人，从它记下起算过了多久。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Aim {
+    /// 序号（施工 I-64）：交给 NapCat 的那一刻照它再数那之后来了几条。
+    pub(super) seq: u64,
     /// 平台编号：没有的不引用。
     pub(super) msg: Option<String>,
     /// 发它的人。
@@ -156,6 +158,8 @@ pub(super) struct Projection {
     /// `venue.delivered`：发出去到平台回执之间进来的人话在日志里排在回执前面，可群里她那一段在前（CI 的 macOS 上撞出来的）。
     /// 这个群的日志里没有那一轮她说的话的（主线发来的）照回执的序号。
     own: u64,
+    /// 她最近一次把一段交给 NapCat 时，收到的最后一条人话的序号（施工 I-64，`aimed.rs`）；没交过的是空的。
+    handed: Option<u64>,
     /// 她在主线最后说的一段：（回合编号，`message.assistant` 的序号）。主线的回执照回合认它（支线的不认，O-36）。
     spoke: Option<(u64, u64)>,
     /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。到了时刻、还没记 `unmuted` 的照旧在
@@ -310,23 +314,20 @@ impl Projection {
         let aimed = running
             .and_then(|running| running.aim)
             .and_then(|seq| Some((seq, self.said.get(&seq)?)));
-        let others = aimed.map_or(0, |(seq, aimed)| {
-            let later = self.said.range(seq + 1..);
-            later.filter(|(_, speaker)| speaker.id != aimed.id).count() as u64
-        });
-        let last_said = self.said.last_key_value().map_or(0, |(seq, _)| *seq);
+        let others = aimed.map_or(0, |(seq, aimed)| self.others_after(seq, &aimed.id));
         Speaking {
             line: line.to_string(),
             turn,
             to,
-            aim: aimed.map(|(_, aimed)| Aim {
+            aim: aimed.map(|(seq, aimed)| Aim {
+                seq,
                 msg: aimed.msg.clone(),
                 sender: aimed.id.clone(),
                 at: aimed.at,
             }),
             echoed: aimed.is_some_and(|(seq, _)| self.echoed(seq)),
             others,
-            last_is_own: self.own > last_said,
+            last_is_own: self.last_is_own(),
             sent: track.map(|track| track.sent(turn)).unwrap_or_default(),
             replayed,
         }
@@ -470,6 +471,7 @@ fn add<'a>(to: &mut Vec<ExternalId>, more: impl IntoIterator<Item = &'a External
     }
 }
 
+mod aimed;
 mod echo;
 mod lanes;
 mod origin;

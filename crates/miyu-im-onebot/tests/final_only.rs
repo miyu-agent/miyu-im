@@ -93,11 +93,15 @@ async fn words_with_a_tool_that_ends_the_turn_go_out_when_it_ends() {
         started_installed_by(Arc::new(lines), (&rule(), ""), MEMBERS, install).await;
     until_provided(&home).await;
     call_her(&napcat);
+    // 字跟在她自己的表情包后面，照规则可能带引用（施工 I-64）：找有字的那一段，不认第一段。
     let words = loop {
         let action = napcat.action().await;
-        let message = &action["params"]["message"];
-        if message[0]["type"] == "text" {
-            break message[0]["data"]["text"].clone();
+        let message = action["params"]["message"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        if let Some(text) = message.iter().find(|segment| segment["type"] == "text") {
+            break text["data"]["text"].clone();
         }
     };
     assert_eq!(words, "给你看");

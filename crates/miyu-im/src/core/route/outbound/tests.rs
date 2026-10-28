@@ -29,6 +29,7 @@ fn at(seconds: i64) -> Timestamp {
 /// 终端管理员第 0 秒说的、编号是 `21` 的那一条。
 fn aim() -> Aim {
     Aim {
+        seq: 21,
         msg: Some("21".to_string()),
         sender: ExternalId::parse("qq:10001").expect("合写法"),
         at: at(0),

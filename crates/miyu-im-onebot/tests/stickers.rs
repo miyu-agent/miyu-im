@@ -81,7 +81,14 @@ async fn a_sticker_she_sends_reaches_the_group_before_the_words_after_it() {
     let words = json!([at(BOT), plain(" 来个表情")]);
     napcat.send(group_frame(GROUP, ADMIN, 1, words, ("老板", "boss")));
     is_the_sticker(&napcat.group_message(GROUP).await);
-    assert_eq!(napcat.group_reply(GROUP).await, "看这个");
+    // 字跟在她自己的表情包后面：群里最后一条是她的，照规则引用老板那一条（施工 I-64：照交出去那一刻算；原来写好那一刻表情包的
+    // 回执还没回来，算成不是她的、不引用）。
+    let words = napcat.group_message(GROUP).await;
+    let text: String = words
+        .iter()
+        .filter_map(|segment| segment["data"]["text"].as_str())
+        .collect();
+    assert_eq!(text, "看这个", "{words:?}");
     let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
         of_kind(events, "venue.delivered").len() == 2
     })

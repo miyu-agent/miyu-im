@@ -17,6 +17,7 @@ use miyu_client::ids::ExternalId;
 use miyu_client::time::Timestamp;
 use serde_json::{Value, json};
 
+use super::outbound::Aimed;
 use super::projection::{QUEUED, REPLY};
 use super::queue::{DISCONNECTED, EXPIRED, Ending, ending, said};
 use super::receipt::recall;
@@ -26,6 +27,7 @@ use crate::chat::{CallError, Lead, Outgoing, To};
 use crate::core::Gone;
 use crate::counters::Count;
 
+mod aiming;
 mod bounce;
 
 /// 失败记成的事件（第 4 条）。
@@ -113,6 +115,8 @@ pub(super) struct Piece {
     pub(super) body: Body,
     /// 离同一个会话前一段过多久才发（施工 I-26，模拟真人一条分多条发送）：只有她一句话拆出来的第二段起有，别的是零。
     pub(super) pause: Duration,
+    /// 群里她一句话的第一段：本来想要的引用、@（施工 I-64），交给 NapCat 的那一刻照那时群里的样子再定 `lead`；别的是空的。
+    pub(super) aimed: Option<Aimed>,
 }
 
 /// 正文发成什么样（施工 O-59 下，`onebot.md`「长文」）：她发出去的图、长文画成的一页照旧在 [`What`] 里带着图。
@@ -283,13 +287,18 @@ impl Route {
 
     /// 把场所 `line` 排着的一段交 NapCat：放进收进它那个会话的那个机器人号现在的连接的写队列，等回应交给别的任务（第 3 条），
     /// 交回真：这个场所等它回了再交下一段。放不进去的（那个号这时没连着、连接正在断）当场照结局办，交回假：接着交下一段。
-    async fn hand(&mut self, line: &str, item: Item) -> Result<bool, Gone> {
+    async fn hand(&mut self, line: &str, mut item: Item) -> Result<bool, Gone> {
         let session = item.session.clone();
         let Some(peer) = self.peers.get(&session).cloned() else {
             self.waiting.answered(line);
             self.failed(&session, &item, (DISCONNECTED, None)).await?;
             return Ok(false);
         };
+        // 群里一句话的第一段：照这一刻群里的样子再定带不带引用、@，记下她交出去的这一刻（施工 I-64）。
+        let group = self.venues.get(peer.venue.as_str()).cloned();
+        if let Some(aimed) = item.piece.aimed.take() {
+            self.relead_now(&peer, group.as_deref(), &aimed, &mut item.piece.lead);
+        }
         let begun = match self.bots.get(peer.bot) {
             Some(link) => {
                 let lead = &item.piece.lead;
@@ -319,6 +328,11 @@ impl Route {
         };
         match begun {
             Ok(pending) => {
+                if let Some(projection) =
+                    group.as_deref().and_then(|main| self.groups.get_mut(main))
+                {
+                    projection.handed();
+                }
                 self.sending.push_back(tokio::spawn(async move {
                     let result = pending.await;
                     Answered {

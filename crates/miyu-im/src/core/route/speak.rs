@@ -339,6 +339,7 @@ impl Route {
         what: What,
     ) -> Result<(), Gone> {
         let mut lead = passed.lead.clone();
+        let mut aimed = passed.aimed.clone();
         if let What::Reply { line, turn, .. } = &what {
             let aim = self.take_aim(line, *turn);
             // 她自己挑了引用（施工 I-31）或者 @ 了人（施工 I-45）的：照她挑的，这一句不再自动引用、自动 @（自动引用的那一条
@@ -346,6 +347,7 @@ impl Route {
             if aim.quote.is_some() || !aim.users.is_empty() {
                 lead.reply = aim.quote;
                 lead.at = None;
+                aimed = None;
             }
             lead.more = aim.users;
         }
@@ -366,6 +368,7 @@ impl Route {
                 lead: std::mem::take(&mut lead),
                 body: Body::Text,
                 pause,
+                aimed: aimed.take(),
             };
             self.enqueue(session, None, piece).await?;
         }

@@ -21,6 +21,7 @@ mod target;
 
 pub use human::{Bubble, bubbles};
 pub use split::split;
+pub use target::aimed;
 
 /// 要发的一条。
 #[derive(Debug, Clone, PartialEq, Eq)]
