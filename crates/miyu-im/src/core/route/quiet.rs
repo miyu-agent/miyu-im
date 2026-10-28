@@ -24,8 +24,8 @@ pub(super) struct Quiet {
     turns: HashSet<(String, u64)>,
     /// 扣着的：（她说话的那条线，回合编号）到那段话。
     held: HashMap<(String, u64), Held>,
-    /// 「这一轮不说话」那件工具叫什么（施工 T-4：驱动交的，`ToolSet::silence`）；没有的是空的。
-    silence: Option<&'static str>,
+    /// 「这一轮不说话」那件工具叫什么（施工 T-4：驱动交的，`ToolSet::silence`）：一个驱动一件（施工 I-70 中上），没有的是空的。
+    silence: Vec<&'static str>,
 }
 
 /// 扣着的一段话：发回哪个会话、哪一种、字。
@@ -45,7 +45,7 @@ impl Quiet {
         let key = (session.to_string(), turn);
         match event["kind"].as_str() {
             Some("message.assistant") => {
-                if skips(event, self.silence) {
+                if skips(event, &self.silence) {
                     // 这一轮不说话了：仅发送最终消息时扣着的也不发。
                     self.held.remove(&key);
                     self.turns.insert(key.clone());
@@ -62,10 +62,10 @@ impl Quiet {
 }
 
 impl Quiet {
-    /// 还什么都没记的一份：「这一轮不说话」那件工具叫 `silence`（施工 T-4）。
-    pub(super) fn new(silence: Option<&'static str>) -> Quiet {
+    /// 还什么都没记的一份：「这一轮不说话」的工具叫 `silence` 里的名字（施工 T-4；施工 I-70 中上起每个驱动一件）。
+    pub(super) fn new(silence: impl IntoIterator<Item = &'static str>) -> Quiet {
         Quiet {
-            silence,
+            silence: silence.into_iter().collect(),
             ..Quiet::default()
         }
     }
@@ -88,15 +88,15 @@ pub(super) fn has_calls(event: &Value) -> bool {
         .is_some_and(|blocks| blocks.iter().any(|block| block["type"] == "tool_call"))
 }
 
-/// 回复 `event` 里有没有「这一轮不说话」那件工具 `silence` 的调用块。
-fn skips(event: &Value, silence: Option<&str>) -> bool {
-    let Some(silence) = silence else {
-        return false;
-    };
+/// 回复 `event` 里有没有「这一轮不说话」的工具（`silence` 里的一件）的调用块。
+fn skips(event: &Value, silence: &[&str]) -> bool {
     event["body"]["blocks"].as_array().is_some_and(|blocks| {
-        blocks
-            .iter()
-            .any(|block| block["type"] == "tool_call" && block["name"] == silence)
+        blocks.iter().any(|block| {
+            block["type"] == "tool_call"
+                && block["name"]
+                    .as_str()
+                    .is_some_and(|name| silence.contains(&name))
+        })
     })
 }
 

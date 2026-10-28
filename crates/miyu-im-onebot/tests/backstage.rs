@@ -122,6 +122,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
             "path": "/ws",
             "token": "set",
             "platform": "qq",
+            "platforms": ["qq"],
         })
     );
     let mut napcat = admin_napcat(listen).await;
@@ -263,6 +264,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
             "path": "/ws",
             "token": "none",
             "platform": "qq",
+            "platforms": ["qq"],
         })
     );
     assert_eq!(

@@ -121,3 +121,12 @@ fn held_words_are_kept_per_line_and_turn_and_dropped_when_she_stays_quiet() {
     assert!(!has_calls(&reply(3, json!([text("a")]))));
     assert!(!has_calls(&ended(3)));
 }
+
+#[test]
+fn every_drivers_silence_tool_hushes_the_turn() {
+    // 挂几个驱动的（施工 I-70 中上）：每个驱动的「这一轮不说话」都认，别的工具不算。
+    let mut quiet = Quiet::new(["qq_skip_reply", "tg_skip_reply"]);
+    assert!(quiet.heard("s1", &reply(1, json!([call("tg_skip_reply")]))));
+    assert!(quiet.heard("s2", &reply(1, json!([call("qq_skip_reply")]))));
+    assert!(!quiet.heard("s3", &reply(1, json!([call("tg_send"), text("在")]))));
+}

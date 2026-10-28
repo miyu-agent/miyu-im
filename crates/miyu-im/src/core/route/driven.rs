@@ -1,6 +1,9 @@
 //! 驱动交的工具的调用（施工 T-1，`crate::toolset`）：读的一头把它们的 `tool.call` 照推送交到这里。照会话填好场景（发到哪、机器人
 //! 号、谁叫的、工作区、那个机器人号的连接；施工 T-2 多叫她做的那一条、她自己、私聊的对方、这个群缓存着的名字）交给驱动：当场答的写回去；要去平台上办的另起一个任务（`chores`，同取图）等它办完再
 //! 答，跟核心的那一头不等。桥不认识这个会话的（本机的会话）照驱动的 `ToolSet::local` 办（施工 I-40：主动发消息），别的答 `unreachable`。
+//!
+//! 挂几个驱动的（施工 I-70 中上）：平台、配置、状态目录照这件工具是哪个驱动的那一套取；场所是别的平台的不调（答 `unreachable`，
+//! 运行日志记 `another_platform`），本机的会话照那一套的平台发。
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,12 +18,11 @@ use crate::TARGET;
 use crate::chat::To;
 use crate::core::Answerer;
 use crate::core::Gone;
-use crate::toolset::{
-    Answers, Blobs, Call, Done, Effect, NAME, Origin, Planned, Quote, ToolSet, clean,
-};
+use crate::rules::Owned;
+use crate::toolset::{Blobs, Call, Done, Effect, NAME, Origin, Planned, Quote, clean};
 
 impl Route {
-    /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是 `set`、答的话是 `answers`。
+    /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是平台 `owner` 的驱动交的 `set`、答的话是 `answers`。
     ///
     /// # Errors
     ///
@@ -28,7 +30,7 @@ impl Route {
     pub(super) async fn driven_called(
         &mut self,
         pushed: &Value,
-        (set, answers): (Arc<dyn ToolSet>, Arc<Answers>),
+        (owner, set, answers): Owned,
     ) -> Result<(), Gone> {
         let params = &pushed["params"];
         let (id, tool) = (
@@ -41,19 +43,11 @@ impl Route {
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
             // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经连着的号里最小的那一个）。
-            // 没有场所，平台照参数认（施工 I-70 上，`Platforms::ours`：只挂了一个平台的算它）。
+            // 没有场所，平台照这件工具是哪个驱动的（施工 I-70 中上）。
             match set.local(tool, &params["args"], &answers) {
                 Some(Planned::Host(Effect::Send { to, text })) => {
-                    match self.platforms.ours(&params["args"]) {
-                        Ok(platform) => {
-                            let answer = Answer::Tool(id, answers, answerer);
-                            return self.reach((platform, None), (to, text), answer).await;
-                        }
-                        Err(why) => {
-                            tracing::warn!(target: TARGET, session, tool, why = why.name(), "platform tool failed");
-                            answerer.answer(&id, answers.say("unreachable", &[], true));
-                        }
-                    }
+                    let answer = Answer::Tool(id, answers, answerer);
+                    return self.reach((owner, None), (to, text), answer).await;
                 }
                 Some(Planned::Now(answer)) => answerer.answer(&id, answer),
                 _ => {
@@ -63,6 +57,12 @@ impl Route {
             }
             return Ok(());
         };
+        if peer.platform != owner {
+            // 别的平台的工具（施工 I-70 中上）：核心照名字的前缀只给那个平台的场所（IM-3），到了这里是对不上的，不叫驱动做。
+            tracing::warn!(target: TARGET, session, tool, why = "another_platform", "platform tool failed");
+            answerer.answer(&id, answers.say("unreachable", &[], true));
+            return Ok(());
+        }
         let by = by_of(params);
         let (caller, other, origin, names) = match peer.to {
             To::Private(user) => {
@@ -125,9 +125,9 @@ impl Route {
             blobs: Blobs(self.core.caller()),
             link: self.platforms.link(peer.platform, peer.bot),
             answers,
-            plugins: self.hooks.active(peer.to),
-            config: self.hooks.driver_config(),
-            store: self.store.clone(),
+            plugins: self.hooks.active(owner, peer.to),
+            config: self.hooks.driver_config(owner),
+            store: crate::status_file::store_in(&self.store, owner),
             admin,
             history: self.records.history(),
         };

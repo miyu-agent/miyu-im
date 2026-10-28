@@ -40,10 +40,11 @@ async fn the_status_file_follows_napcat() {
     let pid = std::process::id();
     let web = crate::support::browser::page_port(&bridge, 1).await;
     let first = until_file(&root, |file| file["pid"] == pid).await;
+    let qq = json!({"host": "127.0.0.1", "listen": bridge.port, "token": "set", "napcat": {"connected": false}});
     assert_eq!(
         first,
-        json!({"pid": pid, "host": "127.0.0.1", "listen": bridge.port, "token": "set", "web": web, "napcat": {"connected": false}}),
-        "驱动报的几格照原样并进来（施工 I-3），页面服务的端口（施工 I-5 上）"
+        json!({"pid": pid, "host": "127.0.0.1", "listen": bridge.port, "token": "set", "web": web, "napcat": {"connected": false}, "drivers": {"qq": qq}}),
+        "驱动报的几格照原样并进来（施工 I-3），页面服务的端口（施工 I-5 上），每个驱动各一格（施工 I-70 中上）"
     );
     let mut napcat = admitted(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     napcat.version().await;

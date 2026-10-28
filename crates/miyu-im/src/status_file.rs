@@ -6,16 +6,18 @@
 //!
 //! - 桥的进程号、实际听的 NapCat 端口（推来的换过的照换过的）、页面服务实际听的端口 `web`（施工 I-5 上；O-28 下去掉的是桥原来
 //!   自己的网页，I-5 上回来的是 im 自己的页面）、NapCat 的样子（同后台页的 `status`，`Bots::napcat`）。
+//! - 挂了几个驱动的（施工 I-70 中上）：`drivers` 照平台各一格（`{"qq": {"napcat": …, "listen": …}}`，同顶上的样子）；顶上那几格
+//!   （`napcat`、驱动报的 `listen` 这些）照旧是第一个驱动的，`miyu im status`（`crate::control`）、后台页不用改。
 //! - 端口听上以后写一次；之后有人叫一声（NapCat 连上、断开、认出号、问到实现，推来的换了端口）就照这一刻再写。和磁盘上
 //!   一样的不写，先写临时文件再改名盖上（`miyu_client::places::write`）：读的人看不到写了一半的。写不进记一行，桥照跑。
 //! - 照数据根算位置，不照工作目录的相对路径：核心给的工作目录就是这个目录（`extensions.md`「怎么走」第 1 条），在进程里跑的
 //!   测试也不会写进源码树（「施工时定的」第 23 条）。
 //! - 桥退出不删：`miyu im status` 只在核心说桥在跑、进程号对得上时用它（`crate::control`）。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use miyu_client::places::DataRoot;
 
@@ -29,12 +31,22 @@ const FILE: &str = "status.json";
 
 /// 数据根 `root` 里平台 `platform` 的驱动自己的状态目录（施工 Q-2、Q-6）：im 的状态目录下照平台的名字，同状态文件放一起。
 pub fn store(root: &DataRoot, platform: crate::chat::Platform) -> PathBuf {
-    path(root).with_file_name(platform.name())
+    store_in(&dir(root), platform)
+}
+
+/// 数据根 `root` 里 im 的状态目录：状态文件、驱动自己的状态目录都在这里（施工 I-70 中上：跟核心的那一头照它找每个驱动的）。
+pub(crate) fn dir(root: &DataRoot) -> PathBuf {
+    root.state().join("packages").join(PACKAGE)
+}
+
+/// im 的状态目录 `dir`（[`dir`]）下平台 `platform` 的驱动自己的状态目录（同 [`store`]）。
+pub(crate) fn store_in(dir: &Path, platform: crate::chat::Platform) -> PathBuf {
+    dir.join(platform.name())
 }
 
 /// 数据根 `root` 里桥的状态文件在哪。
 pub fn path(root: &DataRoot) -> PathBuf {
-    root.state().join("packages").join(PACKAGE).join(FILE)
+    dir(root).join(FILE)
 }
 
 /// 读数据根 `root` 里的状态文件；没有的、读不了的、不是 JSON 的是空的。
@@ -52,14 +64,18 @@ pub(crate) async fn keep(
 ) -> Option<Failure> {
     let mut changes = changed.watch();
     loop {
-        let mut now = json!({
-            "pid": std::process::id(),
-            "napcat": running.bots.napcat(),
-        });
-        // 驱动报的几格（施工 I-3：OneBot 的 `listen`）照原样并进来。
-        for (key, value) in running.reported.get() {
+        let mut now = json!({"pid": std::process::id()});
+        // 第一个驱动连没连上、报的几格（施工 I-3：OneBot 的 `listen`）照原样并进来。
+        for (key, value) in running.first().status() {
             now[key] = value;
         }
+        // 每个驱动各一格（施工 I-70 中上）。
+        let drivers: Map<String, Value> = running
+            .drivers
+            .iter()
+            .map(|one| (one.platform.name().to_string(), Value::Object(one.status())))
+            .collect();
+        now["drivers"] = Value::Object(drivers);
         // 页面服务实际听的端口（施工 I-5 上）：没听上的不带。
         if let Some(port) = running.page.get() {
             now["web"] = json!(port);

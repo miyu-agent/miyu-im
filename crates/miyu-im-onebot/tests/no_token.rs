@@ -69,7 +69,7 @@ async fn without_a_token_the_port_listens_and_napcat_is_refused() {
     let web = crate::support::browser::page_port(&bridge, 1).await;
     assert_eq!(
         page_status(&push, "core-1").await,
-        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq", "web": web})
+        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": bridge.port, "path": "/ws", "token": "none", "platform": "qq", "platforms": ["qq"], "web": web})
     );
     bridge.stop().await.expect("停得下");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -129,7 +129,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
         status,
-        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": listen, "path": "/ws", "token": "none", "platform": "qq"})
+        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": listen, "path": "/ws", "token": "none", "platform": "qq", "platforms": ["qq"]})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");

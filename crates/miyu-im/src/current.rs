@@ -1,6 +1,6 @@
 //! 桥手里最新的配置（`onebot.md` 第一条「怎么走」第 1、2 条，施工 O-20）：握手交来的那一份，核心推来 `extension.config` 就照它
 //! 换上，都不读盘。驱动的那几项（施工 I-3：OneBot 的端口、令牌）挑出来经 `watch` 交给驱动（[`Current::driver`]），驱动拿它
-//! 做什么宿主不管；页面服务的那几项（施工 I-5 上：端口）一样挑出来交给页面服务（[`Current::site`]）；群的几项（施工 O-41 补）
+//! 做什么宿主不管；几个驱动照平台各一份（施工 I-70 中上）：推来的变化只换、只通知那个平台的那一份；页面服务的那几项（施工 I-5 上：端口）一样挑出来交给页面服务（[`Current::site`]）；群的几项（施工 O-41 补）
 //! 也在这里一份：后台页的 `status`、状态文件照它说哪几项没认出来（场所规则用的那一份在 `crate::rules::Venues`）。
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -8,6 +8,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde_json::{Map, Value};
 use tokio::sync::watch;
 
+use crate::chat::Platform;
 use crate::rules::Configured;
 use crate::settings::{SITE, SITE_GROUP, merge, pick};
 
@@ -47,10 +48,13 @@ impl Watched {
     }
 }
 
+/// 一个驱动的配置项：平台名、名字（`Driver::settings`）、清单的默认值（[`Current::new`]）。
+pub(crate) type DriverSettings = (Platform, &'static [&'static str], Map<String, Value>);
+
 /// 桥手里最新的配置。驱动、页面服务、后台页的方法、状态文件共用一份。
 pub(crate) struct Current {
-    /// 驱动的那几项（`Driver::settings`）。
-    driver: Watched,
+    /// 每个驱动的那几项（`Driver::settings`），照驱动的先后（施工 I-70 中上）。
+    drivers: Vec<(Platform, Watched)>,
     /// 页面服务的那几项（[`SITE`]，施工 I-5 上）。
     site: Watched,
     /// 群的几项最新的那一份（施工 O-41 补）。
@@ -58,34 +62,68 @@ pub(crate) struct Current {
 }
 
 impl Current {
-    /// 手里先拿着握手交来的 `config`：驱动的那几项（平台名那一组 `group` 的 `names`）挑出来（没交的照 `defaults`），页面服务的
+    /// 手里先拿着握手交来的 `config`：每个驱动 `drivers` 的那几项（平台名那一组的名字）挑出来（没交的照它的默认值），页面服务的
     /// 那几项照 `site` 的默认值挑，群的几项是 `configured`。
     pub(crate) fn new(
         config: &Value,
-        (group, names, defaults): (&'static str, &'static [&'static str], Map<String, Value>),
+        drivers: Vec<DriverSettings>,
         site: Map<String, Value>,
         configured: Configured,
     ) -> Current {
         Current {
-            driver: Watched::new(config, (group, names), defaults),
+            drivers: drivers
+                .into_iter()
+                .map(|(platform, names, defaults)| {
+                    let watched = Watched::new(config, (platform.name(), names), defaults);
+                    (platform, watched)
+                })
+                .collect(),
             site: Watched::new(config, (SITE_GROUP, SITE), site),
             configured: Mutex::new(configured),
         }
     }
 
-    /// 驱动的那几项：拿着的随时读到最新的，变了收到通知。
-    pub(crate) fn driver(&self) -> watch::Receiver<Map<String, Value>> {
-        self.driver.values.subscribe()
+    /// 平台 `platform` 的驱动的那几项：拿着的随时读到最新的，那个平台的变了才收到通知。没挂的平台交一份空的、不会再变的（同
+    /// `Platforms::bots`：照「什么都没配」办，拿不到别的平台的）。
+    pub(crate) fn driver(&self, platform: Platform) -> watch::Receiver<Map<String, Value>> {
+        match self.watched(platform) {
+            Some(watched) => watched.values.subscribe(),
+            None => watch::channel(Map::new()).1,
+        }
     }
 
-    /// 驱动的配置项 `name` 最新的值；没有的是空的。
-    pub(crate) fn driver_value(&self, name: &str) -> Option<Value> {
-        self.driver.values.borrow().get(name).cloned()
+    /// 每个驱动的那几项（[`Current::driver`]），照驱动的先后。
+    pub(crate) fn drivers(&self) -> Vec<(Platform, watch::Receiver<Map<String, Value>>)> {
+        self.drivers
+            .iter()
+            .map(|(platform, watched)| (*platform, watched.values.subscribe()))
+            .collect()
     }
 
-    /// 驱动的配置项推来 `null` 的照的默认值。
-    pub(crate) fn driver_default(&self, name: &str) -> Option<Value> {
-        self.driver.defaults.get(name).cloned()
+    /// 每个驱动这一刻的那几项，照驱动的先后（登记工具照它，`Tools::provided`）。
+    pub(crate) fn configs(&self) -> Vec<(Platform, Map<String, Value>)> {
+        self.drivers
+            .iter()
+            .map(|(platform, watched)| (*platform, watched.values.borrow().clone()))
+            .collect()
+    }
+
+    /// 平台 `platform` 的驱动的配置项 `name` 最新的值；没有的、没挂的平台是空的。
+    pub(crate) fn driver_value(&self, platform: Platform, name: &str) -> Option<Value> {
+        self.watched(platform)?.values.borrow().get(name).cloned()
+    }
+
+    /// 平台 `platform` 的驱动的配置项推来 `null` 的照的默认值；没写的、没挂的平台是空的。
+    pub(crate) fn driver_default(&self, platform: Platform, name: &str) -> Option<Value> {
+        self.watched(platform)?.defaults.get(name).cloned()
+    }
+
+    /// 平台 `platform` 的那一份。
+    fn watched(&self, platform: Platform) -> Option<&Watched> {
+        self.drivers
+            .iter()
+            .find(|(one, _)| *one == platform)
+            .map(|(_, watched)| watched)
     }
 
     /// 页面服务的那几项（施工 I-5 上）：同 [`Current::driver`]。
@@ -98,10 +136,12 @@ impl Current {
         lock(&self.configured).misread()
     }
 
-    /// 推来的变化 `keys` 合进来（`merge`、`Configured::change`）：驱动、页面服务的那几项变了的通知它们。交回没认出来的配置项
-    /// 变了没有：变了的由调的一方重写状态文件。
+    /// 推来的变化 `keys` 合进来（`merge`、`Configured::change`）：驱动、页面服务的那几项变了的通知它们，哪个平台的变了只通知
+    /// 那个驱动（施工 I-70 中上）。交回没认出来的配置项变了没有：变了的由调的一方重写状态文件。
     pub(crate) fn change(&self, keys: &Map<String, Value>) -> bool {
-        self.driver.change(keys);
+        for (_, watched) in &self.drivers {
+            watched.change(keys);
+        }
         self.site.change(keys);
         let mut configured = lock(&self.configured);
         let misread = configured.misread();
@@ -114,3 +154,6 @@ impl Current {
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
+
+#[cfg(test)]
+mod tests;

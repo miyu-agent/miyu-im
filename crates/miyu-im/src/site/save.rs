@@ -20,7 +20,7 @@ pub(super) async fn save(
 ) -> Result<Value, (String, String)> {
     let bad = || ("bad_params".to_string(), String::new());
     let values = params["values"].as_object().ok_or_else(bad)?;
-    let platform = site.running.platform.name();
+    let platform = site.running.first().platform.name();
     let mut changes = Vec::new();
     let mut secrets = Vec::new();
     for (name, value) in values {

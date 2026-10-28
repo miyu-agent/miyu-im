@@ -43,6 +43,8 @@ jiff = "0.2"
 workspace = true
 
 [dev-dependencies]
+# 测试里假的第二个平台用宿主的假连接（`miyu_im::chat::fake`，施工 I-70 中上）。
+miyu-im = { path = "../miyu-im", features = ["fake"] }
 # 测试里读 im 的聊天记录库（设计 04，施工 C-1 上）：和 im 用的同一版、同一份。
 rusqlite = { version = "0.40", features = ["bundled"] }
 # 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。

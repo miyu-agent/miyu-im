@@ -114,7 +114,7 @@ fn reactions(site: &Arc<Site>) -> Value {
 
 /// 机器人（模块的说明）。
 fn connections(site: &Arc<Site>) -> Vec<Value> {
-    let platform = site.running.platform.name();
+    let platform = site.running.first().platform.name();
     let avatars = !site.running.tuning.avatar_user_url.is_empty();
     let card = |bot: i64, connected: bool, since: SystemTime| {
         let mut one = Map::new();
@@ -132,6 +132,7 @@ fn connections(site: &Arc<Site>) -> Vec<Value> {
     };
     let mut all: Vec<Value> = site
         .running
+        .first()
         .bots
         .held()
         .into_iter()
@@ -146,6 +147,7 @@ fn connections(site: &Arc<Site>) -> Vec<Value> {
         .collect();
     all.extend(
         site.running
+            .first()
             .bots
             .gone()
             .into_iter()

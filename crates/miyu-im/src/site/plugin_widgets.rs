@@ -39,7 +39,7 @@ pub(super) async fn widget(
         .find(|plugin| plugin["package"] == package)
         .ok_or_else(bad)?;
     let ui = &plugin["ui"];
-    let platform = site.running.platform;
+    let platform = site.running.first().platform;
     let (method, place, args) = match params["place"].as_str() {
         Some("home") if ui["home"] == true => (
             HOME.to_string(),

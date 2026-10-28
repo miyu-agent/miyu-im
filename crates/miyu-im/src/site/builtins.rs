@@ -28,10 +28,15 @@ impl Site {
             return Err(("unknown_package".to_string(), String::new()));
         };
         let context = Context {
-            platform: self.running.platform,
-            config: self.running.current.driver().borrow().clone(),
-            store: status_file::store(&self.root, self.running.platform),
-            bots: std::sync::Arc::clone(&self.running.bots),
+            platform: self.running.first().platform,
+            config: self
+                .running
+                .current
+                .driver(self.running.first().platform)
+                .borrow()
+                .clone(),
+            store: status_file::store(&self.root, self.running.first().platform),
+            bots: std::sync::Arc::clone(&self.running.first().bots),
         };
         builtin
             .call(&context, method, params)

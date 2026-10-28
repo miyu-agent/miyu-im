@@ -1,5 +1,5 @@
 //! 宿主测试用的假连接（施工 I-2 下）：宿主要它做的每一件放进一条队，测试照先后取出来看、答成没成。只认测试用到的几件，别的
-//! 一律当断了。
+//! 一律当断了。驱动的集成测试里假的第二个平台也用它（施工 I-70 中上，特性 `fake` 打开；宿主不因它多依赖什么）：发一句字也进队。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,9 +14,16 @@ use super::{
 
 /// 要它做的一件。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Did {
+pub enum Did {
     /// 撤回：编号照 `Msg` 的调试写法（`Number(77)`、`Text("77")`）。
     Recall(String),
+    /// 发一句字（施工 I-70 中上）：发到哪、字（带的引用和 @ 不记）。答成了的，平台回的编号是空的。
+    Send {
+        /// 发到哪。
+        to: To,
+        /// 字。
+        text: String,
+    },
     /// 贴（`on`）、摘表情。
     React {
         /// 平台编号。
@@ -30,16 +37,16 @@ pub(crate) enum Did {
 
 /// 一件在等答的。
 #[derive(Debug)]
-pub(crate) struct Asked {
+pub struct Asked {
     /// 要做的。
-    pub(crate) did: Did,
+    pub did: Did,
     /// 交答的那一头。
     answer: oneshot::Sender<Result<(), CallError>>,
 }
 
 impl Asked {
     /// 答：`ok` 的成了，不然平台回了没成。
-    pub(crate) fn answer(self, ok: bool) {
+    pub fn answer(self, ok: bool) {
         let answer = match ok {
             true => Ok(()),
             false => Err(CallError::Failed {
@@ -55,18 +62,22 @@ impl Asked {
 
 /// 假连接。
 #[derive(Debug)]
-pub(crate) struct Fake {
+pub struct Fake {
     asked: mpsc::Sender<Asked>,
 }
 
 /// 一条假连接和它收到的要做的事。
-pub(crate) fn fake() -> (Arc<Fake>, mpsc::Receiver<Asked>) {
+pub fn fake() -> (Arc<Fake>, mpsc::Receiver<Asked>) {
     let (asked, received) = mpsc::channel(8);
     (Arc::new(Fake { asked }), received)
 }
 
 /// 收到的下一件：钟停着，一直没有的，过一小时（停住的钟上的）就算没有，不卡住。
-pub(crate) async fn next(received: &mut mpsc::Receiver<Asked>) -> Asked {
+///
+/// # Panics
+///
+/// 一小时里没等到、连接放下了：测试照它红。
+pub async fn next(received: &mut mpsc::Receiver<Asked>) -> Asked {
     tokio::time::timeout(Duration::from_secs(3600), received.recv())
         .await
         .expect("要做了一件")
@@ -93,8 +104,29 @@ fn closed<'a, T: 'a>() -> Reply<'a, T> {
 }
 
 impl Link for Fake {
-    fn begin<'a>(&'a self, _: To, _: Outgoing<'a>) -> Reply<'a, Pending> {
-        closed()
+    fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, Pending> {
+        let Outgoing::Text { text, .. } = outgoing else {
+            return closed();
+        };
+        let did = Did::Send {
+            to,
+            text: text.to_string(),
+        };
+        // 放进队就算交出去了（同真的写队列）；测试答了，等的那一段才有结局。
+        Box::pin(async move {
+            let (answer, answered) = oneshot::channel();
+            self.asked
+                .send(Asked { did, answer })
+                .await
+                .map_err(|_| CallError::Closed)?;
+            let pending: Pending = Box::pin(async move {
+                answered
+                    .await
+                    .map_err(|_| CallError::Closed)?
+                    .map(|()| None)
+            });
+            Ok(pending)
+        })
     }
     fn recall<'a>(&'a self, message: Msg<'a>) -> Reply<'a, ()> {
         self.ask(Did::Recall(format!("{message:?}")))

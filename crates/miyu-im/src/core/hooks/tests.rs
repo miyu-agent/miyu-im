@@ -148,3 +148,96 @@ fn bonuses_add_up_and_are_held_within_one() {
     // 每个先夹：给 5 的只算 1，和 -1 抵掉。
     assert_eq!(summed(pairs(&[("a", 5.0), ("b", -1.0)])).bonus, 0.0);
 }
+
+/// 驱动带的一个插件（施工 I-70 中上的测试用）：编号 `id`，设置项的开头 `x_`，声明哪个平台都行。
+struct Carried(&'static str);
+
+impl crate::plugins::Builtin for Carried {
+    fn id(&self) -> &'static str {
+        self.0
+    }
+
+    fn declared(&self) -> crate::plugins::Declared {
+        crate::plugins::declared::read("[plugin]\nname = { en = \"c\" }\n").expect("读得懂")
+    }
+
+    fn settings(&self) -> &'static str {
+        "x_"
+    }
+}
+
+/// 挂 QQ（能力齐全，带插件 `qq-carried`，总开关 `qq_on` 照 `qq`）、tg（什么能力都没有，带插件 `tg-carried`）两个驱动的挂接点；认得
+/// 软件包插件 `needs-mute`（要禁言）、`tg-only`（只在 tg 上用）。
+fn two_hooks(qq: Value, tg: Value) -> Hooks {
+    let (writer, _) = tokio::io::duplex(1024);
+    let writer: super::super::caller::Writer = Arc::new(tokio::sync::Mutex::new(Box::new(writer)));
+    let caller = Caller::new(writer, super::super::caller::Waiting::new("t-".to_string()));
+    let mounted =
+        |name: &'static str, caps: &'static [Cap], id: &'static str, config: Value| Mounted {
+            platform: Platform::new(name),
+            caps,
+            builtins: vec![Arc::new(Carried(id)) as Arc<dyn Builtin>],
+            config: watch::channel(config.as_object().cloned().unwrap_or_default()).1,
+        };
+    let hooks = Hooks::new(
+        caller,
+        Duration::from_millis(1),
+        vec![
+            mounted("qq", &crate::chat::CAPS, "qq-carried", qq),
+            mounted("tg", &[], "tg-carried", tg),
+        ],
+    );
+    hooks.set_plugins(Plugins::new(BTreeMap::from([
+        (
+            "needs-mute".to_string(),
+            crate::plugins::declared::read("[plugin]\nname = { en = \"m\" }\nneeds = [\"mute\"]\n"),
+        ),
+        (
+            "tg-only".to_string(),
+            crate::plugins::declared::read(
+                "[plugin]\nname = { en = \"t\" }\nplatforms = [\"tg\"]\n",
+            ),
+        ),
+    ])));
+    hooks
+}
+
+#[tokio::test]
+async fn a_plugin_is_usable_by_the_venues_platform() {
+    // 施工 I-70 中上：能不能用照场所的平台的驱动的能力表、声明的平台算；没挂的平台都不算。
+    let hooks = two_hooks(json!({}), json!({}));
+    let (qq, tg, to) = (Platform::new("qq"), Platform::new("tg"), Some(To::Group(1)));
+    assert!(hooks.allowed("needs-mute", qq, to));
+    assert!(!hooks.allowed("needs-mute", tg, to), "tg 不会禁言");
+    assert!(hooks.allowed("tg-only", tg, to));
+    assert!(!hooks.allowed("tg-only", qq, to));
+    assert!(
+        !hooks.allowed("needs-mute", Platform::new("wx"), to),
+        "没挂的平台"
+    );
+}
+
+#[tokio::test]
+async fn a_carried_plugin_follows_its_own_driver() {
+    // 驱动带的插件只在带它的驱动的平台上开着，总开关照那个驱动的配置。
+    let hooks = two_hooks(json!({"x_on": false}), json!({"x_on": true, "k": 1}));
+    let (qq, tg, to) = (Platform::new("qq"), Platform::new("tg"), To::Private(1));
+    assert_eq!(hooks.active(tg, to), ["tg-carried"]);
+    assert!(hooks.active(qq, to).is_empty(), "QQ 的总开关关着");
+    assert_eq!(hooks.plugins_on(tg, to), ["tg-carried", "tg-only"]);
+    assert_eq!(hooks.plugins_on(qq, to), ["needs-mute"]);
+    assert_eq!(hooks.driver_config(tg)["k"], 1);
+    assert!(hooks.driver_config(Platform::new("wx")).is_empty());
+    // 插件页照第一个驱动（QQ）算能不能用，设置项的键照带它的驱动的平台拼。
+    let listed = hooks.listed();
+    let carried = listed
+        .iter()
+        .find(|one| one["package"] == "tg-carried")
+        .expect("认得");
+    assert_eq!(carried["settings"], "im.tg.x_");
+    let only = listed
+        .iter()
+        .find(|one| one["package"] == "tg-only")
+        .expect("认得");
+    assert_eq!(only["unusable"], "other_platforms");
+}

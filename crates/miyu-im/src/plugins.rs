@@ -21,8 +21,8 @@ use crate::chat::{Cap, Platform};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Plugins {
     known: BTreeMap<String, Result<Declared, String>>,
-    /// 驱动带的：编号到设置项名字的开头。
-    builtin: BTreeMap<String, &'static str>,
+    /// 驱动带的：编号到带它的驱动的平台、设置项名字的开头（施工 I-70 中上：设置项在那个驱动的平台名那一组）。
+    builtin: BTreeMap<String, (Platform, &'static str)>,
 }
 
 /// 插件在一个平台上用不了的原因。
@@ -47,20 +47,23 @@ impl Plugins {
         }
     }
 
-    /// 并上驱动带的 `builtins`：照软件包一样认，编号撞了的照驱动带的。
+    /// 并上驱动带的 `builtins`（每个带着带它的驱动的平台，施工 I-70 中上）：照软件包一样认，编号撞了的照驱动带的。
     #[must_use]
-    pub fn with_builtins(mut self, builtins: &[std::sync::Arc<dyn Builtin>]) -> Plugins {
-        for builtin in builtins {
+    pub fn with_builtins(
+        mut self,
+        builtins: &[(Platform, std::sync::Arc<dyn Builtin>)],
+    ) -> Plugins {
+        for (platform, builtin) in builtins {
             self.known
                 .insert(builtin.id().to_string(), Ok(builtin.declared()));
             self.builtin
-                .insert(builtin.id().to_string(), builtin.settings());
+                .insert(builtin.id().to_string(), (*platform, builtin.settings()));
         }
         self
     }
 
-    /// `package` 是驱动带的：交回它设置项名字的开头；软件包、不认得的是空的。
-    pub fn builtin(&self, package: &str) -> Option<&'static str> {
+    /// `package` 是驱动带的：交回带它的驱动的平台、它设置项名字的开头；软件包、不认得的是空的。
+    pub fn builtin(&self, package: &str) -> Option<(Platform, &'static str)> {
         self.builtin.get(package).copied()
     }
 

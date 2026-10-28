@@ -24,6 +24,7 @@ pub mod pipe;
 pub mod platform;
 pub mod ports;
 pub mod roots;
+pub mod second;
 pub mod spawning;
 pub mod speaking;
 
@@ -378,7 +379,7 @@ pub fn serve_handed(root: DataRoot, config: Value, bindings: Option<Bindings>) -
         tuning: tuning(),
         defaults: browser::any_page_port(defaults()),
         factory: factory(),
-        driver: std::sync::Arc::new(miyu_im_onebot::OneBot),
+        drivers: vec![std::sync::Arc::new(miyu_im_onebot::OneBot)],
         package: package(),
     };
     (serve, relay)

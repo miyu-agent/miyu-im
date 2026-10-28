@@ -61,7 +61,7 @@ impl Route {
             admin_names: &admin_names,
             own_card: own_card.as_deref(),
         };
-        let Some(claimed) = self.hooks.impostor(group, &seen) else {
+        let Some(claimed) = self.hooks.impostor(platform, group, &seen) else {
             return Ok(());
         };
         let key = (

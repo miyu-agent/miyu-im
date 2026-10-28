@@ -63,7 +63,7 @@ impl Faces {
         if let Some(name) = lock(&self.names).get(&bot) {
             return name.clone();
         }
-        let link = site.running.bots.get(bot)?;
+        let link = site.running.first().bots.get(bot)?;
         if !lock(&self.asking).insert(bot) {
             return None;
         }
@@ -92,7 +92,7 @@ impl Faces {
         let tuning = &site.running.tuning;
         let (template, id) = match whose {
             Whose::Bot(bot) => {
-                let bots = &site.running.bots;
+                let bots = &site.running.first().bots;
                 if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, _)| *gone == bot) {
                     return None;
                 }

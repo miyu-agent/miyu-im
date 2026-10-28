@@ -163,7 +163,7 @@ pub(super) async fn stats(
     params: &Value,
 ) -> Result<Value, (String, String)> {
     let period = days_of(params["period"].as_str().unwrap_or("today"));
-    let platform = site.running.platform.name();
+    let platform = site.running.first().platform.name();
     let today = jiff::Zoned::now().date();
     let dates = |from: i64, count: i64| -> Vec<String> {
         (0..count)

@@ -207,7 +207,8 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
-    /// 驱动自己的状态目录（施工 Q-2，`toolset::Call::store`）。
+    /// im 的状态目录（`status_file::dir`）：每个驱动自己的状态目录在它下面照平台的名字（施工 Q-2，`toolset::Call::store`；施工
+    /// I-70 中上起几个驱动各一个，`status_file::store_in`）。
     store: PathBuf,
     /// 驱动的工具交回的任务（施工 T-4，`driven`）：办完先做交回的那件事、再答。
     jobs: JoinSet<driven::Finished>,

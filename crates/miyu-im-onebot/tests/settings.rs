@@ -25,7 +25,11 @@ use crate::support::{TOKEN, admin, defaults, package_in, resources, temp_root};
 fn fallback() -> Defaults {
     Defaults {
         recall_receipts: vec!["x".to_string()],
-        driver: keys(json!({"host": "127.0.0.1", "listen": 18301})),
+        drivers: [(
+            QQ.to_string(),
+            keys(json!({"host": "127.0.0.1", "listen": 18301})),
+        )]
+        .into(),
         site: keys(json!({"port": 18302})),
     }
 }
@@ -33,14 +37,14 @@ fn fallback() -> Defaults {
 /// 宿主挑、驱动读的整条路（施工 I-3）：握手交来的 `config` 里驱动的那几项照 `defaults` 补齐，读成 OneBot 的两项。
 fn handed(config: &Value, defaults: &Defaults) -> Settings {
     read(
-        &driver_config(config, (QQ, NAMES), &defaults.driver),
+        &driver_config(config, (QQ, NAMES), &defaults.drivers[QQ]),
         defaults,
     )
 }
 
 /// 驱动读宿主交来的那几项：端口读不出的照默认值。
 fn read(driver: &Map<String, Value>, defaults: &Defaults) -> Settings {
-    Settings::read(driver, |name| defaults.driver.get(name).cloned()).expect("有端口")
+    Settings::read(driver, |name| defaults.drivers[QQ].get(name).cloned()).expect("有端口")
 }
 
 /// 令牌 `token`。
@@ -60,26 +64,30 @@ fn the_shipped_manifest_gives_the_default_port() {
         defaults(),
         Defaults {
             recall_receipts: vec!["clear".to_string(), "clear-memory".to_string()],
-            driver: keys(json!({
-                "host": "0.0.0.0",
-                "listen": 8301,
-                "identity_on": true,
-                "identity_admin": true,
-                "identity_card": true,
-                "identity_people": [],
-                "admin_on": true,
-                "admin_mute": true,
-                "admin_mute_min": 1,
-                "admin_mute_max": 43200,
-                "admin_kick": true,
-                "admin_records": true,
-                "admin_keep": 500,
-                "admin_sync_unmute": true,
-                "admin_log": true,
-                "admin_summary": true,
-                "records_on": true,
-                "info_on": true,
-            })),
+            drivers: [(
+                QQ.to_string(),
+                keys(json!({
+                    "host": "0.0.0.0",
+                    "listen": 8301,
+                    "identity_on": true,
+                    "identity_admin": true,
+                    "identity_card": true,
+                    "identity_people": [],
+                    "admin_on": true,
+                    "admin_mute": true,
+                    "admin_mute_min": 1,
+                    "admin_mute_max": 43200,
+                    "admin_kick": true,
+                    "admin_records": true,
+                    "admin_keep": 500,
+                    "admin_sync_unmute": true,
+                    "admin_log": true,
+                    "admin_summary": true,
+                    "records_on": true,
+                    "info_on": true,
+                }))
+            )]
+            .into(),
             site: keys(json!({"port": 8302})),
         },
         "令牌没写默认值，不放；识人术的四项出厂开着、映射空的（施工 I-10 上）；群管理出厂开着、禁言 1 分钟到 30 天（施工 Q-1）；群聊记录、群资料出厂开着（施工 I-44）；页面服务的端口出厂 8302（施工 I-5 上）"
@@ -91,7 +99,7 @@ fn a_missing_manifest_or_default_is_named() {
     let dir = std::env::temp_dir().join(format!("miyu-im-defaults-{}", std::process::id()));
     let packages = dir.join("packages");
     std::fs::create_dir_all(&packages).expect("建得了");
-    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("没有清单");
+    let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("没有清单");
     assert!(error.contains("im"), "{error}");
     // 照出厂的清单写一份，去掉 `im.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
     let shipped =
@@ -101,7 +109,7 @@ fn a_missing_manifest_or_default_is_named() {
     assert_ne!(without, shipped, "真的去掉了");
     std::fs::create_dir_all(packages.join("im")).expect("建得了");
     std::fs::write(packages.join("im").join("package.toml"), without).expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("没写默认值");
+    let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("没写默认值");
     let file = std::path::Path::new("im")
         .join("package.toml")
         .display()
@@ -111,7 +119,7 @@ fn a_missing_manifest_or_default_is_named() {
         "{error}"
     );
     std::fs::write(packages.join("im").join("package.toml"), "not toml [").expect("写得进");
-    let error = Defaults::load(&package_in(dir.clone()), (QQ, NAMES)).expect_err("读不成");
+    let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("读不成");
     assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
@@ -185,7 +193,7 @@ fn what_is_not_handed_falls_back_to_the_manifest() {
 fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
     let defaults = fallback();
     assert_eq!(
-        driver_config(&json!({}), (QQ, NAMES), &defaults.driver),
+        driver_config(&json!({}), (QQ, NAMES), &defaults.drivers[QQ]),
         keys(json!({"host": "127.0.0.1", "listen": 18301})),
         "没交的地址、端口照默认值，令牌没有默认值不放"
     );
@@ -193,7 +201,7 @@ fn the_driver_gets_its_own_keys_with_defaults_filled_in() {
         driver_config(
             &json!({"im.qq.listen": null, "im.qq.token": TOKEN, "im.whitelist": ["qq:1"]}),
             (QQ, NAMES),
-            &defaults.driver
+            &defaults.drivers[QQ]
         ),
         keys(json!({"host": "127.0.0.1", "listen": 18301, "token": TOKEN})),
         "别的键不给驱动"
@@ -206,10 +214,10 @@ fn a_push_changes_only_the_keys_it_carries() {
     let mut driver = driver_config(
         &json!({"im.qq.listen": 9000, "im.qq.token": TOKEN}),
         (QQ, NAMES),
-        &defaults.driver,
+        &defaults.drivers[QQ],
     );
     let pushed = |value: Value, driver: &mut Map<String, Value>| {
-        merge_driver(driver, &keys(value), (QQ, NAMES), &defaults.driver)
+        merge_driver(driver, &keys(value), (QQ, NAMES), &defaults.drivers[QQ])
     };
     assert!(pushed(json!({"im.qq.token": "new"}), &mut driver));
     assert_eq!(

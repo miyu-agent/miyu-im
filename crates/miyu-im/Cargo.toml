@@ -45,6 +45,10 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 # （`miyu-log` 用它）。Unlicense 或 MIT。
 jiff = "0.2"
 
+[features]
+# 测试用的假连接（`chat::fake`，施工 I-70 中上）：驱动的集成测试里挂一个假的第二个平台用。只开一个模块，不多依赖什么。
+fake = []
+
 [lints]
 workspace = true
 

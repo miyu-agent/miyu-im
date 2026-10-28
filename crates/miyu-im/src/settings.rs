@@ -14,6 +14,8 @@
 //! 页面服务的键多一层组 `<包的编号>.<组>.<名字>`（2026-10-19 项目主人定；核心 9287d31d 起清单认 `[settings.<组>.<名字>]`，施工
 //! I-3 补），照 [`key`] 拼。
 
+use std::collections::BTreeMap;
+
 use serde_json::{Map, Value};
 
 use miyu_client::manifest::{self, read};
@@ -41,21 +43,22 @@ pub const SITE: &[&str] = &["port"];
 pub struct Defaults {
     /// `im.recall_receipts` 的默认值（出厂 `clear`、`clear-memory`，施工 O-47）。
     pub recall_receipts: Vec<String>,
-    /// 驱动的配置项的默认值，照名字（施工 I-3：OneBot 的 `listen` 出厂 8301）；没写默认值的不放。
-    pub driver: Map<String, Value>,
+    /// 驱动的配置项的默认值：照平台名（组），组里照名字（施工 I-3：OneBot 的 `listen` 出厂 8301；施工 I-70 中上：几个驱动各一组）；
+    /// 没写默认值的不放，一项都没写的那一组也在，是空的。
+    pub drivers: BTreeMap<String, Map<String, Value>>,
     /// 页面服务的配置项（[`SITE`]）的默认值，照名字（施工 I-5 上：`port` 出厂 8302）。
     pub site: Map<String, Value>,
 }
 
 impl Defaults {
     /// 读包文件夹 `package` 里这个包自己的清单（`package.toml`，施工 S-6 上：出厂的、自己装的都照核心交来的那一层），取撤回回执的
-    /// 命令（施工 O-47）、驱动的配置项（施工 I-3：在平台名 `group` 那一组，名字是 `names`）、页面服务的配置项（施工 I-5 上）的
-    /// 默认值。交回的照组里的名字放。
+    /// 命令（施工 O-47）、驱动的配置项（施工 I-3：每个驱动在平台名 `group` 那一组，名字是 `names`；施工 I-70 中上起几个驱动各一组
+    /// `drivers`）、页面服务的配置项（施工 I-5 上）的默认值。交回的照组里的名字放。
     ///
     /// # Errors
     ///
     /// 清单不在、读不成、写错了，撤回回执的命令没声明、默认值不是字的列表：原话里说是哪个文件。
-    pub fn load(package: &Package, (group, names): (&str, &[&str])) -> Result<Defaults, String> {
+    pub fn load(package: &Package, drivers: &[(&str, &[&str])]) -> Result<Defaults, String> {
         let path = package.dir().join(MANIFEST);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
@@ -91,7 +94,10 @@ impl Defaults {
         };
         Ok(Defaults {
             recall_receipts,
-            driver: defaults(group, names),
+            drivers: drivers
+                .iter()
+                .map(|(group, names)| ((*group).to_string(), defaults(group, names)))
+                .collect(),
             site: defaults(SITE_GROUP, SITE),
         })
     }

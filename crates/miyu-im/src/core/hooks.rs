@@ -26,6 +26,7 @@ use miyu_chat::VenueKind;
 
 use crate::chat::{Cap, Platform, To};
 use crate::plugins::{Builtin, Plugins, Toggles};
+use answers::{Edit, heaviest, summed};
 use follow::Followed;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
@@ -51,9 +52,6 @@ fn with_platform(params: &Value, platform: Platform) -> Value {
 
 /// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
 pub(crate) const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
-
-/// 一个包、几个包的加分最多加减多少：门槛是 0 到 1 左右的数，夹住免得一个包把判断整个改掉（施工 O-43 末）。
-const NUDGE_MAX: f64 = 1.0;
 
 /// 问过判断打分挂接点的结果（施工 O-43 末）。
 #[derive(Debug, Clone, PartialEq)]
@@ -124,8 +122,18 @@ impl Steered {
     }
 }
 
-/// 驱动带的插件和驱动这一刻的配置（施工 I-10 上，[`Hooks::new`]）。
-pub(crate) type Builtins = (Vec<Arc<dyn Builtin>>, watch::Receiver<Map<String, Value>>);
+/// 一个驱动交给挂接点的（施工 I-70 中上，[`Hooks::new`]）：插件在它的平台上的场所里能不能用照它的能力表算（施工 I-8 上），它带的
+/// 插件（施工 I-10 上，[`builtins`]）的开关、设置照它这一刻的配置。
+pub(crate) struct Mounted {
+    /// 驱动的平台。
+    pub(crate) platform: Platform,
+    /// 驱动的能力表。
+    pub(crate) caps: &'static [Cap],
+    /// 驱动带的插件。
+    pub(crate) builtins: Vec<Arc<dyn Builtin>>,
+    /// 驱动这一刻的配置（`Current::driver`）。
+    pub(crate) config: watch::Receiver<Map<String, Value>>,
+}
 
 /// 谁挂在哪：包的编号到它导出的挂接点。
 pub(crate) struct Hooks {
@@ -133,39 +141,26 @@ pub(crate) struct Hooks {
     caller: Caller,
     /// 问进站挂接点的包每一次最多等多久（`bridge.json` 的 `hook_millis`，施工 O-43 中）。
     wait: Duration,
-    /// 驱动的平台：插件在这个平台上能不能用照它算（施工 I-8 上）。交给挂接点的参数带的平台照每一次的（施工 I-70 上）。
-    platform: Platform,
-    /// 驱动的能力表（施工 I-8 上）：插件在这个平台上能不能用照它算。
-    caps: &'static [Cap],
+    /// 挂着的驱动，照先后（施工 I-70 中上）：插件在一个场所能不能用照那个场所的平台的驱动算，交给挂接点的参数带的平台照每一次的
+    /// （施工 I-70 上）；只说一个平台的（插件页的 [`Hooks::listed`]）照第一个。
+    drivers: Vec<Mounted>,
     /// 认得的插件（施工 I-8 上）：不是插件的包不问。
     plugins: Mutex<Plugins>,
     /// 场所开关（施工 I-8 上）：只问在那个场所开着的。
     toggles: Mutex<Toggles>,
-    /// 驱动带的插件（施工 I-10 上，[`builtins`]）。
-    builtins: Vec<Arc<dyn Builtin>>,
-    /// 驱动这一刻的配置：驱动带的插件的设置照它（[`builtins`]）。
-    driver: watch::Receiver<Map<String, Value>>,
     /// 在跑、导出了挂接点的包，照编号排；跟着软件包列表走的先后（[`follow`]）。
     hooked: Mutex<Followed>,
 }
 
 impl Hooks {
-    /// 还没看过软件包列表的一份：哪一处都没挂，只认得驱动带的插件 `builtins`（它们的设置照驱动的配置 `driver`）；问进站挂接点
-    /// 每个最多等 `wait`；驱动的平台是 `platform`，它的能力表是 `caps`。
-    pub(crate) fn new(
-        caller: Caller,
-        wait: Duration,
-        (platform, caps): (Platform, &'static [Cap]),
-        (builtins, driver): Builtins,
-    ) -> Hooks {
+    /// 还没看过软件包列表的一份：哪一处都没挂，只认得挂着的驱动 `drivers` 带的插件；问进站挂接点每个最多等 `wait`。
+    pub(crate) fn new(caller: Caller, wait: Duration, drivers: Vec<Mounted>) -> Hooks {
+        let plugins = Plugins::default().with_builtins(&builtins_of(&drivers));
         Hooks {
             caller,
             wait,
-            platform,
-            caps,
-            plugins: Mutex::new(Plugins::default().with_builtins(&builtins)),
-            builtins,
-            driver,
+            drivers,
+            plugins: Mutex::new(plugins),
             toggles: Mutex::new(Toggles::default()),
             hooked: Mutex::new(Followed::default()),
         }
@@ -197,14 +192,23 @@ impl Hooks {
 
     /// 认得的插件换成 `plugins`（施工 I-8 上：起来时、核心推 `content.changed` 时读的）。
     pub(crate) fn set_plugins(&self, plugins: Plugins) {
-        let plugins = plugins.with_builtins(&self.builtins);
+        let plugins = plugins.with_builtins(&builtins_of(&self.drivers));
         *self.plugins.lock().unwrap_or_else(PoisonError::into_inner) = plugins;
     }
 
-    /// 认得的 im 插件（会话浮窗「管理插件」、插件页，[`listed`]）。
+    /// 认得的 im 插件（会话浮窗「管理插件」、插件页，[`listed`]）：能不能用照第一个驱动的平台算（页面分平台是 I-70 下的事）。一个
+    /// 驱动都没挂的（照说不会）是空的。
     pub(crate) fn listed(&self) -> Vec<Value> {
+        let Some(first) = self.drivers.first() else {
+            return Vec::new();
+        };
         let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
-        listed::listed(&plugins, self.platform, self.caps)
+        listed::listed(&plugins, first.platform, first.caps)
+    }
+
+    /// 平台 `platform` 的驱动；没挂的是空的。
+    fn mounted(&self, platform: Platform) -> Option<&Mounted> {
+        self.drivers.iter().find(|one| one.platform == platform)
     }
 
     /// 场所开关换成 `toggles`（施工 I-8 上：卡片读进来、存下时拼的）。
@@ -212,24 +216,27 @@ impl Hooks {
         *self.toggles.lock().unwrap_or_else(PoisonError::into_inner) = toggles;
     }
 
-    /// 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的插件、在这个平台上能用、在这个
-    /// 场所开着（施工 I-8 上）。场所认不出的（`None`）照插件声明的默认。
-    pub(crate) fn at(&self, point: &str, to: Option<To>) -> Vec<String> {
+    /// 平台 `platform` 上发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的插件、在这个
+    /// 平台上能用、在这个场所开着（施工 I-8 上）。场所认不出的（`to` 是 `None`）照插件声明的默认。
+    pub(crate) fn at(&self, point: &str, platform: Platform, to: Option<To>) -> Vec<String> {
         let hooked = hooked_at(&self.lock().hooked, point);
         hooked
             .into_iter()
-            .filter(|package| self.allowed(package, to))
+            .filter(|package| self.allowed(package, platform, to))
             .collect()
     }
 
-    /// 包 `package` 在发到 `to` 的那个场所里算不算开着的 im 插件（施工 I-8 上）：是插件、在这个平台上能用、这个场所开着（场所认不出
-    /// 的照声明的默认）。挂接点、`chat.note` 都照它。
-    pub(crate) fn allowed(&self, package: &str, to: Option<To>) -> bool {
+    /// 包 `package` 在平台 `platform` 上发到 `to` 的那个场所里算不算开着的 im 插件（施工 I-8 上）：是插件、在这个平台上能用（照这个
+    /// 平台的驱动的能力表，施工 I-70 中上；没挂的平台都不算）、这个场所开着（场所认不出的照声明的默认）。挂接点、`chat.note` 都照它。
+    pub(crate) fn allowed(&self, package: &str, platform: Platform, to: Option<To>) -> bool {
+        let Some(mounted) = self.mounted(platform) else {
+            return false;
+        };
         let plugins = self.plugins.lock().unwrap_or_else(PoisonError::into_inner);
         let Some(declared) = plugins.declared(package) else {
             return false;
         };
-        if plugins.usable(package, self.platform, self.caps).is_err() {
+        if plugins.usable(package, platform, mounted.caps).is_err() {
             return false;
         }
         let venue = to.map(|to| match to {
@@ -252,7 +259,7 @@ impl Hooks {
     /// 平台 `platform` 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`]
     /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
     pub(crate) fn event(&self, platform: Platform, bot: i64, to: Option<To>, event: &Value) {
-        for package in self.at(EVENT, to) {
+        for package in self.at(EVENT, platform, to) {
             let caller = self.caller.clone();
             let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {
@@ -388,63 +395,6 @@ fn table(packages: &Value) -> BTreeMap<String, Vec<&'static str>> {
         .collect()
 }
 
-/// 几个包的加分（照编号排）各夹到 -1 到 1、加起来再夹一次；给了不是 0 的记下是谁。
-fn summed(answers: Vec<(String, f64)>) -> Nudge {
-    let bonus = answers
-        .iter()
-        .map(|(_, bonus)| bonus.clamp(-NUDGE_MAX, NUDGE_MAX))
-        .sum::<f64>();
-    Nudge {
-        bonus: bonus.clamp(-NUDGE_MAX, NUDGE_MAX),
-        by: answers
-            .into_iter()
-            .filter(|(_, bonus)| *bonus != 0.0)
-            .map(|(package, _)| package)
-            .collect(),
-    }
-}
-
-/// 出站挂接点一个包的回答。
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Edit {
-    /// 照原样：`{}`、核心断开的。
-    Keep,
-    /// 换成这一段：`{"text": <不空的字>}`。
-    Change(String),
-    /// 不发：`{"drop": true}`。
-    Drop,
-}
-
-impl Edit {
-    /// 读一个包的回答 `result`：`drop` 是 `true` 的不发；`text` 是不空的字的换；两格都没有的照原样；别的写法是答错了
-    /// （`bad_answer`）。
-    fn read(result: &Value) -> Result<Edit, String> {
-        let bad = || "bad_answer".to_string();
-        match (result.get("drop"), result.get("text")) {
-            (Some(Value::Bool(true)), None) => Ok(Edit::Drop),
-            (None, Some(Value::String(text))) if !text.trim().is_empty() => {
-                Ok(Edit::Change(text.clone()))
-            }
-            (None, None) if result.is_object() || result.is_null() => Ok(Edit::Keep),
-            _ => Err(bad()),
-        }
-    }
-}
-
-/// 几个包的意见（照编号排）取最重的：一样重的照编号取头一个；都照常的没有包。
-fn heaviest(answers: Vec<(String, Steer)>) -> Steered {
-    let mut steered = Steered::pass();
-    for (package, steer) in answers {
-        if steer > steered.steer {
-            steered = Steered {
-                steer,
-                by: Some(package),
-            };
-        }
-    }
-    steered
-}
-
 /// 表 `hooked` 照推来的一项换包 `package`：挂了的换上它挂的几处；`entry` 是 `null` 的（卸掉了）、不在跑了、不导出了的拿掉。
 fn change(hooked: &mut BTreeMap<String, Vec<&'static str>>, package: &str, entry: &Value) {
     let points = points(entry);
@@ -481,6 +431,19 @@ fn points(entry: &Value) -> Vec<&'static str> {
         .collect()
 }
 
+/// 挂着的驱动 `drivers` 带的插件，记着是哪个驱动的（施工 I-70 中上）。
+fn builtins_of(drivers: &[Mounted]) -> Vec<(Platform, Arc<dyn Builtin>)> {
+    drivers
+        .iter()
+        .flat_map(|one| {
+            one.builtins
+                .iter()
+                .map(|builtin| (one.platform, Arc::clone(builtin)))
+        })
+        .collect()
+}
+
+mod answers;
 mod builtins;
 mod follow;
 mod listed;

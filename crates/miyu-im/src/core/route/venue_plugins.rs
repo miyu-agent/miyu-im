@@ -13,17 +13,21 @@ use serde_json::json;
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::To;
+use crate::chat::{Platform, To};
 use crate::core::{Gone, reason};
 
 impl Route {
-    /// 场所 `venue`（发到 `to`）开着的插件和上一次告诉核心的不一样，就告诉一次。
+    /// 平台 `platform` 上的场所 `venue`（发到 `to`）开着的插件和上一次告诉核心的不一样，就告诉一次。
     ///
     /// # Errors
     ///
     /// 核心断开。
-    pub(super) async fn tell_plugins(&mut self, venue: &str, to: To) -> Result<(), Gone> {
-        let on = self.hooks.plugins_on(to);
+    pub(super) async fn tell_plugins(
+        &mut self,
+        venue: &str,
+        (platform, to): (Platform, To),
+    ) -> Result<(), Gone> {
+        let on = self.hooks.plugins_on(platform, to);
         if self.plugins_told.get(venue) == Some(&on) {
             return Ok(());
         }
@@ -48,13 +52,13 @@ impl Route {
     ///
     /// 核心断开。
     pub(super) async fn sync_plugins(&mut self) -> Result<(), Gone> {
-        let venues: BTreeMap<String, To> = self
+        let venues: BTreeMap<String, (Platform, To)> = self
             .peers
             .values()
-            .map(|peer| (peer.venue.as_str().to_string(), peer.to))
+            .map(|peer| (peer.venue.as_str().to_string(), (peer.platform, peer.to)))
             .collect();
-        for (venue, to) in venues {
-            self.tell_plugins(&venue, to).await?;
+        for (venue, at) in venues {
+            self.tell_plugins(&venue, at).await?;
         }
         Ok(())
     }

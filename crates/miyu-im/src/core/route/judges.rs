@@ -132,11 +132,11 @@ impl Judges {
     pub(super) fn start(&mut self, judging: Judging, asking: Asking, at: Option<(Platform, To)>) {
         self.next += 1;
         let ticket = self.next;
-        let (platform, to) = at.unzip();
-        let scoring = (asking.mode == Mode::Reply)
-            .then(|| self.hooks.at(SCORE, to))
-            .filter(|packages| !packages.is_empty())
-            .and_then(|packages| Some((platform?, packages, scored_params(&judging))));
+        let scoring = at
+            .filter(|_| asking.mode == Mode::Reply)
+            .map(|(platform, to)| (platform, self.hooks.at(SCORE, platform, Some(to))))
+            .filter(|(_, packages)| !packages.is_empty())
+            .map(|(platform, packages)| (platform, packages, scored_params(&judging)));
         self.judging.push((ticket, judging));
         let (caller, texts, slots, personas, hooks) = (
             self.caller.clone(),

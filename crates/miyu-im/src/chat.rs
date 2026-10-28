@@ -5,8 +5,8 @@ mod bots;
 mod calls;
 mod cap;
 mod event;
-#[cfg(test)]
-pub(crate) mod fake;
+#[cfg(any(test, feature = "fake"))]
+pub mod fake;
 mod forwards;
 mod link;
 mod members;

@@ -10,7 +10,9 @@
 //!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。开好监听、桥手里
 //!    的状态（`crate::running`）造好以后，把它交给答后台页方法的那一头、登记方法（施工 O-28 上，`core/methods.rs`）：同样写
 //!    出去就接着起来。
-//! 2. 叫驱动起来（[`Driver::start`]，施工 I-3）：OneBot 开好端口、说听上了；端口被占了：[`Failure::PortInUse`]，桥起不来。
+//! 2. 叫驱动起来（[`Driver::start`]，施工 I-3）：OneBot 开好端口、说听上了；端口被占了：[`Failure::PortInUse`]，桥起不来。挂几个
+//!    驱动的（施工 I-70 中上）照先后一个一个起，一个驱动一个 [`Gate`]（各自的平台、连着的号、报的状态、状态目录、模板），交来的事
+//!    走同一条通道交给跟核心的那一头；平台名重了的、一个驱动都没有的握手以前就起不来（[`Failure::Start`]，是 bug）。
 //! 3. 驱动跑着的那一段（接连接、换端口）、跟核心的那一头一个任务（`core/route.rs`）、写状态文件的一个任务
 //!    （`crate::status_file`，施工 O-18），都在一组里：停下时一起停。核心推来的配置（`extension.config`，施工 O-20）由跟核心的
 //!    那一头交过来：换上桥手里的那一份（`crate::current`），驱动的那几项变了驱动自己换（施工 I-3）。
@@ -32,7 +34,7 @@ use crate::TARGET;
 use crate::changed::Changed;
 use crate::chat::Bots;
 use crate::chat::{Members, Platforms};
-use crate::core::hooks::Hooks;
+use crate::core::hooks::{Hooks, Mounted};
 use crate::core::methods::{Methods, register};
 use crate::core::route::{
     Asking, Fetching, Forwarding, Personas, Reactions, Recalling, Route, Slots,
@@ -45,7 +47,7 @@ use crate::package::Package;
 use crate::recent::{self, Recent};
 use crate::records::Records;
 use crate::rules::{Configured, Factory, Venues};
-use crate::running::Running;
+use crate::running::{Running, Station};
 use crate::settings::Defaults;
 use crate::site::{self, Port, Site};
 use crate::status_file;
@@ -86,8 +88,9 @@ pub struct Serve {
     pub defaults: Defaults,
     /// 出厂的场所规则、出厂参数、违规词表：握手以前读好、查过（施工 O-21，[`Factory::load`]）。
     pub factory: Factory,
-    /// 平台的接法（施工 I-2 下）：监听到的连接交给它。
-    pub driver: Arc<dyn Driver>,
+    /// 平台的接法（施工 I-2 下）：监听到的连接交给它们。挂几个驱动的照先后（施工 I-70 中上），第一个是第一个驱动
+    /// （`Platforms::first`：页面、状态文件顶上那几格照它）；平台名不能重，一个都没有的起不来。
+    pub drivers: Vec<Arc<dyn Driver>>,
     /// 包文件夹：页面服务给它的 `site/` 里的文件（施工 I-5 上）。
     pub package: Package,
 }
@@ -155,6 +158,7 @@ pub async fn run(
     tell: impl Fn(Notice) + Send + Sync + 'static,
     stop: impl Future<Output = ()>,
 ) -> Result<(), Failure> {
+    checked(&serve.drivers)?;
     let tools = serve.factory.tools();
     let methods = Arc::new(Methods::new());
     let core = Core::connect(
@@ -176,55 +180,81 @@ pub async fn run(
     );
     // 撤回回执的命令的默认值（施工 O-47）：跟核心的那一头照它读握手交来的、推来的。
     let recall_default = serve.defaults.recall_receipts.clone();
-    // 驱动的配置项挑出来交给驱动（施工 I-3），群的几项照旧。
+    // 每个驱动的配置项挑出来交给它（施工 I-3；施工 I-70 中上：照平台各一份），群的几项照旧。
+    let mut driver_defaults = serve.defaults.drivers;
+    let settings = serve
+        .drivers
+        .iter()
+        .map(|driver| {
+            let platform = driver.platform();
+            let defaults = driver_defaults.remove(platform.name()).unwrap_or_default();
+            (platform, driver.settings(), defaults)
+        })
+        .collect();
     let current = Arc::new(Current::new(
         &core.config,
-        (
-            serve.driver.platform().name(),
-            serve.driver.settings(),
-            serve.defaults.driver,
-        ),
+        settings,
         serve.defaults.site,
         Configured::handed(&core.config),
     ));
-    // 登记桥的工具（施工 O-26）：写出去就接着起来，之后的 `venue.session` 造的会话就有它们。驱动的配置变了照它重新登记（施工 Q-1）。
-    let mut driver_config = current.driver();
-    let config = driver_config.borrow_and_update().clone();
-    let provided = provide(&core.caller(), &tools, &config).await;
-    let first = tools.provided(&config);
-    let following = follow(core.caller(), Arc::clone(&tools), driver_config, first);
-    let reported = Arc::new(Reported::default());
+    // 登记桥的工具（施工 O-26）：几个驱动的合成一份，写出去就接着起来，之后的 `venue.session` 造的会话就有它们。哪个驱动的配置变了
+    // 照它重新登记（施工 Q-1）。
+    let provided = provide(&core.caller(), &tools, &current.configs()).await;
+    let first = tools.provided(&current.configs());
+    let following = follow(core.caller(), Arc::clone(&tools), current.drivers(), first);
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
     let told = Arc::clone(&tell);
-    let bots = Arc::new(Bots::default());
-    let platform = serve.driver.platform();
-    // 驱动自己的状态目录（施工 Q-2、Q-3）：im 的状态目录下照平台的名字。
-    let store = status_file::store(&serve.root, platform);
     // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
-    let hooks = Arc::new(Hooks::new(
-        core.caller(),
-        serve.tuning.hook(),
-        (platform, serve.driver.caps()),
-        (serve.driver.builtins(), current.driver()),
-    ));
+    let mounted = serve
+        .drivers
+        .iter()
+        .map(|driver| Mounted {
+            platform: driver.platform(),
+            caps: driver.caps(),
+            builtins: driver.builtins(),
+            config: current.driver(driver.platform()),
+        })
+        .collect();
+    let hooks = Arc::new(Hooks::new(core.caller(), serve.tuning.hook(), mounted));
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let changed = Arc::new(Changed::new());
     // 卡片、白名单变了（施工 I-7 上）：路由叫，页面服务推给会话页。
     let cards = Arc::new(Changed::new());
-    let gate = Arc::new(Gate::new(
-        (
-            Arc::clone(&current),
-            Arc::clone(&reported),
-            serve.tuning.clone(),
-        ),
-        (platform, Arc::clone(&bots)),
-        inbound,
-        tell,
-        Arc::clone(&changed),
-        (Arc::clone(&hooks), store.clone(), tools.texts()),
-    ));
-    // 驱动起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）。
-    let accepting = serve.driver.start(Arc::clone(&gate)).await?;
+    // 驱动一个一个起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）：一个驱动一个 `Gate`（施工 I-70 中上）。
+    let mut stations = Vec::new();
+    let mut accepting = Vec::new();
+    for driver in &serve.drivers {
+        let station = Station {
+            platform: driver.platform(),
+            bots: Arc::new(Bots::default()),
+            reported: Arc::new(Reported::default()),
+        };
+        // 驱动自己的状态目录（施工 Q-2、Q-3）：im 的状态目录下照平台的名字。
+        let store = status_file::store(&serve.root, station.platform);
+        let gate = Arc::new(Gate::new(
+            (
+                Arc::clone(&current),
+                Arc::clone(&station.reported),
+                serve.tuning.clone(),
+            ),
+            (station.platform, Arc::clone(&station.bots)),
+            inbound.clone(),
+            Arc::clone(&tell),
+            Arc::clone(&changed),
+            (Arc::clone(&hooks), store, tools.texts(station.platform)),
+        ));
+        accepting.push(driver.start(gate).await?);
+        stations.push(station);
+    }
+    // 交来的事的通道只留在各个 `Gate` 里：驱动都放下了，跟核心的那一头收到头（同只有一个驱动时）。
+    drop(inbound);
+    // 挂着的平台（施工 I-70 上）：跟核心的那一头照它拼场所、找号。
+    let platforms = Platforms::new(
+        stations
+            .iter()
+            .map(|one| (one.platform, Arc::clone(&one.bots)))
+            .collect(),
+    );
     // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。
     let page = Arc::new(Port::new(Arc::clone(&changed)));
     // 今天的几个数（施工 I-6 下）：路由数、页面读、另起的任务写盘。
@@ -242,17 +272,16 @@ pub async fn run(
     ));
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
-        bots: Arc::clone(&bots),
-        platform,
+        drivers: stations,
         current: Arc::clone(&current),
-        reported,
         page: Arc::clone(&page),
         since: std::time::SystemTime::now(),
     });
     let site = Site::new(
         (serve.root.clone(), serve.package.dir().join("site")),
         core.caller(),
-        (Arc::clone(&running), Arc::clone(&serve.driver)),
+        // 页面照第一个驱动（施工 I-70 中上：页面分平台是 I-70 下的事）。
+        (Arc::clone(&running), Arc::clone(&serve.drivers[0])),
         Arc::clone(&counters),
         (Arc::clone(&changed), Arc::clone(&cards)),
     );
@@ -262,10 +291,12 @@ pub async fn run(
     let registered = register(&core.caller()).await;
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
-    tasks.spawn(async move {
-        accepting.await;
-        None
-    });
+    for accepting in accepting {
+        tasks.spawn(async move {
+            accepting.await;
+            None
+        });
+    }
     tasks.spawn(async move {
         serving.await;
         None
@@ -321,8 +352,7 @@ pub async fn run(
     );
     let route = Route::new(
         core,
-        // 挂着的平台（施工 I-70 上）：现在只有这一个驱动。
-        Platforms::new(vec![(platform, bots)]),
+        platforms,
         venues,
         members,
         parts,
@@ -332,7 +362,7 @@ pub async fn run(
             Arc::clone(&counters),
             Arc::clone(&cards),
             Arc::clone(&recent),
-            store,
+            status_file::dir(&serve.root),
             Arc::clone(&records),
         ),
     );
@@ -379,4 +409,27 @@ pub async fn run(
             }
         }
     }
+}
+
+/// 驱动表 `drivers` 查一遍（施工 I-70 中上）：一个都没有的、平台名重了的起不来，说是哪个平台（是 bug，不是人能配错的）。
+///
+/// # Errors
+///
+/// 一个驱动都没有、两个驱动的平台名一样：[`Failure::Start`]。
+fn checked(drivers: &[Arc<dyn Driver>]) -> Result<(), Failure> {
+    if drivers.is_empty() {
+        return Err(Failure::Start("no driver given".to_string()));
+    }
+    for (at, driver) in drivers.iter().enumerate() {
+        let name = driver.platform().name();
+        if drivers[..at]
+            .iter()
+            .any(|one| one.platform().name() == name)
+        {
+            return Err(Failure::Start(format!(
+                "platform {name} given by two drivers"
+            )));
+        }
+    }
+    Ok(())
 }

@@ -65,11 +65,11 @@ impl Route {
             return Ok(());
         };
         // 平台照场所编号的第一段（施工 I-70 上）。
-        let to = self
+        let at = self
             .platforms
             .of_venue(&venue)
-            .and_then(|platform| platform.to_of(&venue));
-        if to.is_none() || !self.hooks.allowed(from, to) {
+            .and_then(|platform| Some((platform, platform.to_of(&venue)?)));
+        if !at.is_some_and(|(platform, to)| self.hooks.allowed(from, platform, Some(to))) {
             tracing::info!(target: TARGET, from, venue = %venue.id(), why = "not_allowed", "plugin note refused");
             answerer.refuse(&id, "not_allowed");
             return Ok(());

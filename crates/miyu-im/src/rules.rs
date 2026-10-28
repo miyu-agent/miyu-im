@@ -47,6 +47,7 @@ pub use cards::{Card, Cards, Chatty, GroupCard, GroupSet, PrivateCard, PrivateSe
 pub use cards::{load as load_cards, path as cards_path, save as save_cards};
 pub use configured::{Configured, key_of};
 use files::Stamp;
+pub(crate) use tools::Owned;
 pub use tools::Tools;
 
 /// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `system/` 里。
@@ -99,11 +100,11 @@ impl Factory {
     ///
     /// 有一条问题就是打包的错（警告也算，照 `chat.md` 第八条施工时定的第 10 条），交回全部问题：规则写错、出厂参数写错、
     /// 判官的说明、退信的模板、桥的工具写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规
-    /// 词表、判官的说明、退信的模板、桥的工具的先后。驱动交的工具 `toolset`（施工 T-1，`Driver::toolset`）照它的目录一起读、查；
-    /// 印场所规则这类用不上工具的交空的。
+    /// 词表、判官的说明、退信的模板、桥的工具的先后。驱动交的工具 `toolsets`（施工 T-1，`Driver::toolset`；施工 I-70 中上起每个
+    /// 驱动一套，带它的平台，照驱动的先后）照各自的目录一起读、查，两套里有同名的工具也算；印场所规则这类用不上工具的交空的。
     pub fn load(
         package: &Package,
-        toolset: Option<Arc<dyn crate::toolset::ToolSet>>,
+        toolsets: Vec<(crate::chat::Platform, Arc<dyn crate::toolset::ToolSet>)>,
     ) -> Result<Factory, Vec<Problem>> {
         let dir = package.data();
         let mut problems = Vec::new();
@@ -134,7 +135,7 @@ impl Factory {
             .map(|text| Moderation::parse_keywords(&text));
         let judge = judge::texts(&dir, &mut problems);
         let facts = facts::load(&dir, &mut problems);
-        let tools = tools::load(&dir, toolset, &mut problems);
+        let tools = tools::load(&dir, toolsets, &mut problems);
         let page = page_words(&dir, &mut problems);
         match (params, keywords, judge, facts, tools, page) {
             (

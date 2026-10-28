@@ -11,11 +11,13 @@
 
 use std::sync::Arc;
 
+use futures_util::future::select_all;
 use serde_json::{Map, Value, json};
 use tokio::sync::watch;
 
 use super::caller::{Caller, Writer, write_line};
 use crate::TARGET;
+use crate::chat::Platform;
 use crate::core::methods::Methods;
 use crate::core::{Gone, reason};
 use crate::rules::Tools;
@@ -109,15 +111,16 @@ pub(super) fn reply(writer: &Writer, reply: Value) {
     });
 }
 
-/// 登记 `tools`（「提供者和不说话」第 1 条），驱动这一刻的配置是 `config`（施工 Q-1：单件工具的开关）：经 `caller` 发 `provide`，
+/// 登记 `tools`（「提供者和不说话」第 1 条），每个驱动这一刻的配置是 `configs`（施工 Q-1：单件工具的开关；施工 I-70 中上：照平台）：
+/// 经 `caller` 发 `provide`，
 /// 写出去就交回等回应、记运行日志的那一段（交给 `serve` 的任务组）。写不出去的（核心关了管道）交回空的：跟核心的那一头接着读到头，
 /// 照「怎么走」第 11 条停下。
 pub(crate) async fn provide(
     caller: &Caller,
     tools: &Tools,
-    config: &Map<String, Value>,
+    configs: &[(Platform, Map<String, Value>)],
 ) -> Option<impl Future<Output = ()> + use<>> {
-    let answer = caller.send("provide", tools.provided(config)).await.ok()?;
+    let answer = caller.send("provide", tools.provided(configs)).await.ok()?;
     Some(async move {
         match answer.wait().await {
             Ok(reply) => logged(&reply),
@@ -128,16 +131,31 @@ pub(crate) async fn provide(
     })
 }
 
-/// 驱动的配置变了重新登记（施工 Q-1）：照 `driver` 的新配置算出来的和上一次登记的 `sent` 不一样才发（单件工具的开关，
-/// `ToolSet::offers`），等到回应记一行。配置不再推了（桥在停）、写不出去了（核心关了管道）就停。
+/// 驱动的配置变了重新登记（施工 Q-1）：`drivers` 里哪一个驱动的配置变了（施工 I-70 中上：照平台各一份），照每个驱动这一刻的
+/// 配置算出来的和上一次登记的 `sent` 不一样才发（单件工具的开关，`ToolSet::offers`），等到回应记一行。配置不再推了（桥在停）、
+/// 写不出去了（核心关了管道）、一个驱动都没有就停。
 pub(crate) async fn follow(
     caller: Caller,
     tools: Arc<Tools>,
-    mut driver: watch::Receiver<Map<String, Value>>,
+    mut drivers: Vec<(Platform, watch::Receiver<Map<String, Value>>)>,
     mut sent: Value,
 ) {
-    while driver.changed().await.is_ok() {
-        let wanted = tools.provided(&driver.borrow_and_update());
+    while !drivers.is_empty() {
+        // 等哪一个先变；没变的那几个等的这一下在这一句里放下，下一轮重新等（变了的标记还在，不会漏）。
+        let (changed, _, _) = select_all(
+            drivers
+                .iter_mut()
+                .map(|(_, config)| Box::pin(config.changed())),
+        )
+        .await;
+        if changed.is_err() {
+            return;
+        }
+        let configs: Vec<(Platform, Map<String, Value>)> = drivers
+            .iter_mut()
+            .map(|(platform, config)| (*platform, config.borrow_and_update().clone()))
+            .collect();
+        let wanted = tools.provided(&configs);
         if wanted == sent {
             continue;
         }

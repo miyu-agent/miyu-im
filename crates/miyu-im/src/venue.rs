@@ -88,7 +88,7 @@ pub fn show(
             USAGE,
         );
     };
-    let factory = match Factory::load(texts.package(), None) {
+    let factory = match Factory::load(texts.package(), Vec::new()) {
         Ok(factory) => factory,
         Err(problems) => return said(err, &texts.failure(&Failure::Factory(problems)), FAILED),
     };

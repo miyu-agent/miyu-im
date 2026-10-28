@@ -18,7 +18,7 @@ fn package() -> std::path::PathBuf {
 
 /// 出厂的工具。
 fn tools() -> Arc<Tools> {
-    Factory::load(&Package::at(package()), None)
+    Factory::load(&Package::at(package()), Vec::new())
         .expect("出厂的读得出")
         .tools()
 }
@@ -47,10 +47,7 @@ fn asked(heard: Heard) -> Value {
 fn without_a_driver_nothing_is_provided_and_every_tool_is_unknown() {
     // 施工 T-4 起工具全在驱动里（`tests/provider.rs`、`tests/stdio.rs` 照出厂的说明查）：不带驱动读的这一份登记的是空的，
     // 「这一轮不说话」也不认识，答 `unknown.txt` 填上那个名字，编号原样。
-    assert_eq!(
-        tools().provided(&serde_json::Map::new()),
-        json!({"tools": []})
-    );
+    assert_eq!(tools().provided(&[]), json!({"tools": []}));
     for (id, tool) in [("core-7", "skip_reply"), ("core-8", "ban_all")] {
         let unknown = shipped("tool-results/unknown.txt").replace("{name}", tool);
         assert_eq!(

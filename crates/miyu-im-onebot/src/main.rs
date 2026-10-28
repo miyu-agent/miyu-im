@@ -214,10 +214,10 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
     let loaded = Tuning::load(&package.data()).and_then(|tuning| {
         Defaults::load(
             &package,
-            (
+            &[(
                 miyu_im_onebot::onebot::PLATFORM.name(),
                 miyu_im_onebot::settings::NAMES,
-            ),
+            )],
         )
         .map(|defaults| (tuning, defaults))
     });
@@ -229,8 +229,14 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
             return FAILED;
         }
     };
-    let driver = std::sync::Arc::new(miyu_im_onebot::OneBot);
-    let factory = match Factory::load(&package, driver.toolset(&tuning)) {
+    // 程序只交 OneBot 一个驱动（施工 I-70 中上：宿主能挂几个，第二个随 I-71 上）。
+    let driver: std::sync::Arc<dyn Driver> = std::sync::Arc::new(miyu_im_onebot::OneBot);
+    let toolsets = driver
+        .toolset(&tuning)
+        .map(|set| (driver.platform(), set))
+        .into_iter()
+        .collect();
+    let factory = match Factory::load(&package, toolsets) {
         Ok(factory) => factory,
         Err(problems) => {
             settle(texts, &owed);
@@ -245,7 +251,7 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         tuning,
         defaults,
         factory,
-        driver,
+        drivers: vec![driver],
         package,
     };
     let speaking = Arc::new(Mutex::new(texts.clone()));

@@ -93,7 +93,8 @@ impl Reported {
     }
 }
 
-/// 宿主给驱动的，各个连接共用。
+/// 宿主给一个驱动的，它的各个连接共用（施工 I-70 中上：一个驱动一个，平台、连着的号、报的状态、状态目录、模板各是各的；交给
+/// 跟核心的那一头的通道、说给人听的、叫状态文件再写的几个共用一份）。
 pub struct Gate {
     /// 桥手里最新的配置：驱动的那几项在这里（和后台页的方法共用，核心推来新的就换上，施工 O-20、I-3）。
     current: Arc<Current>,
@@ -158,15 +159,15 @@ impl Gate {
         &self.bots
     }
 
-    /// 驱动的配置项（[`Driver::settings`]）最新的值，照名字：没交的、`null` 的已经照清单的默认值补上，默认值也没有的不放。拿着的
-    /// 随时读到最新的，核心推来新的收到通知。
+    /// 驱动的配置项（[`Driver::settings`]，在这个驱动的平台名那一组）最新的值，照名字：没交的、`null` 的已经照清单的默认值补上，
+    /// 默认值也没有的不放。拿着的随时读到最新的，核心推来这个平台的新的才收到通知（施工 I-70 中上：别的驱动的变了不通知）。
     pub fn config(&self) -> watch::Receiver<Map<String, Value>> {
-        self.current.driver()
+        self.current.driver(self.platform)
     }
 
-    /// 驱动的配置项 `name` 清单里的默认值：推来的值读不懂时照它（施工 I-3）。没写默认值的是空的。
+    /// 驱动的配置项 `name` 清单里的默认值（这个驱动的平台名那一组）：推来的值读不懂时照它（施工 I-3）。没写默认值的是空的。
     pub fn default(&self, name: &str) -> Option<Value> {
-        self.current.driver_default(name)
+        self.current.driver_default(self.platform, name)
     }
 
     /// 报状态：后台页的 `status`、状态文件里驱动的那几格换成 `fields`，状态文件照这一刻再写。
@@ -203,7 +204,7 @@ impl Gate {
 
     /// 驱动带的插件 `id` 在场所 `to` 开着没有（施工 Q-3：总开关、场所开关，同 `toolset::Call::plugins`）。
     pub fn active(&self, id: &str, to: To) -> bool {
-        self.hooks.active(to).contains(&id)
+        self.hooks.active(self.platform, to).contains(&id)
     }
 
     /// 驱动带的插件给场所 `to` 记一句（施工 Q-3）：模板 `name`（`ToolSet::facts` 里的）字段照 `fields` 换、去掉首尾空白，种类是 `kind`，交给跟

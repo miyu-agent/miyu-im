@@ -17,7 +17,7 @@ pub fn defaults() -> Defaults {
         miyu_im_onebot::onebot::PLATFORM.name(),
         miyu_im_onebot::settings::NAMES,
     );
-    Defaults::load(&package_in(resources()), driver).expect("出厂的清单读得出来")
+    Defaults::load(&package_in(resources()), &[driver]).expect("出厂的清单读得出来")
 }
 
 /// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。
@@ -28,5 +28,9 @@ pub fn factory() -> Factory {
 /// 照包文件夹 `package` 读出厂的（同桥起来时）：驱动交的工具（施工 T-1）一起读。
 pub fn factory_at(package: &miyu_im::package::Package) -> Result<Factory, Vec<miyu_chat::Problem>> {
     use miyu_im::driver::Driver;
-    Factory::load(package, miyu_im_onebot::OneBot.toolset(&tuning()))
+    let onebot = miyu_im_onebot::OneBot;
+    let toolsets = onebot
+        .toolset(&tuning())
+        .map(|set| (onebot.platform(), set));
+    Factory::load(package, toolsets.into_iter().collect())
 }

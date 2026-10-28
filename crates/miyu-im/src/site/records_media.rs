@@ -66,13 +66,13 @@ pub(super) async fn media(site: &Arc<Site>, params: &Value) -> Result<Value, Ref
         .as_str()
         .filter(|id| !id.is_empty())
         .ok_or_else(|| refused("bad_params"))?;
-    let platform = site.running.platform;
+    let platform = site.running.first().platform;
     let to = VenueId::parse(venue)
         .ok()
         .and_then(|venue| Venue::parse(&venue))
         .and_then(|venue| platform.to_of(&venue))
         .ok_or_else(|| refused("bad_params"))?;
-    let held = site.running.bots.held();
+    let held = site.running.first().bots.held();
     if held.is_empty() {
         return Err(refused("not_connected"));
     }
