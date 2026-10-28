@@ -108,7 +108,7 @@ async fn the_admins_private_chat_knows_the_profile_and_the_whitelisted_one_does_
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
-    let changes = json!({"layer": "personal", "changes": [
+    let changes = json!({"layer": "system", "changes": [
         {"key": "profile.name", "value": NAME},
         {"key": "profile.about", "value": ABOUT},
     ]});

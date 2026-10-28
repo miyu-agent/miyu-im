@@ -23,7 +23,7 @@ pub mod notices;
 pub mod pipe;
 pub mod platform;
 pub mod ports;
-mod roots;
+pub mod roots;
 pub mod spawning;
 pub mod speaking;
 

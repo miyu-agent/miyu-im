@@ -1,4 +1,4 @@
-//! 判官带人格（施工 O-23 补，`onebot.md` 第一条「群里怎么叫她」第 1 条、第 12 条第 3 款）：真核心照开关拉起真桥，系统区装上
+//! 判官带人格（施工 O-23 补，`onebot.md` 第一条「群里怎么叫她」第 1 条、第 12 条第 3 款）：真核心照开关拉起真桥，主人家目录装上
 //! 样本人格，判官那一次发到本机回环上的假服务器（同 `judged.rs`）。设了人格的群，判官的 system 里 `system.txt` 后面紧跟着人格的
 //! 两个标签夹着人设；关了的群、无人格的群不带；会话造好以后人格删了的不带、照样问、记一行运行日志。
 
@@ -12,6 +12,7 @@ use miyu_session::testkit::{
 use crate::judged::{JIE, LIN, MEMBERS, decided, judge_text, until_decided};
 use crate::support::group::*;
 use crate::support::judge::*;
+use crate::support::roots::{owner_home, owner_id};
 use crate::support::*;
 
 /// 用样本人格的群（施工 O-23 补）。
@@ -40,9 +41,9 @@ fn persona_rules() -> String {
     )
 }
 
-/// 样本人格照抄一份进系统区那一层，编号是 `id`。
+/// 样本人格照抄一份进主人的家目录（核心 SU-3 下起只认那里），编号是 `id`。
 fn install_copy(home: &Home, id: &str) {
-    let to = home.root.system().join("personas").join(id);
+    let to = owner_home(&home.root).join("personas").join(id);
     std::fs::create_dir_all(to.join("prompts")).expect("建得了目录");
     for file in ["persona.toml", "prompts/persona.md"] {
         std::fs::copy(sample_persona_dir().join(file), to.join(file)).expect("复制得了");
@@ -69,7 +70,7 @@ async fn the_judge_brings_the_persona_of_the_group() {
     let script = Script::new([]);
     let (home, mut napcat, _) =
         started_judged(&script, &server, (&persona_rules(), ""), "", MEMBERS).await;
-    install_sample_persona(&home.root);
+    install_sample_persona(&home.root, &owner_id());
     install_copy(&home, DOOMED_PERSONA);
     // 1：用样本人格的群，2：同样的人格、判官不带，3：无人格的群；都是小林 @ 她，判官说不回。
     for (group, message) in [(PERSONA, 1), (PERSONA_OFF, 2), (PLAIN, 3)] {
@@ -91,7 +92,7 @@ async fn the_judge_brings_the_persona_of_the_group() {
         ("阿杰", "jie"),
     ));
     until_decided(&home, DOOMED, 4).await;
-    std::fs::remove_dir_all(home.root.system().join("personas").join(DOOMED_PERSONA))
+    std::fs::remove_dir_all(owner_home(&home.root).join("personas").join(DOOMED_PERSONA))
         .expect("删得了");
     napcat.send(group_frame(
         DOOMED,

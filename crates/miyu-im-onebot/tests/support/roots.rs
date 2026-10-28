@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use miyu_kernel::id::AccountId;
 use miyu_store::env::{Env, Platform};
 use miyu_store::root::DataRoot;
 
@@ -48,4 +49,14 @@ fn owner(root: &DataRoot) {
         owner: true,
     });
     accounts::write(&root.system().join(accounts::FILE), &written, None).expect("写得进");
+}
+
+/// 主人的编号（`owner()` 写的那一个）。
+pub fn owner_id() -> AccountId {
+    AccountId::parse("admin").expect("合写法")
+}
+
+/// 主人的家目录：核心 SU-3 下起人格、预设、技能、脚本只认这里（`home/<主人>/…`），系统区的不读。
+pub fn owner_home(root: &DataRoot) -> PathBuf {
+    root.account_dir(&owner_id())
 }
