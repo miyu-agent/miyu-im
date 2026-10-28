@@ -3,7 +3,7 @@
 //!
 //! - 发到哪：`user`（QQ 号）、`group`（群号）写一个。发不发、发给谁由她（或者调的包）定，桥不挡；QQ 不让的照 NapCat 的原话回。
 //! - 发什么：照那个场所的出站链过一遍（清理、去末尾句号；不引用、不 @，同私聊），拆好的一段一条，经收进叫她的那个会话的机器人号
-//!   （别的包调的、找不到的照连着的号里最小的那一个）调 `send_group_msg`、`send_private_msg`，不走出站队列：一段段等 NapCat 回了
+//!   （别的包调的、找不到的照同一个平台连着的号里最小的那一个，施工 I-70 上：不跨平台）调 `send_group_msg`、`send_private_msg`，不走出站队列：一段段等 NapCat 回了
 //!   再答。太长的照对方场所的长文办（施工 O-59 下，`long`）：转成图的在这个任务里画、一页一条（画不成的照拆好的几段），合并
 //!   转发的发一条。
 //! - 对方那个场所的会话找得到的（群；终端管理员、白名单成员的私聊），发成了以后经核心的 `session.note` 给它记一块 `reached`
@@ -23,8 +23,8 @@ use super::long::{WAIT, draw, nodes, wants};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::Bots;
 use crate::chat::Outgoing;
+use crate::chat::{Bots, Platform};
 use crate::chat::{CallError, Lead, To};
 use crate::core::{Answerer, Caller, Gone, reason};
 use crate::toolset::{Answers, send_request as request};
@@ -77,7 +77,7 @@ pub(super) enum Answer {
 
 impl Route {
     /// 别的包经 `package.call` 调的一次 `chat.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
-    /// `bot` 写了的照它。
+    /// `bot` 写了的照它。平台照 `platform`（施工 I-70 上，`Platforms::ours`）：写了别的平台的、挂了几个平台又没写的拒 `bad_params`。
     ///
     /// # Errors
     ///
@@ -90,28 +90,36 @@ impl Route {
             .as_str()
             .unwrap_or_default()
             .to_string();
-        let Some(request) = self.platform.ours(args).then(|| request(args)).flatten() else {
+        let platform = match self.platforms.ours(args) {
+            Ok(platform) => platform,
+            Err(why) => {
+                tracing::info!(target: TARGET, from, why = why.name(), "export send refused");
+                answerer.refuse(&id, "bad_params");
+                return Ok(());
+            }
+        };
+        let Some(request) = request(args) else {
             tracing::info!(target: TARGET, from, "export send refused");
             answerer.refuse(&id, "bad_params");
             return Ok(());
         };
         let bot = args["bot"].as_i64();
-        self.reach(bot, request, Answer::Method(id, answerer)).await
+        self.reach((platform, bot), request, Answer::Method(id, answerer))
+            .await
     }
 
-    /// 照对方的场所过出站链、找对方的会话，起一个任务发（见模块开头）。没有机器人号连着的答 `unreachable`、拒 `not_connected`。
+    /// 照对方的场所过出站链、找对方的会话，起一个任务发（见模块开头）。经平台 `platform` 上的号 `bot`，没写的、没连着的退回这个
+    /// 平台连着的号里最小的那一个（不跨平台，施工 I-70 上）；这个平台没有号连着的答 `unreachable`、拒 `not_connected`。
     pub(super) async fn reach(
         &mut self,
-        bot: Option<i64>,
+        (platform, bot): (Platform, Option<i64>),
         (to, text): (To, String),
         answer: Answer,
     ) -> Result<(), Gone> {
-        let bot = bot
-            .filter(|bot| self.bots.get(*bot).is_some())
-            .or_else(|| self.bots.first().map(|(bot, _)| bot));
+        let bot = self.platforms.sender(platform, bot);
         let made = match to {
-            To::Group(group) => self.platform.venue(VenueKind::Group, group),
-            To::Private(user) => self.platform.venue(VenueKind::Private, user),
+            To::Group(group) => platform.venue(VenueKind::Group, group),
+            To::Private(user) => platform.venue(VenueKind::Private, user),
         };
         let (Some(bot), Ok(target)) = (bot, made) else {
             finish(answer, Err(("unreachable", None)));
@@ -130,7 +138,7 @@ impl Route {
             Some(LongText::Image) => Long::Image(target.id().clone(), passed.text.clone()),
             Some(LongText::Forward) => Long::Forward(
                 nodes(&applied.params, &passed.text),
-                self.nickname_at(to, bot),
+                self.nickname_at(platform, to, bot),
             ),
             Some(LongText::Split) | None => Long::Split,
         };
@@ -139,14 +147,14 @@ impl Route {
             true => passed.pieces,
             false => split(&passed.text, applied.params.split_chars),
         };
-        let session = self.target_session(&target, to, bot).await?;
+        let session = self.target_session((platform, &target), to, bot).await?;
         let job = Job {
             bot,
             to,
             pieces,
             long,
             session,
-            bots: Arc::clone(&self.bots),
+            bots: self.platforms.bots(platform),
             caller: self.core.caller(),
             template: self.rules.reached_fact().clone(),
             answer,
@@ -155,23 +163,23 @@ impl Route {
         Ok(())
     }
 
-    /// 对方的场所会话（`target`，发到 `to`，经机器人号 `bot`）：群的照群消息的办法找（没有的造）；私聊的只找终端管理员、白名单
+    /// 对方的场所会话（平台 `platform` 上的 `target`，发到 `to`，经机器人号 `bot`）：群的照群消息的办法找（没有的造）；私聊的只找终端管理员、白名单
     /// 成员的，陌生人的不接、是空的。
     async fn target_session(
         &mut self,
-        target: &Venue,
+        (platform, target): (Platform, &Venue),
         to: To,
         bot: i64,
     ) -> Result<Option<String>, Gone> {
         let applied = self.applied(target);
         let place = match to {
-            To::Group(group) => Place::group(target, &applied, bot, group),
+            To::Group(group) => Place::group((platform, target), &applied, bot, group),
             To::Private(user) => {
-                let Ok(external) = self.platform.person(user) else {
+                let Ok(external) = platform.person(user) else {
                     return Ok(None);
                 };
                 let listed = self.whitelisted(&external).then_some(&applied);
-                Place::private(target, &external, (bot, user), listed)
+                Place::private((platform, target), &external, (bot, user), listed)
             }
         };
         if !self.found(&place).await? {

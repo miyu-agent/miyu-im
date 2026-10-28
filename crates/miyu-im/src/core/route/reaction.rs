@@ -174,7 +174,7 @@ impl Route {
             emoji,
         };
         let off = self.reactions.hold(session, seq);
-        let bots = Arc::clone(&self.bots);
+        let bots = self.platforms.bots(target.peer.platform);
         self.chores
             .spawn(mark(target, off, bots, self.reactions.after));
     }

@@ -14,7 +14,7 @@ use super::fields::{Flags, fields};
 use super::session::{Place, SEND};
 use super::{Message, Route, applied};
 use crate::TARGET;
-use crate::chat::Posted;
+use crate::chat::{Platform, Posted};
 use crate::core::{Gone, reason};
 
 /// 平台给的时刻（整数秒）写成核心认的样子；没带的（0）、写不出的是空的。
@@ -24,12 +24,16 @@ pub(super) fn sent(seconds: i64) -> Option<String> {
 }
 
 impl Route {
-    /// 群号是 `group` 的群里补拉回来的一条消息 `posted`。
-    pub(super) async fn backfilled(&mut self, group: i64, posted: Posted) -> Result<(), Gone> {
-        let made = self
-            .platform
+    /// 平台 `platform` 上群号是 `group` 的群里补拉回来的一条消息 `posted`。
+    pub(super) async fn backfilled(
+        &mut self,
+        platform: Platform,
+        group: i64,
+        posted: Posted,
+    ) -> Result<(), Gone> {
+        let made = platform
             .venue(VenueKind::Group, group)
-            .and_then(|venue| Ok((venue, self.platform.person(posted.user)?)));
+            .and_then(|venue| Ok((venue, platform.person(posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
@@ -38,17 +42,17 @@ impl Route {
             }
         };
         let applied = self.applied(&venue);
-        let text = self.named(group, &posted).await;
+        let text = self.named((platform, group), &posted).await;
         if text.trim().is_empty() && posted.segments.media.is_empty() {
             return Ok(());
         }
         // 聊天记录（设计 04，施工 C-1 上）：补拉回来的同样记（同一条只记一次）。
-        self.record_heard(&venue, &external, &posted, &text);
+        self.record_heard((platform, &venue), &external, &posted, &text);
         let at = posted.segments.at();
         let mentions: Vec<_> = at
             .iter()
             .filter(|user| **user != posted.bot)
-            .filter_map(|user| self.platform.person(*user).ok())
+            .filter_map(|user| platform.person(*user).ok())
             .collect();
         let flags = Flags {
             mentions_me: at.contains(&posted.bot),
@@ -56,8 +60,8 @@ impl Route {
             asleep: false,
             show_ids: applied::show_ids(&applied),
         };
-        let my_name = self.my_name(posted.bot, Some(group)).await;
-        let place = self.place(group, posted.bot).await;
+        let my_name = self.my_name((platform, posted.bot), Some(group)).await;
+        let place = self.place(platform, group, posted.bot).await;
         let mut venue_fields = fields(
             &posted,
             &mentions,
@@ -70,13 +74,11 @@ impl Route {
             venue_fields["sent"] = json!(sent);
         }
         let message = Message {
-            id: self
-                .platform
-                .command_id(posted.bot, posted.message_id, posted.time),
+            id: platform.command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             acting: json!({"external": external, "role": applied::role(&applied, &external)}),
             fields: venue_fields,
-            place: Place::group(&venue, &applied, posted.bot, group),
+            place: Place::group((platform, &venue), &applied, posted.bot, group),
             text,
             pictures: None,
             forwards: None,

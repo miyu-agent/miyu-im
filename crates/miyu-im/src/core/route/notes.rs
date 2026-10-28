@@ -20,7 +20,7 @@ use miyu_chat::VenueKind;
 use super::Route;
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::To;
+use crate::chat::{Platform, To};
 use crate::core::{Gone, reason};
 
 /// 一句最多几个字。
@@ -64,7 +64,11 @@ impl Route {
             answerer.refuse(&id, "bad_params");
             return Ok(());
         };
-        let to = self.platform.to_of(&venue);
+        // 平台照场所编号的第一段（施工 I-70 上）。
+        let to = self
+            .platforms
+            .of_venue(&venue)
+            .and_then(|platform| platform.to_of(&venue));
         if to.is_none() || !self.hooks.allowed(from, to) {
             tracing::info!(target: TARGET, from, venue = %venue.id(), why = "not_allowed", "plugin note refused");
             answerer.refuse(&id, "not_allowed");
@@ -88,7 +92,7 @@ impl Route {
         Ok(())
     }
 
-    /// 驱动带的插件给场所 `to` 记一句（施工 Q-3，`Event::Noted`）：同插件的外壳，记进那个群的主会话（还没有的先找、建，同她被禁言
+    /// 平台上的机器人号 `bot` 收进的、驱动带的插件给场所 `to` 记一句（施工 Q-3，`Event::Noted`）：同插件的外壳，记进那个群的主会话（还没有的先找、建，同她被禁言
     /// 的事实，`muted.rs`）。私聊的、记不进的记一行运行日志。
     ///
     /// # Errors
@@ -96,7 +100,7 @@ impl Route {
     /// 写不出去、等的时候核心断开。
     pub(super) async fn note_built_in(
         &mut self,
-        bot: i64,
+        (platform, bot): (Platform, i64),
         to: To,
         kind: &str,
         text: &str,
@@ -105,10 +109,10 @@ impl Route {
             tracing::warn!(target: TARGET, kind, "built-in note for a private chat dropped");
             return Ok(());
         };
-        let Ok(venue) = self.platform.venue(VenueKind::Group, group) else {
+        let Ok(venue) = platform.venue(VenueKind::Group, group) else {
             return Ok(());
         };
-        let place = Place::group(&venue, &self.applied(&venue), bot, group);
+        let place = Place::group((platform, &venue), &self.applied(&venue), bot, group);
         if !self.found(&place).await? {
             tracing::warn!(target: TARGET, group, kind, "built-in note dropped, no session");
             return Ok(());

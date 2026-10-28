@@ -67,19 +67,28 @@ impl Route {
         // 认得的 im 插件（施工 I-7 中四：会话浮窗「管理插件」）。
         let plugins = self.hooks.listed();
         let known = json!({"cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
-        let (bots, caller, answerer) = (
-            Arc::clone(&self.bots),
-            self.core.caller(),
-            self.core.answerer(),
-        );
+        let (bots, caller, answerer) = (self.card_bots(), self.core.caller(), self.core.answerer());
         self.chores.spawn(listed(id, known, bots, caller, answerer));
+    }
+
+    /// 卡片、后台页照的平台上种类是 `kind`、号是 `number` 的场所（施工 I-70 上）：第一个驱动的平台。卡片带平台是 I-70 中下、页面的
+    /// 连接照平台是 I-70 下的事，在那以前照第一个认（同旧数据）。拼不出的、一个平台都没挂的（照说不会）是空的。
+    pub(super) fn card_venue(&self, kind: VenueKind, number: i64) -> Option<Venue> {
+        self.platforms.first()?.venue(kind, number).ok()
+    }
+
+    /// 卡片、后台页照的平台连着的号（同 [`Route::card_venue`]，第一个驱动的）。
+    pub(super) fn card_bots(&self) -> Arc<Bots> {
+        self.platforms
+            .first()
+            .map_or_else(Arc::default, |platform| self.platforms.bots(platform))
     }
 
     /// 群号是 `group` 的群卡每一格的默认值。
     pub(super) fn group_defaults(&self, group: u64) -> Value {
         match i64::try_from(group)
             .ok()
-            .and_then(|number| self.platform.venue(VenueKind::Group, number).ok())
+            .and_then(|number| self.card_venue(VenueKind::Group, number))
         {
             Some(venue) => self.with_rules(card_defaults::group, &venue),
             None => Value::Null,
@@ -88,9 +97,9 @@ impl Route {
 
     /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
     pub(super) fn other_private_defaults(&self) -> Value {
-        match self.platform.venue(VenueKind::Private, 0) {
-            Ok(venue) => self.with_rules(card_defaults::other_private, &venue),
-            Err(_) => Value::Null,
+        match self.card_venue(VenueKind::Private, 0) {
+            Some(venue) => self.with_rules(card_defaults::other_private, &venue),
+            None => Value::Null,
         }
     }
 
@@ -98,7 +107,7 @@ impl Route {
     pub(super) fn private_defaults(&self, user: u64) -> Value {
         match i64::try_from(user)
             .ok()
-            .and_then(|number| self.platform.venue(VenueKind::Private, number).ok())
+            .and_then(|number| self.card_venue(VenueKind::Private, number))
         {
             Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
@@ -107,14 +116,14 @@ impl Route {
 
     /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
     fn defaults_defaults(&self) -> Value {
-        match self.platform.venue(VenueKind::Group, 0) {
-            Ok(venue) => {
+        match self.card_venue(VenueKind::Group, 0) {
+            Some(venue) => {
                 let beneath = self.rules.beneath_defaults(&venue);
                 let mut found = card_defaults::group(&beneath);
                 found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
                 found
             }
-            Err(_) => Value::Null,
+            None => Value::Null,
         }
     }
 

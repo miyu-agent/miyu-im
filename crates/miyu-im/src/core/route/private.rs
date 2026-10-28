@@ -14,17 +14,16 @@ use super::session::Place;
 use super::strangers::Gating;
 use super::{Message, Route, applied};
 use crate::TARGET;
-use crate::chat::Posted;
+use crate::chat::{Platform, Posted};
 use crate::core::{Gone, reason};
 use crate::recent::{Note, now};
 
 impl Route {
-    /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
-    pub(super) async fn private(&mut self, posted: Posted) -> Result<(), Gone> {
-        let made = self
-            .platform
+    /// 平台 `platform` 上的一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
+    pub(super) async fn private(&mut self, platform: Platform, posted: Posted) -> Result<(), Gone> {
+        let made = platform
             .venue(VenueKind::Private, posted.user)
-            .and_then(|venue| Ok((venue, self.platform.person(posted.user)?)));
+            .and_then(|venue| Ok((venue, platform.person(posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
@@ -41,7 +40,7 @@ impl Route {
             return Ok(());
         }
         // 聊天记录（设计 04，施工 C-1 上）：谁的私聊都记，接不接是后面的事。
-        self.record_heard(&venue, &external, &posted, &text);
+        self.record_heard((platform, &venue), &external, &posted, &text);
         // 陌生人（施工 O-60，`strangers`）：不在白名单里、「其他私聊」卡让接的才问是不是终端管理员（卡关着的照原来办，不多问一趟），
         // 是的这张卡不再管他；不是的照这张卡过进站链。
         let stranger = !self.whitelisted(&external)
@@ -93,20 +92,23 @@ impl Route {
         }
         // 白名单成员、照卡片接的陌生人的私聊会话归系统账号、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
-        let my_name = self.my_name(posted.bot, None).await;
+        let my_name = self.my_name((platform, posted.bot), None).await;
         let heard = (
             Note::who(posted.name.as_deref(), external.as_str()),
             Note::excerpt(&text),
         );
         let message = Message {
-            id: self
-                .platform
-                .command_id(posted.bot, posted.message_id, posted.time),
+            id: platform.command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             text,
             acting: json!({"external": external}),
             fields: fields(&posted, &[], flags, my_name.as_deref(), None),
-            place: Place::private(&venue, &external, (posted.bot, posted.user), listed),
+            place: Place::private(
+                (platform, &venue),
+                &external,
+                (posted.bot, posted.user),
+                listed,
+            ),
             pictures: Some(pictures),
             forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),
         };

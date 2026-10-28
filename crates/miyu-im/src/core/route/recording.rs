@@ -6,15 +6,15 @@ use miyu_client::ids::ExternalId;
 use serde_json::{Map, Value, json};
 
 use super::Route;
-use crate::chat::{Happened, Media, Posted};
+use crate::chat::{Happened, Media, Platform, Posted};
 use crate::records::{self, Happening, Said, Write};
 use miyu_chat::VenueKind;
 
 impl Route {
-    /// 场所 `venue` 里 `sender` 说的 `posted`，正文 `text`（@ 已经写成名字、合并转发写了占位）。
+    /// 平台 `platform` 上场所 `venue` 里 `sender` 说的 `posted`，正文 `text`（@ 已经写成名字、合并转发写了占位）。
     pub(super) fn record_heard(
         &self,
-        venue: &Venue,
+        (platform, venue): (Platform, &Venue),
         sender: &ExternalId,
         posted: &Posted,
         text: &str,
@@ -23,7 +23,7 @@ impl Route {
             .segments
             .at()
             .iter()
-            .filter_map(|user| self.platform.person(*user).ok())
+            .filter_map(|user| platform.person(*user).ok())
             .map(|person| person.as_str().to_string())
             .collect();
         let said = Said {
@@ -41,9 +41,14 @@ impl Route {
         self.records.write(Write::Said(Box::new(said)));
     }
 
-    /// 她（机器人号 `bot`）在场所 `venue` 发出去的一条，平台编号 `msg`，正文 `text`；`image` 的是一张图。
-    pub(super) fn record_mine(&self, venue: &str, bot: i64, (msg, text): (i64, &str), image: bool) {
-        let Ok(sender) = self.platform.person(bot) else {
+    /// 她（平台 `platform` 上的机器人号 `bot`）在场所 `venue` 发出去的一条，平台编号 `msg`，正文 `text`；`image` 的是一张图。
+    pub(super) fn record_mine(
+        &self,
+        (platform, venue, bot): (Platform, &str, i64),
+        (msg, text): (i64, &str),
+        image: bool,
+    ) {
+        let Ok(sender) = platform.person(bot) else {
             return;
         };
         let said = Said {
@@ -65,16 +70,16 @@ impl Route {
         self.records.write(Write::Said(Box::new(said)));
     }
 
-    /// 场所 `venue` 里的一件事 `kind`：对谁 `target`、谁做的 `actor`（号），禁言几秒、撤回的那一条的编号。
+    /// 平台 `platform` 上场所 `venue` 里的一件事 `kind`：对谁 `target`、谁做的 `actor`（号），禁言几秒、撤回的那一条的编号。
     pub(super) fn record_happening(
         &self,
-        (venue, kind): (&str, &'static str),
+        (platform, venue, kind): (Platform, &str, &'static str),
         (target, actor): (Option<i64>, Option<i64>),
         (seconds, msg): (Option<u64>, Option<i64>),
     ) {
         let person = |number: Option<i64>| {
             number
-                .and_then(|number| self.platform.person(number).ok())
+                .and_then(|number| platform.person(number).ok())
                 .map(|person| person.as_str().to_string())
         };
         let happening = Happening {
@@ -91,13 +96,13 @@ impl Route {
 }
 
 impl Route {
-    /// 群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
-    pub(super) fn group_happened(&self, happened: Happened) {
-        let Ok(venue) = self.platform.venue(VenueKind::Group, happened.group) else {
+    /// 平台 `platform` 上群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
+    pub(super) fn group_happened(&self, platform: Platform, happened: Happened) {
+        let Ok(venue) = platform.venue(VenueKind::Group, happened.group) else {
             return;
         };
         self.record_happening(
-            (venue.id().as_str(), happened.change.as_str()),
+            (platform, venue.id().as_str(), happened.change.as_str()),
             (Some(happened.user), happened.operator),
             (happened.seconds, None),
         );

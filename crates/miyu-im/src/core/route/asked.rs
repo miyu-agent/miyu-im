@@ -6,18 +6,23 @@ use serde_json::{Value, json};
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::{Replier, To};
+use crate::chat::{Platform, Replier, To};
 use crate::core::reason;
 
 /// 清单 `[[side]]` 里入群审批那一条的编号（施工 I-42）。
 const SIDE: &str = "approval";
 
 impl Route {
-    /// 替驱动带的插件问一次模型（模块的说明）。
-    pub(super) fn ask_model(&mut self, to: To, mut request: Value, reply: Replier) {
+    /// 替平台 `platform` 的驱动带的插件问一次模型（模块的说明）。
+    pub(super) fn ask_model(
+        &mut self,
+        platform: Platform,
+        to: To,
+        mut request: Value,
+        reply: Replier,
+    ) {
         let model = match to {
-            To::Group(group) => self
-                .platform
+            To::Group(group) => platform
                 .venue(miyu_chat::VenueKind::Group, group)
                 .ok()
                 .and_then(|venue| self.applied(&venue).params.judge.model),

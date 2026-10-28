@@ -12,7 +12,7 @@ use super::super::Peer;
 use super::recall;
 use crate::chat::To;
 use crate::chat::fake::{Asked, Did, Fake, fake, next};
-use crate::chat::{Bots, Link};
+use crate::chat::{Bots, Link, Platform};
 
 /// 机器人的号。
 const BOT: i64 = 30003;
@@ -31,6 +31,7 @@ fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
 /// 发到群 5 的那个场所。
 fn peer() -> Peer {
     Peer {
+        platform: Platform::new("qq"),
         bot: BOT,
         to: To::Group(5),
         venue: VenueId::parse("qq:group:5").expect("合写法"),

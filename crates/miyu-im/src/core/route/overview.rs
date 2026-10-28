@@ -50,7 +50,7 @@ impl Route {
     fn wanted_venues(&self, card: Card) -> Option<Wanted> {
         let key = |kind, number: u64| -> Option<String> {
             let number = i64::try_from(number).ok()?;
-            Some(self.platform.venue(kind, number).ok()?.id().to_string())
+            Some(self.card_venue(kind, number)?.id().to_string())
         };
         // 一种场所的编号的开头：照号 0 的编号去掉最后一段（`qq:group:`）。
         let prefix = |kind| -> Option<String> {

@@ -58,7 +58,11 @@ impl Route {
                 true => Voiced::Say(text),
                 false => {
                     hooks
-                        .outbound(packages, peer.venue.as_str(), peer.bot, text)
+                        .outbound(
+                            packages,
+                            (peer.platform, peer.venue.as_str(), peer.bot),
+                            text,
+                        )
                         .await
                 }
             };

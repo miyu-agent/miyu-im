@@ -31,7 +31,7 @@ use miyu_client::places::DataRoot;
 use crate::TARGET;
 use crate::changed::Changed;
 use crate::chat::Bots;
-use crate::chat::Members;
+use crate::chat::{Members, Platforms};
 use crate::core::hooks::Hooks;
 use crate::core::methods::{Methods, register};
 use crate::core::route::{
@@ -217,7 +217,7 @@ pub async fn run(
             Arc::clone(&reported),
             serve.tuning.clone(),
         ),
-        Arc::clone(&bots),
+        (platform, Arc::clone(&bots)),
         inbound,
         tell,
         Arc::clone(&changed),
@@ -321,7 +321,8 @@ pub async fn run(
     );
     let route = Route::new(
         core,
-        (platform, bots),
+        // 挂着的平台（施工 I-70 上）：现在只有这一个驱动。
+        Platforms::new(vec![(platform, bots)]),
         venues,
         members,
         parts,

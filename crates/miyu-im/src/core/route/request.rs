@@ -8,17 +8,23 @@ use std::sync::Arc;
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::Bots;
+use crate::chat::{Bots, Platform};
 use crate::core::Gone;
 
 impl Route {
-    /// 机器人号 `bot` 收到号 `user` 加好友的请求，标记是 `flag`：`user` 在白名单里、是终端管理员的另起任务同意，别的记一行、放着。
+    /// 平台 `platform` 上机器人号 `bot` 收到号 `user` 加好友的请求，标记是 `flag`：`user` 在白名单里、是终端管理员的另起任务同意，别的记一行、放着。
     ///
     /// # Errors
     ///
     /// 问对应表时写不出去、核心断开。
-    pub(super) async fn befriend(&mut self, bot: i64, user: i64, flag: String) -> Result<(), Gone> {
-        let Ok(who) = self.platform.person(user) else {
+    pub(super) async fn befriend(
+        &mut self,
+        platform: Platform,
+        bot: i64,
+        user: i64,
+        flag: String,
+    ) -> Result<(), Gone> {
+        let Ok(who) = platform.person(user) else {
             return Ok(());
         };
         let known =
@@ -28,7 +34,7 @@ impl Route {
             return Ok(());
         }
         self.chores
-            .spawn(approve(Arc::clone(&self.bots), bot, user, flag));
+            .spawn(approve(self.platforms.bots(platform), bot, user, flag));
         Ok(())
     }
 }

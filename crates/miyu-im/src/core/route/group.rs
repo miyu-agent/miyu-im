@@ -24,7 +24,7 @@ use super::pictures::Pictures;
 use super::session::Place;
 use super::{Message, Route, applied};
 use crate::TARGET;
-use crate::chat::Posted;
+use crate::chat::{Platform, Posted};
 use crate::core::Gone;
 
 /// 问进站挂接点时带上的东西（施工 O-52，`extending.md` 第二条「`chat.inbound`」）：照先后，第几样（从 1 数，同核心的 `#n`）、
@@ -50,12 +50,16 @@ fn inbound_media(posted: &Posted) -> Value {
 }
 
 impl Route {
-    /// 群号是 `group` 的群里的一条消息 `posted`（「群消息」第 3 到 7 条）。
-    pub(super) async fn group(&mut self, group: i64, posted: Posted) -> Result<(), Gone> {
-        let made = self
-            .platform
+    /// 平台 `platform` 上群号是 `group` 的群里的一条消息 `posted`（「群消息」第 3 到 7 条）。
+    pub(super) async fn group(
+        &mut self,
+        platform: Platform,
+        group: i64,
+        posted: Posted,
+    ) -> Result<(), Gone> {
+        let made = platform
             .venue(VenueKind::Group, group)
-            .and_then(|venue| Ok((venue, self.platform.person(posted.user)?)));
+            .and_then(|venue| Ok((venue, platform.person(posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
@@ -66,14 +70,14 @@ impl Route {
         let applied = self.applied(&venue);
         if let Some(name) = &posted.name {
             self.members
-                .remember(group, posted.user, name.clone(), Instant::now());
+                .remember((platform, group, posted.user), name.clone(), Instant::now());
         }
         if let Some(rank) = posted.rank {
             // 身份顺手记下（施工 O-31，「平台工具（一）」第 7 条；O-48 起禁言不再看它）。
             self.members
-                .ranked(group, posted.user, rank, Instant::now());
+                .ranked((platform, group, posted.user), rank, Instant::now());
         }
-        let text = self.named(group, &posted).await;
+        let text = self.named((platform, group), &posted).await;
         if text.trim().is_empty() && posted.segments.media.is_empty() {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
@@ -83,7 +87,7 @@ impl Route {
         let mentions: Vec<_> = at
             .iter()
             .filter(|user| **user != posted.bot)
-            .filter_map(|user| self.platform.person(*user).ok())
+            .filter_map(|user| platform.person(*user).ok())
             .collect();
         let flags = Flags {
             mentions_me: at.contains(&posted.bot),
@@ -100,14 +104,12 @@ impl Route {
                 .is_some_and(|group| group.mine(msg))
         });
         let keywords = applied::keywords(&applied);
-        let my_name = self.my_name(posted.bot, Some(group)).await;
+        let my_name = self.my_name((platform, posted.bot), Some(group)).await;
         // 群名：场所的格带上给记忆（施工 I-54），交了以后照它放进 system（`titled`）。
-        let place = self.place(group, posted.bot).await;
+        let place = self.place(platform, group, posted.bot).await;
         let calls_her = addressed(VenueKind::Group, flags.mentions_me, &text, &keywords);
         let message = Message {
-            id: self
-                .platform
-                .command_id(posted.bot, posted.message_id, posted.time),
+            id: platform.command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             acting: json!({"external": external, "role": applied::role(&applied, &external)}),
             fields: fields(
@@ -117,7 +119,7 @@ impl Route {
                 my_name.as_deref(),
                 place.as_deref(),
             ),
-            place: Place::group(&venue, &applied, posted.bot, group),
+            place: Place::group((platform, &venue), &applied, posted.bot, group),
             text,
             pictures: calls_her
                 .then(|| Pictures::of(posted.bot, posted.message_id, &posted.segments)),
@@ -143,7 +145,12 @@ impl Route {
                 .collect(),
         };
         // 聊天记录（设计 04，施工 C-1 上）：照记进会话的同一处记一份。
-        self.record_heard(&heard.venue, &heard.sender, &posted, &heard.text);
+        self.record_heard(
+            (platform, &heard.venue),
+            &heard.sender,
+            &posted,
+            &heard.text,
+        );
         // 问进站挂接点的那一条（施工 O-43 中，`onebot.md`「挂接点」第 3 条）。
         let ask = json!({
             "venue": heard.venue.id().as_str(),
@@ -170,11 +177,12 @@ impl Route {
         // 借了终端管理员、她自己的名字的记一块冒充提醒（施工 O-53，`impostor`）：判以前记好，这一条开的轮就看得到。
         if let Some(name) = posted.name.as_deref() {
             let who = (&heard.sender, name, posted.message_id);
-            self.impostor(&session, (group, posted.bot), who).await?;
+            self.impostor(&session, (platform, group, posted.bot), who)
+                .await?;
         }
         // 被拒的没有序号，不判。
         match reply["result"]["events"][0].as_u64() {
-            Some(seq) => self.steer(session, seq, heard, ask).await,
+            Some(seq) => self.steer(platform, (session, seq), heard, ask).await,
             None => Ok(()),
         }
     }

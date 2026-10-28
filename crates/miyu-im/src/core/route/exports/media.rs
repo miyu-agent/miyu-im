@@ -84,12 +84,12 @@ impl Route {
             answerer.refuse(&id, "unknown_session");
             return;
         };
-        let Some(link) = self.bots.get(peer.bot) else {
+        let Some(link) = self.platforms.link(peer.platform, peer.bot) else {
             answerer.refuse(&id, "not_connected");
             return;
         };
         let taking = Taking {
-            platform: self.platform,
+            platform: peer.platform,
             link,
             venue: peer.venue.as_str().to_string(),
             to: peer.to,

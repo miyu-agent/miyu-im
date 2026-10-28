@@ -5,12 +5,11 @@
 use miyu_chat::{Venue, VenueKind};
 use miyu_client::events::FormatError;
 use miyu_client::ids::{ExternalId, VenueId};
-use serde_json::Value;
 
 use super::To;
 
 /// 一个平台：名字是驱动给的。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Platform(&'static str);
 
 impl Platform {
@@ -79,13 +78,5 @@ impl Platform {
             VenueKind::Private => To::Private(number),
             VenueKind::Group => To::Group(number),
         })
-    }
-
-    /// 给别的包调的方法、工具的参数 `args` 是不是冲这个平台来的（施工 I-1）：没写 `platform`、写的是 `null` 的算，写了别的不算。
-    pub fn ours(self, args: &Value) -> bool {
-        match args.get("platform") {
-            None | Some(Value::Null) => true,
-            Some(platform) => platform.as_str() == Some(self.0),
-        }
     }
 }

@@ -8,11 +8,15 @@ use std::time::Instant;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::chat::{Piece, Posted};
+use crate::chat::{Piece, Platform, Posted};
 
 impl Route {
-    /// 群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。
-    pub(super) async fn named(&mut self, group: i64, posted: &Posted) -> String {
+    /// 平台上群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。
+    pub(super) async fn named(
+        &mut self,
+        (platform, group): (Platform, i64),
+        posted: &Posted,
+    ) -> String {
         let mut text = String::new();
         let mut asking = true;
         for piece in &posted.segments.pieces {
@@ -20,7 +24,8 @@ impl Route {
                 Piece::Text(words) => text.push_str(words),
                 Piece::At(user) => {
                     text.push('@');
-                    match self.member(group, *user, posted.bot, &mut asking).await {
+                    let member = (platform, group, *user);
+                    match self.member(member, posted.bot, &mut asking).await {
                         Some(name) => text.push_str(&name),
                         None => text.push_str(&user.to_string()),
                     }
@@ -30,22 +35,22 @@ impl Route {
         text
     }
 
-    /// 群 `group` 里号是 `user` 的人叫什么，洗过（同场所的格的 `name`）：先看缓存；没有的、`asking` 还是真的，经机器人号
-    /// `bot` 的连接问一次，问不到的把 `asking` 放成假。她自己在群里叫什么也照它问（施工 O-53 冒充提醒、I-38 `my_name`，`my_name.rs`）。
+    /// 平台 `platform` 上群 `group` 里号是 `user` 的人叫什么，洗过（同场所的格的 `name`）：先看缓存；没有的、`asking` 还是真的，
+    /// 经这个平台上机器人号 `bot` 的连接问一次，问不到的把 `asking` 放成假。她自己在群里叫什么也照它问（施工 O-53 冒充提醒、I-38 `my_name`，`my_name.rs`）。
     pub(super) async fn member(
         &mut self,
-        group: i64,
-        user: i64,
+        (platform, group, user): (Platform, i64, i64),
         bot: i64,
         asking: &mut bool,
     ) -> Option<String> {
-        if let Some(name) = self.members.name(group, user, Instant::now()) {
+        let key = (platform, group, user);
+        if let Some(name) = self.members.name(key, Instant::now()) {
             return clean(name, NAME);
         }
         if !*asking {
             return None;
         }
-        let asked = match self.bots.get(bot) {
+        let asked = match self.platforms.link(platform, bot) {
             Some(link) => link
                 .member(group, user)
                 .await
@@ -61,9 +66,9 @@ impl Route {
         let cleaned = clean(&name, NAME);
         if let Some(rank) = asked.as_ref().ok().and_then(|member| member.rank) {
             // 问到了名字顺手记下身份（施工 O-31，「平台工具（一）」第 7 条）。
-            self.members.ranked(group, user, rank, Instant::now());
+            self.members.ranked(key, rank, Instant::now());
         }
-        self.members.remember(group, user, name, Instant::now());
+        self.members.remember(key, name, Instant::now());
         cleaned
     }
 }

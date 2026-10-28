@@ -11,6 +11,7 @@ mod forwards;
 mod link;
 mod members;
 mod platform;
+mod platforms;
 mod segments;
 mod source;
 
@@ -25,5 +26,6 @@ pub use link::{
 };
 pub use members::{Members, Rank};
 pub use platform::Platform;
+pub use platforms::{Platforms, Unclaimed};
 pub use segments::{CARD, FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments};
 pub use source::Source;

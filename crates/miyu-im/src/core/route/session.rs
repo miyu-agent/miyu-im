@@ -16,16 +16,26 @@
 //! - 不接的同一个场所只记一行运行日志（桥起来以后；「施工时定的」第 66 条）。
 
 use miyu_chat::Venue;
-use miyu_client::ids::ExternalId;
+use miyu_client::ids::{ExternalId, VenueId};
 use serde_json::{Value, json};
 
 use super::policy::Wanted;
 use super::projection::Projection;
-use super::{Message, Peer, Route};
+use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::To;
+use crate::chat::{Platform, To};
 use crate::core::{Gone, reason};
 use crate::rules::Applied;
+
+/// 一个场所会话的回执、回话发到哪：哪个平台（施工 I-70 上：开会话时照场所记下）、收进它的机器人号、私聊的对方或者群；场所只拿来
+/// 记运行日志。（从 `route.rs` 挪来：那个文件到了行数上限。）
+#[derive(Debug, Clone)]
+pub(super) struct Peer {
+    pub(super) platform: Platform,
+    pub(super) bot: i64,
+    pub(super) to: To,
+    pub(super) venue: VenueId,
+}
 
 /// 发消息的方法：只有它带场所的格（`command.run` 不收这一格）。
 pub(super) const SEND: &str = "session.send";
@@ -43,10 +53,10 @@ pub(super) struct Place {
 }
 
 impl Place {
-    /// 机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。对方是白名单成员的，`listed` 是
+    /// 平台 `platform` 上机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。对方是白名单成员的，`listed` 是
     /// 套到这个私聊上的场所规则：`venue.session` 照它带人格、预设、工作区（施工 O-27，同群），会话归系统账号的也接。
     pub(super) fn private(
-        venue: &Venue,
+        (platform, venue): (Platform, &Venue),
         external: &ExternalId,
         (bot, user): (i64, i64),
         listed: Option<&Applied>,
@@ -67,6 +77,7 @@ impl Place {
         Place {
             opening,
             peer: Peer {
+                platform,
                 bot,
                 to: To::Private(user),
                 venue: venue.id().clone(),
@@ -76,8 +87,13 @@ impl Place {
         }
     }
 
-    /// 机器人号 `bot` 收进来的、群号是 `group` 的群 `venue`，场所规则照 `applied`（「群消息」第 3 条）。
-    pub(super) fn group(venue: &Venue, applied: &Applied, bot: i64, group: i64) -> Place {
+    /// 平台 `platform` 上机器人号 `bot` 收进来的、群号是 `group` 的群 `venue`，场所规则照 `applied`（「群消息」第 3 条）。
+    pub(super) fn group(
+        (platform, venue): (Platform, &Venue),
+        applied: &Applied,
+        bot: i64,
+        group: i64,
+    ) -> Place {
         let mut opening = json!({"venue": venue.id(), "kind": "group", "titles": false});
         for (key, value) in super::applied::opening(applied) {
             opening[key] = json!(value);
@@ -90,6 +106,7 @@ impl Place {
             opening,
             wanted: Wanted::of(applied),
             peer: Peer {
+                platform,
                 bot,
                 to: To::Group(group),
                 venue: venue.id().clone(),

@@ -20,7 +20,7 @@ use serde_json::{Map, Value, json};
 use super::Route;
 use crate::TARGET;
 use crate::chat::CallError;
-use crate::chat::{Bots, To};
+use crate::chat::{Bots, Platform, To, Unclaimed};
 use crate::core::Answerer;
 use crate::core::methods::{MEDIA, VENUE};
 
@@ -36,7 +36,7 @@ struct Request {
     action: String,
     /// 动作的参数：对象，没写的是空的。
     params: Map<String, Value>,
-    /// 经哪个机器人号：没写的照连着的号里最小的那一个。
+    /// 经哪个机器人号：没写的照这个平台连着的号里最小的那一个（施工 I-70 上：不跨平台）。
     bot: Option<i64>,
 }
 
@@ -71,7 +71,8 @@ impl Request {
 
 impl Route {
     /// 核心转来的一次 `method.call`（`pushed`），方法是 `chat.action`、[`VENUE`] 或 [`MEDIA`]：写错的当场拒（`bad_params`），`chat.venue`
-    /// 当场答，`chat.action`、`chat.media` 另起任务等 NapCat 再答。
+    /// 当场答，`chat.action`、`chat.media` 另起任务等 NapCat 再答。写了别的平台的拒（施工 I-1）；`chat.action` 只给号，平台照
+    /// `Platforms::ours` 认，挂了几个平台又没写的也拒（施工 I-70 上）；另外两个照会话认，平台在会话的场所里。
     pub(super) fn exported(&mut self, pushed: &Value) {
         let id = pushed["id"].clone();
         let params = &pushed["params"];
@@ -79,7 +80,8 @@ impl Route {
         let args = &params["params"];
         let answerer = self.core.answerer();
         // 写了别的平台的不是这个驱动的（施工 I-1）。
-        if !self.platform.ours(args) {
+        let platform = self.platforms.ours(args);
+        if platform == Err(Unclaimed::Other) {
             tracing::info!(target: TARGET, from, "export refused, another platform");
             answerer.refuse(&id, "bad_params");
             return;
@@ -95,12 +97,21 @@ impl Route {
             self.media_exported(id, from, args, answerer);
             return;
         }
+        // 只给号的：挂了几个平台又没写的不知道是哪个平台的号（施工 I-70 上）。
+        let platform = match platform {
+            Ok(platform) => platform,
+            Err(why) => {
+                tracing::info!(target: TARGET, from, why = why.name(), "export action refused");
+                answerer.refuse(&id, "bad_params");
+                return;
+            }
+        };
         let Some(request) = Request::read(args) else {
             tracing::info!(target: TARGET, from, "export action refused");
             answerer.refuse(&id, "bad_params");
             return;
         };
-        let bots = Arc::clone(&self.bots);
+        let bots = self.platforms.bots(platform);
         self.chores.spawn(act(id, from, request, bots, answerer));
     }
 
@@ -110,16 +121,16 @@ impl Route {
         let main = self.main_of(session);
         match self.peers.get(&main) {
             Some(peer) => {
-                let origin = self.origin_of(session, &main, peer.to);
+                let origin = self.origin_of(session, &main, (peer.platform, peer.to));
                 let plugins = self.hooks.plugins_on(peer.to);
-                json!({"platform": self.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin, "plugins": plugins})
+                json!({"platform": peer.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin, "plugins": plugins})
             }
             None => json!({"venue": null}),
         }
     }
 
-    /// 线 `line`（主线 `main`，对方 `to`）这一轮叫她做的那一条（模块的说明）；没有的是 `null`。
-    fn origin_of(&self, line: &str, main: &str, to: To) -> Value {
+    /// 线 `line`（主线 `main`，平台 `platform` 上的对方 `to`）这一轮叫她做的那一条（模块的说明）；没有的是 `null`。
+    fn origin_of(&self, line: &str, main: &str, (platform, to): (Platform, To)) -> Value {
         match to {
             To::Group(group) => {
                 let Some(projection) = self.groups.get(main) else {
@@ -128,7 +139,7 @@ impl Route {
                 let Some(origin) = projection.origin(line) else {
                     return Value::Null;
                 };
-                let cached = self.members.names_in(group, Instant::now());
+                let cached = self.members.names_in(platform, group, Instant::now());
                 let person = |who: &ExternalId| {
                     let name = number(who)
                         .and_then(|user| cached.get(&user).cloned())
@@ -142,7 +153,7 @@ impl Route {
                 json!({"sender": person(&origin.sender), "quote": quote, "mentions": mentions})
             }
             To::Private(user) => {
-                let Ok(other) = self.platform.person(user) else {
+                let Ok(other) = platform.person(user) else {
                     return Value::Null;
                 };
                 let quote = self

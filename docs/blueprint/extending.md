@@ -17,7 +17,9 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 
 经核心的 `package.call {"package": "im", "method", "params"}` 调；核心转给接入通讯平台，回什么交回什么（核心的 `protocol.md`「`package.call`」）。没批 `packages.call` 的核心回 `needs_approval`；接入通讯平台 没在跑回 `program_not_running`；接入通讯平台 拒了的回 `method_failed`，`data.message` 是下面写的原因。
 
-**平台**（施工 I-1，设计 01 第四节第 3 条）：挂接点和方法从 `qq.*` 改名成 `chat.*`，准备接别的平台。接入通讯平台交给你的参数（每一个挂接点）、`chat.venue` 的回答都带 `"platform"`（现在只有 `"qq"`）；你调 `chat.action`、`chat.venue`、`chat.send` 时可以写 `"platform"`，不写的当 `"qq"`，写了别的平台、不是字的拒 `bad_params`。
+**平台**（施工 I-1，设计 01 第四节第 3 条）：挂接点和方法从 `qq.*` 改名成 `chat.*`，准备接别的平台。接入通讯平台交给你的参数（每一个挂接点）、`chat.venue` 的回答都带 `"platform"`（现在只有 `"qq"`）；你调 `chat.action`、`chat.venue`、`chat.send` 时可以写 `"platform"`，写了别的平台、不是字的拒 `bad_params`。
+
+只给一个号的调用（`chat.send {"group": 123, "text": …}`、`chat.action` 这类，号在哪个平台上说不清）要写 `"platform"`（施工 I-70 上，2026-10-28 项目主人定「每个平台都声明自己是什么平台」）：im 只挂了一个平台时没写的算它（今天只有 `"qq"`，老插件照常）；挂了几个平台时没写的拒 `bad_params`（运行日志写 `why=platform_missing`），不替你猜：猜成 QQ，挂了 Telegram 以后忘写的会悄悄发错地方。带会话、场所编号的调用（`chat.venue`、`chat.media`、`chat.note`）不用写：平台本来就在编号里（`"qq:group:<群号>"` 的头一段），会话记着它开在哪个平台。`chat.send` 没写 `bot`、写的号没连着的，`chat.action` 没写 `bot` 的，经同一个平台连着的号里最小的那一个，不跨平台。
 
 **`chat.action`**：让 QQ 做一件事，例如踢人、禁言、查群成员、发消息。
 

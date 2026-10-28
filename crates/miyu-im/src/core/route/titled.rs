@@ -4,7 +4,7 @@
 //!
 //! - 放在 system：一直在、压缩不掉；群名很少改，改了才换一次（system 一换，这个会话前面的缓存就作废）。群名是群里的人改得了的字，
 //!   照模板的规矩转义（`Template::render`），截到 64 个字符，裹在标签里只当名字看。
-//! - 问到了隔 `bridge.json` 的 `group_info_seconds` 再问，按群记；问不到的（没连着、失败、名字是空的）照上一次问到的，从没问到的
+//! - 问到了隔 `bridge.json` 的 `group_info_seconds` 再问，按平台、按群记（施工 I-70 上：两个平台群号一样不串）；问不到的（没连着、失败、名字是空的）照上一次问到的，从没问到的
 //!   这一次不放，下一条消息照样隔这么久再问：NapCat 一卡，不能每条消息都等一个时限。写的和上一次放的一样的不再交（核心照快照比，
 //!   交了也不换）。
 //! - 问到的群名同时交给场所的格的 `place`（施工 I-54，核心 E-4：她记下的记忆知道是在哪个群），所以在交消息以前问（[`Route::place`]），
@@ -22,6 +22,7 @@ use serde_json::json;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
+use crate::chat::Platform;
 use crate::core::{Gone, reason};
 
 /// 附加提示词的模板先填这一段占位，再换成原文（施工 O-58 上）：只有字母和下划线，模板的填法不会改它。
@@ -32,10 +33,10 @@ const SLOT: &str = "VENUE_NOTE_TEXT";
 pub(super) struct Titles {
     /// 问到了隔多久再问。
     every: Duration,
-    /// 群号 → 上一次问的时刻。
-    asked: HashMap<i64, Instant>,
-    /// 群号 → 问到的群名（洗过的）。
-    names: HashMap<i64, String>,
+    /// （平台，群号）→ 上一次问的时刻。
+    asked: HashMap<(Platform, i64), Instant>,
+    /// （平台，群号）→ 问到的群名（洗过的）。
+    names: HashMap<(Platform, i64), String>,
     /// 会话 → 问到的群名那一段（照模板写好的）。
     titles: HashMap<String, String>,
     /// 会话 → 附加提示词那一段（照模板写好的，施工 O-58 上）。
@@ -57,8 +58,8 @@ impl Titles {
         }
     }
 
-    /// 群 `group` 此刻 `now` 该不该问：没问过的、上一次问到此刻不止 `every` 的该问，记下这一次。
-    fn due(&mut self, group: i64, now: Instant) -> bool {
+    /// 平台上的群 `group` 此刻 `now` 该不该问：没问过的、上一次问到此刻不止 `every` 的该问，记下这一次。
+    fn due(&mut self, group: (Platform, i64), now: Instant) -> bool {
         let due = self
             .asked
             .get(&group)
@@ -86,10 +87,16 @@ pub(super) fn group_name(name: &str) -> Option<String> {
 }
 
 impl Route {
-    /// 群 `group`（收进它的机器人号 `bot`）此刻叫什么：该问的问 NapCat，问到的记下；问不到的照上一次问到的，从没问到的是空的。
-    pub(super) async fn place(&mut self, group: i64, bot: i64) -> Option<String> {
-        if self.titles.due(group, Instant::now()) {
-            let asked = match self.bots.get(bot) {
+    /// 平台 `platform` 上的群 `group`（收进它的机器人号 `bot`）此刻叫什么：该问的问 NapCat，问到的记下；问不到的照上一次问到的，
+    /// 从没问到的是空的。
+    pub(super) async fn place(
+        &mut self,
+        platform: Platform,
+        group: i64,
+        bot: i64,
+    ) -> Option<String> {
+        if self.titles.due((platform, group), Instant::now()) {
+            let asked = match self.platforms.link(platform, bot) {
                 Some(link) => link
                     .group_name(group)
                     .await
@@ -102,7 +109,7 @@ impl Route {
                 .and_then(|name| name.as_deref().and_then(group_name))
             {
                 Some(name) => {
-                    self.titles.names.insert(group, name);
+                    self.titles.names.insert((platform, group), name);
                 }
                 None => {
                     let error = asked.err().unwrap_or_default();
@@ -110,7 +117,7 @@ impl Route {
                 }
             }
         }
-        self.titles.names.get(&group).cloned()
+        self.titles.names.get(&(platform, group)).cloned()
     }
 
     /// 群号是 `group` 的群会话 `session`，群叫 `name`（[`Route::place`] 问到的，没有的不放）：照模板写一段放进它的 system 尾部，

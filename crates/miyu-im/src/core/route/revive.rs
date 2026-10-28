@@ -15,7 +15,7 @@ use super::backlog::Backlog;
 use super::outbound::{group_ctx, pass, private_ctx};
 use super::projection::Speaking;
 use super::sending::What;
-use super::{Peer, Route, applied};
+use super::{Route, applied};
 use crate::TARGET;
 use crate::chat::{Lead, To};
 use crate::core::{Gone, reason};
@@ -46,8 +46,13 @@ impl Route {
             let Some(venue) = VenueId::parse(venue).ok().and_then(|id| Venue::parse(&id)) else {
                 continue;
             };
-            let followed = match self.platform.to_of(&venue) {
-                Some(To::Group(_)) => {
+            // 场所照编号的第一段认平台（施工 I-70 上）。
+            let at = self
+                .platforms
+                .of_venue(&venue)
+                .and_then(|platform| Some((platform, platform.to_of(&venue)?)));
+            let followed = match at {
+                Some((_, To::Group(_))) => {
                     let followed = self.follow(session, 0).await?;
                     if followed {
                         self.venues
@@ -55,7 +60,7 @@ impl Route {
                     }
                     followed
                 }
-                Some(To::Private(user)) => match self.platform.person(user) {
+                Some((platform, To::Private(user))) => match platform.person(user) {
                     Ok(peer) if self.taken(&peer).await? => {
                         self.subscribe(session, Some(0)).await?
                     }
@@ -113,7 +118,7 @@ impl Route {
         let since = applied::clock().map_or(i64::MAX, |clock| self.waiting.since(clock.now));
         self.backlogs.insert(
             session.to_string(),
-            Backlog::new(self.platform, session, upto, since),
+            Backlog::new(self.platforms.iter().collect(), session, upto, since),
         );
         self.gather(session).await?;
         match self.backlogs.remove(session) {
@@ -127,12 +132,11 @@ impl Route {
     /// 跟着它当时发过了，这一次不带。
     async fn resend(&mut self, session: &str, mut backlog: Backlog) -> Result<(), Gone> {
         if !self.peers.contains_key(session) {
-            let Some((bot, to, venue)) = backlog.peer() else {
+            let Some(peer) = backlog.peer() else {
                 tracing::info!(target: TARGET, session, "bot not known yet");
                 return Ok(());
             };
-            self.peers
-                .insert(session.to_string(), Peer { bot, to, venue });
+            self.peers.insert(session.to_string(), peer);
         }
         let Some(peer) = self.peers.get(session).cloned() else {
             return Ok(());

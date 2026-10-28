@@ -101,10 +101,12 @@ pub struct Gate {
     reported: Arc<Reported>,
     /// 认哪几个路径、调用等多久、写队列多长（`bridge.json`）。
     tuning: Tuning,
+    /// 这个驱动的平台（施工 I-70 上）：交来的事、平台事件盖上它，宿主照它认是哪个平台的。
+    platform: Platform,
     /// 连着的号。
     bots: Arc<Bots>,
-    /// 认出来的事交给跟核心的那一头（`core/route.rs`）。
-    inbound: mpsc::Sender<Event>,
+    /// 认出来的事带上平台交给跟核心的那一头（`core/route.rs`）。
+    inbound: mpsc::Sender<(Platform, Event)>,
     /// 连上、断开各说一行（「样子」）。
     tell: Arc<dyn Fn(Notice) + Send + Sync>,
     /// 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（施工 O-18）。
@@ -125,8 +127,8 @@ impl Gate {
     /// 拼一份：几样都是 `serve` 起来时备好的。
     pub(crate) fn new(
         (current, reported, tuning): (Arc<Current>, Arc<Reported>, Tuning),
-        bots: Arc<Bots>,
-        inbound: mpsc::Sender<Event>,
+        (platform, bots): (Platform, Arc<Bots>),
+        inbound: mpsc::Sender<(Platform, Event)>,
         tell: Arc<dyn Fn(Notice) + Send + Sync>,
         changed: Arc<Changed>,
         (hooks, store, texts): (Arc<Hooks>, PathBuf, Option<Texts>),
@@ -135,6 +137,7 @@ impl Gate {
             current,
             reported,
             tuning,
+            platform,
             bots,
             inbound,
             tell,
@@ -172,9 +175,9 @@ impl Gate {
         self.changed();
     }
 
-    /// 认出来的一件事交给跟核心的那一头；那一头不收了（桥在停）交回假。
+    /// 认出来的一件事盖上这个驱动的平台（施工 I-70 上）交给跟核心的那一头；那一头不收了（桥在停）交回假。
     pub async fn inbound(&self, event: Event) -> bool {
-        self.inbound.send(event).await.is_ok()
+        self.inbound.send((self.platform, event)).await.is_ok()
     }
 
     /// 说给人听的一句。
@@ -188,9 +191,9 @@ impl Gate {
     }
 
     /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：
-    /// 只问在那个场所开着的插件），认不出的是空的。
+    /// 只问在那个场所开着的插件），认不出的是空的。带上这个驱动的平台（施工 I-70 上）。
     pub fn event(&self, bot: i64, to: Option<To>, event: &Value) {
-        self.hooks.event(bot, to, event);
+        self.hooks.event(self.platform, bot, to, event);
     }
 
     /// 驱动自己的状态目录（施工 Q-3）：im 的状态目录下照平台的名字。

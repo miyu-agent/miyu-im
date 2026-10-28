@@ -133,7 +133,7 @@ pub(crate) struct Hooks {
     caller: Caller,
     /// 问进站挂接点的包每一次最多等多久（`bridge.json` 的 `hook_millis`，施工 O-43 中）。
     wait: Duration,
-    /// 交给挂接点的参数带的平台（施工 I-1）。
+    /// 驱动的平台：插件在这个平台上能不能用照它算（施工 I-8 上）。交给挂接点的参数带的平台照每一次的（施工 I-70 上）。
     platform: Platform,
     /// 驱动的能力表（施工 I-8 上）：插件在这个平台上能不能用照它算。
     caps: &'static [Cap],
@@ -151,7 +151,7 @@ pub(crate) struct Hooks {
 
 impl Hooks {
     /// 还没看过软件包列表的一份：哪一处都没挂，只认得驱动带的插件 `builtins`（它们的设置照驱动的配置 `driver`）；问进站挂接点
-    /// 每个最多等 `wait`；参数带的平台是 `platform`，它的能力表是 `caps`。
+    /// 每个最多等 `wait`；驱动的平台是 `platform`，它的能力表是 `caps`。
     pub(crate) fn new(
         caller: Caller,
         wait: Duration,
@@ -249,12 +249,12 @@ impl Hooks {
         toggles.enabled(venue, package, declared.default)
     }
 
-    /// 平台推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`] 的每一个
-    /// 包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
-    pub(crate) fn event(&self, bot: i64, to: Option<To>, event: &Value) {
+    /// 平台 `platform` 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`]
+    /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
+    pub(crate) fn event(&self, platform: Platform, bot: i64, to: Option<To>, event: &Value) {
         for package in self.at(EVENT, to) {
             let caller = self.caller.clone();
-            let params = json!({"package": package, "method": EVENT, "params": {"platform": self.platform.name(), "bot": bot, "event": event}});
+            let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {
                 if let Ok(reply) = caller.call("package.call", params).await
                     && let Some(why) = reason(&reply)
@@ -266,14 +266,19 @@ impl Hooks {
         }
     }
 
-    /// 问挂在 [`INBOUND`] 的包 `packages`（照编号排）这一条 `params`：并着问，每个最多等 `hook_millis`；等不到的、核心拒了的、答错的
+    /// 问挂在 [`INBOUND`] 的包 `packages`（照编号排）平台 `platform` 上的这一条 `params`：并着问，每个最多等 `hook_millis`；等不到的、核心拒了的、答错的
     /// 照照常算，记一行 `WARN hook failed package=… point=chat.inbound why=…`（`timeout`、核心的原因、`bad_answer`）。交回最重的意见
     /// 和给出它的头一个包。
-    pub(crate) async fn inbound(&self, packages: Vec<String>, params: Value) -> Steered {
+    pub(crate) async fn inbound(
+        &self,
+        platform: Platform,
+        packages: Vec<String>,
+        params: Value,
+    ) -> Steered {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params, self.platform)});
+            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params, platform)});
             async move {
                 let steer = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
@@ -295,19 +300,18 @@ impl Hooks {
         heaviest(answers)
     }
 
-    /// 问挂在 [`OUTBOUND`] 的包 `packages`（照编号排）她在场所 `venue`（机器人号 `bot`）的一段话 `text`：一个接一个问，前一个
+    /// 问挂在 [`OUTBOUND`] 的包 `packages`（照编号排）她在平台 `platform` 的场所 `venue`（机器人号 `bot`）的一段话 `text`：一个接一个问，前一个
     /// 换了的交给后一个，每个最多等 `hook_millis`；有一个说不发的就停、交回它。等不到的、核心拒了的、答错的（`text` 不是不空的
     /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=chat.outbound why=…`。
     pub(crate) async fn outbound(
         &self,
         packages: Vec<String>,
-        venue: &str,
-        bot: i64,
+        (platform, venue, bot): (Platform, &str, i64),
         text: String,
     ) -> Voiced {
         let mut text = text;
         for package in packages {
-            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": self.platform.name(), "venue": venue, "bot": bot, "text": text}});
+            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": platform.name(), "venue": venue, "bot": bot, "text": text}});
             let answered =
                 match tokio::time::timeout(self.wait, self.caller.call("package.call", call)).await
                 {
@@ -331,14 +335,19 @@ impl Hooks {
         Voiced::Say(text)
     }
 
-    /// 问挂在 [`SCORE`] 的包 `packages`（照编号排）这一条 `params`：并着问，每个最多等 `hook_millis`；回 `{"bonus": <数>}`，每个
+    /// 问挂在 [`SCORE`] 的包 `packages`（照编号排）平台 `platform` 上的这一条 `params`：并着问，每个最多等 `hook_millis`；回 `{"bonus": <数>}`，每个
     /// 夹到 -1 到 1，加起来再夹一次。等不到的、核心拒了的、答错的（`bonus` 不是有限的数）照 0 算，记一行 `WARN hook failed
     /// package=… point=chat.score why=…`。
-    pub(crate) async fn score(&self, packages: Vec<String>, params: Value) -> Nudge {
+    pub(crate) async fn score(
+        &self,
+        platform: Platform,
+        packages: Vec<String>,
+        params: Value,
+    ) -> Nudge {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params, self.platform)});
+            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params, platform)});
             async move {
                 let bonus = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
                     Err(_) => Err("timeout".to_string()),

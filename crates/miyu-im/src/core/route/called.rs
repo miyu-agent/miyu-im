@@ -303,8 +303,8 @@ impl Route {
             tag: tag(heard),
             chatty: params.chatty,
         };
-        let to = self.peers.get(session).map(|peer| peer.to);
-        self.judges.start(judging, asking, to);
+        let at = self.peers.get(session).map(|peer| (peer.platform, peer.to));
+        self.judges.start(judging, asking, at);
     }
 
     /// 照场所规则、投影、在判的、这一条填好交 `decide`（第 3 到 6、10、11、14 条）：交回判断、发的人是谁，和这时套的参数、此刻。

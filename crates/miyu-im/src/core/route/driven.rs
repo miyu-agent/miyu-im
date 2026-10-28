@@ -41,10 +41,19 @@ impl Route {
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
             // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经连着的号里最小的那一个）。
+            // 没有场所，平台照参数认（施工 I-70 上，`Platforms::ours`：只挂了一个平台的算它）。
             match set.local(tool, &params["args"], &answers) {
                 Some(Planned::Host(Effect::Send { to, text })) => {
-                    let answer = Answer::Tool(id, answers, answerer);
-                    return self.reach(None, (to, text), answer).await;
+                    match self.platforms.ours(&params["args"]) {
+                        Ok(platform) => {
+                            let answer = Answer::Tool(id, answers, answerer);
+                            return self.reach((platform, None), (to, text), answer).await;
+                        }
+                        Err(why) => {
+                            tracing::warn!(target: TARGET, session, tool, why = why.name(), "platform tool failed");
+                            answerer.answer(&id, answers.say("unreachable", &[], true));
+                        }
+                    }
                 }
                 Some(Planned::Now(answer)) => answerer.answer(&id, answer),
                 _ => {
@@ -58,7 +67,7 @@ impl Route {
         let (caller, other, origin, names) = match peer.to {
             To::Private(user) => {
                 // 私聊：叫她做的那条是最近一条人说的话（对方的），引用照记下的（「怎么走」第 9 条）。
-                let other = self.platform.person(user).ok();
+                let other = peer.platform.person(user).ok();
                 let quote = self.quotes.get(&session).cloned().flatten();
                 let origin = other.clone().map(|sender| Origin {
                     sender,
@@ -72,7 +81,7 @@ impl Route {
                 let origin = self.groups.get(&session).and_then(|one| one.origin(&line));
                 let names = self
                     .members
-                    .names_in(group, Instant::now())
+                    .names_in(peer.platform, group, Instant::now())
                     .into_iter()
                     .filter_map(|(user, name)| Some((user, clean(&name, NAME)?)))
                     .collect();
@@ -106,15 +115,15 @@ impl Route {
             caller,
             by,
             origin,
-            me: self.platform.person(peer.bot).ok(),
+            me: peer.platform.person(peer.bot).ok(),
             other,
-            platform: self.platform,
+            platform: peer.platform,
             names,
             cwd: params["cwd"].as_str().unwrap_or_default().to_string(),
             line: line.clone(),
             used,
             blobs: Blobs(self.core.caller()),
-            link: self.bots.get(peer.bot),
+            link: self.platforms.link(peer.platform, peer.bot),
             answers,
             plugins: self.hooks.active(peer.to),
             config: self.hooks.driver_config(),
@@ -146,7 +155,9 @@ impl Route {
             // 交给 im 当场做（施工 T-4）：主动发消息照对方场所的出站链发，发完照这一套的答的话答。
             Planned::Host(Effect::Send { to, text }) => {
                 let answer = Answer::Tool(id, answers, answerer);
-                return self.reach(Some(peer.bot), (to, text), answer).await;
+                return self
+                    .reach((peer.platform, Some(peer.bot)), (to, text), answer)
+                    .await;
             }
             // 发言排行（施工 I-20）：照 im 自己按人数的条数排，名字照群成员的缓存，没有的写号。
             Planned::Host(Effect::Ranking { days, limit }) => {
@@ -154,7 +165,7 @@ impl Route {
                 let names: HashMap<i64, String> = match peer.to {
                     To::Group(group) => self
                         .members
-                        .names_in(group, Instant::now())
+                        .names_in(peer.platform, group, Instant::now())
                         .into_iter()
                         .collect(),
                     To::Private(_) => HashMap::new(),

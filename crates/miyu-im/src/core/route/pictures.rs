@@ -18,8 +18,8 @@ use serde_json::{Value, json};
 use super::Route;
 use super::fields::fits;
 use crate::TARGET;
-use crate::chat::Link;
 use crate::chat::{Fetch, Media, Segments};
+use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
 use crate::media::{Missed, message, over, take, too_large};
@@ -58,17 +58,18 @@ pub(super) use crate::toolset::kept;
 
 impl Route {
     /// 取 `wanted` 里的图、存成 blob，交回 `attachments`（`blob.close` 的回应里的 `blob`、`name`、`media_type`），引用的那一条的在
-    /// 前；另交回这一条自己的图里交上了的是第几个（施工 O-35：私聊照它给 `venue.media` 记 `shown`）。`venue` 只记运行日志。
+    /// 前；另交回这一条自己的图里交上了的是第几个（施工 O-35：私聊照它给 `venue.media` 记 `shown`）。经平台 `platform` 上收进它的
+    /// 号取；`venue` 只记运行日志。
     ///
     /// # Errors
     ///
     /// 存 blob 时核心断开。
     pub(super) async fn pictures(
         &self,
-        wanted: &Pictures,
+        (platform, wanted): (Platform, &Pictures),
         venue: &str,
     ) -> Result<(Vec<Value>, Vec<usize>), Gone> {
-        let Some(link) = self.bots.get(wanted.bot) else {
+        let Some(link) = self.platforms.link(platform, wanted.bot) else {
             tracing::warn!(target: TARGET, venue, message = wanted.msg, why = "unreachable", "picture not fetched");
             return Ok((Vec::new(), Vec::new()));
         };

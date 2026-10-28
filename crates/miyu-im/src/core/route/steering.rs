@@ -8,6 +8,7 @@ use serde_json::Value;
 
 use super::Route;
 use super::called::Heard;
+use crate::chat::Platform;
 use crate::core::Gone;
 use crate::core::hooks::{INBOUND, Steered};
 
@@ -26,7 +27,7 @@ pub(super) struct Steering {
 }
 
 impl Route {
-    /// 一条记下了的群消息（会话 `session`、序号 `seq`、判它要的 `heard`）：挂了进站挂接点的另起任务问（问的是 `ask`），排进
+    /// 平台 `platform` 上一条记下了的群消息（会话 `session`、序号 `seq`、判它要的 `heard`）：挂了进站挂接点的另起任务问（问的是 `ask`），排进
     /// 队里；没挂、队里也没有排着的当场判。挂的没了、队里还排着的，也排进去（照常），免得抢到前面。
     ///
     /// # Errors
@@ -34,8 +35,8 @@ impl Route {
     /// 当场判时写不出去、核心断开（同 `called`）。
     pub(super) async fn steer(
         &mut self,
-        session: String,
-        seq: u64,
+        platform: Platform,
+        (session, seq): (String, u64),
         heard: Heard,
         ask: Value,
     ) -> Result<(), Gone> {
@@ -52,7 +53,7 @@ impl Route {
         self.steering.push_back(tokio::spawn(async move {
             let steered = match packages.is_empty() {
                 true => Steered::pass(),
-                false => hooks.inbound(packages, ask).await,
+                false => hooks.inbound(platform, packages, ask).await,
             };
             Steering {
                 session,

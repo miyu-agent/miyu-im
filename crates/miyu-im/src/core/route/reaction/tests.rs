@@ -16,7 +16,7 @@ use super::super::Peer;
 use super::{Mark, Reactions, mark};
 use crate::chat::To;
 use crate::chat::fake::{Asked, Did, Fake, fake, next};
-use crate::chat::{Bots, Link};
+use crate::chat::{Bots, Link, Platform};
 
 /// 两个群会话的编号。
 const ONE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -200,6 +200,7 @@ fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
 fn target() -> Mark {
     Mark {
         peer: Peer {
+            platform: Platform::new("qq"),
             bot: BOT,
             to: To::Group(5),
             venue: VenueId::parse("qq:group:5").expect("合写法"),

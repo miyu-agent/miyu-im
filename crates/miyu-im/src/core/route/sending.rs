@@ -10,7 +10,6 @@
 //! - 退信（施工 O-25 下，「退信」）：她的话记了 `failed` 以后，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，写着
 //!   为什么和那一段的开头（模板是出厂数据，`rules/facts.rs`）；一段一块，提示、回执不退（「施工时定的」第 129、130 条）。在 `bounce`。
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_client::ids::ExternalId;
@@ -281,7 +280,7 @@ impl Route {
         let connected = self
             .peers
             .get(session)
-            .is_some_and(|peer| self.bots.get(peer.bot).is_some());
+            .is_some_and(|peer| self.platforms.link(peer.platform, peer.bot).is_some());
         (!connected).then_some(DISCONNECTED)
     }
 
@@ -299,7 +298,7 @@ impl Route {
         if let Some(aimed) = item.piece.aimed.take() {
             self.relead_now(&peer, group.as_deref(), &aimed, &mut item.piece.lead);
         }
-        let begun = match self.bots.get(peer.bot) {
+        let begun = match self.platforms.link(peer.platform, peer.bot) {
             Some(link) => {
                 let lead = &item.piece.lead;
                 let outgoing = match (&item.piece.body, &item.piece.what) {
@@ -396,7 +395,8 @@ impl Route {
         // 聊天记录（设计 04，施工 C-1 上）：她发出去了的照记（回了编号的）。
         if let Some(msg) = msg {
             let image = matches!(item.piece.what, What::Image(_) | What::Page(_));
-            self.record_mine(&venue.to_string(), peer.bot, (msg, &item.piece.text), image);
+            let mine = (peer.platform, venue.as_str(), peer.bot);
+            self.record_mine(mine, (msg, &item.piece.text), image);
         }
         if said(&item.piece.what) {
             self.counters.bump(Count::Replied, &venue.to_string());
@@ -427,7 +427,7 @@ impl Route {
             // 不撤的回执（施工 O-47，`im.recall_receipts` 里没有的命令）发了就完。
             (What::Receipt { recall: false }, _) => Ok(()),
             (What::Receipt { recall: true }, Some(msg)) => {
-                let bots = Arc::clone(&self.bots);
+                let bots = self.platforms.bots(peer.platform);
                 self.chores.spawn(recall(msg, peer, bots, self.recall));
                 Ok(())
             }

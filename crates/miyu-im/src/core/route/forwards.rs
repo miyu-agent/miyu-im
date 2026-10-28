@@ -24,8 +24,8 @@ use serde_json::{Value, json};
 use super::fields::{NAME, clean, media};
 use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::Link;
 use crate::chat::{CallError, FORWARD, Forwarded, Node, Piece, Segments};
+use crate::chat::{Link, Platform};
 use crate::core::Gone;
 
 /// 核心的整条上限（`venues.md`「场所的格」的 `forwards`）：一条场所消息里所有转发合起来最多几条。
@@ -84,9 +84,10 @@ struct Budget {
     asking: bool,
 }
 
-/// 取的那一头：连接、群号、记运行日志的场所和编号。
+/// 取的那一头：连接、平台和群号、记运行日志的场所和编号。
 struct At<'a> {
     link: Option<Arc<dyn Link>>,
+    platform: Platform,
     group: Option<i64>,
     venue: &'a str,
     msg: i64,
@@ -107,17 +108,25 @@ impl Route {
             return Ok(false);
         }
         let venue = message.place.peer.venue.to_string();
-        let forwards = self.forwards(wanted, &venue).await;
+        let forwards = self
+            .forwards((message.place.peer.platform, wanted), &venue)
+            .await;
         if !forwards.is_empty() {
             message.fields["forwards"] = Value::Array(forwards);
         }
         Ok(true)
     }
 
-    /// 展开 `wanted` 里的转发，交回场所的格的 `forwards`（照先后，一条都没展开的是空的）。`venue` 只记运行日志。
-    pub(super) async fn forwards(&self, wanted: &Forwards, venue: &str) -> Vec<Value> {
+    /// 展开 `wanted` 里的转发，交回场所的格的 `forwards`（照先后，一条都没展开的是空的）：经平台 `platform` 上收进它的号取。`venue`
+    /// 只记运行日志。
+    pub(super) async fn forwards(
+        &self,
+        (platform, wanted): (Platform, &Forwards),
+        venue: &str,
+    ) -> Vec<Value> {
         let at = At {
-            link: self.bots.get(wanted.bot),
+            link: self.platforms.link(platform, wanted.bot),
+            platform,
             group: wanted.group,
             venue,
             msg: wanted.msg,
@@ -161,7 +170,7 @@ impl Route {
                     else {
                         continue;
                     };
-                    let text = clip(&self.words(at.group, &read.segments), limits.chars);
+                    let text = clip(&self.words(at, &read.segments), limits.chars);
                     let bytes = name.len() + text.len();
                     if bytes > budget.bytes {
                         break;
@@ -197,16 +206,20 @@ impl Route {
         })
     }
 
-    /// 转发里一条的正文：段照先后接，@ 写成 `@名字`（群里照群成员的缓存，不另问 NapCat；没有的、私聊的写号）。
-    fn words(&self, group: Option<i64>, segments: &Segments) -> String {
+    /// 转发里一条的正文：段照先后接，@ 写成 `@名字`（群里照 `at` 那个平台、那个群的成员缓存，不另问 NapCat；没有的、私聊的写号）。
+    fn words(&self, at: &At<'_>, segments: &Segments) -> String {
         let mut text = String::new();
         for piece in &segments.pieces {
             match piece {
                 Piece::Text(words) => text.push_str(words),
                 Piece::At(user) => {
                     text.push('@');
-                    let name = group
-                        .and_then(|group| self.members.name(group, *user, Instant::now()))
+                    let name = at
+                        .group
+                        .and_then(|group| {
+                            self.members
+                                .name((at.platform, group, *user), Instant::now())
+                        })
                         .and_then(|name| clean(name, NAME));
                     match name {
                         Some(name) => text.push_str(&name),

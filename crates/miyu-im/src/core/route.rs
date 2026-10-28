@@ -116,15 +116,13 @@ use std::time::{Duration, Instant};
 use futures_util::StreamExt;
 use futures_util::stream::FuturesOrdered;
 use miyu_chat::Venue;
-use miyu_client::ids::VenueId;
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::task::{JoinHandle, JoinSet};
 
 use crate::TARGET;
 use crate::changed::Changed;
-use crate::chat::{Bots, Platform};
-use crate::chat::{Event, Members, To};
+use crate::chat::{Event, Members, Platform, Platforms};
 use crate::core::hooks::Hooks;
 use crate::core::{Core, Gone, reason};
 use crate::counters::{Count, Counters};
@@ -152,17 +150,10 @@ use queue::Queue;
 use quiet::Quiet;
 pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
+use session::Peer;
 use steering::Steering;
 use titled::Titles;
 use voicing::Voicing;
-
-/// 一个场所会话的回执、回话发到哪：收进它的机器人号、私聊的对方或者群；场所只拿来记运行日志。
-#[derive(Debug, Clone)]
-struct Peer {
-    bot: i64,
-    to: To,
-    venue: VenueId,
-}
 
 /// 路由和页面、写盘的任务共用的几样：挂接点、今天的数、卡片变了叫一声、最近判断、im 的状态目录、聊天记录。
 type Shared = (
@@ -185,9 +176,8 @@ pub(crate) struct Route {
     recent: Arc<Recent>,
     /// 聊天记录（设计 04，施工 C-1 上，`recording`）。
     records: Arc<Records>,
-    /// 平台：拼场所、平台上的人、命令编号（施工 I-2 下：驱动给的名字）。
-    platform: Platform,
-    bots: Arc<Bots>,
+    /// 挂着的几个平台和各自连着的号（施工 I-70 上）：拼场所、平台上的人、命令编号照这件事、这个会话的平台，找号不跨平台。
+    platforms: Platforms,
     /// 场所规则和出厂数据（施工 O-21）：每一条消息照它套场所（施工 O-22）。
     rules: Venues,
     /// 群成员的名字（施工 O-22，「群消息」第 5 条）。
@@ -278,13 +268,13 @@ pub(crate) struct Route {
 }
 
 impl Route {
-    /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
+    /// 拿着连接 `core`，回话照 `platforms` 里那个平台连着的号找连接，场所规则照 `rules`，群成员的名字记进 `members`，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
     /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记多久、群名隔多久再问照 `asking`（施工
     /// O-31）。取图、视频、文件照 `fetching`（施工 O-33），合并转发照 `forwarding` 展开（施工 O-34）。
     pub(crate) fn new(
         core: Core,
-        (platform, bots): (Platform, Arc<Bots>),
+        platforms: Platforms,
         rules: Venues,
         members: Members,
         (slots, personas, recall, expire, reactions, asking, fetching, forwarding): (
@@ -321,8 +311,7 @@ impl Route {
             cards_changed,
             recent,
             records,
-            platform,
-            bots,
+            platforms,
             rules,
             members,
             venues: HashMap::new(),
@@ -372,7 +361,10 @@ impl Route {
     /// 的任务、问判官的任务（施工 O-23 下）、撤回执、贴表情的任务（施工 O-25 上、下）崩了，交回 [`Failure::Crashed`]（「施工时定的」
     /// 第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。有东西排着的，另睡到最早的过期、
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
-    pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
+    pub(crate) async fn run(
+        mut self,
+        mut inbound: mpsc::Receiver<(Platform, Event)>,
+    ) -> Option<Failure> {
         // 起来就订阅（施工 O-32，「群里怎么叫她」第 1 条）：NapCat 那头来的先排着，订阅完了再办。
         if self.move_defaults().await.is_err()
             || self.revive().await.is_err()
@@ -387,7 +379,7 @@ impl Route {
             let wake = self.wake();
             let handled = tokio::select! {
                 event = inbound.recv(), if open => match event {
-                    Some(event) => self.event(event).await.map_err(|Gone| None),
+                    Some((platform, event)) => self.event(platform, event).await.map_err(|Gone| None),
                     None => {
                         open = false;
                         Ok(())
@@ -464,7 +456,8 @@ impl Route {
             }
             let venue = message.place.peer.venue.to_string();
             let shown;
-            (attachments, shown) = self.pictures(pictures, &venue).await?;
+            let platform = message.place.peer.platform;
+            (attachments, shown) = self.pictures((platform, pictures), &venue).await?;
             // 私聊里交了原图的那几样记 `shown`（施工 O-35）；群里冲她来的这一步不记。
             if message.place.private_chat() {
                 fields::shown(&mut message.fields, &shown);

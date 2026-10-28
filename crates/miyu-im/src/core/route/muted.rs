@@ -22,7 +22,7 @@ use super::projection::{MUTED, UNMUTED};
 use super::queue::until;
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::To;
+use crate::chat::{Platform, To};
 use crate::core::{Gone, reason};
 use crate::toolset::duration;
 
@@ -33,18 +33,19 @@ const MUTED_FACT: &str = "muted";
 const UNMUTED_FACT: &str = "unmuted";
 
 impl Route {
-    /// 机器人号 `bot` 在群号是 `group` 的群里被 `operator` 禁言 `seconds` 秒；空的是解禁了。
+    /// 平台 `platform` 上机器人号 `bot` 在群号是 `group` 的群里被 `operator` 禁言 `seconds` 秒；空的是解禁了。
     ///
     /// # Errors
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn muted(
         &mut self,
+        platform: Platform,
         (bot, group): (i64, i64),
         seconds: Option<u64>,
         operator: Option<i64>,
     ) -> Result<(), Gone> {
-        let venue = match self.platform.venue(VenueKind::Group, group) {
+        let venue = match platform.venue(VenueKind::Group, group) {
             Ok(venue) => venue,
             Err(error) => {
                 tracing::warn!(target: TARGET, group, error = %error, "venue not made, mute not noted");
@@ -58,11 +59,11 @@ impl Route {
             "unmuted"
         };
         self.record_happening(
-            (venue.id().as_str(), kind),
+            (platform, venue.id().as_str(), kind),
             (Some(bot), operator),
             (seconds, None),
         );
-        let place = Place::group(&venue, &self.applied(&venue), bot, group);
+        let place = Place::group((platform, &venue), &self.applied(&venue), bot, group);
         let Some(seconds) = seconds else {
             // 解禁：投影里本来就没禁着的（到点已经补记过、通知重了）不再记（O-50）。
             if !self.found(&place).await? {
@@ -80,7 +81,9 @@ impl Route {
                 tracing::info!(target: TARGET, venue = %venue.id(), "unmute ignored, not muted");
                 return Ok(());
             }
-            return self.unmuted((&session, group), "lifted", operator).await;
+            return self
+                .unmuted((&session, platform, group), "lifted", operator)
+                .await;
         };
         let Some(end) = applied::clock().and_then(|clock| until(clock.now, seconds)) else {
             tracing::warn!(target: TARGET, venue = %venue.id(), seconds, "mute not noted");
@@ -103,7 +106,7 @@ impl Route {
         }
         tracing::info!(target: TARGET, venue = %venue.id(), seconds, "mute noted");
         self.catch_up(&session).await?;
-        let by = self.operator_name(group, operator);
+        let by = self.operator_name((platform, group), operator);
         let lasting = duration(seconds);
         let fields = BTreeMap::from([("by", by.as_str()), ("duration", lasting.as_str())]);
         let text = self.rules.muted_fact().render(&fields);
@@ -112,10 +115,10 @@ impl Route {
     }
 
     /// 记解禁：`ext.im.venues.unmuted {why, by?}`，收进投影，记一块解禁的事实，回禁言时排着的，再看一遍出站排着的。`session`
-    /// 是群号 `group` 的群会话，`why` 是 `lifted`、`expired`，`operator` 是谁解的。
+    /// 是平台 `platform` 上群号 `group` 的群会话，`why` 是 `lifted`、`expired`，`operator` 是谁解的。
     async fn unmuted(
         &mut self,
-        (session, group): (&str, i64),
+        (session, platform, group): (&str, Platform, i64),
         why: &str,
         operator: Option<i64>,
     ) -> Result<(), Gone> {
@@ -128,7 +131,7 @@ impl Route {
         };
         tracing::info!(target: TARGET, session, why, "unmute noted");
         self.catch_up(session).await?;
-        let by = self.operator_name(group, operator);
+        let by = self.operator_name((platform, group), operator);
         let fields = BTreeMap::from([("why", why), ("by", by.as_str())]);
         let text = self.rules.unmuted_fact().render(&fields);
         self.note_fact(session, UNMUTED_FACT, text).await?;
@@ -145,17 +148,21 @@ impl Route {
         let Some(clock) = applied::clock() else {
             return Ok(());
         };
-        let ended: Vec<(String, i64)> = self
+        let ended: Vec<(String, Platform, i64)> = self
             .groups
             .iter()
             .filter(|(_, projection)| projection.mute_end().is_some_and(|end| end <= clock.now))
-            .filter_map(|(session, _)| match self.peers.get(session)?.to {
-                To::Group(group) => Some((session.clone(), group)),
-                To::Private(_) => None,
+            .filter_map(|(session, _)| {
+                let peer = self.peers.get(session)?;
+                match peer.to {
+                    To::Group(group) => Some((session.clone(), peer.platform, group)),
+                    To::Private(_) => None,
+                }
             })
             .collect();
-        for (session, group) in ended {
-            self.unmuted((&session, group), "expired", None).await?;
+        for (session, platform, group) in ended {
+            self.unmuted((&session, platform, group), "expired", None)
+                .await?;
         }
         Ok(())
     }
@@ -169,12 +176,12 @@ impl Route {
     }
 
     /// 谁禁的、谁解的写成什么：群成员缓存里的名字（洗过），没有的写号，不知道是谁的空着。
-    fn operator_name(&self, group: i64, operator: Option<i64>) -> String {
+    fn operator_name(&self, (platform, group): (Platform, i64), operator: Option<i64>) -> String {
         let Some(operator) = operator else {
             return String::new();
         };
         self.members
-            .name(group, operator, Instant::now())
+            .name((platform, group, operator), Instant::now())
             .and_then(|name| clean(name, NAME))
             .unwrap_or_else(|| operator.to_string())
     }

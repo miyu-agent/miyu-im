@@ -12,21 +12,25 @@ use serde_json::json;
 use super::Route;
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::Recall;
+use crate::chat::{Platform, Recall};
 use crate::core::{Gone, reason};
 
 impl Route {
-    /// 一次撤回 `recall`。
-    pub(super) async fn recalled(&mut self, recall: Recall) -> Result<(), Gone> {
+    /// 平台 `platform` 上的一次撤回 `recall`。
+    pub(super) async fn recalled(
+        &mut self,
+        platform: Platform,
+        recall: Recall,
+    ) -> Result<(), Gone> {
         let (kind, number) = match recall.group {
             Some(group) => (VenueKind::Group, group),
             None => (VenueKind::Private, recall.user),
         };
-        let made = self.platform.venue(kind, number).and_then(|venue| {
+        let made = platform.venue(kind, number).and_then(|venue| {
             Ok((
                 venue,
-                self.platform.person(recall.user)?,
-                self.platform.person(recall.by)?,
+                platform.person(recall.user)?,
+                platform.person(recall.by)?,
             ))
         });
         let (venue, user, by) = match made {
@@ -38,16 +42,16 @@ impl Route {
         };
         // 聊天记录（设计 04，施工 C-1 上）：撤回不删，那一条标上撤回了、谁撤的，另记一件事。
         self.record_happening(
-            (venue.id().as_str(), crate::records::RECALLED),
+            (platform, venue.id().as_str(), crate::records::RECALLED),
             (Some(recall.user), Some(recall.by)),
             (None, Some(recall.message_id)),
         );
         let applied = self.applied(&venue);
         let place = match recall.group {
-            Some(group) => Place::group(&venue, &applied, recall.bot, group),
+            Some(group) => Place::group((platform, &venue), &applied, recall.bot, group),
             None => {
                 let listed = self.whitelisted(&user).then_some(&applied);
-                Place::private(&venue, &user, (recall.bot, recall.user), listed)
+                Place::private((platform, &venue), &user, (recall.bot, recall.user), listed)
             }
         };
         let body = json!({"msg": recall.message_id.to_string(), "by": by});

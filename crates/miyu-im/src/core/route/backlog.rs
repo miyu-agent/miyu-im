@@ -3,7 +3,8 @@
 //! JSON 看，群里、私聊一个看法。
 //!
 //! - 发到哪：场所照日志第一条 `session.created` 的 `venue`；机器人号照最近一条人说的话的命令编号（`cause`，
-//!   `qq:<机器人的号>:…`，施工单「要定的」第 3 条）。认不出的等那个场所来一条消息。
+//!   `qq:<机器人的号>:…`，施工单「要定的」第 3 条），挂着的几个平台各认各的（施工 I-70 上），和场所不是一个平台的不认。认不出的
+//!   等那个场所来一条消息。
 //! - 补发哪几句：补来的她的话（这一轮说了不说话的不算，调的一方认），说的时刻晚于 `since`：还在出站队列的期限里（施工单
 //!   「要定的」第 1 条）。照同一个回合入队了的正文比（`ext.im.venues.queued` 里 `kind` 是 `reply` 的，同 O-25 中的去重，
 //!   「要定的」第 2 条）：出站链照这一回合入队了的去重，拆出来的每一段入队过的不再发。别的线（支线，施工 O-36）的入队也记在
@@ -18,25 +19,25 @@ use miyu_client::ids::VenueId;
 use miyu_client::time::Timestamp;
 use serde_json::Value;
 
+use super::Peer;
 use super::projection::{QUEUED, REPLY, Speaking};
 use crate::chat::Platform;
-use crate::chat::To;
 
 /// 订阅补来的那一段。
 #[derive(Debug)]
 pub(super) struct Backlog {
     /// 这个会话的编号：入队的 `line` 不是它的（支线的，施工 O-36）不算这个会话的回合。
     line: String,
-    /// 平台：照它认命令编号里的机器人号、场所发到哪。
-    platform: Platform,
+    /// 挂着的平台（施工 I-70 上）：照它们认命令编号里的机器人号、场所发到哪。
+    platforms: Vec<Platform>,
     /// 补到哪（`subscribe` 回应的 `upto`）：序号不大于它的是补来的。
     upto: u64,
     /// 说的时刻晚于它（毫秒）的还在期限里。
     since: i64,
     /// 场所：`session.created` 的 `venue`。
     venue: Option<VenueId>,
-    /// 机器人号：最近一条人说的话的命令编号认出来的。
-    bot: Option<i64>,
+    /// 机器人号和它的平台：最近一条人说的话的命令编号认出来的。
+    bot: Option<(Platform, i64)>,
     /// 回合编号 → 这一回合入队了的她的话的正文，照先后。
     queued: HashMap<u64, Vec<String>>,
     /// 期限以内的她的话，照先后。
@@ -55,11 +56,11 @@ pub(super) struct Said {
 }
 
 impl Backlog {
-    /// 平台 `platform` 上的会话 `line` 补到 `upto`，说的时刻晚于 `since`（毫秒）的还在期限里。
-    pub(super) fn new(platform: Platform, line: &str, upto: u64, since: i64) -> Backlog {
+    /// 挂着平台 `platforms` 时会话 `line` 补到 `upto`，说的时刻晚于 `since`（毫秒）的还在期限里。
+    pub(super) fn new(platforms: Vec<Platform>, line: &str, upto: u64, since: i64) -> Backlog {
         Backlog {
             line: line.to_string(),
-            platform,
+            platforms,
             upto,
             since,
             venue: None,
@@ -83,10 +84,12 @@ impl Backlog {
                     .and_then(|venue| VenueId::parse(venue).ok());
             }
             Some("message.user") => {
-                if let Some(bot) = event["cause"]
-                    .as_str()
-                    .and_then(|id| self.platform.bot_of(id))
-                {
+                let bot = event["cause"].as_str().and_then(|id| {
+                    self.platforms
+                        .iter()
+                        .find_map(|platform| Some((*platform, platform.bot_of(id)?)))
+                });
+                if let Some(bot) = bot {
                     self.bot = Some(bot);
                 }
             }
@@ -119,11 +122,18 @@ impl Backlog {
         }
     }
 
-    /// 发到哪：机器人号、发给谁、场所。场所、机器人号有一样认不出的是空的。
-    pub(super) fn peer(&self) -> Option<(i64, To, VenueId)> {
+    /// 发到哪：平台、机器人号、发给谁、场所。场所、机器人号有一样认不出的，两样不是一个平台的（不拿别的平台的号发，施工
+    /// I-70 上），是空的。
+    pub(super) fn peer(&self) -> Option<Peer> {
         let venue = self.venue.clone()?;
-        let to = self.platform.to_of(&Venue::parse(&venue)?)?;
-        Some((self.bot?, to, venue))
+        let (platform, bot) = self.bot?;
+        let to = platform.to_of(&Venue::parse(&venue)?)?;
+        Some(Peer {
+            platform,
+            bot,
+            to,
+            venue,
+        })
     }
 
     /// 期限以内的她的话，照先后取出来。

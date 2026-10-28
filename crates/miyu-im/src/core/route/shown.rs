@@ -118,7 +118,7 @@ impl Route {
                 peer: peer.clone(),
                 file,
                 muted,
-                bots: Arc::clone(&self.bots),
+                bots: self.platforms.bots(peer.platform),
                 caller: self.core.caller(),
                 template: self.rules.unshown().clone(),
             };

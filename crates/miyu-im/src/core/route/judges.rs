@@ -20,7 +20,7 @@ use super::ask::{Answer, Asking, Slots, ask};
 use super::body::kinds;
 use super::decide::Decision;
 use super::persona::Personas;
-use crate::chat::To;
+use crate::chat::{Platform, To};
 use crate::core::Caller;
 use crate::core::hooks::{Hooks, Nudge, SCORE};
 
@@ -127,14 +127,16 @@ impl Judges {
             .map(|(_, judging)| &judging.pending)
     }
 
-    /// 交给判官：记下 `judging`，照 `asking` 起一个任务；要打分的、挂了判断打分挂接点的，判官答了以后同一个任务里问它们。
-    pub(super) fn start(&mut self, judging: Judging, asking: Asking, to: Option<To>) {
+    /// 交给判官：记下 `judging`，照 `asking` 起一个任务；要打分的、挂了判断打分挂接点的，判官答了以后同一个任务里问它们。`at`
+    /// 是这个群会话的平台和群（施工 I-70 上：挂接点的参数带它的平台）；不知道的（照说不会：判的群会话都找到过）不问挂接点。
+    pub(super) fn start(&mut self, judging: Judging, asking: Asking, at: Option<(Platform, To)>) {
         self.next += 1;
         let ticket = self.next;
+        let (platform, to) = at.unzip();
         let scoring = (asking.mode == Mode::Reply)
             .then(|| self.hooks.at(SCORE, to))
             .filter(|packages| !packages.is_empty())
-            .map(|packages| (packages, scored_params(&judging)));
+            .and_then(|packages| Some((platform?, packages, scored_params(&judging))));
         self.judging.push((ticket, judging));
         let (caller, texts, slots, personas, hooks) = (
             self.caller.clone(),
@@ -149,11 +151,11 @@ impl Judges {
                 .as_ref()
                 .and_then(|answer| answer.result.as_ref().ok());
             let nudge = match (scoring, judgement) {
-                (Some((packages, mut params)), Some(judgement)) => {
+                (Some((platform, packages, mut params)), Some(judgement)) => {
                     params["scores"] = json!(judgement.scores);
                     params["should_reply"] = json!(judgement.should_reply);
                     params["to_bot"] = json!(judgement.to_bot);
-                    Some(hooks.score(packages, params).await)
+                    Some(hooks.score(platform, packages, params).await)
                 }
                 _ => None,
             };

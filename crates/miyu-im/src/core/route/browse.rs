@@ -49,8 +49,13 @@ impl Route {
             })
             .collect();
         if method == LIST {
-            let bots = std::sync::Arc::clone(&self.bots);
-            let platform = self.platform.name().to_string();
+            // 页面的连接照平台分是 I-70 下的事：这时照卡片、后台页的那一个平台（`Route::card_venue`）。
+            let bots = self.card_bots();
+            let platform = self
+                .platforms
+                .first()
+                .map(|platform| platform.name().to_string())
+                .unwrap_or_default();
             self.chores
                 .spawn(listed(id, (known, bots, platform), caller, answerer));
             return true;
