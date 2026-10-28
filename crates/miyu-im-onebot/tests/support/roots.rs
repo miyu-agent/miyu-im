@@ -40,7 +40,8 @@ fn owner(root: &DataRoot) {
     written.put(Account {
         id: "admin".to_string(),
         username: "admin".to_string(),
-        password: "$argon2id$v=19$m=19456,t=2,p=1$placeholder".to_string(),
+        // 核心 SU-1 起自己建的主人就是不设访问密码的。
+        password: String::new(),
         changed: miyu_kernel::time::Timestamp::parse("2026-10-23T00:00:00.000Z").expect("合写法"),
         created: None,
         disabled: false,

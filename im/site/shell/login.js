@@ -1,4 +1,4 @@
-// 登录（施工 I-5 上、下，I-6 上从 app.js 挪出来）：交接票换登录（POST /login/ticket）、用户名密码登录（POST /login/password），
+// 登录（施工 I-5 上、下，I-6 上从 app.js 挪出来）：交接票换登录（POST /login/ticket）、访问密码登录（POST /login/password，施工 I-65 起只有密码），
 // 交回的会话号放进 localStorage（只有这个端口的页面读得到；cookie 同一台机器别的端口也收得到，不用）；登出（POST /logout）。
 import { element, say } from './i18n.js';
 
@@ -23,7 +23,7 @@ export function store(session) {
   }
 }
 
-/** 换登录：`path` 是 /login/ticket 或 /login/password，正文 `body`。成了的记下会话号，交回 {session, account}；不成的交回 {line}。 */
+/** 换登录：`path` 是 /login/ticket 或 /login/password，正文 `body`。成了的记下会话号，交回 {session}；不成的交回 {line}。 */
 export async function signIn(path, body) {
   let answer;
   try {
@@ -39,10 +39,11 @@ export async function signIn(path, body) {
   const reason = answer.body.reason;
   if (answer.status === 200) {
     store(answer.body.session);
-    return { session: answer.body.session, account: answer.body.account };
+    return { session: answer.body.session };
   }
   if (reason === 'bad_ticket') return { line: say('failed/ticket') };
   if (reason === 'bad_password') return { line: say('failed/password') };
+  if (reason === 'password_not_set') return { line: say('failed/not-set') };
   if (reason === 'login_throttled') {
     const seconds = Math.ceil((answer.body.retry_after_ms ?? 1000) / 1000);
     return { line: say('failed/throttled', { seconds }) };
@@ -62,7 +63,7 @@ export async function signOut() {
   }
 }
 
-/** 在 `root` 里画登录页：上面一行 `line`（可以空），`busy` 的只写那一行；登录成了交给 `onSignedIn({session, account})`。 */
+/** 在 `root` 里画登录页：上面一行 `line`（可以空），`busy` 的只写那一行；登录成了交给 `onSignedIn({session})`。 */
 export function showLogin(root, line, onSignedIn, busy = false) {
   document.title = say('title');
   const card = element('div', 'login-card');
@@ -75,15 +76,14 @@ export function showLogin(root, line, onSignedIn, busy = false) {
 
 function form(root, onSignedIn) {
   const box = element('form', 'login-form');
-  const user = field('user', 'text', 'username');
   const password = field('password', 'password', 'current-password');
   const submit = element('button', 'btn primary', say('sign-in'));
   submit.type = 'submit';
-  box.append(user.label, password.label, submit, element('p', 'login-hint', say('signed-out')));
+  box.append(password.label, submit, element('p', 'login-hint', say('signed-out')));
   box.addEventListener('submit', async (event) => {
     event.preventDefault();
     showLogin(root, say('signing-in'), onSignedIn, true);
-    const done = await signIn('/login/password', { user: user.input.value, password: password.input.value });
+    const done = await signIn('/login/password', { password: password.input.value });
     if (done.session) onSignedIn(done);
     else showLogin(root, done.line, onSignedIn);
   });

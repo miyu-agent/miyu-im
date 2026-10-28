@@ -79,33 +79,30 @@ fn file_kinds_follow_the_extension() {
 #[test]
 fn logins_are_found_by_session_and_removed() {
     let logins = Logins::default();
-    let a = logins.add("admin".to_string(), ()).expect("取得到随机数");
-    let b = logins.add("mio".to_string(), ()).expect("取得到随机数");
+    let a = logins.add("a").expect("取得到随机数");
+    let b = logins.add("b").expect("取得到随机数");
     assert_eq!(a.len(), 64, "32 字节写成十六进制");
     assert!(a.chars().all(|c| c.is_ascii_hexdigit()), "{a}");
     assert_ne!(a, b, "各是各的会话号");
-    assert_eq!(logins.get(&a).expect("在").account, "admin");
-    assert_eq!(logins.get(&b).expect("在").account, "mio");
+    assert_eq!(logins.get(&a).expect("在").person, "a");
+    assert_eq!(logins.get(&b).expect("在").person, "b");
     assert!(logins.get(&a[..63]).is_none(), "短一位的不认");
     assert!(logins.get("").is_none());
-    assert_eq!(logins.remove(&a).expect("有这一份").account, "admin");
+    assert_eq!(logins.remove(&a).expect("有这一份").person, "a");
     assert!(logins.remove(&a).is_none(), "拿掉过了");
     assert!(logins.get(&a).is_none());
-    assert_eq!(logins.get(&b).expect("别的还在").account, "mio");
+    assert_eq!(logins.get(&b).expect("别的还在").person, "b");
 }
 
 #[test]
 fn only_the_latest_logins_are_held() {
     let logins = Logins::default();
     let sessions: Vec<String> = (0..=HELD)
-        .map(|n| logins.add(n.to_string(), ()).expect("取得到随机数"))
+        .map(|n| logins.add(n).expect("取得到随机数"))
         .collect();
     assert!(logins.get(&sessions[0]).is_none(), "最早的拿掉");
-    assert_eq!(logins.get(&sessions[1]).expect("在").account, "1");
-    assert_eq!(
-        logins.get(&sessions[HELD]).expect("在").account,
-        HELD.to_string()
-    );
+    assert_eq!(logins.get(&sessions[1]).expect("在").person, 1);
+    assert_eq!(logins.get(&sessions[HELD]).expect("在").person, HELD);
 }
 
 #[test]

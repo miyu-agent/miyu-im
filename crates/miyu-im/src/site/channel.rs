@@ -1,7 +1,7 @@
 //! 页面和宿主说话的通道（施工 I-5 上「怎么走」第 7 条）：`GET /channel` 升级成的 WebSocket，一帧一条 JSON。
 //!
 //! 1. 页面先发 `{"session"}`（登录时交回的会话号；浏览器开 WebSocket 带不了自己的头），[`FIRST`] 以内没发、对不上登录的回关闭帧
-//!    4401 `bad_session`。对上了回 `{"account"}`。
+//!    4401 `bad_session`。对上了回 `{"ready": true}`（施工 I-65 起不回账号）。
 //! 2. 之后页面发 `{"id", "method", "params"}`，宿主回 `{"id", "result"}` 或 `{"id", "error": {"reason", "message"?}}`（方法在
 //!    `methods`；`message` 是核心拒了时的原话，施工 I-6 中）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
 //! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。场所卡片、白名单
@@ -39,18 +39,15 @@ where
             .and_then(|first| first["session"].as_str().map(str::to_string)),
         _ => None,
     };
-    let login = session
+    let known = session
         .as_deref()
-        .and_then(|session| site.logins.get(session));
-    let (Some(session), Some(login)) = (session, login) else {
+        .is_some_and(|session| site.logins.get(session).is_some());
+    let (Some(session), true) = (session, known) else {
         tracing::info!(target: TARGET, "channel refused");
         close(&mut ws).await;
         return;
     };
-    if send(&mut ws, &json!({"account": login.account}))
-        .await
-        .is_err()
-    {
+    if send(&mut ws, &json!({"ready": true})).await.is_err() {
         return;
     }
     let mut changes = site.changed.watch();

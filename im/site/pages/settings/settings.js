@@ -124,7 +124,8 @@ function bindings(got, platform, save) {
   add.addEventListener('click', () => {
     const typed = number.value.trim();
     if (!/^\d+$/.test(typed)) return toast(say('settings-page/bind-bad'));
-    save(`binding:${prefix}${typed}`, account.value.trim() || got.account);
+    // 核心 SU-1 起只有主人：对应表里不空的值都当主人，没填的照已经绑了的那个写，一个都没绑的写 owner。
+    save(`binding:${prefix}${typed}`, account.value.trim() || Object.values(got.bindings || {})[0] || 'owner');
   });
   const adding = element('span', 'inline');
   adding.append(number, account, add);

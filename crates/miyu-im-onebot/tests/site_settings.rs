@@ -32,7 +32,10 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
     );
     // 测试的数据根里本来就绑了号：键照页面的写法，不带引号。
     assert_eq!(got["bindings"]["qq:10001"], "admin", "{got}");
-    assert_eq!(got["account"], "admin", "{got}");
+    assert!(
+        got.get("account").is_none(),
+        "登录不带账号了（施工 I-65）：{got}"
+    );
 
     let saved = call(
         &mut open,

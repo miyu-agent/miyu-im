@@ -54,7 +54,7 @@ pub use roots::temp_root;
 
 #[allow(unused_imports, reason = "读配置的测试用不上假 NapCat")]
 pub use napcat::*;
-pub use pipe::{Accounts, Relay};
+pub use pipe::{Bindings, Relay};
 
 /// 终端管理员的 QQ 号：系统配置里对着管理员。
 pub const ADMIN: i64 = 10001;
@@ -357,19 +357,19 @@ pub fn handed(settings: &Settings) -> Value {
 }
 
 /// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
-/// O-18），`accounts` 有的照它改写账号，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所规则这几样
+/// O-18），`bindings` 有的照它答 `venue.binding`，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所规则这几样
 /// （施工 O-21）。另交回测试那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
 pub fn serve_relayed(
     root: DataRoot,
     settings: Settings,
-    accounts: Option<Accounts>,
+    bindings: Option<Bindings>,
 ) -> (Serve, Relay) {
-    serve_handed(root, handed(&settings), accounts)
+    serve_handed(root, handed(&settings), bindings)
 }
 
 /// 同 [`serve_relayed`]，握手交的配置是 `config`（施工 O-39：多交 `im.whitelist`）。
-pub fn serve_handed(root: DataRoot, config: Value, accounts: Option<Accounts>) -> (Serve, Relay) {
-    let (pipe, relay) = pipe::pipe_to(&root, config, accounts);
+pub fn serve_handed(root: DataRoot, config: Value, bindings: Option<Bindings>) -> (Serve, Relay) {
+    let (pipe, relay) = pipe::pipe_to(&root, config, bindings);
     let serve = Serve {
         pipe,
         root,

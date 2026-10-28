@@ -3,8 +3,7 @@
 //! `external.bindings`：平台身份 → 本机账号）。都是核心的配置，在这份登录的人的连接上读、改（人的权限，设计第九节第 2 条），页面服务
 //! 只让改下面这几项。
 //!
-//! - `settings.get` → `{"recall_receipts", "port", "bindings": {身份: 账号}, "account"}`：照核心的 `config.get`，没写的照清单
-//!   的默认；`account` 是这份登录的账号（页面拿它当绑定的默认）。
+//! - `settings.get` → `{"recall_receipts", "port", "bindings": {身份: 账号}}`：照核心的 `config.get`，没写的照清单的默认。
 //! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`，或者 `binding:<身份>`（`value` 是
 //!   `null` 的去掉那一条）。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；别的键 `bad_params`。
 
@@ -26,7 +25,7 @@ fn config_key(name: &str) -> Option<String> {
 }
 
 /// `settings.get`（模块的说明）。
-pub(super) async fn get(person: &Person, account: &str) -> Result<Value, (String, String)> {
+pub(super) async fn get(person: &Person) -> Result<Value, (String, String)> {
     let got = person
         .lock()
         .await
@@ -55,7 +54,6 @@ pub(super) async fn get(person: &Person, account: &str) -> Result<Value, (String
         "recall_receipts": value("recall_receipts"),
         "port": value("port"),
         "bindings": bindings,
-        "account": account,
     }))
 }
 

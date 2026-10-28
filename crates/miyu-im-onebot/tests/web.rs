@@ -74,7 +74,7 @@ async fn the_page_opens_with_a_ticket_that_logs_in() {
         "{}",
         String::from_utf8_lossy(&logged.body)
     );
-    assert_eq!(logged.json()["account"], "admin");
+    assert!(logged.json()["session"].is_string(), "换到了登录");
     // 浏览器打不开的：照样印网址，说一分钟内有效。
     let unopened = Recorder {
         opens: false,

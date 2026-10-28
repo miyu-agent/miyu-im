@@ -3,8 +3,9 @@
 //! 施工 O-32，`revive`）；会话不在了忘掉、再问一次。
 //!
 //! - 私聊：`venue.session {venue, kind: "private", peer, profile?}`；不是白名单成员的多带 `profile: true`（施工 O-39：终端管理员
-//!   本人的私聊要「关于你」，核心照属主挑；白名单成员的、群的不写）；不是终端管理员（`no_system_account`），或者回应的属主是桥自己（核心
-//!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）、对方又不在白名单里的：不接，会话编号不记、不订阅。白名单成员
+//!   本人的私聊要「关于你」，核心照属主挑；白名单成员的、群的不写）；对方不在白名单里、`venue.binding` 认不出是终端管理员的（施工 I-65：
+//!   核心 SU-1 起握手不回桥自己的账号，认不出「会话的属主是桥自己」了；问不到的照核心的）、核心回 `no_system_account` 的：不接，
+//!   不问 `venue.session`、会话编号不记、不订阅（「施工时定的」第 49 条）。白名单成员
 //!   的照接（施工 O-27，2026-10-10 项目主人定），`venue.session` 照场所规则带人格、预设、工作区（同群）。问到了订阅（第 9 条）。
 //! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
@@ -188,6 +189,13 @@ impl Route {
         Ok(self.find(place).await?.is_some())
     }
 
+    /// 私聊不接（陌生人）：同一个场所只记一行运行日志。
+    fn not_taken(&mut self, venue: &impl std::fmt::Display) {
+        if self.refused.insert(venue.to_string()) {
+            tracing::info!(target: TARGET, venue = %venue, "not admin or whitelisted, not taken");
+        }
+    }
+
     /// 找回场所 `place` 的会话，私聊的再订阅它，群的从头订阅（第 7、9 条，「群消息」第 3 条，「群里怎么叫她」第 1 条）。不接的、
     /// 问不到的、订阅不上的是空的（记一行运行日志）。
     pub(in crate::core::route) async fn find(
@@ -195,24 +203,26 @@ impl Route {
         place: &Place,
     ) -> Result<Option<String>, Gone> {
         let venue = &place.peer.venue;
+        // 私聊的对方不在白名单里（施工 O-27）、认不出是终端管理员的是陌生人：核心照样会替系统账号造会话，先问、不让它造（施工
+        // I-65，「施工时定的」第 49 条）；问不到的照原来办，核心那头不接陌生人。群的会话本来就归桥自己的账号。
+        let stranger = match place.opening["peer"].as_str() {
+            Some(peer) if place.private_chat() && !place.listed => {
+                self.terminal_admin(peer).await? == Some(false)
+            }
+            _ => false,
+        };
+        if stranger {
+            self.not_taken(venue);
+            return Ok(None);
+        }
         let reply = self
             .core
             .call("venue.session", place.opening.clone())
             .await?;
-        // 私聊的回应带了会话的属主、正是桥自己的账号：不是终端管理员（核心 O-4 中以后照常造会话，属主是系统账号）。对方在白名单
-        // 里的照接（施工 O-27），别的是陌生人，照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。群的会话
-        // 本来就归桥自己的账号。
-        let stranger = place.private_chat()
-            && !place.listed
-            && reply["result"]["account"]
-                .as_str()
-                .is_some_and(|owner| Some(owner) == self.core.account.as_deref());
         match reason(&reply) {
-            None if !stranger => {}
-            None | Some("no_system_account") => {
-                if self.refused.insert(venue.to_string()) {
-                    tracing::info!(target: TARGET, venue = %venue, "not admin or whitelisted, not taken");
-                }
+            None => {}
+            Some("no_system_account") => {
+                self.not_taken(venue);
                 return Ok(None);
             }
             Some(reason @ ("unknown_persona" | "unknown_preset" | "preset_invalid")) => {

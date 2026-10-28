@@ -16,7 +16,6 @@ use miyu_im::status_file;
 use miyu_im::texts::Texts;
 use miyu_kernel::id::AccountId;
 use miyu_session::testkit::{Play, Script};
-use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -356,21 +355,10 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     napcat.admin_says(3, "在吗").await;
     assert_eq!(napcat.reply().await, "在", "终端管理员的私聊照常来回");
     assert_eq!(home.said_texts(), ["在吗"]);
-    // 核心照 O-4 下把陌生人的私聊归系统账号、造了会话（回应的属主是桥自己，走的正是第 49 条那一处，不是 `no_system_account`）：
-    // 两条找的是同一个，里面没有人说的话。
+    // 核心拉起的桥是系统账号，`venue.binding` 答得了：认不出的陌生人不问 `venue.session`（施工 I-65），核心不替系统账号造会话。
     let system = AccountId::parse("im").expect("合写法");
     let theirs = home.root.sessions(&system).expect("列得出");
-    assert_eq!(theirs.len(), 1, "{theirs:?}");
-    let events: Vec<Value> = read_events(&home.root.session_dir(&system, &theirs[0]))
-        .expect("读得了")
-        .iter()
-        .map(|event| serde_json::to_value(event).expect("写得成 JSON"))
-        .collect();
-    assert_eq!(events[0]["body"]["venue"], "qq:private:20002", "{events:?}");
-    assert!(
-        events.iter().all(|event| event["kind"] != "message.user"),
-        "陌生人的话不进会话：{events:?}"
-    );
+    assert!(theirs.is_empty(), "陌生人的私聊不造会话：{theirs:?}");
     // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
     let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
         .expect("桥写了运行日志");

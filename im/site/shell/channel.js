@@ -1,10 +1,10 @@
-// 页面和宿主说话的通道（施工 I-5 上的 /channel，I-6 上起页面经它取东西）：WebSocket，第一帧出示会话号，宿主回账号；之后一问一答，
+// 页面和宿主说话的通道（施工 I-5 上的 /channel，I-6 上起页面经它取东西）：WebSocket，第一帧出示会话号，宿主回 {ready}；之后一问一答，
 // 宿主手里的状态变了推 {"event": "changed"}（页面照它再问，不轮询）。
 //
 // - 关闭帧 4401：会话号不认了（登出了、im 重启过），交给 onExpired，不再连。
 // - 别的断开：交给 onLost，过一会儿再连（1 秒起、每次翻倍、最多 10 秒）；连上了交给 onOpen。在等回答的都算失败。
 
-/** 用会话号 `session` 开通道；`handlers` 是 onOpen(account)、onEvent(name)、onLost()、onExpired()。 */
+/** 用会话号 `session` 开通道；`handlers` 是 onOpen()、onEvent(name)、onLost()、onExpired()。 */
 export function openChannel(session, handlers) {
   let socket;
   let next = 1;
@@ -26,7 +26,7 @@ export function openChannel(session, handlers) {
       if (!greeted) {
         greeted = true;
         delay = 1000;
-        handlers.onOpen?.(message.account);
+        handlers.onOpen?.();
         return;
       }
       if (message.event) {

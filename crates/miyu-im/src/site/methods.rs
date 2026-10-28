@@ -1,6 +1,5 @@
 //! 页面经通道调的方法（施工 I-6 上起）：照这一刻桥手里的样子答，不读盘。
 //!
-//! - `whoami` → `{"account"}`：这份登录的账号。
 //! - `connections` → `{"connections": [...]}`：机器人照号排，连着的在前、断开了的（施工 I-6 中：「断开 4 分钟，在重连」）在后。
 //!   每个：`platform`（驱动给的平台名）、`bot`（号，写成字）、`connected`、`since`（连上的、断开的时刻，毫秒的 Unix 时间），问到了
 //!   的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）。
@@ -44,7 +43,6 @@ pub(super) async fn answer(
     (method, params): (Option<&str>, &Value),
 ) -> Result<Value, (String, String)> {
     match method {
-        Some("whoami") => Ok(json!({"account": login.account})),
         Some("connections") => Ok(json!({"connections": connections(site)})),
         Some("status") => {
             let mut status = site.running.status();
@@ -71,7 +69,7 @@ pub(super) async fn answer(
         Some("moderation.get") => moderation::get(site),
         Some("moderation.set") => moderation::set(site, params),
         Some("reactions") => Ok(reactions(site)),
-        Some("settings.get") => settings::get(&login.person, &login.account).await,
+        Some("settings.get") => settings::get(&login.person).await,
         Some("settings.set") => settings::set(&login.person, params).await,
         Some("plugins.list") => plugins::list(site, &login.person).await,
         Some("plugins.home") => home_cards::set(site, &login.person, params).await,

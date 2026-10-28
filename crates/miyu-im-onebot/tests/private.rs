@@ -1,22 +1,24 @@
 //! 终端管理员的私聊（施工 O-8，`onebot.md` 第一条「怎么走」第 5 到 10 条）：送进场所会话、记成终端管理员本人；她的回话发回 QQ；同一条
 //! 消息再来只算一次，同一个消息编号、时刻不同的是新的一条，没带时刻的照样送（O-8 补）；不是终端管理员的不送也不回；段的数组、
-//! CQ 字符串都认，只有图片的不送；同一个号再连进来，新的顶掉旧的。核心 O-4 中以后，`venue.session` 回的会话属主是桥自己
-//! （系统账号）的是陌生人，不接；属主是别的账号、没带属主的照常接（「施工时定的」第 49 条，测试那一头照那时的样子改写账号）。
+//! CQ 字符串都认，只有图片的不送；同一个号再连进来，新的顶掉旧的。不在白名单里、`venue.binding` 认不出
+//! 是终端管理员的是陌生人，不接、不问 `venue.session`；问不到的照核心的（施工 I-65，「施工时定的」第 49 条；测试那一头照核心
+//! 拉起的桥的样子答 `venue.binding`）。
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 use miyu_im::serve::Notice;
 use miyu_session::testkit::{Play, Script};
 
 use crate::support::*;
 
-/// 核心 O-4 中以后，核心拉起的桥握手回的账号：系统账号。
-const SYSTEM: &str = "im";
+/// 终端管理员在对应表里的身份。
+const ADMIN_ID: &str = "qq:10001";
 
-/// 起一个桥：握手回的账号是 [`SYSTEM`]，`venue.session` 回的属主是 `venue`（空的不带这一格）。交回桥和转接。
-async fn owned_by(home: &Home, venue: Option<&'static str>) -> (Bridge, Relay) {
-    let accounts = Accounts { own: SYSTEM, venue };
-    let (serve, relay) = serve_relayed(home.root.clone(), settings(), Some(accounts));
+/// 起一个桥：`venue.binding` 照核心拉起的桥的样子答，`bound` 里的认得（空的是谁都认不出），`None` 的照本机套接字上的核心
+/// （回 `no_system_account`，问不到）。交回桥和转接。
+async fn bound(home: &Home, bound: Option<&'static [&'static str]>) -> (Bridge, Relay) {
+    let bindings = bound.map(|bound| Bindings { bound });
+    let (serve, relay) = serve_relayed(home.root.clone(), settings(), bindings);
     (start(serve).await, relay)
 }
 
@@ -193,52 +195,40 @@ async fn a_new_connection_for_the_same_bot_takes_over() {
 }
 
 #[tokio::test]
-async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
-    let home = Home::new(&Script::new([Play::Says("不该说话")]));
-    let (bridge, relay) = owned_by(&home, Some(SYSTEM)).await;
+async fn someone_the_binding_does_not_know_is_a_stranger_and_not_asked_about() {
+    let home = Home::new(&Script::new([Play::Says("在")]));
+    let (bridge, relay) = bound(&home, Some(&[ADMIN_ID])).await;
     let mut napcat = admin_napcat(bridge.port).await;
-    napcat.admin_says(1, "在吗").await;
-    napcat.admin_says(2, "/stop").await;
-    napcat.admin_says(3, "还在吗").await;
+    napcat.private(STRANGER, 1, json!("在吗")).await;
+    napcat.private(STRANGER, 2, json!("/stop")).await;
+    napcat.private(STRANGER, 3, json!("还在吗")).await;
+    // 一条条照先后办：终端管理员这一句的回话先到，陌生人的三句就是办完了、没回。
     napcat.admin_says(4, "在吗").await;
-    // 一条条照先后办：第四条去问 `venue.session` 的时候，前三条已经办完了。会话编号不记进缓存：每一条都再问。
-    let asks = |relay: &Relay| {
-        relay
-            .asked()
-            .iter()
-            .filter(|method| *method == "venue.session")
-            .count()
-    };
-    within("四条都问过会话", async {
-        while asks(&relay) < 4 {
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-    })
-    .await;
-    // 头四个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了），第四个是订阅软件包列表（施工 O-43 上：挂接点），第五个是列插件（施工 I-8 上）。
+    assert_eq!(napcat.reply().await, "在");
+    assert_eq!(home.said_texts(), ["在吗"], "陌生人的不进任何会话");
+    let peers: Vec<Value> = relay
+        .sessions()
+        .iter()
+        .map(|asked| asked["peer"].clone())
+        .collect();
     assert_eq!(
-        relay.asked(),
-        [
-            "provide",
-            "package.methods",
-            "venue.sessions",
-            "subscribe",
-            "content.list",
-            "venue.session",
-            "venue.session",
-            "venue.session",
-            "venue.session"
-        ],
-        "不交 session.send、command.run，不订阅"
+        peers,
+        [json!(ADMIN_ID)],
+        "陌生人的不问 venue.session，免得核心替系统账号造会话"
     );
-    assert!(home.said().is_empty(), "不进任何会话：{:?}", home.said());
+    assert!(
+        relay.asked().iter().any(|method| method == "venue.binding"),
+        "{:?}",
+        relay.asked()
+    );
     bridge.stop().await.expect("停得下");
 }
 
 #[tokio::test]
-async fn an_open_strangers_card_without_an_answer_on_the_binding_takes_nobody() {
-    // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（这里的假核心不认它）：问不到的照原来办，陌生人不接。
-    let home = Home::new(&Script::new([Play::Says("不该说话")]));
+async fn an_open_strangers_card_without_an_answer_on_the_binding_leaves_it_to_the_core() {
+    // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（本机套接字上的桥不是系统账号）：问不到的照原来办，交给
+    // 核心，核心不接对应表里没有的人。
+    let home = Home::new(&Script::new([Play::Says("在")]));
     let cards = home.root.state().join("packages").join("im");
     std::fs::create_dir_all(&cards).expect("建得了目录");
     std::fs::write(
@@ -246,46 +236,30 @@ async fn an_open_strangers_card_without_an_answer_on_the_binding_takes_nobody() 
         r#"{"other_privates": {"on": true}}"#,
     )
     .expect("写得进");
-    let (bridge, relay) = owned_by(&home, Some(SYSTEM)).await;
+    let (bridge, relay) = bound(&home, None).await;
     let mut napcat = admin_napcat(bridge.port).await;
-    napcat.admin_says(1, "在吗").await;
-    napcat.admin_says(2, "在吗").await;
-    // 一条条照先后办：第二条也去问会话的时候，第一条已经办完了（接了的会话记着，不会再问）。
-    within("两条都问过会话", async {
-        while relay
-            .asked()
-            .iter()
-            .filter(|method| *method == "venue.session")
-            .count()
-            < 2
-        {
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-    })
-    .await;
+    napcat.private(STRANGER, 1, json!("在吗")).await;
+    napcat.private(STRANGER, 2, json!("在吗")).await;
+    napcat.admin_says(3, "在吗").await;
+    assert_eq!(napcat.reply().await, "在");
     assert!(
         relay.asked().iter().any(|method| method == "venue.binding"),
         "卡打开了才问"
     );
-    assert!(
-        !relay.asked().iter().any(|method| method == "session.send"),
-        "{:?}",
-        relay.asked()
-    );
-    assert!(home.said().is_empty(), "不进任何会话：{:?}", home.said());
+    assert_eq!(home.said_texts(), ["在吗"], "陌生人的不进任何会话");
     bridge.stop().await.expect("停得下");
 }
 
 #[tokio::test]
-async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
-    for venue in [Some("admin"), None] {
+async fn the_admin_is_taken_whether_the_binding_knows_him_or_cannot_be_asked() {
+    for known in [Some(&[ADMIN_ID][..]), None] {
         let home = Home::new(&Script::new([Play::Says("在")]));
-        let (bridge, relay) = owned_by(&home, venue).await;
+        let (bridge, relay) = bound(&home, known).await;
         let mut napcat = admin_napcat(bridge.port).await;
         napcat.admin_says(1, "在吗").await;
-        assert_eq!(napcat.reply().await, "在", "{venue:?}");
-        assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
-        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。// 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头四个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了），第四个是订阅软件包列表（施工 O-43 上：挂接点），第五个是列插件（施工 I-8 上）。
+        assert_eq!(napcat.reply().await, "在", "{known:?}");
+        assert_eq!(home.said_texts(), ["在吗"], "{known:?}");
+        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头几个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了）、订阅软件包列表（施工 O-43 上：挂接点）、列插件（施工 I-8 上）；找会话以前先问对方是不是终端管理员（施工 I-65）。
         assert_eq!(
             relay.asked(),
             [
@@ -294,13 +268,14 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
                 "venue.sessions",
                 "subscribe",
                 "content.list",
+                "venue.binding",
                 "venue.session",
                 "subscribe",
                 "venue.plugins",
                 "session.send",
                 "events.append"
             ],
-            "{venue:?}"
+            "{known:?}"
         );
         bridge.stop().await.expect("停得下");
     }

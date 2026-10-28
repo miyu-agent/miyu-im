@@ -1,13 +1,14 @@
-//! 陌生人的私聊只记一行运行日志（`onebot.md` 第一条「怎么走」第 7 条、「施工时定的」第 49 条）：核心 O-4 中以后，`venue.session`
-//! 回的会话属主是桥自己（系统账号）的是陌生人，同一个人连发几条，运行日志只记一行 `not admin or whitelisted, not taken`。测试那一头照那时
-//! 的样子改写账号。
+//! 陌生人的私聊只记一行运行日志（`onebot.md` 第一条「怎么走」第 7 条、「施工时定的」第 49 条）：`venue.binding` 认不出是终端
+//! 管理员的是陌生人（施工 I-65），同一个人连发几条，运行日志只记一行 `not admin or whitelisted, not taken`。测试那一头照核心拉起
+//! 的桥的样子答 `venue.binding`。
 //!
 //! 全局装一个写进内存的订阅者，一个进程只能装一次，所以这个文件单独一个测试程序，只有一个测试。
 
 mod support;
 
 use miyu_log::{LevelFilter, Memory};
-use miyu_session::testkit::Script;
+use miyu_session::testkit::{Play, Script};
+use serde_json::json;
 
 use support::*;
 
@@ -20,36 +21,25 @@ async fn a_stranger_is_logged_once() {
         None,
     ))
     .expect("这个测试程序只装这一次");
-    let home = Home::new(&Script::new([]));
-    let accounts = Accounts {
-        own: "im",
-        venue: Some("im"),
+    let home = Home::new(&Script::new([Play::Says("在")]));
+    let bindings = Bindings {
+        bound: &["qq:10001"],
     };
-    let (serve, relay) = serve_relayed(home.root.clone(), settings(), Some(accounts));
+    let (serve, _relay) = serve_relayed(home.root.clone(), settings(), Some(bindings));
     let bridge = start(serve).await;
     let mut napcat = admin_napcat(bridge.port).await;
     for message in 1..=4 {
-        napcat.admin_says(message, "在吗").await;
+        napcat.private(STRANGER, message, json!("在吗")).await;
     }
-    // 一条条照先后办：第四条去问 `venue.session` 的时候，前三条已经办完了。
-    within("四条都问过会话", async {
-        while relay
-            .asked()
-            .iter()
-            .filter(|method| *method == "venue.session")
-            .count()
-            < 4
-        {
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-    })
-    .await;
+    // 一条条照先后办：终端管理员这一句的回话先到，陌生人的四句就是办完了。
+    napcat.admin_says(5, "在吗").await;
+    assert_eq!(napcat.reply().await, "在");
     let refused: Vec<String> = memory
         .lines()
         .into_iter()
         .filter(|line| line.contains("not admin or whitelisted, not taken"))
         .collect();
     assert_eq!(refused.len(), 1, "同一个人只记一行：{refused:?}");
-    assert!(refused[0].contains("venue=qq:private:10001"), "{refused:?}");
+    assert!(refused[0].contains("venue=qq:private:20002"), "{refused:?}");
     bridge.stop().await.expect("停得下");
 }

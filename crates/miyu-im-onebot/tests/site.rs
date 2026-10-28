@@ -97,7 +97,11 @@ async fn a_ticket_logs_the_page_in_once() {
         String::from_utf8_lossy(&logged.body)
     );
     let answer = logged.json();
-    assert_eq!(answer["account"], "admin", "{answer}");
+    assert_eq!(
+        answer.as_object().map(|o| o.len()),
+        Some(1),
+        "只交回会话号：{answer}"
+    );
     let session = answer["session"].as_str().expect("交回会话号").to_string();
     assert_eq!(session.len(), 64, "{session}");
     let again = post(port, "/login/ticket", &[], &json!({"ticket": ticket})).await;
@@ -139,12 +143,10 @@ async fn the_channel_answers_a_logged_in_page_until_it_logs_out() {
     let origin = format!("http://127.0.0.1:{port}");
     let mut open = channel(port, Some(&origin)).await;
     say(&mut open, &json!({"session": session})).await;
-    assert_eq!(heard(&mut open).await, Ok(json!({"account": "admin"})));
-    say(&mut open, &json!({"id": 1, "method": "whoami"})).await;
-    assert_eq!(
-        heard(&mut open).await,
-        Ok(json!({"id": 1, "result": {"account": "admin"}}))
-    );
+    assert_eq!(heard(&mut open).await, Ok(json!({"ready": true})));
+    say(&mut open, &json!({"id": 1, "method": "connections"})).await;
+    let answered = heard(&mut open).await.expect("答了");
+    assert!(answered["result"]["connections"].is_array(), "{answered}");
     say(&mut open, &json!({"id": "x", "method": "nothing"})).await;
     assert_eq!(
         heard(&mut open).await,
@@ -152,12 +154,12 @@ async fn the_channel_answers_a_logged_in_page_until_it_logs_out() {
     );
     let wrong = post(port, "/logout", &["Authorization: Bearer nope"], &json!({})).await;
     assert_eq!(wrong.status, 204, "没有这一份也是 204");
-    say(&mut open, &json!({"id": 2, "method": "whoami"})).await;
+    say(&mut open, &json!({"id": 2, "method": "connections"})).await;
     assert!(heard(&mut open).await.is_ok(), "登出别的会话号不碍事");
     let bearer = format!("Authorization: Bearer {session}");
     let out = post(port, "/logout", &[&bearer], &json!({})).await;
     assert_eq!(out.status, 204);
-    say(&mut open, &json!({"id": 3, "method": "whoami"})).await;
+    say(&mut open, &json!({"id": 3, "method": "connections"})).await;
     assert_eq!(heard(&mut open).await, Err(4401), "登出以后的请求回关闭帧");
     let mut stale = channel(port, None).await;
     say(&mut stale, &json!({"session": session})).await;

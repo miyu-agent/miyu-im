@@ -1,5 +1,5 @@
-//! 登录了的（施工 I-5 上「怎么走」第 5、6 条）：一份登录一个会话号（随机 32 字节写成十六进制），带着账号和照登录令牌连核心的
-//! 那条人的连接。只在内存里：桥重启要重新进。最多留 [`HELD`] 份，多了拿掉最早的（几次跳过来各开一份，旧的没人登出）。
+//! 登录了的（施工 I-5 上「怎么走」第 5、6 条）：一份登录一个会话号（随机 32 字节写成十六进制），带着照登录令牌连核心的那条主人的
+//! 连接（施工 I-65 起核心只有主人，不记账号）。只在内存里：桥重启要重新进。最多留 [`HELD`] 份，多了拿掉最早的（几次跳过来各开一份，旧的没人登出）。
 //! 会话号按常数时间比（同驱动比令牌）。
 
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -7,12 +7,10 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 /// 最多留几份登录。
 pub(super) const HELD: usize = 16;
 
-/// 一份登录：会话号、账号、人的连接。
+/// 一份登录：会话号、主人的连接。
 pub(crate) struct Login<P> {
     /// 会话号（插件面板的票据照它认是哪一份登录，施工 I-9 下）。
     pub(crate) session: String,
-    /// 核心认的账号（`login.redeem` 交回的）。
-    pub(crate) account: String,
     /// 照这个人的登录令牌连着核心的连接（测试里换成别的）。
     pub(crate) person: P,
 }
@@ -31,13 +29,12 @@ impl<P> Default for Logins<P> {
 }
 
 impl<P> Logins<P> {
-    /// 记一份登录：账号 `account`、人的连接 `person`，交回会话号。取不到随机数的是空的（不开）。
-    pub(crate) fn add(&self, account: String, person: P) -> Option<String> {
+    /// 记一份登录：主人的连接 `person`，交回会话号。取不到随机数的是空的（不开）。
+    pub(crate) fn add(&self, person: P) -> Option<String> {
         let session = session()?;
         let mut held = self.lock();
         let login = Login {
             session: session.clone(),
-            account,
             person,
         };
         held.push((session.clone(), Arc::new(login)));

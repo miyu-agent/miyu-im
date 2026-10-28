@@ -1,6 +1,6 @@
 //! 交接票换登录（施工 I-5 上「怎么走」第 5 条，设计 01 第九节第 3 条）：`POST /login/ticket`，正文 `{"ticket"}`。在扩展连接上
 //! 调核心的 `login.redeem` 换登录令牌，照它经本机套接字另开一条人的连接（`open::Core::connect_login`），记一份登录，交回
-//! `{"account", "session"}`。
+//! `{"session"}`（施工 I-65 起核心只有主人，不带账号）。
 //!
 //! - 正文不是 JSON、没有 `ticket`：400 `bad_params`。
 //! - 核心说票不对（没有、过期、用过，`bad_ticket`）：401 `bad_ticket`。
@@ -45,10 +45,7 @@ pub(super) async fn redeem(site: &Site, body: &[u8]) -> (StatusCode, Value) {
         }
     }
     let result = &reply["result"];
-    let (Some(account), Some(token)) = (
-        result["account"].as_str(),
-        result["login"]["token"].as_str(),
-    ) else {
+    let Some(token) = result["login"]["token"].as_str() else {
         tracing::warn!(target: TARGET, "redeemed login not understood");
         return refused(StatusCode::SERVICE_UNAVAILABLE, "core");
     };
@@ -59,16 +56,10 @@ pub(super) async fn redeem(site: &Site, body: &[u8]) -> (StatusCode, Value) {
             return refused(StatusCode::SERVICE_UNAVAILABLE, "core");
         }
     };
-    let Some(session) = site
-        .logins
-        .add(account.to_string(), tokio::sync::Mutex::new(person))
-    else {
+    let Some(session) = site.logins.add(tokio::sync::Mutex::new(person)) else {
         tracing::warn!(target: TARGET, "no randomness for a session");
         return refused(StatusCode::SERVICE_UNAVAILABLE, "core");
     };
-    tracing::info!(target: TARGET, account, "logged in by ticket");
-    (
-        StatusCode::OK,
-        json!({"account": account, "session": session}),
-    )
+    tracing::info!(target: TARGET, "logged in by ticket");
+    (StatusCode::OK, json!({"session": session}))
 }

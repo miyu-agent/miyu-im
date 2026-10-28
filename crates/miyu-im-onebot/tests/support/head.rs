@@ -26,9 +26,9 @@ impl Head {
         Head::shaken(connection, ("token", token)).await
     }
 
-    /// 照网页第一次进来的样子给账号设用户名 `user`、密码 `password`（施工 I-5 下）：出示本机令牌要一次性码，照码另连一条、
-    /// `account.setup`。
-    pub async fn set_password(root: &DataRoot, user: &str, password: &str) {
+    /// 照网页第一次进来的样子给主人设访问密码 `password`（施工 I-5 下，I-65 起不带用户名）：出示本机令牌要一次性码，照码另连
+    /// 一条、`account.setup`。
+    pub async fn set_password(root: &DataRoot, password: &str) {
         let mut head = Head::connect(root).await;
         let code = head.call("account.setup_code", json!({})).await["result"]["code"]
             .as_str()
@@ -37,10 +37,7 @@ impl Head {
         let connection = miyu_ipc::connect_bare(root).await.expect("连得上核心");
         let mut setting = Head::shaken(connection, ("code", code)).await;
         let set = setting
-            .call(
-                "account.setup",
-                json!({"username": user, "password": password}),
-            )
+            .call("account.setup", json!({"password": password}))
             .await;
         assert!(set.get("result").is_some(), "设得了密码：{set}");
     }
