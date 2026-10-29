@@ -73,7 +73,7 @@ fn each_item_lands_on_its_venues() {
     let rules = rules(everything());
     let keywords = (
         "keywords".to_string(),
-        Value::List(vec![text("miyu"), text("小羽")]),
+        Value::List(vec![text("miyu"), text("小羽")].into()),
         1,
     );
     let sleep = ("sleep".to_string(), text("23:00-07:00"), 2);

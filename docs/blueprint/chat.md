@@ -570,7 +570,7 @@ Rust 这一边：
 | 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是终端管理员或白名单成员的；没有 `triggers` 的（回报、后台命令、定时）照算 |
 | （施工 O-47 去掉）进站链原来的 `Ctx.notices` | `ext.im.venues.queued` | 不再算：旧日志里的提示照收、不算什么 |
 | 进站链 `Ctx.muted` | `ext.im.venues.muted`、`unmuted` | 最后一条 `muted` 的 `until` 晚于此刻、之后没有 `unmuted`（O-25 中） |
-| 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：终端管理员；编号在 `im.whitelist` 里：白名单成员；别的：别人 |
+| 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `"owner": true`（核心 SU-6 上以前是 `account`）：终端管理员；编号在 `im.whitelist` 里：白名单成员；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
 | 顶替 `Pending` | `ext.im.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.im.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线照桥订阅的子会话推来的 `turn.*`、`session.sealed`，触发换回主线序号（O-36，`onebot.md`「群里怎么叫她」第 2 条「支线」） |

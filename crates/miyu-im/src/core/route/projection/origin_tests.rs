@@ -7,7 +7,7 @@ use super::Projection;
 use super::tests::{LINE, ended, event, joined, qq, started, take_all};
 use crate::toolset::{Origin, Quote};
 
-/// 号是 `user` 的人说的第 `seq` 条：引用 `reply_to`、@ 了 `mentions`；`admin` 的带 `account`。
+/// 号是 `user` 的人说的第 `seq` 条：引用 `reply_to`、@ 了 `mentions`；`admin` 的带 `owner`。
 fn quoting(
     seq: u64,
     user: i64,
@@ -17,7 +17,7 @@ fn quoting(
 ) -> miyu_client::events::Event {
     let mut by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
     if admin {
-        by["account"] = json!("admin");
+        by["owner"] = json!(true);
     }
     let mut venue = json!({"msg": seq.to_string(), "ambient": true});
     if let Some(reply_to) = reply_to {

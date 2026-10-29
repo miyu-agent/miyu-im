@@ -125,7 +125,7 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
     let mut sponsor = Sponsor::start(&dir);
     let hello = sponsor.answers(
         "hello",
-        &json!({"account": "admin", "config": {"miyu-im-sponsor.currency": "CNY"}}),
+        &json!({"config": {"miyu-im-sponsor.currency": "CNY"}}),
     );
     assert_eq!(hello["params"]["protocol"], json!([1, 1]));
     let provided = sponsor.answers("provide", &json!({"tools": 1}));

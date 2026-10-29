@@ -1,4 +1,4 @@
-//! 测试的临时数据根（从 `mod.rs` 挪来：那个文件到了行数上限，施工 I-35）：建好骨架、写一个机主账号。
+//! 测试的临时数据根（从 `mod.rs` 挪来：那个文件到了行数上限，施工 I-35）：建好骨架。
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -28,26 +28,7 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
     })
     .expect("MIYU_HOME 是绝对路径");
     root.prepare().expect("临时目录里建得了骨架");
-    owner(&root);
     (dir, root)
-}
-
-/// 写一个机主账号（施工 I-35，核心 Y-12 中上起：没有机主的数据根核心停在设置那一段，本机令牌握手回 `setup: true`）。照核心测试的
-/// `owner()`：编号 `admin`，标 `owner`。
-fn owner(root: &DataRoot) {
-    use miyu_store::accounts::{self, Account, Accounts};
-    let mut written = Accounts::default();
-    written.put(Account {
-        id: "admin".to_string(),
-        username: "admin".to_string(),
-        // 核心 SU-1 起自己建的主人就是不设访问密码的。
-        password: String::new(),
-        changed: miyu_kernel::time::Timestamp::parse("2026-10-23T00:00:00.000Z").expect("合写法"),
-        created: None,
-        disabled: false,
-        owner: true,
-    });
-    accounts::write(&root.path().join(accounts::FILE), &written, None).expect("写得进");
 }
 
 /// 主人的家目录：人格、预设、技能、脚本只认这里。核心 SU-5 上起数据根只剩一层，就是数据根本身（原来是 `home/<主人>/`）。

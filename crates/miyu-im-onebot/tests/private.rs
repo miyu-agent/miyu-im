@@ -32,10 +32,7 @@ async fn the_admins_private_chat_goes_in_and_her_reply_comes_back() {
     assert_eq!(napcat.reply().await, "在");
     let said = home.said();
     assert_eq!(said.len(), 1, "{said:?}");
-    assert_eq!(
-        said[0]["by"],
-        json!({"kind": "person", "account": "admin", "via": "qq:10001"})
-    );
+    assert_eq!(said[0]["by"], json!({"kind": "person", "via": "qq:10001"}));
     assert_eq!(said[0]["body"]["blocks"][0]["text"], "在吗");
     assert_eq!(
         said[0]["cause"],

@@ -80,7 +80,7 @@ impl Form {
                 .iter()
                 .map(|value| checked_text(value, forms::manager))
                 .collect::<Result<Vec<_>, _>>()
-                .map(Value::List),
+                .map(|values| Value::List(values.into())),
         }
     }
 }

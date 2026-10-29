@@ -36,7 +36,7 @@ impl Projection {
             .map(|running| running.turn)
     }
 
-    /// 平台上的 `who` 是不是终端管理员：他在这个群说过的话带 `account`（「施工时定的」第 183 条；命令被拒的那一句听不听得到照它
+    /// 平台上的 `who` 是不是终端管理员：他在这个群说过的话带 `owner`（「施工时定的」第 183 条；命令被拒的那一句听不听得到照它
     /// 兜底，O-47）。
     pub(in crate::core::route) fn is_admin(&self, who: &ExternalId) -> bool {
         self.said

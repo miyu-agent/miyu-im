@@ -2,7 +2,7 @@
 //! 事件（订阅时从头补来的、之后推来的）照序号收进来，算出判一条群消息要的几样。纯逻辑：不碰 I/O、时钟。内存里只放从日志
 //! 算得出的，桥重启照日志重建（「施工时定的」第 71、83 条）。
 //!
-//! - 人说的话：序号 → 发的人、是不是终端管理员（`by` 是外部身份、带 `account`）、什么时刻（O-23 下：顶替窗口从它数）。
+//! - 人说的话：序号 → 发的人、是不是终端管理员（`by` 是外部身份、带 `owner`）、什么时刻（O-23 下：顶替窗口从它数）。
 //! - 开过的回合：开始的时刻、触发的人；进站链的 `Ctx.turns` 交触发的人全是终端管理员或白名单成员以外的那些（[`Projection::turns`]）。
 //!   并进一轮的几条（`turn.joined`）那一轮没再请求就结束的，核心接着开一轮，它的 `turn.started` 没有 `triggers`、`trigger`
 //!   指向那条 `turn.joined`：照那条的 `triggers` 找回触发的人（O-23 下）。
@@ -60,7 +60,7 @@ const SPOKE_TURNS: usize = 8;
 struct Speaker {
     /// 平台上的身份（`by.id`）。
     id: ExternalId,
-    /// 是不是终端管理员：核心照对应表认出来、记在 `by.account` 上的（`chat.md` 第七条第 4 条）。
+    /// 是不是终端管理员：核心照对应表认出来、记在 `by.owner` 上的（`chat.md` 第七条第 4 条）。
     admin: bool,
     /// 这一条记下的时刻（`message.user` 的 `at`）。
     at: Timestamp,
@@ -212,7 +212,7 @@ impl Projection {
                     let text = words(&user.blocks);
                     let speaker = Speaker {
                         id: external.id.clone(),
-                        admin: external.account.is_some(),
+                        admin: external.owner,
                         at: event.at,
                         msg: venue.map(|venue| venue.msg.clone()),
                         reply_to: venue.and_then(|venue| venue.reply_to.clone()),

@@ -99,7 +99,7 @@ impl Route {
                 .or_insert((turn, 0)),
             turn,
         );
-        // 这一轮是不是终端管理员叫的（施工 C-1 下）：私聊里核心认出了人（`by` 是 `person`），群里照投影里他说的话带的 `account`。
+        // 这一轮是不是终端管理员叫的（施工 C-1 下）：私聊里核心认出了人（`by` 是 `person`），群里照投影里他说的话带的 `owner`。
         let admin = params["by"]["kind"] == "person"
             || by.as_ref().is_some_and(|by| {
                 self.groups

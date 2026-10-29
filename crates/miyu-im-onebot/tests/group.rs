@@ -234,10 +234,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         "命令编号同私聊的拼法"
     );
     assert_eq!(said[5]["by"]["role"], "manager", "规则的 managers");
-    assert_eq!(
-        said[6]["by"]["account"], "admin",
-        "群里的终端管理员带 account"
-    );
+    assert_eq!(said[6]["by"]["owner"], true, "群里的终端管理员带 owner");
     assert!(
         events.iter().all(|event| event["kind"] != "turn.started"),
         "旁听的不开回合：{events:#?}"

@@ -15,14 +15,10 @@ fn the_caller_is_read_from_the_platform_identity_only() {
     );
     // 私聊里终端管理员记成本人：照经的平台身份认。
     assert_eq!(
-        by(json!({"kind": "person", "account": "admin", "via": "qq:10001"})),
+        by(json!({"kind": "person", "via": "qq:10001"})),
         qq("qq:10001")
     );
-    assert_eq!(
-        by(json!({"kind": "person", "account": "admin"})),
-        None,
-        "本机的人没有平台身份"
-    );
+    assert_eq!(by(json!({"kind": "person"})), None, "本机的人没有平台身份");
     assert_eq!(
         by(json!({"kind": "module", "id": "qq:10001"})),
         None,

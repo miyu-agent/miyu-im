@@ -4,7 +4,7 @@
 //! （模板 `facts/impostor.txt`，给模型看的字，登记在 `docs/ledger.md`），写着哪一条、借的是谁的名字。
 //!
 //! - 同一个人借同一个名字，这个群这次桥起来只记一块；换了名字、换了人再记。
-//! - 终端管理员自己（小号也是：问到的对应表、在这个群说过的话带 `account` 的）不算；白名单成员照算。
+//! - 终端管理员自己（小号也是：问到的对应表、在这个群说过的话带 `owner` 的）不算；白名单成员照算。
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;

@@ -402,7 +402,7 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
     let reply = serde_json::json!({
         "jsonrpc": "2.0",
         "id": hello["id"],
-        "result": {"protocol": 1, "account": "admin", "language": "zh", "config": config},
+        "result": {"protocol": 1, "language": "zh", "config": config},
     });
     stdin
         .write_all(format!("{reply}\n").as_bytes())

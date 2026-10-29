@@ -43,7 +43,7 @@ use miyu_endpoint::extensions::Timing;
 use miyu_im::package::Package;
 use miyu_im::serve::{Failure, Notice, Serve, run};
 use miyu_im_onebot::settings::Settings;
-use miyu_kernel::id::{AccountId, SessionId};
+use miyu_kernel::id::SessionId;
 use miyu_session::Models;
 use miyu_session::testkit::Script;
 use miyu_store::log::read_events;
@@ -82,11 +82,6 @@ pub struct Home {
     pub root: DataRoot,
     core: Arc<Core>,
     running: JoinHandle<std::convert::Infallible>,
-}
-
-/// 管理员的账号。
-pub fn admin() -> AccountId {
-    AccountId::parse("admin").expect("账号合写法")
 }
 
 /// 出厂的资源目录：钉住的核心的 `resources/` 加上这个仓库的 `im/`，拼成的临时目录（施工 S-6 中，[`assembled`]）。
@@ -219,7 +214,7 @@ impl Home {
         let shipped = ResourceRoot::at(shipped);
         let mut found = miyu_endpoint::packages::load(&shipped, &root);
         let packaged = miyu_core::settings::Packaged::of(&mut found);
-        let config = Config::load(&root, &admin(), None, packaged.all(), Environment::of(&[]));
+        let config = Config::load(&root, None, packaged.all(), Environment::of(&[]));
         let core = Arc::new(
             Core::new(
                 root.clone(),
@@ -227,7 +222,6 @@ impl Home {
                 models,
                 catalog,
                 None,
-                admin(),
                 opened.token.clone(),
             )
             .with_config(config)

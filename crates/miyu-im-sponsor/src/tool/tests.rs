@@ -159,7 +159,7 @@ fn only_an_admin_turn_records_and_other_currencies_are_converted_and_frozen() {
         text(&euros),
         "Recorded #3: 路人 gave 3 EUR (not converted to CNY yet)."
     );
-    let owner = json!({"session": "s", "args": {"action": "add", "user": 2, "amount": 1}, "by": {"kind": "person", "account": "owner", "via": "qq:9"}, "owner": true});
+    let owner = json!({"session": "s", "args": {"action": "add", "user": 2, "amount": 1}, "by": {"kind": "person", "via": "qq:9"}, "owner": true});
     assert_eq!(
         call(&owner, &venue(None, &[]), &context)["error"],
         false,

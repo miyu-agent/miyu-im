@@ -40,11 +40,11 @@ pub(super) fn event(
     serde_json::from_value(line).expect("读得成事件")
 }
 
-/// 号是 `user` 的人在群里说的一句；`admin` 的带 `account`。
+/// 号是 `user` 的人在群里说的一句；`admin` 的带 `owner`。
 fn user(seq: u64, user: i64, admin: bool) -> Event {
     let mut by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
     if admin {
-        by["account"] = json!("admin");
+        by["owner"] = json!(true);
     }
     let body = json!({"blocks": [{"type": "text", "text": "嗨"}], "venue": {"msg": seq.to_string(), "ambient": true}});
     event(seq, 0, "message.user", None, by, body)
@@ -174,7 +174,7 @@ fn who_said_it_and_whether_the_admin_did() {
         &mut projection,
         vec![user(1, 10001, true), user(2, 20002, false)],
     );
-    assert!(projection.admin(1), "带 account 的是终端管理员");
+    assert!(projection.admin(1), "带 owner 的是终端管理员");
     assert!(!projection.admin(2));
     assert!(!projection.admin(9), "没收过的不是");
     assert!(projection.knows(1) && projection.knows(2));

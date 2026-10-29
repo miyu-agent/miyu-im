@@ -48,7 +48,8 @@ async fn answer(connection: Connection) {
     if request["method"] != "hello" || !request["params"]["token"].is_string() {
         return;
     }
-    let reply = json!({"jsonrpc": "2.0", "id": request["id"], "result": {"account": "admin", "language": "zh", "protocol": 1}});
+    let reply =
+        json!({"jsonrpc": "2.0", "id": request["id"], "result": {"language": "zh", "protocol": 1}});
     if write
         .write_all(format!("{reply}\n").as_bytes())
         .await

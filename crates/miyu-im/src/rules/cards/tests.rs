@@ -92,9 +92,12 @@ fn every_group_field_lands_on_its_attribute() {
             ("extra_prompt".to_string(), text("第一行\n\"第二行\"")),
             (
                 "keywords".to_string(),
-                Value::List(vec![text("miyu"), text("小羽")])
+                Value::List(vec![text("miyu"), text("小羽")].into())
             ),
-            ("managers".to_string(), Value::List(vec![text("qq:1001")])),
+            (
+                "managers".to_string(),
+                Value::List(vec![text("qq:1001")].into())
+            ),
             ("model".to_string(), text("deepseek/v4")),
             ("outbound.final_only".to_string(), Value::Bool(true)),
             ("outbound.long_chars".to_string(), Value::Int(500)),
