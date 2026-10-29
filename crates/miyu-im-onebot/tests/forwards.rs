@@ -6,6 +6,7 @@
 //!   算进 `more`，消息照记。
 //! - 取不到的只留占位、记一行运行日志，这一条后面要调的不再调；名字、正文里藏的换行伪造不出记录行；没名字的写号，号也没有的不放。
 //! - 私聊：只有转发的也送，正文是占位，那几行接在后面。
+//! - 转发里带的东西（施工 I-75）：接着这条消息自己带的编号，她照这条的 `msg` 和编号 `fetch_media` 取。
 
 use serde_json::{Value, json};
 
@@ -14,6 +15,7 @@ use crate::support::media::*;
 use crate::support::platform::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
+use miyu_http::testkit::{Reply, Server};
 
 /// 合并转发里的一条：号、群名片、昵称、段。
 fn node(user: i64, card: &str, nickname: &str, message: Value) -> Value {
@@ -89,10 +91,10 @@ async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
         json!([{"nodes": [
             {"name": "阿杰", "text": "今天谁值班"},
             {"name": "老王", "text": "看这个[forward]", "forwards": [{"nodes": [
-                {"name": "小美", "text": "第二层[forward]", "media": [{"kind": "image", "id": "p.jpg", "size": 2048}]},
+                {"name": "小美", "text": "第二层[forward]", "media": [{"kind": "image", "id": "p.jpg", "size": 2048, "index": 1}]},
             ]}]},
         ]}]),
-        "第三层只留占位"
+        "第三层只留占位；转发里的图接着编号（施工 I-75）"
     );
     assert_eq!(
         napcat.fetched(),
@@ -116,7 +118,7 @@ async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
             "    阿杰: 今天谁值班\n",
             "    老王: 看这个[forward]\n",
             "      forward:\n",
-            "        小美: 第二层[forward] [image: 2 KB]\n",
+            "        小美: 第二层[forward] [image #1: 2 KB]\n",
         )),
         "{text}"
     );
@@ -336,6 +338,111 @@ async fn a_private_forward_is_sent_and_shown_after_the_text() {
     assert!(
         text.ends_with("[forward]\nforward:\n  阿杰: 周六见"),
         "{text}"
+    );
+    stopped(home).await;
+}
+
+/// 转发里一段图：编号 `file`，下载地址 `url`。
+fn image_at(file: &str, url: &str) -> Value {
+    json!({"type": "image", "data": {"file": file, "sub_type": 0, "summary": "", "url": url, "file_size": "2048"}})
+}
+
+#[tokio::test]
+async fn pictures_in_a_forward_are_numbered_and_fetched_by_number() {
+    let (outer, deep) = (png(3, 2), png(2, 3));
+    let missing = Reply {
+        status: 404,
+        headers: Vec::new(),
+        body: Vec::new(),
+    };
+    let server = Server::start(vec![serving(&outer), missing]).await;
+    let fetch = |args: &'static str| Line::uses("", "qq_fetch_media", args);
+    let lines = Lines::new([
+        fetch(r#"{"msg":"820","index":2}"#),
+        fetch(r#"{"msg":"820","index":3}"#),
+        fetch(r#"{"msg":"820","index":4}"#),
+        Line::says("好。"),
+    ]);
+    let (home, napcat) = up(&lines).await;
+    let base = &server.base_url;
+    let nested = inline(
+        "fw-10",
+        json!([node(
+            20003,
+            "小美",
+            "",
+            json!([image_at("deep.jpg", &format!("{base}/deep.jpg"))])
+        )]),
+    );
+    napcat.stock_forward(
+        "fw-9",
+        json!([
+            node(
+                20001,
+                "阿杰",
+                "",
+                json!([plain("看图"), image_at("in.jpg", &format!("{base}/in.jpg"))])
+            ),
+            node(20002, "老王", "", json!([nested])),
+        ]),
+    );
+    napcat.stock_file("deep.jpg", Ok(json!({"base64": encoded(&deep)})));
+    let words = json!([image("own.jpg", 1024), forward("fw-9")]);
+    napcat.stock_message(820, in_group(words.clone()));
+    says(&home, &napcat, (MEMBER, "member"), 820, words).await;
+    let body = recorded(&home, "820");
+    let numbered = |path: &[usize]| {
+        let mut forward = &body["venue"]["forwards"][0];
+        for at in &path[..path.len() - 1] {
+            forward = &forward["nodes"][*at]["forwards"][0];
+        }
+        forward["nodes"][path[path.len() - 1]]["media"][0]["index"].clone()
+    };
+    assert_eq!(
+        (numbered(&[0]), numbered(&[1, 0])),
+        (json!(2), json!(3)),
+        "{body}"
+    );
+    let words = json!([at(BOT), plain(" 看看")]);
+    says(&home, &napcat, (ADMIN, "member"), 821, words).await;
+    let got = results(&home, 1).await;
+    assert!(
+        user_text(&lines.requests()[0]).contains("    阿杰: 看图 [image #2: 2 KB]\n"),
+        "近况里写编号"
+    );
+    let shown: Vec<(Value, Option<u64>, Option<u64>)> = got[..2]
+        .iter()
+        .map(|result| {
+            let block = &result["blocks"][0];
+            (
+                block["name"].clone(),
+                block["width"].as_u64(),
+                block["height"].as_u64(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (json!("msg-820-2"), Some(3), Some(2)),
+            (json!("msg-820-3"), Some(2), Some(3)),
+        ],
+        "{got:#?}"
+    );
+    assert!(has_blob(&home, &outer) && has_blob(&home, &deep));
+    assert_eq!(text_of(&got[2]), refused("no-item", &[("count", "3")]).0);
+    assert_eq!(server.received().len(), 2, "两张都先照地址下");
+    let asked = |action: &str, id: &str| (action.to_string(), id.to_string());
+    let again = [asked("get_msg", "820"), asked("get_forward_msg", "fw-9")];
+    let mut want = vec![asked("get_forward_msg", "fw-9")];
+    want.extend(again.clone());
+    want.extend(again.clone());
+    want.push(asked("get_image", "deep.jpg"));
+    want.extend(again);
+    assert_eq!(
+        napcat.fetched(),
+        want,
+        "取的时候现读转发；地址下不下来的照编号取"
     );
     stopped(home).await;
 }

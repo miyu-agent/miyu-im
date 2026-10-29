@@ -21,6 +21,9 @@ use miyu_client::http::{Get, Got, Proxy};
 
 use crate::chat::{CallError, Fetch, Fetched, Link, Source, To};
 
+mod numbered;
+pub use numbered::{Numbering, find as find_in_forwards};
+
 /// 没取到。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Missed {

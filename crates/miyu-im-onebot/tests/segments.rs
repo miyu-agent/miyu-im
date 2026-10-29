@@ -19,6 +19,7 @@ fn media(kind: MediaKind, id: &str, name: Option<&str>) -> Media {
         name: name.map(str::to_string),
         size: None,
         fetch,
+        url: None,
     }
 }
 
@@ -93,7 +94,16 @@ fn each_kind_of_media_is_named_right() {
         only(
             json!({"type": "image", "data": {"file": "a.jpg", "sub_type": 0, "summary": "", "url": "https://x"}})
         ),
-        [media(MediaKind::Image, "a.jpg", None)]
+        [Media {
+            url: Some("https://x".to_string()),
+            ..media(MediaKind::Image, "a.jpg", None)
+        }],
+        "下载地址照写（施工 I-75）"
+    );
+    assert_eq!(
+        only(json!({"type": "image", "data": {"file": "a.jpg", "url": "/napcat/a.jpg"}})),
+        [media(MediaKind::Image, "a.jpg", None)],
+        "不是 http、https 的不记"
     );
     assert_eq!(
         only(
@@ -126,7 +136,10 @@ fn each_kind_of_media_is_named_right() {
     );
     assert_eq!(
         only(json!({"type": "record", "data": {"file": "v.amr", "url": "https://x"}})),
-        [media(MediaKind::Voice, "v.amr", None)]
+        [Media {
+            url: Some("https://x".to_string()),
+            ..media(MediaKind::Voice, "v.amr", None)
+        }]
     );
     assert_eq!(
         only(json!({"type": "video", "data": {"file": "c.mp4", "file_id": "vid"}})),

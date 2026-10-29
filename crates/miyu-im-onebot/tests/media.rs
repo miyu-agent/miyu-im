@@ -14,22 +14,13 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use miyu_http::testkit::{Piece, Reply, Server};
+use miyu_http::testkit::Server;
 
 use crate::support::group::*;
 use crate::support::media::*;
 use crate::support::platform::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
-
-/// 假 HTTP 服务器回一次 `bytes`。
-fn serving(bytes: &[u8]) -> Reply {
-    Reply {
-        status: 200,
-        headers: vec![("Content-Type".to_string(), "image/png".to_string())],
-        body: vec![Piece::Bytes(bytes.to_vec())],
-    }
-}
 
 /// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {

@@ -5,6 +5,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
+use miyu_http::testkit::{Piece, Reply};
 use miyu_kernel::block::Block;
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
@@ -13,6 +14,15 @@ use miyu_store::blob::Blobs;
 use super::Home;
 use super::group::*;
 use super::platform::{GROUP, venue};
+
+/// 假 HTTP 服务器回一次 `bytes`（一张 PNG）。
+pub fn serving(bytes: &[u8]) -> Reply {
+    Reply {
+        status: 200,
+        headers: vec![("Content-Type".to_string(), "image/png".to_string())],
+        body: vec![Piece::Bytes(bytes.to_vec())],
+    }
+}
 
 /// 一张 `width` × `height` 的 PNG 的开头：签名和 IHDR，核心量宽高只看它（同核心的测试）。
 pub fn png(width: u32, height: u32) -> Vec<u8> {

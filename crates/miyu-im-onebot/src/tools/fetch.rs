@@ -8,6 +8,10 @@
 //! 会话里的当没有（[`owned`]：人打得出假的 `[msg=…]`，编号不能拿去看别处的消息）；图存成 blob，作为工具结果的图片块交回（核心照调用它的会话属主拷 blob，核心 O-2 三补）；存不成图的（太大、
 //! 不是图）和视频、文件一样写进这个会话工作区的 `qq-files/`，回路径。语音、小黄脸、`mface` 商城表情取不了。一轮最多取
 //! `fetch_per_turn` 次（`bridge.json`，出厂 4，照旧 Miyu），取没取到都算一次。不设大小上限。
+//!
+//! 合并转发里的（施工 I-75）：第几个超过这条消息自己带的，照展开时的数法（`miyu_im::toolset::Numbering`）往转发里找，内联的照它、
+//! 没内联的调 `get_forward_msg`。找到的先照段里的下载地址下（`get_image` 照编号找的是外面那一条，转发里的不一定认），下不下来的再照
+//! 编号取。
 
 use std::time::Duration;
 
@@ -15,8 +19,8 @@ use serde_json::Value;
 
 use miyu_im::chat::{DETAIL, Fetch, Link, Source, To};
 use miyu_im::toolset::{
-    Call, Missed, Planned, QQ_FILES, Stored, UNLIMITED, file_name, kept, message, msg_id, over,
-    owned, save, take, too_large,
+    Call, Missed, Numbering, Planned, QQ_FILES, Stored, UNLIMITED, file_name, find_in_forwards,
+    kept, message, msg_id, over, owned, save, take, too_large,
 };
 
 /// 她要的那一样：消息的平台编号、第几样（从 1 数；写错的是 0，取的时候照「没有这一样」答）。
@@ -101,9 +105,22 @@ async fn fetch(
     }
     let media = kept(&fetched.segments.media);
     let index = wanted.index;
-    let Some(item) = index.checked_sub(1).and_then(|at| media.get(at)) else {
-        return Some(Err(("no-item", vec![("count", media.len().to_string())])));
+    let no_item = |count: usize| Some(Err(("no-item", vec![("count", count.to_string())])));
+    let item = match index.checked_sub(1).and_then(|at| media.get(at)) {
+        Some(item) => item.clone(),
+        None if index == 0 => return no_item(media.len()),
+        None => {
+            let mut numbering = Numbering::after(media.len());
+            let forwards = &fetched.segments.forwards;
+            match find_in_forwards(link.as_ref(), forwards, index, &mut numbering).await {
+                Some(item) => item,
+                None => return no_item(numbering.done()),
+            }
+        }
     };
+    let item = &item;
+    // 合并转发里的（施工 I-75）：先照段里的下载地址下，下不下来的再照编号取。
+    let url = item.url.as_ref().filter(|_| index > media.len());
     let Some(how) = item.fetch else {
         return Some(Err(("not-fetchable", Vec::new())));
     };
@@ -114,9 +131,16 @@ async fn fetch(
     if too_large(item, limit) {
         return Some(Err(undone(Missed::Unfetched(over(limit)))));
     }
-    let taken = match (how, call.to) {
+    let taken = match (url, how, call.to) {
+        (Some(url), _, _) => {
+            let source = Source::Url(url.clone());
+            match miyu_im::toolset::bytes(&[source], wait, limit).await {
+                Ok(bytes) => Ok((bytes, None)),
+                Err(_) => take(link.as_ref(), how, &item.id, (wait, limit)).await,
+            }
+        }
         // 群里的文件（施工 I-16）：`get_file` 只认缓存的图片、语音，照群文件的下载地址取；取不到的再照 `get_file` 试。
-        (Fetch::File, To::Group(group)) => {
+        (None, Fetch::File, To::Group(group)) => {
             match group_file(link.as_ref(), group, &item.id, wait).await {
                 Some(bytes) => Ok((bytes, None)),
                 None => take(link.as_ref(), how, &item.id, (wait, limit)).await,

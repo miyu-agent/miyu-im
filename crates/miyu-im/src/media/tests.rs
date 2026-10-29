@@ -245,6 +245,7 @@ fn a_size_written_in_the_segment_is_checked_first() {
         name: None,
         size,
         fetch: Some(crate::chat::Fetch::Image),
+        url: None,
     };
     assert!(too_large(&item(Some(30 * 1024 * 1024)), 20 * 1024 * 1024));
     assert!(!too_large(&item(Some(1024)), 20 * 1024 * 1024));

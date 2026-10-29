@@ -33,6 +33,9 @@ pub use crate::media::{
     owned, save, take, too_large,
 };
 
+/// 合并转发里带的东西的编号（施工 I-75）：展开时给转发里的那几样编号，按需取时照它找回来。
+pub use crate::media::{Numbering, find_in_forwards};
+
 /// 叫她做的那一条（施工 T-2，原来路由的 `platform::Origin`）：群里是投影里调用所在那条线这一轮她回的那一条，私聊是最近一条人说的话。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Origin {

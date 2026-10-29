@@ -105,7 +105,15 @@ fn media(kind: &str, data: &Value) -> Option<Media> {
         name,
         size: size(&data["file_size"]),
         fetch,
+        url: url(&data["url"]),
     })
+}
+
+/// 下载地址（施工 I-75）：`http`、`https` 开头的字，去掉首尾空白；别的不认。
+fn url(value: &Value) -> Option<String> {
+    let url = value.as_str()?.trim();
+    let lower = url.to_ascii_lowercase();
+    (lower.starts_with("http://") || lower.starts_with("https://")).then(|| url.to_string())
 }
 
 /// 大小（施工 O-33）：非负整数，写成十进制的字也认（NapCat 照 NT 给的是字）；别的不认。

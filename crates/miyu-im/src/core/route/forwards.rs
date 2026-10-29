@@ -14,6 +14,9 @@
 //!   再夹到核心的 4096 字节。
 //!   另照核心的整条上限（所有转发合起来 100 条、名字和正文 16 KiB）一条条放，放不下的算进 `more`：超了核心整条拒，这条消息就丢了。
 //!   一条都放不进的转发不交。
+//! - 带的东西的编号（施工 I-75，`crate::media::numbered` 那一套）：接着这条消息自己带的数，放进去的那几样带上 `index`，核心写成
+//!   `[image #<编号>: …]`，她照这条消息的 `msg` 和编号 `fetch_media`。没放进去的几条照样数；打不开的转发（取不到的，照限额没去取、
+//!   又没内联的）到这里为止，后面的不带编号。
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -27,6 +30,7 @@ use crate::TARGET;
 use crate::chat::{CallError, FORWARD, Forwarded, Node, Piece, Segments};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
+use crate::toolset::{Numbering, kept};
 
 /// 核心的整条上限（`venues.md`「场所的格」的 `forwards`）：一条场所消息里所有转发合起来最多几条。
 const ALL_NODES: usize = 100;
@@ -48,7 +52,7 @@ pub(crate) struct Forwarding {
     pub(crate) chars: usize,
 }
 
-/// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、它的转发。
+/// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、自己带了几样、它的转发。
 pub(super) struct Forwards {
     /// 收进它的机器人号：经它的连接取。
     pub(super) bot: i64,
@@ -56,6 +60,8 @@ pub(super) struct Forwards {
     pub(super) group: Option<i64>,
     /// 平台编号。
     pub(super) msg: i64,
+    /// 自己带了几样（`venue.media` 那几样，施工 I-75）：转发里的接着它编号。
+    pub(super) own: usize,
     /// 转发，照段的先后。
     pub(super) forwards: Vec<Forwarded>,
 }
@@ -72,16 +78,18 @@ impl Forwards {
             bot,
             group,
             msg,
+            own: kept(&segments.media).len(),
             forwards: segments.forwards.clone(),
         })
     }
 }
 
-/// 这一条消息还放得下多少（核心的整条上限），和还调不调 `get_forward_msg`。
+/// 这一条消息还放得下多少（核心的整条上限）、还调不调 `get_forward_msg`、带的东西编到哪了（施工 I-75）。
 struct Budget {
     nodes: usize,
     bytes: usize,
     asking: bool,
+    numbers: Numbering,
 }
 
 /// 取的那一头：连接、平台和群号、记运行日志的场所和编号。
@@ -135,11 +143,12 @@ impl Route {
             nodes: ALL_NODES,
             bytes: ALL_BYTES,
             asking: true,
+            numbers: Numbering::after(wanted.own),
         };
         self.expand(&at, &wanted.forwards, 1, &mut budget).await
     }
 
-    /// 第 `depth` 层的几个转发：照限额和 `budget` 放。
+    /// 第 `depth` 层的几个转发：照限额和 `budget` 放。不去取的、没放进去的照样编号（[`Numbering`]）。
     fn expand<'a>(
         &'a self,
         at: &'a At<'a>,
@@ -151,46 +160,33 @@ impl Route {
             let limits = self.forwarding;
             let mut out = Vec::new();
             if depth > limits.depth {
+                budget.numbers.skip(forwards);
                 return out;
             }
-            for forwarded in forwards.iter().take(limits.per_message) {
+            for (taken, forwarded) in forwards.iter().enumerate() {
+                if taken >= limits.per_message {
+                    budget.numbers.skip(std::slice::from_ref(forwarded));
+                    continue;
+                }
                 let Some(messages) = messages(at, forwarded, budget).await else {
+                    budget.numbers.stop();
                     continue;
                 };
                 let mut nodes = Vec::new();
-                for read in messages.iter().take(limits.nodes) {
-                    if budget.nodes == 0 {
-                        break;
-                    }
-                    let Some(name) = read
-                        .name
-                        .as_deref()
-                        .and_then(|name| clean(name, NAME))
-                        .or_else(|| read.user.map(|user| user.to_string()))
-                    else {
-                        continue;
+                let mut placing = true;
+                for (seen, read) in messages.iter().enumerate() {
+                    placing &= seen < limits.nodes && budget.nodes > 0;
+                    let placed = match placing {
+                        true => self.node(at, read, depth, budget).await,
+                        false => Err(false),
                     };
-                    let text = clip(&self.words(at, &read.segments), limits.chars);
-                    let bytes = name.len() + text.len();
-                    if bytes > budget.bytes {
-                        break;
-                    }
-                    budget.nodes -= 1;
-                    budget.bytes -= bytes;
-                    let mut one = json!({"name": name, "text": text});
-                    let carried = media(&read.segments.media);
-                    if !carried.is_empty() {
-                        one["media"] = Value::Array(carried);
-                    }
-                    if !read.segments.forwards.is_empty() {
-                        let inner = self
-                            .expand(at, &read.segments.forwards, depth + 1, budget)
-                            .await;
-                        if !inner.is_empty() {
-                            one["forwards"] = Value::Array(inner);
+                    match placed {
+                        Ok(one) => nodes.push(one),
+                        Err(full) => {
+                            placing &= !full;
+                            budget.numbers.count(std::slice::from_ref(read));
                         }
                     }
-                    nodes.push(one);
                 }
                 if nodes.is_empty() {
                     continue;
@@ -204,6 +200,49 @@ impl Route {
             }
             out
         })
+    }
+
+    /// 放转发里的一条 `read`（第 `depth` 层）：带的东西编上号，套着的转发往下展开。没名字的交回 `Err(false)`，放不下的
+    /// `Err(true)`（这个转发后面的不再放）：都不动 `budget`，调的一方照只数不放的办。
+    async fn node(
+        &self,
+        at: &At<'_>,
+        read: &Node,
+        depth: usize,
+        budget: &mut Budget,
+    ) -> Result<Value, bool> {
+        let name = read
+            .name
+            .as_deref()
+            .and_then(|name| clean(name, NAME))
+            .or_else(|| read.user.map(|user| user.to_string()))
+            .ok_or(false)?;
+        let text = clip(&self.words(at, &read.segments), self.forwarding.chars);
+        let bytes = name.len() + text.len();
+        if bytes > budget.bytes {
+            return Err(true);
+        }
+        budget.nodes -= 1;
+        budget.bytes -= bytes;
+        let mut one = json!({"name": name, "text": text});
+        let mut carried = media(&read.segments.media);
+        for item in &mut carried {
+            if let Some(number) = budget.numbers.take() {
+                item["index"] = json!(number);
+            }
+        }
+        if !carried.is_empty() {
+            one["media"] = Value::Array(carried);
+        }
+        if !read.segments.forwards.is_empty() {
+            let inner = self
+                .expand(at, &read.segments.forwards, depth + 1, budget)
+                .await;
+            if !inner.is_empty() {
+                one["forwards"] = Value::Array(inner);
+            }
+        }
+        Ok(one)
     }
 
     /// 转发里一条的正文：段照先后接，@ 写成 `@名字`（群里照 `at` 那个平台、那个群的成员缓存，不另问 NapCat；没有的、私聊的写号）。

@@ -57,6 +57,9 @@ pub struct Media {
     pub size: Option<u64>,
     /// 怎么去 QQ 取（施工 O-33，`fetch_media`、冲她来的那条的图）：取不了的（语音、小黄脸、`mface` 商城表情）是空的。
     pub fetch: Option<Fetch>,
+    /// 段里写的下载地址（施工 I-75）：`url` 是 `http`、`https` 的才有。合并转发里的那几样 `get_image` 不一定认（NapCat 照编号找的是
+    /// 外面那一条消息），按需取时先下它；转发里的段是取的时候现读的，地址不会过期。
+    pub url: Option<String>,
 }
 
 /// 带的东西怎么取（施工 O-33，`onebot.md`「平台工具（二）」）：照 NapCat 的动作。

@@ -31,6 +31,7 @@ fn media(id: &str, name: Option<&str>) -> Media {
         name: name.map(str::to_string),
         size: None,
         fetch: Some(Fetch::File),
+        url: None,
     }
 }
 
