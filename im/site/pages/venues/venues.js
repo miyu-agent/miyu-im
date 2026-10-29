@@ -45,9 +45,9 @@ export function mountVenues(view, { request, path }) {
   let asked = '';
   // 连着的机器人（号，逗号隔开）：还没收到过连接的是空的。
   let seen = null;
-  // 卡片相关的方法都带上选中的平台（施工 I-85 中）：浮窗、新建里也照它。
+  // 卡片相关的方法、能贴的表情都带上选中的平台（施工 I-85 中、补）：浮窗、新建里也照它。
   const scoped = (method, params) =>
-    request(method, method.startsWith('cards.') ? { ...params, platform: chosen } : params);
+    request(method, method.startsWith('cards.') || method === 'reactions' ? { ...params, platform: chosen } : params);
   // 墙上画过的卡：编号 → { sig, card }。
   const drawn = new Map();
 
@@ -213,7 +213,9 @@ export function mountVenues(view, { request, path }) {
     // 管理插件（施工 I-7 中四）：宿主认得的插件、兜底卡上的开关。
     const plugins = answer?.plugins || [];
     const fallbacks = fallbacksOf(all);
-    const context = { request: scoped, platform: chosen, bots: names(), personas, friends, plugins, fallbacks };
+    // 连接做得到的几样（施工 I-85 补）：卡上平台做不到的选项不列。
+    const caps = picked?.caps;
+    const context = { request: scoped, platform: chosen, bots: names(), personas, friends, plugins, fallbacks, caps };
     opened.dialog = openVenue(one, context, () => {
       if (open === opened) open = null;
     });

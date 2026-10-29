@@ -39,7 +39,9 @@ export function control(field, one, context, save, saveKey) {
     }
     case 'select':
       return select(
-        field.options.map((value) => [value, say(`${field.optionText}${value}`)]),
+        field.options
+          .filter((value) => can(field.optionCaps?.[value], one, context) || value === mine)
+          .map((value) => [value, say(`${field.optionText}${value}`)]),
         mine,
         say('field/inherit', { value: fallback == null ? '—' : say(`${field.optionText}${fallback}`) }),
         save,
@@ -142,6 +144,11 @@ function float(mine, fallback, save, narrow) {
     return save(Number.isFinite(number) ? number : text);
   });
   return input;
+}
+
+/** 这张卡的连接做不做得到 `cap`（施工 I-85 补）：没要求的、会话默认值那张、不知道连接能做什么的都算做得到。 */
+function can(cap, one, context) {
+  return !cap || one.kind === 'defaults' || !context.caps || context.caps.includes(cap);
 }
 
 /** 下拉：第一项是「继承（…）」（交 null），别的照 `options`（[值, 给人看的]）。 */

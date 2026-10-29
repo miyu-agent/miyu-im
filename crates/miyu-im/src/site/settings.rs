@@ -5,12 +5,15 @@
 //! - `settings.get` → `{"recall_receipts", "port", "bindings": [身份]}`：照核心的 `config.get`，没写的照清单的默认；对应表只交值不空的
 //!   身份（值是什么不交：只有一个主人，写 `owner` 还是老的 `admin` 都一样）。
 //! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`，或者 `binding:<身份>`（`value` 是 `true` 的
-//!   记成主人，写 `owner`；`null` 的去掉那一条；别的 `bad_params`）。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；
+//!   记成主人，写 `owner`；`null` 的去掉那一条；别的 `bad_params`）。身份得是 `<平台>:<号>`（施工 I-85 补：页面能选别的平台了），号照
+//!   宿主的规矩（施工 I-79），不是的 `bad_params`。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；
 //!   别的键 `bad_params`。
 
 use serde_json::{Value, json};
 
 use super::Person;
+use crate::chat::Id;
+use crate::rules::platform_ok;
 use crate::settings::{SITE_GROUP, key};
 
 /// 对应表的键的开头。
@@ -73,7 +76,7 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
     let name = params["key"].as_str().ok_or_else(bad)?;
     let change = match name.strip_prefix("binding:") {
         // 身份里有 `:`，照 TOML 的写法加引号（同核心交出来的键）。
-        Some(identity) if !identity.is_empty() && !identity.contains('"') => {
+        Some(identity) if identity_ok(identity) => {
             let key = format!("{BINDINGS}\"{identity}\"");
             match &params["value"] {
                 Value::Null => json!({"key": key, "unset": true}),
@@ -102,4 +105,11 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
         .map_err(|why| (why.reason, why.message))?;
     tracing::info!(target: crate::TARGET, key = name, "setting saved from the page");
     Ok(json!({"saved": true}))
+}
+
+/// 身份 `identity` 写得对（施工 I-85 补）：`<平台>:<号>`，平台照卡片的规矩（拼得成场所编号），号照 [`Id`] 的规矩。
+fn identity_ok(identity: &str) -> bool {
+    identity
+        .split_once(':')
+        .is_some_and(|(platform, number)| platform_ok(platform) && Id::new(number).is_some())
 }

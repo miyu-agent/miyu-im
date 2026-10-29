@@ -73,6 +73,10 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
         set("humanlike", json!(false)),
         set("binding:", json!(true)),
         set("binding:a\"b", json!(true)),
+        // 施工 I-85 补：身份得是 `<平台>:<号>`。
+        set("binding:qq", json!(true)),
+        set("binding:qq:1 2", json!(true)),
+        set("binding:Q Q:1", json!(true)),
         set("binding:qq:30009", json!("admin")),
         set("binding:qq:30009", json!(false)),
         json!({"value": true}),

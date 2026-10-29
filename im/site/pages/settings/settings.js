@@ -2,38 +2,50 @@
 // 施工 I-68）、通用（回执自动撤回的命令）、网页服务（端口；登录用访问密码）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
+// - 本人的平台 ID 列每个平台的身份（施工 I-85 补，设计 07 第七节 im-己）：平台不止一个时每行写平台，加的那一行先选平台（默认是
+//   首页选中的连接的平台）。平台照外壳问到的连接。
 // - 读写都经宿主的 settings.get、settings.set（宿主在这份登录的人的连接上改核心的配置）。改了当场存，存不成的提示一句、重读一遍；
 //   回执撤回的命令是标签（shell/tags.js），加了当场画上，存成了不重读（重读会把正在填的那一格换掉），存不成的才重读。
 import { element, icon, say, spaced } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { tagInput } from '../../shell/tags.js';
-import { venueKinds } from '../home/platforms.js';
+import { platform, venueKinds } from '../home/platforms.js';
+import { chosenOf } from '../../shell/connection.js';
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
-  let platform = '';
+  // 外壳问到的连接；加身份时选着的平台（没选过的照首页选中的连接）。
+  let connections = [];
+  let adding = '';
   // 正开着的一段。
   let page = 'bindings';
-  const load = async () => {
-    let got;
-    let words;
-    try {
-      [got, , words] = await Promise.all([
-        request('settings.get'),
-        platform ? null : request('status').then((status) => (platform = status.platform || '')),
-        request('moderation.get').catch(() => null),
-      ]);
-    } catch {
-      view.replaceChildren(head(), element('p', 'faint', say('settings-page/failed')));
-      return;
-    }
+  // 问到的两样：连接变了照它重画，不再问。
+  let got = null;
+  let words = null;
+  const draw = () => {
+    if (!got) return;
+    const platforms = [...new Set(connections.map((one) => one.platform))];
+    if (!platforms.includes(adding)) adding = chosenOf(connections)?.platform || platforms[0] || '';
+    const choose = (next) => {
+      adding = next;
+      draw();
+    };
     const pages = [
-      ['bindings', bindings(got, platform, save)],
+      ['bindings', bindings(got, { platforms, adding, choose }, save)],
       ['general', general(got, save)],
       ...(words ? [['moderation', moderation(words, request, load)]] : []),
       ['site', site(got, save)],
     ];
     view.replaceChildren(head(), tabbed(pages, page, (key) => (page = key)));
+  };
+  const load = async () => {
+    try {
+      [got, words] = await Promise.all([request('settings.get'), request('moderation.get').catch(() => null)]);
+    } catch {
+      view.replaceChildren(head(), element('p', 'faint', say('settings-page/failed')));
+      return;
+    }
+    draw();
   };
   // `quiet` 的存成了不重读（标签当场画上了）。
   const save = async (key, value, quiet) => {
@@ -48,7 +60,10 @@ export function mountSettings(view, { request }) {
   };
   load();
   return {
-    update() {},
+    update(now) {
+      connections = now;
+      draw();
+    },
     event() {},
     dispose() {},
   };
@@ -98,33 +113,49 @@ function row(label, hint, control) {
   return line;
 }
 
-/** 本人的平台 ID（核心的 `external.bindings`，施工 I-68）：一个身份一行（号、去掉），最后一行加一个。只列这个平台的身份；只有一个主人，不写账号。 */
-function bindings(got, platform, save) {
-  const word = venueKinds(platform).private?.id() || say('venues/user-id');
-  const prefix = `${platform}:`;
+/** 本人的平台 ID（核心的 `external.bindings`，施工 I-68）：一个身份一行（号、去掉），最后一行加一个。只有一个主人，不写账号。平台不止一个时
+ *  （施工 I-85 补）每行写平台，加的那一行先选平台：`platforms` 是挂着的平台，`adding` 是选着的，换了调 `choose`。 */
+function bindings(got, { platforms, adding, choose }, save) {
+  const several = platforms.length > 1;
   const rows = [];
   for (const identity of got.bindings || []) {
-    if (platform && !identity.startsWith(prefix)) continue;
-    const number = identity.slice(prefix.length);
+    const at = identity.indexOf(':');
+    const on = identity.slice(0, at);
+    const number = identity.slice(at + 1);
+    const word = venueKinds(on).private?.id() || say('venues/user-id');
     const remove = element('button', 'icon-button');
     remove.title = say('settings-page/unbind');
     remove.append(icon('i-x'));
     remove.addEventListener('click', () => save(`binding:${identity}`, null));
-    rows.push(row(spaced(`${word} ${number}`), '', remove));
+    const label = several ? `${platform(on).name()} · ${word} ${number}` : `${word} ${number}`;
+    rows.push(row(spaced(label), '', remove));
   }
   // 输入框的提示只写「ID」，不写具体的号（项目主人 10-27）。
   const number = element('input', 'input num wide-num');
   number.placeholder = say('settings-page/bind-id');
-  number.inputMode = 'numeric';
+  // QQ 号只有数字；别的平台的号照宿主的规矩（不带空白、冒号，48 个字以内，施工 I-79）。
+  const digits = adding === 'qq';
+  if (digits) number.inputMode = 'numeric';
   const add = element('button', 'btn', say('settings-page/bind'));
+  add.disabled = !adding;
   add.addEventListener('click', () => {
     const typed = number.value.trim();
-    if (!/^\d+$/.test(typed)) return toast(say('settings-page/bind-bad'));
-    save(`binding:${prefix}${typed}`, true);
+    const fine = digits ? /^\d+$/.test(typed) : /^[^\s:"]{1,48}$/.test(typed);
+    if (!fine) return toast(say(digits ? 'settings-page/bind-bad' : 'settings-page/bind-bad-text'));
+    save(`binding:${adding}:${typed}`, true);
   });
-  const adding = element('span', 'inline');
-  adding.append(number, add);
-  rows.push(row(say('settings-page/bind-new'), '', adding));
+  const line = element('span', 'inline');
+  if (several) {
+    const seg = element('div', 'seg');
+    for (const one of platforms) {
+      const button = element('button', one === adding ? 'on' : null, platform(one).name());
+      button.addEventListener('click', () => choose(one));
+      seg.append(button);
+    }
+    line.append(seg);
+  }
+  line.append(number, add);
+  rows.push(row(say('settings-page/bind-new'), '', line));
   return section('settings-page/bindings', 'settings-page/bindings-hint', rows);
 }
 

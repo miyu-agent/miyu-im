@@ -12,6 +12,8 @@
 //   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
 // - needs：浮窗问到的那一样（`reactions`：平台能贴的表情；`presets`：预设）是空的、问不到的就不画（照回答里同名的那个列表）。
+// - optionCaps：下拉的哪一项要平台做得到哪一样（施工 I-85 补，连接的 `caps`）：做不到的不列，卡上已经写了它的照旧列；会话默认值
+//   那张不分平台，都列。
 
 const GROUPS = ['group', 'other_groups'];
 
@@ -74,7 +76,7 @@ export const FIELDS = {
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },
     { key: 'rules.outbound.typing_speed', control: 'number', label: 'field/typing-speed', hint: 'field/typing-speed-hint', unit: 'unit/chars-per-minute', min: 20, max: 600, dep: { key: 'rules.outbound.humanlike', on: true } },
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
-    { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['image', 'forward'], optionText: 'long/' },
+    { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['image', 'forward'], optionCaps: { forward: 'forward' }, optionText: 'long/' },
     { key: 'long_chars', control: 'number', label: 'field/long-chars', hint: 'field/long-chars-hint', unit: 'unit/chars', min: 0, max: 100000 },
     // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
     { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },
