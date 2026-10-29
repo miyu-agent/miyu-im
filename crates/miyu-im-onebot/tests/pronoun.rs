@@ -9,14 +9,14 @@ fn resources() -> std::path::PathBuf {
 
 /// 给人看的那几份，相对资源目录。
 const HUMAN_FACING: [&str; 8] = [
-    "packages/im/package.toml",
-    "packages/im/page/texts.js",
-    "packages/im/data/human/zh.json",
-    "packages/im/data/human/en.json",
-    "packages/im/data/human/ja.json",
-    "packages/im/data/defaults.toml",
-    "packages/im/data/venues.d/50-defaults.toml",
-    "packages/im/data/cards/human/page.json",
+    "packages/miyu-im/package.toml",
+    "packages/miyu-im/page/texts.js",
+    "packages/miyu-im/data/human/zh.json",
+    "packages/miyu-im/data/human/en.json",
+    "packages/miyu-im/data/human/ja.json",
+    "packages/miyu-im/data/defaults.toml",
+    "packages/miyu-im/data/venues.d/50-defaults.toml",
+    "packages/miyu-im/data/cards/human/page.json",
 ];
 
 /// 一行里有没有用代词说 AI：中文、日文照字，英文照整词（不分大小写）。

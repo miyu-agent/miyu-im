@@ -44,9 +44,9 @@ fn only_own_keys_may_be_changed() {
 fn a_builtin_plugin_lists_its_own_hidden_items_but_not_its_switch() {
     // 施工 I-10 上：驱动带的插件照键的开头找，总开关不列，藏起来的照列（拿掉 hidden）。
     let items = json!([
-        {"key": "im.qq.identity_on", "package": "im", "hidden": true},
-        {"key": "im.qq.identity_admin", "package": "im", "hidden": true},
-        {"key": "im.qq.listen", "package": "im"},
+        {"key": "im.qq.identity_on", "package": "miyu-im", "hidden": true},
+        {"key": "im.qq.identity_admin", "package": "miyu-im", "hidden": true},
+        {"key": "im.qq.listen", "package": "miyu-im"},
         {"key": "dice.sides", "package": "dice"},
         // 核心给每个包加的「只对你自己关掉」（施工 I-38 换钉撞上的）：标着这个包，不是它自己的设置，不列。
         {"key": "packages.dice.off", "package": "dice"},
@@ -58,7 +58,7 @@ fn a_builtin_plugin_lists_its_own_hidden_items_but_not_its_switch() {
     };
     assert_eq!(
         own_items(&items, &builtin),
-        [json!({"key": "im.qq.identity_admin", "package": "im"})]
+        [json!({"key": "im.qq.identity_admin", "package": "miyu-im"})]
     );
     let package = Scope {
         package: "dice".into(),

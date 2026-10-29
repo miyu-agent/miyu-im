@@ -181,7 +181,7 @@ pub async fn extension(root: &DataRoot) -> Value {
         .as_array()
         .expect("是数组")
         .iter()
-        .find(|one| one["package"] == "im")
+        .find(|one| one["package"] == "miyu-im")
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"))
 }

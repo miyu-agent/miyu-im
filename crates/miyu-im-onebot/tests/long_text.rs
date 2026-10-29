@@ -149,7 +149,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
         cleaned(),
         "渲染包收到的是过了出站链的全文"
     );
-    assert_eq!(call["from"], "im");
+    assert_eq!(call["from"], "miyu-im");
     // 首页「今天」的回复（施工 I-6 下）：长文的几页算一段。
     let day = crate::support::events::until_counted(&home.root, |day| day["replied"] != 0).await;
     assert_eq!(day["replied"], 1, "{day}");
@@ -327,7 +327,7 @@ async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
     )
     .await;
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let call = json!({"package": "im", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
+    let call = json!({"package": "miyu-im", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
     let reply = head.call("package.call", call.clone()).await;
     assert_eq!(reply["result"], json!({"sent": 2}), "{reply}");
     is_a_page(&napcat.group_message(GROUP).await);

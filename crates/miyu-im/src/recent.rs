@@ -3,7 +3,7 @@
 //!
 //! - 一笔（[`Note`]）：时刻、发的人的名字、正文的开头（最多 [`TEXT`] 个字）、结论（`reply`、`record`、`deferred`）、为什么（照判断
 //!   的记录说成一个原因，`crate::core::route` 的 `noted`）。
-//! - 记在 im 自己的状态目录里（`state/packages/im/recent.json`，一份 JSON：场所编号 → 一笔笔，旧的在前；不放进 `stats/`，那里一天
+//! - 记在 im 自己的状态目录里（`state/packages/miyu-im/recent.json`，一份 JSON：场所编号 → 一笔笔，旧的在前；不放进 `stats/`，那里一天
 //!   一份），桥起来时读回来接着记；
 //!   改了另起的任务照着写（[`keep`]，同 `crate::counters`），写不进的记一行运行日志，照记。
 //! - 读（[`Recent::of`]）：几个场所的并在一起，新的在前，最多 [`MOST`] 笔（「陌生群」是名单以外的群并起来）。

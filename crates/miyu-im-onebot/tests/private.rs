@@ -233,7 +233,7 @@ async fn an_open_strangers_card_without_an_answer_on_the_binding_leaves_it_to_th
     // 「其他私聊」卡打开了（施工 O-60），核心答不了 `venue.binding`（本机套接字上的桥不是核心拉起的桥）：问不到的照原来办，交给
     // 核心，核心不接对应表里没有的人。
     let home = Home::new(&Script::new([Play::Says("在")]));
-    let cards = home.root.state().join("packages").join("im");
+    let cards = home.root.state().join("packages").join("miyu-im");
     std::fs::create_dir_all(&cards).expect("建得了目录");
     std::fs::write(
         cards.join("cards.json"),

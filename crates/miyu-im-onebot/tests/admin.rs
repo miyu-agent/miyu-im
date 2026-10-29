@@ -196,7 +196,7 @@ fn records(home: &Home) -> Vec<Value> {
     let path = home
         .root
         .state()
-        .join("packages/im/qq/admin")
+        .join("packages/miyu-im/qq/admin")
         .join(format!("{GROUP}.jsonl"));
     std::fs::read_to_string(path)
         .unwrap_or_default()

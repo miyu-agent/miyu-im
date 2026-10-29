@@ -13,7 +13,7 @@ use crate::support::resources;
 
 /// 出厂的两个页面目录：后台页、im 自己的页面（施工 I-5 上）。
 fn page_dirs() -> [PathBuf; 2] {
-    let im = resources().join("packages/im");
+    let im = resources().join("packages/miyu-im");
     [im.join("page"), im.join("site")]
 }
 

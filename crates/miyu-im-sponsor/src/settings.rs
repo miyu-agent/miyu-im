@@ -6,6 +6,9 @@ use serde_json::{Map, Value};
 /// 包的编号：配置项的键照它开头。
 pub const PACKAGE: &str = "miyu-im-sponsor";
 
+/// im 的包编号（施工 I-86，核心设计 48）：问场所经 `packages.call` 照它找。
+pub const IM: &str = "miyu-im";
+
 /// 出厂的默认币种。
 const CURRENCY: &str = "CNY";
 

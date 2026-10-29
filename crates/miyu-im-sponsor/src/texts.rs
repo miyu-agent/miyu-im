@@ -1,45 +1,45 @@
-//! 给模型看的字（包文件夹 `sponsor/data/`，登记在仓库的 `docs/ledger.md`）：工具说明和答的几句，编进程序里。字段写 `{名字}`。
+//! 给模型看的字（包文件夹 `miyu-im-sponsor/data/`，登记在仓库的 `docs/ledger.md`）：工具说明和答的几句，编进程序里。字段写 `{名字}`。
 
 /// 工具说明：`description`、`parameters`。
-pub const TOOL: &str = include_str!("../../../sponsor/data/tools/sponsor.json");
+pub const TOOL: &str = include_str!("../../../miyu-im-sponsor/data/tools/sponsor.json");
 
 /// 答的几句：名字到模板。
 const ANSWERS: [(&str, &str); 9] = [
     (
         "recorded",
-        include_str!("../../../sponsor/data/tool-results/recorded.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/recorded.txt"),
     ),
     (
         "converted",
-        include_str!("../../../sponsor/data/tool-results/converted.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/converted.txt"),
     ),
     (
         "unconverted",
-        include_str!("../../../sponsor/data/tool-results/unconverted.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/unconverted.txt"),
     ),
     (
         "admin-only",
-        include_str!("../../../sponsor/data/tool-results/admin-only.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/admin-only.txt"),
     ),
     (
         "person",
-        include_str!("../../../sponsor/data/tool-results/person.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/person.txt"),
     ),
     (
         "ranking",
-        include_str!("../../../sponsor/data/tool-results/ranking.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/ranking.txt"),
     ),
     (
         "none",
-        include_str!("../../../sponsor/data/tool-results/none.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/none.txt"),
     ),
     (
         "not-done",
-        include_str!("../../../sponsor/data/tool-results/not-done.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/not-done.txt"),
     ),
     (
         "unreachable",
-        include_str!("../../../sponsor/data/tool-results/unreachable.txt"),
+        include_str!("../../../miyu-im-sponsor/data/tool-results/unreachable.txt"),
     ),
 ];
 

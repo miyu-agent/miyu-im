@@ -1,4 +1,4 @@
-//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：`<数据根>/state/packages/im/status.json`，一行 JSON：
+//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：`<数据根>/state/packages/miyu-im/status.json`，一行 JSON：
 //!
 //! ```json
 //! {"pid": 12345, "listen": 8301, "napcat": {"connected": true, "self_id": "30003"}}

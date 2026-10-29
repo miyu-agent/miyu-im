@@ -14,7 +14,7 @@ const QQ: Platform = Platform::new("qq");
 
 /// 只有一份系统的规则文件 `text` 时，套到群 555 上的样子；参数照出厂的 `defaults.toml`（施工 O-58 补四：`policy` 的测试也用）。
 pub(in crate::core::route) fn applied(text: &str) -> Applied {
-    let defaults = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im/data/defaults.toml");
+    let defaults = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../miyu-im/data/defaults.toml");
     let params = Params::read(&File {
         source: Source::Factory,
         name: "defaults.toml".to_string(),

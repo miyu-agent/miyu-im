@@ -179,7 +179,7 @@ pub async fn ended(home: &Home, turn: usize) -> (String, String) {
 /// 出厂的那一句 `tool-results/<name>.txt`（施工 T-1 起挪进驱动的那几件的在 `onebot/tool-results/`，先找 im 的），字段照 `fields`
 /// 换，去掉行尾。
 pub fn sentence(name: &str, fields: &[(&str, &str)]) -> String {
-    let data = resources().join("packages/im/data");
+    let data = resources().join("packages/miyu-im/data");
     let own = data.join(format!("tool-results/{name}.txt"));
     let path = match own.exists() {
         true => own,
@@ -260,7 +260,7 @@ pub async fn set_system(home: &Home, changes: Value) {
 
 /// 桥的运行日志里 `tools provided` 有几行（登记了几次）。
 pub fn provided(home: &Home) -> usize {
-    std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
+    std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
         .unwrap_or_default()
         .matches("tools provided")
         .count()

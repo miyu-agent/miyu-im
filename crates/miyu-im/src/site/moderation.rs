@@ -1,6 +1,6 @@
 //! 违规关键词（施工 I-16，照旧版设置页能改违规关键词；2026-10-20 项目主人定违规判断的设置上网页）：
 //!
-//! - `moderation.get` → `{keywords, own}`：系统那份词表（数据根的 `modules/im/moderation.txt`，在的话整份替换出厂的，`rules`）里的词；
+//! - `moderation.get` → `{keywords, own}`：系统那份词表（数据根的 `modules/miyu-im/moderation.txt`，在的话整份替换出厂的，`rules`）里的词；
 //!   没有系统那份的照出厂的，`own` 是假。
 //! - `moderation.set {keywords}`：写系统那一份（一行一个，开头一段说明）；`keywords` 是 `null` 的删掉系统那份、回到出厂的。桥隔一会儿
 //!   看一眼系统的变没变（`rules::Venues`），变了整份重读，下一条消息照新的。

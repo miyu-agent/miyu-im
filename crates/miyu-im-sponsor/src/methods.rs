@@ -1,5 +1,5 @@
 //! 后台页调的方法（设计 03 第一节第 6 条、第二节第 5 条，施工 S-1 下）：核心发 `method.call {method, params, from?}`，网页的
-//! 「软件后台」和 im 插件卡片的「打开面板」打开的是同一份页面（`sponsor/page/`），都经它调。改、删只在这里（不给 AI）。
+//! 「软件后台」和 im 插件卡片的「打开面板」打开的是同一份页面（`miyu-im-sponsor/page/`），都经它调。改、删只在这里（不给 AI）。
 //!
 //! - `totals` → `{base, month, year, all, pending}`：本月、今年、全部换成默认币种的合计（照本机时区），待补汇率的笔数。
 //! - `list {query?, platform?, from?, to?}` → `{base, entries}`：明细，新的在前；`query` 搜号或名字（不分大小写）。

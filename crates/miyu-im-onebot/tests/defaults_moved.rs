@@ -22,7 +22,7 @@ async fn the_old_settings_move_into_the_chat_defaults() {
         }
     })
     .await;
-    let path = home.root.state().join("packages/im/cards.json");
+    let path = home.root.state().join("packages/miyu-im/cards.json");
     let cards: Value =
         serde_json::from_slice(&std::fs::read(path).expect("读得出")).expect("是 JSON");
     assert_eq!(

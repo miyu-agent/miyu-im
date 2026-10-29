@@ -7,10 +7,10 @@ use super::{named, plugins};
 #[test]
 fn only_packages_carrying_im_content_are_listed() {
     let found = json!([
-        {"package": "miyu-im-memes", "contents": ["im"], "official": true},
+        {"package": "miyu-im-memes", "contents": ["miyu-im"], "official": true},
         {"package": "miyu-embed", "contents": [], "official": true},
         {"package": "miyu-web", "official": true},
-        {"package": "both", "contents": ["skills", "im"], "official": false},
+        {"package": "both", "contents": ["skills", "miyu-im"], "official": false},
     ]);
     let listed: Vec<String> = plugins(&found)
         .iter()

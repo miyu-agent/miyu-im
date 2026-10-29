@@ -16,7 +16,7 @@ use crate::support::*;
 
 /// 出厂的资源 `software/onebot/<name>` 原样。
 fn shipped(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
+    std::fs::read_to_string(resources().join("packages/miyu-im/data").join(name)).expect("读得出")
 }
 
 /// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十四件照
@@ -176,7 +176,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
 fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     assert!(crate::support::shipped::factory_at(&package_in(resources())).is_ok());
     let resources = copied_resources();
-    let software = resources.join("packages/im/data");
+    let software = resources.join("packages/miyu-im/data");
     for (file, text, wanted) in [
         (
             "onebot/tools/qq_skip_reply.json",

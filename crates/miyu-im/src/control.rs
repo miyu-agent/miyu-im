@@ -129,7 +129,7 @@ pub async fn control(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    let mut core = match Core::connect(root, core, "im").await {
+    let mut core = match Core::connect(root, core, PACKAGE).await {
         Ok(core) => core,
         Err(refused) => {
             say(err, &texts.failure(&Failure::Core(refused.to_string())));
@@ -149,7 +149,7 @@ pub async fn control(
         Control::Restart => ("extension.restart", package, Some(Report::Restarted)),
         Control::Status => ("extension.status", json!({}), None),
     };
-    let answered = match core.call("im", method, params).await {
+    let answered = match core.call(PACKAGE, method, params).await {
         Ok(answered) => answered,
         Err(said) => {
             say(err, &said.to_string());

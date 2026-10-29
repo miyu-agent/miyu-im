@@ -135,7 +135,7 @@ fn noting(
     };
     for venue in venues {
         let params = json!({"venue": venue, "kind": kind, "text": text});
-        let call = json!({"package": "im", "method": "chat.note", "params": params});
+        let call = json!({"package": "miyu-im", "method": "chat.note", "params": params});
         let reply = ask(input, "package.call", call);
         if let Some(file) = record {
             writeln!(file, "{}", json!({"noted": reply, "venue": venue})).expect("写得进");

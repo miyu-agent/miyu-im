@@ -25,7 +25,7 @@ const OWNER: &str = "owner";
 /// 页面上的名字到配置的键：回执自动撤回的命令、网页服务的端口。
 fn config_key(name: &str) -> Option<String> {
     match name {
-        "recall_receipts" => Some(format!("{}.{name}", crate::PACKAGE)),
+        "recall_receipts" => Some(format!("{}.{name}", crate::PREFIX)),
         "port" => Some(key(SITE_GROUP, "port")),
         _ => None,
     }

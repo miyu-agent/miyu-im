@@ -90,7 +90,8 @@ fn close(value: &Value, expected: f64) -> bool {
 
 /// 资源里判官的一份说明。
 pub(crate) fn judge_text(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/im/data/judge").join(name)).expect("读得出")
+    std::fs::read_to_string(resources().join("packages/miyu-im/data/judge").join(name))
+        .expect("读得出")
 }
 
 #[tokio::test]

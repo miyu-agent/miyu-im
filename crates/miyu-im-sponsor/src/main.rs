@@ -3,7 +3,7 @@
 //!
 //! 起来先握手（核心交设置的最终值），经 `provide` 登记工具 `sponsor`（只给场所会话：群、私聊），然后一直读标准输入，读到头退出。
 //! 每次 `tool.call` 先经 `package.call` 问 im 的 `chat.venue`：是哪个平台、哪个场所、叫她的那一条引用了谁、@ 了谁（S-1 上a）。
-//! 后台页（`sponsor/page/`）经 `package.methods` 登记的方法读、改账本（施工 S-1 下，`methods.rs`）。
+//! 后台页（`miyu-im-sponsor/page/`）经 `package.methods` 登记的方法读、改账本（施工 S-1 下，`methods.rs`）。
 
 mod methods;
 mod money;
@@ -23,7 +23,7 @@ use jiff::tz::TimeZone;
 use serde_json::{Value, json};
 
 use rates::{Rates, Web};
-use settings::{PACKAGE, Settings};
+use settings::{IM, PACKAGE, Settings};
 use store::Book;
 use wire::Wire;
 
@@ -171,7 +171,7 @@ fn request(state: &State, method: &str, params: &Value) -> wire::Answer {
 /// 一次 `tool.call`：先问 im 是哪个场所、叫她的那一条（问不到的照 `null`），再照工具办。
 fn called(state: &State, params: &Value) -> Value {
     let asked =
-        json!({"package": "im", "method": "chat.venue", "params": {"session": params["session"]}});
+        json!({"package": IM, "method": "chat.venue", "params": {"session": params["session"]}});
     let venue = state
         .wire
         .call("package.call", &asked)

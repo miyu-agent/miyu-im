@@ -102,15 +102,19 @@ fn a_missing_manifest_or_default_is_named() {
     let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("没有清单");
     assert!(error.contains("im"), "{error}");
     // 照出厂的清单写一份，去掉 `im.recall_receipts` 的默认值（驱动的配置项没写默认值的不放，不算错，施工 I-3）。
-    let shipped =
-        std::fs::read_to_string(resources().join("packages").join("im").join("package.toml"))
-            .expect("读得到出厂的清单");
+    let shipped = std::fs::read_to_string(
+        resources()
+            .join("packages")
+            .join("miyu-im")
+            .join("package.toml"),
+    )
+    .expect("读得到出厂的清单");
     let without = shipped.replace("default = [\"clear\", \"clear-memory\"]\n", "");
     assert_ne!(without, shipped, "真的去掉了");
-    std::fs::create_dir_all(packages.join("im")).expect("建得了");
-    std::fs::write(packages.join("im").join("package.toml"), without).expect("写得进");
+    std::fs::create_dir_all(packages.join("miyu-im")).expect("建得了");
+    std::fs::write(packages.join("miyu-im").join("package.toml"), without).expect("写得进");
     let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("没写默认值");
-    let file = std::path::Path::new("im")
+    let file = std::path::Path::new("miyu-im")
         .join("package.toml")
         .display()
         .to_string();
@@ -118,7 +122,7 @@ fn a_missing_manifest_or_default_is_named() {
         error.contains(&file) && error.contains("im.recall_receipts"),
         "{error}"
     );
-    std::fs::write(packages.join("im").join("package.toml"), "not toml [").expect("写得进");
+    std::fs::write(packages.join("miyu-im").join("package.toml"), "not toml [").expect("写得进");
     let error = Defaults::load(&package_in(dir.clone()), &[(QQ, NAMES)]).expect_err("读不成");
     assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {

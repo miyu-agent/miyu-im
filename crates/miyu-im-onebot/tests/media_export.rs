@@ -17,7 +17,7 @@ use crate::support::speaking::{Line, Lines};
 async fn media(head: &mut Head, params: Value) -> Value {
     head.call(
         "package.call",
-        json!({"package": "im", "method": "chat.media", "params": params}),
+        json!({"package": "miyu-im", "method": "chat.media", "params": params}),
     )
     .await
 }

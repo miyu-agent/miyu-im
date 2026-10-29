@@ -7,7 +7,7 @@ use super::page_port;
 
 /// 核心的 `extension.status`：im 的状态 `state`、进程号 `pid`。
 fn status(state: &str, pid: u64) -> serde_json::Value {
-    json!({"extensions": [{"package": "other", "state": "running", "pid": 9}, {"package": "im", "state": state, "pid": pid}]})
+    json!({"extensions": [{"package": "other", "state": "running", "pid": 9}, {"package": "miyu-im", "state": state, "pid": pid}]})
 }
 
 #[test]

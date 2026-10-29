@@ -1,5 +1,6 @@
 /target/
 /.worktrees/
 # 本机照 README 放进包文件夹的程序、照 release.yml 打的包。
-/im/bin/
+/miyu-im/bin/
+/miyu-im-sponsor/bin/
 /dist/

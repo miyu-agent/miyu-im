@@ -15,7 +15,7 @@
 capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批（核心 X-18）
 ```
 
-经核心的 `package.call {"package": "im", "method", "params"}` 调；核心转给接入通讯平台，回什么交回什么（核心的 `protocol.md`「`package.call`」）。没批 `packages.call` 的核心回 `needs_approval`；接入通讯平台 没在跑回 `program_not_running`；接入通讯平台 拒了的回 `method_failed`，`data.message` 是下面写的原因。
+经核心的 `package.call {"package": "miyu-im", "method", "params"}` 调；核心转给接入通讯平台，回什么交回什么（核心的 `protocol.md`「`package.call`」）。没批 `packages.call` 的核心回 `needs_approval`；接入通讯平台 没在跑回 `program_not_running`；接入通讯平台 拒了的回 `method_failed`，`data.message` 是下面写的原因。
 
 **平台**（施工 I-1，设计 01 第四节第 3 条）：挂接点和方法从 `qq.*` 改名成 `chat.*`，准备接别的平台。接入通讯平台交给你的参数（每一个挂接点）、`chat.venue` 的回答都带 `"platform"`（现在只有 `"qq"`）；你调 `chat.action`、`chat.venue`、`chat.send` 时可以写 `"platform"`，写了别的平台、不是字的拒 `bad_params`。
 

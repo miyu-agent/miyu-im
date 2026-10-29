@@ -25,7 +25,7 @@ fn records(home: &Home) -> Vec<Value> {
     let path = home
         .root
         .state()
-        .join("packages/im/qq/admin")
+        .join("packages/miyu-im/qq/admin")
         .join(format!("{GROUP}.jsonl"));
     std::fs::read_to_string(path)
         .unwrap_or_default()
@@ -55,7 +55,7 @@ fn moderated(events: &[Value]) -> Vec<String> {
 /// 出厂的模板换出来、套上插件记事实的外壳的那一句。
 fn fact(name: &str, fields: &[(&str, &str)]) -> String {
     let mut text = std::fs::read_to_string(
-        resources().join(format!("packages/im/data/onebot/facts/{name}.txt")),
+        resources().join(format!("packages/miyu-im/data/onebot/facts/{name}.txt")),
     )
     .expect("读得出");
     for (field, value) in fields {

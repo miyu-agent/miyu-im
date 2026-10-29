@@ -10,7 +10,7 @@ use crate::support::*;
 
 /// 写这个群的通过条件。
 fn rule(home: &Home, rule: &str) {
-    let dir = home.root.state().join("packages/im/qq/admin");
+    let dir = home.root.state().join("packages/miyu-im/qq/admin");
     std::fs::create_dir_all(&dir).expect("建得了");
     let groups = json!({GROUP.to_string(): {"approval": {"rule": rule}}});
     std::fs::write(dir.join("groups.json"), groups.to_string()).expect("写得进");
@@ -26,7 +26,7 @@ async fn records(home: &Home, count: usize) -> Vec<Value> {
     let path = home
         .root
         .state()
-        .join("packages/im/qq/admin")
+        .join("packages/miyu-im/qq/admin")
         .join(format!("{GROUP}.jsonl"));
     within("记下了", async {
         loop {
@@ -129,7 +129,7 @@ async fn a_group_without_a_rule_is_left_to_people() {
     let path = home
         .root
         .state()
-        .join("packages/im/qq/admin")
+        .join("packages/miyu-im/qq/admin")
         .join(format!("{GROUP}.jsonl"));
     assert!(!path.exists(), "不记");
     no_platform(&mut napcat);

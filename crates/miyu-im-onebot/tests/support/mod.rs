@@ -89,9 +89,9 @@ pub fn resources() -> PathBuf {
     assembled::resources()
 }
 
-/// 资源目录 `resources` 里出厂的那一份包文件夹（`packages/im/`，施工 S-6 上）。
+/// 资源目录 `resources` 里出厂的那一份包文件夹（`packages/miyu-im/`，施工 S-6 上）。
 pub fn package_in(resources: impl AsRef<Path>) -> Package {
-    Package::at(resources.as_ref().join("packages").join("im"))
+    Package::at(resources.as_ref().join("packages").join("miyu-im"))
 }
 
 /// 这个仓库的包文件夹 `im/`：直接拉桥的照它交 `MIYU_PACKAGE_DIR`（施工 S-6 中）。

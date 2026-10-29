@@ -8,10 +8,15 @@ use super::*;
 #[test]
 fn the_given_folder_wins_and_an_empty_or_missing_one_falls_back() {
     let resources = ResourceRoot::at("/opt/miyu/resources");
-    let given = Package::locate(Some(OsStr::new("/data/packages/im")), &resources);
-    assert_eq!(given.dir(), Path::new("/data/packages/im"));
-    assert_eq!(given.data(), Path::new("/data/packages/im").join("data"));
-    let shipped = Path::new("/opt/miyu/resources").join("packages").join("im");
+    let given = Package::locate(Some(OsStr::new("/data/packages/miyu-im")), &resources);
+    assert_eq!(given.dir(), Path::new("/data/packages/miyu-im"));
+    assert_eq!(
+        given.data(),
+        Path::new("/data/packages/miyu-im").join("data")
+    );
+    let shipped = Path::new("/opt/miyu/resources")
+        .join("packages")
+        .join("miyu-im");
     for missing in [None, Some(OsStr::new(""))] {
         let found = Package::locate(missing, &resources);
         assert_eq!(found.dir(), shipped, "{missing:?}");

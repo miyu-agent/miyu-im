@@ -17,7 +17,7 @@ use crate::support::*;
 
 /// 出厂的后台页目录。
 fn page_dir() -> PathBuf {
-    resources().join("packages/im/page")
+    resources().join("packages/miyu-im/page")
 }
 
 impl Head {
@@ -28,7 +28,7 @@ impl Head {
             let reply = self
                 .call(
                     "package.file",
-                    json!({"package": "im", "path": path, "offset": all.len()}),
+                    json!({"package": "miyu-im", "path": path, "offset": all.len()}),
                 )
                 .await;
             let data = reply["result"]["data"]
@@ -94,7 +94,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         .as_array()
         .unwrap_or_else(|| panic!("{listed}"))
         .iter()
-        .find(|one| one["package"] == "im")
+        .find(|one| one["package"] == "miyu-im")
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"));
     assert_eq!(onebot["icon"], "message-circle", "{onebot}");
@@ -178,7 +178,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         "空的路径是入口"
     );
 
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("im.log"))
+    let log = std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
         .expect("桥写了运行日志");
     assert!(log.contains("methods registered count=15"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
@@ -277,7 +277,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
     let log =
-        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("有运行日志");
+        std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).expect("有运行日志");
     assert!(
         log.contains("page method not understood method=apply"),
         "{log}"

@@ -61,8 +61,12 @@ async fn the_group_admin_panel_and_page_come_from_the_driver() {
     let saved = call(&mut open, 2, "plugins.call", save).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let groups: Value = serde_json::from_str(
-        &std::fs::read_to_string(home.root.state().join("packages/im/qq/admin/groups.json"))
-            .expect("写了"),
+        &std::fs::read_to_string(
+            home.root
+                .state()
+                .join("packages/miyu-im/qq/admin/groups.json"),
+        )
+        .expect("写了"),
     )
     .expect("是 JSON");
     assert_eq!(groups["777"]["spam"]["on"], true, "{groups}");

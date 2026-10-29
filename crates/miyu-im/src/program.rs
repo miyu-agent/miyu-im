@@ -11,7 +11,7 @@
 //!
 //! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份，施工 S-6 上），
 //! 读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
-//! `state/logs/im.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
+//! `state/logs/miyu-im.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
 //! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
 //! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
 //! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`
@@ -216,7 +216,7 @@ async fn serve(
 ) -> u8 {
     let log = miyu_client::log::install(
         &root.state().join("logs"),
-        "im",
+        crate::PACKAGE,
         miyu_client::log::LevelFilter::INFO,
         env.home.as_deref(),
     );

@@ -10,7 +10,7 @@
 //! - [`driver`]：宿主和驱动之间（施工 I-2 下）：平台的接法（[`driver::Driver`]）、驱动从宿主拿的（[`driver::Gate`]）。
 //! - [`chat`]：和平台无关的数据（施工 I-2 上）：一条消息、撤回、事件、段、带的东西、发给谁，驱动认出来交给宿主的样子。
 //! - `core`：跟核心的那一头：握手（不带凭据）、`venue.session`、带 `as`、`venue` 的 `session.send`、撤回、订阅、她的回话。
-//! - [`status_file`]：桥的状态文件 `state/packages/im/status.json`，`status` 读它（施工 O-18）。
+//! - [`status_file`]：桥的状态文件 `state/packages/miyu-im/status.json`，`status` 读它（施工 O-18）。
 //! - [`control`]：`miyu im start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18）。
 //! - [`logs`]：`miyu im logs [-f]`：印运行日志和标准错误（施工 O-18）。
 //! - [`texts`]：说给人听的字（包文件夹的 `data/human/`）。
@@ -65,5 +65,10 @@ pub const TARGET: &str = "miyu::im";
 /// 还没有字可用时印原话的开头，也是程序的名字。
 pub const PROGRAM: &str = "miyu-im";
 
-/// 这个软件包的编号（`im/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
-pub const PACKAGE: &str = "im";
+/// 这个软件包的编号（施工 O-18；I-86 起照核心设计 48 改成 `miyu-im`，包文件夹叫这个名字）：`extension.*`、`package.call` 照它找桥，
+/// 状态目录（`state/packages/<编号>/`）、模块目录、运行日志、标准错误的文件、判官旁路请求的全编号（`<编号>/judge`）照它起名。
+pub const PACKAGE: &str = "miyu-im";
+
+/// 清单里写的前缀（`miyu-im/package.toml` 的 `[package] prefix`，施工 I-86，核心设计 48 第二节）：配置键（`im.qq.token`）、记进会话的
+/// 事件（`ext.im.*`）、页面存的密钥名（`im-<平台>-<名字>`）照它，包改名也不跟着变。
+pub const PREFIX: &str = "im";

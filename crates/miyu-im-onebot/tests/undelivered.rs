@@ -85,7 +85,7 @@ async fn until_decided(home: &Home, group: i64, message: i64) {
 
 /// 出厂的模板照 `why`、`detail`、`text` 填出来的那一块（字段里没有要转义的字）。
 fn fact(why: &str, detail: &str, text: &str) -> String {
-    let path = resources().join("packages/im/data/facts/undelivered.txt");
+    let path = resources().join("packages/miyu-im/data/facts/undelivered.txt");
     std::fs::read_to_string(path)
         .expect("读得出")
         .replace("{why}", why)
@@ -378,7 +378,7 @@ async fn private_words_come_back_too() {
 fn a_broken_undelivered_template_is_a_factory_mistake() {
     // 退信的模板（施工 O-25 下）：写坏了、要了别的字段，记一条 `bad_format`；不在的记一条读不成。文件名带 `facts/`。
     let resources = copied_resources();
-    let facts = resources.join("packages/im/data/facts");
+    let facts = resources.join("packages/miyu-im/data/facts");
     for (text, wanted) in [
         ("<undelivered why=\"{why}\">{text\n", "{text"),
         ("<undelivered who=\"{who}\">{text}</undelivered>\n", "who"),

@@ -38,7 +38,7 @@ async fn up(tuned: &Value) -> (Home, u16) {
 async fn exported(head: &mut Head, method: &str, params: Value) -> Value {
     head.call(
         "package.call",
-        json!({"package": "im", "method": method, "params": params}),
+        json!({"package": "miyu-im", "method": method, "params": params}),
     )
     .await
 }

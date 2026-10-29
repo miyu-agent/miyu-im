@@ -150,7 +150,7 @@ fn recent_logs_come_newest_first_and_filter_by_level() {
     use super::logs::recent;
     let dir = std::env::temp_dir().join(format!("miyu-im-logs-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("建得了目录");
-    let file = dir.join("im.log");
+    let file = dir.join("miyu-im.log");
     std::fs::write(
         &file,
         "2026-10-19 10:00:00.000 INFO  im       first\n\
@@ -211,7 +211,7 @@ fn the_venue_page_gets_model_refs_pools_and_what_is_used() {
         ],
         "pools": [{"name": "快池", "models": ["a/one"]}, {"strategy": "x"}],
         "uses": {"chat": "a/one", "vision": null},
-        "side": [{"id": "compact", "resolved": "normal"}, {"id": "im/judge", "tier": "lite", "resolved": "lite"}],
+        "side": [{"id": "compact", "resolved": "normal"}, {"id": "miyu-im/judge", "tier": "lite", "resolved": "lite"}],
         "catalog": null
     });
     assert_eq!(
@@ -229,7 +229,7 @@ fn an_empty_judge_pool_shows_the_judge_falls_back_to_the_chat() {
     // 施工 I-42：旁路请求 `judge` 的池空了，核心退到会话的模型，页面照「会话的模型」那一格写，`judge` 交 null。
     let listed = serde_json::json!({
         "providers": [], "pools": [], "uses": {"chat": "a/one"},
-        "side": [{"id": "im/judge", "resolved": "session"}]
+        "side": [{"id": "miyu-im/judge", "resolved": "session"}]
     });
     assert_eq!(
         super::venues::picked(&listed)["uses"]["judge"],
@@ -258,7 +258,7 @@ fn a_chosen_connection_keeps_its_venues_lines_and_the_ones_without_a_venue() {
     use super::scope::Scope;
     let dir = std::env::temp_dir().join(format!("miyu-im-logs-scope-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("建得了目录");
-    let file = dir.join("im.log");
+    let file = dir.join("miyu-im.log");
     std::fs::write(
         &file,
         "2026-10-19 10:00:00.000 INFO  im       bridge started\n\

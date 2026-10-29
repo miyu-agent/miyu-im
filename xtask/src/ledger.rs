@@ -1,7 +1,7 @@
 //! 登记簿对账（照核心仓库的 `xtask/src/ledger.rs`，核心设计 26 第十节 J12、设计 32 第九节第 3 条；这个仓库施工 S-6 中）：
-//! 包文件夹 `im/data/`（施工 S-1 上b 起还有赞助记录的 `sponsor/data/`）里给模型看的每一份字都登记在 [`PATH`] 的那张表里。
+//! 包文件夹 `miyu-im/data/`（施工 S-1 上b 起还有赞助记录的 `miyu-im-sponsor/data/`）里给模型看的每一份字都登记在 [`PATH`] 的那张表里。
 //!
-//! 门禁查两边一一对上：`im/data/` 下每一份给模型看的文件都在表里，表里每一行都有文件，指纹对得上。指纹是文件字节的
+//! 门禁查两边一一对上：`miyu-im/data/` 下每一份给模型看的文件都在表里，表里每一行都有文件，指纹对得上。指纹是文件字节的
 //! SHA-256 的前 8 位：字改了就对不上，逼着回登记簿重新量 token、写上为什么改。算在「文档」那一项里。
 
 use std::collections::BTreeMap;
@@ -26,7 +26,7 @@ const HEADER: [&str; 6] = [
 
 /// 给模型看的字都在这几个目录里（相对仓库根）：im 的判官的说明、平台工具的说明、事实、工具结果；赞助记录的工具说明、工具结果
 /// （施工 S-1 上b）。
-pub(crate) const DATA: [&str; 2] = ["im/data", "sponsor/data"];
+pub(crate) const DATA: [&str; 2] = ["miyu-im/data", "miyu-im-sponsor/data"];
 
 /// 给人看的字放在这样的目录里，不登记（核心施工 4-5 上）。
 const HUMAN: &str = "human";
@@ -35,13 +35,13 @@ const HUMAN: &str = "human";
 /// 出厂参数（`chat.md` 第八条施工时定的第 16 条）、违规词表（只拿来比子串）、出厂的场所规则（第八条施工时定的第 21 条）、桥
 /// 自己的数（路径、等回应多久、队列多长，`onebot.md`「施工时定的」第 15 条）。只豁免这几份：`venues.d/` 里别的文件照查。
 const EXEMPT: [&str; 4] = [
-    "im/data/bridge.json",
-    "im/data/defaults.toml",
-    "im/data/moderation.txt",
-    "im/data/venues.d/50-defaults.toml",
+    "miyu-im/data/bridge.json",
+    "miyu-im/data/defaults.toml",
+    "miyu-im/data/moderation.txt",
+    "miyu-im/data/venues.d/50-defaults.toml",
 ];
 
-/// 几个目录写成一句：`im/data/、sponsor/data/`。
+/// 几个目录写成一句：`miyu-im/data/、sponsor/data/`。
 pub(crate) fn dirs() -> String {
     DATA.map(|dir| format!("{dir}/")).join("、")
 }

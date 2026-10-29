@@ -35,7 +35,7 @@ pub(super) async fn save(
         } else if text.trim().is_empty() {
             changes.push(json!({"key": key, "unset": true}));
         } else {
-            let secret = format!("{}-{platform}-{name}", crate::PACKAGE);
+            let secret = format!("{}-{platform}-{name}", crate::PREFIX);
             changes.push(json!({"key": key, "value": {"secret": secret}}));
             secrets.push((secret, text.trim().to_string()));
         }

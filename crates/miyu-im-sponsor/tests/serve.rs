@@ -109,7 +109,7 @@ impl Sponsor {
         let asked = self.answers("package.call", &venue);
         assert_eq!(
             asked["params"],
-            json!({"package": "im", "method": "chat.venue", "params": {"session": "s1"}})
+            json!({"package": "miyu-im", "method": "chat.venue", "params": {"session": "s1"}})
         );
         let answer = self.next();
         assert_eq!(answer["id"], id, "{answer}");

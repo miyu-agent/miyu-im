@@ -20,7 +20,7 @@ use serde_json::{Map, Value};
 
 use miyu_client::manifest::{self, read};
 
-use crate::PACKAGE;
+use crate::PREFIX;
 use crate::package::Package;
 
 /// 包文件夹里的清单。
@@ -77,7 +77,7 @@ impl Defaults {
                     .collect(),
                 _ => None,
             })
-            .ok_or_else(|| bad(format!("no list default for {PACKAGE}.{RECALL_RECEIPTS}")))?;
+            .ok_or_else(|| bad(format!("no list default for {PREFIX}.{RECALL_RECEIPTS}")))?;
         // 清单里分组的项名字是 `<组>.<名字>`（核心 9287d31d）：照组挑，交回组里的名字。
         let defaults = |group: &str, names: &[&str]| {
             manifest
@@ -119,7 +119,7 @@ fn json(value: &manifest::Value) -> Option<Value> {
 /// 组 `group` 里的配置项 `name` 的键：`im.<组>.<名字>`（施工 I-3 补：驱动的组是平台名，`im.qq.listen`；页面服务的是
 /// [`SITE_GROUP`]，`im.web.port`）。
 pub fn key(group: &str, name: &str) -> String {
-    format!("{PACKAGE}.{group}.{name}")
+    format!("{PREFIX}.{group}.{name}")
 }
 
 /// 握手交来的 `config` 里驱动的那几项（组 `group` 里的 `names`，施工 I-3）：照名字放，没交的、`null` 的照 `defaults`，默认值
@@ -193,7 +193,7 @@ pub fn labels(package: &Package, keys: &[String], language: &str) -> Vec<String>
     keys.iter()
         .map(|key| {
             let name = key
-                .strip_prefix(PACKAGE)
+                .strip_prefix(PREFIX)
                 .and_then(|rest| rest.strip_prefix('.'));
             manifest
                 .as_ref()
@@ -216,7 +216,7 @@ pub fn labels(package: &Package, keys: &[String], language: &str) -> Vec<String>
 
 /// 白名单成员那一键（`im.whitelist`）：握手交来的 `config`、推来的 `keys` 里照它取（施工 O-23）。
 pub fn whitelist_key() -> String {
-    format!("{PACKAGE}.{WHITELIST}")
+    format!("{PREFIX}.{WHITELIST}")
 }
 
 /// 白名单成员的平台身份（`im.whitelist` 的值，施工 O-23，「群里怎么叫她」第 3 条）：字的列表照收；没有、`null`、不是列表的是
@@ -235,7 +235,7 @@ pub fn whitelist(value: &Value) -> Vec<String> {
 
 /// 撤回回执的命令那一键（`im.recall_receipts`，施工 O-47）。
 pub fn recall_receipts_key() -> String {
-    format!("{PACKAGE}.{RECALL_RECEIPTS}")
+    format!("{PREFIX}.{RECALL_RECEIPTS}")
 }
 
 /// 撤回回执的命令（`im.recall_receipts` 的值，施工 O-47）：字的列表照收，去掉开头的 `/`（写了也认）；没有、`null`、不是

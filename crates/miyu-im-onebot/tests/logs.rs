@@ -18,7 +18,7 @@ use crate::support::*;
 fn files(root: &DataRoot) -> (PathBuf, PathBuf) {
     let dir = root.state().join("logs");
     std::fs::create_dir_all(&dir).expect("建得了");
-    (dir.join("im.log"), dir.join("im.stderr"))
+    (dir.join("miyu-im.log"), dir.join("miyu-im.stderr"))
 }
 
 /// 印一次（不跟着看）：交回退出码、标准输出、标准错误。

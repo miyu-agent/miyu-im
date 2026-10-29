@@ -166,8 +166,8 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
         said.starts_with(&first),
         "标准错误上先说在哪等 NapCat，再说怎么设令牌：{said}"
     );
-    let log =
-        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("写了运行日志");
+    let log = std::fs::read_to_string(root.state().join("logs").join("miyu-im.log"))
+        .expect("写了运行日志");
     assert!(log.contains("no token yet"), "{log}");
     assert!(log.contains("page token read"), "取过令牌记一行：{log}");
     assert!(!log.contains(TOKEN), "运行日志里没有令牌的值：{log}");

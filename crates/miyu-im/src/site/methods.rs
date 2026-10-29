@@ -64,7 +64,11 @@ pub(super) async fn answer(
             )
         }
         Some("logs") => {
-            let file = site.root.state().join("logs").join("im.log");
+            let file = site
+                .root
+                .state()
+                .join("logs")
+                .join(format!("{}.log", crate::PACKAGE));
             let filter = params["level"].as_str().unwrap_or("all");
             let limit = params["limit"]
                 .as_u64()

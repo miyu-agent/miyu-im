@@ -42,7 +42,7 @@ fn plugin(root: &DataRoot, id: &str, declared: Option<&str>) {
         None => {
             let manifest = dir.join("package.toml");
             let text = std::fs::read_to_string(&manifest).expect("读得出");
-            let plain = text.replace("\n[content.im]\ndir = \"im\"\n", "");
+            let plain = text.replace("\n[content.miyu-im]\ndir = \"im\"\n", "");
             assert_ne!(plain, text, "真的去掉了");
             std::fs::write(&manifest, plain).expect("写得进");
         }
@@ -339,7 +339,7 @@ async fn a_plugin_installed_while_running_is_known_from_the_pushed_change() {
     let dir = home.root.path().join("staging").join("late");
     std::fs::create_dir_all(dir.join("im")).expect("建得了目录");
     let manifest = format!(
-        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Late\" }}\n\n[command]\nname = \"late\"\nprogram = \"{}\"\nabout = {{ en = \"L\" }}\n\n[process]\nargs = []\nstart = \"manual\"\n\n[content.im]\ndir = \"im\"\n",
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Late\" }}\n\n[command]\nname = \"late\"\nprogram = \"{}\"\nabout = {{ en = \"L\" }}\n\n[process]\nargs = []\nstart = \"manual\"\n\n[content.miyu-im]\ndir = \"im\"\n",
         linked()
     );
     std::fs::write(dir.join("package.toml"), manifest).expect("写得进");

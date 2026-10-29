@@ -157,9 +157,10 @@ async fn each_discipline_goes_its_own_way() {
         .as_str()
         .expect("是字")
         .to_string();
-    let only =
-        std::fs::read_to_string(resources().join("packages/im/data/judge/moderation-only.txt"))
-            .expect("读得出");
+    let only = std::fs::read_to_string(
+        resources().join("packages/miyu-im/data/judge/moderation-only.txt"),
+    )
+    .expect("读得出");
     assert!(system.contains(&only), "只查违规：{system}");
 
     // wake：没叫的只记下；唤醒词开一轮；她还没回完，补一句不接（不看顶替）；她回过的人接着说开一轮，别人不算。

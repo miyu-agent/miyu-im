@@ -3,7 +3,7 @@
 
 #[test]
 fn the_shipped_manifest_passes_the_core_check() {
-    let text = include_str!("../../../sponsor/package.toml");
+    let text = include_str!("../../../miyu-im-sponsor/package.toml");
     if let Err(problem) = miyu_config::package::read(text) {
         panic!("核心读不进赞助记录的清单：{problem:?}");
     }

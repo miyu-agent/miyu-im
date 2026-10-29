@@ -18,7 +18,10 @@ use super::{Case, Conclusion, Decision, decide};
 
 /// 出厂参数的原文。
 fn defaults() -> String {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../im/data/defaults.toml");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../miyu-im/data/defaults.toml"
+    );
     std::fs::read_to_string(path).expect("出厂的读得到")
 }
 

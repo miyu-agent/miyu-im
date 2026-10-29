@@ -91,7 +91,7 @@ async fn record_holds_her_back_except_for_the_admin() {
     );
     let asked = &calls(&home.root, "guard")[0];
     assert_eq!(asked["method"], "chat.inbound");
-    assert_eq!(asked["from"], "im");
+    assert_eq!(asked["from"], "miyu-im");
     assert_eq!(
         asked["params"],
         json!({"platform": "qq", "venue": venue, "bot": BOT, "msg": "1", "sender": {"id": format!("qq:{LIN}"), "name": "小林"}, "text": "@米尤 在吗", "mentions_me": true, "quotes_me": false, "media": []}),

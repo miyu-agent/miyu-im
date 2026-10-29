@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 use miyu_chat::{File, Rules, Source};
 
 use super::cards::GroupSet;
-use crate::PACKAGE;
+use crate::PREFIX;
 use crate::chat::Id;
 use crate::rules::cards::platform_ok;
 
@@ -87,7 +87,7 @@ impl Configured {
         let fallback = Configured::default();
         for (key, value) in keys {
             let Some(name) = key
-                .strip_prefix(PACKAGE)
+                .strip_prefix(PREFIX)
                 .and_then(|rest| rest.strip_prefix('.'))
             else {
                 continue;
@@ -117,7 +117,7 @@ impl Configured {
     /// 不挪：留在配置里照旧报，改对了下次起来再挪。
     pub fn move_into(&self, defaults: &mut GroupSet) -> Vec<&'static str> {
         let misread = self.misread();
-        let readable = |name: &str| !misread.contains(&format!("{PACKAGE}.{name}"));
+        let readable = |name: &str| !misread.contains(&format!("{PREFIX}.{name}"));
         let mut moved = Vec::new();
         if let Some(sleep) = self.sleep.as_ref().filter(|_| readable(SLEEP)) {
             moved.push(SLEEP);
@@ -215,7 +215,7 @@ impl Configured {
 pub fn key_of(rule: usize) -> Option<String> {
     rule.checked_sub(1)
         .and_then(|index| ORDER.get(index))
-        .map(|name| format!("{PACKAGE}.{name}"))
+        .map(|name| format!("{PREFIX}.{name}"))
 }
 
 /// 照 JSON 的写法加上引号：JSON 的转义都是 TOML 基本字符串认的。

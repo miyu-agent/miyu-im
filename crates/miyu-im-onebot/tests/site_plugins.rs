@@ -74,7 +74,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     assert_eq!(one(&listed, "lazy")["enabled"], true, "{listed}");
     assert_eq!(one(&listed, "dice")["enabled"], false, "{listed}");
     let wrongs = [
-        json!({"package": "im", "on": false}),
+        json!({"package": "miyu-im", "on": false}),
         json!({"package": "dice"}),
         json!({"package": "lazy", "on": true, "approve": true}),
         json!({"on": true}),
@@ -86,7 +86,13 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
             "{wrong} {refused}"
         );
     }
-    let unknown = call(&mut open, 8, "plugins.readme", json!({"package": "im"})).await;
+    let unknown = call(
+        &mut open,
+        8,
+        "plugins.readme",
+        json!({"package": "miyu-im"}),
+    )
+    .await;
     assert_eq!(unknown["error"]["reason"], "bad_params", "{unknown}");
     stopped(home).await;
 }

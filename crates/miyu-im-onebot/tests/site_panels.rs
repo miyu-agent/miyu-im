@@ -110,7 +110,7 @@ async fn a_plugin_panel_is_served_in_a_sandbox_by_ticket() {
     assert_eq!(elsewhere.status, 403);
     let none = call(&mut open, 2, "plugins.panel", json!({"package": "plain"})).await;
     assert_eq!(none["error"]["reason"], "no_page", "{none}");
-    let wrong = call(&mut open, 3, "plugins.panel", json!({"package": "im"})).await;
+    let wrong = call(&mut open, 3, "plugins.panel", json!({"package": "miyu-im"})).await;
     assert_eq!(wrong["error"]["reason"], "bad_params", "{wrong}");
 
     // 登出以后票据没用了。

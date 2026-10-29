@@ -88,7 +88,7 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
     }
     let first = &calls(&hooky)[0];
     assert_eq!(first["method"], "chat.event");
-    assert_eq!(first["from"], "im");
+    assert_eq!(first["from"], "miyu-im");
     assert_eq!(
         first["params"],
         json!({"platform": "qq", "bot": BOT, "event": joined(5)}),

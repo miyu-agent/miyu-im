@@ -64,7 +64,7 @@ fn facts(events: &[Value], kind: &str) -> Vec<String> {
 
 /// 出厂的事实模板 `name`，字段照 `fields` 换，去掉行尾。
 fn fact(name: &str, fields: &[(&str, &str)]) -> String {
-    let path = resources().join(format!("packages/im/data/facts/{name}.txt"));
+    let path = resources().join(format!("packages/miyu-im/data/facts/{name}.txt"));
     let mut text = std::fs::read_to_string(path).expect("读得出");
     for (key, value) in fields {
         text = text.replace(&format!("{{{key}}}"), value);

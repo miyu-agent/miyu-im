@@ -13,7 +13,7 @@ use crate::rules::{Factory, Tools};
 
 /// 这个仓库的包文件夹 `im/`（施工 S-6 中）。
 fn package() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../miyu-im")
 }
 
 /// 出厂的工具。

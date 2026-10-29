@@ -1,5 +1,5 @@
 //! 聊天记录（设计 04，施工 C-1 上）：真核心照开关拉起真桥、假 NapCat。群里别人说的（没叫她也记）、她回的、撤回（标上、不删）、她
-//! 被禁言、群里别人被禁言和踢（施工 C-1 上补，一件件事），都记进 im 自己的库（`state/packages/im/records.db`），带的东西只记占位和编号。
+//! 被禁言、群里别人被禁言和踢（施工 C-1 上补，一件件事），都记进 im 自己的库（`state/packages/miyu-im/records.db`），带的东西只记占位和编号。
 
 use std::time::Duration;
 
@@ -29,7 +29,7 @@ async fn until(home: &Home, sql: &str, wanted: i64) -> i64 {
         .root
         .state()
         .join("packages")
-        .join("im")
+        .join("miyu-im")
         .join("records.db");
     within("聊天记录记上了", async {
         loop {

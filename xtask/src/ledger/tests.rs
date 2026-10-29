@@ -5,8 +5,8 @@ const TABLE: &str = "\
 
 | 文件 | 进到哪 | 什么时候加进来 | token | 为什么加 | 指纹 |
 |---|---|---|---|---|---|
-| `im/data/a.txt` | 事实 | 断了的那一次 | 3 | 施工 O-1 | `2cf24dba` |
-| `im/data/b.txt` | 事实 | 每次 | 1 | 施工 O-1 | `00000000` |
+| `miyu-im/data/a.txt` | 事实 | 断了的那一次 | 3 | 施工 O-1 | `2cf24dba` |
+| `miyu-im/data/b.txt` | 事实 | 每次 | 1 | 施工 O-1 | `00000000` |
 
 ### 附录
 ";
@@ -27,9 +27,9 @@ fn the_fingerprint_is_the_first_eight_hex_of_the_sha256() {
 fn the_rows_are_read_from_the_section_table() {
     let recorded = rows(TABLE).unwrap();
     assert_eq!(recorded.len(), 2);
-    assert_eq!(recorded["im/data/a.txt"], "2cf24dba");
+    assert_eq!(recorded["miyu-im/data/a.txt"], "2cf24dba");
     assert!(rows("### 别的\n").is_err());
-    let twice = TABLE.replace("`im/data/b.txt`", "`im/data/a.txt`");
+    let twice = TABLE.replace("`miyu-im/data/b.txt`", "`miyu-im/data/a.txt`");
     assert!(rows(&twice).unwrap_err().contains("登记了两行"));
     let short = TABLE.replace(" | 施工 O-1 | `00000000` |", " | `00000000` |");
     assert!(rows(&short).unwrap_err().contains("要有 6 格"));
@@ -42,19 +42,19 @@ fn every_mismatch_is_named() {
     let problems = compare(
         &recorded,
         &files(&[
-            ("im/data/a.txt", "hello"),
-            ("im/data/b.txt", "x"),
-            ("im/data/c.txt", "y"),
+            ("miyu-im/data/a.txt", "hello"),
+            ("miyu-im/data/b.txt", "x"),
+            ("miyu-im/data/c.txt", "y"),
         ]),
     );
     assert_eq!(problems.len(), 2, "{problems:?}");
-    assert!(problems[0].contains("im/data/b.txt 的字变了"));
-    assert!(problems[1].contains("im/data/c.txt 没登记"));
+    assert!(problems[0].contains("miyu-im/data/b.txt 的字变了"));
+    assert!(problems[1].contains("miyu-im/data/c.txt 没登记"));
     // 登记了却没有文件。
-    let problems = compare(&recorded, &files(&[("im/data/a.txt", "hello")]));
+    let problems = compare(&recorded, &files(&[("miyu-im/data/a.txt", "hello")]));
     assert_eq!(
         problems,
-        ["登记簿里有 im/data/b.txt，im/data/、sponsor/data/ 下却没有这份文件"]
+        ["登记簿里有 miyu-im/data/b.txt，miyu-im/data/、miyu-im-sponsor/data/ 下却没有这份文件"]
     );
 }
 
@@ -80,19 +80,19 @@ fn human_texts_and_the_exempt_data_are_not_walked() {
         std::fs::write(path, text).unwrap();
     }
     let mut found = BTreeMap::new();
-    let walked = walk(&dir, "im/data/", &mut found);
+    let walked = walk(&dir, "miyu-im/data/", &mut found);
     std::fs::remove_dir_all(&dir).unwrap();
     walked.unwrap();
     // 给人看的字（哪一层的 human/ 都是）、正好那四份数据不登记；别处同名的、venues.d/ 里别的照查。
     assert_eq!(
         found.keys().collect::<Vec<_>>(),
         [
-            "im/data/judge/defaults.toml",
-            "im/data/judge/system.txt",
-            "im/data/prompt.txt",
-            "im/data/tools/bridge.json",
-            "im/data/tools/recall.json",
-            "im/data/venues.d/60-more.toml",
+            "miyu-im/data/judge/defaults.toml",
+            "miyu-im/data/judge/system.txt",
+            "miyu-im/data/prompt.txt",
+            "miyu-im/data/tools/bridge.json",
+            "miyu-im/data/tools/recall.json",
+            "miyu-im/data/venues.d/60-more.toml",
         ]
     );
 }

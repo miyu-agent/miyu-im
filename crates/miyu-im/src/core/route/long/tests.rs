@@ -6,7 +6,10 @@ use super::*;
 
 /// 出厂参数：仓库里的 `defaults.toml`。
 fn factory() -> Params {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../im/data/defaults.toml");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../miyu-im/data/defaults.toml"
+    );
     let file = File {
         source: Source::Factory,
         name: "defaults.toml".to_string(),

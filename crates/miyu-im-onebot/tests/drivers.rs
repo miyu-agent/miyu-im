@@ -72,7 +72,7 @@ async fn call(relay: &Relay, id: &str, session: &str, tool: &str) -> Value {
 
 /// 照核心转来的样子经 `relay` 往桥推一次 `method.call`（施工 I-85 中：后台页、会话页调 im 的方法），等到桥答了交回整句回应。
 async fn method(relay: &Relay, id: &str, method: &str, params: Value) -> Value {
-    let params = json!({"package": "im", "method": method, "params": params});
+    let params = json!({"package": "miyu-im", "method": method, "params": params});
     answered(relay, id, "method.call", params).await
 }
 

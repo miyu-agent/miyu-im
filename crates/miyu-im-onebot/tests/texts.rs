@@ -1,4 +1,4 @@
-//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `im/data/human/`，三种语言里桥说的
+//! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `miyu-im/data/human/`，三种语言里桥说的
 //! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说；握手以前照系统的
 //! 语言（施工 O-20：不读配置）。O-18 多了 `start`、`stop`、`restart`、`status`、`logs` 说的；O-21 多了 `venue show` 说的、
 //! 出厂的数据有问题、问题说成话；O-23 多了限流满了发进群里的那一句；O-28 下去掉桥自己的网页说的几句，`status` 多了设置在哪
@@ -183,9 +183,9 @@ fn everything(texts: &Texts) -> Vec<String> {
         said.push(texts.report(&report));
     }
     for heading in [
-        Heading::Stderr("state/logs/im.stderr".to_string()),
-        Heading::Log("state/logs/im.log".to_string()),
-        Heading::None("state/logs/im.log".to_string()),
+        Heading::Stderr("state/logs/miyu-im.stderr".to_string()),
+        Heading::Log("state/logs/miyu-im.log".to_string()),
+        Heading::None("state/logs/miyu-im.log".to_string()),
     ] {
         said.push(texts.heading(&heading));
     }
@@ -325,16 +325,16 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "设置和状态在网页里：miyu im web"
     );
     assert_eq!(
-        texts.heading(&Heading::Stderr("a/im.stderr".to_string())),
-        "—— 标准错误 a/im.stderr ——"
+        texts.heading(&Heading::Stderr("a/miyu-im.stderr".to_string())),
+        "—— 标准错误 a/miyu-im.stderr ——"
     );
     assert_eq!(
-        texts.heading(&Heading::Log("a/im.log".to_string())),
-        "—— 运行日志 a/im.log ——"
+        texts.heading(&Heading::Log("a/miyu-im.log".to_string())),
+        "—— 运行日志 a/miyu-im.log ——"
     );
     assert_eq!(
-        texts.heading(&Heading::None("a/im.log".to_string())),
-        "还没有运行日志：a/im.log"
+        texts.heading(&Heading::None("a/miyu-im.log".to_string())),
+        "还没有运行日志：a/miyu-im.log"
     );
 }
 

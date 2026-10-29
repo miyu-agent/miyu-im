@@ -402,7 +402,7 @@ async fn up_installed(
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
         // 卡片那一层（施工 O-58 上）：出厂「其他群」关着，这里打开，测试的群照老的默认接话；要测「不接话」的规则自己写。群出厂
         // 仅发送最终消息（施工 O-57），这里照老的每一步都发：测这一格的另外写卡片。
-        let cards = home.root.state().join("packages").join("im");
+        let cards = home.root.state().join("packages").join("miyu-im");
         std::fs::create_dir_all(&cards).expect("建得了目录");
         std::fs::write(
             cards.join("cards.json"),
@@ -410,7 +410,7 @@ async fn up_installed(
         )
         .expect("写得进");
         if !words.is_empty() {
-            let modules = home.root.path().join("modules").join("im");
+            let modules = home.root.path().join("modules").join("miyu-im");
             std::fs::create_dir_all(&modules).expect("建得了目录");
             std::fs::write(modules.join("moderation.txt"), words).expect("写得进");
         }

@@ -65,7 +65,7 @@ fn test_rules(root: &DataRoot) {
 
 /// 数据根 `root` 里的卡片写成 `json`（施工 O-58 上）。
 fn write_cards(root: &DataRoot, json: &str) {
-    let dir = root.state().join("packages").join("im");
+    let dir = root.state().join("packages").join("miyu-im");
     std::fs::create_dir_all(&dir).expect("建得了目录");
     std::fs::write(dir.join("cards.json"), json).expect("写得进");
 }
@@ -163,7 +163,7 @@ fn a_bad_venue_id_is_a_usage_error() {
 fn broken_factory_data_is_said_with_every_problem() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
-    let defaults = resources.join("packages/im/data/defaults.toml");
+    let defaults = resources.join("packages/miyu-im/data/defaults.toml");
     let good = std::fs::read_to_string(&defaults).expect("读得了");
     let line = good
         .lines()
@@ -286,7 +286,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
     std::fs::write(
-        resources.join("packages/im/data/venues.d/50-defaults.toml"),
+        resources.join("packages/miyu-im/data/venues.d/50-defaults.toml"),
         "[[rule]]\nrate = \"abc\"\n",
     )
     .expect("写得进");
@@ -324,7 +324,7 @@ async fn serve_with_a_system_mistake_starts_and_logs_it() {
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
     let log =
-        std::fs::read_to_string(root.state().join("logs").join("im.log")).expect("有运行日志");
+        std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).expect("有运行日志");
     let problem = log
         .lines()
         .find(|line| line.contains("venue rules problem"))

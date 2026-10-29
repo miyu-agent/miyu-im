@@ -19,7 +19,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 出厂模板换出来的那一段。
 fn title() -> String {
-    std::fs::read_to_string(resources().join("packages/im/data/system/group.txt"))
+    std::fs::read_to_string(resources().join("packages/miyu-im/data/system/group.txt"))
         .expect("读得出")
         .replace("{name}", GROUP_NAME)
         .replace("{id}", &GROUP.to_string())

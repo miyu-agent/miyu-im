@@ -103,7 +103,7 @@ pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&
             std::fs::create_dir_all(&plugin).expect("建得了目录");
             let declared = format!("[plugin]\nname = {{ en = \"Hook {id}\" }}\n");
             std::fs::write(plugin.join("plugin.toml"), declared).expect("写得进");
-            format!("{manifest}\n[content.im]\ndir = \"im\"\n")
+            format!("{manifest}\n[content.miyu-im]\ndir = \"im\"\n")
         }
     };
     std::fs::write(dir.join("package.toml"), manifest).expect("写得进");

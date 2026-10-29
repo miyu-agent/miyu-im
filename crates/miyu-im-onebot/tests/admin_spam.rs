@@ -11,7 +11,7 @@ use crate::support::*;
 
 /// 驱动的状态目录。
 fn store(home: &Home) -> std::path::PathBuf {
-    home.root.state().join("packages/im/qq")
+    home.root.state().join("packages/miyu-im/qq")
 }
 
 /// 写这个群的刷屏处理：开着，禁 `mute` 秒。
@@ -77,11 +77,12 @@ async fn a_flood_is_recalled_muted_recorded_and_told_but_not_passed_on() {
             && heard(events).contains(&"1105".to_string())
     })
     .await;
-    let said =
-        std::fs::read_to_string(resources().join("packages/im/data/onebot/facts/spam-muted.txt"))
-            .expect("读得出")
-            .replace("{who}", "小明")
-            .replace("{duration}", "2 minutes");
+    let said = std::fs::read_to_string(
+        resources().join("packages/miyu-im/data/onebot/facts/spam-muted.txt"),
+    )
+    .expect("读得出")
+    .replace("{who}", "小明")
+    .replace("{duration}", "2 minutes");
     let noted: Vec<Value> = of_kind(&events, "context.injected")
         .into_iter()
         .filter(|event| event["body"]["kind"] == "moderated")

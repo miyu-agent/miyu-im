@@ -119,7 +119,7 @@ impl Head {
     pub async fn page_call_with(&mut self, method: &str, params: Value) -> Value {
         self.call(
             "package.call",
-            json!({"package": "im", "method": method, "params": params}),
+            json!({"package": "miyu-im", "method": method, "params": params}),
         )
         .await
     }

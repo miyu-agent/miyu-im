@@ -313,7 +313,7 @@ async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
     assert_eq!(napcat.reply().await, STOPPED);
     napcat.admin_says(2, "/remember 喜欢猫").await;
     assert_eq!(napcat.reply().await, NO_MEMORY);
-    let file = home.root.state().join("logs").join("im.log");
+    let file = home.root.state().join("logs").join("miyu-im.log");
     let log = within("运行日志写下被拒的那一行", async {
         loop {
             let log = std::fs::read_to_string(&file).unwrap_or_default();
@@ -344,7 +344,7 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     // 施工 I-53（项目主人 10-27：QQ 里打 /model 没反应）：桥自己办 /model，换了写进这个会话的卡片，「默认」去掉卡片上的模型。
     // 施工 I-57（项目主人 10-27：模型太多不全列）：搜是 /model search，换只认确切的名字，模糊的不换。终端管理员的私聊先在后台加了卡片。
     let home = Home::new(&Script::new([]));
-    let dir = home.root.state().join("packages/im");
+    let dir = home.root.state().join("packages/miyu-im");
     std::fs::create_dir_all(&dir).expect("建得了");
     let card = serde_json::json!({"privates": [{"id": 10001, "set": {}}]});
     std::fs::write(dir.join("cards.json"), card.to_string()).expect("写得进");

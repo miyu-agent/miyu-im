@@ -24,7 +24,7 @@ fn with_file(name: &str, text: &str) -> PathBuf {
 
 #[test]
 fn the_shipped_numbers_are_the_blueprints() {
-    let tuning = Tuning::load(&resources().join("packages/im/data")).expect("出厂的读得出来");
+    let tuning = Tuning::load(&resources().join("packages/miyu-im/data")).expect("出厂的读得出来");
     assert_eq!(tuning.paths, ["/onebot/v11/ws", "/ws"]);
     assert_eq!(tuning.call_timeout(), Duration::from_secs(10));
     assert_eq!(tuning.write_queue, 64);
@@ -71,8 +71,8 @@ fn the_shipped_numbers_are_the_blueprints() {
 
 #[test]
 fn a_bad_file_is_not_read_and_named() {
-    let good =
-        std::fs::read_to_string(resources().join("packages/im/data").join(FILE)).expect("读得了");
+    let good = std::fs::read_to_string(resources().join("packages/miyu-im/data").join(FILE))
+        .expect("读得了");
     for (name, text) in [
         (
             "write-zero",

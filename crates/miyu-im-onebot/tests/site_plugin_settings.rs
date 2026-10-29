@@ -169,7 +169,7 @@ async fn a_plugin_s_own_settings_and_methods_are_reached_from_the_page() {
     let last: Value =
         serde_json::from_str(calls.lines().last().unwrap_or("null")).expect("是 JSON");
     assert_eq!(last["params"], json!({"n": 1}), "参数照传：{calls}");
-    let other = json!({"package": "im", "method": "status"});
+    let other = json!({"package": "miyu-im", "method": "status"});
     let refused = call(&mut open, 10, "plugins.call", other).await;
     assert_eq!(refused["error"]["reason"], "bad_params", "{refused}");
     stopped(home).await;

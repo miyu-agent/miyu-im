@@ -37,7 +37,7 @@ pub(super) fn plugins(packages: &Value) -> Vec<Value> {
         .filter(|item| {
             item["contents"]
                 .as_array()
-                .is_some_and(|contents| contents.iter().any(|kind| kind == "im"))
+                .is_some_and(|contents| contents.iter().any(|kind| kind == crate::PACKAGE))
         })
         .cloned()
         .collect()

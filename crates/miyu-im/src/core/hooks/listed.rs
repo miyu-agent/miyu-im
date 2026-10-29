@@ -6,7 +6,7 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::PACKAGE;
+use crate::PREFIX;
 use crate::chat::{Cap, Platform};
 use crate::plugins::{Plugins, Unusable};
 
@@ -58,7 +58,7 @@ pub(super) fn listed(plugins: &Plugins, platform: Platform, caps: &[Cap]) -> Vec
             };
             if let Some((owner, prefix)) = plugins.builtin(package) {
                 one["builtin"] = json!(true);
-                one["settings"] = json!(format!("{PACKAGE}.{}.{prefix}", owner.name()));
+                one["settings"] = json!(format!("{PREFIX}.{}.{prefix}", owner.name()));
             }
             if let Err(why) = plugins.usable(package, platform, caps) {
                 one["unusable"] = json!(match &why {

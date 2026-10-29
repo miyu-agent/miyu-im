@@ -37,8 +37,7 @@ fn a_builtin_plugin_takes_its_switch_and_im_s_version() {
     // 施工 I-10 上：驱动带的插件不是软件包，总开关照配置，版本、作者照 im 的包。
     let plugin =
         json!({"package": "miyu-im-identity", "builtin": true, "settings": "im.qq.identity_"});
-    let own =
-        json!({"package": "im", "version": "0.8.0", "author": "miyu-agent", "from": "shipped"});
+    let own = json!({"package": "miyu-im", "version": "0.8.0", "author": "miyu-agent", "from": "shipped"});
     let off = json!({"items": {"im.qq.identity_on": {"value": false}}});
     assert_eq!(
         builtin(plugin.clone(), &off, &own),

@@ -30,7 +30,7 @@ impl Route {
         }
         let changes: Vec<Value> = moved
             .iter()
-            .map(|name| json!({"key": format!("{}.{name}", crate::PACKAGE), "unset": true}))
+            .map(|name| json!({"key": format!("{}.{name}", crate::PREFIX), "unset": true}))
             .collect();
         let reply = self
             .core

@@ -35,7 +35,7 @@ async fn when_the_core_closes_the_pipe_the_bridge_stops_quietly() {
     .await;
     let (hello, lines, writer) = within("握手", core).await.expect("没崩");
     assert_eq!(hello["method"], "hello", "{hello}");
-    assert_eq!(hello["params"]["head"]["kind"], "im", "{hello}");
+    assert_eq!(hello["params"]["head"]["kind"], "miyu-im", "{hello}");
     assert_eq!(hello["params"]["protocol"], json!([1, 1]), "{hello}");
     for credential in ["token", "code", "login", "user", "password"] {
         assert!(

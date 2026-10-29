@@ -9,7 +9,7 @@ use miyu_im::control::{Halt, Line, Report, describe};
 
 /// 在跑的那一项：进程号 `pid`。
 fn running(pid: u64) -> Value {
-    json!({"package": "im", "name": "接入通讯平台", "start": "manual", "on": true, "state": "running", "pid": pid, "failures": 0})
+    json!({"package": "miyu-im", "name": "接入通讯平台", "start": "manual", "on": true, "state": "running", "pid": pid, "failures": 0})
 }
 
 /// 状态文件：进程号 `pid`，NapCat 照 `napcat`。
@@ -23,11 +23,10 @@ fn said(reports: &[Report]) -> Vec<Line> {
 
 #[test]
 fn off_and_starting_say_one_line() {
-    let off =
-        json!({"package": "im", "start": "manual", "on": false, "state": "off", "failures": 0});
+    let off = json!({"package": "miyu-im", "start": "manual", "on": false, "state": "off", "failures": 0});
     assert_eq!(describe(&off, None), said(&[Report::Off]));
     let starting =
-        json!({"package": "im", "on": true, "state": "starting", "pid": 7, "failures": 0});
+        json!({"package": "miyu-im", "on": true, "state": "starting", "pid": 7, "failures": 0});
     assert_eq!(
         describe(&starting, Some(&board(7, json!({"connected": false})))),
         said(&[Report::Starting]),
@@ -95,7 +94,7 @@ fn running_says_napcat_and_the_address_only_from_its_own_status_file() {
 #[test]
 fn waiting_rounds_up_to_whole_seconds() {
     for (millis, seconds) in [(1500, 2), (1000, 1), (1, 1), (0, 0), (60_000, 60)] {
-        let waiting = json!({"package": "im", "on": true, "state": "waiting", "retry_in": millis, "failures": 3});
+        let waiting = json!({"package": "miyu-im", "on": true, "state": "waiting", "retry_in": millis, "failures": 3});
         assert_eq!(
             describe(&waiting, None),
             said(&[Report::Waiting {
@@ -117,13 +116,13 @@ fn stopped_says_why_and_the_end_of_its_stderr() {
         ("protocol_mismatch", Halt::ProtocolMismatch),
         ("new_reason", Halt::Other("new_reason".to_string())),
     ] {
-        let stopped = json!({"package": "im", "on": true, "state": "stopped", "reason": reason, "failures": 5, "stderr": ""});
+        let stopped = json!({"package": "miyu-im", "on": true, "state": "stopped", "reason": reason, "failures": 5, "stderr": ""});
         assert_eq!(
             describe(&stopped, None),
             said(&[Report::Halted(halt.clone())]),
             "{reason}：标准错误是空的不说"
         );
-        let with_stderr = json!({"package": "im", "on": true, "state": "stopped", "reason": reason, "failures": 5, "stderr": "端口 8301 被占了。\nsecond line\n"});
+        let with_stderr = json!({"package": "miyu-im", "on": true, "state": "stopped", "reason": reason, "failures": 5, "stderr": "端口 8301 被占了。\nsecond line\n"});
         assert_eq!(
             describe(&with_stderr, None),
             vec![
@@ -139,7 +138,7 @@ fn stopped_says_why_and_the_end_of_its_stderr() {
 
 #[test]
 fn an_unknown_state_is_said_as_it_is() {
-    let odd = json!({"package": "im", "on": true, "state": "dreaming", "failures": 0});
+    let odd = json!({"package": "miyu-im", "on": true, "state": "dreaming", "failures": 0});
     assert_eq!(
         describe(&odd, None),
         said(&[Report::Other("dreaming".to_string())])

@@ -69,7 +69,7 @@ fn calls(napcat: &Answering, user: i64, message: i64, text: &str, more: &[i64]) 
 
 /// 出厂的「你只回这几条」那一块（施工 I-21）：这条线回第 `msgs` 条，去掉行尾。
 fn own_line(msgs: &[i64]) -> String {
-    let path = resources().join("packages/im/data/facts/another-line.txt");
+    let path = resources().join("packages/miyu-im/data/facts/another-line.txt");
     let ids: Vec<String> = msgs.iter().map(|msg| format!("msg={msg}")).collect();
     std::fs::read_to_string(path)
         .expect("读得出")
@@ -350,7 +350,7 @@ async fn tools_on_a_lane_look_at_its_own_trigger() {
         .as_str()
         .unwrap_or_default();
     let not_found = std::fs::read_to_string(
-        resources().join("packages/im/data/onebot/tool-results/not-found.txt"),
+        resources().join("packages/miyu-im/data/onebot/tool-results/not-found.txt"),
     )
     .expect("读得出");
     assert_eq!(
@@ -474,7 +474,7 @@ async fn a_lane_names_its_group_to_other_packages() {
     let reply = head
         .call(
             "package.call",
-            json!({"package": "im", "method": "chat.venue", "params": {"session": lanes[0].0}}),
+            json!({"package": "miyu-im", "method": "chat.venue", "params": {"session": lanes[0].0}}),
         )
         .await;
     // 施工 S-1 上：多叫她做的那一条（这条线这一轮回的是阿乙那一条，他 @ 了阿丙），人带号和名字。

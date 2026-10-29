@@ -24,8 +24,8 @@ capabilities = ["tools", "packages.call", "network"]
 [page]
 dir = "page"
 
-# im 的插件（设计 01 第四节）：给 im 带 `im/plugin.toml`，出现在 im 的插件页，场所开关照 im 的场所卡片。
-[content.im]
+# im 的插件（设计 01 第四节）：给 im（包编号 miyu-im，施工 I-86）带 `im/plugin.toml`，出现在 im 的插件页，场所开关照 im 的场所卡片。
+[content.miyu-im]
 dir = "im"
 
 [settings.currency]

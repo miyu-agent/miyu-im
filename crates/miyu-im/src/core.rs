@@ -110,7 +110,7 @@ impl Core {
         };
         let hello = json!({
             "protocol": [1, 1],
-            "head": {"kind": "im", "version": env!("CARGO_PKG_VERSION")},
+            "head": {"kind": crate::PACKAGE, "version": env!("CARGO_PKG_VERSION")},
             "locale": locale,
             "caps": {"input": false},
         });
