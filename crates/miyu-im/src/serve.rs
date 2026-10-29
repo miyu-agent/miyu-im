@@ -286,8 +286,8 @@ pub async fn run(
     let site = Site::new(
         (serve.root.clone(), serve.package.dir().join("site")),
         core.caller(),
-        // 页面照第一个驱动（施工 I-70 中上：页面分平台是 I-70 下的事）。
-        (Arc::clone(&running), Arc::clone(&serve.drivers[0])),
+        // 页面照选中的平台问（施工 I-85 上），没写的照第一个驱动。
+        (Arc::clone(&running), serve.drivers.clone()),
         Arc::clone(&counters),
         (Arc::clone(&changed), Arc::clone(&cards)),
     );

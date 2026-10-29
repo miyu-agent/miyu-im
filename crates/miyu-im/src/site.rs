@@ -56,7 +56,7 @@ use crate::changed::Changed;
 use crate::core::caller::Caller;
 use crate::counters::Counters;
 use crate::driver::Driver;
-use crate::running::Running;
+use crate::running::{Running, Station};
 use crate::serve::Notice;
 use faces::Faces;
 use logins::Logins;
@@ -82,8 +82,8 @@ pub(crate) struct Site {
     logins: Logins<Person>,
     /// 桥跑着的样子（施工 I-6 中：桥自己的数、连着的机器人、平台、配置、驱动报的状态）。
     running: Arc<Running>,
-    /// 驱动：配置项的名字、哪几项是密钥（施工 I-6 中：页面存连接设置）。
-    driver: Arc<dyn Driver>,
+    /// 挂着的驱动，照先后（施工 I-85 上：页面照选中的平台问）：配置项的名字、哪几项是密钥、能贴的表情、带的插件。
+    drivers: Vec<Arc<dyn Driver>>,
     /// 桥手里的状态变了：开着的通道照它推（施工 I-6 上）。
     changed: Arc<Changed>,
     /// 场所卡片、白名单变了：开着的通道另推一声（施工 I-7 上，会话页照它再问；每条消息都叫的 `changed` 不叫它重问）。
@@ -102,7 +102,7 @@ impl Site {
     pub(crate) fn new(
         (root, files): (DataRoot, PathBuf),
         caller: Caller,
-        (running, driver): (Arc<Running>, Arc<dyn Driver>),
+        (running, drivers): (Arc<Running>, Vec<Arc<dyn Driver>>),
         counters: Arc<Counters>,
         (changed, cards): (Arc<Changed>, Arc<Changed>),
     ) -> Site {
@@ -112,13 +112,36 @@ impl Site {
             caller,
             logins: Logins::default(),
             running,
-            driver,
+            drivers,
             changed,
             cards,
             faces: Faces::default(),
             counters,
             panels: panels::Panels::default(),
         }
+    }
+}
+
+/// 选中的那个平台：驱动跑着的样子和驱动（[`Site::pick`]）。
+type Picked<'a> = (&'a Station, &'a Arc<dyn Driver>);
+
+impl Site {
+    /// 方法参数 `params` 说的是哪个平台（施工 I-85 上）：`platform` 没写的照第一个驱动（页面分连接以前的样子），写了的照它，没挂的、
+    /// 不是字的拒 `bad_params`。交回那个驱动跑着的样子和驱动。
+    pub(crate) fn pick(&self, params: &Value) -> Result<Picked<'_>, (String, String)> {
+        let bad = || ("bad_params".to_string(), String::new());
+        let name = match &params["platform"] {
+            Value::Null => None,
+            Value::String(name) => Some(name.as_str()),
+            _ => return Err(bad()),
+        };
+        let station = self.running.station(name).ok_or_else(bad)?;
+        let driver = self
+            .drivers
+            .iter()
+            .find(|driver| driver.platform() == station.platform)
+            .ok_or_else(bad)?;
+        Ok((station, driver))
     }
 }
 

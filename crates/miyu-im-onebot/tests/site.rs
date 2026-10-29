@@ -256,10 +256,12 @@ async fn the_channel_lists_connections_and_says_when_they_change() {
     })
     .await;
     let since = listed[0]["since"].as_u64().expect("连上的时刻");
+    // 平台做得到的几样（施工 I-85 上）：OneBot 什么都做得到。
+    let caps: Vec<&str> = miyu_im::chat::CAPS.iter().map(|cap| cap.name()).collect();
     assert!(u128::from(since) + 1000 >= before, "{listed}");
     assert_eq!(
         listed,
-        json!([{"platform": "qq", "bot": BOT.to_string(), "connected": true, "since": since, "implementation": "NapCat.Onebot", "version": "4.8.0", "avatar": format!("/avatar/{BOT}")}])
+        json!([{"id": format!("qq:{BOT}"), "platform": "qq", "bot": BOT.to_string(), "connected": true, "since": since, "caps": caps, "implementation": "NapCat.Onebot", "version": "4.8.0", "avatar": format!("/avatar/{BOT}")}])
     );
     bridge.stop().await.expect("停得下");
 }

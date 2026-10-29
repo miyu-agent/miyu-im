@@ -1,8 +1,11 @@
 //! 页面经通道调的方法（施工 I-6 上起）：照这一刻桥手里的样子答，不读盘。
 //!
-//! - `connections` → `{"connections": [...]}`：机器人照号排，连着的在前、断开了的（施工 I-6 中：「断开 4 分钟，在重连」）在后。
-//!   每个：`platform`（驱动给的平台名）、`bot`（号，写成字）、`connected`、`since`（连上的、断开的时刻，毫秒的 Unix 时间），问到了
-//!   的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）。
+//! - `connections` → `{"connections": [...]}`：挂着的每个平台的机器人（施工 I-85 上，照驱动的先后），一个平台里照号排，连着的在前、
+//!   断开了的（施工 I-6 中：「断开 4 分钟，在重连」）在后。每个：`id`（连接编号 `<平台>:<号>`）、`platform`（驱动给的平台名）、
+//!   `bot`（号，写成字）、`connected`、`since`（连上的、断开的时刻，毫秒的 Unix 时间）、`caps`（平台做得到的几样，施工 I-85 上），
+//!   问到了的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）。
+//! - 下面几样多收一格 `platform`（施工 I-85 上）：不写的照第一个驱动，写了没挂的拒 `bad_params`：`status`、`connection.save`、
+//!   `reactions`、`stats`、`plugins.widget`。`records.media` 照场所编号的平台，驱动带的插件照带它的驱动。
 //! - `status` → 驱动报的几格（OneBot 是 `listen`、`token`）、`platform`、`path`（NapCat 连进来的路径里最短的那个），同后台页的
 //!   `status`（施工 I-6 中：新建连接、连接设置拼地址）。
 //! - `connection.save {values}` → `{"saved": true}`：存驱动的配置项（`save`）。
@@ -36,6 +39,7 @@ use super::{
     records_media, records_page, save, settings, stats, store, venues,
 };
 use crate::core::methods::short_path;
+use crate::running::Station;
 
 /// 答方法 `method`（参数 `params`）：交回 `result`，不成的交回（原因、原话，原话可以空）。
 pub(super) async fn answer(
@@ -46,7 +50,8 @@ pub(super) async fn answer(
     match method {
         Some("connections") => Ok(json!({"connections": connections(site)})),
         Some("status") => {
-            let mut status = site.running.status();
+            let (station, _) = site.pick(params)?;
+            let mut status = site.running.status_on(station);
             status.insert("path".into(), json!(short_path(&site.running.tuning.paths)));
             Ok(Value::Object(status))
         }
@@ -69,7 +74,7 @@ pub(super) async fn answer(
         Some("presets") => venues::presets(&login.person).await,
         Some("moderation.get") => moderation::get(site),
         Some("moderation.set") => moderation::set(site, params),
-        Some("reactions") => Ok(reactions(site)),
+        Some("reactions") => reactions(site, params),
         Some("settings.get") => settings::get(&login.person).await,
         Some("settings.set") => settings::set(&login.person, params).await,
         Some("plugins.list") => plugins::list(site, &login.person).await,
@@ -96,10 +101,10 @@ pub(super) async fn answer(
     }
 }
 
-/// 能贴的表情（模块的说明）。
-fn reactions(site: &Arc<Site>) -> Value {
-    let reactions: Vec<Value> = site
-        .driver
+/// 能贴的表情（模块的说明）：照 `platform` 那个驱动的（施工 I-85 上）。
+fn reactions(site: &Arc<Site>, params: &Value) -> Result<Value, (String, String)> {
+    let (_, driver) = site.pick(params)?;
+    let reactions: Vec<Value> = driver
         .reactions()
         .iter()
         .map(|one| {
@@ -110,19 +115,31 @@ fn reactions(site: &Arc<Site>) -> Value {
             shown
         })
         .collect();
-    json!({"reactions": reactions, "default": site.running.tuning.reaction_emoji})
+    Ok(json!({"reactions": reactions, "default": site.running.tuning.reaction_emoji}))
 }
 
-/// 机器人（模块的说明）。
+/// 机器人（模块的说明）：挂着的每个平台的，照驱动的先后（施工 I-85 上）。
 fn connections(site: &Arc<Site>) -> Vec<Value> {
-    let platform = site.running.first().platform.name();
     let avatars = !site.running.tuning.avatar_user_url.is_empty();
+    site.running
+        .drivers
+        .iter()
+        .flat_map(|station| on_platform(site, station, avatars))
+        .collect()
+}
+
+/// 驱动 `station` 连着的、断开了的机器人：每个带连接编号 `id`（`<平台>:<号>`）、平台做得到的几样 `caps`（施工 I-85 上）。
+fn on_platform(site: &Arc<Site>, station: &Station, avatars: bool) -> Vec<Value> {
+    let platform = station.platform.name();
+    let caps: Vec<&str> = station.caps.iter().map(|cap| cap.name()).collect();
     let card = |bot: Id, connected: bool, since: SystemTime| {
         let mut one = Map::new();
+        one.insert("id".into(), json!(format!("{platform}:{bot}")));
         one.insert("platform".into(), json!(platform));
         one.insert("bot".into(), json!(bot.to_string()));
         one.insert("connected".into(), json!(connected));
         one.insert("since".into(), json!(millis(since)));
+        one.insert("caps".into(), json!(caps));
         if let Some(name) = site.faces.name(site, bot.clone()) {
             one.insert("name".into(), json!(name));
         }
@@ -131,9 +148,7 @@ fn connections(site: &Arc<Site>) -> Vec<Value> {
         }
         one
     };
-    let mut all: Vec<Value> = site
-        .running
-        .first()
+    let mut all: Vec<Value> = station
         .bots
         .held()
         .into_iter()
@@ -147,8 +162,7 @@ fn connections(site: &Arc<Site>) -> Vec<Value> {
         })
         .collect();
     all.extend(
-        site.running
-            .first()
+        station
             .bots
             .gone()
             .into_iter()

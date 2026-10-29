@@ -67,13 +67,20 @@ pub(super) async fn media(site: &Arc<Site>, params: &Value) -> Result<Value, Ref
         .as_str()
         .filter(|id| !id.is_empty())
         .ok_or_else(|| refused("bad_params"))?;
-    let platform = site.running.first().platform;
-    let to = VenueId::parse(venue)
+    // 照场所编号的平台找驱动（施工 I-85 上）。
+    let venue = VenueId::parse(venue)
         .ok()
         .and_then(|venue| Venue::parse(&venue))
-        .and_then(|venue| platform.to_of(&venue))
         .ok_or_else(|| refused("bad_params"))?;
-    let held = site.running.first().bots.held();
+    let station = site
+        .running
+        .station(Some(venue.platform()))
+        .ok_or_else(|| refused("bad_params"))?;
+    let to = station
+        .platform
+        .to_of(&venue)
+        .ok_or_else(|| refused("bad_params"))?;
+    let held = station.bots.held();
     if held.is_empty() {
         return Err(refused("not_connected"));
     }

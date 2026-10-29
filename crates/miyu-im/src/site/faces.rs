@@ -63,7 +63,12 @@ impl Faces {
         if let Some(name) = lock(&self.names).get(&bot) {
             return name.clone();
         }
-        let link = site.running.first().bots.get(&bot)?;
+        // 几个平台里找连着它的那个（施工 I-85 上）。
+        let link = site
+            .running
+            .drivers
+            .iter()
+            .find_map(|station| station.bots.get(&bot))?;
         if !lock(&self.asking).insert(bot.clone()) {
             return None;
         }
@@ -91,7 +96,21 @@ impl Faces {
             return Some(Arc::clone(avatar));
         }
         let tuning = &site.running.tuning;
-        let bots = &site.running.first().bots;
+        // 机器人的照它所在的那个平台（施工 I-85 上），群、人的照后台页那个平台（第一个驱动的）。
+        let known = |station: &&crate::running::Station| match &whose {
+            Whose::Bot(bot) => {
+                station.bots.get(bot).is_some()
+                    || station.bots.gone().iter().any(|(gone, _)| gone == bot)
+            }
+            Whose::User(_) | Whose::Group(_) => false,
+        };
+        let station = site
+            .running
+            .drivers
+            .iter()
+            .find(known)
+            .unwrap_or_else(|| site.running.first());
+        let bots = &station.bots;
         let any = || bots.first().map(|(_, link)| link);
         let (face, link) = match &whose {
             Whose::Bot(bot) => {

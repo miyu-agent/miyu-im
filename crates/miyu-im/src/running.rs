@@ -60,6 +60,14 @@ impl Running {
         self.drivers.first().expect("起来时查过至少一个驱动")
     }
 
+    /// 平台名是 `name` 的那个驱动；没写的是第一个（施工 I-85 上：页面不写平台的照旧照第一个）。没挂的是空的。
+    pub(crate) fn station(&self, name: Option<&str>) -> Option<&Station> {
+        match name {
+            None => Some(self.first()),
+            Some(name) => self.drivers.iter().find(|one| one.platform.name() == name),
+        }
+    }
+
     /// 后台页的 `status` 照它答的几格（施工 O-28 上，`onebot.md` 第一条「后台页」第 2 条）：`napcat`、驱动报的几格、`platform`
     /// 照第一个驱动的，`platforms` 是挂着的几个平台的名字（施工 I-70 中上），照桥手里最新的，不读盘。
     ///
@@ -72,9 +80,13 @@ impl Running {
     /// - `platforms`：挂着的几个平台的名字，照先后（施工 I-70 中上）。
     /// - `misread`：没认出来的配置项（施工 O-41 补，`Current::misread`），空的不带这一格。
     pub(crate) fn status(&self) -> Map<String, Value> {
-        let first = self.first();
-        let mut status = first.status();
-        status.insert("platform".into(), json!(first.platform.name()));
+        self.status_on(self.first())
+    }
+
+    /// 同 [`Running::status`]，`napcat`、驱动报的几格、`platform` 照驱动 `station` 的（施工 I-85 上：页面照选中的连接问）。
+    pub(crate) fn status_on(&self, station: &Station) -> Map<String, Value> {
+        let mut status = station.status();
+        status.insert("platform".into(), json!(station.platform.name()));
         let platforms: Vec<&str> = self.drivers.iter().map(|one| one.platform.name()).collect();
         status.insert("platforms".into(), json!(platforms));
         if let Some(port) = self.page.get() {

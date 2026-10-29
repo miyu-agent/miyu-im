@@ -20,21 +20,22 @@ pub(super) async fn save(
 ) -> Result<Value, (String, String)> {
     let bad = || ("bad_params".to_string(), String::new());
     let values = params["values"].as_object().ok_or_else(bad)?;
-    let platform = site.running.first().platform.name();
+    let (station, driver) = site.pick(params)?;
+    let platform = station.platform.name();
     let mut changes = Vec::new();
     let mut secrets = Vec::new();
     for (name, value) in values {
-        if !site.driver.settings().contains(&name.as_str()) {
+        if !driver.settings().contains(&name.as_str()) {
             return Err(bad());
         }
         let text = value.as_str().ok_or_else(bad)?;
         let key = key(platform, name);
-        if !site.driver.secrets().contains(&name.as_str()) {
+        if !driver.secrets().contains(&name.as_str()) {
             changes.push(json!({"key": key, "input": text}));
         } else if text.trim().is_empty() {
             changes.push(json!({"key": key, "unset": true}));
         } else {
-            let secret = format!("im-{platform}-{name}");
+            let secret = format!("{}-{platform}-{name}", crate::PACKAGE);
             changes.push(json!({"key": key, "value": {"secret": secret}}));
             secrets.push((secret, text.trim().to_string()));
         }

@@ -14,6 +14,7 @@ use miyu_im::chat::{Id, To};
 use miyu_im::serve::{Failure, Serve, run};
 
 use crate::status_file::until_file;
+use crate::support::browser::{self, logged_in, page_port};
 use crate::support::second::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
@@ -320,4 +321,43 @@ async fn a_tool_name_given_by_two_drivers_does_not_start() {
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
     }
+}
+
+#[tokio::test]
+async fn the_page_sees_every_platform_and_asks_the_one_it_names() {
+    // 施工 I-85 上：连接列出每个平台的号（编号、做得到的几样）；状态、表情照写的 `platform` 答，不写的照第一个驱动。
+    let two = up(&[]).await;
+    let port = page_port(&two.bridge, 1).await;
+    let mut open = logged_in(&two.home.root, port).await;
+    let listed = browser::call(&mut open, 1, "connections", json!({})).await;
+    let connections = listed["result"]["connections"]
+        .as_array()
+        .expect("列表")
+        .clone();
+    let ids: Vec<&str> = connections
+        .iter()
+        .filter_map(|one| one["id"].as_str())
+        .collect();
+    assert_eq!(ids, [format!("qq:{BOT}"), format!("tg:{BOT}")], "{listed}");
+    assert!(
+        connections[0]["caps"]
+            .as_array()
+            .is_some_and(|caps| caps.contains(&json!("recall")))
+    );
+    assert_eq!(connections[1]["caps"], json!([]), "tg 什么都做不到");
+    let tg = browser::call(&mut open, 2, "status", json!({"platform": "tg"})).await;
+    assert_eq!(tg["result"]["platform"], "tg", "{tg}");
+    let first = browser::call(&mut open, 3, "status", json!({})).await;
+    assert_eq!(first["result"]["platform"], "qq", "{first}");
+    let unknown = browser::call(&mut open, 4, "status", json!({"platform": "wx"})).await;
+    assert_eq!(unknown["error"]["reason"], "bad_params", "{unknown}");
+    let reactions = browser::call(&mut open, 5, "reactions", json!({"platform": "tg"})).await;
+    assert_eq!(reactions["result"]["reactions"], json!([]), "{reactions}");
+    let qq = browser::call(&mut open, 6, "reactions", json!({})).await;
+    assert!(
+        qq["result"]["reactions"]
+            .as_array()
+            .is_some_and(|all| !all.is_empty())
+    );
+    two.bridge.stop().await.expect("停得下");
 }
