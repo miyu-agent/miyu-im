@@ -22,7 +22,7 @@ async fn quoted(call: &Call, msg: String) -> Done {
     let Some(link) = &call.link else {
         return Done::from(refused(call, "unreachable"));
     };
-    let fetched = match message(link.as_ref(), &msg).await {
+    let fetched = match message(link.as_ref(), &call.to, &msg).await {
         Ok(fetched) => fetched,
         Err(Missed::Failed(_)) => return Done::from(refused(call, "not-found")),
         Err(Missed::Unanswered) => return Done::from(refused(call, "unanswered")),

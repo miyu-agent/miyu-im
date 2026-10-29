@@ -218,7 +218,7 @@ fn a_mute_lasts_from_now() {
 }
 
 /// 平台回了没成，它自己那句话是 `message`（驱动去掉了首尾空白，`onebot::failed`）。
-fn failed(message: &str) -> Result<Option<i64>, CallError> {
+fn failed(message: &str) -> Result<Option<String>, CallError> {
     Err(CallError::Failed {
         said: "said".to_string(),
         message: message.to_string(),
@@ -227,7 +227,10 @@ fn failed(message: &str) -> Result<Option<i64>, CallError> {
 
 #[test]
 fn a_reply_ends_as_sent_or_failed_and_why() {
-    assert_eq!(ending(&Ok(Some(7))), Ending::Sent(Some(7)));
+    assert_eq!(
+        ending(&Ok(Some("7".to_string()))),
+        Ending::Sent(Some("7".to_string()))
+    );
     assert_eq!(ending(&Ok(None)), Ending::Sent(None));
     assert_eq!(
         ending(&failed("风控拦了")),
@@ -241,6 +244,11 @@ fn a_reply_ends_as_sent_or_failed_and_why() {
         "截到 200 个字符"
     );
     assert_eq!(ending(&failed("")), Ending::Failed(REJECTED, None));
+    assert_eq!(
+        ending(&Err(CallError::Unsupported)),
+        Ending::Failed(REJECTED, Some("unsupported".to_string())),
+        "平台发不了的照回了失败记（施工 I-82）"
+    );
     assert_eq!(
         ending(&Err(CallError::Timeout)),
         Ending::Failed(TIMEOUT, None)

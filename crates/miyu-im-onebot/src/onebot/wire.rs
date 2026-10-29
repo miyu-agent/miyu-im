@@ -15,12 +15,12 @@ use super::replies::{
 };
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
-    get_forward_msg, group_add, group_ban, group_kick, image_to, member_info, message_to, node,
-    number, picture_to, poke, upload_to,
+    get_forward_msg, group_add, group_ban, group_kick, image_to, member_info, message_id,
+    message_to, node, picture_to, poke, upload_to,
 };
 use miyu_im::chat::{
-    self, CallError, Fetch, Fetched, Friend, Group, GroupFiles, Id, Implementation, Link, Located,
-    Member, Msg, Node, Outgoing, Reply, To,
+    self, CallError, Face, Fetch, Fetched, Friend, Group, GroupFiles, Id, Implementation, Link,
+    Located, Member, Node, Outgoing, Reply, Source, To,
 };
 
 /// 一条 NapCat 的连接：往它写的队列，它上面在等回应的调用，对端是哪个实现。
@@ -32,15 +32,18 @@ pub struct Wire {
     pub calls: Calls,
     /// 对端是哪个实现：连上以后问 `get_version_info`，回了才有（`onebot.md` 第一条「怎么走」第 3 条）。
     pub implementation: OnceLock<Implementation>,
+    /// 头像的地址模板：人的、群的（`bridge.json` 的 `avatar_user_url`、`avatar_group_url`，`{id}` 换成号；施工 I-82 从宿主挪来）。
+    pub avatars: (String, String),
 }
 
 impl Wire {
-    /// 一条新的连接：往 `out` 写，一个回应最多等 `timeout`。
-    pub fn new(out: mpsc::Sender<Message>, timeout: Duration) -> Wire {
+    /// 一条新的连接：往 `out` 写，一个回应最多等 `timeout`；头像照地址模板 `avatars`（人的、群的）。
+    pub fn new(out: mpsc::Sender<Message>, timeout: Duration, avatars: (String, String)) -> Wire {
         Wire {
             out,
             calls: Calls::new(timeout),
             implementation: OnceLock::new(),
+            avatars,
         }
     }
 
@@ -81,17 +84,14 @@ impl Link for Wire {
             let pending = self.calls.begin(&self.out, action, params).await?;
             let sent: chat::Pending = Box::pin(async move {
                 let reply = pending.wait().await?;
-                Ok(number(&reply["data"]["message_id"]))
+                Ok(message_id(&reply["data"]["message_id"]))
             });
             Ok(sent)
         })
     }
 
-    fn recall<'a>(&'a self, message: Msg<'a>) -> Reply<'a, ()> {
-        self.done(match message {
-            Msg::Number(id) => delete_msg(id),
-            Msg::Text(id) => delete_msg(id),
-        })
+    fn recall<'a>(&'a self, _: &'a To, message: &'a str) -> Reply<'a, ()> {
+        self.done(delete_msg(message))
     }
 
     fn mute<'a>(&'a self, group: &'a Id, user: &'a Id, seconds: u64) -> Reply<'a, ()> {
@@ -106,7 +106,7 @@ impl Link for Wire {
         self.done(poke(to, user))
     }
 
-    fn react<'a>(&'a self, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()> {
+    fn react<'a>(&'a self, _: &'a To, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()> {
         self.done(emoji_like(message, emoji, on))
     }
 
@@ -118,7 +118,7 @@ impl Link for Wire {
         self.done(group_add(flag, approve, reason))
     }
 
-    fn message<'a>(&'a self, id: &'a str) -> Reply<'a, Fetched> {
+    fn message<'a>(&'a self, _: &'a To, id: &'a str) -> Reply<'a, Fetched> {
         self.read(get_msg(id), replies::fetched)
     }
 
@@ -196,6 +196,11 @@ impl Link for Wire {
         self.read((LOGIN_INFO, json!({})), replies::nickname)
     }
 
+    fn avatar<'a>(&'a self, face: &'a Face) -> Reply<'a, Option<Source>> {
+        let url = avatar_url(&self.avatars, face).map(Source::Url);
+        Box::pin(async move { Ok(url) })
+    }
+
     fn raw<'a>(&'a self, action: &'a str, params: Value) -> Reply<'a, Value> {
         Box::pin(async move {
             let pending = self.calls.begin(&self.out, action, params).await?;
@@ -218,3 +223,13 @@ impl Link for Wire {
 
 #[cfg(test)]
 mod tests;
+
+/// QQ 头像的地址（施工 I-82）：照模板 `avatars`（人的、群的）把 `{id}` 换成号；号要是正整数，模板空着的没有。
+fn avatar_url((user, group): &(String, String), face: &Face) -> Option<String> {
+    let (template, id) = match face {
+        Face::User(id) => (user, id),
+        Face::Group(id) => (group, id),
+    };
+    let positive = id.number().is_some_and(|number| number > 0);
+    (positive && !template.is_empty()).then(|| template.replace("{id}", id.as_str()))
+}

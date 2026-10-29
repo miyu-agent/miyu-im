@@ -23,7 +23,7 @@ use super::decide::Decision;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::Bots;
-use crate::chat::CallError;
+use crate::chat::{CallError, Cap};
 
 /// 规则 `reaction` 写成它是不贴（施工 I-7 中三下二）。
 const OFF: &str = "off";
@@ -152,6 +152,10 @@ impl Route {
         else {
             return;
         };
+        // 平台贴不了表情的不贴（施工 I-82：照驱动报的能力先查）。
+        if !self.platforms.can(peer.platform, Cap::React) {
+            return;
+        }
         let Some(message) = self
             .groups
             .get(session)
@@ -203,7 +207,10 @@ pub(super) async fn mark(
 /// 在 `target` 上贴（`on`）、摘一次，记一行运行日志；成了交回真。那时没连着的照断了算（`Closed`）。
 async fn put(target: &Mark, bots: &Bots, on: bool) -> bool {
     let result = match bots.get(&target.peer.bot) {
-        Some(link) => link.react(&target.message, &target.emoji, on).await,
+        Some(link) => {
+            link.react(&target.peer.to, &target.message, &target.emoji, on)
+                .await
+        }
         None => Err(CallError::Closed),
     };
     let (venue, message) = (&target.peer.venue, &target.message);

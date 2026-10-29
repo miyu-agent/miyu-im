@@ -167,6 +167,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
         Err(CallError::Failed { said, .. }) => Err(("failed", said)),
         Err(CallError::Timeout) => Err(("unanswered", String::new())),
         Err(CallError::Closed) => Err(("unreachable", String::new())),
+        Err(CallError::Unsupported) => Err(("failed", "unsupported".to_string())),
     }
 }
 

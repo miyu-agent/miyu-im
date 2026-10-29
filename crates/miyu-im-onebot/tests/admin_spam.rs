@@ -59,12 +59,12 @@ async fn a_flood_is_recalled_muted_recorded_and_told_but_not_passed_on() {
     posts(&napcat, MEMBER, 1103, "刷屏啦");
     posts(&napcat, MEMBER, 1104, " 刷屏啦 ");
     posts(&napcat, FRIEND, 1105, "好了");
-    assert_eq!(napcat.recalled().await, json!({"message_id": 1103}));
-    assert_eq!(napcat.recalled().await, json!({"message_id": 1104}));
+    assert_eq!(napcat.recalled().await, json!({"message_id": "1103"}));
+    assert_eq!(napcat.recalled().await, json!({"message_id": "1104"}));
     let muted = next_platform(&mut napcat).await;
     // 第四条：只撤回，不再禁一次。
     posts(&napcat, MEMBER, 1106, "刷屏啦");
-    assert_eq!(napcat.recalled().await, json!({"message_id": 1106}));
+    assert_eq!(napcat.recalled().await, json!({"message_id": "1106"}));
     assert_eq!(muted["action"], "set_group_ban", "{muted}");
     assert_eq!(
         muted["params"],

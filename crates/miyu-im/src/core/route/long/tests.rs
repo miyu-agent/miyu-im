@@ -67,3 +67,15 @@ fn forward_mode_is_long_text_too_and_its_nodes_follow_split_chars() {
         "照拆成几条的长度拆节点"
     );
 }
+
+#[test]
+fn a_platform_without_forwards_splits_instead() {
+    // 施工 I-82：发不了合并转发的平台照拆，别的照规则。
+    let text = "长".repeat(400);
+    let forward = params(LongText::Forward, 300);
+    assert_eq!(long_text(true, &forward, &text), Some(LongText::Forward));
+    assert_eq!(long_text(false, &forward, &text), Some(LongText::Split));
+    let image = params(LongText::Image, 300);
+    assert_eq!(long_text(false, &image, &text), Some(LongText::Image));
+    assert_eq!(long_text(false, &forward, "短"), None);
+}

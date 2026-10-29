@@ -45,7 +45,7 @@ impl Route {
     pub(super) fn record_mine(
         &self,
         (platform, venue, bot): (Platform, &str, &Id),
-        (msg, text): (i64, &str),
+        (msg, text): (&str, &str),
         image: bool,
     ) {
         let Ok(sender) = platform.person(bot) else {

@@ -19,7 +19,7 @@ use miyu_client::protocol::Template;
 use serde_json::{Value, json};
 
 use super::Route;
-use super::long::{WAIT, draw, nodes, wants};
+use super::long::{WAIT, draw, nodes};
 use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
@@ -134,7 +134,7 @@ impl Route {
                 return Ok(());
             }
         };
-        let long = match wants(&applied.params, &passed.text) {
+        let long = match self.long_text(platform, &applied.params, &passed.text) {
             Some(LongText::Image) => Long::Image(target.id().clone(), passed.text.clone()),
             Some(LongText::Forward) => Long::Forward(
                 nodes(&applied.params, &passed.text),
@@ -244,6 +244,7 @@ async fn send(job: &Job) -> Result<usize, Undone> {
                 CallError::Failed { said, .. } => ("failed", Some(said)),
                 CallError::Timeout => ("unanswered", None),
                 CallError::Closed => ("unreachable", None),
+                CallError::Unsupported => ("failed", Some("unsupported".to_string())),
             })?;
     }
     Ok(outgoing.len())

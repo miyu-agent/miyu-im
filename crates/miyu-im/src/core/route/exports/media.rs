@@ -115,7 +115,7 @@ impl Route {
 /// 取那一样和它的来历：成了的交回答的内容，没成的交回拒的原因（模块的说明）。
 async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str> {
     let link = taking.link.as_ref();
-    let fetched = match message(link, &wanted.msg).await {
+    let fetched = match message(link, &taking.to, &wanted.msg).await {
         Ok(fetched) => fetched,
         Err(Missed::Failed(_)) => return Err("not_found"),
         Err(Missed::Unanswered | Missed::Unfetched(_)) => return Err("unfetched"),

@@ -41,14 +41,14 @@ fn peer() -> Peer {
 #[tokio::test(start_paused = true)]
 async fn the_receipt_is_recalled_only_after_the_wait() {
     let (bots, _link, mut asked) = connected();
-    let task = tokio::spawn(recall(77, peer(), bots, AFTER));
+    let task = tokio::spawn(recall("77".to_string(), peer(), bots, AFTER));
     tokio::time::sleep(AFTER - Duration::from_millis(1)).await;
     assert!(asked.try_recv().is_err(), "还没到时候");
     let deleted = next(&mut asked).await;
     assert_eq!(
         deleted.did,
-        Did::Recall("Number(77)".to_string()),
-        "撤的是回的那个编号，照整数"
+        Did::Recall("77".to_string()),
+        "撤的是回的那个编号"
     );
     deleted.answer(true);
     task.await.expect("没崩");
@@ -57,7 +57,7 @@ async fn the_receipt_is_recalled_only_after_the_wait() {
 #[tokio::test(start_paused = true)]
 async fn without_a_connection_then_nothing_is_recalled() {
     let (bots, link, mut asked) = connected();
-    let task = tokio::spawn(recall(78, peer(), Arc::clone(&bots), AFTER));
+    let task = tokio::spawn(recall("78".to_string(), peer(), Arc::clone(&bots), AFTER));
     let link: Arc<dyn Link> = link;
     bots.remove(&Id::from(BOT), &link);
     task.await.expect("没崩");

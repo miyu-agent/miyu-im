@@ -288,6 +288,7 @@ async fn messages(at: &At<'_>, forwarded: &Forwarded, budget: &mut Budget) -> Op
             Err(CallError::Failed { .. }) => "failed",
             Err(CallError::Timeout) => "unanswered",
             Err(CallError::Closed) => "unreachable",
+            Err(CallError::Unsupported) => "unsupported",
         },
     };
     if why != "no-id" {

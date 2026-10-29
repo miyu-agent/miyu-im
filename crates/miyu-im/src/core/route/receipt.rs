@@ -12,12 +12,12 @@ use std::time::Duration;
 
 use miyu_chat::{LongText, Venue};
 
-use super::long::{WAIT, draw, nodes, wants};
+use super::long::{WAIT, draw, nodes};
 use super::sending::{Body, Piece, What};
 use super::{Peer, Route};
 use crate::TARGET;
 use crate::chat::Bots;
-use crate::chat::{Lead, Msg};
+use crate::chat::Lead;
 use crate::core::Gone;
 
 impl Route {
@@ -52,7 +52,7 @@ impl Route {
             .and_then(|peer| Venue::parse(&peer.venue))
             .map(|venue| self.applied(&venue).params);
         if let (Some(peer), Some(params)) = (peer, params) {
-            match wants(&params, said) {
+            match self.long_text(peer.platform, &params, said) {
                 Some(LongText::Image) => {
                     if let Some(drawn) = draw(&self.core.caller(), &peer.venue, said, WAIT).await {
                         for page in drawn {
@@ -85,14 +85,14 @@ impl Route {
 
 /// 群里 `peer` 那个群的回执 NapCat 回了编号 `message`：等 `after` 以后经 `bots` 里那个机器人号那时的连接撤回。那时没连着、撤
 /// 不成的记一行。
-pub(super) async fn recall(message: i64, peer: Peer, bots: Arc<Bots>, after: Duration) {
+pub(super) async fn recall(message: String, peer: Peer, bots: Arc<Bots>, after: Duration) {
     let venue = &peer.venue;
     tokio::time::sleep(after).await;
     let Some(link) = bots.get(&peer.bot) else {
         tracing::warn!(target: TARGET, venue = %venue, message, bot = %peer.bot, "receipt not recalled, bot not connected");
         return;
     };
-    match link.recall(Msg::Number(message)).await {
+    match link.recall(&peer.to, &message).await {
         Ok(_) => tracing::info!(target: TARGET, venue = %venue, message, "receipt recalled"),
         Err(error) => {
             tracing::warn!(target: TARGET, venue = %venue, message, error = ?error, "receipt not recalled");

@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use super::Site;
 use crate::TARGET;
-use crate::chat::{Id, Source};
+use crate::chat::{Face, Id};
 use crate::media::{bytes, extension};
 
 /// 一张头像：字节和 `Content-Type`。
@@ -34,9 +34,9 @@ pub(super) enum Whose {
 }
 
 impl Whose {
-    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`user/<号>`、`group/<号>`。号照 [`Id`] 的规矩查，整数的要是正的（QQ 的号）。
+    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`user/<号>`、`group/<号>`。号照 [`Id`] 的规矩查（平台认不认得由驱动定，施工 I-82）。
     pub(super) fn parse(rest: &str) -> Option<Whose> {
-        let number = |text: &str| Id::new(text).filter(|id| id.number().is_none_or(|n| n > 0));
+        let number = Id::new;
         match rest.split_once('/') {
             None => number(rest).map(Whose::Bot),
             Some(("user", id)) => number(id).map(Whose::User),
@@ -84,28 +84,34 @@ impl Faces {
         None
     }
 
-    /// `whose` 的头像：记下的照它；没有的照模板去取（机器人的号要是连着的或者断开了的）。取不到的是空的。
+    /// `whose` 的头像：记下的照它；没有的问驱动在哪（[`crate::chat::Link::avatar`]，施工 I-82：QQ 照地址模板，别的平台各有取法），经后台页那个平台连着
+    /// 的号问（机器人自己的照它自己的连接，断开了的照别的号）；机器人的号要是连着的或者断开了的。取不到的是空的。
     pub(super) async fn avatar(&self, site: &Site, whose: Whose) -> Option<Avatar> {
         if let Some(avatar) = lock(&self.avatars).get(&whose) {
             return Some(Arc::clone(avatar));
         }
         let tuning = &site.running.tuning;
-        let (template, id) = match &whose {
+        let bots = &site.running.first().bots;
+        let any = || bots.first().map(|(_, link)| link);
+        let (face, link) = match &whose {
             Whose::Bot(bot) => {
-                let bots = &site.running.first().bots;
                 if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, _)| gone == bot) {
                     return None;
                 }
-                (&tuning.avatar_user_url, bot)
+                (Face::User(bot.clone()), bots.get(bot).or_else(any)?)
             }
-            Whose::User(user) => (&tuning.avatar_user_url, user),
-            Whose::Group(group) => (&tuning.avatar_group_url, group),
+            Whose::User(user) => (Face::User(user.clone()), any()?),
+            Whose::Group(group) => (Face::Group(group.clone()), any()?),
         };
-        if template.is_empty() {
-            return None;
-        }
-        let url = template.replace("{id}", &id.to_string());
-        let got = match bytes(&[Source::Url(url)], tuning.fetch(), tuning.image_limit()).await {
+        let source = match link.avatar(&face).await {
+            Ok(Some(source)) => source,
+            Ok(None) => return None,
+            Err(error) => {
+                tracing::debug!(target: TARGET, whose = ?whose, error = ?error, "avatar not located");
+                return None;
+            }
+        };
+        let got = match bytes(&[source], tuning.fetch(), tuning.image_limit()).await {
             Ok(got) => got,
             Err(why) => {
                 tracing::debug!(target: TARGET, whose = ?whose, why, "avatar not fetched");

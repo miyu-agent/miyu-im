@@ -78,7 +78,10 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
     let mut recalled = BTreeSet::new();
     for _ in 0..2 {
         let params = napcat.recalled().await;
-        recalled.insert(params["message_id"].as_i64().expect("撤的是编号"));
+        let id = params["message_id"]
+            .as_str()
+            .expect("撤的是编号，照原样写成字（施工 I-82）");
+        recalled.insert(id.parse::<i64>().expect("NapCat 回的是整数"));
     }
     assert_eq!(
         recalled,

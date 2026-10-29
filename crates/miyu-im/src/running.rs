@@ -20,6 +20,8 @@ pub(crate) struct Station {
     pub(crate) platform: Platform,
     /// 连着的机器人号：`status`、状态文件照它说 NapCat 连没连上。
     pub(crate) bots: Arc<Bots>,
+    /// 驱动报的能力表（施工 I-82：宿主调以前照它先查）。
+    pub(crate) caps: &'static [crate::chat::Cap],
     /// 驱动报的状态（施工 I-3）。
     pub(crate) reported: Arc<Reported>,
 }

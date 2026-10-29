@@ -195,6 +195,12 @@ async fn act(id: Value, from: String, request: Request, bots: Arc<Bots>, answere
             answerer.refuse(&id, "unanswered");
             return;
         }
+        // 这个平台没有原样的调用（施工 I-82）。
+        Err(CallError::Unsupported) => {
+            tracing::info!(target: TARGET, from, action = request.action, why = "unsupported", "export action failed");
+            answerer.refuse(&id, "unsupported");
+            return;
+        }
         // 原样的调用不会回 `Failed`（`Link::raw`）：照断了答。
         Err(CallError::Closed | CallError::Failed { .. }) => {
             tracing::info!(target: TARGET, from, action = request.action, why = "not_connected", "export action failed");

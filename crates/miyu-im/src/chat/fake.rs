@@ -10,13 +10,13 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::{
     CallError, Fetch, Fetched, Friend, Group, GroupFiles, Implementation, Link, Located, Member,
-    Msg, Node, Outgoing, Pending, Reply, To,
+    Node, Outgoing, Pending, Reply, To,
 };
 
 /// 要它做的一件。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Did {
-    /// 撤回：编号照 `Msg` 的调试写法（`Number(77)`、`Text("77")`）。
+    /// 撤回：平台编号（施工 I-82 起是字）。
     Recall(String),
     /// 发一句字（施工 I-70 中上）：发到哪、字（带的引用和 @ 不记）。答成了的，平台回的编号是空的。
     Send {
@@ -129,8 +129,8 @@ impl Link for Fake {
             Ok(pending)
         })
     }
-    fn recall<'a>(&'a self, message: Msg<'a>) -> Reply<'a, ()> {
-        self.ask(Did::Recall(format!("{message:?}")))
+    fn recall<'a>(&'a self, _: &'a To, message: &'a str) -> Reply<'a, ()> {
+        self.ask(Did::Recall(message.to_string()))
     }
     fn mute<'a>(&'a self, _: &'a Id, _: &'a Id, _: u64) -> Reply<'a, ()> {
         closed()
@@ -141,7 +141,7 @@ impl Link for Fake {
     fn poke<'a>(&'a self, _: To, _: &'a Id) -> Reply<'a, ()> {
         closed()
     }
-    fn react<'a>(&'a self, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()> {
+    fn react<'a>(&'a self, _: &'a To, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()> {
         self.ask(Did::React {
             message: message.to_string(),
             emoji: emoji.to_string(),
@@ -160,7 +160,7 @@ impl Link for Fake {
     fn group_file_url<'a>(&'a self, _: &'a Id, _: &'a str) -> Reply<'a, String> {
         closed()
     }
-    fn message<'a>(&'a self, _: &'a str) -> Reply<'a, Fetched> {
+    fn message<'a>(&'a self, _: &'a To, _: &'a str) -> Reply<'a, Fetched> {
         closed()
     }
     fn fetch<'a>(&'a self, _: Fetch, _: &'a str, _: Duration) -> Reply<'a, Located> {

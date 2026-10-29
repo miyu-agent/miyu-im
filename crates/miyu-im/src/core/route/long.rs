@@ -20,7 +20,7 @@ use super::sending::{Body, Image, Page, Piece, What};
 use super::shown::read;
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::chat::{Id, Lead, Platform, To};
+use crate::chat::{Cap, Id, Lead, Platform, To};
 use crate::core::{Caller, Gone, reason};
 
 /// 渲染包的编号、方法。
@@ -42,6 +42,26 @@ pub(super) fn wants(params: &Params, text: &str) -> Option<LongText> {
         && params.long_chars > 0
         && text.chars().count() > params.long_chars)
         .then_some(params.long_text)
+}
+
+/// 长文 `text` 怎么发：照规则（[`wants`]），平台发不了合并转发（`forward` 是假）的照拆（施工 I-82：照驱动报的能力先查）。
+pub(super) fn long_text(forward: bool, params: &Params, text: &str) -> Option<LongText> {
+    match wants(params, text) {
+        Some(LongText::Forward) if !forward => Some(LongText::Split),
+        other => other,
+    }
+}
+
+impl Route {
+    /// 平台 `platform` 上这段长文 `text` 怎么发（[`long_text`]）。
+    pub(super) fn long_text(
+        &self,
+        platform: Platform,
+        params: &Params,
+        text: &str,
+    ) -> Option<LongText> {
+        long_text(self.platforms.can(platform, Cap::Forward), params, text)
+    }
 }
 
 /// 合并转发的几段：照 `split_chars` 拆（同拆成几条）。
@@ -133,7 +153,7 @@ impl Route {
             return Ok(false);
         };
         let params = self.applied(&venue).params;
-        match wants(&params, &passed.text) {
+        match self.long_text(peer.platform, &params, &passed.text) {
             Some(LongText::Image) => {}
             Some(LongText::Forward) => {
                 // 合并转发里带不了引用、@（施工 O-59 下）：拿走不用。

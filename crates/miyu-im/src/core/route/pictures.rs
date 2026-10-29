@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 use super::Route;
 use super::fields::fits;
 use crate::TARGET;
-use crate::chat::{Fetch, Id, Media, Segments};
+use crate::chat::{Fetch, Id, Media, Segments, To};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
@@ -28,6 +28,8 @@ use crate::media::{Missed, message, over, take, too_large};
 pub(super) struct Pictures {
     /// 收进它的机器人号：经它的连接取。
     pub(super) bot: Id,
+    /// 在哪（施工 I-82：取一条消息带上聊天）。
+    pub(super) to: To,
     /// 平台编号。
     pub(super) msg: String,
     /// 这一条带的东西，照先后（和交给核心的 `venue.media` 一样洗过）。
@@ -37,10 +39,11 @@ pub(super) struct Pictures {
 }
 
 impl Pictures {
-    /// 机器人号 `bot` 收进来的、平台编号是 `msg` 的那一条（认出来的段 `segments`）。
-    pub(super) fn of(bot: Id, msg: i64, segments: &Segments) -> Pictures {
+    /// 机器人号 `bot` 在 `to` 那里收进来的、平台编号是 `msg` 的那一条（认出来的段 `segments`）。
+    pub(super) fn of((bot, to): (Id, To), msg: i64, segments: &Segments) -> Pictures {
         Pictures {
             bot,
+            to,
             msg: msg.to_string(),
             own: kept(&segments.media),
             quoted: segments.reply_to.clone().filter(|id| fits(id)),
@@ -75,7 +78,7 @@ impl Route {
         };
         let mut lists = Vec::new();
         if let Some(quoted) = &wanted.quoted {
-            match message(link.as_ref(), quoted).await {
+            match message(link.as_ref(), &wanted.to, quoted).await {
                 Ok(fetched) => lists.push((quoted.clone(), kept(&fetched.segments.media), false)),
                 Err(missed) => {
                     tracing::warn!(target: TARGET, venue, message = quoted, why = missed.name(), "picture not fetched");

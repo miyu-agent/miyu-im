@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-use miyu_im::chat::{Id, Link, Msg, Posted, Rank, To};
+use miyu_im::chat::{Id, Link, Posted, Rank, To};
 use miyu_im::driver::Gate;
 use miyu_im::toolset::{NAME, clean};
 
@@ -232,8 +232,9 @@ impl Job {
         if !admin {
             return;
         }
+        let to = To::Group(group.clone());
         for message in &flood.recall {
-            if let Err(error) = self.link.recall(Msg::Number(*message)).await {
+            if let Err(error) = self.link.recall(&to, &message.to_string()).await {
                 tracing::warn!(target: miyu_im::TARGET, group = %group, error = ?error, "flood message not recalled");
             }
         }

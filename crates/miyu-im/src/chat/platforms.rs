@@ -9,11 +9,11 @@ use std::sync::Arc;
 use miyu_chat::Venue;
 use serde_json::Value;
 
-use super::{Bots, Id, Link, Platform};
+use super::{Bots, Cap, Id, Link, Platform};
 
-/// 挂着的几个平台，照先后；每个带它连着的号。
+/// 挂着的几个平台，照先后；每个带它连着的号、驱动报的能力表（施工 I-82：宿主调以前照它先查）。
 #[derive(Debug, Clone, Default)]
-pub struct Platforms(Vec<(Platform, Arc<Bots>)>);
+pub struct Platforms(Vec<(Platform, Arc<Bots>, &'static [Cap])>);
 
 /// [`Platforms::ours`] 不收的为什么。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,14 +35,14 @@ impl Unclaimed {
 }
 
 impl Platforms {
-    /// 照先后的几个平台和各自连着的号。
-    pub fn new(platforms: Vec<(Platform, Arc<Bots>)>) -> Platforms {
+    /// 照先后的几个平台、各自连着的号和能力表。
+    pub fn new(platforms: Vec<(Platform, Arc<Bots>, &'static [Cap])>) -> Platforms {
         Platforms(platforms)
     }
 
     /// 挂着的平台，照先后。
     pub fn iter(&self) -> impl Iterator<Item = Platform> + '_ {
-        self.0.iter().map(|(platform, _)| *platform)
+        self.0.iter().map(|(platform, _, _)| *platform)
     }
 
     /// 名字是 `name` 的平台；没挂的是空的。
@@ -64,8 +64,15 @@ impl Platforms {
     pub fn bots(&self, platform: Platform) -> Arc<Bots> {
         self.0
             .iter()
-            .find(|(one, _)| *one == platform)
-            .map_or_else(Arc::default, |(_, bots)| Arc::clone(bots))
+            .find(|(one, _, _)| *one == platform)
+            .map_or_else(Arc::default, |(_, bots, _)| Arc::clone(bots))
+    }
+
+    /// 平台 `platform` 做不做得到 `cap`（施工 I-82）：没挂的平台什么都做不到。
+    pub fn can(&self, platform: Platform, cap: Cap) -> bool {
+        self.0
+            .iter()
+            .any(|(one, _, caps)| *one == platform && caps.contains(&cap))
     }
 
     /// 平台 `platform` 上号 `bot` 现在的连接。
@@ -90,7 +97,7 @@ impl Platforms {
     pub fn ours(&self, args: &Value) -> Result<Platform, Unclaimed> {
         match args.get("platform") {
             None | Some(Value::Null) => match self.0.as_slice() {
-                [(only, _)] => Ok(*only),
+                [(only, _, _)] => Ok(*only),
                 _ => Err(Unclaimed::Missing),
             },
             Some(name) => name

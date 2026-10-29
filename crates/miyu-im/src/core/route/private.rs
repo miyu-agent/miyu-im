@@ -14,7 +14,7 @@ use super::session::Place;
 use super::strangers::Gating;
 use super::{Message, Route, applied};
 use crate::TARGET;
-use crate::chat::{Platform, Posted};
+use crate::chat::{Platform, Posted, To};
 use crate::core::{Gone, reason};
 use crate::recent::{Note, now};
 
@@ -33,7 +33,12 @@ impl Route {
         };
         // 只有图、引用的私聊照取图（施工 O-33）；带了东西的、没有字也送（施工 O-35：她看得到记号、能取）。合并转发照群消息的写法
         // 在正文后面写占位、交以前展开（施工 O-34），只有转发的也送。
-        let pictures = Pictures::of(posted.bot.clone(), posted.message_id, &posted.segments);
+        let to = To::Private(posted.user.clone());
+        let pictures = Pictures::of(
+            (posted.bot.clone(), to),
+            posted.message_id,
+            &posted.segments,
+        );
         let text = with_placeholders(&posted.text, posted.segments.forwards.len());
         if text.trim().is_empty() && pictures.own.is_empty() && !pictures.any() {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");

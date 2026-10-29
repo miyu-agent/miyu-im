@@ -186,7 +186,7 @@ pub(super) fn until(now: Timestamp, seconds: u64) -> Option<Timestamp> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Ending {
     /// 成了：NapCat 回的 `message_id`，没回的是空的。
-    Sent(Option<i64>),
+    Sent(Option<String>),
     /// 没成：`why`（[`REJECTED`]、[`TIMEOUT`]、[`DISCONNECTED`]），NapCat 说的原因（只有回了失败的有）。
     Failed(&'static str, Option<String>),
 }
@@ -194,15 +194,17 @@ pub(super) enum Ending {
 /// 一次调用的结果算成什么（第 4 条，「施工时定的」第 120 条）：回了 `ok` 的成了，带回的 `message_id`；回了失败的是
 /// [`REJECTED`]，原因照回应的 `message` 去掉首尾空白、截到 [`DETAIL`] 个字符，空的、没有的不带；等不到是 [`TIMEOUT`]；
 /// 连接断了是 [`DISCONNECTED`]。
-pub(super) fn ending(result: &Result<Option<i64>, CallError>) -> Ending {
+pub(super) fn ending(result: &Result<Option<String>, CallError>) -> Ending {
     match result {
-        Ok(msg) => Ending::Sent(*msg),
+        Ok(msg) => Ending::Sent(msg.clone()),
         Err(CallError::Failed { message, .. }) => {
             let detail = (!message.is_empty()).then(|| message.chars().take(DETAIL).collect());
             Ending::Failed(REJECTED, detail)
         }
         Err(CallError::Timeout) => Ending::Failed(TIMEOUT, None),
         Err(CallError::Closed) => Ending::Failed(DISCONNECTED, None),
+        // 这个平台发不了这一样（施工 I-82）：照回了失败记。
+        Err(CallError::Unsupported) => Ending::Failed(REJECTED, Some("unsupported".to_string())),
     }
 }
 

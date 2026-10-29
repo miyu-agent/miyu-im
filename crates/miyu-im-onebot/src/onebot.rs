@@ -228,11 +228,19 @@ pub fn upload_to(to: To, file: &str, name: &str) -> (&'static str, Value) {
     }
 }
 
-/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。编号是
-/// NapCat 回的整数（回执），或者引用里原样的字（平台工具，施工 O-31：原样还回去，同 [`emoji_like`]）；NapCat 两样都收
-/// （`DeleteMsg.ts`）。
-pub fn delete_msg(message_id: impl Into<Value>) -> (&'static str, Value) {
-    ("delete_msg", json!({"message_id": message_id.into()}))
+/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。编号照原样
+/// 写成字（施工 O-31：原样还回去，同 [`emoji_like`]；I-82 起回执的编号也是字），NapCat 两样都收（`DeleteMsg.ts`）。
+pub fn delete_msg(message_id: &str) -> (&'static str, Value) {
+    ("delete_msg", json!({"message_id": message_id}))
+}
+
+/// NapCat 回的消息编号（`data.message_id`）：数、字都认，交回字；没有的、空的是空的（施工 I-82）。
+pub fn message_id(value: &Value) -> Option<String> {
+    match value {
+        Value::Number(number) => Some(number.to_string()),
+        Value::String(text) if !text.trim().is_empty() => Some(text.trim().to_string()),
+        _ => None,
+    }
 }
 
 /// 在群 `group` 里禁言号是 `user` 的人 `seconds` 秒的动作和参数（0 是解禁）：`set_group_ban {group_id, user_id, duration}`（施工

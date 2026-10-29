@@ -23,8 +23,8 @@ pub use event::{Event, GroupChange, Happened, Lead, Posted, Recall, Replier, To}
 pub use forwards::Node;
 pub use id::Id;
 pub use link::{
-    Fetched, Friend, Group, GroupFile, GroupFiles, Implementation, Link, Located, Member, Msg,
-    Outgoing, Pending, Reply,
+    Face, Fetched, Friend, Group, GroupFile, GroupFiles, Implementation, Link, Located, Member,
+    Outgoing, Pending, Reply, unsupported,
 };
 pub use members::{Members, Rank};
 pub use platform::Platform;

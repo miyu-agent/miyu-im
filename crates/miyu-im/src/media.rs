@@ -55,6 +55,8 @@ fn missed(error: CallError) -> Missed {
         CallError::Failed { said, .. } => Missed::Failed(said),
         CallError::Timeout => Missed::Unanswered,
         CallError::Closed => Missed::Unreachable,
+        // 这个平台取不了（施工 I-82）：照没成说。
+        CallError::Unsupported => Missed::Failed("unsupported".to_string()),
     }
 }
 
@@ -68,13 +70,13 @@ pub fn owned(fetched: &Fetched, to: To) -> bool {
     }
 }
 
-/// 经连接 `link` 取平台编号是 `msg` 的那一条消息（[`Link::message`]）；等多久照一次调用。
+/// 经连接 `link` 取 `to` 那里平台编号是 `msg` 的那一条消息（[`Link::message`]）；等多久照一次调用。
 ///
 /// # Errors
 ///
 /// 平台回了失败（没有这一条、过期了）、等不到、没连着。
-pub async fn message(link: &dyn Link, msg: &str) -> Result<Fetched, Missed> {
-    link.message(msg).await.map_err(missed)
+pub async fn message(link: &dyn Link, to: &To, msg: &str) -> Result<Fetched, Missed> {
+    link.message(to, msg).await.map_err(missed)
 }
 
 /// 经连接 `link` 照 `fetch` 取编号是 `id` 的那一样（[`Link::fetch`]），再照平台说的地方拿到字节（[`bytes`]，最多 `limit` 字节）。

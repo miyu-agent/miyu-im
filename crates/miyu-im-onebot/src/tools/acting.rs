@@ -6,7 +6,7 @@
 
 use serde_json::Value;
 
-use miyu_im::chat::{CallError, Id, Link, Msg, To};
+use miyu_im::chat::{CallError, Id, Link, To};
 use miyu_im::toolset::{Call, Missed, NAME, Planned, clean, message};
 
 use super::args::{bad_args, group_only};
@@ -122,7 +122,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
     let result = match act {
         Act::Recall { msg, check } => {
             if *check {
-                let fetched = match message(link.as_ref(), msg).await {
+                let fetched = match message(link.as_ref(), &call.to, msg).await {
                     Ok(fetched) => fetched,
                     Err(Missed::Failed(_)) => return Err(Undone("not-found", None)),
                     Err(Missed::Unanswered) => return Err(Undone("unanswered", None)),
@@ -132,7 +132,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
                     return Err(Undone("not-found", None));
                 }
             }
-            link.recall(Msg::Text(msg)).await
+            link.recall(&call.to, msg).await
         }
         Act::Poke { user, check } => {
             let name = if *check {
@@ -208,6 +208,7 @@ pub(super) fn undone(error: CallError) -> Undone {
         CallError::Failed { said, .. } => Undone("failed", Some(said)),
         CallError::Timeout => Undone("unanswered", None),
         CallError::Closed => Undone("unreachable", None),
+        CallError::Unsupported => Undone("failed", Some("unsupported".to_string())),
     }
 }
 

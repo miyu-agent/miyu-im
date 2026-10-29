@@ -22,7 +22,7 @@ use super::queue::{DISCONNECTED, EXPIRED, Ending, ending, said};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
-use crate::chat::{CallError, Lead, Outgoing, To};
+use crate::chat::{CallError, Cap, Lead, Outgoing, To};
 use crate::core::Gone;
 use crate::counters::Count;
 
@@ -156,7 +156,7 @@ pub(super) struct Answered {
     /// 这一段。
     item: Item,
     /// 调用的结果。
-    result: Result<Option<i64>, CallError>,
+    result: Result<Option<String>, CallError>,
 }
 
 impl Route {
@@ -393,7 +393,7 @@ impl Route {
         let text = crate::recent::Note::excerpt(&item.piece.text);
         tracing::info!(target: TARGET, venue = %venue, chars, text = %text, "reply sent");
         // 聊天记录（设计 04，施工 C-1 上）：她发出去了的照记（回了编号的）。
-        if let Some(msg) = msg {
+        if let Some(msg) = &msg {
             let image = matches!(item.piece.what, What::Image(_) | What::Page(_));
             let mine = (peer.platform, venue.as_str(), &peer.bot);
             self.record_mine(mine, (msg, &item.piece.text), image);
@@ -426,6 +426,13 @@ impl Route {
             }
             // 不撤的回执（施工 O-47，`im.recall_receipts` 里没有的命令）发了就完。
             (What::Receipt { recall: false }, _) => Ok(()),
+            // 平台撤不了的（施工 I-82：照驱动报的能力先查）不撤，留着。
+            (What::Receipt { recall: true }, Some(_))
+                if !self.platforms.can(peer.platform, Cap::Recall) =>
+            {
+                tracing::info!(target: TARGET, venue = %venue, "receipt kept, platform cannot recall");
+                Ok(())
+            }
             (What::Receipt { recall: true }, Some(msg)) => {
                 let bots = self.platforms.bots(peer.platform);
                 self.chores.spawn(recall(msg, peer, bots, self.recall));

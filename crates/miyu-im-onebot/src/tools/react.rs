@@ -45,7 +45,7 @@ async fn reacted(call: &Call, msg: &str, emoji: &str) -> Value {
     let Some(link) = &call.link else {
         return call.answers.say("unreachable", &[], true);
     };
-    let fetched = match message(link.as_ref(), msg).await {
+    let fetched = match message(link.as_ref(), &call.to, msg).await {
         Ok(fetched) => fetched,
         Err(Missed::Failed(_)) => return call.answers.say("not-found", &[], true),
         Err(Missed::Unanswered) => return call.answers.say("unanswered", &[], true),
@@ -54,7 +54,7 @@ async fn reacted(call: &Call, msg: &str, emoji: &str) -> Value {
     if !recallable(&fetched, &call.to, &call.bot) {
         return call.answers.say("not-found", &[], true);
     }
-    match link.react(msg, emoji, true).await {
+    match link.react(&call.to, msg, emoji, true).await {
         Ok(()) => call.answers.say("reacted", &[], false),
         Err(error) => {
             let (why, detail) = undone(error);

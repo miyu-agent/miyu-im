@@ -232,6 +232,7 @@ pub async fn run(
         let station = Station {
             platform: driver.platform(),
             bots: Arc::new(Bots::default()),
+            caps: driver.caps(),
             reported: Arc::new(Reported::default()),
         };
         // 驱动自己的状态目录（施工 Q-2、Q-3）：im 的状态目录下照平台的名字。
@@ -257,7 +258,7 @@ pub async fn run(
     let platforms = Platforms::new(
         stations
             .iter()
-            .map(|one| (one.platform, Arc::clone(&one.bots)))
+            .map(|one| (one.platform, Arc::clone(&one.bots), one.caps))
             .collect(),
     );
     // 页面服务（施工 I-5 上）：驱动说完了再听，端口被占了桥照跑。

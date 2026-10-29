@@ -24,7 +24,7 @@ use super::pictures::Pictures;
 use super::session::Place;
 use super::{Message, Route, applied};
 use crate::TARGET;
-use crate::chat::{Id, Platform, Posted};
+use crate::chat::{Id, Platform, Posted, To};
 use crate::core::Gone;
 
 /// 问进站挂接点时带上的东西（施工 O-52，`extending.md` 第二条「`chat.inbound`」）：照先后，第几样（从 1 数，同核心的 `#n`）、
@@ -136,8 +136,14 @@ impl Route {
                 group.clone(),
             ),
             text,
-            pictures: calls_her
-                .then(|| Pictures::of(posted.bot.clone(), posted.message_id, &posted.segments)),
+            pictures: calls_her.then(|| {
+                let to = To::Group(group.clone());
+                Pictures::of(
+                    (posted.bot.clone(), to),
+                    posted.message_id,
+                    &posted.segments,
+                )
+            }),
             forwards: Forwards::of(
                 posted.bot.clone(),
                 Some(group.clone()),

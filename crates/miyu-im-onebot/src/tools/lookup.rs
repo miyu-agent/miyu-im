@@ -237,6 +237,7 @@ pub(super) fn undone(error: CallError) -> Undone {
         CallError::Failed { said, .. } => ("failed", Some(said)),
         CallError::Timeout => ("unanswered", None),
         CallError::Closed => ("unreachable", None),
+        CallError::Unsupported => ("failed", Some("unsupported".to_string())),
     }
 }
 

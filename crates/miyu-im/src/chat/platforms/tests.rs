@@ -8,7 +8,7 @@ use serde_json::json;
 
 use super::{Platforms, Unclaimed};
 use crate::chat::fake::fake;
-use crate::chat::{Bots, Id, Platform};
+use crate::chat::{Bots, CAPS, Cap, Id, Platform};
 
 const QQ: Platform = Platform::new("qq");
 const TG: Platform = Platform::new("tg");
@@ -25,7 +25,10 @@ fn connected(bots: &[i64]) -> Arc<Bots> {
 
 /// QQ 连着号 10、20，Telegram 连着号 5。
 fn two() -> Platforms {
-    Platforms::new(vec![(QQ, connected(&[20, 10])), (TG, connected(&[5]))])
+    Platforms::new(vec![
+        (QQ, connected(&[20, 10]), &CAPS[..]),
+        (TG, connected(&[5]), &CAPS[..]),
+    ])
 }
 
 fn venue(id: &str) -> Venue {
@@ -48,7 +51,7 @@ fn platforms_are_found_by_name_and_by_venue() {
 #[test]
 fn args_name_their_platform_or_fall_to_the_only_one() {
     let two = two();
-    let one = Platforms::new(vec![(QQ, connected(&[]))]);
+    let one = Platforms::new(vec![(QQ, connected(&[]), &CAPS[..])]);
     // 写了我们的：照写的。
     assert_eq!(two.ours(&json!({"platform": "tg"})), Ok(TG));
     assert_eq!(one.ours(&json!({"platform": "qq"})), Ok(QQ));
@@ -86,7 +89,10 @@ fn a_missing_bot_falls_back_within_its_own_platform() {
         "不退到 QQ 的号"
     );
     assert_eq!(platforms.sender(TG, None), Some(Id::from(5)));
-    let only_qq = Platforms::new(vec![(QQ, connected(&[10])), (TG, connected(&[]))]);
+    let only_qq = Platforms::new(vec![
+        (QQ, connected(&[10]), &CAPS[..]),
+        (TG, connected(&[]), &CAPS[..]),
+    ]);
     assert_eq!(
         only_qq.sender(TG, Some(Id::from(10))),
         None,
@@ -99,4 +105,17 @@ fn a_missing_bot_falls_back_within_its_own_platform() {
         only_qq.bots(Platform::new("discord")).first().is_none(),
         "没挂的平台一个号都没有"
     );
+}
+
+#[test]
+fn each_platform_says_what_it_can_do() {
+    // 施工 I-82：照驱动报的能力表查，没挂的平台什么都做不到。
+    let platforms = Platforms::new(vec![
+        (QQ, connected(&[]), &CAPS[..]),
+        (TG, connected(&[]), &[Cap::Recall][..]),
+    ]);
+    assert!(platforms.can(QQ, Cap::Forward));
+    assert!(platforms.can(TG, Cap::Recall));
+    assert!(!platforms.can(TG, Cap::Forward));
+    assert!(!platforms.can(Platform::new("wx"), Cap::Recall));
 }

@@ -95,7 +95,7 @@ async fn fetch(
         return Some(Err(("unreachable", Vec::new())));
     };
     let msg = &wanted.msg;
-    let fetched = match message(link.as_ref(), msg).await {
+    let fetched = match message(link.as_ref(), &call.to, msg).await {
         Ok(fetched) => fetched,
         Err(Missed::Failed(_)) => return Some(Err(("not-found", Vec::new()))),
         Err(missed) => return Some(Err(undone(missed))),

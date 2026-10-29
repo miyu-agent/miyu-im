@@ -95,7 +95,7 @@ async fn fetched(
     wait: std::time::Duration,
 ) -> Result<Value, Refused> {
     let gone = |_| refused("gone");
-    let found = message(link, msg).await.map_err(gone)?;
+    let found = message(link, to, msg).await.map_err(gone)?;
     if !owned(&found, to, bot) {
         return Err(refused("gone"));
     }
