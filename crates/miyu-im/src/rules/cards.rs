@@ -326,6 +326,29 @@ impl Cards {
         }
     }
 
+    /// 平台 `platform` 那一份（施工 I-85 中，会话页照连接看）：只有这个平台的群卡、私聊卡，「其他群」「其他私聊」两格放这个平台的，
+    /// 不带别的平台的；会话默认值不分平台。是给人看的一份，不拿来整份存（存了别的平台的就丢了）。
+    pub fn of_platform(&self, platform: &str) -> Cards {
+        Cards {
+            other_groups: self.other_groups_of(platform),
+            groups: self
+                .groups
+                .iter()
+                .filter(|card| card.platform == platform)
+                .cloned()
+                .collect(),
+            privates: self
+                .privates
+                .iter()
+                .filter(|card| card.platform == platform)
+                .cloned()
+                .collect(),
+            other_privates: self.other_privates_of(platform),
+            others: BTreeMap::new(),
+            defaults: self.defaults.clone(),
+        }
+    }
+
     /// 平台 `platform` 的「其他群」，改的那一份（别的平台的没有就建一份）。
     pub fn other_groups_mut(&mut self, platform: &str) -> &mut GroupSet {
         match platform {

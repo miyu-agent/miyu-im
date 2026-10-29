@@ -52,7 +52,8 @@ function entry(kind, type, id, set, defaults) {
 
 /** 页面交给 cards.save_one 的那张卡。 */
 export function cardOf(one) {
-  return one.id ? { kind: one.kind, id: Number(one.id) } : { kind: one.kind };
+  // 号照原样交（施工 I-85 中：别的平台的号是字、负数；宿主数、字都认）。
+  return one.id ? { kind: one.kind, id: one.id } : { kind: one.kind };
 }
 
 /** 把 `one` 的 `key` 那一格改成 `value`：和默认一样的交 null（恢复默认，卡上只写和默认不一样的）。是否回复的默认见上；别的照卡

@@ -5,6 +5,7 @@ import { element, say } from '../../shell/i18n.js';
 import { pluginIcon } from '../plugins/card.js';
 import { mountWidget } from '../plugins/widget-host.js';
 import { named } from '../venues/plugins.js';
+import { goTo } from '../../shell/connection.js';
 
 /** 首页插件卡片那一格：交回 { box }（没有要放的插件时是空的，不占地方）。 */
 export function pluginCards(request) {
@@ -23,7 +24,7 @@ export function pluginCards(request) {
         mountWidget(body, plugin.package, { place: 'home' }, {
           request,
           openPage: (id) => {
-            location.hash = `plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(id)}`;
+            goTo(`plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(id)}`);
           },
         });
         box.append(card);

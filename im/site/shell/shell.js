@@ -6,6 +6,7 @@
 //   卡片变了，施工 I-7 上）交给这一页。
 import { element, icon, say } from './i18n.js';
 import { choose, chosen } from './theme.js';
+import { goTo, hashParts } from './connection.js';
 import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
 import { mountRecords } from '../pages/records/records.js';
@@ -59,7 +60,8 @@ export function mountShell(root, { request, handed, onSignOut }) {
       nav.append(element('span', 'soon', say('nav/soon')));
     } else {
       nav.addEventListener('click', () => {
-        location.hash = page.id;
+        // 选中的连接跟着网址走（施工 I-85 中）。
+        goTo(page.id);
         // 窄屏上左栏盖着内容：点了就收起。
         if (narrow.matches) collapse(true, false);
       });
@@ -135,7 +137,7 @@ export function mountShell(root, { request, handed, onSignOut }) {
   let current = null;
   const go = () => {
     // #plugins/<编号> 这样的：头一段是哪一页，后面交给那一页（施工 I-9 上：插件详情）。
-    const [id, ...rest] = location.hash.slice(1).split('/');
+    const [id, ...rest] = hashParts().route.split('/');
     const wanted = PAGES.find((page) => page.mount && page.id === id) || PAGES[0];
     const path = rest.length > 0 ? decodeURIComponent(rest.join('/')) : '';
     for (const [id, nav] of navs) nav.classList.toggle('on', id === wanted.id);

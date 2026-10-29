@@ -5,6 +5,7 @@ import { lucide } from '../../shell/lucide.js';
 import { platform } from '../home/platforms.js';
 import { named } from '../venues/plugins.js';
 import { masterSwitch } from './switch.js';
+import { goTo } from '../../shell/connection.js';
 
 /** 插件 `plugin` 的卡片：`context` 是 { request, platform, reload }。 */
 export function pluginCard(plugin, context) {
@@ -18,7 +19,7 @@ export function pluginCard(plugin, context) {
   if (summary) card.append(element('p', null, summary));
   card.append(chips(plugin, context.platform));
   card.addEventListener('click', () => {
-    location.hash = `plugins/${encodeURIComponent(plugin.package)}`;
+    goTo(`plugins/${encodeURIComponent(plugin.package)}`);
   });
   return card;
 }

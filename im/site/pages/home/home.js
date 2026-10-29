@@ -3,12 +3,15 @@
 // 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面「今天」四个数（收到、回复、只记录、没发出去）和最近
 // 的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久每分钟照本机的钟重画一次（不问宿主）。
 // 「今天」下面放插件的首页卡片（施工 I-8 下，plugin-cards.js）。
+// 连接不止一个时连接那一排就是切换器（施工 I-85 中，设计 07 第二节第 2 条）：前面一张「全部」，点一张选中它（shell/connection.js），
+// 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { picture } from '../../shell/avatar.js';
 import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
 import { pluginCards } from './plugin-cards.js';
 import { activityRows, namesOf } from './activity.js';
+import { chooseConnection, chosenOf, EVERY, onConnection } from '../../shell/connection.js';
 import { openWizard } from './wizard.js';
 
 /** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
@@ -74,7 +77,12 @@ export function mountHome(view, { request }) {
       newButton('btn'),
     );
     const grid = element('div', 'conn-grid');
-    for (const one of connections) grid.append(tile(one, request));
+    const picking = connections.length > 1;
+    const picked = chosenOf(connections);
+    if (picking) grid.append(everyTile(connections, picked === null));
+    for (const one of connections) {
+      grid.append(tile(one, request, picking ? { on: picked?.id === one.id } : null));
+    }
     const todayHead = element('div', 'section-head');
     todayHead.append(element('h2', null, say('home/today')));
     const choose = (chosen) => {
@@ -93,6 +101,7 @@ export function mountHome(view, { request }) {
     view.replaceChildren(head, section, grid, todayHead, numbers(today), plugins.box, logPanel(logs, { level, mode, names }, choose));
   };
   const timer = setInterval(draw, 60000);
+  const unlisten = onConnection(() => draw());
   draw();
   return {
     update(now) {
@@ -103,6 +112,7 @@ export function mountHome(view, { request }) {
     },
     dispose() {
       clearInterval(timer);
+      unlisten();
     },
   };
 }
@@ -176,9 +186,28 @@ function logText(text) {
   return shown;
 }
 
-function tile(one, request) {
+/** 切换器头上的「全部」：几个连接、几个连着（施工 I-85 中）。 */
+function everyTile(connections, on) {
+  const card = element('div', on ? 'conn-tile pick on' : 'conn-tile pick');
+  const face = element('span', 'avatar every');
+  face.append(icon('i-link'));
+  const grow = element('div', 'grow');
+  const connected = connections.filter((one) => one.connected).length;
+  grow.append(
+    element('b', null, say('conn/all')),
+    element('div', 'soft', say('conn/all-line', { count: connections.length, connected })),
+  );
+  card.append(face, grow);
+  card.addEventListener('click', () => chooseConnection(EVERY));
+  return card;
+}
+
+/** 一个连接的卡：`picking` 不空的是切换器上的一张（`on` 是选中着），点了选中它。 */
+function tile(one, request, picking) {
   const shown = platform(one.platform);
-  const card = element('div', one.connected ? 'conn-tile' : 'conn-tile off');
+  let className = one.connected ? 'conn-tile' : 'conn-tile off';
+  if (picking) className += picking.on ? ' pick on' : ' pick';
+  const card = element('div', className);
   const bot = element('span', 'bot');
   const face = element('span', `avatar pf-face pf-${one.platform}`);
   face.append(mark(shown));
@@ -196,8 +225,13 @@ function tile(one, request) {
   const gear = element('button', 'icon-button');
   gear.title = say('settings/open');
   gear.append(icon('i-gear'));
-  gear.addEventListener('click', () => openSettings(request, one));
+  gear.addEventListener('click', (event) => {
+    event.stopPropagation();
+    // 连接设置照这个连接的平台问、存（施工 I-85 中）。
+    openSettings((method, params) => request(method, { ...params, platform: one.platform }), one);
+  });
   card.append(bot, grow, gear);
+  if (picking) card.addEventListener('click', () => chooseConnection(one.id));
   return card;
 }
 

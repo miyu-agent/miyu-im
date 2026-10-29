@@ -66,15 +66,23 @@ fn session_of(home: &Home, venue: &str) -> String {
 
 /// 照核心转来的样子经 `relay` 往桥推一次 `tool.call`（编号 `id`，会话 `session`，工具 `tool`），等到桥答了交回 `result`。
 async fn call(relay: &Relay, id: &str, session: &str, tool: &str) -> Value {
-    relay.request(
-        json!({"jsonrpc": "2.0", "id": id, "method": "tool.call", "params": {
-            "session": session, "call_id": id, "tool": tool, "args": {}, "cwd": "/",
-        }}),
-    );
-    within("桥答 tool.call", async {
+    let params = json!({"session": session, "call_id": id, "tool": tool, "args": {}, "cwd": "/"});
+    answered(relay, id, "tool.call", params).await["result"].clone()
+}
+
+/// 照核心转来的样子经 `relay` 往桥推一次 `method.call`（施工 I-85 中：后台页、会话页调 im 的方法），等到桥答了交回整句回应。
+async fn method(relay: &Relay, id: &str, method: &str, params: Value) -> Value {
+    let params = json!({"package": "im", "method": method, "params": params});
+    answered(relay, id, "method.call", params).await
+}
+
+/// 经 `relay` 往桥推编号 `id` 的 `method`，等到桥答了交回整句回应。
+async fn answered(relay: &Relay, id: &str, method: &str, params: Value) -> Value {
+    relay.request(json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
+    within("桥答", async {
         loop {
             if let Some(answer) = relay.answers().into_iter().find(|one| one["id"] == id) {
-                return answer["result"].clone();
+                return answer;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -360,4 +368,62 @@ async fn the_page_sees_every_platform_and_asks_the_one_it_names() {
             .is_some_and(|all| !all.is_empty())
     );
     two.bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn the_cards_come_per_platform_when_a_platform_is_named() {
+    // 施工 I-85 中：会话页照选中的连接问 `cards.get {platform}`，只交那个平台的卡、白名单、默认值；没写平台的照旧交整份（整份存不丢
+    // 别的平台的）。
+    let Two {
+        home: _home,
+        relay,
+        bridge,
+        napcat,
+        tg: _tg,
+        link: _link,
+    } = up(&[]).await;
+    // 假 NapCat 答群、好友列表（不答的话 QQ 的那两次各等到驱动超时）。
+    let _napcat = napcat.answering(&[]);
+    let cards = json!({
+        "groups": [
+            {"id": 777, "set": {"on": true}},
+            {"platform": "tg", "id": -100_888, "set": {"on": true}},
+        ],
+        "privates": [{"platform": "tg", "id": 31, "set": {}}],
+    });
+    let saved = method(&relay, "c1", "cards.save", json!({"cards": cards})).await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+
+    let tg = method(&relay, "c2", "cards.get", json!({"platform": "tg"})).await["result"].clone();
+    assert_eq!(tg["platform"], "tg", "{tg}");
+    assert_eq!(
+        tg["cards"]["groups"].as_array().map(Vec::len),
+        Some(1),
+        "{tg}"
+    );
+    assert_eq!(tg["cards"]["groups"][0]["id"], -100_888, "{tg}");
+    assert!(tg["defaults"]["groups"]["-100888"].is_object(), "{tg}");
+    assert!(tg["defaults"]["privates"]["31"].is_object(), "{tg}");
+    assert_eq!(tg["cards"].get("others"), None, "{tg}");
+
+    let qq = method(&relay, "c3", "cards.get", json!({"platform": "qq"})).await["result"].clone();
+    assert_eq!(
+        qq["cards"]["groups"],
+        json!([{"id": 777, "set": {"on": true}}]),
+        "{qq}"
+    );
+    assert_eq!(qq["cards"]["privates"], json!([]), "{qq}");
+
+    let whole = method(&relay, "c4", "cards.get", json!({})).await["result"].clone();
+    assert_eq!(
+        whole["cards"]["groups"].as_array().map(Vec::len),
+        Some(2),
+        "{whole}"
+    );
+    assert!(
+        whole["defaults"]["groups"]["tg:-100888"].is_object(),
+        "{whole}"
+    );
+    assert!(whole["defaults"]["groups"]["777"].is_object(), "{whole}");
+    bridge.stop().await.expect("停得下");
 }

@@ -20,6 +20,7 @@ import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
 import { drawPlugins, fits, isOn, named as pick } from './plugins.js';
 import { mountWidget } from '../plugins/widget-host.js';
+import { goTo } from '../../shell/connection.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
@@ -62,7 +63,7 @@ export function openVenue(one, context, onClose) {
         request: context.request,
         openPage: (id) => {
           close();
-          location.hash = `plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(id)}`;
+          goTo(`plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(id)}`);
         },
       });
       panels.set(plugin.package, box);

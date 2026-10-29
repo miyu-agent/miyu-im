@@ -13,6 +13,7 @@ import { openMedia } from './media.js';
 import { openPurge } from './purge.js';
 import { botNames, namer, openVenue, throttled, venueParts } from './shared.js';
 import { detailOf, titleOf } from './venues.js';
+import { goTo } from '../../shell/connection.js';
 
 /** 在 `view` 里画场所 `venue` 的记录，`at` 是先看哪一条（行号，空的看最新的）。交回 update(connections)、dispose()。 */
 export function mountVenue(view, { request, venue, at }) {
@@ -33,7 +34,7 @@ export function mountVenue(view, { request, venue, at }) {
   const back = element('button', 'icon-button');
   back.append(icon('i-left'));
   back.addEventListener('click', () => {
-    location.hash = 'records';
+    goTo('records');
   });
   const title = element('span', 'grow records-venue-title');
   const purge = element('button', 'btn ghost danger', say('records/purge'));

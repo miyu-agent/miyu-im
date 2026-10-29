@@ -1,8 +1,9 @@
 // 消息记录页几处共用的（施工 C-1 中下）：去哪个场所、限频、拆场所、写时刻、认人。
+import { goTo } from '../../shell/connection.js';
 
 /** 去场所 `venue` 的记录；`id` 是哪一条（行号），空的看最新的。 */
 export function openVenue(venue, id) {
-  location.hash = `records/${encodeURIComponent(venue)}${id ? `/${id}` : ''}`;
+  goTo(`records/${encodeURIComponent(venue)}${id ? `/${id}` : ''}`);
 }
 
 /** `wait` 毫秒以内最多跑一次 `run`：期间叫过的，到点补跑一次。交回叫它的那一个和停下的那一个。 */
@@ -27,8 +28,14 @@ export function throttled(wait, run) {
 
 /** 场所 `qq:group:31` 拆成 { platform, type, id }（type 是 group、private）。 */
 export function venueParts(venue) {
-  const [platform, kind, ...rest] = String(venue).split(':');
-  return { platform, type: kind === 'group' ? 'group' : 'private', id: rest.join(':') };
+  // 从右边拆（施工 I-85 中）：号里没有 `:`（施工 I-79），最后一段是号、倒数第二段是种类、头一段是平台，中间的是机器人号（I-81 起场所
+  // 编号带它，以前的没有）。
+  const parts = String(venue).split(':');
+  const platform = parts[0];
+  const id = parts.length > 2 ? parts[parts.length - 1] : '';
+  const kind = parts.length > 2 ? parts[parts.length - 2] : '';
+  const bot = parts.length > 3 ? parts.slice(1, -2).join(':') : '';
+  return { platform, type: kind === 'group' ? 'group' : 'private', id, bot };
 }
 
 /** 时刻（毫秒）写成本地的月日时分。 */

@@ -10,6 +10,7 @@ import { drawDetail } from './detail.js';
 import { drawPanel } from './panel.js';
 import { mountWidget } from './widget-host.js';
 import { named } from '../venues/plugins.js';
+import { goTo } from '../../shell/connection.js';
 
 /** 在 `view` 里起插件页：`request` 调宿主的方法，`path` 是网址里 #plugins/ 后面的那一段（插件的编号，没有的是列表）。 */
 export function mountPlugins(view, { request, path }) {
@@ -86,7 +87,7 @@ function widgetPage(plugin, id, request) {
   mountWidget(body, plugin.package, { place: 'page', page: id }, {
     request,
     openPage: (other) => {
-      location.hash = `plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(other)}`;
+      goTo(`plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(other)}`);
     },
   });
   return [bar, box];

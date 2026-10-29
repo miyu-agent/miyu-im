@@ -50,7 +50,7 @@ impl Route {
             .collect();
         if method == LIST {
             // 页面的连接照平台分是 I-70 下的事：这时照卡片、后台页的那一个平台（`Route::card_venue`）。
-            let bots = self.card_bots();
+            let bots = self.card_bots(self.page_platform());
             let platform = self
                 .platforms
                 .first()

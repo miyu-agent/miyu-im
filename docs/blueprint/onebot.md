@@ -1379,7 +1379,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 - 白名单、认出来的终端管理员照平台上的身份存（`qq:20017`），「其他私聊」只排开同一个平台的。
 - 插件开关照（平台，群/私聊，号）查，「其他群」「其他私聊」的开关一个平台一套。
 - 卡片的几个方法（`cards.save_one`、`cards.add`、`cards.remove`、`cards.overview`）认 `platform`：卡上写了的照卡，没写的照参数的 `platform`，都没写的只挂一个平台时是它，挂了几个的拒 `bad_params`。卡交给页面时带 `platform`。
-- 页面、两页（群、私聊）只画后台页那个平台（第一个驱动的）的卡；页面分连接是 I-85 的事。
+- 两页（群、私聊）只画后台页那个平台（第一个驱动的）的卡。im 网页的会话页照选中的连接问 `cards.get {platform}`（I-85 中，第 4 条）。
 
 1. **存在哪**：`state/packages/im/cards.json`（`rules/cards/store.rs`），和状态文件同一个目录，由桥读写：先写临时文件再改名，和盘上一样的不写。不放核心的配置（核心配置没有「每个群一组设置」这种结构），不写进数据根的 `venues.d/`（管理员手写的，页面写进去会冲掉注释）。没有的是没有卡片；读不成、超过 1 MiB、不是这个样子的照没有卡片用，运行日志一行 `WARN venue cards unreadable`，不挡桥起来。
 2. **几格**（`rules/cards.rs`，每一格可选，没写的照下面几层）：`{"other_groups": {格}, "other_privates": {格}, "groups": [{"id": 群号, "set": {格}}], "privates": [{"id": 号, "set": {格}}]}`，认不得的格不收。
@@ -1387,7 +1387,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - 私聊卡：`persona`、`extra_prompt`、`long_text`、`long_chars`、`final_only`。去句号是通用的配置项 `im.strip_period`（O-58 补二，2026-10-19 项目主人定），不进卡片。睡觉、限流本来就不管白名单成员，不给。
    - 「其他私聊」卡（O-60）：`on`（「回复」，拼成 `allow`，没写的不回复）、`persona`、`extra_prompt`、`rate`、`long_text`、`long_chars`、`final_only`。睡觉时间照配置项那一层的私聊默认，不在卡上。
 3. **怎么拼成规则**：一张卡一份规则文件、一条规则，来处同配置项那一层是 `Source::Settings`，文件名 `70-card-a.toml`（「其他群」）、`70-card-b.toml`（「其他私聊」，O-60）、`70-card-g-<群号>.toml`、`70-card-p-<号>.toml`：排在 `60-settings.toml` 后面，系统里名字排在后面的照旧盖它。「其他群」那一条匹配 `{kind = "group", not_group = [名单里的群号]}`（群聊内核 O-58 上加的条件，`chat.md` 第一条）：名单里的群不继承它设的格。「其他私聊」那一条匹配 `{kind = "private", not_user = [白名单成员的号, 认出来的终端管理员的号]}`：只管陌生人（「陌生人的私聊」第 2 条）。同一个号写了两张的只拼第一张。问题、来处照文件名说成哪一张卡：运行日志多一格 `card={"kind":…,"id":…}`，`venue show` 印「群 777 的卡片」「卡片「其他群」」「卡片「其他私聊」」「私聊 20004 的卡片」（`venue/card-*`）。
-4. **`cards.get`**（后台页调，读的一头照推送交到跟核心的那一头，`core/route/cards.rs`）：回 `{cards, defaults, whitelist, groups, friends, personas}`。
+4. **`cards.get {platform?}`**（后台页调，读的一头照推送交到跟核心的那一头，`core/route/cards.rs`）：回 `{platform, cards, defaults, whitelist, groups, friends, personas}`。写了 `platform` 的（I-85 中，im 网页的会话页照选中的连接问）只交那个平台的一份：`cards` 里只有那个平台的群卡、私聊卡，`other_groups`、`other_privates` 两格放那个平台的，没有 `others`；默认值表的键只写号；白名单、她在的群、好友照那个平台。没写的照旧交整份（`cards.save` 整份读、整份存，别的平台的卡不丢），默认值表里别的平台的键写成身份 `<平台>:<号>`，白名单、群、好友照第一个驱动。
    - `defaults`：卡片下面几层（出厂、配置项、系统的规则，`Venues::beneath`）套到这个场所上的样子，照卡片的格写 `{value, from}`，`from` 是 `factory`、`setting`、`system` 或 `null`（没有规则设到）；`on` 没设的是接话；插嘴照规程和千分比认档（不到 35 `few`、不到 85 `some`、别的 `many`）。`other_groups` 照群号 0 套，`other_privates` 照号 0 的私聊套（O-60，`on` 没设的是不回复），`groups`、`privates` 照号作键。
    - `whitelist`：`im.whitelist` 里这个平台的号。`groups`、`friends`：连着的号都问 NapCat 的 `get_group_list`（`{id, name, members}`）、`get_friend_list`（`{id, name}`），同一个号只留第一行，问不到的是空的。`personas`：核心的 `persona.list`，写错的人格不列。
 5. **`cards.save {cards}`**：读不成卡片的样子拒 `bad_params`；拼成规则交群聊内核读，有问题的不存，答 `{saved: false, problems: [{card, key, code, got}]}`（不拒：核心转方法的错误只带原因，带不过 `data`）；写不进盘的拒 `not_saved`；存好了答 `{saved: true}`、当场换上（`Venues::set_cards`），私聊找过的会话都忘掉、下一条照新的卡片再找（O-60：卡片关了的陌生人不再接，同白名单换了），运行日志 `INFO venue cards saved groups=… privates=…`，下一条消息就照新的套。

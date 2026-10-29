@@ -1,5 +1,7 @@
-// 会话页（施工 I-7 上，设计 01 第八节第 3 条；I-7 上修照样板按平台分）：卡片墙。一页是一个平台的会话：连着不止一个平台时头上先切平台
-// （platforms-pick.js），卡上不再画平台角标；有哪几种会话、号怎么叫由平台给（platforms.js 的 venues）。再筛「全部」「群聊」「私聊」
+// 会话页（施工 I-7 上，设计 01 第八节第 3 条；I-85 中照设计 07 第 3.2 节按连接分）：卡片墙。一页是一个连接的会话：连接不止一个时
+// 头上一个下拉切连接（shell/connection-pick.js，和首页、消息记录共用选中的那一个），没有「全部」：选的是「全部」时先请人选一个；
+// 卡片照选中的连接的平台问（cards.get、cards.* 都带 platform），卡上不再画平台角标；有哪几种会话、号怎么叫由平台给（platforms.js 的
+// venues）。再筛「全部」「群聊」「私聊」
 // （张数只数名单里的，不数「陌生群」「陌生私聊」两张兜底卡）、搜名字或号码、「新建」；墙上分四段：默认（「会话默认值」一张，2026-10-20
 // 从设置页挪过来，只在「全部」里）、名单以外、群聊名单、私聊白名单。
 // 一张卡一个会话：头像、名字、号（连着不止一个机器人时写是哪个）、是否回复的开关、几个小标签；点卡打开它的浮窗。
@@ -7,7 +9,6 @@
 // - 卡片照宿主的 cards.get 画；宿主推 cards（卡片、白名单变了）再问，开着的浮窗跟着换成新的那一张。机器人连上、断开了也再问一遍
 //   （AI 在的群、好友跟着机器人）。
 // - 重画时没变的卡照旧用原来那一张（不重新建，头像不闪），变了的才换。
-// - 宿主是一个平台的（一份 im 跑一个驱动）：卡片都是宿主那个平台的，切到别的平台（以后一个宿主带几个驱动时）只看那个平台的。
 import { element, icon, say } from '../../shell/i18n.js';
 import { venueKinds } from '../home/platforms.js';
 import { chips } from './chips.js';
@@ -15,7 +16,8 @@ import { openCreate } from './create.js';
 import { faceOf } from './face.js';
 import { entries } from './model.js';
 import { idLine, titleOf } from './names.js';
-import { platformPick } from './platforms-pick.js';
+import { connectionLabel, connectionPick, platformDot } from '../../shell/connection-pick.js';
+import { chooseConnection, chosenOf, goTo, onConnection } from '../../shell/connection.js';
 import { fallbacksOf } from './plugins.js';
 import { openVenue, toggle } from './venue.js';
 
@@ -36,13 +38,16 @@ export function mountVenues(view, { request, path }) {
   let open = null;
   // 从别的页点过来的（#venues/group/777，施工 I-14 统计页）：读到卡以后打开它一次。
   let wanted = path || '';
-  // 宿主的平台、现在看的平台、连着的机器人（号 → 名字、平台、连没连着）、出现过的平台。
-  let host = '';
+  // 外壳问到的连接、选中的那一个（「全部」是空的）、它的平台（还没选的是空的）、问卡片时问的那个平台。
+  let connections = [];
+  let picked = null;
   let chosen = '';
-  let bots = new Map();
-  let platforms = [];
+  let asked = '';
   // 连着的机器人（号，逗号隔开）：还没收到过连接的是空的。
   let seen = null;
+  // 卡片相关的方法都带上选中的平台（施工 I-85 中）：浮窗、新建里也照它。
+  const scoped = (method, params) =>
+    request(method, method.startsWith('cards.') ? { ...params, platform: chosen } : params);
   // 墙上画过的卡：编号 → { sig, card }。
   const drawn = new Map();
 
@@ -58,9 +63,9 @@ export function mountVenues(view, { request, path }) {
   const create = element('button', 'btn primary');
   create.append(icon('i-plus'), document.createTextNode(say('venues/new')));
   create.addEventListener('click', () => {
-    if (!answer || chosen !== host) return;
+    if (!answer || !chosen) return;
     const listed = new Set(all.filter((one) => one.id).map((one) => `${one.type}:${one.id}`));
-    openCreate({ request, platform: chosen, answer, listed }, async (type, id) => {
+    openCreate({ request: scoped, platform: chosen, answer, listed }, async (type, id) => {
       await load();
       const added = all.find((one) => one.type === type && one.id === id);
       if (added) show(added);
@@ -71,17 +76,27 @@ export function mountVenues(view, { request, path }) {
   view.replaceChildren(head, wall);
 
   const load = async () => {
+    if (!chosen) {
+      // 还没选连接（连接不止一个、选的是「全部」）：请人先选一个。
+      answer = null;
+      all = [];
+      drawHead();
+      wall.replaceChildren(choosePrompt());
+      return;
+    }
+    const platform = chosen;
+    asked = platform;
+    let cards;
     try {
-      const [cards, status] = await Promise.all([request('cards.get'), host ? null : request('status')]);
-      answer = cards;
-      if (status) host = status.platform || '';
+      cards = await request('cards.get', { platform });
     } catch {
       // 读不到的：还没读到过的写一行，读到过的照旧画。
       if (!answer) wall.replaceChildren(element('p', 'faint wall-none', say('venues/failed')));
       return;
     }
-    chosen ||= host;
-    if (!platforms.includes(host)) platforms = [host, ...platforms];
+    // 等的时候又换了连接：这一份不要了。
+    if (platform !== chosen) return;
+    answer = cards;
     all = entries(answer);
     drawHead();
     drawWall();
@@ -90,7 +105,7 @@ export function mountVenues(view, { request, path }) {
       wanted = '';
       const one = all.find((each) => each.type === type && each.id === id);
       if (one) show(one);
-      history.replaceState(null, '', '#venues');
+      goTo('venues', { replace: true });
     }
     if (open) {
       const now = all.find((one) => one.kind === open.kind && one.id === open.id);
@@ -99,24 +114,28 @@ export function mountVenues(view, { request, path }) {
     }
   };
 
-  /** 这个平台上的卡（宿主以外的平台还没有卡）。 */
-  const mine = () => (chosen === host ? all : []);
+  /** 这个连接的卡。 */
+  const mine = () => all;
+
+  /** 「全部」时请人先选一个连接（施工 I-85 中）：一句话，下面每个连接一个按钮。 */
+  const choosePrompt = () => {
+    const box = element('div', 'wall-none pick-prompt');
+    box.append(element('p', 'faint', say('venues/pick-connection')));
+    const row = element('div', 'pick-row');
+    for (const one of connections) {
+      const button = element('button', 'btn');
+      button.append(platformDot(one.platform), document.createTextNode(connectionLabel(one)));
+      button.addEventListener('click', () => chooseConnection(one.id));
+      row.append(button);
+    }
+    box.append(row);
+    return box;
+  };
 
   const drawHead = () => {
-    const items = platforms.map((id) => ({
-      id,
-      bots: [...bots.values()].filter((bot) => bot.platform === id && bot.connected).length,
-      venues: id === host ? all.filter((one) => one.id).length : null,
-    }));
     pickSlot.replaceChildren();
-    if (items.length > 1) {
-      pickSlot.append(
-        platformPick(items, chosen, (id) => {
-          chosen = id;
-          drawHead();
-          drawWall();
-        }),
-      );
+    if (connections.length > 1) {
+      pickSlot.append(connectionPick(connections, picked, { every: false, onPick: chooseConnection }));
     }
     const kinds = Object.keys(venueKinds(chosen));
     if (filter !== 'all' && !kinds.includes(filter)) filter = 'all';
@@ -132,9 +151,10 @@ export function mountVenues(view, { request, path }) {
       });
       seg.append(button);
     }
-    // 只有一种会话的平台不用筛。
-    seg.hidden = kinds.length < 2;
-    create.disabled = chosen !== host;
+    // 只有一种会话的平台不用筛；还没选连接的筛、搜、新建都不画。
+    seg.hidden = kinds.length < 2 || !chosen;
+    search.hidden = !chosen;
+    create.hidden = !chosen;
   };
 
   const drawWall = () => {
@@ -193,7 +213,7 @@ export function mountVenues(view, { request, path }) {
     // 管理插件（施工 I-7 中四）：宿主认得的插件、兜底卡上的开关。
     const plugins = answer?.plugins || [];
     const fallbacks = fallbacksOf(all);
-    const context = { request, platform: chosen, bots: names(), personas, friends, plugins, fallbacks };
+    const context = { request: scoped, platform: chosen, bots: names(), personas, friends, plugins, fallbacks };
     opened.dialog = openVenue(one, context, () => {
       if (open === opened) open = null;
     });
@@ -201,25 +221,38 @@ export function mountVenues(view, { request, path }) {
 
   /** 这个平台连着的机器人：号 → 名字（卡上写是哪个机器人）。 */
   const names = () =>
-    new Map([...bots].filter(([, bot]) => bot.platform === chosen).map(([id, bot]) => [id, bot.name]));
+    new Map(
+      connections
+        .filter((one) => one.platform === chosen)
+        .map((one) => [String(one.bot), one.name || String(one.bot)]),
+    );
 
-  load();
+  /** 照这一刻的连接、选中的那一个定看哪个平台；换了的关掉开着的浮窗、重问卡片。 */
+  const pick = () => {
+    picked = chosenOf(connections);
+    const platform = picked?.platform || '';
+    if (platform === chosen && (asked === platform || !platform)) return false;
+    chosen = platform;
+    open?.dialog.close();
+    return true;
+  };
+
+  const unlisten = onConnection(() => {
+    if (pick()) load();
+    else drawHead();
+  });
   return {
-    update(connections) {
-      bots = new Map(
-        connections.map((one) => [
-          String(one.bot),
-          { name: one.name || String(one.bot), platform: one.platform, connected: one.connected },
-        ]),
-      );
-      platforms = [...new Set([host, ...connections.map((one) => one.platform)].filter(Boolean))];
-      const now = connections.filter((one) => one.connected).map((one) => one.bot).join(',');
-      const again = seen !== null && now !== seen;
-      seen = now;
-      if (again) load();
-      else if (answer) {
+    update(now) {
+      connections = now;
+      const switched = pick();
+      const alive = now.filter((one) => one.connected).map((one) => one.id).join(',');
+      const again = seen !== null && alive !== seen;
+      seen = alive;
+      if (switched || again || (!answer && chosen)) load();
+      else {
         drawHead();
-        drawWall();
+        if (answer) drawWall();
+        else if (!chosen) wall.replaceChildren(choosePrompt());
       }
       // 宿主推了变了（来了消息）：开着的浮窗再问今天的数和最近判断。
       open?.dialog.refresh();
@@ -228,6 +261,7 @@ export function mountVenues(view, { request, path }) {
       if (name === 'cards') load();
     },
     dispose() {
+      unlisten();
       open?.dialog.close();
     },
   };

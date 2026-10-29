@@ -30,41 +30,56 @@ impl Route {
     pub(super) fn cards_called(&mut self, pushed: &Value) -> bool {
         let id = pushed["id"].clone();
         match pushed["params"]["method"].as_str() {
-            Some(CARDS_GET) => self.cards_get(id),
+            Some(CARDS_GET) => self.cards_get(id, &pushed["params"]["params"]),
             Some(CARDS_SAVE) => self.cards_save(&id, &pushed["params"]["params"]),
             _ => return false,
         }
         true
     }
 
-    /// `cards.get`：手头的当场拼好，群、好友、人格另起任务问齐了再答。
-    fn cards_get(&mut self, id: Value) {
-        let cards = self.rules.cards().clone();
-        let page = self.page_platform();
+    /// `cards.get {platform?}`：写了平台的交那个平台的一份（施工 I-85 中，会话页照选中的连接问）：`cards` 只有这个平台的群卡、
+    /// 私聊卡，「其他群」「其他私聊」是这个平台的，会话默认值不分平台，默认值表的键只写号；没写的照旧交整份（整份读、整份存的
+    /// `cards.save` 不丢别的平台的卡），默认值表里别的平台的键写成身份。白名单、默认值、群和好友照写的平台，没写的照后台页的平台。
+    /// 手头的当场拼好，群、好友、人格另起任务问齐了再答。
+    fn cards_get(&mut self, id: Value, args: &Value) {
+        let scoped = args["platform"].as_str();
+        let platform = scoped.unwrap_or(self.page_platform()).to_string();
+        let platform = platform.as_str();
+        let cards = match scoped {
+            Some(platform) => self.rules.cards().of_platform(platform),
+            None => self.rules.cards().clone(),
+        };
+        let key = |of: &str, id: &Id| match scoped {
+            Some(_) => id.to_string(),
+            None => card_key(of, id),
+        };
         let mut groups = Map::new();
         for card in &cards.groups {
             let defaults = self.group_defaults(&card.platform, &card.id);
-            groups.insert(card_key(&card.platform, &card.id), defaults);
+            groups.insert(key(&card.platform, &card.id), defaults);
         }
-        // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张；I-80 起哪个平台的都算）。
+        // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张；I-80 起整份的哪个平台的都算）。
         let mut privates = Map::new();
         let whitelisted = self.whitelist.iter().filter_map(|person| {
-            let (platform, number) = person.split_once(':')?;
-            Some((platform.to_string(), Id::new(number)?))
+            let (of, number) = person.split_once(':')?;
+            if scoped.is_some_and(|platform| platform != of) {
+                return None;
+            }
+            Some((of.to_string(), Id::new(number)?))
         });
         let carded = cards
             .privates
             .iter()
             .map(|card| (card.platform.clone(), card.id.clone()));
-        for (platform, id) in carded.chain(whitelisted) {
-            let defaults = self.private_defaults(&platform, &id);
-            privates.insert(card_key(&platform, &id), defaults);
+        for (of, id) in carded.chain(whitelisted) {
+            let defaults = self.private_defaults(&of, &id);
+            privates.insert(key(&of, &id), defaults);
         }
-        let whitelist = self.whitelist_numbers(page);
+        let whitelist = self.whitelist_numbers(platform);
         let defaults = json!({
-            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。页面的平台的（施工 I-80：页面分平台是 I-85 的事）。
-            "other_groups": other_groups(self.group_defaults(page, &Id::from(0))),
-            "other_privates": self.other_private_defaults(page),
+            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。照问的平台（没写的照后台页的）。
+            "other_groups": other_groups(self.group_defaults(platform, &Id::from(0))),
+            "other_privates": self.other_private_defaults(platform),
             // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
             "defaults": self.defaults_defaults(),
             "groups": groups,
@@ -72,8 +87,9 @@ impl Route {
         });
         // 认得的 im 插件（施工 I-7 中四：会话浮窗「管理插件」）。
         let plugins = self.hooks.listed();
-        let known = json!({"cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
-        let (bots, caller, answerer) = (self.card_bots(), self.core.caller(), self.core.answerer());
+        let known = json!({"platform": platform, "cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
+        let bots = self.card_bots(platform);
+        let (caller, answerer) = (self.core.caller(), self.core.answerer());
         self.chores.spawn(listed(id, known, bots, caller, answerer));
     }
 
@@ -89,10 +105,10 @@ impl Route {
             .map_or(OLD_PLATFORM, |platform| platform.name())
     }
 
-    /// 后台页照的平台连着的号（同 [`Route::page_platform`]，第一个驱动的）。
-    pub(super) fn card_bots(&self) -> Arc<Bots> {
+    /// 平台 `platform` 连着的号（施工 I-85 中）；没挂的是空的。
+    pub(super) fn card_bots(&self, platform: &str) -> Arc<Bots> {
         self.platforms
-            .first()
+            .named(platform)
             .map_or_else(Arc::default, |platform| self.platforms.bots(platform))
     }
 
@@ -264,7 +280,7 @@ fn entries(rows: impl Iterator<Item = (Id, Value)>) -> Vec<Value> {
         .collect()
 }
 
-/// `cards.get` 交的默认值表里一张卡的键（施工 I-80）：QQ 的照旧只写号，别的平台的写成身份 `<平台>:<号>`，几个平台的号一样也不串。
+/// `cards.get` 交的整份默认值表里一张卡的键（施工 I-80）：QQ 的照旧只写号，别的平台的写成身份 `<平台>:<号>`，几个平台的号一样也不串。
 fn card_key(platform: &str, id: &Id) -> String {
     match platform {
         OLD_PLATFORM => id.to_string(),

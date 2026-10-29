@@ -95,7 +95,7 @@ impl Route {
             words: self.rules.page_words().clone(),
             lang: self.core.language.clone(),
         };
-        let (bots, caller) = (self.card_bots(), self.core.caller());
+        let (bots, caller) = (self.card_bots(self.page_platform()), self.core.caller());
         self.chores.spawn(push(job, bots, caller));
     }
 
