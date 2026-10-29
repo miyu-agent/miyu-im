@@ -43,6 +43,7 @@ pub mod logs;
 mod media;
 pub mod package;
 pub mod plugins;
+pub mod program;
 mod recent;
 mod records;
 pub mod rules;
