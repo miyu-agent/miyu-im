@@ -59,12 +59,11 @@ async fn a_group_card_pins_its_recent_count_on_new_sessions() {
     stopped(home).await;
 }
 
-/// 会话造出来的那一条 `created` 钉下的快照（属主账号的 blob，照 `policy` 的摘要找）里，群聊近况那一格的 `limit`。
+/// 会话造出来的那一条 `created` 钉下的快照（数据根的 blob，照 `policy` 的摘要找）里，群聊近况那一格的 `limit`。
 fn limit(home: &Home, created: &Value) -> Option<Value> {
     let digest = created["body"]["policy"].as_str().expect("有快照");
     let hex = digest.strip_prefix("sha256:").expect("写法");
-    let owner = created["body"]["owner"].as_str().expect("有属主");
-    let blobs = home.root.path().join("home").join(owner).join("blobs");
+    let blobs = home.root.blobs();
     let file = find(&blobs, hex).unwrap_or_else(|| panic!("{} 里没有 {hex}", blobs.display()));
     let snapshot: Value =
         serde_json::from_slice(&std::fs::read(file).expect("读得了")).expect("快照是 JSON");

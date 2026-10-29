@@ -612,11 +612,11 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 1. **在哪**：
 
-   | 什么 | 出厂（资源目录的 `packages/im/data/`） | 系统（数据根的 `system/`） |
+   | 什么 | 出厂（资源目录的 `packages/im/data/`） | 系统（数据根下） |
    |---|---|---|
    | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml`（07 第二节） |
    | 出厂参数 | `defaults.toml` | 没有：要改写场所规则（`chat.md` 第八条「怎么走」第 3 条） |
-   | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`：在的话整份替换出厂的（`chat.md` 第七条第 5 条；位置 2026-10-09 核心的主会话定：包自己的系统数据放 `system/modules/<包编号>/`，和 `home/<账号>/modules/<模块>/` 对称；不放 `system/packages/<包>/`，那是装进来的包本身，重装会整个换掉） |
+   | 违规词表 | `moderation.txt` | `modules/im/moderation.txt`：在的话整份替换出厂的（`chat.md` 第七条第 5 条；位置 2026-10-09 核心的主会话定：包自己的系统数据放 `modules/<包编号>/`；不放 `packages/<包>/`，那是装进来的包本身，重装会整个换掉；核心 SU-5 上起数据根只剩一层，原来在 `system/` 下，I-73） |
    | 判官的说明（O-23 下） | `judge/*.txt`，十三份（`chat.md` 第六条，登记在 `docs/ledger.md`） | 没有：给模型看的字随包走 |
    | 给她看的事实的模板（O-25 下） | `facts/undelivered.txt`（「退信」第 3 条，登记在 `docs/ledger.md`） | 没有：给模型看的字随包走 |
    | 桥的工具（O-26） | `tools/*.json` 的说明，`tool-results/skipped.txt`、`unknown.txt` 答的两句（「提供者和不说话」，登记在 `docs/ledger.md`）；O-31 多三件的说明、答的十三句（「平台工具（一）」第 5 条） | 没有：同上 |
@@ -625,7 +625,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 2. **读**：一份文件照配置文件的读法读（`miyu_store::config_file::read`：超过 1 MiB 不读、开头的 BOM 去掉、不是 UTF-8 不读，`config.md`「怎么走」第二条第 2 条），读不成的变成群聊内核的 `Problem`：原因码照配置的 `unreadable`（带系统的原话）、`too_big`、`not_utf8`，没有第几条规则、键、位置；列不出 `venues.d/` 的也是一条 `unreadable`，文件名写 `venues.d`。规则文件交 `Rules::parse`（出厂的 `Source::Factory`、系统的 `Source::System`，配置项那一份 `Source::Settings`（第 8 条，O-41），文件名不带目录），出厂参数交 `Params::read`，违规词表交 `Moderation::parse_keywords`，判官的说明（O-23 下）照文件名（`JudgeSources` 的格名把 `_` 换成 `-`、加 `.txt`）读成 `JudgeSources` 交 `JudgeTexts::new`，退信的模板（O-25 下）交内核的 `Template::parse`，字段只认 `why`、`detail`、`text`。桥的工具（O-26）：桥答得了的每件照 `miyu_tool::load::spec` 读 `tools/<名字>.json`，答的两句照 `miyu_tool::load::text` 读、试换过字段（`skipped.txt` 不要字段，`unknown.txt` 只认 `name`）。
    - **出厂的**：起来时读一次（`Factory::load`），握手以前，和 `bridge.json` 一样。规则文件单独过一遍 `Rules::parse`（合上系统的以后，被同名替换的那一份不读，单独过才查得全）。有一条问题（警告也算，照 `chat.md` 第八条施工时定的第 10 条）、出厂参数读不出来、哪一份不在或读不成、判官的说明 `JudgeTexts::new` 不收（O-23 下：`violations.txt` 模板写坏了，记一条 `bad_format`，文件写 `judge/violations.txt`，原话是模板的错；不在、读不成的文件名也带 `judge/`）、退信的模板写坏了或者要了别的字段（O-25 下：同样记一条 `bad_format`，文件写 `facts/undelivered.txt`）、桥的工具的说明或者答的两句不在、读不成、写坏了、要了别的字段（O-26：记一条 `bad_format`，文件写 `tools/<名字>.json`、`tool-results/<名字>.txt`，原话照 `miyu_tool::load` 说的），都是打包的错：在标准错误上说 `failure/factory`，接着每一条问题缩进两格一行（`venue/problem`），退出码 1，核心不再重启（`config_error`）。之后放在内存里，跑着不再读（「施工时定的」第 52 条）。
    - **系统的**：出厂的规则文件合上系统的过 `Rules::parse`，坏的那一项、那一条规则、那一份文件照群聊内核的规矩丢，别的照用。系统那一份读不成的照空的用：规则文件照样替换同名的出厂那一份、自己没有规则（和 TOML 写法不对一样整份不用），违规词表照空的（没有词）（「施工时定的」第 50 条）。违规词表：系统那一份在的整份替换出厂的，不在的照出厂的。问题照文件名排，违规词表的在最后。
-3. **什么时候重读**（`Venues`）：要用时交进当时的时刻（`Instant`）。离上一次看不到 `bridge.json` 的 `rules_check_millis`（出厂 1000 毫秒）的，照手里的；到了，看一眼系统的两处这一刻的样子：`system/venues.d/` 里规则文件的列表、每一份的修改时刻和大小，`system/modules/onebot/moderation.txt` 的修改时刻和大小（不在也是一种样子；列不出 `venues.d/` 的记这个目录本身）。和上一次的一样，照手里的；不一样，整份重读系统的（第 2 条）。先记样子再读：读的时候又改了的，下一次看得出来。不监视文件（「施工时定的」第 53 条）。
+3. **什么时候重读**（`Venues`）：要用时交进当时的时刻（`Instant`）。离上一次看不到 `bridge.json` 的 `rules_check_millis`（出厂 1000 毫秒）的，照手里的；到了，看一眼系统的两处这一刻的样子：数据根的 `venues.d/` 里规则文件的列表、每一份的修改时刻和大小，`modules/im/moderation.txt` 的修改时刻和大小（不在也是一种样子；列不出 `venues.d/` 的记这个目录本身）。和上一次的一样，照手里的；不一样，整份重读系统的（第 2 条）。先记样子再读：读的时候又改了的，下一次看得出来。不监视文件（「施工时定的」第 53 条）。
 4. **记运行日志**：每读一次系统的（起来时那一次、变了重读的），每条问题一行 `WARN venue rules problem`（原因码、来处、文件、第几条规则、键、行、原文、为什么），读完一行 `INFO venue rules read problems=<条数>`。没变的不记，不会一条问题每秒记一次。
 5. **套场所**（`Loaded::at`）：`Rules::resolve(&venue)` 得出每一项的值和来处，再 `Params::at` 套上规则改的参数。
 6. **起来时**：握手以后读一次系统的（第 4 条记运行日志）。O-22 起每一条消息照第 3 条用它套场所（「群消息」第 3 到 6 条，私聊的 `show_ids`）；进站链、主动回复判断、出站随后面的步子（「施工时定的」第 54 条）。
@@ -1372,7 +1372,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **场所卡片**（O-58 上，2026-10-17 项目主人定：后台页按场所给卡片，版式是左边列表、右边详情；群相关四项挪进卡片，睡觉时间、触发词、看得到 QQ 号留在配置项里当默认；私聊卡就是白名单成员；前端凑活、重在后端）：白名单里的群一张、白名单成员一人一张，「其他群」一张兜底（出厂关着），「其他私聊」一张管陌生人（出厂不回复，O-60）。不占编号的几段同「提供者和不说话」。
 
-1. **存在哪**：`state/packages/im/cards.json`（`rules/cards/store.rs`），和状态文件同一个目录，由桥读写：先写临时文件再改名，和盘上一样的不写。不放核心的配置（核心配置没有「每个群一组设置」这种结构），不写进 `system/venues.d/`（管理员手写的，页面写进去会冲掉注释）。没有的是没有卡片；读不成、超过 1 MiB、不是这个样子的照没有卡片用，运行日志一行 `WARN venue cards unreadable`，不挡桥起来。
+1. **存在哪**：`state/packages/im/cards.json`（`rules/cards/store.rs`），和状态文件同一个目录，由桥读写：先写临时文件再改名，和盘上一样的不写。不放核心的配置（核心配置没有「每个群一组设置」这种结构），不写进数据根的 `venues.d/`（管理员手写的，页面写进去会冲掉注释）。没有的是没有卡片；读不成、超过 1 MiB、不是这个样子的照没有卡片用，运行日志一行 `WARN venue cards unreadable`，不挡桥起来。
 2. **几格**（`rules/cards.rs`，每一格可选，没写的照下面几层）：`{"other_groups": {格}, "other_privates": {格}, "groups": [{"id": 群号, "set": {格}}], "privates": [{"id": 号, "set": {格}}]}`，认不得的格不收。
    - 群卡、「其他群」卡：`on`（拼成 `allow`：群卡没写的接，「其他群」没写的不接）、`persona`、`extra_prompt`、`keywords`、`managers`、`sleep`、`rate`、`show_ids`（同名的规则属性）、`chatty`（`never` 拼成 `discipline = "when-called"`，`few`、`some`、`many` 拼成 `discipline = "chatty"` 和 `chatty.probability` 千分之 20、50、120）、`long_text`（`split | image | forward`，`forward` O-59 下）、`long_chars`（0 是不算长文）、`final_only`（仅发送最终消息，O-57；这几格并进同一张 `outbound` 表）。
    - 私聊卡：`persona`、`extra_prompt`、`long_text`、`long_chars`、`final_only`。去句号是通用的配置项 `im.strip_period`（O-58 补二，2026-10-19 项目主人定），不进卡片。睡觉、限流本来就不管白名单成员，不给。

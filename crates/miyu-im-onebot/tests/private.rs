@@ -286,7 +286,7 @@ async fn the_private_chat_carries_its_venue_fields_and_a_recall_is_noted() {
     // 施工 O-22：私聊也带上场所的格（不写 `ambient`），`show_ids` 照这个私聊的场所规则；私聊的撤回记 `venue.recalled`。
     let script = Script::new([Play::Says("在")]);
     let home = Home::new(&script);
-    let dir = home.root.system().join("venues.d");
+    let dir = home.root.path().join("venues.d");
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let rule =
         format!("[[rule]]\nmatch = {{ kind = \"private\", user = [{ADMIN}] }}\nshow_ids = true\n");

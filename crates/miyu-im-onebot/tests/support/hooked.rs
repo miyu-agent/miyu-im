@@ -32,13 +32,13 @@ pub fn linked() -> &'static str {
     "miyu-im-test-hook"
 }
 
-/// 往数据根 `root` 的系统那一层（`system/packages/`，核心 U23 上上起；以前在管理员家目录）装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
+/// 往数据根 `root` 的系统那一层（`packages/`，核心 SU-5 上起直接在数据根下）装一个编号是 `id` 的扩展包：程序照 `args` 答（`record:`、`answer:`、`slow:`，见程序开头），
 /// 导出 `exports` 那几个方法，核心起来就拉起（`start = "always"`），不要能力。导出了方法的是 im 的插件（施工 I-8 上）。
 pub fn install(root: &DataRoot, id: &str, args: &[String], exports: &[&str]) {
     install_starting(root, id, args, exports, "always");
 }
 
-/// 往数据根 `root` 的系统那一层（`system/packages/`，核心 U23 上上起；以前在管理员家目录）装一个编号是 `id` 的扩展包，程序照 `args` 答，声明 `capabilities` 那几样能力、在
+/// 往数据根 `root` 的系统那一层（`packages/`，核心 SU-5 上起直接在数据根下）装一个编号是 `id` 的扩展包，程序照 `args` 答，声明 `capabilities` 那几样能力、在
 /// 批过（施工 O-51：登记工具要 `tools`），核心起来就拉起。
 pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[&str]) {
     install_starting(root, id, args, &[], "always");
@@ -46,13 +46,9 @@ pub fn install_with(root: &DataRoot, id: &str, args: &[String], capabilities: &[
 }
 
 /// 装好的扩展包 `id` 声明 `capabilities` 那几样能力、批过（施工 I-8 上：插件调 im 的 `chat.note` 要 `packages.call`；核心 SU-2 中
-/// 起批过的记在开关文件 `system/extensions.json` 的 `approved` 里，包的编号到能力，照名字排）。别的包批过的、开关照留着。
+/// 起批过的记在开关文件 `extensions.json` 的 `approved` 里，包的编号到能力，照名字排）。别的包批过的、开关照留着。
 pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
-    let manifest = root
-        .path()
-        .join("system/packages")
-        .join(id)
-        .join("package.toml");
+    let manifest = root.path().join("packages").join(id).join("package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     let listed: Vec<String> = capabilities
         .iter()
@@ -66,9 +62,7 @@ pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
         ),
     );
     std::fs::write(&manifest, text).expect("写得进");
-    let system = root.path().join("system");
-    std::fs::create_dir_all(&system).expect("建得了");
-    let path = system.join("extensions.json");
+    let path = root.path().join("extensions.json");
     let mut switches: serde_json::Value = std::fs::read(&path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -88,7 +82,7 @@ pub fn approve(root: &DataRoot, id: &str, capabilities: &[&str]) {
 /// 同 [`install`]，`start` 照写的（`manual` 的要开关打开才拉起）。
 pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&str], start: &str) {
     let program = linked();
-    let dir = root.path().join("system").join("packages").join(id);
+    let dir = root.path().join("packages").join(id);
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let quote = |items: &mut dyn Iterator<Item = String>| {
         items

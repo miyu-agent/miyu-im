@@ -23,7 +23,7 @@ fn plugins(root: &DataRoot) {
     install(root, "plain", &[], &["chat.inbound"]);
     for id in ["dice", "board"] {
         install(root, id, &[], &["chat.inbound"]);
-        let dir = root.path().join("system/packages").join(id);
+        let dir = root.path().join("packages").join(id);
         std::fs::create_dir_all(dir.join("page/js")).expect("建得了目录");
         std::fs::write(dir.join("page/index.html"), INDEX).expect("写得进");
         std::fs::write(dir.join("page/js/app.js"), "export const x = 1;\n").expect("写得进");

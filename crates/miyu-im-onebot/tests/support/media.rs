@@ -6,7 +6,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
 use miyu_kernel::block::Block;
-use miyu_kernel::id::{AccountId, ContentHash};
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use miyu_store::blob::Blobs;
 
@@ -121,19 +121,17 @@ pub fn user_text(request: &Request) -> String {
         .join("\n")
 }
 
-/// 账号 `account` 名下有没有内容是 `bytes` 的 blob。
-pub fn has_blob(home: &Home, account: &str, bytes: &[u8]) -> bool {
-    let account = AccountId::parse(account).expect("合写法");
-    Blobs::new(home.root.blobs(&account))
+/// 数据根里有没有内容是 `bytes` 的 blob。
+pub fn has_blob(home: &Home, bytes: &[u8]) -> bool {
+    Blobs::new(home.root.blobs())
         .get(&ContentHash::of(bytes))
         .is_ok_and(|kept| kept == bytes)
 }
 
-/// 账号 `account` 的会话存东西的 `qq-files/`（真实位置）。核心 5-14 上起场所会话用自己的默认工作区
-/// （`home/<账号>/workspace/<会话编号>/`，不再几个群共用账号的工作区）：账号的工作区里直接有的用它，没有的找下一层会话的那一个。
-pub fn qq_files_in(home: &Home, account: &str) -> std::path::PathBuf {
-    let account = AccountId::parse(account).expect("合写法");
-    let workspace = std::fs::canonicalize(home.root.workspace(&account)).expect("工作区在");
+/// 会话存东西的 `qq-files/`（真实位置）。场所会话用自己的默认工作区（`workspace/<会话编号>/`，核心 SU-5 上起直接在数据根下）：
+/// 工作区里直接有的用它，没有的找下一层会话的那一个。
+pub fn qq_files_in(home: &Home) -> std::path::PathBuf {
+    let workspace = std::fs::canonicalize(home.root.workspace()).expect("工作区在");
     let direct = workspace.join("qq-files");
     if direct.is_dir() {
         return direct;

@@ -10,7 +10,7 @@ use crate::support::events::venue_session;
 use crate::support::group::*;
 use crate::support::head::Head;
 use crate::support::judge::judge;
-use crate::support::roots::{owner_home, owner_id};
+use crate::support::roots::owner_home;
 use crate::support::*;
 
 /// 群号。
@@ -130,7 +130,7 @@ async fn a_card_persona_switches_the_existing_session() {
     let server = judge(vec![]).await;
     let (home, napcat, _) =
         started_judged(&Script::new([]), &server, (RULES, ""), "", MEMBERS).await;
-    miyu_session::testkit::install_sample_persona(&home.root, &owner_id());
+    miyu_session::testkit::install_sample_persona(&home.root);
     let other = owner_home(&home.root).join("personas").join("other");
     std::fs::create_dir_all(other.join("prompts")).expect("建得了目录");
     let sample = miyu_session::testkit::sample_persona_dir();

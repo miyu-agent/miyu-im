@@ -217,8 +217,7 @@ async fn the_friends_page_adds_and_removes_whitelist_members() {
         .page_call_with("cards.add", json!({"value": format!("p:{LIN}")}))
         .await;
     assert_eq!(added["result"], json!({"id": "20004"}), "{added}");
-    let config =
-        std::fs::read_to_string(home.root.path().join("system/config.toml")).expect("读得出");
+    let config = std::fs::read_to_string(home.root.path().join("config.toml")).expect("读得出");
     assert!(config.contains("qq:20004"), "写进了白名单：{config}");
     let content = pushed(&mut head, "friends", |content| {
         ids(content) == ["other", "20004"]
@@ -242,8 +241,7 @@ async fn the_friends_page_adds_and_removes_whitelist_members() {
         .page_call_with("cards.remove", json!({"card": card}))
         .await;
     assert_eq!(removed["result"], json!({"saved": true}), "{removed}");
-    let config =
-        std::fs::read_to_string(home.root.path().join("system/config.toml")).expect("读得出");
+    let config = std::fs::read_to_string(home.root.path().join("config.toml")).expect("读得出");
     assert!(!config.contains("qq:20004"), "移出了白名单：{config}");
     assert_eq!(on_disk(&home)["privates"], json!([]));
     pushed(&mut head, "friends", |content| ids(content) == ["other"]).await;

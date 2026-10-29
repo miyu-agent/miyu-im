@@ -22,7 +22,7 @@ pub fn group(number: &str) -> Venue {
 
 /// 系统的 `venues.d/<name>` 写成 `text`（字节）。
 pub fn system_rule(root: &DataRoot, name: &str, text: impl AsRef<[u8]>) -> PathBuf {
-    let dir = root.system().join("venues.d");
+    let dir = root.path().join("venues.d");
     std::fs::create_dir_all(&dir).expect("建得了");
     let path = dir.join(name);
     std::fs::write(&path, text).expect("写得进");
@@ -31,7 +31,7 @@ pub fn system_rule(root: &DataRoot, name: &str, text: impl AsRef<[u8]>) -> PathB
 
 /// 系统的违规词表 `modules/im/moderation.txt` 写成 `text`（字节）。
 pub fn system_words(root: &DataRoot, text: impl AsRef<[u8]>) -> PathBuf {
-    let dir = root.system().join("modules").join("im");
+    let dir = root.path().join("modules").join("im");
     std::fs::create_dir_all(&dir).expect("建得了");
     let path = dir.join("moderation.txt");
     std::fs::write(&path, text).expect("写得进");
@@ -259,7 +259,7 @@ fn only_rule_files_are_read() {
     system_rule(&root, "80-notes.txt", rule);
     system_rule(&root, "80-backup.toml~", rule);
     system_rule(&root, ".#80-lock.toml", rule);
-    std::fs::create_dir_all(root.system().join("venues.d").join("80-dir.toml")).expect("建得了");
+    std::fs::create_dir_all(root.path().join("venues.d").join("80-dir.toml")).expect("建得了");
     let loaded = plain(&root);
     assert_eq!(loaded.problems, [], "不是规则文件的不读，也不报");
     assert_eq!(
@@ -360,7 +360,7 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
 #[test]
 fn venues_d_that_cannot_be_listed_is_a_problem() {
     let (dir, root) = temp_root();
-    std::fs::write(root.system().join("venues.d"), "not a directory").expect("写得进");
+    std::fs::write(root.path().join("venues.d"), "not a directory").expect("写得进");
     let loaded = plain(&root);
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];

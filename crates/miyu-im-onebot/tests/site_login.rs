@@ -1,6 +1,6 @@
 //! im 自己的页面用访问密码登录（施工 I-5 下，设计 01 第九节第 2 条；I-65 起跟核心 SU-1 只有密码）：进程里跑的桥经本机套接字连
 //! 真核心。头照网页第一次进来的样子给主人设好访问密码，测试照浏览器的样子登录、开通道、登出；登出时 im 在主人的连接上作废那个
-//! 登录令牌（核心的 `home/admin/logins.json` 少一行）。还没设密码的回 `password_not_set`。
+//! 登录令牌（核心数据根下的 `logins.json` 少一行）。还没设密码的回 `password_not_set`。
 
 use serde_json::{Value, json};
 
@@ -15,7 +15,7 @@ const PASSWORD: &str = "correct horse battery";
 
 /// 核心记着的登录令牌有几个。
 fn tokens(home: &Home) -> usize {
-    let path = home.root.path().join("home/admin/logins.json");
+    let path = home.root.path().join("logins.json");
     let logins: Value =
         serde_json::from_slice(&std::fs::read(path).expect("读得了")).expect("是 JSON");
     logins["tokens"].as_array().expect("有令牌表").len()

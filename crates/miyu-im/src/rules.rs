@@ -1,7 +1,7 @@
 //! 场所规则和出厂数据（`docs/blueprint/onebot.md` 第一条「场所规则和出厂数据」，施工 O-21）：写法、怎么套由群聊内核管
 //! （`chat.md` 第一条、第八条、第二条第 12 条），读文件是桥的事（群聊内核在第 2 层，不碰磁盘）。
 //!
-//! | 什么 | 出厂（包文件夹的 `data/`，施工 S-6 上从资源目录的 `software/onebot/` 挪来） | 系统（数据根的 `system/`） |
+//! | 什么 | 出厂（包文件夹的 `data/`，施工 S-6 上从资源目录的 `software/onebot/` 挪来） | 系统（数据根下） |
 //! |---|---|---|
 //! | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml` |
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
@@ -50,19 +50,19 @@ use files::Stamp;
 pub(crate) use tools::Owned;
 pub use tools::Tools;
 
-/// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `system/` 里。
+/// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的直接在数据根下（核心 SU-5 上起没有 `system/` 那一层了）。
 const VENUES: &str = "venues.d";
 
 /// 出厂参数：只有出厂的（`chat.md` 第八条「怎么走」第 3 条）。
 const DEFAULTS: &str = "defaults.toml";
 
-/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在 `system/modules/im/` 里。
+/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `modules/im/` 里。
 const MODERATION: &str = "moderation.txt";
 
 /// 场所卡片两页上给人看的字（施工 O-58 下）：不放进 `human/`，那里只放语言文件（工具说明照语言读整个目录）。
 const PAGE: &str = "cards/human/page.json";
 
-/// 包自己的系统数据在 `system/` 下的哪个目录里，再往下是包的编号（2026-10-09 核心的主会话定）。
+/// 包自己的系统数据在数据根下的哪个目录里，再往下是包的编号（2026-10-09 核心的主会话定）。
 const MODULES: &str = "modules";
 
 /// 出厂参数每一项的值：`表.项` → 值。
@@ -247,7 +247,7 @@ pub fn load(
 
 /// 出厂的、桥拼的几份 `layers`、系统的合起来读（[`load`]；卡片的默认值不带卡片那几份，[`Venues::beneath`]）。
 fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
-    let system = root.system();
+    let system = root.path();
     let mut problems = Vec::new();
     let mut files = factory.rules.clone();
     files.extend(layers);
@@ -278,14 +278,14 @@ fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
     }
 }
 
-/// 系统的违规词表：`system/modules/im/moderation.txt`（施工 I-16 起页面也写它，`site::moderation`）。
+/// 系统的违规词表：`modules/im/moderation.txt`（在数据根下）（施工 I-16 起页面也写它，`site::moderation`）。
 pub(crate) fn words(root: &DataRoot) -> PathBuf {
-    root.system().join(MODULES).join(PACKAGE).join(MODERATION)
+    root.path().join(MODULES).join(PACKAGE).join(MODERATION)
 }
 
 /// 系统的两处这一刻的样子。
 fn stamp(root: &DataRoot) -> Stamp {
-    Stamp::of(&root.system().join(VENUES), &words(root))
+    Stamp::of(&root.path().join(VENUES), &words(root))
 }
 
 /// 桥手里的场所规则和出厂数据：要用时交进当时的时刻，隔够了才看一眼系统的变没变，变了整份重读（「场所规则和出厂数据」
@@ -294,7 +294,7 @@ fn stamp(root: &DataRoot) -> Stamp {
 pub struct Venues {
     /// 出厂的：不再读。
     factory: Factory,
-    /// 数据根：系统的在它的 `system/` 里。
+    /// 数据根：系统的那几份直接在它下面。
     root: DataRoot,
     /// 配置项那一层这一刻的三项（施工 O-41）。
     configured: Configured,

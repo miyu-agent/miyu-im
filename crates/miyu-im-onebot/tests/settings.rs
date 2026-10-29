@@ -19,7 +19,7 @@ use miyu_store::resources::ResourceRoot;
 use miyu_config::Layer;
 use miyu_config::problem::Code;
 
-use crate::support::{TOKEN, admin, defaults, package_in, resources, temp_root};
+use crate::support::{TOKEN, defaults, package_in, resources, temp_root};
 
 /// 测试用的默认值：和出厂的不一样，看得出照的是它。
 fn fallback() -> Defaults {
@@ -295,7 +295,7 @@ fn the_platform_and_page_keys_are_grouped() {
     crate::support::spawning::linked();
     let (dir, root) = temp_root();
     let shipped = ResourceRoot::at(resources());
-    let mut found = miyu_endpoint::packages::load(&shipped, &root, &admin());
+    let mut found = miyu_endpoint::packages::load(&shipped, &root);
     let listed = miyu_core::settings::Packaged::of(&mut found).all();
     let codes = |source: &str| -> Vec<(Code, Option<String>)> {
         miyu_config::parse::parse(&listed, Layer::System, source)

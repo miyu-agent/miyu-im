@@ -33,7 +33,7 @@ fn serving(bytes: &[u8]) -> Reply {
 
 /// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {
-    crate::support::media::qq_files_in(home, "admin")
+    crate::support::media::qq_files_in(home)
 }
 
 #[tokio::test]
@@ -75,7 +75,7 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         "{text}"
     );
     assert!(text.contains("[msg=500]: 这张 [image: 2 KB]"), "{text}");
-    assert!(has_blob(&home, "admin", &picture), "在主人名下");
+    assert!(has_blob(&home, &picture), "在主人名下");
     // 群里交了原图的这一步不记 `shown`（施工 O-35 只给私聊填）。
     let events = until_events(&home.root, &venue(), |events| {
         !of_kind(events, "message.user").is_empty()
@@ -87,7 +87,7 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         !calling["body"]["venue"].to_string().contains("shown"),
         "{calling}"
     );
-    assert!(has_blob(&home, "admin", &quoted));
+    assert!(has_blob(&home, &quoted));
     assert_eq!(
         napcat.fetched(),
         [
@@ -176,7 +176,7 @@ async fn fetch_media_brings_back_pictures_and_saves_files() {
         (Some(5), Some(5))
     );
     assert_eq!(first[0]["status"], "ok");
-    assert!(has_blob(&home, "admin", &picture), "在主人名下");
+    assert!(has_blob(&home, &picture), "在主人名下");
     assert_eq!(
         (text_of(&first[1]), first[1]["status"].as_str()),
         (saved_text.clone(), Some("ok"))

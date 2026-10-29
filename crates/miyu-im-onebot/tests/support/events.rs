@@ -8,7 +8,6 @@ use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
 
 use super::group::WAIT;
-use super::roots::owner_id;
 
 /// 关在沙盒里、场所是 `venue` 的那个会话（主线）：编号和事件（写成 JSON）；还没有的是空的。分叉出来的支线（施工 O-36：
 /// `session.created` 带 `forked`，场所照主线的）不算。
@@ -31,12 +30,11 @@ pub fn lane_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> 
 /// 关在沙盒里、场所是 `venue` 的会话（主线、支线都算）：编号和事件。施工 I-71（核心 SU-4 中）起场所会话都在主人名下，群、
 /// 陌生人和白名单成员的私聊带 `confined`（原来在包的账号名下）；终端管理员本人的私聊不关，不算（读它照 `Home::own_sessions`）。
 fn venue_sessions(root: &DataRoot, venue: &str) -> Vec<(String, Vec<Value>)> {
-    let owner = owner_id();
-    root.sessions(&owner)
+    root.sessions()
         .unwrap_or_default()
         .iter()
         .map(|session| {
-            let events: Vec<Value> = read_events(&root.session_dir(&owner, session))
+            let events: Vec<Value> = read_events(&root.session_dir(session))
                 .unwrap_or_default()
                 .iter()
                 .map(|event| serde_json::to_value(event).expect("写得成 JSON"))

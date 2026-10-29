@@ -12,7 +12,7 @@ use miyu_session::testkit::{
 use crate::judged::{JIE, LIN, MEMBERS, decided, judge_text, until_decided};
 use crate::support::group::*;
 use crate::support::judge::*;
-use crate::support::roots::{owner_home, owner_id};
+use crate::support::roots::owner_home;
 use crate::support::*;
 
 /// 用样本人格的群（施工 O-23 补）。
@@ -70,7 +70,7 @@ async fn the_judge_brings_the_persona_of_the_group() {
     let script = Script::new([]);
     let (home, mut napcat, _) =
         started_judged(&script, &server, (&persona_rules(), ""), "", MEMBERS).await;
-    install_sample_persona(&home.root, &owner_id());
+    install_sample_persona(&home.root);
     install_copy(&home, DOOMED_PERSONA);
     // 1：用样本人格的群，2：同样的人格、判官不带，3：无人格的群；都是小林 @ 她，判官说不回。
     for (group, message) in [(PERSONA, 1), (PERSONA_OFF, 2), (PLAIN, 3)] {

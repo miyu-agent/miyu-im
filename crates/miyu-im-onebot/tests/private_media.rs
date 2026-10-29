@@ -60,7 +60,7 @@ fn answered(results: &[Value]) -> Vec<(String, String)> {
 
 /// 存东西的 `qq-files/`（真实位置，`support::media::qq_files_in`）。
 fn qq_files(home: &Home) -> PathBuf {
-    crate::support::media::qq_files_in(home, "admin")
+    crate::support::media::qq_files_in(home)
 }
 
 #[tokio::test]

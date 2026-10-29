@@ -21,7 +21,7 @@ const README: &str = "# 骰子\n\n掷骰命令 `.r 1d100`。\n";
 /// 装两个插件：`dice` 一起来就拉起、声明写全、带 README；`lazy` 要开关打开才拉起、只写名字。
 fn plugins(root: &DataRoot) {
     install(root, "dice", &[], &["chat.inbound"]);
-    let dir = root.path().join("system/packages/dice/im");
+    let dir = root.path().join("packages/dice/im");
     let declared = "[plugin]\nname = { zh = \"骰子\", en = \"Dice\" }\nsummary = { zh = \"掷骰\" }\nicon = \"dice-5\"\nhomepage = \"https://dice.invalid\"\nreadme = \"README.md\"\n";
     std::fs::write(dir.join("plugin.toml"), declared).expect("写得进");
     std::fs::write(dir.join("README.md"), README).expect("写得进");

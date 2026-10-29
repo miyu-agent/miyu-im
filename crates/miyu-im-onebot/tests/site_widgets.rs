@@ -28,19 +28,11 @@ fn plugins(root: &DataRoot) {
         r#"answer:dice.stats:[{"type":"heading","text":{"en":"Stats","zh":"统计"}},{"type":"buttons","items":[{"label":"Again","action":{"open":"stats"}}]}]"#.to_string(),
     ];
     install(root, "dice", &answers, &["chat.inbound"]);
-    std::fs::write(
-        root.path().join("system/packages/dice/im/plugin.toml"),
-        DECLARED,
-    )
-    .expect("写得进");
+    std::fs::write(root.path().join("packages/dice/im/plugin.toml"), DECLARED).expect("写得进");
     let sloppy = r#"answer:sloppy.page:[{"type":"nope"}]"#.to_string();
     install(root, "sloppy", &[sloppy], &["chat.inbound"]);
     let declared = "[plugin]\nname = { en = \"Sloppy\" }\n[[plugin.ui.pages]]\nid = \"p\"\ntitle = { en = \"P\" }\nmethod = \"sloppy.page\"\n";
-    std::fs::write(
-        root.path().join("system/packages/sloppy/im/plugin.toml"),
-        declared,
-    )
-    .expect("写得进");
+    std::fs::write(root.path().join("packages/sloppy/im/plugin.toml"), declared).expect("写得进");
 }
 
 /// 要一块内容。

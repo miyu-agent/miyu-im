@@ -56,8 +56,7 @@ async fn the_settings_page_reads_and_writes_the_general_items_and_bindings() {
             .is_some_and(|ids| ids.contains(&json!("qq:30009"))),
         "{got}"
     );
-    let written =
-        std::fs::read_to_string(home.root.path().join("system/config.toml")).expect("读得出");
+    let written = std::fs::read_to_string(home.root.path().join("config.toml")).expect("读得出");
     assert!(
         written.contains("\"qq:30009\" = \"owner\""),
         "加的写 owner：{written}"

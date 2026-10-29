@@ -204,7 +204,7 @@ impl Home {
     ) -> Home {
         let (dir, root) = temp_root();
         install(&root);
-        let file = root.path().join("system").join("config.toml");
+        let file = root.path().join("config.toml");
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
         std::fs::write(&file, config).expect("写得进");
         if let Some(secrets) = secrets {
@@ -217,7 +217,7 @@ impl Home {
         };
         let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
         let shipped = ResourceRoot::at(shipped);
-        let mut found = miyu_endpoint::packages::load(&shipped, &root, &admin());
+        let mut found = miyu_endpoint::packages::load(&shipped, &root);
         let packaged = miyu_core::settings::Packaged::of(&mut found);
         let config = Config::load(&root, &admin(), None, packaged.all(), Environment::of(&[]));
         let core = Arc::new(
@@ -253,7 +253,7 @@ impl Home {
 
     /// 管理员名下的会话（场所会话也在这里）。
     pub fn sessions(&self) -> Vec<SessionId> {
-        self.root.sessions(&admin()).expect("列得出")
+        self.root.sessions().expect("列得出")
     }
 
     /// 管理员名下不关在沙盒里的会话：他本人的（施工 I-71，核心 SU-4 中起群、陌生人的私聊也在他名下，`session.created` 带
@@ -271,7 +271,7 @@ impl Home {
 
     /// 会话 `session` 日志里的事件，写成 JSON。还没写出第一条的当是空的。
     pub fn events(&self, session: &SessionId) -> Vec<Value> {
-        read_events(&self.root.session_dir(&admin(), session))
+        read_events(&self.root.session_dir(session))
             .unwrap_or_default()
             .iter()
             .map(|event| serde_json::to_value(event).expect("写得成 JSON"))
