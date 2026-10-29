@@ -21,7 +21,7 @@ use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
 use crate::plugins::Toggles;
 use crate::rules::Applied;
-use crate::rules::{Card, Cards, card_defaults, save_cards};
+use crate::rules::{Card, Cards, OLD_PLATFORM, card_defaults, save_cards};
 use miyu_chat::{Venue, VenueKind};
 
 impl Route {
@@ -40,25 +40,31 @@ impl Route {
     /// `cards.get`：手头的当场拼好，群、好友、人格另起任务问齐了再答。
     fn cards_get(&mut self, id: Value) {
         let cards = self.rules.cards().clone();
+        let page = self.page_platform();
         let mut groups = Map::new();
         for card in &cards.groups {
-            groups.insert(card.id.to_string(), self.group_defaults(&card.id));
+            let defaults = self.group_defaults(&card.platform, &card.id);
+            groups.insert(card_key(&card.platform, &card.id), defaults);
         }
-        // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张）。
-        let whitelist = self.whitelist_numbers();
+        // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张；I-80 起哪个平台的都算）。
         let mut privates = Map::new();
-        for id in cards
+        let whitelisted = self.whitelist.iter().filter_map(|person| {
+            let (platform, number) = person.split_once(':')?;
+            Some((platform.to_string(), Id::new(number)?))
+        });
+        let carded = cards
             .privates
             .iter()
-            .map(|card| &card.id)
-            .chain(whitelist.iter())
-        {
-            privates.insert(id.to_string(), self.private_defaults(id));
+            .map(|card| (card.platform.clone(), card.id.clone()));
+        for (platform, id) in carded.chain(whitelisted) {
+            let defaults = self.private_defaults(&platform, &id);
+            privates.insert(card_key(&platform, &id), defaults);
         }
+        let whitelist = self.whitelist_numbers(page);
         let defaults = json!({
-            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
-            "other_groups": other_groups(self.group_defaults(&Id::from(0))),
-            "other_privates": self.other_private_defaults(),
+            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。页面的平台的（施工 I-80：页面分平台是 I-85 的事）。
+            "other_groups": other_groups(self.group_defaults(page, &Id::from(0))),
+            "other_privates": self.other_private_defaults(page),
             // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
             "defaults": self.defaults_defaults(),
             "groups": groups,
@@ -71,38 +77,44 @@ impl Route {
         self.chores.spawn(listed(id, known, bots, caller, answerer));
     }
 
-    /// 卡片、后台页照的平台上种类是 `kind`、号是 `number` 的场所（施工 I-70 上）：第一个驱动的平台。卡片带平台是 I-70 中下、页面的
-    /// 连接照平台是 I-70 下的事，在那以前照第一个认（同旧数据）。拼不出的、一个平台都没挂的（照说不会）是空的。
-    pub(super) fn card_venue(&self, kind: VenueKind, number: &Id) -> Option<Venue> {
-        self.platforms.first()?.venue(kind, number).ok()
+    /// 平台 `platform` 上种类是 `kind`、号是 `number` 的场所（施工 I-80：照卡片的平台）。拼不出的是空的。
+    pub(super) fn card_venue(platform: &str, kind: VenueKind, number: &Id) -> Option<Venue> {
+        Venue::new(platform, kind, number.as_str()).ok()
     }
 
-    /// 卡片、后台页照的平台连着的号（同 [`Route::card_venue`]，第一个驱动的）。
+    /// 后台页照的平台（施工 I-80）：第一个驱动的；一个都没挂的（照说不会）照卡片上没写平台的那一个。页面照连接分是 I-85 的事。
+    pub(super) fn page_platform(&self) -> &'static str {
+        self.platforms
+            .first()
+            .map_or(OLD_PLATFORM, |platform| platform.name())
+    }
+
+    /// 后台页照的平台连着的号（同 [`Route::page_platform`]，第一个驱动的）。
     pub(super) fn card_bots(&self) -> Arc<Bots> {
         self.platforms
             .first()
             .map_or_else(Arc::default, |platform| self.platforms.bots(platform))
     }
 
-    /// 群号是 `group` 的群卡每一格的默认值。
-    pub(super) fn group_defaults(&self, group: &Id) -> Value {
-        match self.card_venue(VenueKind::Group, group) {
+    /// 平台 `platform` 上群号是 `group` 的群卡每一格的默认值。
+    pub(super) fn group_defaults(&self, platform: &str, group: &Id) -> Value {
+        match Self::card_venue(platform, VenueKind::Group, group) {
             Some(venue) => self.with_rules(card_defaults::group, &venue),
             None => Value::Null,
         }
     }
 
-    /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
-    pub(super) fn other_private_defaults(&self) -> Value {
-        match self.card_venue(VenueKind::Private, &Id::from(0)) {
+    /// 平台 `platform` 的「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
+    pub(super) fn other_private_defaults(&self, platform: &str) -> Value {
+        match Self::card_venue(platform, VenueKind::Private, &Id::from(0)) {
             Some(venue) => self.with_rules(card_defaults::other_private, &venue),
             None => Value::Null,
         }
     }
 
-    /// 对方的号是 `user` 的私聊卡每一格的默认值。
-    pub(super) fn private_defaults(&self, user: &Id) -> Value {
-        match self.card_venue(VenueKind::Private, user) {
+    /// 平台 `platform` 上对方的号是 `user` 的私聊卡每一格的默认值。
+    pub(super) fn private_defaults(&self, platform: &str, user: &Id) -> Value {
+        match Self::card_venue(platform, VenueKind::Private, user) {
             Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
         }
@@ -110,7 +122,7 @@ impl Route {
 
     /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
     fn defaults_defaults(&self) -> Value {
-        match self.card_venue(VenueKind::Group, &Id::from(0)) {
+        match Self::card_venue(self.page_platform(), VenueKind::Group, &Id::from(0)) {
             Some(venue) => {
                 let beneath = self.rules.beneath_defaults(&venue);
                 let mut found = card_defaults::group(&beneath);
@@ -132,7 +144,15 @@ impl Route {
     /// `cards.save`：查过、写进盘、换上。
     fn cards_save(&mut self, id: &Value, args: &Value) {
         let answerer = self.core.answerer();
-        let Ok(cards) = serde_json::from_value::<Cards>(args["cards"].clone()) else {
+        // 平台名写错的（施工 I-80）同样子不对：拼不进文件名、规则。
+        let read = serde_json::from_value::<Cards>(args["cards"].clone());
+        let Ok(cards) = read
+            .map_err(drop)
+            .and_then(|cards| match cards.bad_platforms()[..] {
+                [] => Ok(cards),
+                _ => Err(()),
+            })
+        else {
             tracing::info!(target: TARGET, "venue cards refused, bad params");
             answerer.refuse(id, "bad_params");
             return;
@@ -242,6 +262,14 @@ fn entries(rows: impl Iterator<Item = (Id, Value)>) -> Vec<Value> {
     rows.filter(|(id, _)| seen.insert(id.clone()))
         .map(|(_, entry)| entry)
         .collect()
+}
+
+/// `cards.get` 交的默认值表里一张卡的键（施工 I-80）：QQ 的照旧只写号，别的平台的写成身份 `<平台>:<号>`，几个平台的号一样也不串。
+fn card_key(platform: &str, id: &Id) -> String {
+    match platform {
+        OLD_PLATFORM => id.to_string(),
+        _ => format!("{platform}:{id}"),
+    }
 }
 
 #[cfg(test)]

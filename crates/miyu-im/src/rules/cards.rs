@@ -12,6 +12,7 @@
 //!   O-58 补二挪成配置项（`configured`）：是通用的，不进卡片。
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
+mod card;
 pub mod defaults;
 pub mod edit;
 mod lines;
@@ -20,7 +21,7 @@ pub use lines::OTHER_GROUPS_RATE;
 pub mod page;
 mod store;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,6 +30,8 @@ use miyu_chat::{File, Problem, Rules};
 
 use crate::chat::Id;
 
+use card::toml_id;
+pub use card::{Card, OLD_PLATFORM, platform_ok};
 use lines::{Matcher, defaults_lines, file, group_lines, other_private_lines, private_lines};
 pub use store::{load, path, save};
 
@@ -221,6 +224,9 @@ pub struct OtherPrivateSet {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GroupCard {
+    /// 哪个平台的群（施工 I-80）：没写的是 [`OLD_PLATFORM`]，写盘时它不写（只用 QQ 的人 `cards.json` 不变）。
+    #[serde(default = "old_platform", skip_serializing_if = "is_old")]
+    pub platform: String,
     /// 群号。
     pub id: Id,
     /// 设的几格。
@@ -232,6 +238,9 @@ pub struct GroupCard {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrivateCard {
+    /// 哪个平台的人（施工 I-80，同 [`GroupCard::platform`]）。
+    #[serde(default = "old_platform", skip_serializing_if = "is_old")]
+    pub platform: String,
     /// 对方的号。
     pub id: Id,
     /// 设的几格。
@@ -239,20 +248,35 @@ pub struct PrivateCard {
     pub set: PrivateSet,
 }
 
+/// 别的平台的「其他群」「其他私聊」（施工 I-80）：[`OLD_PLATFORM`] 的照旧在 [`Cards::other_groups`]、[`Cards::other_privates`]。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Others {
+    /// 「其他群」。
+    #[serde(skip_serializing_if = "unset")]
+    pub groups: GroupSet,
+    /// 「其他私聊」。
+    #[serde(skip_serializing_if = "private_unset")]
+    pub privates: OtherPrivateSet,
+}
+
 /// 全部卡片：`cards.json` 存的、`cards.get` 交的、`cards.save` 收的都是这个样子。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Cards {
-    /// 「其他群」：白名单以外的群。
+    /// [`OLD_PLATFORM`] 的「其他群」：白名单以外的群。
     pub other_groups: GroupSet,
     /// 白名单里的群，一群一张。
     pub groups: Vec<GroupCard>,
     /// 白名单成员，一人一张。
     pub privates: Vec<PrivateCard>,
-    /// 「其他私聊」：陌生人的私聊（施工 O-60）。
+    /// [`OLD_PLATFORM`] 的「其他私聊」：陌生人的私聊（施工 O-60）。
     pub other_privates: OtherPrivateSet,
+    /// 别的平台的「其他群」「其他私聊」（施工 I-80）：平台名到那两张；没写的平台照两张空卡（出厂不回复）。空的不写。
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub others: BTreeMap<String, Others>,
     /// 会话默认值（施工 I-7 下二，设置页）：群、私聊都套，排在别的卡下面，卡上没写的格照它。「是否回复」不归它管（写了也不拼）。
-    /// 一格都没写的不存这一项（老版本的 im 照旧读得了 `cards.json`）。
+    /// 不分平台：管的是她这个人。一格都没写的不存这一项（老版本的 im 照旧读得了 `cards.json`）。
     #[serde(skip_serializing_if = "unset")]
     pub defaults: GroupSet,
 }
@@ -262,109 +286,128 @@ fn unset(set: &GroupSet) -> bool {
     *set == GroupSet::default()
 }
 
-/// 一张卡是哪一张：拼出来的文件名里写着。
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Card {
-    /// 会话默认值（施工 I-7 下二）。
-    Defaults,
-    /// 「其他群」。
-    OtherGroups,
-    /// 「其他私聊」（施工 O-60）。
-    OtherPrivates,
-    /// 群号是它的那个群。
-    Group(Id),
-    /// 对方的号是它的那个私聊。
-    Private(Id),
+/// 「其他私聊」一格都没写。
+fn private_unset(set: &OtherPrivateSet) -> bool {
+    *set == OtherPrivateSet::default()
 }
 
-impl Card {
-    /// 拼出来的文件名：`70-card-a.toml`、`70-card-b.toml`、`70-card-g-<群号>.toml`、`70-card-p-<号>.toml`，照字排就是「其他群」、
-    /// 「其他私聊」、群、私聊。
-    fn file_name(&self) -> String {
-        match self {
-            Card::Defaults => format!("{PREFIX}0.toml"),
-            Card::OtherGroups => format!("{PREFIX}a.toml"),
-            Card::OtherPrivates => format!("{PREFIX}b.toml"),
-            Card::Group(id) => format!("{PREFIX}g-{}.toml", file_part(id)),
-            Card::Private(id) => format!("{PREFIX}p-{}.toml", file_part(id)),
-        }
-    }
+/// 卡片上没写平台的平台（serde 的默认）。
+fn old_platform() -> String {
+    OLD_PLATFORM.to_string()
+}
 
-    /// 照文件名认是哪一张卡：不是卡片拼的文件的是空的。
-    pub fn parse(file: &str) -> Option<Card> {
-        let rest = file.strip_prefix(PREFIX)?.strip_suffix(".toml")?;
-        match rest {
-            "0" => return Some(Card::Defaults),
-            "a" => return Some(Card::OtherGroups),
-            "b" => return Some(Card::OtherPrivates),
-            _ => {}
-        }
-        let (kind, id) = rest.split_once('-')?;
-        let id = from_file_part(id)?;
-        match kind {
-            "g" => Some(Card::Group(id)),
-            "p" => Some(Card::Private(id)),
-            _ => None,
-        }
-    }
-
-    /// 交给页面的写法：`{"kind": "other_groups"}`、`{"kind": "group", "id": …}`、`{"kind": "private", "id": …}`。
-    pub fn json(&self) -> Value {
-        match self {
-            Card::Defaults => serde_json::json!({"kind": "defaults"}),
-            Card::OtherGroups => serde_json::json!({"kind": "other_groups"}),
-            Card::OtherPrivates => serde_json::json!({"kind": "other_privates"}),
-            Card::Group(id) => serde_json::json!({"kind": "group", "id": id}),
-            Card::Private(id) => serde_json::json!({"kind": "private", "id": id}),
-        }
-    }
+/// 是 [`OLD_PLATFORM`]：写盘时不写。
+fn is_old(platform: &String) -> bool {
+    platform == OLD_PLATFORM
 }
 
 impl Cards {
-    /// 拼成规则文件：一张卡一份、一条规则，照文件名的先后（[`Card::parse`] 认得回来）。同一个号写了两张的只拼第一张。
-    /// 「其他私聊」不管的号一个都不排（查写法用；场所规则那一层照 [`Cards::files_except`]）。
-    pub fn files(&self) -> Vec<File> {
-        self.files_except(&[])
+    /// 平台 `platform` 的「其他群」：没写的是空卡。
+    pub fn other_groups_of(&self, platform: &str) -> GroupSet {
+        match platform {
+            OLD_PLATFORM => self.other_groups.clone(),
+            _ => self
+                .others
+                .get(platform)
+                .map(|others| others.groups.clone())
+                .unwrap_or_default(),
+        }
     }
 
-    /// 同 [`Cards::files`]，「其他私聊」不管 `known` 这几个号（白名单成员、认出来的终端管理员，施工 O-60）。
-    pub fn files_except(&self, known: &[Id]) -> Vec<File> {
-        let listed: Vec<String> = self.groups.iter().map(|card| toml_id(&card.id)).collect();
-        let others = Matcher::Others(listed.join(", "));
-        let known: Vec<String> = known.iter().map(toml_id).collect();
-        let mut files = vec![
-            file(
-                Card::OtherGroups,
-                &others,
-                &group_lines(&self.other_groups, false),
-            ),
-            file(
-                Card::OtherPrivates,
-                &Matcher::Strangers(known.join(", ")),
-                &other_private_lines(&self.other_privates),
-            ),
-        ];
+    /// 平台 `platform` 的「其他私聊」：没写的是空卡。
+    pub fn other_privates_of(&self, platform: &str) -> OtherPrivateSet {
+        match platform {
+            OLD_PLATFORM => self.other_privates.clone(),
+            _ => self
+                .others
+                .get(platform)
+                .map(|others| others.privates.clone())
+                .unwrap_or_default(),
+        }
+    }
+
+    /// 平台 `platform` 的「其他群」，改的那一份（别的平台的没有就建一份）。
+    pub fn other_groups_mut(&mut self, platform: &str) -> &mut GroupSet {
+        match platform {
+            OLD_PLATFORM => &mut self.other_groups,
+            _ => &mut self.others.entry(platform.to_string()).or_default().groups,
+        }
+    }
+
+    /// 平台 `platform` 的「其他私聊」，改的那一份（同 [`Cards::other_groups_mut`]）。
+    pub fn other_privates_mut(&mut self, platform: &str) -> &mut OtherPrivateSet {
+        match platform {
+            OLD_PLATFORM => &mut self.other_privates,
+            _ => {
+                &mut self
+                    .others
+                    .entry(platform.to_string())
+                    .or_default()
+                    .privates
+            }
+        }
+    }
+
+    /// 卡片上提到的平台和 `mounted`（挂着的驱动的）合起来，加上 [`OLD_PLATFORM`]，照名字排、不重。
+    fn platforms<'a>(&'a self, mounted: &[&'a str]) -> BTreeSet<&'a str> {
+        let mut all: BTreeSet<&str> = mounted.iter().copied().collect();
+        all.insert(OLD_PLATFORM);
+        all.extend(self.groups.iter().map(|card| card.platform.as_str()));
+        all.extend(self.privates.iter().map(|card| card.platform.as_str()));
+        all.extend(self.others.keys().map(String::as_str));
+        all
+    }
+
+    /// 拼成规则文件：一张卡一份、一条规则，照文件名的先后（[`Card::parse`] 认得回来）。同一个号写了两张的只拼第一张。
+    /// 「其他私聊」不管的号一个都不排（查写法用；场所规则那一层照 [`Cards::files_for`]）。
+    pub fn files(&self) -> Vec<File> {
+        self.files_for(&[], &[])
+    }
+
+    /// 同 [`Cards::files`]：挂着的平台 `mounted` 每个都拼一份「其他群」「其他私聊」（没写过的照空卡，出厂不回复，施工 I-80）；
+    /// 「其他私聊」不管 `known` 这几个人（平台上的身份 `<平台>:<号>`：白名单成员、认出来的终端管理员，施工 O-60）。
+    pub fn files_for(&self, mounted: &[&str], known: &[String]) -> Vec<File> {
+        let mut files = Vec::new();
         // 会话默认值写了的才拼（施工 I-7 下二），排在最前。
         if !unset(&self.defaults) {
-            files.insert(0, self.defaults_file());
+            files.push(self.defaults_file());
         }
-        let mut seen = std::collections::BTreeSet::new();
+        for platform in self.platforms(mounted) {
+            let listed: Vec<String> = self
+                .groups
+                .iter()
+                .filter(|card| card.platform == platform)
+                .map(|card| toml_id(&card.id))
+                .collect();
+            let strangers: Vec<String> = known
+                .iter()
+                .filter_map(|person| person.split_once(':'))
+                .filter(|(on, _)| *on == platform)
+                .filter_map(|(_, number)| Id::new(number))
+                .map(|id| toml_id(&id))
+                .collect();
+            files.push(file(
+                Card::OtherGroups(platform.to_string()),
+                &Matcher::Others(listed.join(", ")),
+                &group_lines(&self.other_groups_of(platform), false),
+            ));
+            files.push(file(
+                Card::OtherPrivates(platform.to_string()),
+                &Matcher::Strangers(strangers.join(", ")),
+                &other_private_lines(&self.other_privates_of(platform)),
+            ));
+        }
+        let mut seen = BTreeSet::new();
         for card in &self.groups {
-            if seen.insert(Card::Group(card.id.clone())) {
-                files.push(file(
-                    Card::Group(card.id.clone()),
-                    &Matcher::Own,
-                    &group_lines(&card.set, true),
-                ));
+            let which = Card::Group(card.platform.clone(), card.id.clone());
+            if seen.insert(which.clone()) {
+                files.push(file(which, &Matcher::Own, &group_lines(&card.set, true)));
             }
         }
         for card in &self.privates {
-            if seen.insert(Card::Private(card.id.clone())) {
-                files.push(file(
-                    Card::Private(card.id.clone()),
-                    &Matcher::Own,
-                    &private_lines(&card.set),
-                ));
+            let which = Card::Private(card.platform.clone(), card.id.clone());
+            if seen.insert(which.clone()) {
+                files.push(file(which, &Matcher::Own, &private_lines(&card.set)));
             }
         }
         files
@@ -379,49 +422,31 @@ impl Cards {
         )
     }
 
-    /// 卡片写错的地方：拼出来的几份单独交群聊内核读，交回问题（文件名照 [`Card::parse`] 认得出是哪一张卡）。
+    /// 卡片写错的地方：拼出来的几份单独交群聊内核读，交回问题（文件名照 [`Card::parse`] 认得出是哪一张卡）。平台名不合写法的
+    /// 照卡片那一格报（`platform`）。
     pub fn problems(&self) -> Vec<Problem> {
         Rules::parse(&self.files()).problems
     }
-}
 
-/// 号拼进规则的写法（施工 I-79）：十进制整数照数写（只用 QQ 的人拼出来的文件不变），别的写成字（照 JSON 的转义，TOML 基本字符串
-/// 都认）。
-pub(super) fn toml_id(id: &Id) -> String {
-    match id.number() {
-        Some(number) => number.to_string(),
-        None => serde_json::Value::String(id.to_string()).to_string(),
-    }
-}
-
-/// 号拼进文件名的写法（施工 I-79）：字母、数字和 `_`、`-`、`.`、`@` 照写，别的每个字节写成 `%XX`（大写）。QQ 的号照原样。
-fn file_part(id: &Id) -> String {
-    let mut part = String::new();
-    for byte in id.as_str().bytes() {
-        if byte.is_ascii_alphanumeric() || b"_-.@".contains(&byte) {
-            part.push(char::from(byte));
-        } else {
-            part.push_str(&format!("%{byte:02X}"));
+    /// 写错了的平台名（施工 I-80）：卡片上、`others` 里不合写法的；`others` 里写了 [`OLD_PLATFORM`] 的（它的写在
+    /// `other_groups`、`other_privates`）。
+    pub fn bad_platforms(&self) -> Vec<String> {
+        let mut bad: BTreeSet<String> = BTreeSet::new();
+        let named = self
+            .groups
+            .iter()
+            .map(|card| &card.platform)
+            .chain(self.privates.iter().map(|card| &card.platform));
+        for platform in named.chain(self.others.keys()) {
+            if !platform_ok(platform) {
+                bad.insert(platform.clone());
+            }
         }
-    }
-    part
-}
-
-/// [`file_part`] 的反面：写法不对、解出来不是号的是空的。
-fn from_file_part(part: &str) -> Option<Id> {
-    let mut bytes = Vec::new();
-    let mut rest = part.as_bytes();
-    while let Some((&byte, after)) = rest.split_first() {
-        if byte == b'%' {
-            let hex = std::str::from_utf8(after.get(..2)?).ok()?;
-            bytes.push(u8::from_str_radix(hex, 16).ok()?);
-            rest = &after[2..];
-        } else {
-            bytes.push(byte);
-            rest = after;
+        if self.others.contains_key(OLD_PLATFORM) {
+            bad.insert(OLD_PLATFORM.to_string());
         }
+        bad.into_iter().collect()
     }
-    Id::new(&String::from_utf8(bytes).ok()?)
 }
 
 #[cfg(test)]

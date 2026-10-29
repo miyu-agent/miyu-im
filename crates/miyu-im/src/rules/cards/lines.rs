@@ -7,6 +7,7 @@
 
 use serde_json::Value;
 
+use super::card::toml_text;
 use super::{Card, Chatty, GroupSet, LongText, OtherPrivateSet, PROBABILITY, PrivateSet, toml_id};
 use miyu_chat::{File, Source};
 
@@ -34,19 +35,27 @@ pub(super) enum Matcher {
     Strangers(String),
 }
 
-/// 一张卡的那一份：`[[rule]]`、匹配条件、设的几格。
+/// 一张卡的那一份：`[[rule]]`、匹配条件（会话默认值以外都带卡的平台，施工 I-80）、设的几格。
 pub(super) fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
+    let on = card
+        .platform()
+        .map(|platform| format!("platform = {}, ", toml_text(platform)))
+        .unwrap_or_default();
     let matcher = match (&card, matcher) {
-        (_, Matcher::Others(listed)) => format!("{{ kind = \"group\", not_group = [{listed}] }}"),
-        (_, Matcher::Strangers(known)) => format!("{{ kind = \"private\", not_user = [{known}] }}"),
-        (Card::Group(id), Matcher::Own) => {
-            format!("{{ kind = \"group\", group = [{}] }}", toml_id(id))
+        (_, Matcher::Others(listed)) => {
+            format!("{{ {on}kind = \"group\", not_group = [{listed}] }}")
         }
-        (Card::Private(id), Matcher::Own) => {
-            format!("{{ kind = \"private\", user = [{}] }}", toml_id(id))
+        (_, Matcher::Strangers(known)) => {
+            format!("{{ {on}kind = \"private\", not_user = [{known}] }}")
         }
-        (Card::OtherGroups, Matcher::Own) => "{ kind = \"group\" }".to_string(),
-        (Card::OtherPrivates, Matcher::Own) => "{ kind = \"private\" }".to_string(),
+        (Card::Group(_, id), Matcher::Own) => {
+            format!("{{ {on}kind = \"group\", group = [{}] }}", toml_id(id))
+        }
+        (Card::Private(_, id), Matcher::Own) => {
+            format!("{{ {on}kind = \"private\", user = [{}] }}", toml_id(id))
+        }
+        (Card::OtherGroups(_), Matcher::Own) => format!("{{ {on}kind = \"group\" }}"),
+        (Card::OtherPrivates(_), Matcher::Own) => format!("{{ {on}kind = \"private\" }}"),
         (_, Matcher::All) | (Card::Defaults, Matcher::Own) => "{}".to_string(),
     };
     let mut text = format!("[[rule]]\nmatch = {matcher}\n");

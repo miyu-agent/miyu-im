@@ -123,6 +123,7 @@ fn switches(pairs: &[(&str, bool)]) -> Option<BTreeMap<String, bool>> {
 fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     let mut cards = Cards::default();
     cards.groups.push(GroupCard {
+        platform: "qq".to_string(),
         id: Id::from(1),
         set: GroupSet {
             plugins: switches(&[("admin", true)]),
@@ -131,6 +132,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     });
     cards.other_groups.plugins = switches(&[("admin", false), ("memes", false)]);
     cards.privates.push(PrivateCard {
+        platform: "qq".to_string(),
         id: Id::from(9),
         set: PrivateSet {
             plugins: switches(&[("memes", true)]),
@@ -139,7 +141,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     });
     let toggles = Toggles::from_cards(&cards);
     let ids: Vec<Id> = (0..10).map(Id::from).collect();
-    let group = |number: usize| Some((VenueKind::Group, &ids[number]));
+    let group = |number: usize| Some(("qq", VenueKind::Group, &ids[number]));
     assert!(
         toggles.enabled(group(1), "admin", false),
         "这个群的卡上开着"
@@ -157,13 +159,44 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
         "都没写的照默认"
     );
     assert!(!toggles.enabled(group(1), "identity", false));
-    let private = |number: usize| Some((VenueKind::Private, &ids[number]));
+    let private = |number: usize| Some(("qq", VenueKind::Private, &ids[number]));
     assert!(toggles.enabled(private(9), "memes", false));
     assert!(
         toggles.enabled(private(8), "admin", true),
         "私聊不照陌生群卡"
     );
     assert!(!toggles.enabled(None, "admin", false), "认不出场所的照默认");
+    // 施工 I-80：别的平台号一样的群不照这张卡，照它自己平台的陌生群卡（没写的照默认）。
+    let tg = |number: usize| Some(("tg", VenueKind::Group, &ids[number]));
+    assert!(
+        !toggles.enabled(tg(1), "admin", false),
+        "tg 的群 1 不是 QQ 的群 1"
+    );
+    assert!(
+        toggles.enabled(tg(1), "memes", true),
+        "QQ 的陌生群卡不管 tg"
+    );
+}
+
+#[test]
+fn each_platform_has_its_own_fallback_cards() {
+    let mut cards = Cards::default();
+    cards.other_groups.plugins = switches(&[("memes", false)]);
+    cards.other_groups_mut("tg").plugins = switches(&[("memes", true)]);
+    cards.groups.push(GroupCard {
+        platform: "tg".to_string(),
+        id: Id::from(-100),
+        set: GroupSet {
+            plugins: switches(&[("admin", true)]),
+            ..GroupSet::default()
+        },
+    });
+    let toggles = Toggles::from_cards(&cards);
+    let (minus, one) = (Id::from(-100), Id::from(1));
+    assert!(toggles.enabled(Some(("tg", VenueKind::Group, &minus)), "admin", false));
+    assert!(!toggles.enabled(Some(("qq", VenueKind::Group, &minus)), "admin", false));
+    assert!(toggles.enabled(Some(("tg", VenueKind::Group, &one)), "memes", false));
+    assert!(!toggles.enabled(Some(("qq", VenueKind::Group, &one)), "memes", true));
 }
 
 #[test]

@@ -222,6 +222,36 @@ async fn a_plugin_is_usable_by_the_venues_platform() {
 }
 
 #[tokio::test]
+async fn a_venue_switch_is_looked_up_on_the_venues_platform() {
+    // 施工 I-80：场所开关照场所的平台找卡：QQ 群 1 的卡关了 `needs-mute`，tg 群 1 不照它（tg 也不会禁言，换一个不要能力的插件看）。
+    let hooks = two_hooks(json!({}), json!({}));
+    let mut cards = crate::rules::Cards::default();
+    cards.groups.push(crate::rules::GroupCard {
+        platform: "qq".to_string(),
+        id: Id::from(1),
+        set: crate::rules::GroupSet {
+            plugins: Some(BTreeMap::from([("tg-only".to_string(), false)])),
+            ..Default::default()
+        },
+    });
+    cards.groups.push(crate::rules::GroupCard {
+        platform: "tg".to_string(),
+        id: Id::from(2),
+        set: crate::rules::GroupSet {
+            plugins: Some(BTreeMap::from([("tg-only".to_string(), false)])),
+            ..Default::default()
+        },
+    });
+    hooks.set_toggles(crate::plugins::Toggles::from_cards(&cards));
+    let tg = Platform::new("tg");
+    assert!(
+        hooks.allowed("tg-only", tg, Some(To::Group(Id::from(1)))),
+        "QQ 群 1 的卡不管 tg 群 1"
+    );
+    assert!(!hooks.allowed("tg-only", tg, Some(To::Group(Id::from(2)))));
+}
+
+#[tokio::test]
 async fn a_carried_plugin_follows_its_own_driver() {
     // 驱动带的插件只在带它的驱动的平台上开着，总开关照那个驱动的配置。
     let hooks = two_hooks(json!({"x_on": false}), json!({"x_on": true, "k": 1}));

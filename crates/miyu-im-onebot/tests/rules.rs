@@ -123,6 +123,7 @@ fn plain(root: &DataRoot) -> Loaded {
         root,
         &Configured::default(),
         (&Cards::default(), &[]),
+        &["qq"],
     )
 }
 

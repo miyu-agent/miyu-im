@@ -99,7 +99,13 @@ pub fn show(
     // 卡片那一层（施工 O-58 上）：照盘上的，读不成的照没有卡片印（桥起来时一样，运行日志里有原因）。
     let cards = crate::rules::load_cards(root).unwrap_or_else(|_| Cards::default());
     // 「其他私聊」卡不管白名单成员（配置项那一层的）；终端管理员是桥跑着时问出来的，这里认不得（施工 O-60）。
-    let loaded = load(&factory, root, &configured, (&cards, &[]));
+    let loaded = load(
+        &factory,
+        root,
+        &configured,
+        (&cards, &[]),
+        &[parsed.platform()],
+    );
     let mut lines: Vec<String> = loaded
         .at(&parsed)
         .resolved

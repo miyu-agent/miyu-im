@@ -94,7 +94,7 @@
 | `crates/miyu-im/src/rules/facts.rs`（O-25 下） | 读给她看的事实的模板：`im/data/facts/undelivered.txt`，`Template::parse` 读、字段只认 `why`、`detail`、`text`（「退信」第 3 条，「场所规则和出厂数据」第 2 条）；O-36 多读 `another-line.txt`，字段只认 `msgs`（I-21 改，原来 `msg`、`aim`；「群里怎么叫她」第 7 条） |
 | `crates/miyu-im/src/rules/tools.rs`（O-26） | 桥的工具：答得了哪几件（名字、`access`、`venues`），说明照`im/data/tools/<名字>.json` 经 `miyu_tool::load::spec_in` 读，答的话照 `im/data/tool-results/` 的两句经 `miyu_tool::load::text_in` 读（施工 S-6 上：给的是包文件夹的 `data/`）、查过字段；`provide` 的参数，`tool.call` 的结果（「提供者和不说话」，「场所规则和出厂数据」第 2 条） |
 | `crates/miyu-im/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
-| `crates/miyu-im/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`）；`cards/store.rs` 存在 `state/packages/im/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
+| `crates/miyu-im/src/rules/cards.rs`（O-58 上） | 卡片那一层：卡片的样子（`Cards`），一张卡拼成一份规则文件 `70-card-*.toml`（来处 `Source::Settings`），文件名认得回是哪张卡（`Card::parse`，I-80 挪进 `cards/card.rs`、带平台）；`cards/store.rs` 存在 `state/packages/im/cards.json`，`cards/defaults.rs` 说卡片每一格的默认值（「场所卡片」） |
 | `crates/miyu-im/src/core/route/cards.rs`（O-58 上） | 后台页的 `cards.get`、`cards.save`：读的一头照推送交到跟核心的那一头答（「场所卡片」第 4、5 条） |
 | `crates/miyu-im/src/core/route/strangers.rs`（O-60） | 陌生人的私聊照「其他私聊」卡过进站链，开过的回合记在内存里（「陌生人的私聊」）；认陌生人在 `private.rs` |
 | `crates/miyu-im/src/rules/configured.rs`（O-41） | 配置项那一层：群的五项配置（O-58 上从七项减成三项，O-58 补二多去句号，I-26 多模拟真人一条分多条发送）（`Configured`，握手交来的、推来的照换）拼成一份规则文件 `60-settings.toml`（来处 `Source::Settings`），第几条规则是哪一项（`key_of`）（「场所规则和出厂数据」第 8 条） |
@@ -1371,6 +1371,15 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 **守着它的**：`tests/muted.rs`（真核心拉起真桥、假 NapCat）：群主禁她 5400 秒记一块 `muted`（`by` 是群主的名字、`duration` 是 `1h 30m`），解禁记一块 `unmuted`（`lifted`、群主），重了的解禁通知不再记；禁言时终端管理员两条、小林一条都排着（`deferred`），`mute_replies` 是 1：解禁以后终端管理员的两条并成一轮（`triggers` 是那两条），小林的丢掉（`too_many`），群里什么都没多发；`mute_window_seconds` 是 1：过了 1 秒终端管理员 @ 她只记下；一小时一轮的群：小林、老王、终端管理员都排着，解禁以后小林那一轮开了，老王的丢掉（`rate_limited`），终端管理员照回。`tests/queue.rs`：禁言时终端管理员 @ 她排着、主线那一轮的话排着，解禁的通知来了先发排着的话、再回排着的那一条，`unmuted` 是 `{why: lifted, by: 40004}`；禁言改短成 1 秒，到点补记 `unmuted {why: expired}`、照样回排着的那一条。`tests/frames.rs`：`operator_id` 读成谁禁的，写成字的也认，没带的、0 是不知道。
 
 **场所卡片**（O-58 上，2026-10-17 项目主人定：后台页按场所给卡片，版式是左边列表、右边详情；群相关四项挪进卡片，睡觉时间、触发词、看得到 QQ 号留在配置项里当默认；私聊卡就是白名单成员；前端凑活、重在后端）：白名单里的群一张、白名单成员一人一张，「其他群」一张兜底（出厂关着），「其他私聊」一张管陌生人（出厂不回复，O-60）。不占编号的几段同「提供者和不说话」。
+
+卡片带平台（I-80，设计 07 第 7.3 节）：
+- 群卡、私聊卡多一格 `platform`，没写的是 `qq`（I-80 以前存的都是 OneBot 的），写盘时 `qq` 不写：只用 QQ 的人 `cards.json` 不变。
+- 「其他群」「其他私聊」一个平台一套：QQ 的照旧在 `other_groups`、`other_privates`，别的平台的在 `others.<平台>.groups`、`privates`，空的不写。挂着的平台没写过的照空卡（出厂不回复）。会话默认值不分平台。
+- 拼出的规则都带 `platform` 条件（会话默认值除外）；别的平台的文件名前面加 `<平台>~`（`70-card-tg~g--100.toml`）。
+- 白名单、认出来的终端管理员照平台上的身份存（`qq:20017`），「其他私聊」只排开同一个平台的。
+- 插件开关照（平台，群/私聊，号）查，「其他群」「其他私聊」的开关一个平台一套。
+- 卡片的几个方法（`cards.save_one`、`cards.add`、`cards.remove`、`cards.overview`）认 `platform`：卡上写了的照卡，没写的照参数的 `platform`，都没写的只挂一个平台时是它，挂了几个的拒 `bad_params`。卡交给页面时带 `platform`。
+- 页面、两页（群、私聊）只画后台页那个平台（第一个驱动的）的卡；页面分连接是 I-85 的事。
 
 1. **存在哪**：`state/packages/im/cards.json`（`rules/cards/store.rs`），和状态文件同一个目录，由桥读写：先写临时文件再改名，和盘上一样的不写。不放核心的配置（核心配置没有「每个群一组设置」这种结构），不写进数据根的 `venues.d/`（管理员手写的，页面写进去会冲掉注释）。没有的是没有卡片；读不成、超过 1 MiB、不是这个样子的照没有卡片用，运行日志一行 `WARN venue cards unreadable`，不挡桥起来。
 2. **几格**（`rules/cards.rs`，每一格可选，没写的照下面几层）：`{"other_groups": {格}, "other_privates": {格}, "groups": [{"id": 群号, "set": {格}}], "privates": [{"id": 号, "set": {格}}]}`，认不得的格不收。

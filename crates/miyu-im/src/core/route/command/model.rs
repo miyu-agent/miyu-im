@@ -228,7 +228,9 @@ impl Route {
         words: &crate::rules::Words,
         lang: &str,
     ) -> String {
-        if let Some(model) = self.card_model(&message.place.peer.to) {
+        if let Some(model) =
+            self.card_model(message.place.peer.platform.name(), &message.place.peer.to)
+        {
             return words.get("model-now", lang).replace("{model}", &model);
         }
         let fallback = self
@@ -241,7 +243,7 @@ impl Route {
 
     /// 这个会话此刻真用的是哪个：卡片上写的，没写的照 [`Route::fallback_model`]。
     fn using(&mut self, message: &Message, listed: &Value) -> Option<String> {
-        self.card_model(&message.place.peer.to)
+        self.card_model(message.place.peer.platform.name(), &message.place.peer.to)
             .or_else(|| self.fallback_model(message, listed))
     }
 
@@ -255,21 +257,21 @@ impl Route {
             .or_else(|| listed["uses"]["chat"].as_str().map(str::to_string))
     }
 
-    /// 这个场所自己的卡片上写的模型。
-    fn card_model(&self, to: &To) -> Option<String> {
+    /// 平台 `platform` 上这个场所自己的卡片上写的模型。
+    fn card_model(&self, platform: &str, to: &To) -> Option<String> {
         let cards = self.rules.cards();
         match to {
             To::Group(group) => cards
                 .groups
                 .iter()
-                .find(|card| card.id == *group)?
+                .find(|card| card.platform == platform && card.id == *group)?
                 .set
                 .model
                 .clone(),
             To::Private(user) => cards
                 .privates
                 .iter()
-                .find(|card| card.id == *user)?
+                .find(|card| card.platform == platform && card.id == *user)?
                 .set
                 .model
                 .clone(),
@@ -284,9 +286,10 @@ impl Route {
         words: &crate::rules::Words,
         lang: &str,
     ) -> String {
+        let platform = message.place.peer.platform.name();
         let card = match &message.place.peer.to {
-            To::Group(group) => json!({"kind": "group", "id": group}),
-            To::Private(user) => json!({"kind": "private", "id": user}),
+            To::Group(group) => json!({"kind": "group", "platform": platform, "id": group}),
+            To::Private(user) => json!({"kind": "private", "platform": platform, "id": user}),
         };
         let saved = self.save_one(&json!({"card": card, "values": {"model": model}}));
         match saved {

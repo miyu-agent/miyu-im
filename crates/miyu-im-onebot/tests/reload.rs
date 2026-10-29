@@ -15,7 +15,13 @@ fn a_changed_system_file_is_read_at_the_next_use_after_the_interval() {
     let every = Duration::from_secs(1);
     let start = Instant::now();
     let at = |millis| start + Duration::from_millis(millis);
-    let mut venues = Venues::new(factory(), &root, Configured::default(), every, start);
+    let mut venues = Venues::new(
+        factory(),
+        &root,
+        Configured::default(),
+        vec!["qq"],
+        (every, start),
+    );
     let sleep = |venues: &mut Venues, millis| {
         venues
             .current(at(millis))
@@ -65,8 +71,8 @@ fn an_unchanged_listing_is_not_read_again() {
         factory(),
         &root,
         Configured::default(),
-        Duration::from_secs(1),
-        start,
+        vec!["qq"],
+        (Duration::from_secs(1), start),
     );
     let modified = std::fs::metadata(&path)
         .and_then(|metadata| metadata.modified())
@@ -106,8 +112,8 @@ fn a_changed_word_list_is_read_at_the_next_use_too() {
         factory(),
         &root,
         Configured::default(),
-        Duration::from_secs(1),
-        start,
+        vec!["qq"],
+        (Duration::from_secs(1), start),
     );
     assert_eq!(venues.current(start).keywords.len(), FACTORY_WORDS);
     let path = system_words(&root, "foo\n");
@@ -136,8 +142,8 @@ fn pushed_settings_apply_at_once_and_sit_between_system_file_names() {
         factory(),
         &root,
         Configured::default(),
-        Duration::from_secs(1),
-        start,
+        vec!["qq"],
+        (Duration::from_secs(1), start),
     );
     let sleep = |venues: &mut Venues, millis| {
         venues
@@ -189,8 +195,8 @@ fn saved_cards_apply_at_once_and_sit_after_the_settings() {
         factory(),
         &root,
         Configured::default(),
-        Duration::from_secs(1),
-        start,
+        vec!["qq"],
+        (Duration::from_secs(1), start),
     );
     let rate = |venues: &mut Venues, millis, number| {
         venues

@@ -134,17 +134,17 @@ async fn a_wrong_card_is_refused_with_its_problems_and_nothing_changes() {
         problems,
         [
             (
-                json!({"kind": "group", "id": LISTED}),
+                json!({"kind": "group", "platform": "qq", "id": LISTED}),
                 json!("sleep"),
                 json!("bad_format")
             ),
             (
-                json!({"kind": "group", "id": LISTED}),
+                json!({"kind": "group", "platform": "qq", "id": LISTED}),
                 json!("rate"),
                 json!("bad_format")
             ),
             (
-                json!({"kind": "private", "id": LIN}),
+                json!({"kind": "private", "platform": "qq", "id": LIN}),
                 json!("persona"),
                 json!("bad_format")
             ),

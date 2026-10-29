@@ -23,19 +23,24 @@ pub(super) fn to_object(set: &impl serde::Serialize) -> Map<String, Value> {
     }
 }
 
-/// 页面上的值：没写的 `null`，管理的人去掉 `qq:`。
+/// 页面上的值：没写的 `null`，管理的人去掉平台的前缀（`qq:`，施工 I-80：哪个平台的都去掉，页面上只写号）。
 pub(super) fn page_value(key: &str, value: Option<&Value>) -> Value {
     match (key, value) {
         (_, None) => Value::Null,
         ("managers", Some(Value::Array(list))) => list
             .iter()
             .map(|one| match one.as_str() {
-                Some(text) => json!(text.strip_prefix("qq:").unwrap_or(text)),
+                Some(text) => json!(bare(text)),
                 None => one.clone(),
             })
             .collect(),
         (_, Some(value)) => value.clone(),
     }
+}
+
+/// 平台上的身份 `<平台>:<号>` 去掉平台，只留号；不是这样写的照原样。
+pub(super) fn bare(person: &str) -> &str {
+    person.split_once(':').map_or(person, |(_, number)| number)
 }
 
 /// 控件的名字。

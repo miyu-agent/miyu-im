@@ -16,7 +16,7 @@ mod parts;
 mod words;
 
 use parts::{
-    choices, control_name, default_value, name_of, name_of_persona, page_value, to_object,
+    bare, choices, control_name, default_value, name_of, name_of_persona, page_value, to_object,
 };
 pub use words::Words;
 
@@ -267,16 +267,15 @@ pub fn friends_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> 
     })
 }
 
-/// 页面交来的一张表单的值换成卡片的写法：管理的人只写了号的补上 `qq:`。
-pub fn from_page(values: &Map<String, Value>) -> Map<String, Value> {
+/// 页面交来的一张表单的值换成卡片的写法：管理的人只写了号的补上平台 `platform`（`qq:`，施工 I-80 起照卡的平台）。
+pub fn from_page(values: &Map<String, Value>, platform: &str) -> Map<String, Value> {
     let mut values = values.clone();
     if let Some(Value::Array(list)) = values.get_mut("managers") {
         for one in list.iter_mut() {
             if let Some(text) = one.as_str()
-                && !text.is_empty()
-                && text.bytes().all(|byte| byte.is_ascii_digit())
+                && crate::chat::Id::new(text).is_some()
             {
-                *one = json!(format!("qq:{text}"));
+                *one = json!(format!("{platform}:{text}"));
             }
         }
     }
@@ -428,7 +427,7 @@ impl Ink<'_> {
                 let shown: Vec<String> = list
                     .iter()
                     .filter_map(Value::as_str)
-                    .map(|one| one.strip_prefix("qq:").unwrap_or(one).to_string())
+                    .map(|one| bare(one).to_string())
                     .collect();
                 if shown.is_empty() {
                     self.words.get("unset", lang)

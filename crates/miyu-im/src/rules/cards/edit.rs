@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
 use super::lines::key_ok;
-use super::{Card, Cards, GroupCard, GroupSet, PrivateCard, PrivateSet};
+use super::{Card, Cards, GroupCard, GroupSet, Others, PrivateCard, PrivateSet, platform_ok};
 use crate::chat::Id;
 
 /// 改完的样子。
@@ -25,15 +25,21 @@ pub enum Edit {
     Missing,
 }
 
-/// 照页面交来的 `{"kind", "id"?}` 认是哪一张卡。
-pub fn card_of(value: &Value) -> Option<Card> {
+/// 照页面交来的 `{"kind", "platform"?, "id"?}` 认是哪一张卡（施工 I-80：没写平台的照 `fallback`，调的一方照挂着的平台定；
+/// 定不了的是空的）。平台名不合写法的、号不合写法的是空的。
+pub fn card_of(value: &Value, fallback: Option<&str>) -> Option<Card> {
     let id = || serde_json::from_value::<Id>(value["id"].clone()).ok();
+    let platform = match &value["platform"] {
+        Value::Null if value["kind"] == "defaults" => String::new(),
+        Value::Null => fallback?.to_string(),
+        named => named.as_str().filter(|name| platform_ok(name))?.to_string(),
+    };
     match value["kind"].as_str()? {
         "defaults" => Some(Card::Defaults),
-        "other_groups" => Some(Card::OtherGroups),
-        "other_privates" => Some(Card::OtherPrivates),
-        "group" => Some(Card::Group(id()?)),
-        "private" => Some(Card::Private(id()?)),
+        "other_groups" => Some(Card::OtherGroups(platform)),
+        "other_privates" => Some(Card::OtherPrivates(platform)),
+        "group" => Some(Card::Group(platform, id()?)),
+        "private" => Some(Card::Private(platform, id()?)),
         _ => None,
     }
 }
@@ -43,13 +49,13 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
     let merged = match &card {
         Card::Defaults => merge(&mut next.defaults, values),
-        Card::OtherGroups => merge(&mut next.other_groups, values),
-        Card::OtherPrivates => merge(&mut next.other_privates, values),
-        Card::Group(id) => match next.groups.iter_mut().find(|one| one.id == *id) {
+        Card::OtherGroups(platform) => merge(next.other_groups_mut(platform), values),
+        Card::OtherPrivates(platform) => merge(next.other_privates_mut(platform), values),
+        Card::Group(platform, id) => match group_mut(&mut next, platform, id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
-        Card::Private(id) => match next.privates.iter_mut().find(|one| one.id == *id) {
+        Card::Private(platform, id) => match private_mut(&mut next, platform, id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
@@ -57,11 +63,12 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     if let Err(problems) = merged {
         return Edit::Problems(problems);
     }
-    let written = written_rules(&next, card.clone());
+    next.others.retain(|_, others| *others != Others::default());
+    let written = written_rules(&next, &card);
     let problems: Vec<(String, String)> = next
         .problems()
         .into_iter()
-        .filter(|problem| Card::parse(&problem.file) == Some(card.clone()))
+        .filter(|problem| Card::parse(&problem.file).as_ref() == Some(&card))
         .map(|problem| {
             (
                 problem
@@ -83,24 +90,45 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     }
 }
 
+/// 平台 `platform` 上群号 `id` 的那张卡。
+fn group_mut<'a>(cards: &'a mut Cards, platform: &str, id: &Id) -> Option<&'a mut GroupCard> {
+    cards
+        .groups
+        .iter_mut()
+        .find(|one| one.platform == platform && one.id == *id)
+}
+
+/// 平台 `platform` 上对方的号是 `id` 的那张卡。
+fn private_mut<'a>(cards: &'a mut Cards, platform: &str, id: &Id) -> Option<&'a mut PrivateCard> {
+    cards
+        .privates
+        .iter_mut()
+        .find(|one| one.platform == platform && one.id == *id)
+}
+
 /// 加一张空卡：已经有的照旧（交回原样）。「其他群」「其他私聊」本来就有。
 pub fn add(cards: &Cards, card: Card) -> Cards {
     let mut next = cards.clone();
     match card {
-        Card::Defaults | Card::OtherGroups | Card::OtherPrivates => {}
-        Card::Group(id) if !next.groups.iter().any(|one| one.id == id) => {
-            next.groups.push(GroupCard {
-                id,
-                set: GroupSet::default(),
-            })
+        Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => {}
+        Card::Group(platform, id) => {
+            if group_mut(&mut next, &platform, &id).is_none() {
+                next.groups.push(GroupCard {
+                    platform,
+                    id,
+                    set: GroupSet::default(),
+                });
+            }
         }
-        Card::Private(id) if !next.privates.iter().any(|one| one.id == id) => {
-            next.privates.push(PrivateCard {
-                id,
-                set: PrivateSet::default(),
-            });
+        Card::Private(platform, id) => {
+            if private_mut(&mut next, &platform, &id).is_none() {
+                next.privates.push(PrivateCard {
+                    platform,
+                    id,
+                    set: PrivateSet::default(),
+                });
+            }
         }
-        Card::Group(_) | Card::Private(_) => {}
     }
     next
 }
@@ -109,31 +137,35 @@ pub fn add(cards: &Cards, card: Card) -> Cards {
 pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
     let mut next = cards.clone();
     match card {
-        Card::Defaults | Card::OtherGroups | Card::OtherPrivates => return None,
-        Card::Group(id) => next.groups.retain(|one| one.id != id),
-        Card::Private(id) => next.privates.retain(|one| one.id != id),
+        Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => return None,
+        Card::Group(platform, id) => next
+            .groups
+            .retain(|one| one.platform != platform || one.id != id),
+        Card::Private(platform, id) => next
+            .privates
+            .retain(|one| one.platform != platform || one.id != id),
     }
     Some(next)
 }
 
 /// 卡 `card` 上 `rules` 里写着的键。
-fn written_rules(cards: &Cards, card: Card) -> Vec<String> {
+fn written_rules(cards: &Cards, card: &Card) -> Vec<String> {
     let set = match card {
         Card::Defaults => serde_json::to_value(&cards.defaults),
-        Card::OtherGroups => serde_json::to_value(&cards.other_groups),
-        Card::OtherPrivates => serde_json::to_value(&cards.other_privates),
-        Card::Group(id) => serde_json::to_value(
+        Card::OtherGroups(platform) => serde_json::to_value(cards.other_groups_of(platform)),
+        Card::OtherPrivates(platform) => serde_json::to_value(cards.other_privates_of(platform)),
+        Card::Group(platform, id) => serde_json::to_value(
             cards
                 .groups
                 .iter()
-                .find(|one| one.id == id)
+                .find(|one| one.platform == *platform && one.id == *id)
                 .map(|one| &one.set),
         ),
-        Card::Private(id) => serde_json::to_value(
+        Card::Private(platform, id) => serde_json::to_value(
             cards
                 .privates
                 .iter()
-                .find(|one| one.id == id)
+                .find(|one| one.platform == *platform && one.id == *id)
                 .map(|one| &one.set),
         ),
     };

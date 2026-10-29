@@ -183,8 +183,14 @@ fn managers_written_as_numbers_get_the_platform_prefix() {
             .as_object()
             .expect("对象")
             .clone();
-    let got = from_page(&values);
-    assert_eq!(got["managers"], json!(["qq:1001", "qq:1002", "abc", ""]));
+    let got = from_page(&values, "qq");
+    assert_eq!(
+        got["managers"],
+        json!(["qq:1001", "qq:1002", "qq:abc", ""]),
+        "号写成字的也补（施工 I-80）"
+    );
+    let tg = from_page(&values, "tg");
+    assert_eq!(tg["managers"], json!(["tg:1001", "qq:1002", "tg:abc", ""]));
     assert_eq!(got["rate"], "1/60s");
 }
 

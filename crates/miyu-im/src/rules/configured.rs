@@ -14,6 +14,7 @@ use miyu_chat::{File, Rules, Source};
 use super::cards::GroupSet;
 use crate::PACKAGE;
 use crate::chat::Id;
+use crate::rules::cards::platform_ok;
 
 /// 拼出来的那一份的文件名：排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的盖它，同名的整份替换它。
 pub const FILE: &str = "60-settings.toml";
@@ -52,8 +53,8 @@ pub struct Configured {
     strip_period: bool,
     /// 模拟真人一条分多条发送。
     humanlike: bool,
-    /// 白名单成员的号（`im.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
-    whitelist: Vec<Id>,
+    /// 白名单成员（`im.whitelist`，施工 O-60；I-80 起照身份存，哪个平台的都在）：不拼进规则，「其他私聊」卡不管他们。
+    whitelist: Vec<String>,
 }
 
 impl Default for Configured {
@@ -101,8 +102,8 @@ impl Configured {
                 HUMANLIKE => self.humanlike = value.as_bool().unwrap_or(fallback.humanlike),
                 WHITELIST => {
                     self.whitelist = texts(value)
-                        .iter()
-                        .filter_map(|one| Id::new(one.strip_prefix("qq:")?))
+                        .into_iter()
+                        .filter(|one| person_ok(one))
                         .collect();
                 }
                 _ => {}
@@ -185,9 +186,16 @@ impl Configured {
     }
 }
 
+/// 写成平台上的身份 `<平台>:<号>` 的、平台和号都合写法的（施工 I-80：白名单不分平台存，照身份认）。
+pub(crate) fn person_ok(person: &str) -> bool {
+    person
+        .split_once(':')
+        .is_some_and(|(platform, number)| platform_ok(platform) && Id::new(number).is_some())
+}
+
 impl Configured {
-    /// 白名单成员的号（施工 O-60：「其他私聊」卡不管他们）。
-    pub fn whitelisted(&self) -> &[Id] {
+    /// 白名单成员（施工 O-60：「其他私聊」卡不管他们）：平台上的身份 `<平台>:<号>`，哪个平台的都在（施工 I-80）。
+    pub fn whitelisted(&self) -> &[String] {
         &self.whitelist
     }
 

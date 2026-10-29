@@ -5,6 +5,11 @@ use serde_json::{Map, Value, json};
 
 use super::*;
 
+/// 卡片上没写平台的那一个。
+fn qq() -> String {
+    crate::rules::OLD_PLATFORM.to_string()
+}
+
 fn cards(value: Value) -> Cards {
     serde_json::from_value(value).expect("是卡片的样子")
 }
@@ -16,25 +21,32 @@ fn values(value: Value) -> Map<String, Value> {
 #[test]
 fn cards_are_named_by_kind_and_number() {
     assert_eq!(
-        card_of(&json!({"kind": "other_groups"})),
-        Some(Card::OtherGroups)
+        card_of(&json!({"kind": "other_groups"}), Some("qq")),
+        Some(Card::OtherGroups(qq()))
     );
     assert_eq!(
-        card_of(&json!({"kind": "group", "id": 7})),
-        Some(Card::Group(Id::from(7)))
+        card_of(&json!({"kind": "group", "id": 7}), Some("qq")),
+        Some(Card::Group(qq(), Id::from(7)))
     );
     assert_eq!(
-        card_of(&json!({"kind": "private", "id": 9})),
-        Some(Card::Private(Id::from(9)))
+        card_of(&json!({"kind": "private", "id": 9}), Some("qq")),
+        Some(Card::Private(qq(), Id::from(9)))
     );
-    assert_eq!(card_of(&json!({"kind": "group"})), None, "群卡要号");
     assert_eq!(
-        card_of(&json!({"kind": "group", "id": "7"})),
-        Some(Card::Group(Id::from(7))),
+        card_of(&json!({"kind": "group"}), Some("qq")),
+        None,
+        "群卡要号"
+    );
+    assert_eq!(
+        card_of(&json!({"kind": "group", "id": "7"}), Some("qq")),
+        Some(Card::Group(qq(), Id::from(7))),
         "号写成字的也认（施工 I-79）"
     );
-    assert_eq!(card_of(&json!({"kind": "group", "id": "a b"})), None);
-    assert_eq!(card_of(&json!({"kind": "lobby"})), None);
+    assert_eq!(
+        card_of(&json!({"kind": "group", "id": "a b"}), Some("qq")),
+        None
+    );
+    assert_eq!(card_of(&json!({"kind": "lobby"}), Some("qq")), None);
 }
 
 #[test]
@@ -44,7 +56,7 @@ fn only_the_given_fields_change_and_null_goes_back_to_default() {
     );
     let got = update(
         &before,
-        Card::Group(Id::from(7)),
+        Card::Group(qq(), Id::from(7)),
         &values(json!({"rate": "2/60s", "persona": null, "long_chars": 500})),
     );
     let Edit::Done(after) = got else {
@@ -55,7 +67,11 @@ fn only_the_given_fields_change_and_null_goes_back_to_default() {
     assert_eq!(set.persona, None, "null 是恢复默认");
     assert_eq!(set.on, Some(false), "没交的不动");
     assert_eq!(set.long_chars, Some(500));
-    let other = update(&before, Card::OtherGroups, &values(json!({"on": true})));
+    let other = update(
+        &before,
+        Card::OtherGroups(qq()),
+        &values(json!({"on": true})),
+    );
     assert!(
         matches!(other, Edit::Done(ref next) if next.other_groups.on == Some(true) && next.groups == before.groups)
     );
@@ -67,7 +83,7 @@ fn bad_fields_are_reported_on_themselves_and_nothing_changes() {
     assert_eq!(
         update(
             &before,
-            Card::Group(Id::from(7)),
+            Card::Group(qq(), Id::from(7)),
             &values(json!({"on": "yes", "nope": 1, "rate": "2/60s"}))
         ),
         Edit::Problems(vec![
@@ -78,7 +94,7 @@ fn bad_fields_are_reported_on_themselves_and_nothing_changes() {
     assert_eq!(
         update(
             &before,
-            Card::Private(Id::from(9)),
+            Card::Private(qq(), Id::from(9)),
             &values(json!({"rate": "2/60s"}))
         ),
         Edit::Problems(vec![("rate".into(), "unknown_key".into())]),
@@ -87,7 +103,7 @@ fn bad_fields_are_reported_on_themselves_and_nothing_changes() {
     assert_eq!(
         update(
             &before,
-            Card::Group(Id::from(7)),
+            Card::Group(qq(), Id::from(7)),
             &values(json!({"chatty": "loud"}))
         ),
         Edit::Problems(vec![("chatty".into(), "value".into())])
@@ -99,7 +115,7 @@ fn rule_problems_come_back_as_card_fields() {
     let before = cards(json!({"groups": [{"id": 7}]}));
     let Edit::Problems(problems) = update(
         &before,
-        Card::Group(Id::from(7)),
+        Card::Group(qq(), Id::from(7)),
         &values(json!({"rate": "lots", "long_chars": 200_000})),
     ) else {
         panic!("该拒");
@@ -123,25 +139,33 @@ fn a_missing_card_is_missing_and_adding_twice_keeps_one() {
     assert_eq!(
         update(
             &before,
-            Card::Group(Id::from(8)),
+            Card::Group(qq(), Id::from(8)),
             &values(json!({"on": true}))
         ),
         Edit::Missing
     );
     assert_eq!(
-        update(&before, Card::Private(Id::from(9)), &values(json!({}))),
+        update(
+            &before,
+            Card::Private(qq(), Id::from(9)),
+            &values(json!({}))
+        ),
         Edit::Missing
     );
-    let added = add(&before, Card::Group(Id::from(7)));
+    let added = add(&before, Card::Group(qq(), Id::from(7)));
     assert_eq!(added, before, "已经有的照旧，设的格不丢");
     let added = add(
-        &add(&before, Card::Group(Id::from(8))),
-        Card::Private(Id::from(9)),
+        &add(&before, Card::Group(qq(), Id::from(8))),
+        Card::Private(qq(), Id::from(9)),
     );
     assert_eq!(added.groups.len(), 2);
     assert_eq!(added.privates.len(), 1);
-    assert_eq!(remove(&added, Card::OtherGroups), None, "「其他群」删不掉");
-    let removed = remove(&added, Card::Group(Id::from(7))).expect("删得掉");
+    assert_eq!(
+        remove(&added, Card::OtherGroups(qq())),
+        None,
+        "「其他群」删不掉"
+    );
+    let removed = remove(&added, Card::Group(qq(), Id::from(7))).expect("删得掉");
     assert_eq!(
         removed
             .groups
@@ -151,7 +175,7 @@ fn a_missing_card_is_missing_and_adding_twice_keeps_one() {
         [Id::from(8)]
     );
     assert_eq!(
-        remove(&removed, Card::Private(Id::from(9)))
+        remove(&removed, Card::Private(qq(), Id::from(9)))
             .expect("删得掉")
             .privates,
         []
@@ -165,7 +189,7 @@ fn problems_on_other_cards_do_not_block_this_one() {
     before.groups[1].set.rate = Some("lots".into());
     let got = update(
         &before,
-        Card::Group(Id::from(7)),
+        Card::Group(qq(), Id::from(7)),
         &values(json!({"rate": "2/60s"})),
     );
     assert!(
@@ -181,7 +205,7 @@ fn the_rules_change_key_by_key() {
         json!({"groups": [{"id": 7, "set": {"rules": {"chatty.base": 0.7, "parallel": 2}}}]}),
     );
     let changed = values(json!({"rules": {"chatty.base": null, "judge.records": 30}}));
-    let Edit::Done(next) = update(&before, Card::Group(Id::from(7)), &changed) else {
+    let Edit::Done(next) = update(&before, Card::Group(qq(), Id::from(7)), &changed) else {
         panic!("改得成");
     };
     assert_eq!(
@@ -189,7 +213,7 @@ fn the_rules_change_key_by_key() {
         json!({"rules": {"judge.records": 30, "parallel": 2}})
     );
     let emptied = values(json!({"rules": {"judge.records": null, "parallel": null}}));
-    let Edit::Done(last) = update(&next, Card::Group(Id::from(7)), &emptied) else {
+    let Edit::Done(last) = update(&next, Card::Group(qq(), Id::from(7)), &emptied) else {
         panic!("改得成");
     };
     assert_eq!(last.groups[0].set.rules, None, "去光了整格去掉");
@@ -200,18 +224,18 @@ fn bad_rule_keys_and_values_are_reported_under_rules() {
     let before = cards(json!({"groups": [{"id": 7, "set": {}}]}));
     let bad_key = values(json!({"rules": {"allow": true, "chatty.base": 0.5}}));
     assert_eq!(
-        update(&before, Card::Group(Id::from(7)), &bad_key),
+        update(&before, Card::Group(qq(), Id::from(7)), &bad_key),
         Edit::Problems(vec![("rules.allow".to_string(), "unknown_key".to_string())])
     );
     let not_a_map = values(json!({"rules": [1]}));
     assert_eq!(
-        update(&before, Card::Group(Id::from(7)), &not_a_map),
+        update(&before, Card::Group(qq(), Id::from(7)), &not_a_map),
         Edit::Problems(vec![("rules".to_string(), "value".to_string())])
     );
     // 群聊内核查出来的：报在卡上 `rules` 的那个键上。
     let Edit::Problems(problems) = update(
         &before,
-        Card::Group(Id::from(7)),
+        Card::Group(qq(), Id::from(7)),
         &values(json!({"rules": {"judge.records": 0, "chatty.nope": 1}})),
     ) else {
         panic!("规则写错了");
@@ -224,7 +248,10 @@ fn bad_rule_keys_and_values_are_reported_under_rules() {
 #[test]
 fn the_defaults_card_is_edited_like_any_other_and_never_removed() {
     // 施工 I-7 下二：会话默认值那张卡。
-    assert_eq!(card_of(&json!({"kind": "defaults"})), Some(Card::Defaults));
+    assert_eq!(
+        card_of(&json!({"kind": "defaults"}), Some("qq")),
+        Some(Card::Defaults)
+    );
     let before = cards(json!({}));
     let Edit::Done(next) = update(
         &before,
@@ -244,4 +271,72 @@ fn the_defaults_card_is_edited_like_any_other_and_never_removed() {
         panic!("写错了");
     };
     assert_eq!(problems[0].0, "rate", "{problems:?}");
+}
+
+#[test]
+fn a_card_says_its_platform_or_takes_the_one_given() {
+    // 施工 I-80：卡写了平台的照它；没写的照调的一方给的（只挂一个平台时是它），给不出的不认。
+    let tg = || "tg".to_string();
+    assert_eq!(
+        card_of(
+            &json!({"kind": "group", "platform": "tg", "id": -100}),
+            None
+        ),
+        Some(Card::Group(tg(), Id::from(-100)))
+    );
+    assert_eq!(
+        card_of(&json!({"kind": "group", "id": 7}), Some("tg")),
+        Some(Card::Group(tg(), Id::from(7)))
+    );
+    assert_eq!(card_of(&json!({"kind": "group", "id": 7}), None), None);
+    assert_eq!(
+        card_of(&json!({"kind": "defaults"}), None),
+        Some(Card::Defaults)
+    );
+    assert_eq!(
+        card_of(
+            &json!({"kind": "other_groups", "platform": "Bad Name"}),
+            Some("qq")
+        ),
+        None
+    );
+    // 加、改、删都照平台找：tg 的群 7 不是 QQ 的群 7。
+    let both = add(
+        &add(&Cards::default(), Card::Group(qq(), Id::from(7))),
+        Card::Group(tg(), Id::from(7)),
+    );
+    assert_eq!(both.groups.len(), 2);
+    let values = json!({"persona": "writer"});
+    let Edit::Done(changed) = update(
+        &both,
+        Card::Group(tg(), Id::from(7)),
+        values.as_object().expect("对象"),
+    ) else {
+        panic!("改得了");
+    };
+    assert_eq!(changed.groups[0].set.persona, None, "QQ 的那张没动");
+    assert_eq!(changed.groups[1].set.persona.as_deref(), Some("writer"));
+    let left = remove(&changed, Card::Group(qq(), Id::from(7))).expect("删得掉");
+    assert_eq!(left.groups.len(), 1);
+    assert_eq!(left.groups[0].platform, "tg");
+    // tg 的「其他群」改了不碰 QQ 的，改回空的不留空的一格。
+    let on = json!({"on": true});
+    let Edit::Done(other) = update(
+        &Cards::default(),
+        Card::OtherGroups(tg()),
+        on.as_object().expect("对象"),
+    ) else {
+        panic!("改得了");
+    };
+    assert_eq!(other.other_groups, GroupSet::default());
+    assert_eq!(other.other_groups_of("tg").on, Some(true));
+    let off = json!({"on": null});
+    let Edit::Done(back) = update(
+        &other,
+        Card::OtherGroups(tg()),
+        off.as_object().expect("对象"),
+    ) else {
+        panic!("改得了");
+    };
+    assert!(back.others.is_empty());
 }

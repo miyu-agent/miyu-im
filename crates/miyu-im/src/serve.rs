@@ -171,12 +171,17 @@ pub async fn run(
     .await?;
     shaken(&core.language);
     // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。跟核心的那一头每一条消息照它套场所（施工 O-22）。
+    let mounted = serve
+        .drivers
+        .iter()
+        .map(|driver| driver.platform().name())
+        .collect();
     let venues = Venues::new(
         serve.factory,
         &serve.root,
         Configured::handed(&core.config),
-        serve.tuning.rules_check(),
-        Instant::now(),
+        mounted,
+        (serve.tuning.rules_check(), Instant::now()),
     );
     // 撤回回执的命令的默认值（施工 O-47）：跟核心的那一头照它读握手交来的、推来的。
     let recall_default = serve.defaults.recall_receipts.clone();

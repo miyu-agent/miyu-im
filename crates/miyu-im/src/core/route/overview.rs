@@ -33,9 +33,14 @@ impl Route {
         true
     }
 
-    /// 一张卡的概况；卡写错的是空的。
+    /// 一张卡的概况；卡写错的是空的。平台照 `args`（施工 I-80，同 `cards.save_one`）。
     fn overview(&self, args: &Value) -> Option<Value> {
-        let card = card_edit::card_of(&args["card"])?;
+        let platform = self
+            .platforms
+            .ours(args)
+            .ok()
+            .map(|platform| platform.name());
+        let card = card_edit::card_of(&args["card"], platform)?;
         let wanted = self.wanted_venues(card)?;
         let today = self.counters.today_of(&wanted);
         let recent: Vec<Value> = self
@@ -49,43 +54,44 @@ impl Route {
 
     /// 一张卡管的场所：交回认场所编号的那一段。
     fn wanted_venues(&self, card: Card) -> Option<Wanted> {
-        let key = |kind, number: &Id| -> Option<String> {
-            Some(self.card_venue(kind, number)?.id().to_string())
+        let key = |platform: &str, kind, number: &Id| -> Option<String> {
+            Some(Self::card_venue(platform, kind, number)?.id().to_string())
         };
         // 一种场所的编号的开头：照号 0 的编号去掉最后一段（`qq:group:`）。
-        let prefix = |kind| -> Option<String> {
-            let one = key(kind, &Id::from(0))?;
+        let prefix = |platform: &str, kind| -> Option<String> {
+            let one = key(platform, kind, &Id::from(0))?;
             Some(format!("{}:", one.rsplit_once(':')?.0))
         };
         Some(match card {
             // 会话默认值不是哪个场所：没有概况。
             Card::Defaults => return None,
-            Card::Group(id) => {
-                let one = key(VenueKind::Group, &id)?;
+            Card::Group(platform, id) => {
+                let one = key(&platform, VenueKind::Group, &id)?;
                 Box::new(move |venue: &str| venue == one)
             }
-            Card::Private(id) => {
-                let one = key(VenueKind::Private, &id)?;
+            Card::Private(platform, id) => {
+                let one = key(&platform, VenueKind::Private, &id)?;
                 Box::new(move |venue: &str| venue == one)
             }
-            Card::OtherGroups => {
+            Card::OtherGroups(platform) => {
                 let listed: BTreeSet<String> = self
                     .rules
                     .cards()
                     .groups
                     .iter()
-                    .filter_map(|card| key(VenueKind::Group, &card.id))
+                    .filter(|card| card.platform == platform)
+                    .filter_map(|card| key(&platform, VenueKind::Group, &card.id))
                     .collect();
-                let start = prefix(VenueKind::Group)?;
+                let start = prefix(&platform, VenueKind::Group)?;
                 Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))
             }
-            Card::OtherPrivates => {
+            Card::OtherPrivates(platform) => {
                 let listed: BTreeSet<String> = self
-                    .whitelist_numbers()
+                    .whitelist_numbers(&platform)
                     .into_iter()
-                    .filter_map(|id| key(VenueKind::Private, &id))
+                    .filter_map(|id| key(&platform, VenueKind::Private, &id))
                     .collect();
-                let start = prefix(VenueKind::Private)?;
+                let start = prefix(&platform, VenueKind::Private)?;
                 Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))
             }
         })

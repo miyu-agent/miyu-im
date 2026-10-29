@@ -37,14 +37,16 @@ use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, 
 use miyu_client::places::DataRoot;
 use miyu_client::settings::problem::Code;
 
-use crate::chat::Id;
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
 pub use cards::OTHER_GROUPS_RATE;
 pub use cards::defaults as card_defaults;
 pub use cards::edit::{self as card_edit, Edit};
 pub use cards::page::{self as card_page, Known, Words};
-pub use cards::{Card, Cards, Chatty, GroupCard, GroupSet, PrivateCard, PrivateSet};
+pub use cards::{
+    Card, Cards, Chatty, GroupCard, GroupSet, OLD_PLATFORM, Others, PrivateCard, PrivateSet,
+    platform_ok,
+};
 pub use cards::{load as load_cards, path as cards_path, save as save_cards};
 pub use configured::{Configured, key_of};
 use files::Stamp;
@@ -229,20 +231,21 @@ impl Loaded {
 }
 
 /// 读数据根 `root` 里系统的那几份，和出厂的 `factory`、配置项拼的那一份 `configured`（施工 O-41）、卡片拼的几份 `cards`（施工
-/// O-58 上；「其他私聊」不管白名单成员和 `admins` 这几个号，施工 O-60）合起来（「场所规则和出厂数据」第 2、8 条）。不会失败：读不成的、写错的
+/// O-58 上；「其他私聊」不管白名单成员和 `admins` 这几个人，施工 O-60；挂着的平台 `mounted` 每个都拼一份「其他群」「其他私聊」，施工 I-80）合起来（「场所规则和出厂数据」第 2、8 条）。不会失败：读不成的、写错的
 /// 都变成问题，其余照用。不记运行日志（[`Venues`] 记；`venue show` 印出来）。
 pub fn load(
     factory: &Factory,
     root: &DataRoot,
     configured: &Configured,
-    (cards, admins): (&Cards, &[Id]),
+    (cards, admins): (&Cards, &[String]),
+    mounted: &[&str],
 ) -> Loaded {
     let mut layers = vec![configured.file()];
     let mut known = configured.whitelisted().to_vec();
     known.extend_from_slice(admins);
     known.sort_unstable();
     known.dedup();
-    layers.extend(cards.files_except(&known));
+    layers.extend(cards.files_for(mounted, &known));
     assemble(factory, root, layers)
 }
 
@@ -301,8 +304,10 @@ pub struct Venues {
     configured: Configured,
     /// 卡片那一层这一刻的卡片（施工 O-58 上）。
     cards: Cards,
-    /// 认出来的终端管理员的号（施工 O-60）：「其他私聊」卡不管他们（白名单成员照配置项那一层的）。
-    admins: Vec<Id>,
+    /// 认出来的终端管理员（施工 O-60；I-80 起是平台上的身份 `<平台>:<号>`）：「其他私聊」卡不管他们（白名单成员照配置项那一层的）。
+    admins: Vec<String>,
+    /// 挂着的平台（施工 I-80）：每个都拼一份「其他群」「其他私聊」。
+    mounted: Vec<&'static str>,
     /// 隔多久才看一眼（`bridge.json` 的 `rules_check_millis`）。
     every: Duration,
     /// 上一次看的时刻。
@@ -320,8 +325,8 @@ impl Venues {
         factory: Factory,
         root: &DataRoot,
         configured: Configured,
-        every: Duration,
-        now: Instant,
+        mounted: Vec<&'static str>,
+        (every, now): (Duration, Instant),
     ) -> Venues {
         let cards = cards::load(root).unwrap_or_else(|error| {
             tracing::warn!(target: TARGET, error, "venue cards unreadable");
@@ -329,13 +334,14 @@ impl Venues {
         });
         // 先记样子再读：读的时候又改了的，下一次看得出来。
         let stamp = stamp(root);
-        let loaded = reload(&factory, root, &configured, (&cards, &[]));
+        let loaded = reload(&factory, root, &configured, (&cards, &[]), &mounted);
         Venues {
             factory,
             root: root.clone(),
             configured,
             cards,
             admins: Vec::new(),
+            mounted,
             every,
             looked: now,
             stamp,
@@ -400,11 +406,12 @@ impl Venues {
             &self.root,
             &self.configured,
             (&self.cards, &self.admins),
+            &self.mounted,
         );
     }
 
-    /// 认出来一个终端管理员的号 `admin`（施工 O-60）：「其他私聊」卡不再管他，没记过的当场整份重读。
-    pub fn add_admin(&mut self, admin: Id) {
+    /// 认出来一个终端管理员 `admin`（平台上的身份，施工 O-60）：「其他私聊」卡不再管他，没记过的当场整份重读。
+    pub fn add_admin(&mut self, admin: String) {
         if !self.admins.contains(&admin) {
             self.admins.push(admin);
             self.reread();
@@ -442,9 +449,10 @@ fn reload(
     factory: &Factory,
     root: &DataRoot,
     configured: &Configured,
-    cards: (&Cards, &[Id]),
+    cards: (&Cards, &[String]),
+    mounted: &[&str],
 ) -> Loaded {
-    let loaded = load(factory, root, configured, cards);
+    let loaded = load(factory, root, configured, cards, mounted);
     for problem in &loaded.problems {
         tracing::warn!(
             target: TARGET,

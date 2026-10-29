@@ -18,6 +18,7 @@ fn the_system_word_list_replaces_the_factory_one() {
         &root,
         &Configured::default(),
         (&Cards::default(), &[]),
+        &["qq"],
     );
     assert_eq!(
         loaded.keywords,
@@ -31,6 +32,7 @@ fn the_system_word_list_replaces_the_factory_one() {
         &root,
         &Configured::default(),
         (&Cards::default(), &[]),
+        &["qq"],
     );
     assert_eq!(loaded.keywords, Vec::<String>::new(), "读不成的照空的用");
     assert_eq!(loaded.problems.len(), 1);
@@ -45,7 +47,8 @@ fn the_system_word_list_replaces_the_factory_one() {
             &factory,
             &root,
             &Configured::default(),
-            (&Cards::default(), &[])
+            (&Cards::default(), &[]),
+            &["qq"],
         )
         .keywords
         .len(),
@@ -64,6 +67,7 @@ fn word_list_problems_come_after_the_rule_files() {
         &root,
         &Configured::default(),
         (&Cards::default(), &[]),
+        &["qq"],
     )
     .problems
     .into_iter()

@@ -282,13 +282,13 @@ impl Texts {
             Source::Settings => {
                 return match Card::parse(file) {
                     Some(Card::Defaults) => self.say("venue/card-defaults", &[]),
-                    Some(Card::OtherGroups) => self.say("venue/card-other-groups", &[]),
-                    Some(Card::OtherPrivates) => self.say("venue/card-other-privates", &[]),
-                    Some(Card::Group(id)) => {
-                        self.say("venue/card-group", &[("id", id.to_string())])
+                    Some(Card::OtherGroups(_)) => self.say("venue/card-other-groups", &[]),
+                    Some(Card::OtherPrivates(_)) => self.say("venue/card-other-privates", &[]),
+                    Some(Card::Group(platform, id)) => {
+                        self.say("venue/card-group", &[("id", shown_id(&platform, &id))])
                     }
-                    Some(Card::Private(id)) => {
-                        self.say("venue/card-private", &[("id", id.to_string())])
+                    Some(Card::Private(platform, id)) => {
+                        self.say("venue/card-private", &[("id", shown_id(&platform, &id))])
                     }
                     None => {
                         let key = rule.and_then(key_of).unwrap_or_else(|| file.to_string());
@@ -398,5 +398,13 @@ impl Texts {
             tracing::warn!(target: crate::TARGET, key = %said.key, "human text missing");
             format!("{} {:?}", said.key, said.fields)
         })
+    }
+}
+
+/// 卡上的号说给人听的写法：QQ 的照旧只写号，别的平台的写成身份 `<平台>:<号>`（施工 I-80）。
+fn shown_id(platform: &str, id: &crate::chat::Id) -> String {
+    match platform {
+        crate::rules::OLD_PLATFORM => id.to_string(),
+        _ => format!("{platform}:{id}"),
     }
 }

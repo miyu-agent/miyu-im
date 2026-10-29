@@ -240,8 +240,8 @@ impl Hooks {
             return false;
         }
         let venue = to.as_ref().map(|to| match to {
-            To::Group(group) => (VenueKind::Group, group),
-            To::Private(user) => (VenueKind::Private, user),
+            To::Group(group) => (platform.name(), VenueKind::Group, group),
+            To::Private(user) => (platform.name(), VenueKind::Private, user),
         });
         // 只在群、只在私聊用的插件（施工 I-51）：别的场所当关着。
         let kind = match &to {

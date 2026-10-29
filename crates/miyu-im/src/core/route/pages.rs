@@ -64,21 +64,25 @@ impl Route {
         if widget != GROUPS && widget != card_page::FRIENDS {
             return;
         }
-        let cards = self.rules.cards().clone();
-        let whitelist = self.whitelist_numbers();
+        // 两页只画后台页那个平台的（施工 I-80：页面分平台是 I-85 的事）。
+        let page = self.page_platform();
+        let mut cards = self.rules.cards().clone();
+        cards.groups.retain(|card| card.platform == page);
+        cards.privates.retain(|card| card.platform == page);
+        let whitelist = self.whitelist_numbers(page);
         let mut groups = Map::new();
         for card in &cards.groups {
-            groups.insert(card.id.to_string(), self.group_defaults(&card.id));
+            groups.insert(card.id.to_string(), self.group_defaults(page, &card.id));
         }
         let mut privates = Map::new();
         for id in &whitelist {
-            privates.insert(id.to_string(), self.private_defaults(id));
+            privates.insert(id.to_string(), self.private_defaults(page, id));
         }
         let known = Known {
             whitelist,
             defaults: json!({
-                "other_groups": self.group_defaults(&Id::from(0)),
-                "other_privates": self.other_private_defaults(),
+                "other_groups": self.group_defaults(page, &Id::from(0)),
+                "other_privates": self.other_private_defaults(page),
                 "groups": groups,
                 "privates": privates,
             }),
@@ -95,12 +99,24 @@ impl Route {
         self.chores.spawn(push(job, bots, caller));
     }
 
-    /// 白名单成员的号（`im.whitelist` 里这个平台的）。
-    pub(super) fn whitelist_numbers(&self) -> Vec<Id> {
+    /// 白名单成员里平台 `platform` 上的号（`im.whitelist` 里 `<平台>:` 开头的）。
+    pub(super) fn whitelist_numbers(&self, platform: &str) -> Vec<Id> {
         self.whitelist
             .iter()
-            .filter_map(|identity| Id::new(identity.strip_prefix("qq:")?))
+            .filter_map(|identity| {
+                let (on, number) = identity.split_once(':')?;
+                (on == platform).then(|| Id::new(number)).flatten()
+            })
             .collect()
+    }
+
+    /// 方法参数 `args` 说的是哪个平台（施工 I-80，同 I-70 上的规矩）：写了的照它（没挂的不认）；没写的只挂一个平台时是它，挂了
+    /// 几个的不认（拒 `bad_params`）。
+    fn method_platform(&self, args: &Value) -> Option<&'static str> {
+        self.platforms
+            .ours(args)
+            .ok()
+            .map(|platform| platform.name())
     }
 
     /// 核心转来的一次 `method.call`（`pushed`）是不是两页的三个方法：是的照办、答，交回真。
@@ -126,11 +142,12 @@ impl Route {
 
     /// `cards.save_one {card, values}`：部分更新那一张卡。白名单成员还没有卡的先建一张。参数写错的交回空的（拒 `bad_params`）。
     pub(in crate::core::route) fn save_one(&mut self, args: &Value) -> Option<Value> {
-        let card = card_edit::card_of(&args["card"])?;
-        let values = card_page::from_page(args["values"].as_object()?);
+        let card = card_edit::card_of(&args["card"], self.method_platform(args))?;
+        let platform = card.platform().unwrap_or(self.page_platform());
+        let values = card_page::from_page(args["values"].as_object()?, platform);
         let mut cards = self.rules.cards().clone();
-        if let Card::Private(id) = &card
-            && self.whitelist_numbers().contains(id)
+        if let Card::Private(platform, id) = &card
+            && self.whitelist_numbers(platform).contains(id)
         {
             cards = card_edit::add(&cards, card.clone());
         }
@@ -150,25 +167,30 @@ impl Route {
         })
     }
 
-    /// `cards.add {value}`：群号原样是群卡；`p:<号>` 是私聊：先把 `qq:<号>` 加进白名单。答 `{id}`。
+    /// `cards.add {value, platform?}`：群号原样是群卡；`p:<号>` 是私聊：先把 `<平台>:<号>` 加进白名单。答 `{id}`。平台照
+    /// [`Route::method_platform`]。
     async fn add_card(&mut self, args: &Value) -> Result<Option<Value>, Gone> {
-        let Some(value) = args["value"].as_str() else {
+        let (Some(value), Some(platform)) = (args["value"].as_str(), self.method_platform(args))
+        else {
             return Ok(None);
         };
+        let platform = platform.to_string();
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
         let (card, number) = match value.strip_prefix(FRIEND_PREFIX) {
             Some(rest) => match Id::new(rest) {
-                Some(id) => (Card::Private(id.clone()), id),
+                Some(id) => (Card::Private(platform, id.clone()), id),
                 None => return Ok(None),
             },
             None => match Id::new(value) {
-                Some(id) => (Card::Group(id.clone()), id),
+                Some(id) => (Card::Group(platform, id.clone()), id),
                 None => return Ok(None),
             },
         };
-        if let Card::Private(id) = &card
-            && let Some(failed) = self.change_whitelist(id, true, &words, &lang).await?
+        if let Card::Private(platform, id) = &card
+            && let Some(failed) = self
+                .change_whitelist((platform, id), true, &words, &lang)
+                .await?
         {
             return Ok(Some(failed));
         }
@@ -182,7 +204,7 @@ impl Route {
 
     /// `cards.remove {card}`：删掉那一张；私聊的还把那个号移出白名单。「其他群」不收（拒 `bad_params`）。
     async fn remove_card(&mut self, args: &Value) -> Result<Option<Value>, Gone> {
-        let Some(card) = card_edit::card_of(&args["card"]) else {
+        let Some(card) = card_edit::card_of(&args["card"], self.method_platform(args)) else {
             return Ok(None);
         };
         let Some(next) = card_edit::remove(self.rules.cards(), card.clone()) else {
@@ -190,8 +212,10 @@ impl Route {
         };
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
-        if let Card::Private(id) = &card
-            && let Some(failed) = self.change_whitelist(id, false, &words, &lang).await?
+        if let Card::Private(platform, id) = &card
+            && let Some(failed) = self
+                .change_whitelist((platform, id), false, &words, &lang)
+                .await?
         {
             return Ok(Some(failed));
         }
@@ -215,16 +239,16 @@ impl Route {
         json!({"saved": true})
     }
 
-    /// 把 `qq:<id>` 加进（`add`）、移出白名单：经核心的 `config.set`，带 `expect`。已经是那样的不改。成了交回空的、换上手里的
-    /// 白名单；不成的交回要答的 `{saved: false, message}`。
+    /// 把平台 `platform` 上的 `id`（`<平台>:<号>`）加进（`add`）、移出白名单：经核心的 `config.set`，带 `expect`。已经是那样
+    /// 的不改。成了交回空的、换上手里的白名单；不成的交回要答的 `{saved: false, message}`。
     async fn change_whitelist(
         &mut self,
-        id: &Id,
+        (platform, id): (&str, &Id),
         add: bool,
         words: &Words,
         lang: &str,
     ) -> Result<Option<Value>, Gone> {
-        let identity = format!("qq:{id}");
+        let identity = format!("{platform}:{id}");
         let mut next = self.whitelist.clone();
         let present = next.contains(&identity);
         match (add, present) {

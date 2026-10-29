@@ -47,7 +47,7 @@ impl Route {
             && applied::allow(&self.applied(&venue)) == Some(true)
             && match self.terminal_admin(external.as_str()).await? {
                 Some(true) => {
-                    self.rules.add_admin(posted.user.clone());
+                    self.rules.add_admin(external.as_str().to_string());
                     false
                 }
                 Some(false) => true,
