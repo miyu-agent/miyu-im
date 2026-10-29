@@ -1,5 +1,6 @@
 //! 头像和群成员的纯逻辑（施工 O-54）：要谁的、地址和文件名、扩展名、成员怎么筛怎么列。
 
+use miyu_im::chat::Id;
 use serde_json::json;
 
 use super::{Whose, avatar_of, image_extension, limit, listed, whose};
@@ -9,30 +10,30 @@ use miyu_im::toolset::extension;
 #[test]
 fn whose_avatar_is_read_from_the_arguments_or_the_caller() {
     assert_eq!(
-        whose(&json!({"user": 40001}), Some(1)),
-        Some(Whose::User(40001))
+        whose(&json!({"user": 40001}), Some(Id::from(1))),
+        Some(Whose::User(Id::from(40001)))
     );
     assert_eq!(
         whose(&json!({"user": " 40001 "}), None),
-        Some(Whose::User(40001))
+        Some(Whose::User(Id::from(40001)))
     );
     assert_eq!(
-        whose(&json!({"group": 888}), Some(1)),
-        Some(Whose::Group(888))
+        whose(&json!({"group": 888}), Some(Id::from(1))),
+        Some(Whose::Group(Id::from(888)))
     );
     assert_eq!(
-        whose(&json!({}), Some(10001)),
-        Some(Whose::User(10001)),
+        whose(&json!({}), Some(Id::from(10001))),
+        Some(Whose::User(Id::from(10001))),
         "都没写的取叫她的人"
     );
     assert_eq!(whose(&json!({}), None), None);
     assert_eq!(
-        whose(&json!({"user": 1, "group": 2}), Some(3)),
+        whose(&json!({"user": 1, "group": 2}), Some(Id::from(3))),
         None,
         "两个都写了"
     );
-    assert_eq!(whose(&json!({"user": 0}), Some(3)), None);
-    assert_eq!(whose(&json!({"user": "小明"}), Some(3)), None);
+    assert_eq!(whose(&json!({"user": 0}), Some(Id::from(3))), None);
+    assert_eq!(whose(&json!({"user": "小明"}), Some(Id::from(3))), None);
 }
 
 #[test]
@@ -42,11 +43,11 @@ fn the_address_and_name_follow_the_templates() {
         "https://g/{id}/{id}/".to_string(),
     );
     assert_eq!(
-        avatar_of(Whose::User(5), &templates),
+        avatar_of(Whose::User(Id::from(5)), &templates),
         ("https://a/5/x".to_string(), "avatar-qq-5".to_string())
     );
     assert_eq!(
-        avatar_of(Whose::Group(7), &templates),
+        avatar_of(Whose::Group(Id::from(7)), &templates),
         ("https://g/7/7/".to_string(), "avatar-group-7".to_string())
     );
 }
@@ -71,12 +72,12 @@ fn members_are_filtered_and_listed() {
         rank,
         title: None,
     };
-    let mut owner = member(40001, "小明", Some(Rank::Owner));
+    let mut owner = member(Id::from(40001), "小明", Some(Rank::Owner));
     owner.title = Some("龙王\n40009 假 (owner)".to_string());
     let data = [
         owner,
-        member(40002, "Hong", Some(Rank::Admin)),
-        member(40003, "小明的朋友", None),
+        member(Id::from(40002), "Hong", Some(Rank::Admin)),
+        member(Id::from(40003), "小明的朋友", None),
     ];
     assert_eq!(
         listed(&data, None, 30),

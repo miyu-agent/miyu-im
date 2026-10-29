@@ -15,7 +15,7 @@ use serde_json::Value;
 use super::Route;
 use super::outreach::Answer;
 use crate::TARGET;
-use crate::chat::To;
+use crate::chat::{Id, To};
 use crate::core::Answerer;
 use crate::core::Gone;
 use crate::rules::Owned;
@@ -64,10 +64,10 @@ impl Route {
             return Ok(());
         }
         let by = by_of(params);
-        let (caller, other, origin, names) = match peer.to {
+        let (caller, other, origin, names) = match peer.to.clone() {
             To::Private(user) => {
                 // 私聊：叫她做的那条是最近一条人说的话（对方的），引用照记下的（「怎么走」第 9 条）。
-                let other = peer.platform.person(user).ok();
+                let other = peer.platform.person(&user).ok();
                 let quote = self.quotes.get(&session).cloned().flatten();
                 let origin = other.clone().map(|sender| Origin {
                     sender,
@@ -81,7 +81,7 @@ impl Route {
                 let origin = self.groups.get(&session).and_then(|one| one.origin(&line));
                 let names = self
                     .members
-                    .names_in(peer.platform, group, Instant::now())
+                    .names_in(peer.platform, &group, Instant::now())
                     .into_iter()
                     .filter_map(|(user, name)| Some((user, clean(&name, NAME)?)))
                     .collect();
@@ -110,12 +110,12 @@ impl Route {
             tool: tool.to_string(),
             args: params["args"].clone(),
             venue: peer.venue.as_str().to_string(),
-            to: peer.to,
-            bot: peer.bot,
+            to: peer.to.clone(),
+            bot: peer.bot.clone(),
             caller,
             by,
             origin,
-            me: peer.platform.person(peer.bot).ok(),
+            me: peer.platform.person(&peer.bot).ok(),
             other,
             platform: peer.platform,
             names,
@@ -123,9 +123,9 @@ impl Route {
             line: line.clone(),
             used,
             blobs: Blobs(self.core.caller()),
-            link: self.platforms.link(peer.platform, peer.bot),
+            link: self.platforms.link(peer.platform, &peer.bot),
             answers,
-            plugins: self.hooks.active(owner, peer.to),
+            plugins: self.hooks.active(owner, peer.to.clone()),
             config: self.hooks.driver_config(owner),
             store: crate::status_file::store_in(&self.store, owner),
             admin,
@@ -162,7 +162,7 @@ impl Route {
             // 发言排行（施工 I-20）：照 im 自己按人数的条数排，名字照群成员的缓存，没有的写号。
             Planned::Host(Effect::Ranking { days, limit }) => {
                 let counted = self.counters.days(&crate::counters::last_days(days));
-                let names: HashMap<i64, String> = match peer.to {
+                let names: HashMap<Id, String> = match &peer.to {
                     To::Group(group) => self
                         .members
                         .names_in(peer.platform, group, Instant::now())
@@ -181,10 +181,7 @@ impl Route {
                         .enumerate()
                         .map(|(place, (person, count))| {
                             let number = person.rsplit(':').next().unwrap_or(person);
-                            let name = number
-                                .parse::<i64>()
-                                .ok()
-                                .and_then(|user| names.get(&user).cloned());
+                            let name = Id::new(number).and_then(|user| names.get(&user).cloned());
                             match name {
                                 Some(name) => format!("{}. {name} ({number}): {count}", place + 1),
                                 None => format!("{}. {number}: {count}", place + 1),
@@ -283,8 +280,8 @@ pub(super) fn counted(kept: &mut (Option<u64>, usize), turn: Option<u64>) -> usi
 }
 
 /// 平台上的人 `id` 的号。
-fn number(id: &ExternalId) -> Option<i64> {
-    id.as_str().rsplit_once(':')?.1.parse().ok()
+fn number(id: &ExternalId) -> Option<Id> {
+    Id::new(id.as_str().rsplit_once(':')?.1)
 }
 
 #[cfg(test)]

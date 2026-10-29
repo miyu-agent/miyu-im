@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 
 use super::Route;
 use super::cards::lists;
-use crate::chat::{Bots, To};
+use crate::chat::{Bots, Id, To};
 use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{SESSIONS_DELETE as DELETE, SESSIONS_LIST as LIST};
@@ -24,7 +24,7 @@ use crate::core::reason;
 /// 桥认得的一个场所会话：收进它的机器人号、对方。
 #[derive(Clone)]
 struct Known {
-    bot: i64,
+    bot: Id,
     to: To,
 }
 
@@ -42,8 +42,8 @@ impl Route {
             .iter()
             .map(|(session, peer)| {
                 let known = Known {
-                    bot: peer.bot,
-                    to: peer.to,
+                    bot: peer.bot.clone(),
+                    to: peer.to.clone(),
                 };
                 (session.clone(), known)
             })
@@ -88,9 +88,12 @@ async fn listed(
         return;
     }
     let names = lists(&bots, &caller).await;
-    let named = |rows: &[Value]| -> HashMap<i64, String> {
+    let named = |rows: &[Value]| -> HashMap<Id, String> {
         rows.iter()
-            .filter_map(|row| Some((row["id"].as_i64()?, row["name"].as_str()?.to_string())))
+            .filter_map(|row| {
+                let id = serde_json::from_value::<Id>(row["id"].clone()).ok()?;
+                Some((id, row["name"].as_str()?.to_string()))
+            })
             .collect()
     };
     let (groups, friends) = (named(&names.groups), named(&names.friends));
@@ -108,24 +111,24 @@ async fn listed(
 fn grouped(
     sessions: &[Value],
     known: &HashMap<String, Known>,
-    (groups, friends): (&HashMap<i64, String>, &HashMap<i64, String>),
+    (groups, friends): (&HashMap<Id, String>, &HashMap<Id, String>),
     platform: &str,
 ) -> Value {
-    let mut order: Vec<Option<i64>> = Vec::new();
-    let mut rows: HashMap<Option<i64>, Vec<Value>> = HashMap::new();
+    let mut order: Vec<Option<Id>> = Vec::new();
+    let mut rows: HashMap<Option<Id>, Vec<Value>> = HashMap::new();
     for one in sessions {
         let Some(session) = one["session"].as_str() else {
             continue;
         };
         let peer = known.get(session);
-        let bot = peer.map(|peer| peer.bot);
-        let (kind, number, name) = match peer.map(|peer| peer.to) {
-            Some(To::Group(group)) => ("group", Some(group), groups.get(&group)),
-            Some(To::Private(user)) => ("private", Some(user), friends.get(&user)),
+        let bot = peer.map(|peer| peer.bot.clone());
+        let (kind, number, name) = match peer.map(|peer| &peer.to) {
+            Some(To::Group(group)) => ("group", Some(group), groups.get(group)),
+            Some(To::Private(user)) => ("private", Some(user), friends.get(user)),
             None => ("unknown", None, None),
         };
         if !rows.contains_key(&bot) {
-            order.push(bot);
+            order.push(bot.clone());
         }
         rows.entry(bot).or_default().push(json!({
             "session": session,

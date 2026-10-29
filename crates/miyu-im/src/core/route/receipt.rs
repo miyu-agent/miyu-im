@@ -88,8 +88,8 @@ impl Route {
 pub(super) async fn recall(message: i64, peer: Peer, bots: Arc<Bots>, after: Duration) {
     let venue = &peer.venue;
     tokio::time::sleep(after).await;
-    let Some(link) = bots.get(peer.bot) else {
-        tracing::warn!(target: TARGET, venue = %venue, message, bot = peer.bot, "receipt not recalled, bot not connected");
+    let Some(link) = bots.get(&peer.bot) else {
+        tracing::warn!(target: TARGET, venue = %venue, message, bot = %peer.bot, "receipt not recalled, bot not connected");
         return;
     };
     match link.recall(Msg::Number(message)).await {

@@ -22,33 +22,33 @@ impl Route {
         platform: Platform,
         recall: Recall,
     ) -> Result<(), Gone> {
-        let (kind, number) = match recall.group {
-            Some(group) => (VenueKind::Group, group),
-            None => (VenueKind::Private, recall.user),
+        let (kind, number) = match &recall.group {
+            Some(group) => (VenueKind::Group, group.clone()),
+            None => (VenueKind::Private, recall.user.clone()),
         };
-        let made = platform.venue(kind, number).and_then(|venue| {
+        let made = platform.venue(kind, &number).and_then(|venue| {
             Ok((
                 venue,
-                platform.person(recall.user)?,
-                platform.person(recall.by)?,
+                platform.person(&recall.user)?,
+                platform.person(&recall.by)?,
             ))
         });
         let (venue, user, by) = match made {
             Ok(made) => made,
             Err(error) => {
-                tracing::warn!(target: TARGET, user = recall.user, message = recall.message_id, error = %error, "venue not made, recall dropped");
+                tracing::warn!(target: TARGET, user = %recall.user, message = recall.message_id, error = %error, "venue not made, recall dropped");
                 return Ok(());
             }
         };
         // 聊天记录（设计 04，施工 C-1 上）：撤回不删，那一条标上撤回了、谁撤的，另记一件事。
         self.record_happening(
             (platform, venue.id().as_str(), crate::records::RECALLED),
-            (Some(recall.user), Some(recall.by)),
+            (Some(recall.user.clone()), Some(recall.by.clone())),
             (None, Some(recall.message_id)),
         );
         let applied = self.applied(&venue);
-        let place = match recall.group {
-            Some(group) => Place::group((platform, &venue), &applied, recall.bot, group),
+        let place = match recall.group.clone() {
+            Some(group) => Place::group((platform, &venue), &applied, recall.bot.clone(), group),
             None => {
                 let listed = self.whitelisted(&user).then_some(&applied);
                 Place::private((platform, &venue), &user, (recall.bot, recall.user), listed)

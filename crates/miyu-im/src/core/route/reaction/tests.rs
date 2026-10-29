@@ -16,7 +16,7 @@ use super::super::Peer;
 use super::{Mark, Reactions, mark};
 use crate::chat::To;
 use crate::chat::fake::{Asked, Did, Fake, fake, next};
-use crate::chat::{Bots, Link, Platform};
+use crate::chat::{Bots, Id, Link, Platform};
 
 /// 两个群会话的编号。
 const ONE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -192,7 +192,7 @@ fn taking_one_off_signals_it_once() {
 fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
     let (link, asked) = fake();
     let bots = Arc::new(Bots::default());
-    assert!(bots.insert(BOT, link.clone()).is_none());
+    assert!(bots.insert(Id::from(BOT), link.clone()).is_none());
     (bots, link, asked)
 }
 
@@ -201,8 +201,8 @@ fn target() -> Mark {
     Mark {
         peer: Peer {
             platform: Platform::new("qq"),
-            bot: BOT,
-            to: To::Group(5),
+            bot: Id::from(BOT),
+            to: To::Group(Id::from(5)),
             venue: VenueId::parse("qq:group:5").expect("合写法"),
         },
         message: "77".to_string(),
@@ -288,7 +288,7 @@ async fn the_connection_of_that_moment_is_used() {
     put.answer(true);
     tokio::time::sleep(Duration::from_secs(1)).await;
     let link: Arc<dyn Link> = link;
-    bots.remove(BOT, &link);
+    bots.remove(&Id::from(BOT), &link);
     signal.send(()).expect("还在等");
     task.await.expect("没崩");
     assert!(asked.try_recv().is_err(), "那时没连着的摘不了");

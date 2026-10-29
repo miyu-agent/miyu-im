@@ -4,6 +4,7 @@
 //! 是终端管理员的是陌生人，不接、不问 `venue.session`；问不到的照核心的（施工 I-65，「施工时定的」第 49 条；测试那一头照核心
 //! 拉起的桥的样子答 `venue.binding`）。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_im::serve::Notice;
@@ -181,11 +182,17 @@ async fn a_new_connection_for_the_same_bot_takes_over() {
         })
     };
     let old = admin_napcat(bridge.port).await;
-    heard(Notice::Connected { bot: Some(BOT) }).await;
+    heard(Notice::Connected {
+        bot: Some(Id::from(BOT)),
+    })
+    .await;
     let mut new = admin_napcat(bridge.port).await;
     // 旧的那一条断开了：号已经是新的那一条的，不跟着拿掉。
     drop(old);
-    heard(Notice::Disconnected { bot: Some(BOT) }).await;
+    heard(Notice::Disconnected {
+        bot: Some(Id::from(BOT)),
+    })
+    .await;
     new.admin_says(9, "在吗").await;
     assert_eq!(new.reply().await, "在");
     bridge.stop().await.expect("停得下");

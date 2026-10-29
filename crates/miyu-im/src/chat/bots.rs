@@ -8,7 +8,7 @@ use std::time::SystemTime;
 
 use serde_json::{Map, Value, json};
 
-use super::Link;
+use super::{Id, Link};
 
 /// 一个号现在的连接和它连上的时刻。
 #[derive(Debug)]
@@ -20,13 +20,13 @@ struct Held {
 /// 号到连接；断开了的号记下什么时候断的（施工 I-6 中：页面上留着卡写「断开 4 分钟，在重连」），同一个号连回来就拿掉。
 #[derive(Debug, Default)]
 pub struct Bots {
-    links: Mutex<HashMap<i64, Held>>,
-    gone: Mutex<HashMap<i64, SystemTime>>,
+    links: Mutex<HashMap<Id, Held>>,
+    gone: Mutex<HashMap<Id, SystemTime>>,
 }
 
 impl Bots {
     /// 号 `bot` 现在用 `link`，这一刻连上：原来有一条的，交回它（调的一方关掉它）。
-    pub fn insert(&self, bot: i64, link: Arc<dyn Link>) -> Option<Arc<dyn Link>> {
+    pub fn insert(&self, bot: Id, link: Arc<dyn Link>) -> Option<Arc<dyn Link>> {
         let since = SystemTime::now();
         self.gone
             .lock()
@@ -38,20 +38,20 @@ impl Bots {
     }
 
     /// 号 `bot` 现在的连接。
-    pub fn get(&self, bot: i64) -> Option<Arc<dyn Link>> {
-        self.lock().get(&bot).map(|held| Arc::clone(&held.link))
+    pub fn get(&self, bot: &Id) -> Option<Arc<dyn Link>> {
+        self.lock().get(bot).map(|held| Arc::clone(&held.link))
     }
 
     /// 连着的号里最小的那一个和它的连接：`status` 只说一个（`onebot.md` 第一条「后台页」第 2 条）。没有连着的是空的。
-    pub fn first(&self) -> Option<(i64, Arc<dyn Link>)> {
+    pub fn first(&self) -> Option<(Id, Arc<dyn Link>)> {
         self.lock()
             .iter()
-            .min_by_key(|(bot, _)| **bot)
-            .map(|(bot, held)| (*bot, Arc::clone(&held.link)))
+            .min_by_key(|(bot, _)| *bot)
+            .map(|(bot, held)| (bot.clone(), Arc::clone(&held.link)))
     }
 
     /// 连着的每一个号和它的连接，照号排（施工 O-58 上：`cards.get` 问每个号在的群、好友）。
-    pub fn all(&self) -> Vec<(i64, Arc<dyn Link>)> {
+    pub fn all(&self) -> Vec<(Id, Arc<dyn Link>)> {
         self.held()
             .into_iter()
             .map(|(bot, link, _)| (bot, link))
@@ -59,13 +59,13 @@ impl Bots {
     }
 
     /// 连着的每一个号、它的连接、连上的时刻，照号排（施工 I-6 上：页面的连接卡）。
-    pub fn held(&self) -> Vec<(i64, Arc<dyn Link>, SystemTime)> {
-        let mut held: Vec<(i64, Arc<dyn Link>, SystemTime)> = self
+    pub fn held(&self) -> Vec<(Id, Arc<dyn Link>, SystemTime)> {
+        let mut held: Vec<(Id, Arc<dyn Link>, SystemTime)> = self
             .lock()
             .iter()
-            .map(|(bot, held)| (*bot, Arc::clone(&held.link), held.since))
+            .map(|(bot, held)| (bot.clone(), Arc::clone(&held.link), held.since))
             .collect();
-        held.sort_by_key(|(bot, _, _)| *bot);
+        held.sort_by(|(left, _, _), (right, _, _)| left.cmp(right));
         held
     }
 
@@ -86,35 +86,35 @@ impl Bots {
     }
 
     /// 号 `bot` 的连接 `link` 断开了：号 `bot` 现在还是它的，拿掉；已经被顶掉的不动。
-    pub fn remove(&self, bot: i64, link: &Arc<dyn Link>) {
+    pub fn remove(&self, bot: &Id, link: &Arc<dyn Link>) {
         let mut links = self.lock();
         if links
-            .get(&bot)
+            .get(bot)
             .is_some_and(|now| Arc::ptr_eq(&now.link, link))
         {
-            links.remove(&bot);
+            links.remove(bot);
             self.gone
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .insert(bot, SystemTime::now());
+                .insert(bot.clone(), SystemTime::now());
         }
     }
 
     /// 断开了、还没连回来的号和断开的时刻，照号排（施工 I-6 中）。
-    pub fn gone(&self) -> Vec<(i64, SystemTime)> {
-        let mut gone: Vec<(i64, SystemTime)> = self
+    pub fn gone(&self) -> Vec<(Id, SystemTime)> {
+        let mut gone: Vec<(Id, SystemTime)> = self
             .gone
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .map(|(bot, at)| (*bot, *at))
+            .map(|(bot, at)| (bot.clone(), *at))
             .collect();
-        gone.sort_by_key(|(bot, _)| *bot);
+        gone.sort_by(|(left, _), (right, _)| left.cmp(right));
         gone
     }
 
     /// 锁里不 `await`、不会崩；真崩了，表照样能用。
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<i64, Held>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Id, Held>> {
         self.links.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }

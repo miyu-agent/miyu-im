@@ -20,7 +20,7 @@ use miyu_chat::VenueKind;
 use super::Route;
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::core::{Gone, reason};
 
 /// 一句最多几个字。
@@ -100,7 +100,7 @@ impl Route {
     /// 写不出去、等的时候核心断开。
     pub(super) async fn note_built_in(
         &mut self,
-        (platform, bot): (Platform, i64),
+        (platform, bot): (Platform, Id),
         to: To,
         kind: &str,
         text: &str,
@@ -109,12 +109,17 @@ impl Route {
             tracing::warn!(target: TARGET, kind, "built-in note for a private chat dropped");
             return Ok(());
         };
-        let Ok(venue) = platform.venue(VenueKind::Group, group) else {
+        let Ok(venue) = platform.venue(VenueKind::Group, &group) else {
             return Ok(());
         };
-        let place = Place::group((platform, &venue), &self.applied(&venue), bot, group);
+        let place = Place::group(
+            (platform, &venue),
+            &self.applied(&venue),
+            bot,
+            group.clone(),
+        );
         if !self.found(&place).await? {
-            tracing::warn!(target: TARGET, group, kind, "built-in note dropped, no session");
+            tracing::warn!(target: TARGET, group = %group, kind, "built-in note dropped, no session");
             return Ok(());
         }
         let Some(session) = self.venues.get(venue.id().as_str()).cloned() else {

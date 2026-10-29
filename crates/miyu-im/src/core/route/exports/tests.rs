@@ -13,7 +13,7 @@ fn a_request_reads_name_params_and_bot() {
         Some(Request {
             action: "some_action".to_string(),
             params: json!({"group_id": 1}).as_object().cloned().expect("对象"),
-            bot: Some(30001),
+            bot: Some(Id::from(30001)),
         })
     );
     let bare = Request::read(&json!({"action": ".ocr_image"})).expect("读得出");
@@ -38,7 +38,8 @@ fn a_wrong_request_reads_as_nothing() {
         json!({"action": 1}),
         json!({"action": "x", "params": []}),
         json!({"action": "x", "params": 1}),
-        json!({"action": "x", "bot": "1"}),
+        json!({"action": "x", "bot": "a b"}),
+        json!({"action": "x", "bot": "a:b"}),
         json!({"action": "x", "bot": 1.5}),
     ] {
         assert_eq!(Request::read(&wrong), None, "{wrong}");

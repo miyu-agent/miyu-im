@@ -84,7 +84,7 @@ impl Route {
             answerer.refuse(&id, "unknown_session");
             return;
         };
-        let Some(link) = self.platforms.link(peer.platform, peer.bot) else {
+        let Some(link) = self.platforms.link(peer.platform, &peer.bot) else {
             answerer.refuse(&id, "not_connected");
             return;
         };
@@ -92,7 +92,7 @@ impl Route {
             platform: peer.platform,
             link,
             venue: peer.venue.as_str().to_string(),
-            to: peer.to,
+            to: peer.to.clone(),
             wait: self.fetching.quick,
             limit: self.fetching.image_limit,
             history: self.records.history(),
@@ -121,7 +121,7 @@ async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str
         Err(Missed::Unanswered | Missed::Unfetched(_)) => return Err("unfetched"),
         Err(Missed::Unreachable) => return Err("not_connected"),
     };
-    if !owned(&fetched, taking.to) {
+    if !owned(&fetched, taking.to.clone()) {
         return Err("not_found");
     }
     let media = kept(&fetched.segments.media);
@@ -159,7 +159,7 @@ async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str
         None => (
             fetched
                 .user
-                .and_then(|user| taking.platform.person(user).ok())
+                .and_then(|user| taking.platform.person(&user).ok())
                 .map_or(Value::Null, |person| json!(person.as_str())),
             Value::Null,
             Value::Null,

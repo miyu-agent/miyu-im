@@ -8,13 +8,13 @@ use std::time::Instant;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::chat::{Piece, Platform, Posted};
+use crate::chat::{Id, Piece, Platform, Posted};
 
 impl Route {
     /// 平台上群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。
     pub(super) async fn named(
         &mut self,
-        (platform, group): (Platform, i64),
+        (platform, group): (Platform, Id),
         posted: &Posted,
     ) -> String {
         let mut text = String::new();
@@ -24,8 +24,8 @@ impl Route {
                 Piece::Text(words) => text.push_str(words),
                 Piece::At(user) => {
                     text.push('@');
-                    let member = (platform, group, *user);
-                    match self.member(member, posted.bot, &mut asking).await {
+                    let member = (platform, group.clone(), user.clone());
+                    match self.member(member, posted.bot.clone(), &mut asking).await {
                         Some(name) => text.push_str(&name),
                         None => text.push_str(&user.to_string()),
                     }
@@ -39,20 +39,20 @@ impl Route {
     /// 经这个平台上机器人号 `bot` 的连接问一次，问不到的把 `asking` 放成假。她自己在群里叫什么也照它问（施工 O-53 冒充提醒、I-38 `my_name`，`my_name.rs`）。
     pub(super) async fn member(
         &mut self,
-        (platform, group, user): (Platform, i64, i64),
-        bot: i64,
+        (platform, group, user): (Platform, Id, Id),
+        bot: Id,
         asking: &mut bool,
     ) -> Option<String> {
-        let key = (platform, group, user);
-        if let Some(name) = self.members.name(key, Instant::now()) {
+        let key = (platform, group.clone(), user.clone());
+        if let Some(name) = self.members.name(key.clone(), Instant::now()) {
             return clean(name, NAME);
         }
         if !*asking {
             return None;
         }
-        let asked = match self.platforms.link(platform, bot) {
+        let asked = match self.platforms.link(platform, &bot) {
             Some(link) => link
-                .member(group, user)
+                .member(&group, &user)
                 .await
                 .map_err(|error| format!("{error:?}")),
             None => Err("bot not connected".to_string()),
@@ -60,13 +60,13 @@ impl Route {
         let Some(name) = asked.as_ref().ok().and_then(|member| member.name.clone()) else {
             *asking = false;
             let error = asked.err().unwrap_or_default();
-            tracing::debug!(target: TARGET, group, user, error, "member name unknown");
+            tracing::debug!(target: TARGET, group = %group, user = %user, error, "member name unknown");
             return None;
         };
         let cleaned = clean(&name, NAME);
         if let Some(rank) = asked.as_ref().ok().and_then(|member| member.rank) {
             // 问到了名字顺手记下身份（施工 O-31，「平台工具（一）」第 7 条）。
-            self.members.ranked(key, rank, Instant::now());
+            self.members.ranked(key.clone(), rank, Instant::now());
         }
         self.members.remember(key, name, Instant::now());
         cleaned

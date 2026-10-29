@@ -60,7 +60,7 @@ impl Route {
                     }
                     followed
                 }
-                Some((platform, To::Private(user))) => match platform.person(user) {
+                Some((platform, To::Private(user))) => match platform.person(&user) {
                     Ok(peer) if self.taken(&peer).await? => {
                         self.subscribe(session, Some(0)).await?
                     }

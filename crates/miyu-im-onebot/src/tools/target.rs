@@ -15,10 +15,10 @@
 use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
-use miyu_im::chat::{Fetched, Platform, To};
+use miyu_im::chat::{Fetched, Id, Platform, To};
 use miyu_im::toolset::{Origin, msg_id};
 
-use super::args::{Bad, qq_number, qq_numbers};
+use super::args::{Bad, qq_id, qq_numbers};
 use super::{KICK, MUTE, POKE, RECALL};
 
 /// 禁言最多多少秒：QQ 的上限，30 天（施工单「要定的」第 2 条）。是平台定的，不是桥的参数。
@@ -49,12 +49,12 @@ impl<T> Arg<T> {
 }
 
 /// 禁言、踢人对谁（施工 I-17）：`user` 一个号、`users` 号的列表（最多 [`MOST`] 个），二选一。
-fn people(args: &Value) -> Arg<Vec<i64>> {
+fn people(args: &Value) -> Arg<Vec<Id>> {
     match (&args["user"], &args["users"]) {
         (Value::Null, Value::Null) => Arg::Absent,
         (user, Value::Null) => Arg::read(
             user,
-            |user| qq_number(user).map(|one| vec![one]),
+            |user| qq_id(user).map(|one| vec![one]),
             "user must be a QQ number",
         ),
         (Value::Null, users) => Arg::read(
@@ -76,14 +76,14 @@ pub(crate) enum Order {
         /// 几秒（0 是解禁）；没写、不是整数、出了范围的是空的。
         seconds: Option<u64>,
         /// 她给的 QQ 号（施工 O-48；I-17 起能给几个）。
-        users: Arg<Vec<i64>>,
+        users: Arg<Vec<Id>>,
     },
     /// 戳一戳：她给的 QQ 号（施工 I-32）。
-    Poke(Arg<i64>),
+    Poke(Arg<Id>),
     /// 移出群（施工 Q-2）：她给的 QQ 号，以后不收他的加群申请没有。
     Kick {
         /// 她给的 QQ 号（施工 I-17 起能给几个）。
-        users: Arg<Vec<i64>>,
+        users: Arg<Vec<Id>>,
         /// 以后不收他的加群申请。
         block: bool,
     },
@@ -112,7 +112,7 @@ impl Order {
             }
             POKE => Some(Order::Poke(Arg::read(
                 &args["user"],
-                qq_number,
+                qq_id,
                 "user must be a QQ number",
             ))),
             KICK => Some(Order::Kick {
@@ -233,12 +233,7 @@ fn recall(msg: Arg<String>, origin: Option<&Origin>) -> Plan {
 }
 
 /// 禁言：先看秒数，再认人：她给的号，没给的照引用的人和 @ 的人认唯一的一个。
-fn mute(
-    seconds: Option<u64>,
-    users: Arg<Vec<i64>>,
-    origin: Option<&Origin>,
-    scene: &Scene,
-) -> Plan {
+fn mute(seconds: Option<u64>, users: Arg<Vec<Id>>, origin: Option<&Origin>, scene: &Scene) -> Plan {
     let Some(seconds) = seconds else {
         return Plan::Refuse(Why::BadSeconds);
     };
@@ -250,14 +245,14 @@ fn mute(
 
 /// 禁言、踢人对谁：她给的号（一个或几个），没给的照引用的人和 @ 的人认唯一的一个。
 fn people_of(
-    users: Arg<Vec<i64>>,
+    users: Arg<Vec<Id>>,
     origin: Option<&Origin>,
     scene: &Scene,
 ) -> Result<Vec<ExternalId>, Why> {
     match users {
         Arg::Given(numbers) => numbers
             .into_iter()
-            .map(|number| scene.platform.person(number).map_err(|_| Why::NoTarget))
+            .map(|number| scene.platform.person(&number).map_err(|_| Why::NoTarget))
             .collect(),
         Arg::Bad(bad) => Err(Why::Bad(bad)),
         Arg::Absent => {
@@ -274,9 +269,9 @@ fn people_of(
 }
 
 /// 戳一戳：她给了号的戳这个号（私聊里只能是对方，施工 I-32）；没给的私聊戳对方，群里 @ 的那一个，没有的戳叫她的人。
-fn poke(user: Arg<i64>, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
+fn poke(user: Arg<Id>, caller: &Caller, origin: Option<&Origin>, scene: &Scene) -> Plan {
     let given = match user {
-        Arg::Given(number) => match scene.platform.person(number) {
+        Arg::Given(number) => match scene.platform.person(&number) {
             Ok(person) => Some(person),
             Err(_) => return Plan::Refuse(Why::NoTarget),
         },
@@ -325,11 +320,12 @@ fn one<'a>(
 
 /// 她给的编号取回来的那一条撤不撤得到（施工 O-48，同取图核对归属）：群里是这个群的，她的、别人的都算；私聊里是私聊的，发的人
 /// 是对方或者她（机器人号 `bot`）。
-pub(crate) fn recallable(fetched: &Fetched, to: To, bot: i64) -> bool {
+pub(crate) fn recallable(fetched: &Fetched, to: &To, bot: &Id) -> bool {
     match to {
-        To::Group(group) => fetched.group == Some(group),
+        To::Group(group) => fetched.group.as_ref() == Some(group),
         To::Private(user) => {
-            fetched.private && (fetched.user == Some(user) || fetched.user == Some(bot))
+            let from = fetched.user.as_ref();
+            fetched.private && (from == Some(user) || from == Some(bot))
         }
     }
 }

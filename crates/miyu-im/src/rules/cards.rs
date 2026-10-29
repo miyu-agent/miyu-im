@@ -27,6 +27,8 @@ use serde_json::Value;
 
 use miyu_chat::{File, Problem, Rules};
 
+use crate::chat::Id;
+
 use lines::{Matcher, defaults_lines, file, group_lines, other_private_lines, private_lines};
 pub use store::{load, path, save};
 
@@ -220,7 +222,7 @@ pub struct OtherPrivateSet {
 #[serde(deny_unknown_fields)]
 pub struct GroupCard {
     /// 群号。
-    pub id: u64,
+    pub id: Id,
     /// 设的几格。
     #[serde(default)]
     pub set: GroupSet,
@@ -231,7 +233,7 @@ pub struct GroupCard {
 #[serde(deny_unknown_fields)]
 pub struct PrivateCard {
     /// 对方的号。
-    pub id: u64,
+    pub id: Id,
     /// 设的几格。
     #[serde(default)]
     pub set: PrivateSet,
@@ -261,7 +263,7 @@ fn unset(set: &GroupSet) -> bool {
 }
 
 /// 一张卡是哪一张：拼出来的文件名里写着。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Card {
     /// 会话默认值（施工 I-7 下二）。
     Defaults,
@@ -270,21 +272,21 @@ pub enum Card {
     /// 「其他私聊」（施工 O-60）。
     OtherPrivates,
     /// 群号是它的那个群。
-    Group(u64),
+    Group(Id),
     /// 对方的号是它的那个私聊。
-    Private(u64),
+    Private(Id),
 }
 
 impl Card {
     /// 拼出来的文件名：`70-card-a.toml`、`70-card-b.toml`、`70-card-g-<群号>.toml`、`70-card-p-<号>.toml`，照字排就是「其他群」、
     /// 「其他私聊」、群、私聊。
-    fn file_name(self) -> String {
+    fn file_name(&self) -> String {
         match self {
             Card::Defaults => format!("{PREFIX}0.toml"),
             Card::OtherGroups => format!("{PREFIX}a.toml"),
             Card::OtherPrivates => format!("{PREFIX}b.toml"),
-            Card::Group(id) => format!("{PREFIX}g-{id}.toml"),
-            Card::Private(id) => format!("{PREFIX}p-{id}.toml"),
+            Card::Group(id) => format!("{PREFIX}g-{}.toml", file_part(id)),
+            Card::Private(id) => format!("{PREFIX}p-{}.toml", file_part(id)),
         }
     }
 
@@ -298,7 +300,7 @@ impl Card {
             _ => {}
         }
         let (kind, id) = rest.split_once('-')?;
-        let id = id.parse().ok()?;
+        let id = from_file_part(id)?;
         match kind {
             "g" => Some(Card::Group(id)),
             "p" => Some(Card::Private(id)),
@@ -307,7 +309,7 @@ impl Card {
     }
 
     /// 交给页面的写法：`{"kind": "other_groups"}`、`{"kind": "group", "id": …}`、`{"kind": "private", "id": …}`。
-    pub fn json(self) -> Value {
+    pub fn json(&self) -> Value {
         match self {
             Card::Defaults => serde_json::json!({"kind": "defaults"}),
             Card::OtherGroups => serde_json::json!({"kind": "other_groups"}),
@@ -326,10 +328,10 @@ impl Cards {
     }
 
     /// 同 [`Cards::files`]，「其他私聊」不管 `known` 这几个号（白名单成员、认出来的终端管理员，施工 O-60）。
-    pub fn files_except(&self, known: &[u64]) -> Vec<File> {
-        let listed: Vec<String> = self.groups.iter().map(|card| card.id.to_string()).collect();
+    pub fn files_except(&self, known: &[Id]) -> Vec<File> {
+        let listed: Vec<String> = self.groups.iter().map(|card| toml_id(&card.id)).collect();
         let others = Matcher::Others(listed.join(", "));
-        let known: Vec<String> = known.iter().map(u64::to_string).collect();
+        let known: Vec<String> = known.iter().map(toml_id).collect();
         let mut files = vec![
             file(
                 Card::OtherGroups,
@@ -348,18 +350,18 @@ impl Cards {
         }
         let mut seen = std::collections::BTreeSet::new();
         for card in &self.groups {
-            if seen.insert(Card::Group(card.id)) {
+            if seen.insert(Card::Group(card.id.clone())) {
                 files.push(file(
-                    Card::Group(card.id),
+                    Card::Group(card.id.clone()),
                     &Matcher::Own,
                     &group_lines(&card.set, true),
                 ));
             }
         }
         for card in &self.privates {
-            if seen.insert(Card::Private(card.id)) {
+            if seen.insert(Card::Private(card.id.clone())) {
                 files.push(file(
-                    Card::Private(card.id),
+                    Card::Private(card.id.clone()),
                     &Matcher::Own,
                     &private_lines(&card.set),
                 ));
@@ -381,6 +383,45 @@ impl Cards {
     pub fn problems(&self) -> Vec<Problem> {
         Rules::parse(&self.files()).problems
     }
+}
+
+/// 号拼进规则的写法（施工 I-79）：十进制整数照数写（只用 QQ 的人拼出来的文件不变），别的写成字（照 JSON 的转义，TOML 基本字符串
+/// 都认）。
+pub(super) fn toml_id(id: &Id) -> String {
+    match id.number() {
+        Some(number) => number.to_string(),
+        None => serde_json::Value::String(id.to_string()).to_string(),
+    }
+}
+
+/// 号拼进文件名的写法（施工 I-79）：字母、数字和 `_`、`-`、`.`、`@` 照写，别的每个字节写成 `%XX`（大写）。QQ 的号照原样。
+fn file_part(id: &Id) -> String {
+    let mut part = String::new();
+    for byte in id.as_str().bytes() {
+        if byte.is_ascii_alphanumeric() || b"_-.@".contains(&byte) {
+            part.push(char::from(byte));
+        } else {
+            part.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    part
+}
+
+/// [`file_part`] 的反面：写法不对、解出来不是号的是空的。
+fn from_file_part(part: &str) -> Option<Id> {
+    let mut bytes = Vec::new();
+    let mut rest = part.as_bytes();
+    while let Some((&byte, after)) = rest.split_first() {
+        if byte == b'%' {
+            let hex = std::str::from_utf8(after.get(..2)?).ok()?;
+            bytes.push(u8::from_str_radix(hex, 16).ok()?);
+            rest = &after[2..];
+        } else {
+            bytes.push(byte);
+            rest = after;
+        }
+    }
+    Id::new(&String::from_utf8(bytes).ok()?)
 }
 
 #[cfg(test)]

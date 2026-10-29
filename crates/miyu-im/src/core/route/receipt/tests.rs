@@ -12,7 +12,7 @@ use super::super::Peer;
 use super::recall;
 use crate::chat::To;
 use crate::chat::fake::{Asked, Did, Fake, fake, next};
-use crate::chat::{Bots, Link, Platform};
+use crate::chat::{Bots, Id, Link, Platform};
 
 /// 机器人的号。
 const BOT: i64 = 30003;
@@ -24,7 +24,7 @@ const AFTER: Duration = Duration::from_secs(3);
 fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
     let (link, asked) = fake();
     let bots = Arc::new(Bots::default());
-    assert!(bots.insert(BOT, link.clone()).is_none());
+    assert!(bots.insert(Id::from(BOT), link.clone()).is_none());
     (bots, link, asked)
 }
 
@@ -32,8 +32,8 @@ fn connected() -> (Arc<Bots>, Arc<Fake>, mpsc::Receiver<Asked>) {
 fn peer() -> Peer {
     Peer {
         platform: Platform::new("qq"),
-        bot: BOT,
-        to: To::Group(5),
+        bot: Id::from(BOT),
+        to: To::Group(Id::from(5)),
         venue: VenueId::parse("qq:group:5").expect("合写法"),
     }
 }
@@ -59,7 +59,7 @@ async fn without_a_connection_then_nothing_is_recalled() {
     let (bots, link, mut asked) = connected();
     let task = tokio::spawn(recall(78, peer(), Arc::clone(&bots), AFTER));
     let link: Arc<dyn Link> = link;
-    bots.remove(BOT, &link);
+    bots.remove(&Id::from(BOT), &link);
     task.await.expect("没崩");
     assert!(asked.try_recv().is_err(), "那时没连着的不撤");
 }

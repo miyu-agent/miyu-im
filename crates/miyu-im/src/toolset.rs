@@ -19,7 +19,7 @@ use miyu_client::time::{Timestamp, UtcOffset};
 use miyu_client::tooltext::{Access, load};
 use serde_json::{Map, Value, json};
 
-use crate::chat::{Link, Media, Platform, To};
+use crate::chat::{Id, Link, Media, Platform, To};
 use crate::core::Caller;
 use crate::core::blobs::{Unstored, put};
 
@@ -75,13 +75,18 @@ fn integer(text: &str) -> bool {
 /// 主动发消息一次最多多少个字符：拆段以前。
 const SEND_MOST: usize = 4000;
 
-/// 读 `chat_send`、`chat.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，正整数，写成字的也认），发什么（去掉首尾
-/// 空白不空、不超过 4000 个字符）。写错的是空的。
+/// 读 `chat_send`、`chat.send` 的参数（纯逻辑）：发到哪（`user`、`group` 写正好一个，号：不是 0 的整数，或者写成字的号，施工 I-79），
+/// 发什么（去掉首尾空白不空、不超过 4000 个字符）。写错的是空的。
 pub fn send_request(args: &Value) -> Option<(To, String)> {
     let number = |value: &Value| match value {
         Value::Null => Some(None),
-        Value::Number(number) => number.as_i64().filter(|n| *n > 0).map(Some),
-        Value::String(text) => text.trim().parse::<i64>().ok().filter(|n| *n > 0).map(Some),
+        Value::Number(number) => number
+            .as_i64()
+            .filter(|n| *n != 0)
+            .map(|n| Some(Id::from(n))),
+        Value::String(text) => Id::new(text.trim())
+            .filter(|id| id.number() != Some(0))
+            .map(Some),
         _ => None,
     };
     let to = match (number(&args["user"])?, number(&args["group"])?) {
@@ -222,7 +227,7 @@ impl From<Value> for Done {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
     /// 这条线这一轮她的下一句第一段前面 @ 这几个号（`mention`）。
-    Mention(Vec<i64>),
+    Mention(Vec<Id>),
     /// 这条线这一轮她的下一句第一段引用这一条（平台编号，`quote`，施工 I-31）：这一句不再自动引用、自动 @。
     Quote(String),
     /// 以她的名义发到 `to`（`chat_send`）：im 照对方场所的出站链发、找对方的会话记一句，发成了答 `sent`，没成的照原因答（`failed`、
@@ -272,9 +277,9 @@ pub struct Call {
     /// 发到哪。
     pub to: To,
     /// 收进这个会话的机器人号。
-    pub bot: i64,
+    pub bot: Id,
     /// 叫她的人的号：外部身份的照 `by.id`，私聊里认出的终端管理员照 `by.via`；私聊里没有的是对方；本机的人、没有触发的是空的。
-    pub caller: Option<i64>,
+    pub caller: Option<Id>,
     /// 叫她的人在平台上的身份（同上，施工 T-2）：私聊里没有的照空的，不补对方。
     pub by: Option<ExternalId>,
     /// 叫她做的那一条（施工 T-2）；认不出的是空的。
@@ -286,7 +291,7 @@ pub struct Call {
     /// 平台：号照它拼成平台上的人。
     pub platform: Platform,
     /// 这个群缓存着的成员名字（号 → 名字，洗过）；私聊的是空的。
-    pub names: HashMap<i64, String>,
+    pub names: HashMap<Id, String>,
     /// 这一轮的工作目录（`tool.call` 的 `cwd`）：存东西照它。
     pub cwd: String,
     /// 调用所在那条线（会话编号，主线或者支线，施工 T-3）。
@@ -429,3 +434,6 @@ impl Answers {
         load::say(template, fields)
     }
 }
+
+#[cfg(test)]
+mod tests;

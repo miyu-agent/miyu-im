@@ -1,6 +1,7 @@
 //! NapCat 反连进来的那一下（施工 O-8，`onebot.md` 第一条「怎么走」第 2 条）：令牌三种出示法都认，不对的、没出示的 401；
 //! 只认 `/onebot/v11/ws` 和 `/ws`，别的 404。端口被占了说是哪个端口（第 1 条）。听哪个地址照配置（施工 I-27）。
 
+use miyu_im::chat::Id;
 use miyu_im::serve::{Failure, Notice, run};
 use miyu_im_onebot::settings::Settings;
 use miyu_session::testkit::Script;
@@ -27,7 +28,9 @@ async fn the_token_is_taken_three_ways() {
             .notices
             .lock()
             .expect("没 panic")
-            .contains(&Notice::Connected { bot: Some(BOT) })
+            .contains(&Notice::Connected {
+                bot: Some(Id::from(BOT)),
+            })
         {
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }

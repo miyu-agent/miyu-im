@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 use super::Route;
 use super::fields::fits;
 use crate::TARGET;
-use crate::chat::{Fetch, Media, Segments};
+use crate::chat::{Fetch, Id, Media, Segments};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
@@ -27,7 +27,7 @@ use crate::media::{Missed, message, over, take, too_large};
 /// 一条要带图的消息：收进它的机器人号、平台编号、带的东西、引用的那一条。
 pub(super) struct Pictures {
     /// 收进它的机器人号：经它的连接取。
-    pub(super) bot: i64,
+    pub(super) bot: Id,
     /// 平台编号。
     pub(super) msg: String,
     /// 这一条带的东西，照先后（和交给核心的 `venue.media` 一样洗过）。
@@ -38,7 +38,7 @@ pub(super) struct Pictures {
 
 impl Pictures {
     /// 机器人号 `bot` 收进来的、平台编号是 `msg` 的那一条（认出来的段 `segments`）。
-    pub(super) fn of(bot: i64, msg: i64, segments: &Segments) -> Pictures {
+    pub(super) fn of(bot: Id, msg: i64, segments: &Segments) -> Pictures {
         Pictures {
             bot,
             msg: msg.to_string(),
@@ -69,7 +69,7 @@ impl Route {
         (platform, wanted): (Platform, &Pictures),
         venue: &str,
     ) -> Result<(Vec<Value>, Vec<usize>), Gone> {
-        let Some(link) = self.platforms.link(platform, wanted.bot) else {
+        let Some(link) = self.platforms.link(platform, &wanted.bot) else {
             tracing::warn!(target: TARGET, venue, message = wanted.msg, why = "unreachable", "picture not fetched");
             return Ok((Vec::new(), Vec::new()));
         };

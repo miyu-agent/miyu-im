@@ -7,6 +7,7 @@
 use miyu_chat::{Entry, Origin, Problem, Source};
 use miyu_config::Value;
 use miyu_config::problem::{At, Code};
+use miyu_im::chat::Id;
 use miyu_im::control::{Halt, Report};
 use miyu_im::logs::Heading;
 use miyu_im::serve::{Failure, Notice};
@@ -98,9 +99,13 @@ fn everything(texts: &Texts) -> Vec<String> {
             host: "127.0.0.1".to_string(),
             port: 8301,
         },
-        Notice::Connected { bot: Some(30003) },
+        Notice::Connected {
+            bot: Some(Id::from(30003)),
+        },
         Notice::Connected { bot: None },
-        Notice::Disconnected { bot: Some(30003) },
+        Notice::Disconnected {
+            bot: Some(Id::from(30003)),
+        },
         Notice::Disconnected { bot: None },
         Notice::NoToken,
         Notice::Page { port: 8302 },
@@ -214,7 +219,9 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "在 127.0.0.1:8301 等 NapCat 连进来。"
     );
     assert_eq!(
-        texts.notice(&Notice::Disconnected { bot: Some(30003) }),
+        texts.notice(&Notice::Disconnected {
+            bot: Some(Id::from(30003))
+        }),
         "NapCat 断开了（30003），等它重连。"
     );
     assert_eq!(

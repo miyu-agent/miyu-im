@@ -11,19 +11,19 @@ use serde_json::Value;
 
 use miyu_im::chat::{Event, GroupChange, Happened};
 
-use super::number;
+use super::{id, number, positive};
 
 /// 认一帧通知；不是这几种的是空的。
 pub(super) fn happened(frame: &Value) -> Option<Event> {
     let (bot, group, user) = (
-        number(&frame["self_id"])?,
-        number(&frame["group_id"])?,
-        number(&frame["user_id"])?,
+        id(&frame["self_id"])?,
+        id(&frame["group_id"])?,
+        id(&frame["user_id"])?,
     );
-    let operator = number(&frame["operator_id"]).filter(|operator| *operator > 0);
+    let operator = positive(&frame["operator_id"]);
     let sub = frame["sub_type"].as_str()?;
     let (change, user, seconds) = match (frame["notice_type"].as_str()?, sub) {
-        ("group_ban", _) if user == bot || user == 0 => return None,
+        ("group_ban", _) if user == bot || user.number() == Some(0) => return None,
         ("group_ban", "ban") => match u64::try_from(number(&frame["duration"])?).ok()? {
             0 => (GroupChange::Unmuted, user, None),
             seconds => (GroupChange::Muted, user, Some(seconds)),
@@ -31,7 +31,7 @@ pub(super) fn happened(frame: &Value) -> Option<Event> {
         ("group_ban", "lift_ban") => (GroupChange::Unmuted, user, None),
         ("group_decrease", "leave") => (GroupChange::Left, user, None),
         ("group_decrease", "kick") => (GroupChange::Kicked, user, None),
-        ("group_decrease", "kick_me") => (GroupChange::Kicked, bot, None),
+        ("group_decrease", "kick_me") => (GroupChange::Kicked, bot.clone(), None),
         ("group_increase", "approve" | "invite") => (GroupChange::Joined, user, None),
         _ => return None,
     };

@@ -6,7 +6,7 @@ use std::path::Path;
 use miyu_chat::{File, Params, Rules, Source, Venue, VenueKind};
 
 use super::{asleep, model, opening, recent, role, show_ids};
-use crate::chat::Platform;
+use crate::chat::{Id, Platform};
 use crate::rules::{Applied, Loaded};
 
 /// 测试用的平台。
@@ -92,15 +92,21 @@ fn recent_is_read_from_the_rules() {
 #[test]
 fn managers_and_show_ids_follow_the_rules() {
     let set = applied("managers = [\"qq:40004\", \"tg:20002\"]\nshow_ids = true\n");
-    assert_eq!(role(&set, &QQ.person(40004).expect("拼得出")), "manager");
     assert_eq!(
-        role(&set, &QQ.person(20002).expect("拼得出")),
+        role(&set, &QQ.person(&Id::from(40004)).expect("拼得出")),
+        "manager"
+    );
+    assert_eq!(
+        role(&set, &QQ.person(&Id::from(20002)).expect("拼得出")),
         "member",
         "别的平台的同一个号不算"
     );
     assert!(show_ids(&set));
     let unset = applied("rate = \"0\"\n");
-    assert_eq!(role(&unset, &QQ.person(40004).expect("拼得出")), "member");
+    assert_eq!(
+        role(&unset, &QQ.person(&Id::from(40004)).expect("拼得出")),
+        "member"
+    );
     assert!(!show_ids(&unset));
     assert!(!show_ids(&applied("show_ids = false\n")));
 }

@@ -1,5 +1,6 @@
 //! 群名片改了怎么认（施工 I-38）。
 
+use miyu_im::chat::Id;
 use serde_json::json;
 
 use super::*;
@@ -11,9 +12,9 @@ fn a_new_card_is_read_and_a_cleared_one_is_empty() {
     assert_eq!(
         renamed(&frame),
         Some(Event::Renamed {
-            bot: 9,
-            group: 31,
-            user: 9,
+            bot: Id::from(9),
+            group: Id::from(31),
+            user: Id::from(9),
             card: Some("米鱼".to_string())
         })
     );

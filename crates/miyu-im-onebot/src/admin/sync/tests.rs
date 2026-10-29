@@ -16,25 +16,25 @@ fn frame(kind: &str, sub: &str, user: i64, operator: i64, duration: Option<u64>)
 #[test]
 fn other_admins_mutes_unmutes_and_kicks_are_read() {
     let base = Moderated {
-        bot: 1,
-        group: 31,
-        user: 7,
-        operator: 9,
+        bot: Id::from(1),
+        group: Id::from(31),
+        user: Id::from(7),
+        operator: Id::from(9),
         seconds: Some(600),
         action: Action::Mute,
     };
     assert_eq!(
         read(&frame("group_ban", "ban", 7, 9, Some(600))),
-        Some(base)
+        Some(base.clone())
     );
     let unmuted = Moderated {
         seconds: None,
         action: Action::Unmute,
-        ..base
+        ..base.clone()
     };
     assert_eq!(
         read(&frame("group_ban", "lift_ban", 7, 9, Some(0))),
-        Some(unmuted)
+        Some(unmuted.clone())
     );
     assert_eq!(
         read(&frame("group_ban", "ban", 7, 9, Some(0))),
@@ -43,7 +43,7 @@ fn other_admins_mutes_unmutes_and_kicks_are_read() {
     let kicked = Moderated {
         seconds: None,
         action: Action::Kick,
-        ..base
+        ..base.clone()
     };
     assert_eq!(
         read(&frame("group_decrease", "kick", 7, 9, None)),
@@ -104,7 +104,7 @@ fn her_own_kicks_are_only_kept_as_recent_removals() {
     // 施工 I-17：她踢走的不当别的管理员做的记，只记进「刚踢走的」，踢人的工具照它核实。
     let hers = frame("group_decrease", "kick", 7, 1, None);
     assert_eq!(read(&hers), None);
-    assert_eq!(removed_by_her(&hers), Some((31, 7)));
+    assert_eq!(removed_by_her(&hers), Some((Id::from(31), Id::from(7))));
     assert_eq!(
         removed_by_her(&frame("group_decrease", "kick", 7, 9, None)),
         None,
@@ -117,11 +117,11 @@ fn her_own_kicks_are_only_kept_as_recent_removals() {
     );
     let mut removals = Removals::default();
     let start = Instant::now();
-    removals.note((31, 7), start);
-    assert!(removals.lately((31, 7), start + Duration::from_secs(5)));
-    assert!(!removals.lately((31, 8), start), "别人");
+    removals.note((Id::from(31), Id::from(7)), start);
+    assert!(removals.lately((Id::from(31), Id::from(7)), start + Duration::from_secs(5)));
+    assert!(!removals.lately((Id::from(31), Id::from(8)), start), "别人");
     assert!(
-        !removals.lately((31, 7), start + Duration::from_secs(61)),
+        !removals.lately((Id::from(31), Id::from(7)), start + Duration::from_secs(61)),
         "过了一分钟"
     );
 }

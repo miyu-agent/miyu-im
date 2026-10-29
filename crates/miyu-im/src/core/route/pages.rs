@@ -15,7 +15,7 @@ use serde_json::{Map, Value, json};
 use super::Route;
 use super::cards::lists;
 use crate::TARGET;
-use crate::chat::Bots;
+use crate::chat::{Bots, Id};
 use crate::core::caller::Caller;
 use crate::core::{Gone, reason};
 use crate::plugins::Toggles;
@@ -68,16 +68,16 @@ impl Route {
         let whitelist = self.whitelist_numbers();
         let mut groups = Map::new();
         for card in &cards.groups {
-            groups.insert(card.id.to_string(), self.group_defaults(card.id));
+            groups.insert(card.id.to_string(), self.group_defaults(&card.id));
         }
         let mut privates = Map::new();
         for id in &whitelist {
-            privates.insert(id.to_string(), self.private_defaults(*id));
+            privates.insert(id.to_string(), self.private_defaults(id));
         }
         let known = Known {
             whitelist,
             defaults: json!({
-                "other_groups": self.group_defaults(0),
+                "other_groups": self.group_defaults(&Id::from(0)),
                 "other_privates": self.other_private_defaults(),
                 "groups": groups,
                 "privates": privates,
@@ -96,10 +96,10 @@ impl Route {
     }
 
     /// 白名单成员的号（`im.whitelist` 里这个平台的）。
-    pub(super) fn whitelist_numbers(&self) -> Vec<u64> {
+    pub(super) fn whitelist_numbers(&self) -> Vec<Id> {
         self.whitelist
             .iter()
-            .filter_map(|identity| identity.strip_prefix("qq:")?.parse().ok())
+            .filter_map(|identity| Id::new(identity.strip_prefix("qq:")?))
             .collect()
     }
 
@@ -129,10 +129,10 @@ impl Route {
         let card = card_edit::card_of(&args["card"])?;
         let values = card_page::from_page(args["values"].as_object()?);
         let mut cards = self.rules.cards().clone();
-        if let Card::Private(id) = card
-            && self.whitelist_numbers().contains(&id)
+        if let Card::Private(id) = &card
+            && self.whitelist_numbers().contains(id)
         {
-            cards = card_edit::add(&cards, card);
+            cards = card_edit::add(&cards, card.clone());
         }
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
@@ -158,16 +158,16 @@ impl Route {
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
         let (card, number) = match value.strip_prefix(FRIEND_PREFIX) {
-            Some(rest) => match rest.parse::<u64>() {
-                Ok(id) => (Card::Private(id), id),
-                Err(_) => return Ok(None),
+            Some(rest) => match Id::new(rest) {
+                Some(id) => (Card::Private(id.clone()), id),
+                None => return Ok(None),
             },
-            None => match value.parse::<u64>() {
-                Ok(id) => (Card::Group(id), id),
-                Err(_) => return Ok(None),
+            None => match Id::new(value) {
+                Some(id) => (Card::Group(id.clone()), id),
+                None => return Ok(None),
             },
         };
-        if let Card::Private(id) = card
+        if let Card::Private(id) = &card
             && let Some(failed) = self.change_whitelist(id, true, &words, &lang).await?
         {
             return Ok(Some(failed));
@@ -185,12 +185,12 @@ impl Route {
         let Some(card) = card_edit::card_of(&args["card"]) else {
             return Ok(None);
         };
-        let Some(next) = card_edit::remove(self.rules.cards(), card) else {
+        let Some(next) = card_edit::remove(self.rules.cards(), card.clone()) else {
             return Ok(None);
         };
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
-        if let Card::Private(id) = card
+        if let Card::Private(id) = &card
             && let Some(failed) = self.change_whitelist(id, false, &words, &lang).await?
         {
             return Ok(Some(failed));
@@ -219,7 +219,7 @@ impl Route {
     /// 白名单；不成的交回要答的 `{saved: false, message}`。
     async fn change_whitelist(
         &mut self,
-        id: u64,
+        id: &Id,
         add: bool,
         words: &Words,
         lang: &str,
@@ -295,11 +295,11 @@ struct Job {
 /// 问齐群、好友、人格，拼好推：核心拒了的记一行。
 async fn push(job: Job, bots: Arc<Bots>, caller: Caller) {
     let lists = lists(&bots, &caller).await;
-    let pairs = |rows: &[Value], id: &str| -> Vec<(u64, String)> {
+    let pairs = |rows: &[Value], id: &str| -> Vec<(Id, String)> {
         rows.iter()
             .filter_map(|row| {
                 Some((
-                    row[id].as_u64()?,
+                    serde_json::from_value::<Id>(row[id].clone()).ok()?,
                     row["name"].as_str().unwrap_or_default().to_string(),
                 ))
             })

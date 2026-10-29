@@ -2,6 +2,7 @@
 //! 只认第一段；@ 同一个人两次只算一次；CQ 字符串只读字。大小照 `file_size`（字、整数都认），怎么取照段（施工 O-33）。合并转发
 //! 照旧写占位，另记下编号和内联的消息（施工 O-34）。只有占位、空白的没有字（施工 O-37）。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_im_onebot::onebot::{Fetch, Forwarded, Media, MediaKind, Node, Piece, Segments, segments};
@@ -62,13 +63,13 @@ fn text_at_reply_and_placeholders_make_the_body() {
         read,
         Segments {
             pieces: vec![
-                Piece::At(20002),
+                Piece::At(Id::from(20002)),
                 words(" 看 "),
-                Piece::At(20003),
+                Piece::At(Id::from(20003)),
                 words("[forward]"),
                 words("[card]"),
                 words("[card]"),
-                Piece::At(20002),
+                Piece::At(Id::from(20002)),
             ],
             reply_to: Some("41".to_string()),
             mentions_all: true,
@@ -80,7 +81,11 @@ fn text_at_reply_and_placeholders_make_the_body() {
         },
         "几段引用只认第一段，@全体不进正文，认不出号的 @、戳一戳、骰子不记"
     );
-    assert_eq!(read.at(), [20002, 20003], "照先后、不重");
+    assert_eq!(
+        read.at(),
+        [Id::from(20002), Id::from(20003)],
+        "照先后、不重"
+    );
     assert_eq!(
         segments(&json!([{"type": "reply", "data": {"id": 7}}])).reply_to,
         Some("7".to_string()),
@@ -263,7 +268,7 @@ fn a_forward_keeps_its_id_and_inline_content() {
             Forwarded {
                 id: Some("7495".to_string()),
                 content: Some(vec![Node {
-                    user: Some(1),
+                    user: Some(Id::from(1)),
                     name: Some("阿杰".to_string()),
                     segments: segments(&json!([{"type": "text", "data": {"text": "嗯"}}])),
                 }]),

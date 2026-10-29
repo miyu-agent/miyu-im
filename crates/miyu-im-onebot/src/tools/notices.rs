@@ -6,7 +6,7 @@
 
 use serde_json::{Value, json};
 
-use miyu_im::chat::To;
+use miyu_im::chat::{Id, To};
 use miyu_im::toolset::{Call, Planned, clean};
 
 use super::args::group_only;
@@ -21,7 +21,7 @@ const TEXT: usize = 500;
 /// 一条公告：谁发的、什么时候（整数秒）、正文。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Notice {
-    pub(crate) sender: Option<i64>,
+    pub(crate) sender: Option<Id>,
     pub(crate) time: i64,
     pub(crate) text: String,
 }
@@ -40,7 +40,7 @@ pub(crate) fn notices(data: &Value) -> Vec<Notice> {
             // 换行写成空格（`clean` 去掉控制字符，不换就粘在一起）。
             let text = clean(raw.replace('\n', " ").trim(), TEXT)?;
             Some(Notice {
-                sender: one["sender_id"].as_i64(),
+                sender: one["sender_id"].as_i64().map(Id::from),
                 time: one["publish_time"].as_i64().unwrap_or_default(),
                 text,
             })
@@ -71,14 +71,14 @@ pub(crate) fn day(seconds: i64) -> String {
 
 /// `qq_notices` 的一次调用（模块的说明）。
 pub(super) fn notices_of(call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     Planned::later(async move { read(&call, group).await })
 }
 
 /// 取、答那一句。
-async fn read(call: &Call, group: i64) -> Value {
+async fn read(call: &Call, group: Id) -> Value {
     let Some(link) = &call.link else {
         return call.answers.say("unreachable", &[], true);
     };
@@ -97,7 +97,7 @@ async fn read(call: &Call, group: i64) -> Value {
     let list: Vec<String> = read
         .iter()
         .map(|notice| {
-            let who = notice.sender.map_or_else(
+            let who = notice.sender.clone().map_or_else(
                 || "?".to_string(),
                 |sender| {
                     call.names

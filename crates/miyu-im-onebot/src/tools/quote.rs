@@ -28,7 +28,7 @@ async fn quoted(call: &Call, msg: String) -> Done {
         Err(Missed::Unanswered) => return Done::from(refused(call, "unanswered")),
         Err(_) => return Done::from(refused(call, "unreachable")),
     };
-    if !recallable(&fetched, call.to, call.bot) {
+    if !recallable(&fetched, &call.to, &call.bot) {
         return Done::from(refused(call, "not-found"));
     }
     Done {

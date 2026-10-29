@@ -22,7 +22,7 @@ use super::projection::{MUTED, UNMUTED};
 use super::queue::until;
 use super::session::Place;
 use crate::TARGET;
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::core::{Gone, reason};
 use crate::toolset::duration;
 
@@ -41,14 +41,14 @@ impl Route {
     pub(super) async fn muted(
         &mut self,
         platform: Platform,
-        (bot, group): (i64, i64),
+        (bot, group): (Id, Id),
         seconds: Option<u64>,
-        operator: Option<i64>,
+        operator: Option<Id>,
     ) -> Result<(), Gone> {
-        let venue = match platform.venue(VenueKind::Group, group) {
+        let venue = match platform.venue(VenueKind::Group, &group) {
             Ok(venue) => venue,
             Err(error) => {
-                tracing::warn!(target: TARGET, group, error = %error, "venue not made, mute not noted");
+                tracing::warn!(target: TARGET, group = %group, error = %error, "venue not made, mute not noted");
                 return Ok(());
             }
         };
@@ -60,10 +60,15 @@ impl Route {
         };
         self.record_happening(
             (platform, venue.id().as_str(), kind),
-            (Some(bot), operator),
+            (Some(bot.clone()), operator.clone()),
             (seconds, None),
         );
-        let place = Place::group((platform, &venue), &self.applied(&venue), bot, group);
+        let place = Place::group(
+            (platform, &venue),
+            &self.applied(&venue),
+            bot.clone(),
+            group.clone(),
+        );
         let Some(seconds) = seconds else {
             // 解禁：投影里本来就没禁着的（到点已经补记过、通知重了）不再记（O-50）。
             if !self.found(&place).await? {
@@ -90,7 +95,7 @@ impl Route {
             return Ok(());
         };
         let mut body = json!({"until": end});
-        if let Some(operator) = operator {
+        if let Some(operator) = &operator {
             body["by"] = json!(operator);
         }
         let params = json!({"kind": MUTED, "body": body});
@@ -118,12 +123,12 @@ impl Route {
     /// 是平台 `platform` 上群号 `group` 的群会话，`why` 是 `lifted`、`expired`，`operator` 是谁解的。
     async fn unmuted(
         &mut self,
-        (session, platform, group): (&str, Platform, i64),
+        (session, platform, group): (&str, Platform, Id),
         why: &str,
-        operator: Option<i64>,
+        operator: Option<Id>,
     ) -> Result<(), Gone> {
         let mut body = json!({"why": why});
-        if let Some(operator) = operator {
+        if let Some(operator) = &operator {
             body["by"] = json!(operator);
         }
         let Some(_) = self.append(session, None, UNMUTED, body).await? else {
@@ -148,14 +153,14 @@ impl Route {
         let Some(clock) = applied::clock() else {
             return Ok(());
         };
-        let ended: Vec<(String, Platform, i64)> = self
+        let ended: Vec<(String, Platform, Id)> = self
             .groups
             .iter()
             .filter(|(_, projection)| projection.mute_end().is_some_and(|end| end <= clock.now))
             .filter_map(|(session, _)| {
                 let peer = self.peers.get(session)?;
-                match peer.to {
-                    To::Group(group) => Some((session.clone(), peer.platform, group)),
+                match &peer.to {
+                    To::Group(group) => Some((session.clone(), peer.platform, group.clone())),
                     To::Private(_) => None,
                 }
             })
@@ -176,12 +181,12 @@ impl Route {
     }
 
     /// 谁禁的、谁解的写成什么：群成员缓存里的名字（洗过），没有的写号，不知道是谁的空着。
-    fn operator_name(&self, (platform, group): (Platform, i64), operator: Option<i64>) -> String {
+    fn operator_name(&self, (platform, group): (Platform, Id), operator: Option<Id>) -> String {
         let Some(operator) = operator else {
             return String::new();
         };
         self.members
-            .name((platform, group, operator), Instant::now())
+            .name((platform, group, operator.clone()), Instant::now())
             .and_then(|name| clean(name, NAME))
             .unwrap_or_else(|| operator.to_string())
     }

@@ -27,7 +27,7 @@ use serde_json::{Value, json};
 use super::fields::{NAME, clean, media};
 use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::{CallError, FORWARD, Forwarded, Node, Piece, Segments};
+use crate::chat::{CallError, FORWARD, Forwarded, Id, Node, Piece, Segments};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::toolset::{Numbering, kept};
@@ -55,9 +55,9 @@ pub(crate) struct Forwarding {
 /// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、自己带了几样、它的转发。
 pub(super) struct Forwards {
     /// 收进它的机器人号：经它的连接取。
-    pub(super) bot: i64,
+    pub(super) bot: Id,
     /// 群号：@ 的名字照这个群的缓存。私聊的是空的。
-    pub(super) group: Option<i64>,
+    pub(super) group: Option<Id>,
     /// 平台编号。
     pub(super) msg: i64,
     /// 自己带了几样（`venue.media` 那几样，施工 I-75）：转发里的接着它编号。
@@ -69,8 +69,8 @@ pub(super) struct Forwards {
 impl Forwards {
     /// 机器人号 `bot` 收进来的、群号是 `group`（私聊的是空的）、平台编号是 `msg` 的那一条（认出来的段 `segments`）：没有转发的是空的。
     pub(super) fn of(
-        bot: i64,
-        group: Option<i64>,
+        bot: Id,
+        group: Option<Id>,
         msg: i64,
         segments: &Segments,
     ) -> Option<Forwards> {
@@ -96,7 +96,7 @@ struct Budget {
 struct At<'a> {
     link: Option<Arc<dyn Link>>,
     platform: Platform,
-    group: Option<i64>,
+    group: Option<Id>,
     venue: &'a str,
     msg: i64,
 }
@@ -133,9 +133,9 @@ impl Route {
         venue: &str,
     ) -> Vec<Value> {
         let at = At {
-            link: self.platforms.link(platform, wanted.bot),
+            link: self.platforms.link(platform, &wanted.bot),
             platform,
-            group: wanted.group,
+            group: wanted.group.clone(),
             venue,
             msg: wanted.msg,
         };
@@ -215,7 +215,7 @@ impl Route {
             .name
             .as_deref()
             .and_then(|name| clean(name, NAME))
-            .or_else(|| read.user.map(|user| user.to_string()))
+            .or_else(|| read.user.clone().map(|user| user.to_string()))
             .ok_or(false)?;
         let text = clip(&self.words(at, &read.segments), self.forwarding.chars);
         let bytes = name.len() + text.len();
@@ -255,9 +255,10 @@ impl Route {
                     text.push('@');
                     let name = at
                         .group
+                        .clone()
                         .and_then(|group| {
                             self.members
-                                .name((at.platform, group, *user), Instant::now())
+                                .name((at.platform, group, user.clone()), Instant::now())
                         })
                         .and_then(|name| clean(name, NAME));
                     match name {

@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use miyu_im::chat::{DETAIL, Fetch, Link, Source, To};
+use miyu_im::chat::{DETAIL, Fetch, Id, Link, Source, To};
 use miyu_im::toolset::{
     Call, Missed, Numbering, Planned, QQ_FILES, Stored, UNLIMITED, file_name, find_in_forwards,
     kept, message, msg_id, over, owned, save, take, too_large,
@@ -100,7 +100,7 @@ async fn fetch(
         Err(Missed::Failed(_)) => return Some(Err(("not-found", Vec::new()))),
         Err(missed) => return Some(Err(undone(missed))),
     };
-    if !owned(&fetched, call.to) {
+    if !owned(&fetched, call.to.clone()) {
         return Some(Err(("not-found", Vec::new())));
     }
     let media = kept(&fetched.segments.media);
@@ -131,7 +131,7 @@ async fn fetch(
     if too_large(item, limit) {
         return Some(Err(undone(Missed::Unfetched(over(limit)))));
     }
-    let taken = match (url, how, call.to) {
+    let taken = match (url, how, call.to.clone()) {
         (Some(url), _, _) => {
             let source = Source::Url(url.clone());
             match miyu_im::toolset::bytes(&[source], wait, limit).await {
@@ -192,8 +192,8 @@ async fn fetch(
 }
 
 /// 群 `group` 里编号是 `id` 的群文件的字节（施工 I-16）；拿不到下载地址、下不下来的是空的。
-async fn group_file(link: &dyn Link, group: i64, id: &str, wait: Duration) -> Option<Vec<u8>> {
-    let url = link.group_file_url(group, id).await.ok()?;
+async fn group_file(link: &dyn Link, group: Id, id: &str, wait: Duration) -> Option<Vec<u8>> {
+    let url = link.group_file_url(&group, id).await.ok()?;
     miyu_im::toolset::bytes(&[Source::Url(url)], wait, UNLIMITED)
         .await
         .ok()

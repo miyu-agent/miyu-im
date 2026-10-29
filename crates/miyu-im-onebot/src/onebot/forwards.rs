@@ -5,7 +5,7 @@
 
 use serde_json::{Value, json};
 
-use super::{display_name, number, segments};
+use super::{display_name, id, segments};
 pub use miyu_im::chat::Node;
 
 /// 取合并转发里的消息的动作和参数：`get_forward_msg {id}`，编号原样写成字（NapCat 认 `id`、`message_id`，数字的照消息编号找，
@@ -32,7 +32,7 @@ pub fn node(value: &Value) -> Node {
         &body["message"]
     };
     Node {
-        user: number(&body["sender"]["user_id"]).or_else(|| number(&body["user_id"])),
+        user: id(&body["sender"]["user_id"]).or_else(|| id(&body["user_id"])),
         name: display_name(&body["sender"]).or_else(|| display_name(body)),
         segments: segments(message),
     }

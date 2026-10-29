@@ -37,6 +37,7 @@ use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, 
 use miyu_client::places::DataRoot;
 use miyu_client::settings::problem::Code;
 
+use crate::chat::Id;
 use crate::package::Package;
 use crate::{PACKAGE, TARGET};
 pub use cards::OTHER_GROUPS_RATE;
@@ -234,7 +235,7 @@ pub fn load(
     factory: &Factory,
     root: &DataRoot,
     configured: &Configured,
-    (cards, admins): (&Cards, &[u64]),
+    (cards, admins): (&Cards, &[Id]),
 ) -> Loaded {
     let mut layers = vec![configured.file()];
     let mut known = configured.whitelisted().to_vec();
@@ -301,7 +302,7 @@ pub struct Venues {
     /// 卡片那一层这一刻的卡片（施工 O-58 上）。
     cards: Cards,
     /// 认出来的终端管理员的号（施工 O-60）：「其他私聊」卡不管他们（白名单成员照配置项那一层的）。
-    admins: Vec<u64>,
+    admins: Vec<Id>,
     /// 隔多久才看一眼（`bridge.json` 的 `rules_check_millis`）。
     every: Duration,
     /// 上一次看的时刻。
@@ -403,7 +404,7 @@ impl Venues {
     }
 
     /// 认出来一个终端管理员的号 `admin`（施工 O-60）：「其他私聊」卡不再管他，没记过的当场整份重读。
-    pub fn add_admin(&mut self, admin: u64) {
+    pub fn add_admin(&mut self, admin: Id) {
         if !self.admins.contains(&admin) {
             self.admins.push(admin);
             self.reread();
@@ -441,7 +442,7 @@ fn reload(
     factory: &Factory,
     root: &DataRoot,
     configured: &Configured,
-    cards: (&Cards, &[u64]),
+    cards: (&Cards, &[Id]),
 ) -> Loaded {
     let loaded = load(factory, root, configured, cards);
     for problem in &loaded.problems {

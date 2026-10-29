@@ -11,7 +11,7 @@ use tokio::sync::{Notify, mpsc};
 
 use miyu_client::tooltext::Access;
 use miyu_im::chat::fake::{Asked, Did, fake};
-use miyu_im::chat::{Cap, Event, Platform, Posted, To};
+use miyu_im::chat::{Cap, Event, Id, Platform, Posted, To};
 use miyu_im::driver::{Driver, Gate, Started};
 use miyu_im::package::Package;
 use miyu_im::rules::Factory;
@@ -32,8 +32,11 @@ pub const ECHO: &str = "tg_echo";
 /// 它的配置项：在 `im.tg.` 那一组。
 const MODE: &str = "mode";
 
-/// 系统配置：两个平台上的 10001 都是终端管理员本人。
-const CONFIG: &str = "[external.bindings]\n\"qq:10001\" = \"admin\"\n\"tg:10001\" = \"admin\"\n";
+/// 系统配置：两个平台上的 10001 都是终端管理员本人；tg 上号写成字的 [`TEXT_ADMIN`] 也是（施工 I-79）。
+const CONFIG: &str = "[external.bindings]\n\"qq:10001\" = \"admin\"\n\"tg:10001\" = \"admin\"\n\"tg:boss_7\" = \"admin\"\n";
+
+/// tg 上号写成字的终端管理员（施工 I-79：别的平台的号不一定是整数）。
+pub const TEXT_ADMIN: &str = "boss_7";
 
 /// 一次调用里记下的：平台、场所、驱动的配置、状态目录。
 #[derive(Debug, Clone, PartialEq)]
@@ -136,10 +139,10 @@ impl Telegram {
     }
 
     /// 号 `bot` 连上：连接是宿主的假连接，交回它收到的要做的事。
-    pub async fn connect(&self, bot: i64) -> mpsc::Receiver<Asked> {
+    pub async fn connect(&self, bot: Id) -> mpsc::Receiver<Asked> {
         let gate = self.gate().await;
         let (link, asked) = fake();
-        let replaced = gate.bots().insert(bot, link);
+        let replaced = gate.bots().insert(bot.clone(), link);
         assert!(replaced.is_none(), "头一次连");
         assert!(gate.inbound(Event::Connected { bot }).await, "宿主收");
         gate.changed();
@@ -148,9 +151,15 @@ impl Telegram {
 
     /// 终端管理员（号 [`ADMIN`]）经号 `bot` 私聊说第 `message_id` 条 `text`，时刻是 [`TIME`]。
     pub async fn says(&self, bot: i64, message_id: i64, text: &str) {
+        self.says_as((&Id::from(bot), &Id::from(ADMIN)), message_id, text)
+            .await;
+    }
+
+    /// 号是 `user` 的人经号 `bot` 私聊说第 `message_id` 条 `text`，时刻是 [`TIME`]。
+    pub async fn says_as(&self, (bot, user): (&Id, &Id), message_id: i64, text: &str) {
         let posted = Posted {
-            bot,
-            user: ADMIN,
+            bot: bot.clone(),
+            user: user.clone(),
             message_id,
             time: TIME,
             name: None,

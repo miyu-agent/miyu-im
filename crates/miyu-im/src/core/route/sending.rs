@@ -280,7 +280,7 @@ impl Route {
         let connected = self
             .peers
             .get(session)
-            .is_some_and(|peer| self.platforms.link(peer.platform, peer.bot).is_some());
+            .is_some_and(|peer| self.platforms.link(peer.platform, &peer.bot).is_some());
         (!connected).then_some(DISCONNECTED)
     }
 
@@ -298,13 +298,13 @@ impl Route {
         if let Some(aimed) = item.piece.aimed.take() {
             self.relead_now(&peer, group.as_deref(), &aimed, &mut item.piece.lead);
         }
-        let begun = match self.platforms.link(peer.platform, peer.bot) {
+        let begun = match self.platforms.link(peer.platform, &peer.bot) {
             Some(link) => {
                 let lead = &item.piece.lead;
                 let outgoing = match (&item.piece.body, &item.piece.what) {
                     (Body::Picture(file), _) => Outgoing::Picture { file, lead },
                     (Body::Forward { nodes, nickname }, _) => Outgoing::Forward {
-                        bot: peer.bot,
+                        bot: &peer.bot,
                         nickname,
                         nodes,
                     },
@@ -321,7 +321,7 @@ impl Route {
                         lead,
                     },
                 };
-                link.begin(peer.to, outgoing).await
+                link.begin(peer.to.clone(), outgoing).await
             }
             None => Err(CallError::Closed),
         };
@@ -395,7 +395,7 @@ impl Route {
         // 聊天记录（设计 04，施工 C-1 上）：她发出去了的照记（回了编号的）。
         if let Some(msg) = msg {
             let image = matches!(item.piece.what, What::Image(_) | What::Page(_));
-            let mine = (peer.platform, venue.as_str(), peer.bot);
+            let mine = (peer.platform, venue.as_str(), &peer.bot);
             self.record_mine(mine, (msg, &item.piece.text), image);
         }
         if said(&item.piece.what) {

@@ -51,7 +51,7 @@ async fn reacted(call: &Call, msg: &str, emoji: &str) -> Value {
         Err(Missed::Unanswered) => return call.answers.say("unanswered", &[], true),
         Err(_) => return call.answers.say("unreachable", &[], true),
     };
-    if !recallable(&fetched, call.to, call.bot) {
+    if !recallable(&fetched, &call.to, &call.bot) {
         return call.answers.say("not-found", &[], true);
     }
     match link.react(msg, emoji, true).await {

@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 
+use miyu_im::chat::Id;
 use miyu_im::toolset::{Call, Planned};
 
 /// 写错了的那一句：哪个参数、期望什么（`bad-args` 的 `detail`）。
@@ -19,6 +20,16 @@ pub(crate) fn qq_number(value: &Value) -> Option<i64> {
     number.filter(|number| *number > 0)
 }
 
+/// 一个 QQ 号 `value`：同 [`qq_number`]，交回宿主认的号（施工 I-79）。
+pub(crate) fn qq_id(value: &Value) -> Option<Id> {
+    qq_number(value).map(Id::from)
+}
+
+/// 参数里的一个 QQ 号 `args[key]`：同 [`optional_number`]，交回宿主认的号。
+pub(crate) fn optional_id(args: &Value, key: &str, bad: Bad) -> Result<Option<Id>, Bad> {
+    optional_number(args, key, bad).map(|number| number.map(Id::from))
+}
+
 /// 参数里的一个号 `args[key]`：没给的是 `Ok(None)`，写错的交回 `bad`。
 pub(crate) fn optional_number(args: &Value, key: &str, bad: Bad) -> Result<Option<i64>, Bad> {
     match &args[key] {
@@ -29,7 +40,7 @@ pub(crate) fn optional_number(args: &Value, key: &str, bad: Bad) -> Result<Optio
 
 /// 号的列表 `value`（纯逻辑）：数组（写成数组的 JSON 字的也认），每一个照 [`qq_number`]，去重、照先后，1 到 `most` 个。有写错
 /// 的、空的、多了的是空的。
-pub(crate) fn qq_numbers(value: &Value, most: usize) -> Option<Vec<i64>> {
+pub(crate) fn qq_numbers(value: &Value, most: usize) -> Option<Vec<Id>> {
     let parsed;
     let list = match value {
         Value::Array(list) => list,
@@ -39,9 +50,9 @@ pub(crate) fn qq_numbers(value: &Value, most: usize) -> Option<Vec<i64>> {
         }
         _ => return None,
     };
-    let mut found: Vec<i64> = Vec::new();
+    let mut found: Vec<Id> = Vec::new();
     for one in list {
-        let number = qq_number(one)?;
+        let number = qq_id(one)?;
         if !found.contains(&number) {
             found.push(number);
         }

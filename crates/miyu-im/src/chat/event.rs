@@ -3,15 +3,15 @@
 
 use serde_json::Value;
 
-use super::{Rank, Segments};
+use super::{Id, Rank, Segments};
 
 /// 一条消息：私聊的或者群里的（第 5 条，「群消息」第 1 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Posted {
     /// 收到它的机器人的号（事件的 `self_id`）。
-    pub bot: i64,
+    pub bot: Id,
     /// 发的人的号（`user_id`）。
-    pub user: i64,
+    pub user: Id,
     /// 消息编号（`message_id`）：拼进命令编号，断线重发、平台重发都只收一次（第 8 条）。
     pub message_id: i64,
     /// 平台给的时刻（事件的 `time`，整数秒）：也拼进命令编号（第 8 条）。没带、读不出的是 0（「施工时定的」第 20 条）：消息
@@ -31,13 +31,13 @@ pub struct Posted {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Recall {
     /// 收到它的机器人的号。
-    pub bot: i64,
+    pub bot: Id,
     /// 群号：私聊的撤回是空的。
-    pub group: Option<i64>,
+    pub group: Option<Id>,
     /// 被撤的那一条是谁发的（`user_id`）：私聊里就是对方。
-    pub user: i64,
+    pub user: Id,
     /// 谁撤的：群里是 `operator_id`，私聊是 `user_id`。
-    pub by: i64,
+    pub by: Id,
     /// 被撤的那一条的消息编号。
     pub message_id: i64,
 }
@@ -50,7 +50,7 @@ pub enum Event {
     /// 一条群消息（施工 O-22）。
     Group {
         /// 群号（`group_id`）。
-        group: i64,
+        group: Id,
         /// 这条消息。
         posted: Posted,
     },
@@ -58,7 +58,7 @@ pub enum Event {
     /// 回合。
     Backfilled {
         /// 群号。
-        group: i64,
+        group: Id,
         /// 这条消息。
         posted: Posted,
     },
@@ -67,35 +67,35 @@ pub enum Event {
     /// 她在群里被禁言了（施工 O-25 中，「出站队列」第 7 条）。
     Muted {
         /// 收到通知的机器人的号：被禁言的就是它。
-        bot: i64,
+        bot: Id,
         /// 群号。
-        group: i64,
+        group: Id,
         /// 禁几秒，大于 0。
         seconds: u64,
         /// 谁禁的（`operator_id`，施工 O-50）；没带的是空的。
-        operator: Option<i64>,
+        operator: Option<Id>,
     },
     /// 她在群里被解禁了（施工 O-25 中）：`lift_ban`，或者禁 0 秒。
     Unmuted {
         /// 收到通知的机器人的号。
-        bot: i64,
+        bot: Id,
         /// 群号。
-        group: i64,
+        group: Id,
         /// 谁解的（施工 O-50）；没带的是空的。
-        operator: Option<i64>,
+        operator: Option<Id>,
     },
     /// 一个机器人号连上了（施工 O-25 中，「怎么走」第 2 条）：号认出来的那一刻（`X-Self-ID`、第一条事件），由连接那一头交，
     /// 不是 NapCat 的一帧。排着的照先后发。
     Connected {
         /// 机器人的号。
-        bot: i64,
+        bot: Id,
     },
     /// 有人要加她好友（施工 O-27，「好友请求」）：`post_type = request`、`request_type = friend`。
     Befriend {
         /// 收到请求的机器人的号：同意时经它的连接回。
-        bot: i64,
+        bot: Id,
         /// 要加她的人的号。
-        user: i64,
+        user: Id,
         /// 平台给这次请求的标记：同意时原样交回（`set_friend_add_request` 的 `flag`）。不进运行日志。
         flag: String,
     },
@@ -103,7 +103,7 @@ pub enum Event {
     /// 主会话，不开回合。
     Noted {
         /// 收到那件事的机器人的号。
-        bot: i64,
+        bot: Id,
         /// 哪个场所。
         to: To,
         /// 事实的种类（当标签名）。
@@ -127,38 +127,38 @@ pub enum Event {
     /// 群里有人的群名片改了（施工 I-38，`group_card`）：群成员的名字缓存跟着改，改的是她自己的，下一条场所消息的 `my_name` 就带新的。
     Renamed {
         /// 收到通知的机器人的号。
-        bot: i64,
+        bot: Id,
         /// 群号。
-        group: i64,
+        group: Id,
         /// 改了群名片的人。
-        user: i64,
+        user: Id,
         /// 新的群名片，照原样；清掉了（显示回昵称）的是空的。
         card: Option<String>,
     },
     /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
     Invited {
         /// 收到邀请的机器人的号。
-        bot: i64,
+        bot: Id,
         /// 邀请她进的群。
-        group: i64,
+        group: Id,
         /// 邀请的人。
-        user: i64,
+        user: Id,
     },
 }
 
 /// 群里的一件事（[`Event::Happened`]）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Happened {
     /// 收到通知的机器人的号。
-    pub bot: i64,
+    pub bot: Id,
     /// 群号。
-    pub group: i64,
+    pub group: Id,
     /// 哪一种。
     pub change: GroupChange,
     /// 对谁：被禁言、被踢、退群、进群的那个人。
-    pub user: i64,
+    pub user: Id,
     /// 谁做的（禁言、解禁、踢人的管理员，进群时同意、邀请的人）；没带的、0 是空的。
-    pub operator: Option<i64>,
+    pub operator: Option<Id>,
     /// 禁言几秒（[`GroupChange::Muted`]）。
     pub seconds: Option<u64>,
 }
@@ -192,12 +192,12 @@ impl GroupChange {
 }
 
 /// 发给谁：私聊的对方、群（第 10 条，「群消息」第 7 条）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum To {
     /// 和号是它的人的私聊。
-    Private(i64),
+    Private(Id),
     /// 群号是它的群（施工 O-22）。
-    Group(i64),
+    Group(Id),
 }
 
 /// 一段前面带的引用和 @（施工 O-25 上，`onebot.md`「群里怎么叫她」第 9 条）：引用的那一条的平台编号、@ 的号，照平台给的原样

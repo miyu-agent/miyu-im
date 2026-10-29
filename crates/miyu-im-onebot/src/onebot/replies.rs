@@ -1,10 +1,10 @@
 //! 读 NapCat 的回应（施工 I-2 上）：回应的 `data` 读成宿主认的样子（[`miyu_im::chat`] 的 [`Fetched`]、[`Member`] 这些）。只读、
-//! 不洗：名字合不合核心的写法由宿主洗。号照 [`number`]：整数，或者写成整数的字符串。
+//! 不洗：名字合不合核心的写法由宿主洗。号照 [`super::number`]：整数，或者写成整数的字符串。
 
 use serde_json::Value;
 
 use super::media::{file_name, sources};
-use super::{display_name, number, rank_of, segments};
+use super::{display_name, id, rank_of, segments};
 use miyu_im::chat::{Fetched, Friend, Group, GroupFile, GroupFiles, Located, Member};
 
 /// 动作的名字：群列表、好友列表、群成员列表、群资料（施工 O-58 上、O-54、O-32）。
@@ -28,8 +28,8 @@ pub const LOGIN_INFO: &str = "get_login_info";
 pub fn fetched(data: &Value) -> Fetched {
     Fetched {
         private: data["message_type"] == "private",
-        group: number(&data["group_id"]),
-        user: number(&data["user_id"]),
+        group: id(&data["group_id"]),
+        user: id(&data["user_id"]),
         segments: segments(&data["message"]),
     }
 }
@@ -45,7 +45,7 @@ pub fn located(data: &Value) -> Located {
 /// `get_group_member_info` 回应的 `data`、`get_group_member_list` 的一行：号读不出的不是。头衔照 `title`（施工 I-17），空白的不要。
 pub fn member(data: &Value) -> Option<Member> {
     Some(Member {
-        user: number(&data["user_id"])?,
+        user: id(&data["user_id"])?,
         name: display_name(data),
         rank: rank_of(data),
         title: data["title"]
@@ -65,7 +65,7 @@ pub fn groups(data: &Value) -> Vec<Group> {
     rows(data)
         .filter_map(|row| {
             Some(Group {
-                id: number(&row["group_id"])?,
+                id: id(&row["group_id"])?,
                 name: row["group_name"].as_str().map(str::to_string),
                 members: row["member_count"].as_u64(),
             })
@@ -78,7 +78,7 @@ pub fn friends(data: &Value) -> Vec<Friend> {
     rows(data)
         .filter_map(|row| {
             Some(Friend {
-                id: number(&row["user_id"])?,
+                id: id(&row["user_id"])?,
                 name: row["nickname"].as_str().map(str::to_string),
             })
         })

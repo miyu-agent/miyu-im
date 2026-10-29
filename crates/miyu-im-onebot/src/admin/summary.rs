@@ -2,6 +2,7 @@
 //! 几次、最近的理由；排行照禁言次数、总时长从多到少，一样的照号。周、月是从此刻往前的 7 天、30 天。
 
 use super::records::{Action, Record};
+use miyu_im::chat::Id;
 
 /// 看多久的。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +49,7 @@ impl Period {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Tally {
     /// 号。
-    pub user: i64,
+    pub user: Id,
     /// 最近一条记录里叫什么；都没有的是空的。
     pub name: Option<String>,
     /// 被禁言几次。
@@ -73,7 +74,7 @@ pub(crate) fn ranking(records: &[Record], period: Period, now: u64) -> Vec<Tally
             Some(index) => index,
             None => {
                 tallies.push(Tally {
-                    user: record.user,
+                    user: record.user.clone(),
                     name: None,
                     mutes: 0,
                     seconds: 0,

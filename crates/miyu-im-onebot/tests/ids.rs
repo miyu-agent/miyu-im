@@ -1,6 +1,7 @@
 //! 编号怎么拼（施工 O-8 补，`onebot.md` 第一条「怎么走」第 7、8 条，照 `chat.md` 第七条第 1 条）：场所、平台上的人经群聊
 //! 内核拼，样子不变；命令编号带上平台给的时刻；事件的 `time` 是整数、写成整数的字符串都认，没带、读不出的是 0。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_chat::{Venue, VenueKind};
@@ -9,7 +10,9 @@ use miyu_kernel::id::VenueId;
 
 #[test]
 fn venue_and_person_are_made_by_the_chat_kernel() {
-    let venue = PLATFORM.private_venue(10001).expect("号是整数，拼得出");
+    let venue = PLATFORM
+        .private_venue(&Id::from(10001))
+        .expect("号是整数，拼得出");
     assert_eq!(venue.as_str(), "qq:private:10001");
     let made = Venue::new(PLATFORM.name(), VenueKind::Private, "10001").expect("拼得出");
     assert_eq!(&venue, made.id(), "和群聊内核拼的是同一个");
@@ -19,7 +22,7 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
         ("qq", VenueKind::Private, "10001")
     );
 
-    let who = PLATFORM.person(10001).expect("号是整数，拼得出");
+    let who = PLATFORM.person(&Id::from(10001)).expect("号是整数，拼得出");
     assert_eq!(who.as_str(), "qq:10001");
     assert_eq!(
         miyu_chat::parse_person(&who),
@@ -29,11 +32,17 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
 
     // 号照十进制写，负的也照写（照说不会有）。
     assert_eq!(
-        PLATFORM.private_venue(-5).expect("拼得出").as_str(),
+        PLATFORM
+            .private_venue(&Id::from(-5))
+            .expect("拼得出")
+            .as_str(),
         "qq:private:-5"
     );
     assert_eq!(
-        PLATFORM.person(i64::MAX).expect("拼得出").as_str(),
+        PLATFORM
+            .person(&Id::from(i64::MAX))
+            .expect("拼得出")
+            .as_str(),
         "qq:9223372036854775807"
     );
 }
@@ -41,39 +50,60 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
 #[test]
 fn the_command_id_carries_the_platforms_time() {
     assert_eq!(
-        PLATFORM.command_id(30003, 501, 1_759_800_000),
+        PLATFORM.command_id(&Id::from(30003), 501, 1_759_800_000),
         "qq:30003:501:1759800000"
     );
     assert_ne!(
-        PLATFORM.command_id(30003, 7, 1_759_800_000),
-        PLATFORM.command_id(30003, 7, 1_759_886_400),
+        PLATFORM.command_id(&Id::from(30003), 7, 1_759_800_000),
+        PLATFORM.command_id(&Id::from(30003), 7, 1_759_886_400),
         "同一个消息编号、时刻不同，是两条"
     );
-    assert_eq!(PLATFORM.command_id(30003, 7, 0), "qq:30003:7:0");
+    assert_eq!(PLATFORM.command_id(&Id::from(30003), 7, 0), "qq:30003:7:0");
 }
 
 #[test]
 fn the_bot_and_the_place_are_read_back() {
     assert_eq!(
-        PLATFORM.bot_of(&PLATFORM.command_id(30003, 501, 1_759_800_000)),
-        Some(30003)
+        PLATFORM.bot_of(&PLATFORM.command_id(&Id::from(30003), 501, 1_759_800_000)),
+        Some(Id::from(30003))
     );
     assert_eq!(
         PLATFORM.bot_of("qq:30003:501:1759800000/decided"),
-        Some(30003),
+        Some(Id::from(30003)),
         "加了后缀的也认"
     );
-    for other in ["onebot-1a2b-3", "tg:30003:1:0", "qq:x:1:0", "qq", ""] {
+    assert_eq!(
+        PLATFORM.bot_of("qq:bot_x:1:0"),
+        Id::new("bot_x"),
+        "号是字的也认（施工 I-79）"
+    );
+    for other in [
+        "onebot-1a2b-3",
+        "tg:30003:1:0",
+        "qq: :1:0",
+        "qq::1:0",
+        "qq",
+        "",
+    ] {
         assert_eq!(PLATFORM.bot_of(other), None, "{other}");
     }
     let place = |venue: &str| {
         let id = VenueId::parse(venue).expect("合写法");
         PLATFORM.to_of(&Venue::parse(&id).expect("解得出"))
     };
-    assert_eq!(place("qq:group:668"), Some(To::Group(668)));
-    assert_eq!(place("qq:private:20003"), Some(To::Private(20003)));
+    assert_eq!(place("qq:group:668"), Some(To::Group(Id::from(668))));
+    assert_eq!(
+        place("qq:private:20003"),
+        Some(To::Private(Id::from(20003)))
+    );
     assert_eq!(place("tg:group:668"), None, "别的平台");
-    assert_eq!(place("qq:group:abc"), None, "号不是整数");
+    assert_eq!(
+        place("qq:group:abc"),
+        Some(To::Group(Id::new("abc").expect("合写法"))),
+        "号是字的也认（施工 I-79）"
+    );
+    let long = format!("qq:group:{}", "1".repeat(49));
+    assert_eq!(place(&long), None, "号太长");
 }
 
 /// 一条私聊事件，`time` 照给的写；`None` 是不带。

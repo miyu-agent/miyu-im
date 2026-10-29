@@ -3,17 +3,17 @@
 use serde_json::json;
 
 use super::request;
-use crate::chat::To;
+use crate::chat::{Id, To};
 
 #[test]
 fn where_and_what_are_read() {
     assert_eq!(
         request(&json!({"group": 888, "text": " 大家好 "})),
-        Some((To::Group(888), "大家好".to_string()))
+        Some((To::Group(Id::from(888)), "大家好".to_string()))
     );
     assert_eq!(
         request(&json!({"user": "40001", "text": "在吗"})),
-        Some((To::Private(40001), "在吗".to_string()))
+        Some((To::Private(Id::from(40001)), "在吗".to_string()))
     );
     for args in [
         json!({"user": 1, "group": 2, "text": "x"}),

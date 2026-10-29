@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::onebot::{self, Event, Frame};
 use miyu_im::TARGET;
-use miyu_im::chat::{Link, Posted};
+use miyu_im::chat::{Id, Link, Posted};
 use miyu_im::driver::Gate;
 
 /// 一个群最多补几条。
@@ -31,7 +31,7 @@ pub(crate) struct Seen {
     /// 写在哪。
     path: PathBuf,
     /// 群号 → 平台时刻。
-    groups: BTreeMap<i64, i64>,
+    groups: BTreeMap<Id, i64>,
     /// 有没写盘的。
     dirty: bool,
     /// 上次写盘的时刻。
@@ -40,14 +40,14 @@ pub(crate) struct Seen {
 
 impl Seen {
     /// 号 `bot` 记着的（状态目录 `store` 下）；没有的、读不出的是空的。
-    pub(crate) fn load(store: &Path, bot: i64) -> Seen {
+    pub(crate) fn load(store: &Path, bot: Id) -> Seen {
         let path = store.join("backfill").join(format!("{bot}.json"));
         let groups = std::fs::read(&path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<BTreeMap<String, i64>>(&bytes).ok())
             .unwrap_or_default()
             .into_iter()
-            .filter_map(|(group, time)| Some((group.parse().ok()?, time)))
+            .filter_map(|(group, time)| Some((Id::new(&group)?, time)))
             .collect();
         Seen {
             path,
@@ -58,15 +58,15 @@ impl Seen {
     }
 
     /// 记着的群和时刻，照群号。
-    pub(crate) fn groups(&self) -> Vec<(i64, i64)> {
+    pub(crate) fn groups(&self) -> Vec<(Id, i64)> {
         self.groups
             .iter()
-            .map(|(&group, &time)| (group, time))
+            .map(|(group, &time)| (group.clone(), time))
             .collect()
     }
 
     /// 群 `group` 收到一条平台时刻是 `time` 的：只往后挪；隔够了 [`FLUSH`] 写盘。没带时刻的（0）不记。
-    pub(crate) fn note(&mut self, group: i64, time: i64) {
+    pub(crate) fn note(&mut self, group: Id, time: i64) {
         if time <= 0 {
             return;
         }
@@ -96,7 +96,7 @@ impl Seen {
 }
 
 /// 写进 `path`：先写旁边的 `.partial` 再换名。
-fn write(path: &Path, groups: &BTreeMap<i64, i64>) -> std::io::Result<()> {
+fn write(path: &Path, groups: &BTreeMap<Id, i64>) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -113,7 +113,7 @@ fn write(path: &Path, groups: &BTreeMap<i64, i64>) -> std::io::Result<()> {
 }
 
 /// 号 `bot` 连上了：另起任务照 `groups`（[`Seen::groups`]）补。
-pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: i64, groups: Vec<(i64, i64)>) {
+pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: Id, groups: Vec<(Id, i64)>) {
     if groups.is_empty() {
         return;
     }
@@ -125,20 +125,30 @@ pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: i64, groups: Ve
                 Ok(reply) if reply["status"] == "ok" => reply,
                 Ok(reply) => {
                     let said = reply["message"].as_str().unwrap_or_default().to_string();
-                    tracing::warn!(target: TARGET, group, said, "backfill not fetched");
+                    tracing::warn!(target: TARGET, group = %group, said, "backfill not fetched");
                     continue;
                 }
                 Err(error) => {
-                    tracing::warn!(target: TARGET, group, error = ?error, "backfill not fetched");
+                    tracing::warn!(target: TARGET, group = %group, error = ?error, "backfill not fetched");
                     continue;
                 }
             };
-            let (missed, full) = missed(&reply["data"]["messages"], (bot, group), since);
+            let (missed, full) = missed(
+                &reply["data"]["messages"],
+                (bot.clone(), group.clone()),
+                since,
+            );
             if full {
-                tracing::info!(target: TARGET, group, count = COUNT, "backfill truncated");
+                tracing::info!(target: TARGET, group = %group, count = COUNT, "backfill truncated");
             }
             for posted in missed {
-                if !gate.inbound(Event::Backfilled { group, posted }).await {
+                if !gate
+                    .inbound(Event::Backfilled {
+                        group: group.clone(),
+                        posted,
+                    })
+                    .await
+                {
                     return;
                 }
             }
@@ -148,11 +158,7 @@ pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: i64, groups: Ve
 
 /// 平台交回的最近几条（`messages`）里漏掉的：号 `bot` 收到的、群 `group` 的、平台时刻不早于 `since` 的、不是她自己发的，照
 /// 时刻、编号排好；另交回前面是不是可能还有（交回了 [`COUNT`] 条，最早的一条也晚于 `since`）。读不出的那一条不要。
-pub(crate) fn missed(
-    messages: &Value,
-    (bot, group): (i64, i64),
-    since: i64,
-) -> (Vec<Posted>, bool) {
+pub(crate) fn missed(messages: &Value, (bot, group): (Id, Id), since: i64) -> (Vec<Posted>, bool) {
     let all = messages.as_array().map(Vec::as_slice).unwrap_or_default();
     let read: Vec<Posted> = all
         .iter()

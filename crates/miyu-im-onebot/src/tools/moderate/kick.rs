@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use miyu_im::chat::{CallError, Link};
+use miyu_im::chat::{CallError, Id, Link};
 
 use super::super::acting::{Undone, undone};
 use crate::admin::{ranked, sync};
@@ -20,42 +20,37 @@ const TRIES: u32 = 6;
 const APART: Duration = Duration::from_millis(900);
 
 /// 把群 `group` 里的 `user` 踢出去，`block` 的以后不收他的加群申请（模块的说明）。
-pub(super) async fn kick(
-    link: &dyn Link,
-    group: i64,
-    user: i64,
-    block: bool,
-) -> Result<(), Undone> {
-    match fresh_member(link, group, user).await {
+pub(super) async fn kick(link: &dyn Link, group: Id, user: Id, block: bool) -> Result<(), Undone> {
+    match fresh_member(link, &group, &user).await {
         Ok(Some(member)) if ranked(member.rank) => return Err(Undone("protected", None)),
         Ok(Some(_)) => {}
         // NapCat 对不在群里的人回失败。
         Ok(None) | Err(CallError::Failed { .. }) => return Err(Undone("not-members", None)),
         Err(error) => return Err(undone(error)),
     }
-    let error = match link.kick(group, user, block).await {
+    let error = match link.kick(&group, &user, block).await {
         Ok(()) => return Ok(()),
         Err(error @ (CallError::Failed { .. } | CallError::Timeout)) => error,
         Err(error) => return Err(undone(error)),
     };
-    if gone(link, group, user).await {
-        tracing::warn!(target: miyu_im::TARGET, group, user, error = ?error, "kick reported a failure but the member is gone; treated as done");
+    if gone(link, group.clone(), user.clone()).await {
+        tracing::warn!(target: miyu_im::TARGET, group = %group, user = %user, error = ?error, "kick reported a failure but the member is gone; treated as done");
         return Ok(());
     }
     Err(undone(error))
 }
 
 /// 群 `group` 里的 `user` 走了没有（模块的说明）：她刚踢走的通知到了、现问回没有这个人的算走了。
-async fn gone(link: &dyn Link, group: i64, user: i64) -> bool {
+async fn gone(link: &dyn Link, group: Id, user: Id) -> bool {
     for attempt in 0..TRIES {
         if attempt > 0 {
             tokio::time::sleep(APART).await;
         }
-        if sync::removed_lately(group, user) {
+        if sync::removed_lately(group.clone(), user.clone()) {
             return true;
         }
         if matches!(
-            fresh_member(link, group, user).await,
+            fresh_member(link, &group, &user).await,
             Ok(None) | Err(CallError::Failed { .. })
         ) {
             return true;

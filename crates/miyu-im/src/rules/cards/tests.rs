@@ -25,7 +25,7 @@ fn cards(json: serde_json::Value) -> Cards {
 
 /// 拼好、读出来，断定没有问题；交回套到 `venue` 上每一项的值。私聊卡的号当白名单成员：「其他私聊」不管他们（施工 O-60）。
 fn values(cards: &Cards, venue: &Venue) -> Vec<(String, Value)> {
-    let listed: Vec<u64> = cards.privates.iter().map(|card| card.id).collect();
+    let listed: Vec<Id> = cards.privates.iter().map(|card| card.id.clone()).collect();
     let parsed = Rules::parse(&cards.files_except(&listed));
     assert_eq!(parsed.problems, []);
     parsed
@@ -198,8 +198,8 @@ fn a_number_written_twice_keeps_the_first_card() {
 fn file_names_say_which_card() {
     for card in [
         Card::OtherGroups,
-        Card::Group(7),
-        Card::Private(123_456_789),
+        Card::Group(Id::from(7)),
+        Card::Private(Id::from(123_456_789)),
     ] {
         assert_eq!(Card::parse(&card.file_name()), Some(card));
     }
@@ -209,11 +209,15 @@ fn file_names_say_which_card() {
         "70-card-g-.toml",
         "70-card-g-1",
         "80-test.toml",
-        "70-card-p-a.toml",
+        "70-card-p-a%2.toml",
+        "70-card-p-a%3Ab.toml",
     ] {
         assert_eq!(Card::parse(other), None, "{other}");
     }
-    assert_eq!(Card::Group(7).json(), json!({"kind": "group", "id": 7}));
+    assert_eq!(
+        Card::Group(Id::from(7)).json(),
+        json!({"kind": "group", "id": 7})
+    );
 }
 
 #[test]
@@ -229,8 +233,11 @@ fn problems_name_the_card() {
     assert_eq!(
         named,
         [
-            (Some(Card::Group(7)), Some("rate".to_string())),
-            (Some(Card::Private(9)), Some("persona".to_string()))
+            (Some(Card::Group(Id::from(7))), Some("rate".to_string())),
+            (
+                Some(Card::Private(Id::from(9))),
+                Some("persona".to_string())
+            )
         ]
     );
 }
@@ -239,7 +246,8 @@ fn problems_name_the_card() {
 fn only_known_fields_are_read_and_unset_ones_are_not_written() {
     for bad in [
         json!({"groups": [{"id": 1, "set": {"colour": "red"}}]}),
-        json!({"groups": [{"id": -1}]}),
+        json!({"groups": [{"id": "a b"}]}),
+        json!({"groups": [{"id": 1.5}]}),
         json!({"privates": [{"id": 1, "set": {"rate": "1/60s"}}]}),
         json!({"groups": [{"id": 1, "set": {"chatty": "always"}}]}),
         json!({"extra": true}),
@@ -306,7 +314,7 @@ fn other_private_chats_have_their_own_card_that_leaves_known_people_alone() {
         "final_only": true,
         "long_text": "split",
     }}));
-    let parsed = Rules::parse(&set.files_except(&[20, 30]));
+    let parsed = Rules::parse(&set.files_except(&[Id::from(20), Id::from(30)]));
     assert_eq!(parsed.problems, []);
     let strangers: Vec<String> = parsed
         .rules
@@ -344,4 +352,65 @@ fn other_private_chats_have_their_own_card_that_leaves_known_people_alone() {
         serde_json::from_value::<Cards>(json!({"other_privates": {"keywords": ["x"]}})).is_err(),
         "触发词是群的"
     );
+}
+
+#[test]
+fn ids_written_as_text_and_negative_numbers_make_cards_too() {
+    // 施工 I-79：别的平台的号是一串字（可能带 `/`、`@`），Telegram 的群号是负数。文件名照写法转义、认得回来；规则里字照字写。
+    let mixed = cards(json!({
+        "groups": [
+            {"id": -1_001_987_654_321_i64, "set": {"persona": "engineer"}},
+            {"id": "room/1@chatroom", "set": {"persona": "engineer"}},
+        ],
+        "privates": [{"id": "wxid_abc", "set": {"persona": "engineer"}}],
+    }));
+    let names: Vec<String> = mixed.files().into_iter().map(|file| file.name).collect();
+    assert_eq!(
+        names,
+        [
+            "70-card-a.toml",
+            "70-card-b.toml",
+            "70-card-g--1001987654321.toml",
+            "70-card-g-room%2F1@chatroom.toml",
+            "70-card-p-wxid_abc.toml",
+        ]
+    );
+    for name in &names[2..] {
+        assert!(Card::parse(name).is_some(), "{name} 认得回来");
+    }
+    assert_eq!(
+        Card::parse("70-card-g-room%2F1@chatroom.toml"),
+        Some(Card::Group(Id::new("room/1@chatroom").expect("合写法")))
+    );
+    assert_eq!(Card::parse("70-card-g-room%2.toml"), None, "转义不全的不认");
+    let engineer = ("persona".to_string(), text("engineer"));
+    for venue in [
+        group("-1001987654321"),
+        group("room/1@chatroom"),
+        private("wxid_abc"),
+    ] {
+        assert!(values(&mixed, &venue).contains(&engineer), "{venue:?}");
+    }
+    // 别的群、别的私聊不受这几张卡影响。
+    assert!(!values(&mixed, &group("1")).contains(&engineer));
+    assert!(!values(&mixed, &private("wxid_abd")).contains(&engineer));
+}
+
+#[test]
+fn qq_numbers_are_saved_as_numbers() {
+    // 只用 QQ 的人存下来的 `cards.json` 不变（施工 I-79）。
+    let saved = serde_json::to_value(cards(
+        json!({"groups": [{"id": 130_515_298}], "privates": [{"id": 10001}]}),
+    ))
+    .expect("写得出");
+    assert_eq!(saved["groups"][0]["id"], json!(130_515_298));
+    assert_eq!(saved["privates"][0]["id"], json!(10001));
+    // 拼出来的规则里 QQ 的号照旧写成数。
+    let qq = cards(json!({"groups": [{"id": 130_515_298, "set": {"persona": "engineer"}}]}));
+    let file = qq
+        .files()
+        .into_iter()
+        .find(|file| file.name == "70-card-g-130515298.toml")
+        .expect("有这个群的卡");
+    assert!(file.text.contains("group = [130515298]"), "{}", file.text);
 }

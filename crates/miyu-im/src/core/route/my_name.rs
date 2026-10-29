@@ -11,28 +11,28 @@ use std::time::Instant;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::chat::Platform;
+use crate::chat::{Id, Platform};
 
 impl Route {
     /// 平台上的机器人号 `bot` 在群 `group`（私聊的没有）里叫什么，洗过；问不到的是空的（见模块开头）。
     pub(super) async fn my_name(
         &mut self,
-        (platform, bot): (Platform, i64),
-        group: Option<i64>,
+        (platform, bot): (Platform, Id),
+        group: Option<Id>,
     ) -> Option<String> {
         let now = Instant::now();
         let Some(group) = group else {
-            if let Some(name) = self.members.nickname((platform, bot), now) {
+            if let Some(name) = self.members.nickname((platform, bot.clone()), now) {
                 return clean(name, NAME);
             }
-            if !self.members.ask_due((platform, bot), None, now) {
+            if !self.members.ask_due((platform, bot.clone()), None, now) {
                 return None;
             }
-            let link = self.platforms.link(platform, bot)?;
+            let link = self.platforms.link(platform, &bot)?;
             let name = match link.nickname().await {
                 Ok(name) => name?,
                 Err(error) => {
-                    tracing::debug!(target: TARGET, bot, error = ?error, "own nickname unknown");
+                    tracing::debug!(target: TARGET, bot = %bot, error = ?error, "own nickname unknown");
                     return None;
                 }
             };
@@ -41,9 +41,15 @@ impl Route {
                 .nicknamed((platform, bot), name, Instant::now());
             return cleaned;
         };
-        let mut asking = self.members.name((platform, group, bot), now).is_some()
-            || self.members.ask_due((platform, bot), Some(group), now);
-        self.member((platform, group, bot), bot, &mut asking).await
+        let mut asking = self
+            .members
+            .name((platform, group.clone(), bot.clone()), now)
+            .is_some()
+            || self
+                .members
+                .ask_due((platform, bot.clone()), Some(group.clone()), now);
+        self.member((platform, group, bot.clone()), bot, &mut asking)
+            .await
     }
 
     /// 平台 `platform` 上群 `group` 里号是 `user` 的人的群名片改成了 `card`（清掉了的是空的）：缓存里记新的；清掉的忘掉，下回问到
@@ -51,8 +57,8 @@ impl Route {
     pub(super) fn renamed(
         &mut self,
         platform: Platform,
-        group: i64,
-        user: i64,
+        group: Id,
+        user: Id,
         card: Option<String>,
     ) {
         let key = (platform, group, user);

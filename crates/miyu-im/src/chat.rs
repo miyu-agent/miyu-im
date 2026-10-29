@@ -8,6 +8,7 @@ mod event;
 #[cfg(any(test, feature = "fake"))]
 pub mod fake;
 mod forwards;
+mod id;
 mod link;
 mod members;
 mod platform;
@@ -20,6 +21,7 @@ pub use calls::{CallError, DETAIL};
 pub use cap::{CAPS, Cap};
 pub use event::{Event, GroupChange, Happened, Lead, Posted, Recall, Replier, To};
 pub use forwards::Node;
+pub use id::Id;
 pub use link::{
     Fetched, Friend, Group, GroupFile, GroupFiles, Implementation, Link, Located, Member, Msg,
     Outgoing, Pending, Reply,

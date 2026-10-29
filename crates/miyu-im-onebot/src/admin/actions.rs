@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use serde_json::{Map, Value, json};
 
-use miyu_im::chat::Link;
+use miyu_im::chat::{Id, Link};
 use miyu_im::plugins::Context;
 
 use super::groups::{self, Group};
@@ -32,7 +32,7 @@ pub(crate) async fn call(context: &Context, method: &str, params: &Value) -> Res
             let settings = groups::read(&context.store)
                 .remove(&group.to_string())
                 .unwrap_or_default();
-            let records = records::read(&context.store, group);
+            let records = records::read(&context.store, group.clone());
             Ok(page::panel(group, &settings, &records, summary, now))
         }
         "admin.page" => Ok(whole(context, summary, now).await),
@@ -40,6 +40,7 @@ pub(crate) async fn call(context: &Context, method: &str, params: &Value) -> Res
             let group = params["group"]
                 .as_i64()
                 .filter(|group| *group > 0)
+                .map(Id::from)
                 .ok_or_else(bad)?;
             let values = params["values"].as_object().cloned().unwrap_or_default();
             saved(context, method, group, &values, now)
@@ -49,12 +50,13 @@ pub(crate) async fn call(context: &Context, method: &str, params: &Value) -> Res
 }
 
 /// 场所编号 `qq:group:777` 里的群号；别的是空的。
-fn venue_group(venue: &str) -> Option<i64> {
+fn venue_group(venue: &str) -> Option<Id> {
     venue
         .strip_prefix("qq:group:")?
         .parse()
         .ok()
         .filter(|group: &i64| *group > 0)
+        .map(Id::from)
 }
 
 /// 面板：她在的每个群一项（施工 I-17：连着的号都看，一个群照在里面的号问身份，都并着问，以前只看第一个号、一个个等）。
@@ -77,8 +79,8 @@ async fn whole(context: &Context, summary: bool, now: u64) -> Value {
     for (_, bot, groups, link) in answered {
         for group in groups {
             match listed.iter_mut().find(|(id, _, _)| *id == group.id) {
-                Some((_, _, inside)) => inside.push((bot, Arc::clone(&link))),
-                None => listed.push((group.id, group.name, vec![(bot, Arc::clone(&link))])),
+                Some((_, _, inside)) => inside.push((bot.clone(), Arc::clone(&link))),
+                None => listed.push((group.id, group.name, vec![(bot.clone(), Arc::clone(&link))])),
             }
         }
     }
@@ -87,16 +89,16 @@ async fn whole(context: &Context, summary: bool, now: u64) -> Value {
     let mut asking = tokio::task::JoinSet::new();
     for (group, _, inside) in &listed {
         for (bot, link) in inside {
-            let (group, bot, link) = (*group, *bot, Arc::clone(link));
+            let (group, bot, link) = (group.clone(), bot.clone(), Arc::clone(link));
             asking.spawn(async move {
                 (
-                    group,
-                    admin::admin_here(link.as_ref(), group, bot).await.ok(),
+                    group.clone(),
+                    admin::admin_here(link.as_ref(), &group, &bot).await.ok(),
                 )
             });
         }
     }
-    let mut ranks: Vec<(i64, Option<bool>)> = Vec::new();
+    let mut ranks: Vec<(Id, Option<bool>)> = Vec::new();
     while let Some(Ok(asked)) = asking.join_next().await {
         ranks.push(asked);
     }
@@ -111,9 +113,9 @@ async fn whole(context: &Context, summary: bool, now: u64) -> Value {
                     .map(|(_, admin)| *admin),
             );
             let settings = all.get(&group.to_string()).cloned().unwrap_or_default();
-            let records = records::read(&context.store, *group);
+            let records = records::read(&context.store, group.clone());
             page::section(
-                (*group, name.as_deref()),
+                (group.clone(), name.as_deref()),
                 admin,
                 (&settings, &records),
                 (summary, now),
@@ -127,7 +129,7 @@ async fn whole(context: &Context, summary: bool, now: u64) -> Value {
 }
 
 /// 面板上的一个群：群号、群名、在里面的号和它的连接。
-type Listed = (i64, Option<String>, Vec<(i64, Arc<dyn Link>)>);
+type Listed = (Id, Option<String>, Vec<(Id, Arc<dyn Link>)>);
 
 /// 一个群里几个号问到的身份（纯逻辑）：有一个是管理员就是；都问到了、都不是的不是；别的（有问不到的、一个都没有）是空的。
 pub(crate) fn role(asked: impl IntoIterator<Item = Option<bool>>) -> Option<bool> {
@@ -148,7 +150,7 @@ pub(crate) fn role(asked: impl IntoIterator<Item = Option<bool>>) -> Option<bool
 fn saved(
     context: &Context,
     method: &str,
-    group: i64,
+    group: Id,
     values: &Map<String, Value>,
     now: u64,
 ) -> Result<Value, String> {
@@ -227,12 +229,13 @@ fn saved(
                 .and_then(|settings| settings.clearing)
                 .is_some_and(|at| now < at.saturating_add(60));
             if asked {
-                if let Err(error) = std::fs::remove_file(records::file(&context.store, group))
+                if let Err(error) =
+                    std::fs::remove_file(records::file(&context.store, group.clone()))
                     && error.kind() != std::io::ErrorKind::NotFound
                 {
                     return Err("method_failed".to_string());
                 }
-                tracing::info!(target: miyu_im::TARGET, group, "moderation records cleared from the page");
+                tracing::info!(target: miyu_im::TARGET, group = %group, "moderation records cleared from the page");
             }
             groups::update(&context.store, group, |settings| {
                 settings.clearing = (!asked).then_some(now);

@@ -5,7 +5,7 @@
 
 use serde_json::Value;
 
-use miyu_im::chat::{GroupFiles, To};
+use miyu_im::chat::{GroupFiles, Id, To};
 use miyu_im::toolset::{Call, NAME, Planned, UNLIMITED, clean};
 
 use super::QqTools;
@@ -109,7 +109,7 @@ fn decoded(text: &str) -> String {
 
 /// `qq_group_files` 的一次调用（模块的说明）。私聊里调到的答只给群（`venues` 不给，照说不会），参数写错的说哪个（施工 I-17）。
 pub(super) fn group_files(tools: &QqTools, call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     // 施工 I-17：写错的说哪个参数。
@@ -133,14 +133,14 @@ pub(super) fn group_files(tools: &QqTools, call: Call) -> Planned {
 }
 
 /// 列一层。
-async fn listing(call: &Call, group: i64, shown: usize) -> Result<Value, Undone> {
+async fn listing(call: &Call, group: Id, shown: usize) -> Result<Value, Undone> {
     let Some(link) = &call.link else {
         return Err(("unreachable", None));
     };
     let folder = call.args["folder"]
         .as_str()
         .filter(|folder| !folder.is_empty());
-    let files = link.group_files(group, folder).await.map_err(undone)?;
+    let files = link.group_files(&group, folder).await.map_err(undone)?;
     let (count, total, list) = listed(&files, shown);
     if count == 0 {
         return Ok(call.answers.say("no-group-files", &[], false));
@@ -156,20 +156,20 @@ async fn listing(call: &Call, group: i64, shown: usize) -> Result<Value, Undone>
 /// 下一个文件存进工作区。
 async fn download(
     call: &Call,
-    group: i64,
+    group: Id,
     file: &str,
     wait: std::time::Duration,
 ) -> Result<Value, Undone> {
     let Some(link) = &call.link else {
         return Err(("unreachable", None));
     };
-    let url = link.group_file_url(group, file).await.map_err(undone)?;
+    let url = link.group_file_url(&group, file).await.map_err(undone)?;
     // 名字照列表里的（她多半刚列过这一层；文件夹照她给的）：列不出来的照下载地址。
     let folder = call.args["folder"]
         .as_str()
         .filter(|folder| !folder.is_empty());
     let listed = link
-        .group_files(group, folder)
+        .group_files(&group, folder)
         .await
         .ok()
         .and_then(|files| {

@@ -4,8 +4,8 @@
 use serde_json::{Value, json};
 
 use super::{Backlog, Said};
-use crate::chat::Platform;
 use crate::chat::To;
+use crate::chat::{Id, Platform};
 
 const QQ: Platform = Platform::new("qq");
 const TG: Platform = Platform::new("tg");
@@ -87,7 +87,12 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
     let peer = backlog.peer().expect("认得出");
     assert_eq!(
         (peer.platform, peer.bot, peer.to, peer.venue.as_str()),
-        (QQ, 30004, To::Group(668), "qq:group:668")
+        (
+            QQ,
+            Id::from(30004),
+            To::Group(Id::from(668)),
+            "qq:group:668"
+        )
     );
 
     let mut private = qq(9, 0);
@@ -96,7 +101,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
     private.take(&user(2, 30003));
     assert_eq!(
         private.peer().map(|peer| (peer.bot, peer.to)),
-        Some((30003, To::Private(20003)))
+        Some((Id::from(30003), To::Private(Id::from(20003))))
     );
     let mut other = qq(9, 0);
     let created = json!({"venue": "tg:group:1"});
@@ -113,7 +118,10 @@ fn each_platform_reads_its_own_command_ids() {
     backlog.take(&event(1, 0, "session.created", created, json!({})));
     backlog.take(&user_on("tg", 2, 5));
     let peer = backlog.peer().expect("认得出");
-    assert_eq!((peer.platform, peer.bot, peer.to), (TG, 5, To::Group(668)));
+    assert_eq!(
+        (peer.platform, peer.bot, peer.to),
+        (TG, Id::from(5), To::Group(Id::from(668)))
+    );
     // 最近一条是 QQ 的号：和场所不是一个平台，不拿它发。
     backlog.take(&user_on("qq", 3, 30003));
     assert!(backlog.peer().is_none(), "不跨平台");
@@ -123,7 +131,7 @@ fn each_platform_reads_its_own_command_ids() {
     qq_venue.take(&event(1, 0, "session.created", created, json!({})));
     qq_venue.take(&user_on("qq", 2, 30003));
     let peer = qq_venue.peer().expect("认得出");
-    assert_eq!((peer.platform, peer.bot), (QQ, 30003));
+    assert_eq!((peer.platform, peer.bot), (QQ, Id::from(30003)));
     // 没挂的平台的命令编号不认。
     let mut unknown = Backlog::new(vec![QQ], LINE, 9, 0);
     let created = json!({"venue": "tg:group:668"});

@@ -14,7 +14,7 @@ use serde_json::{Map, Value, json};
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::Bots;
+use crate::chat::{Bots, Id};
 use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{CARDS_GET, CARDS_SAVE};
@@ -42,7 +42,7 @@ impl Route {
         let cards = self.rules.cards().clone();
         let mut groups = Map::new();
         for card in &cards.groups {
-            groups.insert(card.id.to_string(), self.group_defaults(card.id));
+            groups.insert(card.id.to_string(), self.group_defaults(&card.id));
         }
         // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张）。
         let whitelist = self.whitelist_numbers();
@@ -50,14 +50,14 @@ impl Route {
         for id in cards
             .privates
             .iter()
-            .map(|card| card.id)
-            .chain(whitelist.iter().copied())
+            .map(|card| &card.id)
+            .chain(whitelist.iter())
         {
             privates.insert(id.to_string(), self.private_defaults(id));
         }
         let defaults = json!({
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。
-            "other_groups": other_groups(self.group_defaults(0)),
+            "other_groups": other_groups(self.group_defaults(&Id::from(0))),
             "other_privates": self.other_private_defaults(),
             // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
             "defaults": self.defaults_defaults(),
@@ -73,7 +73,7 @@ impl Route {
 
     /// 卡片、后台页照的平台上种类是 `kind`、号是 `number` 的场所（施工 I-70 上）：第一个驱动的平台。卡片带平台是 I-70 中下、页面的
     /// 连接照平台是 I-70 下的事，在那以前照第一个认（同旧数据）。拼不出的、一个平台都没挂的（照说不会）是空的。
-    pub(super) fn card_venue(&self, kind: VenueKind, number: i64) -> Option<Venue> {
+    pub(super) fn card_venue(&self, kind: VenueKind, number: &Id) -> Option<Venue> {
         self.platforms.first()?.venue(kind, number).ok()
     }
 
@@ -85,11 +85,8 @@ impl Route {
     }
 
     /// 群号是 `group` 的群卡每一格的默认值。
-    pub(super) fn group_defaults(&self, group: u64) -> Value {
-        match i64::try_from(group)
-            .ok()
-            .and_then(|number| self.card_venue(VenueKind::Group, number))
-        {
+    pub(super) fn group_defaults(&self, group: &Id) -> Value {
+        match self.card_venue(VenueKind::Group, group) {
             Some(venue) => self.with_rules(card_defaults::group, &venue),
             None => Value::Null,
         }
@@ -97,18 +94,15 @@ impl Route {
 
     /// 「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
     pub(super) fn other_private_defaults(&self) -> Value {
-        match self.card_venue(VenueKind::Private, 0) {
+        match self.card_venue(VenueKind::Private, &Id::from(0)) {
             Some(venue) => self.with_rules(card_defaults::other_private, &venue),
             None => Value::Null,
         }
     }
 
     /// 对方的号是 `user` 的私聊卡每一格的默认值。
-    pub(super) fn private_defaults(&self, user: u64) -> Value {
-        match i64::try_from(user)
-            .ok()
-            .and_then(|number| self.card_venue(VenueKind::Private, number))
-        {
+    pub(super) fn private_defaults(&self, user: &Id) -> Value {
+        match self.card_venue(VenueKind::Private, user) {
             Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
         }
@@ -116,7 +110,7 @@ impl Route {
 
     /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
     fn defaults_defaults(&self) -> Value {
-        match self.card_venue(VenueKind::Group, 0) {
+        match self.card_venue(VenueKind::Group, &Id::from(0)) {
             Some(venue) => {
                 let beneath = self.rules.beneath_defaults(&venue);
                 let mut found = card_defaults::group(&beneath);
@@ -148,7 +142,7 @@ impl Route {
             .iter()
             .map(|problem| {
                 json!({
-                    "card": Card::parse(&problem.file).map(Card::json),
+                    "card": Card::parse(&problem.file).map(|card| card.json()),
                     "key": problem.key,
                     "code": problem.code.as_str(),
                     "got": problem.got,
@@ -209,14 +203,14 @@ pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
         if let Ok(list) = link.groups().await {
             let rows = list.into_iter().map(|group| {
                 let row = json!({"id": group.id, "name": group.name, "members": group.members, "bot": bot});
-                (group.id, row)
+                (group.id.clone(), row)
             });
             groups.extend(entries(rows));
         }
         if let Ok(list) = link.friends().await {
             let rows = list.into_iter().map(|friend| {
                 (
-                    friend.id,
+                    friend.id.clone(),
                     json!({"id": friend.id, "name": friend.name, "bot": bot}),
                 )
             });
@@ -243,9 +237,9 @@ pub(super) async fn lists(bots: &Bots, caller: &Caller) -> Lists {
 }
 
 /// 一张表里每一行（号、交出去的样子）：同一个号只留第一行。
-fn entries(rows: impl Iterator<Item = (i64, Value)>) -> Vec<Value> {
+fn entries(rows: impl Iterator<Item = (Id, Value)>) -> Vec<Value> {
     let mut seen = std::collections::BTreeSet::new();
-    rows.filter(|(id, _)| seen.insert(*id))
+    rows.filter(|(id, _)| seen.insert(id.clone()))
         .map(|(_, entry)| entry)
         .collect()
 }

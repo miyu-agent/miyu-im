@@ -22,18 +22,18 @@ impl Route {
     /// 平台 `platform` 上的一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
     pub(super) async fn private(&mut self, platform: Platform, posted: Posted) -> Result<(), Gone> {
         let made = platform
-            .venue(VenueKind::Private, posted.user)
-            .and_then(|venue| Ok((venue, platform.person(posted.user)?)));
+            .venue(VenueKind::Private, &posted.user)
+            .and_then(|venue| Ok((venue, platform.person(&posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,
             Err(error) => {
-                tracing::warn!(target: TARGET, user = posted.user, message = posted.message_id, error = %error, "venue not made, message dropped");
+                tracing::warn!(target: TARGET, user = %posted.user, message = posted.message_id, error = %error, "venue not made, message dropped");
                 return Ok(());
             }
         };
         // 只有图、引用的私聊照取图（施工 O-33）；带了东西的、没有字也送（施工 O-35：她看得到记号、能取）。合并转发照群消息的写法
         // 在正文后面写占位、交以前展开（施工 O-34），只有转发的也送。
-        let pictures = Pictures::of(posted.bot, posted.message_id, &posted.segments);
+        let pictures = Pictures::of(posted.bot.clone(), posted.message_id, &posted.segments);
         let text = with_placeholders(&posted.text, posted.segments.forwards.len());
         if text.trim().is_empty() && pictures.own.is_empty() && !pictures.any() {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
@@ -47,7 +47,7 @@ impl Route {
             && applied::allow(&self.applied(&venue)) == Some(true)
             && match self.terminal_admin(external.as_str()).await? {
                 Some(true) => {
-                    self.rules.add_admin(posted.user.unsigned_abs());
+                    self.rules.add_admin(posted.user.clone());
                     false
                 }
                 Some(false) => true,
@@ -92,13 +92,13 @@ impl Route {
         }
         // 白名单成员、照卡片接的陌生人的私聊会话关在沙盒里、照场所规则造（施工 O-27，同群；O-60）。
         let listed = taken.then_some(&applied);
-        let my_name = self.my_name((platform, posted.bot), None).await;
+        let my_name = self.my_name((platform, posted.bot.clone()), None).await;
         let heard = (
             Note::who(posted.name.as_deref(), external.as_str()),
             Note::excerpt(&text),
         );
         let message = Message {
-            id: platform.command_id(posted.bot, posted.message_id, posted.time),
+            id: platform.command_id(&posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             text,
             acting: json!({"external": external}),
@@ -106,11 +106,16 @@ impl Route {
             place: Place::private(
                 (platform, &venue),
                 &external,
-                (posted.bot, posted.user),
+                (posted.bot.clone(), posted.user.clone()),
                 listed,
             ),
             pictures: Some(pictures),
-            forwards: Forwards::of(posted.bot, None, posted.message_id, &posted.segments),
+            forwards: Forwards::of(
+                posted.bot.clone(),
+                None,
+                posted.message_id,
+                &posted.segments,
+            ),
         };
         // 附加提示词放进 system（施工 O-58 上，`titled`）：先找到会话、放好，这一条开的轮就带上。找过的会话照新的换；没找过的
         // 照规则接的（白名单成员、照卡片接的陌生人）先找：交的时候本来也要找，找到的记着，不多问一次；没有提示词的也放（交 `null`

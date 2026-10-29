@@ -65,8 +65,8 @@ fn a_msg_that_is_not_an_integer_is_not_found() {
 fn fetched(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
     Fetched {
         private,
-        group,
-        user,
+        group: group.map(Id::from),
+        user: user.map(Id::from),
         segments: Default::default(),
     }
 }
@@ -75,23 +75,23 @@ fn fetched(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
 /// 的由驱动读（`im/replies/tests.rs`）。
 #[test]
 fn only_a_message_from_this_venue_is_owned() {
-    let group = To::Group(31);
-    assert!(owned(&fetched(false, Some(31), None), group));
+    let group = To::Group(Id::from(31));
+    assert!(owned(&fetched(false, Some(31), None), group.clone()));
     for other in [
         fetched(false, Some(32), None),
         fetched(true, None, Some(40001)),
         fetched(false, None, None),
     ] {
-        assert!(!owned(&other, group), "{other:?}");
+        assert!(!owned(&other, group.clone()), "{other:?}");
     }
-    let private = To::Private(40001);
-    assert!(owned(&fetched(true, None, Some(40001)), private));
+    let private = To::Private(Id::from(40001));
+    assert!(owned(&fetched(true, None, Some(40001)), private.clone()));
     for other in [
         fetched(true, None, Some(40002)),
         fetched(false, Some(31), Some(40001)),
         fetched(false, None, Some(40001)),
         fetched(true, None, Some(30003)),
     ] {
-        assert!(!owned(&other, private), "{other:?}");
+        assert!(!owned(&other, private.clone()), "{other:?}");
     }
 }

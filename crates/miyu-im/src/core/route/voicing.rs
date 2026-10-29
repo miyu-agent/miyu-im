@@ -47,7 +47,8 @@ impl Route {
     ) -> Result<(), Gone> {
         let peer = self.peers.get(session).cloned();
         let packages = peer.as_ref().map_or_else(Vec::new, |peer| {
-            self.hooks.at(OUTBOUND, peer.platform, Some(peer.to))
+            self.hooks
+                .at(OUTBOUND, peer.platform, Some(peer.to.clone()))
         });
         let Some(peer) = peer.filter(|_| !packages.is_empty() || !self.voicing.is_empty()) else {
             return self.voiced_now(session, voice, &text).await;
@@ -61,7 +62,7 @@ impl Route {
                     hooks
                         .outbound(
                             packages,
-                            (peer.platform, peer.venue.as_str(), peer.bot),
+                            (peer.platform, peer.venue.as_str(), &peer.bot),
                             text,
                         )
                         .await

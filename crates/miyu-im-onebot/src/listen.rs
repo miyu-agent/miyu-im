@@ -29,7 +29,7 @@ use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
-use crate::onebot::{PLATFORM, number};
+use crate::onebot::PLATFORM;
 use crate::settings::{NAMES, SECRETS, token};
 use miyu_im::TARGET;
 use miyu_im::chat::{CAPS, Cap, Platform};
@@ -85,7 +85,7 @@ impl Driver for OneBot {
 }
 
 /// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。
-type Upgrade = (OnUpgrade, Option<i64>);
+type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
 
 /// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。
 async fn accept(stream: TcpStream, gate: Arc<Gate>) {
@@ -147,7 +147,7 @@ async fn handle(
     let bot = headers
         .get("x-self-id")
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| number(&serde_json::Value::from(value)));
+        .and_then(|value| crate::onebot::id(&serde_json::Value::from(value)));
     let response = switching(&derive_accept_key(key.as_bytes()));
     if response.status() == StatusCode::SWITCHING_PROTOCOLS {
         *slot.lock().unwrap_or_else(PoisonError::into_inner) =

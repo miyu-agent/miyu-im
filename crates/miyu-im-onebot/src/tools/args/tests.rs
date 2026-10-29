@@ -31,11 +31,11 @@ fn a_number_written_as_text_is_read() {
 fn a_list_is_deduplicated_and_kept_within_bounds() {
     assert_eq!(
         qq_numbers(&json!([40001, "40002", 40001]), 32),
-        Some(vec![40001, 40002])
+        Some(vec![Id::from(40001), Id::from(40002)])
     );
     assert_eq!(
         qq_numbers(&json!("[40001, 40002]"), 32),
-        Some(vec![40001, 40002]),
+        Some(vec![Id::from(40001), Id::from(40002)]),
         "写成字的数组"
     );
     assert_eq!(qq_numbers(&json!([]), 32), None);

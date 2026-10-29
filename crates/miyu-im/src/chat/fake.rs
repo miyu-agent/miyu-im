@@ -1,6 +1,7 @@
 //! 宿主测试用的假连接（施工 I-2 下）：宿主要它做的每一件放进一条队，测试照先后取出来看、答成没成。只认测试用到的几件，别的
 //! 一律当断了。驱动的集成测试里假的第二个平台也用它（施工 I-70 中上，特性 `fake` 打开；宿主不因它多依赖什么）：发一句字也进队。
 
+use crate::chat::Id;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -131,13 +132,13 @@ impl Link for Fake {
     fn recall<'a>(&'a self, message: Msg<'a>) -> Reply<'a, ()> {
         self.ask(Did::Recall(format!("{message:?}")))
     }
-    fn mute(&self, _: i64, _: i64, _: u64) -> Reply<'_, ()> {
+    fn mute<'a>(&'a self, _: &'a Id, _: &'a Id, _: u64) -> Reply<'a, ()> {
         closed()
     }
-    fn kick(&self, _: i64, _: i64, _: bool) -> Reply<'_, ()> {
+    fn kick<'a>(&'a self, _: &'a Id, _: &'a Id, _: bool) -> Reply<'a, ()> {
         closed()
     }
-    fn poke(&self, _: To, _: i64) -> Reply<'_, ()> {
+    fn poke<'a>(&'a self, _: To, _: &'a Id) -> Reply<'a, ()> {
         closed()
     }
     fn react<'a>(&'a self, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()> {
@@ -153,10 +154,10 @@ impl Link for Fake {
     fn join_request<'a>(&'a self, _: &'a str, _: bool, _: &'a str) -> Reply<'a, ()> {
         closed()
     }
-    fn group_files<'a>(&'a self, _: i64, _: Option<&'a str>) -> Reply<'a, GroupFiles> {
+    fn group_files<'a>(&'a self, _: &'a Id, _: Option<&'a str>) -> Reply<'a, GroupFiles> {
         closed()
     }
-    fn group_file_url<'a>(&'a self, _: i64, _: &'a str) -> Reply<'a, String> {
+    fn group_file_url<'a>(&'a self, _: &'a Id, _: &'a str) -> Reply<'a, String> {
         closed()
     }
     fn message<'a>(&'a self, _: &'a str) -> Reply<'a, Fetched> {
@@ -168,10 +169,10 @@ impl Link for Fake {
     fn forwarded<'a>(&'a self, _: &'a str) -> Reply<'a, Option<Vec<Node>>> {
         closed()
     }
-    fn members(&self, _: i64) -> Reply<'_, Vec<Member>> {
+    fn members<'a>(&'a self, _: &'a Id) -> Reply<'a, Vec<Member>> {
         closed()
     }
-    fn member(&self, _: i64, _: i64) -> Reply<'_, Member> {
+    fn member<'a>(&'a self, _: &'a Id, _: &'a Id) -> Reply<'a, Member> {
         closed()
     }
     fn groups(&self) -> Reply<'_, Vec<Group>> {
@@ -180,7 +181,7 @@ impl Link for Fake {
     fn friends(&self) -> Reply<'_, Vec<Friend>> {
         closed()
     }
-    fn group_name(&self, _: i64) -> Reply<'_, Option<String>> {
+    fn group_name<'a>(&'a self, _: &'a Id) -> Reply<'a, Option<String>> {
         closed()
     }
     fn raw<'a>(&'a self, _: &'a str, _: Value) -> Reply<'a, Value> {

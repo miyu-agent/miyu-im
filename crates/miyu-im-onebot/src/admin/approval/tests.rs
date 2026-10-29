@@ -8,9 +8,9 @@ fn only_join_requests_with_a_flag_are_read() {
     assert_eq!(
         read(&frame),
         Some(Applicant {
-            bot: 1,
-            group: 31,
-            user: 7,
+            bot: Id::from(1),
+            group: Id::from(31),
+            user: Id::from(7),
             comment: "问题：暗号\n答案：芝麻开门".to_string(),
             flag: "f1".to_string()
         })

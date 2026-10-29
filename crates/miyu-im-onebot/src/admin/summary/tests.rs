@@ -13,7 +13,7 @@ fn record(
     Record {
         at,
         action,
-        user,
+        user: Id::from(user),
         name: Some(format!("u{user}")),
         by: By::Ai,
         seconds,
@@ -25,6 +25,11 @@ fn record(
 }
 
 const NOW: u64 = 100 * 86_400;
+
+/// 号照整数读出来比。
+fn number(user: &Id) -> i64 {
+    user.number().expect("QQ 号")
+}
 
 #[test]
 fn people_are_ranked_by_mutes_then_length_then_kicks() {
@@ -41,7 +46,7 @@ fn people_are_ranked_by_mutes_then_length_then_kicks() {
     let all = ranking(&records, Period::All, NOW);
     let order: Vec<(i64, u32, u64, u32)> = all
         .iter()
-        .map(|tally| (tally.user, tally.mutes, tally.seconds, tally.kicks))
+        .map(|tally| (number(&tally.user), tally.mutes, tally.seconds, tally.kicks))
         .collect();
     assert_eq!(
         order,
@@ -53,12 +58,12 @@ fn people_are_ranked_by_mutes_then_length_then_kicks() {
     assert_eq!(all[0].name.as_deref(), Some("u7"));
     let week: Vec<(i64, u32)> = ranking(&records, Period::Week, NOW)
         .iter()
-        .map(|tally| (tally.user, tally.mutes))
+        .map(|tally| (number(&tally.user), tally.mutes))
         .collect();
     assert_eq!(week, [(8, 2), (7, 1), (9, 0)], "一周以前的不算");
     let month: Vec<i64> = ranking(&records, Period::Month, NOW)
         .iter()
-        .map(|tally| tally.user)
+        .map(|tally| number(&tally.user))
         .collect();
     assert_eq!(
         month,

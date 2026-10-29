@@ -11,7 +11,7 @@ fn record(at: u64, action: Action, user: i64, seconds: Option<u64>) -> Record {
     Record {
         at,
         action,
-        user,
+        user: Id::from(user),
         name: Some(format!("u{user}")),
         by: By::Ai,
         seconds,
@@ -45,11 +45,11 @@ fn zh_section(item: &Value) -> Value {
 #[test]
 fn the_panel_and_a_section_pass_the_cores_widget_check() {
     let settings = Group::default();
-    let panel = panel(31, &settings, &records(), true, NOW);
+    let panel = panel(Id::from(31), &settings, &records(), true, NOW);
     assert_eq!(check(WidgetPlace::Page, &[], &panel), Ok(()), "{panel}");
     let whole = json!([{"type": "sections", "items": [
-        section((31, Some("测试群")), Some(true), (&settings, &records()), (true, NOW)),
-        section((32, None), None, (&settings, &[]), (false, NOW)),
+        section((Id::from(31), Some("测试群")), Some(true), (&settings, &records()), (true, NOW)),
+        section((Id::from(32), None), None, (&settings, &[]), (false, NOW)),
     ]}]);
     assert_eq!(check(WidgetPlace::Page, &[], &whole), Ok(()), "{whole}");
 }
@@ -97,7 +97,7 @@ fn a_section_follows_the_view_the_role_and_the_clear_step() {
         ..Group::default()
     };
     let shown = zh_section(&section(
-        (31, Some("测试群")),
+        (Id::from(31), Some("测试群")),
         Some(false),
         (&settings, &records()),
         (true, NOW),
@@ -121,7 +121,7 @@ fn a_section_follows_the_view_the_role_and_the_clear_step() {
     assert_eq!(clear(&shown), Some(json!("清空这个群的记录")));
     settings.clearing = Some(NOW - 61);
     let stale = zh_section(&section(
-        (31, None),
+        (Id::from(31), None),
         Some(true),
         (&settings, &records()),
         (false, NOW),
@@ -133,7 +133,7 @@ fn a_section_follows_the_view_the_role_and_the_clear_step() {
     );
     settings.clearing = Some(NOW - 10);
     let asked = zh_section(&section(
-        (31, None),
+        (Id::from(31), None),
         Some(true),
         (&settings, &records()),
         (false, NOW),

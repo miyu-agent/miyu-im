@@ -17,7 +17,7 @@
 
 use serde_json::{Map, Value};
 
-use miyu_im::chat::{CallError, Link, Rank};
+use miyu_im::chat::{CallError, Id, Link, Rank};
 use miyu_im::plugins::declared::{Links, Page, Ui};
 use miyu_im::plugins::{Builtin, Called, Context, Declared};
 
@@ -187,7 +187,7 @@ pub(crate) fn mute_range(config: &Map<String, Value>) -> (u64, u64) {
 
 /// 她（机器人号 `bot`）在群 `group` 里管得了人没有：问 NapCat 她的身份，群主、管理员才算（施工 Q-1）。不用 NapCat 的缓存（施工
 /// I-17：刚给、刚撤的管理员照旧报回来）。问不到的交回为什么；回成了却没有她的不算。
-pub(crate) async fn admin_here(link: &dyn Link, group: i64, bot: i64) -> Result<bool, CallError> {
+pub(crate) async fn admin_here(link: &dyn Link, group: &Id, bot: &Id) -> Result<bool, CallError> {
     let me = crate::onebot::fresh_member(link, group, bot).await?;
     Ok(me.is_some_and(|me| ranked(me.rank)))
 }

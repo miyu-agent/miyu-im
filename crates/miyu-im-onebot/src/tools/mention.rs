@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use miyu_im::chat::To;
+use miyu_im::chat::{Id, To};
 use miyu_im::toolset::{Call, Done, Effect, NAME, Planned, clean};
 
 use super::args::{bad_args, group_only, qq_numbers};
@@ -18,13 +18,13 @@ use super::lookup::{said, undone};
 const MOST: usize = 32;
 
 /// 读 `mention` 的参数 `args` 里的号（纯逻辑）：`users` 是正整数（写成字的也认）的列表，去重、照先后，1 到 [`MOST`] 个；别的是空的。
-pub(crate) fn users(args: &Value) -> Option<Vec<i64>> {
+pub(crate) fn users(args: &Value) -> Option<Vec<Id>> {
     qq_numbers(&args["users"], MOST)
 }
 
 /// `mention` 的一次调用（模块的说明）。
 pub(super) fn mention(call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     let Some(users) = users(&call.args) else {
@@ -51,16 +51,16 @@ pub(super) fn mention(call: Call) -> Planned {
 /// 这个群的成员表（号 → 名字，没洗）：`users` 都在缓存里的不用取，是空的。
 async fn listed(
     call: &Call,
-    group: i64,
-    users: &[i64],
-) -> Result<HashMap<i64, Option<String>>, miyu_im::chat::CallError> {
+    group: Id,
+    users: &[Id],
+) -> Result<HashMap<Id, Option<String>>, miyu_im::chat::CallError> {
     if users.iter().all(|user| call.names.contains_key(user)) {
         return Ok(HashMap::new());
     }
     let Some(link) = &call.link else {
         return Err(miyu_im::chat::CallError::Closed);
     };
-    let members = link.members(group).await?;
+    let members = link.members(&group).await?;
     Ok(members
         .into_iter()
         .map(|member| (member.user, member.name))
@@ -70,9 +70,9 @@ async fn listed(
 /// 照缓存着的名字 `cached`、成员表 `listed` 认 `users`（纯逻辑）：交回（成员的名字，照先后；不是成员的号）。名字洗过，洗完空了的
 /// 写号。
 pub(crate) fn named(
-    users: &[i64],
-    cached: &HashMap<i64, String>,
-    listed: &HashMap<i64, Option<String>>,
+    users: &[Id],
+    cached: &HashMap<Id, String>,
+    listed: &HashMap<Id, Option<String>>,
 ) -> (Vec<String>, Vec<String>) {
     let mut names = Vec::new();
     let mut strangers = Vec::new();

@@ -24,7 +24,7 @@ use super::reason;
 use crate::TARGET;
 use miyu_chat::VenueKind;
 
-use crate::chat::{Cap, Platform, To};
+use crate::chat::{Cap, Id, Platform, To};
 use crate::plugins::{Builtin, Plugins, Toggles};
 use answers::{Edit, heaviest, summed};
 use follow::Followed;
@@ -222,7 +222,7 @@ impl Hooks {
         let hooked = hooked_at(&self.lock().hooked, point);
         hooked
             .into_iter()
-            .filter(|package| self.allowed(package, platform, to))
+            .filter(|package| self.allowed(package, platform, to.clone()))
             .collect()
     }
 
@@ -239,12 +239,12 @@ impl Hooks {
         if plugins.usable(package, platform, mounted.caps).is_err() {
             return false;
         }
-        let venue = to.map(|to| match to {
+        let venue = to.as_ref().map(|to| match to {
             To::Group(group) => (VenueKind::Group, group),
             To::Private(user) => (VenueKind::Private, user),
         });
         // 只在群、只在私聊用的插件（施工 I-51）：别的场所当关着。
-        let kind = match to {
+        let kind = match &to {
             Some(To::Group(_)) => Some("group"),
             Some(To::Private(_)) => Some("private"),
             None => None,
@@ -258,7 +258,7 @@ impl Hooks {
 
     /// 平台 `platform` 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`]
     /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
-    pub(crate) fn event(&self, platform: Platform, bot: i64, to: Option<To>, event: &Value) {
+    pub(crate) fn event(&self, platform: Platform, bot: Id, to: Option<To>, event: &Value) {
         for package in self.at(EVENT, platform, to) {
             let caller = self.caller.clone();
             let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
@@ -313,7 +313,7 @@ impl Hooks {
     pub(crate) async fn outbound(
         &self,
         packages: Vec<String>,
-        (platform, venue, bot): (Platform, &str, i64),
+        (platform, venue, bot): (Platform, &str, &Id),
         text: String,
     ) -> Voiced {
         let mut text = text;

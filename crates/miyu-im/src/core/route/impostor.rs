@@ -14,7 +14,7 @@ use serde_json::json;
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::Platform;
+use crate::chat::{Id, Platform};
 use crate::core::{Gone, reason};
 use crate::plugins::Seen;
 
@@ -39,7 +39,7 @@ impl Route {
     pub(super) async fn impostor(
         &mut self,
         session: &str,
-        (platform, group, bot): (Platform, i64, i64),
+        (platform, group, bot): (Platform, Id, Id),
         (sender, name, msg): (&ExternalId, &str, i64),
     ) -> Result<(), Gone> {
         if self.terminal_admin(sender.as_str()).await? == Some(true) {
@@ -53,7 +53,7 @@ impl Route {
         }
         let admin_names = projection.admin_names();
         // 她自己的群名片：同场所消息的 `my_name`（施工 I-38 起两处共用，缓存里没有的问一次 NapCat，问不到的缓存时长以内不再问）。
-        let own_card = self.my_name((platform, bot), Some(group)).await;
+        let own_card = self.my_name((platform, bot), Some(group.clone())).await;
         let number = sender.as_str().rsplit(':').next().unwrap_or_default();
         let seen = Seen {
             name,

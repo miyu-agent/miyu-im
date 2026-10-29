@@ -3,6 +3,7 @@
 //!
 //! 写一条是一次读改写（超了要删旧的）：同一个进程里照一把锁排着写，另起阻塞的任务做，不卡跟核心的那一头。写坏了的行读的时候跳过。
 
+use miyu_im::chat::Id;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -19,7 +20,7 @@ pub(crate) struct Record {
     /// 做了什么。
     pub action: Action,
     /// 对谁：号。
-    pub user: i64,
+    pub user: Id,
     /// 对谁：那时在群里叫什么（洗过）；不知道的是空的。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -78,7 +79,7 @@ pub(crate) enum By {
     /// 群里别的管理员（施工 Q-3：平台的通知同步进来）。
     Admin {
         /// 号。
-        user: i64,
+        user: Id,
         /// 那时在群里叫什么；不知道的是空的。
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
@@ -127,21 +128,21 @@ pub(crate) fn now() -> u64 {
 }
 
 /// 群 `group` 的记录放在哪：驱动的状态目录 `store` 下。
-pub(crate) fn file(store: &Path, group: i64) -> PathBuf {
+pub(crate) fn file(store: &Path, group: Id) -> PathBuf {
     store.join("admin").join(format!("{group}.jsonl"))
 }
 
 /// 给群 `group` 记一条 `record`，最多留 `keep` 条（超了从旧的删）。写不进去的记一行运行日志，不交回错：记录写不进不影响动作本身。
-pub(crate) async fn append(store: PathBuf, group: i64, record: Record, keep: usize) {
-    let path = file(&store, group);
+pub(crate) async fn append(store: PathBuf, group: Id, record: Record, keep: usize) {
+    let path = file(&store, group.clone());
     let written = tokio::task::spawn_blocking(move || write(&path, &record, keep)).await;
     if let Ok(Err(error)) | Err(error) = written.map_err(std::io::Error::other) {
-        tracing::warn!(target: miyu_im::TARGET, group, error = %error, "moderation record not written");
+        tracing::warn!(target: miyu_im::TARGET, group = %group, error = %error, "moderation record not written");
     }
 }
 
 /// 群 `group` 的记录，照先后（旧的在前）；没有的、读不了的是空的，写坏了的行跳过（施工 Q-4：查记录的工具、面板读它）。
-pub(crate) fn read(store: &Path, group: i64) -> Vec<Record> {
+pub(crate) fn read(store: &Path, group: Id) -> Vec<Record> {
     std::fs::read_to_string(file(store, group))
         .unwrap_or_default()
         .lines()

@@ -5,33 +5,57 @@ use super::*;
 fn got(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
     Fetched {
         private,
-        group,
-        user,
+        group: group.map(Id::from),
+        user: user.map(Id::from),
         segments: crate::chat::Segments::default(),
     }
 }
 
 #[test]
 fn only_messages_of_this_venue_are_fetched() {
-    assert!(owned(&got(false, Some(31), Some(7)), To::Group(31), 100));
+    assert!(owned(
+        &got(false, Some(31), Some(7)),
+        &To::Group(Id::from(31)),
+        &Id::from(100)
+    ));
     assert!(
-        !owned(&got(false, Some(32), Some(7)), To::Group(31), 100),
+        !owned(
+            &got(false, Some(32), Some(7)),
+            &To::Group(Id::from(31)),
+            &Id::from(100)
+        ),
         "别的群的"
     );
     assert!(
-        owned(&got(true, None, Some(7)), To::Private(7), 100),
+        owned(
+            &got(true, None, Some(7)),
+            &To::Private(Id::from(7)),
+            &Id::from(100)
+        ),
         "对方发的"
     );
     assert!(
-        owned(&got(true, None, Some(100)), To::Private(7), 100),
+        owned(
+            &got(true, None, Some(100)),
+            &To::Private(Id::from(7)),
+            &Id::from(100)
+        ),
         "她发给对方的"
     );
     assert!(
-        !owned(&got(true, None, Some(8)), To::Private(7), 100),
+        !owned(
+            &got(true, None, Some(8)),
+            &To::Private(Id::from(7)),
+            &Id::from(100)
+        ),
         "别人的私聊"
     );
     assert!(
-        !owned(&got(false, Some(31), Some(7)), To::Private(7), 100),
+        !owned(
+            &got(false, Some(31), Some(7)),
+            &To::Private(Id::from(7)),
+            &Id::from(100)
+        ),
         "群里的不算私聊"
     );
 }

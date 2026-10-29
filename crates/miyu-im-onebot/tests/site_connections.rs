@@ -122,8 +122,9 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
         "群、人的各取一次"
     );
     for wrong in [
-        "/avatar/group/x",
+        "/avatar/group/a:b",
         "/avatar/group/-1",
+        "/avatar/group/0",
         "/avatar/room/1",
         "/avatar/user/",
     ] {

@@ -28,7 +28,7 @@ fn take(segments: &mut Segments, kind: &str, data: &Value) {
         }
         "at" if data["qq"] == "all" => segments.mentions_all = true,
         "at" => {
-            if let Some(user) = number(&data["qq"]) {
+            if let Some(user) = super::id(&data["qq"]) {
                 segments.pieces.push(Piece::At(user));
             }
         }

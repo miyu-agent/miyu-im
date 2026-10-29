@@ -21,7 +21,7 @@ use serde_json::Value;
 
 use super::Peer;
 use super::projection::{QUEUED, REPLY, Speaking};
-use crate::chat::Platform;
+use crate::chat::{Id, Platform};
 
 /// 订阅补来的那一段。
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub(super) struct Backlog {
     /// 场所：`session.created` 的 `venue`。
     venue: Option<VenueId>,
     /// 机器人号和它的平台：最近一条人说的话的命令编号认出来的。
-    bot: Option<(Platform, i64)>,
+    bot: Option<(Platform, Id)>,
     /// 回合编号 → 这一回合入队了的她的话的正文，照先后。
     queued: HashMap<u64, Vec<String>>,
     /// 期限以内的她的话，照先后。
@@ -126,7 +126,7 @@ impl Backlog {
     /// I-70 上），是空的。
     pub(super) fn peer(&self) -> Option<Peer> {
         let venue = self.venue.clone()?;
-        let (platform, bot) = self.bot?;
+        let (platform, bot) = self.bot.clone()?;
         let to = platform.to_of(&Venue::parse(&venue)?)?;
         Some(Peer {
             platform,

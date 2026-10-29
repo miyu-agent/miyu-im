@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use super::Site;
 use crate::TARGET;
-use crate::chat::Source;
+use crate::chat::{Id, Source};
 use crate::media::{bytes, extension};
 
 /// 一张头像：字节和 `Content-Type`。
@@ -23,20 +23,20 @@ pub(super) type Avatar = Arc<(Vec<u8>, &'static str)>;
 const MOST: usize = 512;
 
 /// 谁的头像。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) enum Whose {
     /// 机器人的号。
-    Bot(i64),
+    Bot(Id),
     /// 会话里一个人的号。
-    User(i64),
+    User(Id),
     /// 群号。
-    Group(i64),
+    Group(Id),
 }
 
 impl Whose {
-    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`user/<号>`、`group/<号>`。号要是正的。
+    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`user/<号>`、`group/<号>`。号照 [`Id`] 的规矩查，整数的要是正的（QQ 的号）。
     pub(super) fn parse(rest: &str) -> Option<Whose> {
-        let number = |text: &str| text.parse::<i64>().ok().filter(|n| *n > 0);
+        let number = |text: &str| Id::new(text).filter(|id| id.number().is_none_or(|n| n > 0));
         match rest.split_once('/') {
             None => number(rest).map(Whose::Bot),
             Some(("user", id)) => number(id).map(Whose::User),
@@ -50,21 +50,21 @@ impl Whose {
 #[derive(Default)]
 pub(super) struct Faces {
     /// 号 → 问到的名字（平台回了没有的是空的）。
-    names: Mutex<HashMap<i64, Option<String>>>,
+    names: Mutex<HashMap<Id, Option<String>>>,
     /// 正在问名字的号。
-    asking: Mutex<HashSet<i64>>,
+    asking: Mutex<HashSet<Id>>,
     /// 谁 → 头像。
     avatars: Mutex<HashMap<Whose, Avatar>>,
 }
 
 impl Faces {
     /// 号 `bot` 的名字：问到了的交回；没问过、连着的另起任务问（问到了叫一声 `changed`），这次是空的。
-    pub(super) fn name(&self, site: &Arc<Site>, bot: i64) -> Option<String> {
+    pub(super) fn name(&self, site: &Arc<Site>, bot: Id) -> Option<String> {
         if let Some(name) = lock(&self.names).get(&bot) {
             return name.clone();
         }
-        let link = site.running.first().bots.get(bot)?;
-        if !lock(&self.asking).insert(bot) {
+        let link = site.running.first().bots.get(&bot)?;
+        if !lock(&self.asking).insert(bot.clone()) {
             return None;
         }
         let site = Arc::clone(site);
@@ -77,7 +77,7 @@ impl Faces {
                     site.changed.notify();
                 }
                 Err(error) => {
-                    tracing::debug!(target: TARGET, bot, error = ?error, "bot name unknown")
+                    tracing::debug!(target: TARGET, bot = %bot, error = ?error, "bot name unknown")
                 }
             }
         });
@@ -90,10 +90,10 @@ impl Faces {
             return Some(Arc::clone(avatar));
         }
         let tuning = &site.running.tuning;
-        let (template, id) = match whose {
+        let (template, id) = match &whose {
             Whose::Bot(bot) => {
                 let bots = &site.running.first().bots;
-                if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, _)| *gone == bot) {
+                if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, _)| gone == bot) {
                     return None;
                 }
                 (&tuning.avatar_user_url, bot)

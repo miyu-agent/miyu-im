@@ -41,7 +41,7 @@ pub enum Piece {
     /// 字，照原样；合并转发、卡片的占位也是这一种。
     Text(String),
     /// @ 了号是它的人：交给核心以前写成 `@名字`（「群消息」第 5 条）。
-    At(i64),
+    At(super::Id),
 }
 
 /// 带的一样东西。
@@ -112,13 +112,13 @@ impl Segments {
     }
 
     /// @ 了的号，照先后、不重。
-    pub fn at(&self) -> Vec<i64> {
+    pub fn at(&self) -> Vec<super::Id> {
         let mut all = Vec::new();
         for piece in &self.pieces {
             if let Piece::At(user) = piece
                 && !all.contains(user)
             {
-                all.push(*user);
+                all.push(user.clone());
             }
         }
         all

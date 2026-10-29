@@ -21,13 +21,16 @@ fn cards(value: Value) -> Cards {
 /// 她在两个群、两个好友，两个人格；默认值：群 7 的插嘴是偶尔、其他群不接话。
 fn known() -> Known {
     Known {
-        groups: vec![(7, "测试群".into()), (8, "另一个群".into())],
-        friends: vec![(9, "lin".into()), (10, "mo".into())],
+        groups: vec![
+            (Id::from(7), "测试群".into()),
+            (Id::from(8), "另一个群".into()),
+        ],
+        friends: vec![(Id::from(9), "lin".into()), (Id::from(10), "mo".into())],
         personas: vec![
             ("miyu".into(), "Miyu".into()),
             ("engineer".into(), "工程师".into()),
         ],
-        whitelist: vec![9],
+        whitelist: vec![Id::from(9)],
         defaults: json!({
             "other_groups": {"on": {"value": false, "from": null}},
             "other_privates": {"on": {"value": false, "from": null}, "rate": {"value": "5/300s", "from": "factory"}},
@@ -159,7 +162,7 @@ fn the_friends_page_lists_the_whitelist_and_offers_other_friends() {
     let empty = friends_page(
         &Cards::default(),
         &Known {
-            friends: vec![(9, "lin".into())],
+            friends: vec![(Id::from(9), "lin".into())],
             ..known()
         },
         &words(),

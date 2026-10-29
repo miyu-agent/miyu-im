@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::{Bots, Platform};
+use crate::chat::{Bots, Id, Platform};
 use crate::core::Gone;
 
 impl Route {
@@ -20,17 +20,17 @@ impl Route {
     pub(super) async fn befriend(
         &mut self,
         platform: Platform,
-        bot: i64,
-        user: i64,
+        bot: Id,
+        user: Id,
         flag: String,
     ) -> Result<(), Gone> {
-        let Ok(who) = platform.person(user) else {
+        let Ok(who) = platform.person(&user) else {
             return Ok(());
         };
         let known =
             self.whitelisted(&who) || self.terminal_admin(who.as_str()).await? == Some(true);
         if !known {
-            tracing::info!(target: TARGET, bot, user, "friend request left pending");
+            tracing::info!(target: TARGET, bot = %bot, user = %user, "friend request left pending");
             return Ok(());
         }
         self.chores
@@ -40,20 +40,22 @@ impl Route {
 }
 
 /// 机器人号 `bot` 收到号 `user` 邀请她进群 `group`：只记一行，放着（18 第十一节「群邀请只记下，保持待定」）。
-pub(super) fn invited(bot: i64, group: i64, user: i64) {
-    tracing::info!(target: TARGET, bot, group, user, "group invite left pending");
+pub(super) fn invited(bot: Id, group: Id, user: Id) {
+    tracing::info!(target: TARGET, bot = %bot, group = %group, user = %user, "group invite left pending");
 }
 
 /// 经 `bots` 里号 `bot` 那时的连接同意 `user` 的好友请求 `flag`。没连着、NapCat 回失败、等不到的记一行 `WARN`。
-async fn approve(bots: Arc<Bots>, bot: i64, user: i64, flag: String) {
-    let Some(link) = bots.get(bot) else {
-        tracing::warn!(target: TARGET, bot, user, "friend request not approved, bot not connected");
+async fn approve(bots: Arc<Bots>, bot: Id, user: Id, flag: String) {
+    let Some(link) = bots.get(&bot) else {
+        tracing::warn!(target: TARGET, bot = %bot, user = %user, "friend request not approved, bot not connected");
         return;
     };
     match link.befriend(&flag).await {
-        Ok(_) => tracing::info!(target: TARGET, bot, user, "friend request approved"),
+        Ok(_) => {
+            tracing::info!(target: TARGET, bot = %bot, user = %user, "friend request approved")
+        }
         Err(error) => {
-            tracing::warn!(target: TARGET, bot, user, error = ?error, "friend request not approved");
+            tracing::warn!(target: TARGET, bot = %bot, user = %user, error = ?error, "friend request not approved");
         }
     }
 }

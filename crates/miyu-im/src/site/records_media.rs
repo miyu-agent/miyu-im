@@ -17,7 +17,7 @@ use miyu_chat::Venue;
 use miyu_client::ids::VenueId;
 
 use super::Site;
-use crate::chat::{Fetch, Fetched, Link, Source, To};
+use crate::chat::{Fetch, Fetched, Id, Link, Source, To};
 use crate::media::{Missed, bytes, image_extension, message, take};
 
 /// 页面上一次最多拿多少字节。
@@ -32,11 +32,12 @@ fn refused(why: &str) -> Refused {
 }
 
 /// 取回来的那一条在不在场所 `to` 里（纯逻辑）：群里是这个群的，私聊里是对方发的或机器人号 `bot` 发给对方的。
-fn owned(fetched: &Fetched, to: To, bot: i64) -> bool {
+fn owned(fetched: &Fetched, to: &To, bot: &Id) -> bool {
     match to {
-        To::Group(group) => fetched.group == Some(group),
+        To::Group(group) => fetched.group.as_ref() == Some(group),
         To::Private(user) => {
-            fetched.private && (fetched.user == Some(user) || fetched.user == Some(bot))
+            fetched.private
+                && (fetched.user.as_ref() == Some(user) || fetched.user.as_ref() == Some(bot))
         }
     }
 }
@@ -79,7 +80,7 @@ pub(super) async fn media(site: &Arc<Site>, params: &Value) -> Result<Value, Ref
     let wait = site.running.tuning.fetch();
     let mut last = refused("gone");
     for (bot, link, _) in held {
-        match fetched((bot, link.as_ref()), (to, msg, id), wait).await {
+        match fetched((&bot, link.as_ref()), (&to, msg, id), wait).await {
             Ok(found) => return Ok(found),
             Err(why) => last = why,
         }
@@ -89,8 +90,8 @@ pub(super) async fn media(site: &Arc<Site>, params: &Value) -> Result<Value, Ref
 
 /// 经机器人号 `bot` 的连接 `link` 取场所 `to` 里编号 `msg` 那一条带的编号 `id` 那一样，最多等 `wait`。
 async fn fetched(
-    (bot, link): (i64, &dyn Link),
-    (to, msg, id): (To, &str, &str),
+    (bot, link): (&Id, &dyn Link),
+    (to, msg, id): (&To, &str, &str),
     wait: std::time::Duration,
 ) -> Result<Value, Refused> {
     let gone = |_| refused("gone");

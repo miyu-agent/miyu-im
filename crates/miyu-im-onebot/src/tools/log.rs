@@ -9,10 +9,10 @@
 
 use serde_json::{Value, json};
 
-use miyu_im::chat::To;
+use miyu_im::chat::{Id, To};
 use miyu_im::toolset::{Call, NAME, Planned, clean, clock};
 
-use super::args::{Bad, bad_args, group_only, optional_number};
+use super::args::{Bad, bad_args, group_only, optional_id, optional_number};
 use super::moderate::{ADMIN_OFF, REASON};
 use crate::admin::records::{self, Action, By, MuteState, Record, Verdict};
 use crate::admin::summary::{self, Period, Tally};
@@ -35,12 +35,12 @@ enum View {
 }
 
 /// 查什么（读好的参数）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Query {
     /// 看哪一种。
     view: View,
     /// 只看这个人。
-    user: Option<i64>,
+    user: Option<Id>,
     /// 只看这一种动作（施工 I-17）。
     action: Option<Action>,
     /// 最多几条、几个人（施工 I-17）。
@@ -49,7 +49,7 @@ struct Query {
 
 /// 读参数 `args`（纯逻辑）：写错的交回哪个参数、期望什么。
 fn read(args: &Value) -> Result<Query, Bad> {
-    let user = optional_number(args, "user", "user must be a QQ number")?;
+    let user = optional_id(args, "user", "user must be a QQ number")?;
     let period = match &args["period"] {
         Value::Null => Period::All,
         value => value
@@ -92,7 +92,7 @@ fn read(args: &Value) -> Result<Query, Bad> {
 
 /// `moderation_log` 的一次调用（模块的说明）。私聊里调到的答只给群，参数写错的说哪个。
 pub(super) fn log(call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     let query = match read(&call.args) {
@@ -111,7 +111,7 @@ pub(super) fn log(call: Call) -> Planned {
             return call.answers.say("unreachable", &[], true);
         };
         if !matches!(
-            admin::admin_here(link.as_ref(), group, call.bot).await,
+            admin::admin_here(link.as_ref(), &group, &call.bot).await,
             Ok(true)
         ) {
             return call.answers.say(ADMIN_OFF, &[], true);
@@ -120,8 +120,8 @@ pub(super) fn log(call: Call) -> Planned {
         let mut kept = tokio::task::spawn_blocking(move || records::read(&store, group))
             .await
             .unwrap_or_default();
-        if let Some(user) = query.user {
-            kept.retain(|record| record.user == user);
+        if let Some(user) = &query.user {
+            kept.retain(|record| record.user == *user);
         }
         answered(&call, query, &kept, records::now())
     })
@@ -177,7 +177,7 @@ fn answered(call: &Call, query: Query, kept: &[Record], now: u64) -> Value {
 }
 
 /// 一个人：「名字 (号)」，没有名字的（洗完空了的）写号。
-fn person(name: Option<&str>, user: i64) -> String {
+fn person(name: Option<&str>, user: Id) -> String {
     match name.and_then(|name| clean(name, NAME)) {
         Some(name) => format!("{name} ({user})"),
         None => user.to_string(),
@@ -204,7 +204,7 @@ fn times(count: u32) -> String {
 
 /// 一条记录一行（纯逻辑）：`2026-10-20 14:03 muted 小明 (40001) for 10 minutes; by you; reason: 刷屏`。
 pub(super) fn event(record: &Record) -> String {
-    let who = person(record.name.as_deref(), record.user);
+    let who = person(record.name.as_deref(), record.user.clone());
     let what = match (record.action, record.seconds) {
         (Action::Mute, Some(seconds)) => format!("muted {who} for {}", spoken(seconds)),
         (Action::Mute, None) => format!("muted {who}"),
@@ -219,7 +219,7 @@ pub(super) fn event(record: &Record) -> String {
     };
     let by = match &record.by {
         By::Ai => "you".to_string(),
-        By::Admin { user, name } => person(name.as_deref(), *user),
+        By::Admin { user, name } => person(name.as_deref(), user.clone()),
         By::Spam => "the flood rule".to_string(),
     };
     let mut line = format!("{} {what}; by {by}", clock(record.at));
@@ -254,7 +254,7 @@ pub(super) fn ranked(place: usize, tally: &Tally) -> String {
     {
         parts.push(format!("last reason: {reason}"));
     }
-    let who = person(tally.name.as_deref(), tally.user);
+    let who = person(tally.name.as_deref(), tally.user.clone());
     format!("{place}. {who}: {}", parts.join("; "))
 }
 

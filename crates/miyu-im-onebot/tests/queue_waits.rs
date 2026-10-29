@@ -3,6 +3,7 @@
 //! 她的话排着，连上了照先后发；桥重启：入队了没结局的不补发，这一回合入队过的照样算进去重。私聊（进程里的桥）没连着也排着，
 //! 去重照桥入队时自己记的。
 
+use miyu_im::chat::Id;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -219,7 +220,9 @@ async fn private_replies_wait_for_the_connection_and_are_not_repeated() {
     let heard = |n: usize| {
         let notices = Arc::clone(&bridge.notices);
         within("桥说断开了", async move {
-            let gone = Notice::Disconnected { bot: Some(BOT) };
+            let gone = Notice::Disconnected {
+                bot: Some(Id::from(BOT)),
+            };
             while notices
                 .lock()
                 .expect("没 panic")

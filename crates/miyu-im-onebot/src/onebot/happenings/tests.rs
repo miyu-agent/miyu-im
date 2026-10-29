@@ -16,8 +16,8 @@ fn read(frame: &Value) -> Option<(GroupChange, i64, Option<i64>, Option<u64>)> {
     match happened(frame)? {
         Event::Happened(happened) => Some((
             happened.change,
-            happened.user,
-            happened.operator,
+            happened.user.number()?,
+            happened.operator.and_then(|operator| operator.number()),
             happened.seconds,
         )),
         _ => None,

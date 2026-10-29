@@ -16,7 +16,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
 
-use miyu_im::chat::{CallError, Link, To};
+use miyu_im::chat::{CallError, Id, Link, To};
 use miyu_im::driver::Gate;
 use miyu_im::toolset::clean;
 
@@ -46,11 +46,11 @@ static AUDITING: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(SLOTS));
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Applicant {
     /// 收到它的机器人的号。
-    pub bot: i64,
+    pub bot: Id,
     /// 申请进的群。
-    pub group: i64,
+    pub group: Id,
     /// 申请人。
-    pub user: i64,
+    pub user: Id,
     /// 他写的（含群设的问题和他的答案），照原样；没写的是空字。
     pub comment: String,
     /// 平台给这次申请的标记：处理时原样交回。
@@ -65,11 +65,15 @@ pub(crate) fn read(frame: &Value) -> Option<Applicant> {
     {
         return None;
     }
-    let number = |value: &Value| crate::onebot::number(value).filter(|number| *number > 0);
+    let id = |value: &Value| {
+        crate::onebot::number(value)
+            .filter(|number| *number > 0)
+            .map(miyu_im::chat::Id::from)
+    };
     Some(Applicant {
-        bot: number(&frame["self_id"])?,
-        group: number(&frame["group_id"])?,
-        user: number(&frame["user_id"])?,
+        bot: id(&frame["self_id"])?,
+        group: id(&frame["group_id"])?,
+        user: id(&frame["user_id"])?,
         comment: frame["comment"].as_str().unwrap_or_default().to_string(),
         flag: frame["flag"]
             .as_str()
@@ -126,12 +130,12 @@ pub(crate) fn seen(gate: &Arc<Gate>, link: &Arc<dyn Link>, frame: &Value) {
 
 /// 审一次（模块的说明）。
 async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
-    let (group, user) = (applicant.group, applicant.user);
+    let (group, user) = (applicant.group.clone(), applicant.user.clone());
     let flag = action_flag(&applicant.flag);
-    tracing::info!(target: miyu_im::TARGET, group, user, filtered = filtered(&applicant.flag), rewritten = flag != applicant.flag, "join request received");
-    let to = To::Group(group);
-    if !gate.active(ID, to) {
-        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: group admin is off here");
+    tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, filtered = filtered(&applicant.flag), rewritten = flag != applicant.flag, "join request received");
+    let to = To::Group(group.clone());
+    if !gate.active(ID, to.clone()) {
+        tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, "join request left to a person: group admin is off here");
         return;
     }
     let settings = groups::read(gate.store())
@@ -139,14 +143,14 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
         .unwrap_or_default();
     let rule = settings.approval.rule.trim().to_string();
     if rule.is_empty() {
-        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: no rule to pass");
+        tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, "join request left to a person: no rule to pass");
         return;
     }
     if !matches!(
-        admin::admin_here(link, group, applicant.bot).await,
+        admin::admin_here(link, &group, &applicant.bot).await,
         Ok(true)
     ) {
-        tracing::info!(target: miyu_im::TARGET, group, user, "join request left to a person: not an admin of the group");
+        tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, "join request left to a person: not an admin of the group");
         return;
     }
     let Ok(_slot) = AUDITING.acquire().await else {
@@ -163,7 +167,7 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
     });
     let decided = tokio::time::timeout(WAIT, asked(gate, to, &request)).await;
     if decided.is_err() {
-        tracing::warn!(target: miyu_im::TARGET, group, user, "join request not audited: timed out");
+        tracing::warn!(target: miyu_im::TARGET, group = %group, user = %user, "join request not audited: timed out");
     }
     let (verdict, reason) = decided
         .ok()
@@ -176,15 +180,15 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
     };
     match done {
         Ok(()) => {
-            tracing::info!(target: miyu_im::TARGET, group, user, verdict = ?verdict, reason = %reason, "join request audited");
+            tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, verdict = ?verdict, reason = %reason, "join request audited");
         }
         // 别的管理员先处理了（同旧版）。
         Err(CallError::Failed { said, .. }) if said.contains("already deleted by system") => {
-            tracing::info!(target: miyu_im::TARGET, group, user, "join request already handled by someone else");
+            tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, "join request already handled by someone else");
             return;
         }
         Err(error) => {
-            tracing::warn!(target: miyu_im::TARGET, group, user, error = ?error, "join request not handled");
+            tracing::warn!(target: miyu_im::TARGET, group = %group, user = %user, error = ?error, "join request not handled");
             return;
         }
     }
@@ -216,7 +220,7 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
 /// 问模型，回的读不出的再问一次：读出来的结论、理由；出错、两次都读不出的是空的。总时限由调的一方管。
 async fn asked(gate: &Gate, to: To, request: &Value) -> Option<(Verdict, String)> {
     for _ in 0..2 {
-        match gate.ask(to, request.clone()).await {
+        match gate.ask(to.clone(), request.clone()).await {
             Ok(text) => {
                 if let Some(decided) = verdict(&text) {
                     return Some(decided);
@@ -224,7 +228,7 @@ async fn asked(gate: &Gate, to: To, request: &Value) -> Option<(Verdict, String)
             }
             Err(why) => {
                 let To::Group(group) = to else { return None };
-                tracing::warn!(target: miyu_im::TARGET, group, why, "join request not audited");
+                tracing::warn!(target: miyu_im::TARGET, group = %group, why, "join request not audited");
                 return None;
             }
         }

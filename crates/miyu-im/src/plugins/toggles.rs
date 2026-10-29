@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use miyu_chat::VenueKind;
 
+use crate::chat::Id;
 use crate::rules::Cards;
 
 /// 包的编号到开没开。
@@ -15,9 +16,9 @@ type Switches = BTreeMap<String, bool>;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Toggles {
     /// 群号到它卡上的开关。
-    groups: BTreeMap<i64, Switches>,
+    groups: BTreeMap<Id, Switches>,
     /// 私聊对方的号到它卡上的开关。
-    privates: BTreeMap<i64, Switches>,
+    privates: BTreeMap<Id, Switches>,
     /// 「陌生群」卡上的。
     other_groups: Switches,
     /// 「陌生私聊」卡上的。
@@ -28,17 +29,16 @@ impl Toggles {
     /// 照 `cards` 拼。
     pub fn from_cards(cards: &Cards) -> Toggles {
         let switches = |set: &Option<Switches>| set.clone().unwrap_or_default();
-        let number = |id: u64| i64::try_from(id).ok();
         Toggles {
             groups: cards
                 .groups
                 .iter()
-                .filter_map(|card| Some((number(card.id)?, switches(&card.set.plugins))))
+                .map(|card| (card.id.clone(), switches(&card.set.plugins)))
                 .collect(),
             privates: cards
                 .privates
                 .iter()
-                .filter_map(|card| Some((number(card.id)?, switches(&card.set.plugins))))
+                .map(|card| (card.id.clone(), switches(&card.set.plugins)))
                 .collect(),
             other_groups: switches(&cards.other_groups.plugins),
             other_privates: switches(&cards.other_privates.plugins),
@@ -46,7 +46,7 @@ impl Toggles {
     }
 
     /// 种类是 `kind`、号是 `number` 的场所开没开包 `package`（声明的默认是 `default`）。场所认不出的（`None`）照 `default`。
-    pub fn enabled(&self, venue: Option<(VenueKind, i64)>, package: &str, default: bool) -> bool {
+    pub fn enabled(&self, venue: Option<(VenueKind, &Id)>, package: &str, default: bool) -> bool {
         let Some((kind, number)) = venue else {
             return default;
         };
@@ -55,7 +55,7 @@ impl Toggles {
             VenueKind::Private => (&self.privates, &self.other_privates),
         };
         cards
-            .get(&number)
+            .get(number)
             .and_then(|switches| switches.get(package))
             .or_else(|| fallback.get(package))
             .copied()

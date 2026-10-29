@@ -22,7 +22,7 @@ use serde_json::json;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::chat::Platform;
+use crate::chat::{Id, Platform};
 use crate::core::{Gone, reason};
 
 /// 附加提示词的模板先填这一段占位，再换成原文（施工 O-58 上）：只有字母和下划线，模板的填法不会改它。
@@ -34,9 +34,9 @@ pub(super) struct Titles {
     /// 问到了隔多久再问。
     every: Duration,
     /// （平台，群号）→ 上一次问的时刻。
-    asked: HashMap<(Platform, i64), Instant>,
+    asked: HashMap<(Platform, Id), Instant>,
     /// （平台，群号）→ 问到的群名（洗过的）。
-    names: HashMap<(Platform, i64), String>,
+    names: HashMap<(Platform, Id), String>,
     /// 会话 → 问到的群名那一段（照模板写好的）。
     titles: HashMap<String, String>,
     /// 会话 → 附加提示词那一段（照模板写好的，施工 O-58 上）。
@@ -59,7 +59,7 @@ impl Titles {
     }
 
     /// 平台上的群 `group` 此刻 `now` 该不该问：没问过的、上一次问到此刻不止 `every` 的该问，记下这一次。
-    fn due(&mut self, group: (Platform, i64), now: Instant) -> bool {
+    fn due(&mut self, group: (Platform, Id), now: Instant) -> bool {
         let due = self
             .asked
             .get(&group)
@@ -89,16 +89,11 @@ pub(super) fn group_name(name: &str) -> Option<String> {
 impl Route {
     /// 平台 `platform` 上的群 `group`（收进它的机器人号 `bot`）此刻叫什么：该问的问 NapCat，问到的记下；问不到的照上一次问到的，
     /// 从没问到的是空的。
-    pub(super) async fn place(
-        &mut self,
-        platform: Platform,
-        group: i64,
-        bot: i64,
-    ) -> Option<String> {
-        if self.titles.due((platform, group), Instant::now()) {
-            let asked = match self.platforms.link(platform, bot) {
+    pub(super) async fn place(&mut self, platform: Platform, group: Id, bot: Id) -> Option<String> {
+        if self.titles.due((platform, group.clone()), Instant::now()) {
+            let asked = match self.platforms.link(platform, &bot) {
                 Some(link) => link
-                    .group_name(group)
+                    .group_name(&group)
                     .await
                     .map_err(|error| format!("{error:?}")),
                 None => Err("bot not connected".to_string()),
@@ -109,11 +104,11 @@ impl Route {
                 .and_then(|name| name.as_deref().and_then(group_name))
             {
                 Some(name) => {
-                    self.titles.names.insert((platform, group), name);
+                    self.titles.names.insert((platform, group.clone()), name);
                 }
                 None => {
                     let error = asked.err().unwrap_or_default();
-                    tracing::debug!(target: TARGET, group, error, "group name unknown");
+                    tracing::debug!(target: TARGET, group = %group, error, "group name unknown");
                 }
             }
         }
@@ -129,7 +124,7 @@ impl Route {
     pub(super) async fn titled(
         &mut self,
         session: &str,
-        group: i64,
+        group: Id,
         name: Option<&str>,
     ) -> Result<(), Gone> {
         let Some(name) = name else {
@@ -141,7 +136,7 @@ impl Route {
             Ok(content) => content,
             Err(error) => {
                 // 照说不会：起来时查过模板只要这两个字段（`rules/facts.rs`）。
-                tracing::warn!(target: TARGET, group, error = %error, "group title not written");
+                tracing::warn!(target: TARGET, group = %group, error = %error, "group title not written");
                 return Ok(());
             }
         };

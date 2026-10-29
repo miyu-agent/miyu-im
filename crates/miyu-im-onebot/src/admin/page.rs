@@ -5,6 +5,7 @@
 //! 记录一条一行：做了什么、对谁（标题），谁做的、理由（说明），时刻（右边）；禁言的带状态：还在禁言中（`doing`）、已解禁（到期
 //! 以前有对这个人的解禁、踢出，`done`）、已过期（`off`）、被后一次禁言覆盖（字写「已覆盖」，状态照 `off`，施工 I-17：以前同一个人两条都写「禁言中」）。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_im::toolset::clock;
@@ -46,7 +47,7 @@ fn lengths(seconds: u64) -> [String; 3] {
 }
 
 /// 一个人：名字，没有的写号。
-fn who(name: Option<&str>, user: i64) -> String {
+fn who(name: Option<&str>, user: Id) -> String {
     name.map_or_else(|| user.to_string(), str::to_string)
 }
 
@@ -64,7 +65,7 @@ fn mute_state(records: &[Record], index: usize, now: u64) -> Option<(&'static st
 /// 记录 `records`（旧的在前）的第 `index` 条一行。
 fn item(records: &[Record], index: usize, now: u64) -> Value {
     let record = &records[index];
-    let name = who(record.name.as_deref(), record.user);
+    let name = who(record.name.as_deref(), record.user.clone());
     let title = match (record.action, record.seconds) {
         (Action::Mute, Some(seconds)) => {
             let [zh, en, ja] = lengths(seconds);
@@ -103,7 +104,7 @@ fn item(records: &[Record], index: usize, now: u64) -> Value {
     let by = match &record.by {
         By::Ai => t("AI", "AI", "AI"),
         By::Admin { user, name } => {
-            let name = who(name.as_deref(), *user);
+            let name = who(name.as_deref(), user.clone());
             t(
                 &format!("管理员 {name}"),
                 &format!("Admin {name}"),
@@ -180,7 +181,7 @@ fn ranking(records: &[Record], period: Period, now: u64, most: usize) -> Value {
         .take(most)
         .enumerate()
         .map(|(index, tally)| {
-            let name = who(tally.name.as_deref(), tally.user);
+            let name = who(tally.name.as_deref(), tally.user.clone());
             // 次数是 0 的那一段不写。
             let [zh, en, ja] = lengths(tally.seconds);
             let mut parts: [Vec<String>; 3] = Default::default();
@@ -216,7 +217,7 @@ fn ranking(records: &[Record], period: Period, now: u64, most: usize) -> Value {
 
 /// 会话浮窗的「群管理」页（群 `group`，设置 `settings`，记录 `records`，成员汇总开没开 `summary`，此刻 `now`）。
 pub(crate) fn panel(
-    group: i64,
+    group: Id,
     settings: &Group,
     records: &[Record],
     summary: bool,
@@ -246,7 +247,7 @@ pub(crate) fn panel(
 
 /// 面板上一个群（号 `group`、名字 `name`，她在这个群是不是管理员 `admin`，问不到的是空的）的那一项。
 pub(crate) fn section(
-    (group, name): (i64, Option<&str>),
+    (group, name): (Id, Option<&str>),
     admin: Option<bool>,
     (settings, records): (&Group, &[Record]),
     (summary, now): (bool, u64),

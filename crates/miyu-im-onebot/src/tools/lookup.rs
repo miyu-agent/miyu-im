@@ -11,11 +11,11 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use miyu_im::chat::{CallError, Member, Rank, Source, To};
+use miyu_im::chat::{CallError, Id, Member, Rank, Source, To};
 use miyu_im::toolset::{Call, NAME, Planned, QQ_FILES, bytes, clean, image_extension, save};
 
 use super::QqTools;
-use super::args::{Bad, bad_args, group_only, optional_number, optional_text};
+use super::args::{Bad, bad_args, group_only, optional_id, optional_number, optional_text};
 
 /// 答的话里的原因最多几个字符（同取图）。
 const DETAIL: usize = 200;
@@ -24,20 +24,28 @@ const DETAIL: usize = 200;
 pub(crate) const MEMBERS_MOST: usize = 200;
 
 /// 要谁的头像（纯逻辑）：她给的群号、QQ 号（正整数，写成字的也认），都没给的取叫她的人。两个都给了的、写错的是空的。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Whose {
     /// 一个人。
-    User(i64),
+    User(Id),
     /// 一个群。
-    Group(i64),
+    Group(Id),
 }
 
 /// 读 `avatar` 的参数 `args`，叫她的人是 `caller`（号；本机的、不知道的是空的）。
-pub(crate) fn whose(args: &Value, caller: Option<i64>) -> Option<Whose> {
+pub(crate) fn whose(args: &Value, caller: Option<Id>) -> Option<Whose> {
     let number = |value: &Value| match value {
         Value::Null => Some(None),
-        Value::Number(number) => number.as_i64().filter(|n| *n > 0).map(Some),
-        Value::String(text) => text.trim().parse::<i64>().ok().filter(|n| *n > 0).map(Some),
+        Value::Number(number) => number
+            .as_i64()
+            .filter(|n| *n > 0)
+            .map(|n| Some(Id::from(n))),
+        Value::String(text) => text
+            .trim()
+            .parse::<i64>()
+            .ok()
+            .filter(|n| *n > 0)
+            .map(|n| Some(Id::from(n))),
         _ => None,
     };
     match (number(&args["user"])?, number(&args["group"])?) {
@@ -76,7 +84,7 @@ pub(crate) fn listed(
     let found: Vec<String> = members
         .iter()
         .filter_map(|member| {
-            let user = member.user;
+            let user = member.user.clone();
             let name = member
                 .name
                 .as_deref()
@@ -104,15 +112,15 @@ pub(crate) fn listed(
 /// `avatar`：认要谁的（参数写错的答写错了哪个，施工 I-17；没写、又不知道谁叫的当场答 `no-target`），下下来存进工作区。
 pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
     let given = (
-        optional_number(&call.args, "user", "user must be a QQ number"),
-        optional_number(&call.args, "group", "group must be a group number"),
+        optional_id(&call.args, "user", "user must be a QQ number"),
+        optional_id(&call.args, "group", "group must be a group number"),
     );
     match given {
         (Err(bad), _) | (_, Err(bad)) => return bad_args(&call, bad),
         (Ok(Some(_)), Ok(Some(_))) => return bad_args(&call, "give user or group, not both"),
         _ => {}
     }
-    let Some(whose) = whose(&call.args, call.caller) else {
+    let Some(whose) = whose(&call.args, call.caller.clone()) else {
         return Planned::Now(call.answers.say("no-target", &[], true));
     };
     let (url, name) = avatar_of(whose, &tools.avatars);
@@ -127,7 +135,7 @@ pub(super) fn avatar(tools: &QqTools, call: Call) -> Planned {
 
 /// `members`：列这个群的成员（只给群：私聊里调到的照说不会，答只给群）。`limit` 写错的、`query` 不是字的答写错了哪个。
 pub(super) fn members(tools: &QqTools, call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     let shown = match limit(&call.args, tools.members) {
@@ -206,11 +214,11 @@ pub(super) async fn fetched(
 }
 
 /// 列群成员。
-async fn listing(call: &Call, group: i64, shown: usize) -> Result<Value, Undone> {
+async fn listing(call: &Call, group: Id, shown: usize) -> Result<Value, Undone> {
     let Some(link) = &call.link else {
         return Err(("unreachable", None));
     };
-    let list = link.members(group).await.map_err(undone)?;
+    let list = link.members(&group).await.map_err(undone)?;
     let (count, total, list) = listed(&list, query(call), shown);
     if count == 0 {
         return Ok(call.answers.say("no-members", &[], false));

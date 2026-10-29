@@ -11,6 +11,7 @@
 //!
 //! 禁言照旧只做动作、不挡人（施工 O-48）。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_im::toolset::{Call, NAME, Planned, clean, duration};
@@ -66,11 +67,11 @@ async fn done(call: &Call, act: &Act) -> Value {
         return call.answers.say("unreachable", &[], true);
     };
     let (group, users) = match act {
-        Act::Mute { group, users, .. } | Act::Kick { group, users, .. } => (*group, users),
+        Act::Mute { group, users, .. } | Act::Kick { group, users, .. } => (group.clone(), users),
         _ => return call.answers.say("unreachable", &[], true),
     };
     // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。
-    match admin::admin_here(link.as_ref(), group, call.bot).await {
+    match admin::admin_here(link.as_ref(), &group, &call.bot).await {
         Ok(true) => {}
         Ok(false) => return call.answers.say(ADMIN_OFF, &[], true),
         Err(error) => return said(call, None, undone(error)),
@@ -78,20 +79,22 @@ async fn done(call: &Call, act: &Act) -> Value {
     let mut outcomes = Vec::new();
     for user in users {
         let outcome = match *act {
-            Act::Mute { seconds, .. } => link.mute(group, *user, seconds).await.map_err(undone),
-            Act::Kick { block, .. } => kick::kick(link.as_ref(), group, *user, block).await,
+            Act::Mute { seconds, .. } => link.mute(&group, user, seconds).await.map_err(undone),
+            Act::Kick { block, .. } => {
+                kick::kick(link.as_ref(), group.clone(), user.clone(), block).await
+            }
             _ => Err(Undone("unreachable", None)),
         };
         if outcome.is_ok() {
-            recorded(call, act, *user).await;
+            recorded(call, act, user.clone()).await;
         }
-        outcomes.push((*user, outcome));
+        outcomes.push((user.clone(), outcome));
     }
     answered(call, act, &outcomes)
 }
 
 /// 一个人：这个群缓存着的名字，没有的写号。
-fn who(call: &Call, user: i64) -> String {
+fn who(call: &Call, user: Id) -> String {
     call.names
         .get(&user)
         .cloned()
@@ -99,7 +102,7 @@ fn who(call: &Call, user: i64) -> String {
 }
 
 /// 对 `user` 做 `act` 成了说的那一句。
-fn success(call: &Call, act: &Act, user: i64) -> String {
+fn success(call: &Call, act: &Act, user: Id) -> String {
     let who = who(call, user);
     match act {
         Act::Mute { seconds: 0, .. } => call.answers.text("unmuted", &[("who", &who)]),
@@ -112,7 +115,7 @@ fn success(call: &Call, act: &Act, user: i64) -> String {
 }
 
 /// 没做成说的那一句的字：带对谁（`user` 是空的：整次没做）、平台说的原因。
-fn undone_text(call: &Call, user: Option<i64>, Undone(why, detail): &Undone) -> String {
+fn undone_text(call: &Call, user: Option<Id>, Undone(why, detail): &Undone) -> String {
     let who = user.map(|user| who(call, user)).unwrap_or_default();
     let detail = detail.as_deref().unwrap_or_default();
     call.answers
@@ -120,7 +123,7 @@ fn undone_text(call: &Call, user: Option<i64>, Undone(why, detail): &Undone) -> 
 }
 
 /// 没做成答的那一句。
-fn said(call: &Call, user: Option<i64>, undone: Undone) -> Value {
+fn said(call: &Call, user: Option<Id>, undone: Undone) -> Value {
     block(undone_text(call, user, &undone), true)
 }
 
@@ -131,21 +134,21 @@ fn block(text: String, error: bool) -> Value {
 
 /// 答的那一句（施工 I-17）：一个人的照原来的一句；几个人的头一行是成了几个，一人一行接在后面（成了的照成了的那一句，没成的那一句
 /// 里没写是谁的前面写上）。都没成的算出错。
-fn answered(call: &Call, act: &Act, outcomes: &[(i64, Result<(), Undone>)]) -> Value {
+fn answered(call: &Call, act: &Act, outcomes: &[(Id, Result<(), Undone>)]) -> Value {
     if let [(user, outcome)] = outcomes {
         return match outcome {
-            Ok(()) => block(success(call, act, *user), false),
-            Err(undone) => block(undone_text(call, Some(*user), undone), true),
+            Ok(()) => block(success(call, act, user.clone()), false),
+            Err(undone) => block(undone_text(call, Some(user.clone()), undone), true),
         };
     }
     let lines: Vec<String> = outcomes
         .iter()
         .map(|(user, outcome)| {
             let line = match outcome {
-                Ok(()) => success(call, act, *user),
+                Ok(()) => success(call, act, user.clone()),
                 Err(undone) => {
-                    let who = who(call, *user);
-                    let sentence = undone_text(call, Some(*user), undone);
+                    let who = who(call, user.clone());
+                    let sentence = undone_text(call, Some(user.clone()), undone);
                     match sentence.contains(&who) {
                         true => sentence,
                         false => format!("{who}: {sentence}"),
@@ -172,11 +175,11 @@ fn answered(call: &Call, act: &Act, outcomes: &[(i64, Result<(), Undone>)]) -> V
 
 /// 对 `user` 做成了的禁言、解禁、踢人记进这个群的管理记录（施工 Q-2）：对谁、那时叫什么、她给的理由、谁让她做的（施工 I-17）；记录
 /// 开关关了的不记。
-async fn recorded(call: &Call, act: &Act, user: i64) {
+async fn recorded(call: &Call, act: &Act, user: Id) {
     if !admin::recording(&call.config) {
         return;
     }
-    let (group, action, seconds, block) = match *act {
+    let (group, action, seconds, block) = match act.clone() {
         Act::Mute {
             group, seconds: 0, ..
         } => (group, records::Action::Unmute, None, false),
@@ -184,11 +187,11 @@ async fn recorded(call: &Call, act: &Act, user: i64) {
         Act::Kick { group, block, .. } => (group, records::Action::Kick, None, block),
         _ => return,
     };
-    let named = |user: i64| call.names.get(&user).and_then(|name| clean(name, NAME));
+    let named = |user: Id| call.names.get(&user).and_then(|name| clean(name, NAME));
     let record = records::Record {
         at: records::now(),
         action,
-        user,
+        user: user.clone(),
         name: named(user),
         by: records::By::Ai,
         seconds,

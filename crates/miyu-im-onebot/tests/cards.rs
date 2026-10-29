@@ -150,9 +150,10 @@ async fn a_wrong_card_is_refused_with_its_problems_and_nothing_changes() {
             ),
         ]
     );
-    // 不是卡片的样子：认不得的格、号不是数。
+    // 不是卡片的样子：认不得的格、号不合写法（施工 I-79：号写成字的也收，带空白、`:` 的不收）。
     for bad in [
-        json!({"groups": [{"id": "x"}]}),
+        json!({"groups": [{"id": "a b"}]}),
+        json!({"groups": [{"id": "a:b"}]}),
         json!({"unknown": 1}),
         json!(null),
     ] {

@@ -6,7 +6,7 @@
 
 use serde_json::Value;
 
-use miyu_im::chat::{CallError, Link, Msg, To};
+use miyu_im::chat::{CallError, Id, Link, Msg, To};
 use miyu_im::toolset::{Call, Missed, NAME, Planned, clean, message};
 
 use super::args::{bad_args, group_only};
@@ -21,16 +21,16 @@ pub(super) enum Act {
     Recall { msg: String, check: bool },
     /// 在这个群里禁言这几个号几秒，0 是解禁（施工 I-17 起能几个）。
     Mute {
-        group: i64,
-        users: Vec<i64>,
+        group: Id,
+        users: Vec<Id>,
         seconds: u64,
     },
     /// 戳这个号；`check` 的是她在群里给的号，先核对是不是群成员（施工 I-32）。
-    Poke { user: i64, check: bool },
+    Poke { user: Id, check: bool },
     /// 把这几个号移出这个群，`block` 的以后不收他们的加群申请（施工 Q-2；I-17 起能几个）。
     Kick {
-        group: i64,
-        users: Vec<i64>,
+        group: Id,
+        users: Vec<Id>,
         block: bool,
     },
 }
@@ -77,14 +77,14 @@ fn decide(call: &Call, order: Order) -> Option<Plan> {
     Some(plan(order, &caller, call.origin.as_ref(), &scene))
 }
 
-/// 定下来的 `plan` 换成要调的动作：号解成整数。认不出目标的交回为什么。
+/// 定下来的 `plan` 换成要调的动作：号解出来。认不出目标的交回为什么。
 fn act(call: &Call, plan: Plan) -> Result<Act, Why> {
     let number = |user: &miyu_client::ids::ExternalId| {
         miyu_chat::parse_person(user)
-            .and_then(|(_, number)| number.parse::<i64>().ok())
+            .and_then(|(_, number)| Id::new(number))
             .ok_or(Why::NoTarget)
     };
-    let group = || match call.to {
+    let group = || match call.to.clone() {
         To::Group(group) => Ok(group),
         To::Private(_) => Err(Why::NoTarget),
     };
@@ -128,7 +128,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
                     Err(Missed::Unanswered) => return Err(Undone("unanswered", None)),
                     Err(_) => return Err(Undone("unreachable", None)),
                 };
-                if !recallable(&fetched, call.to, call.bot) {
+                if !recallable(&fetched, &call.to, &call.bot) {
                     return Err(Undone("not-found", None));
                 }
             }
@@ -136,7 +136,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
         }
         Act::Poke { user, check } => {
             let name = if *check {
-                match member(call, link.as_ref(), *user).await? {
+                match member(call, link.as_ref(), user.clone()).await? {
                     Some(name) => name,
                     None => return Err(Undone("not-members", Some(user.to_string()))),
                 }
@@ -144,7 +144,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
                 None
             };
             return link
-                .poke(call.to, *user)
+                .poke(call.to.clone(), user)
                 .await
                 .map(|()| name)
                 .map_err(undone);
@@ -156,7 +156,7 @@ async fn done(call: &Call, act: &Act) -> Result<Option<String>, Undone> {
 
 /// 答的那一句：成了的照动作说，没成的说为什么。
 fn answered(call: &Call, act: &Act, outcome: Result<Option<String>, Undone>) -> Value {
-    let who = |user: i64| {
+    let who = |user: Id| {
         call.names
             .get(&user)
             .cloned()
@@ -164,7 +164,7 @@ fn answered(call: &Call, act: &Act, outcome: Result<Option<String>, Undone>) -> 
     };
     match (outcome, act) {
         (Ok(learned), Act::Poke { user, .. }) => {
-            let who = learned.unwrap_or_else(|| who(*user));
+            let who = learned.unwrap_or_else(|| who(user.clone()));
             call.answers.say("poked", &[("who", &who)], false)
         }
         // 她给的号不在群里（施工 I-32）：照 `mention` 答哪个号。
@@ -185,14 +185,14 @@ fn answered(call: &Call, act: &Act, outcome: Result<Option<String>, Undone>) -> 
 
 /// `user` 是不是这个群的成员（施工 I-32）：缓存着名字的算是，没有的现问一次（同踢人的 `fresh_member`）。是的交回现问到的名字
 /// （洗过；缓存着的、没名字的是空的，照缓存、号写），不是的是空的。私聊的不问。
-async fn member(call: &Call, link: &dyn Link, user: i64) -> Result<Option<Option<String>>, Undone> {
-    let To::Group(group) = call.to else {
+async fn member(call: &Call, link: &dyn Link, user: Id) -> Result<Option<Option<String>>, Undone> {
+    let To::Group(group) = call.to.clone() else {
         return Ok(Some(None));
     };
     if call.names.contains_key(&user) {
         return Ok(Some(None));
     }
-    match fresh_member(link, group, user).await {
+    match fresh_member(link, &group, &user).await {
         Ok(found) => {
             Ok(found.map(|member| member.name.as_deref().and_then(|name| clean(name, NAME))))
         }

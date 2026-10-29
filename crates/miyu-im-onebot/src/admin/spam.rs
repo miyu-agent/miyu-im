@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-use miyu_im::chat::{Link, Msg, Posted, Rank, To};
+use miyu_im::chat::{Id, Link, Msg, Posted, Rank, To};
 use miyu_im::driver::Gate;
 use miyu_im::toolset::{NAME, clean};
 
@@ -48,13 +48,13 @@ pub(crate) struct Flood {
 
 /// 每个群每个人正连着发的（纯逻辑）。
 #[derive(Debug, Default)]
-pub(crate) struct Streaks(HashMap<(i64, i64), Streak>);
+pub(crate) struct Streaks(HashMap<(Id, Id), Streak>);
 
 impl Streaks {
     /// 群 `group` 里 `user` 发了编号 `message` 的 `text`（此刻 `now`，时间窗 `window`）：到了 [`COUNT`] 的交回要做的。
     pub(crate) fn seen(
         &mut self,
-        (group, user): (i64, i64),
+        (group, user): (Id, Id),
         (text, message): (&str, i64),
         now: Instant,
         window: Duration,
@@ -98,9 +98,9 @@ pub(crate) struct Spamming {
     streaks: Streaks,
     groups: Cached,
     /// 群号 → （她是不是管理员，问到的时刻）。另起的任务问过了写回来。
-    ranked: Arc<Mutex<HashMap<i64, (bool, Instant)>>>,
+    ranked: Arc<Mutex<HashMap<Id, (bool, Instant)>>>,
     /// 正在问的群。
-    asking: Arc<Mutex<HashSet<i64>>>,
+    asking: Arc<Mutex<HashSet<Id>>>,
 }
 
 impl Spamming {
@@ -118,20 +118,20 @@ impl Spamming {
 
     /// 群 `group` 里的一条 `posted`：刷屏了的另起任务办（模块的说明）；交回这一条还交不交给 im（她是管理员、这一条到了 [`COUNT`]
     /// 及以后的不交）。
-    pub(crate) fn seen(&mut self, group: i64, posted: &Posted) -> bool {
+    pub(crate) fn seen(&mut self, group: Id, posted: &Posted) -> bool {
         if posted.user == posted.bot
             || matches!(posted.rank, Some(Rank::Owner | Rank::Admin))
-            || !self.gate.active(ID, To::Group(group))
+            || !self.gate.active(ID, To::Group(group.clone()))
         {
             return true;
         }
-        let spam = self.groups.group(self.gate.store(), group).spam;
+        let spam = self.groups.group(self.gate.store(), group.clone()).spam;
         if !spam.on {
             return true;
         }
-        self.ask_rank(posted.bot, group);
+        self.ask_rank(posted.bot.clone(), group.clone());
         let Some(flood) = self.streaks.seen(
-            (group, posted.user),
+            (group.clone(), posted.user.clone()),
             (&posted.text, posted.message_id),
             Instant::now(),
             Duration::from_secs(spam.window),
@@ -154,8 +154,8 @@ impl Spamming {
             ranked: Arc::clone(&self.ranked),
             store: self.gate.store().to_path_buf(),
         };
-        let (who, user) = (posted.name.clone(), posted.user);
-        let bot = posted.bot;
+        let (who, user) = (posted.name.clone(), posted.user.clone());
+        let bot = posted.bot.clone();
         tokio::spawn(async move {
             job.handled((bot, group), (user, who), flood, spam.mute)
                 .await
@@ -167,7 +167,7 @@ impl Spamming {
 impl Spamming {
     /// 她在群 `group` 里是不是管理员还不知道、记的过期了的，另起任务问一次（同一个群问着的不再问）：到了第 [`COUNT`] 条一般已经
     /// 知道，那一条照它定交不交给 im。
-    fn ask_rank(&self, bot: i64, group: i64) {
+    fn ask_rank(&self, bot: Id, group: Id) {
         {
             let mut ranked = self.ranked.lock().unwrap_or_else(PoisonError::into_inner);
             let fresh = ranked
@@ -178,7 +178,7 @@ impl Spamming {
                     .asking
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)
-                    .insert(group)
+                    .insert(group.clone())
             {
                 return;
             }
@@ -190,11 +190,11 @@ impl Spamming {
             Arc::clone(&self.asking),
         );
         tokio::spawn(async move {
-            if let Ok(admin) = admin::admin_here(link.as_ref(), group, bot).await {
+            if let Ok(admin) = admin::admin_here(link.as_ref(), &group, &bot).await {
                 ranked
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)
-                    .insert(group, (admin, Instant::now()));
+                    .insert(group.clone(), (admin, Instant::now()));
             }
             asking
                 .lock()
@@ -208,7 +208,7 @@ impl Spamming {
 struct Job {
     gate: Arc<Gate>,
     link: Arc<dyn Link>,
-    ranked: Arc<Mutex<HashMap<i64, (bool, Instant)>>>,
+    ranked: Arc<Mutex<HashMap<Id, (bool, Instant)>>>,
     store: PathBuf,
 }
 
@@ -216,33 +216,33 @@ impl Job {
     /// 她在群里是管理员才办：撤回重复的；刚到 [`COUNT`] 的禁言 `mute` 秒，成了的记进管理记录、告诉她。
     async fn handled(
         &self,
-        (bot, group): (i64, i64),
-        (user, name): (i64, Option<String>),
+        (bot, group): (Id, Id),
+        (user, name): (Id, Option<String>),
         flood: Flood,
         mute: u64,
     ) {
         let admin = matches!(
-            admin::admin_here(self.link.as_ref(), group, bot).await,
+            admin::admin_here(self.link.as_ref(), &group, &bot).await,
             Ok(true)
         );
         self.ranked
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .insert(group, (admin, Instant::now()));
+            .insert(group.clone(), (admin, Instant::now()));
         if !admin {
             return;
         }
         for message in &flood.recall {
             if let Err(error) = self.link.recall(Msg::Number(*message)).await {
-                tracing::warn!(target: miyu_im::TARGET, group, error = ?error, "flood message not recalled");
+                tracing::warn!(target: miyu_im::TARGET, group = %group, error = ?error, "flood message not recalled");
             }
         }
         if !flood.fresh {
             return;
         }
         // 撤回成了、禁言没成的记一行（施工 I-17：以前悄悄放过）。
-        if let Err(error) = self.link.mute(group, user, mute).await {
-            tracing::warn!(target: miyu_im::TARGET, group, user, error = ?error, "flood sender not muted");
+        if let Err(error) = self.link.mute(&group, &user, mute).await {
+            tracing::warn!(target: miyu_im::TARGET, group = %group, user = %user, error = ?error, "flood sender not muted");
             return;
         }
         let config = self.gate.config().borrow().clone();
@@ -251,7 +251,7 @@ impl Job {
             let record = Record {
                 at: records::now(),
                 action: Action::Mute,
-                user,
+                user: user.clone(),
                 name: name.clone(),
                 by: By::Spam,
                 seconds: Some(mute),
@@ -260,7 +260,13 @@ impl Job {
                 verdict: None,
                 comment: None,
             };
-            records::append(self.store.clone(), group, record, admin::keep(&config)).await;
+            records::append(
+                self.store.clone(),
+                group.clone(),
+                record,
+                admin::keep(&config),
+            )
+            .await;
         }
         let who = name.unwrap_or_else(|| user.to_string());
         let duration = spoken(mute);

@@ -1,6 +1,7 @@
 //! 发消息的动作（从 `onebot.rs` 挪来，施工 O-59 下：那一份行数到了上限）：一句字、一张图、长文画成的一页、一条合并转发，
 //! 照 `to` 拼成 `send_private_msg`、`send_group_msg`（合并转发是 `send_private_forward_msg`、`send_group_forward_msg`）。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use super::{Lead, To};
@@ -69,7 +70,7 @@ fn send_to(to: To, message: Vec<Value>) -> (&'static str, Value) {
 
 /// 一条合并转发（施工 O-59 下，「长文」第 2 条）：每一段 `nodes` 一个节点，发的人照机器人号 `bot`、名字 `nickname`；
 /// `send_private_forward_msg {user_id, messages}`、`send_group_forward_msg {group_id, messages}`。合并转发里带不了引用、@。
-pub fn forward_to(to: To, bot: i64, nickname: &str, nodes: &[String]) -> (&'static str, Value) {
+pub fn forward_to(to: To, bot: &Id, nickname: &str, nodes: &[String]) -> (&'static str, Value) {
     let messages: Vec<Value> = nodes
         .iter()
         .map(|text| {

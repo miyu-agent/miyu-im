@@ -8,7 +8,7 @@ use serde_json::json;
 
 use super::{Platforms, Unclaimed};
 use crate::chat::fake::fake;
-use crate::chat::{Bots, Platform};
+use crate::chat::{Bots, Id, Platform};
 
 const QQ: Platform = Platform::new("qq");
 const TG: Platform = Platform::new("tg");
@@ -18,7 +18,7 @@ fn connected(bots: &[i64]) -> Arc<Bots> {
     let connected = Arc::new(Bots::default());
     for bot in bots {
         let (link, _asked) = fake();
-        assert!(connected.insert(*bot, link).is_none());
+        assert!(connected.insert(Id::from(*bot), link).is_none());
     }
     connected
 }
@@ -69,20 +69,32 @@ fn args_name_their_platform_or_fall_to_the_only_one() {
 #[test]
 fn a_missing_bot_falls_back_within_its_own_platform() {
     let platforms = two();
-    assert_eq!(platforms.sender(QQ, Some(20)), Some(20), "连着的照它");
     assert_eq!(
-        platforms.sender(QQ, Some(5)),
-        Some(10),
+        platforms.sender(QQ, Some(Id::from(20))),
+        Some(Id::from(20)),
+        "连着的照它"
+    );
+    assert_eq!(
+        platforms.sender(QQ, Some(Id::from(5))),
+        Some(Id::from(10)),
         "号 5 是 Telegram 的：退回 QQ 连着的最小的"
     );
-    assert_eq!(platforms.sender(QQ, None), Some(10));
-    assert_eq!(platforms.sender(TG, Some(10)), Some(5), "不退到 QQ 的号");
-    assert_eq!(platforms.sender(TG, None), Some(5));
+    assert_eq!(platforms.sender(QQ, None), Some(Id::from(10)));
+    assert_eq!(
+        platforms.sender(TG, Some(Id::from(10))),
+        Some(Id::from(5)),
+        "不退到 QQ 的号"
+    );
+    assert_eq!(platforms.sender(TG, None), Some(Id::from(5)));
     let only_qq = Platforms::new(vec![(QQ, connected(&[10])), (TG, connected(&[]))]);
-    assert_eq!(only_qq.sender(TG, Some(10)), None, "这个平台没有连着的号");
+    assert_eq!(
+        only_qq.sender(TG, Some(Id::from(10))),
+        None,
+        "这个平台没有连着的号"
+    );
     assert_eq!(only_qq.sender(TG, None), None);
-    assert!(only_qq.link(TG, 10).is_none());
-    assert!(only_qq.link(QQ, 10).is_some());
+    assert!(only_qq.link(TG, &Id::from(10)).is_none());
+    assert!(only_qq.link(QQ, &Id::from(10)).is_some());
     assert!(
         only_qq.bots(Platform::new("discord")).first().is_none(),
         "没挂的平台一个号都没有"

@@ -132,7 +132,8 @@ async fn actions_go_to_napcat_and_come_back_as_napcat_said() {
         json!({"action": 1}),
         json!({"action": "get_group_list", "params": [1]}),
         json!({"action": "get_group_list", "params": "x"}),
-        json!({"action": "get_group_list", "bot": "30001"}),
+        json!({"action": "get_group_list", "bot": "a b"}),
+        json!({"action": "get_group_list", "bot": 1.5}),
         // 别的平台的（施工 I-1）：这个驱动只认 `qq`。
         json!({"action": "get_group_list", "platform": "telegram"}),
         json!({"action": "get_group_list", "platform": 1}),

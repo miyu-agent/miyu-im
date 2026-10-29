@@ -202,7 +202,7 @@ pub(super) async fn mark(
 
 /// 在 `target` 上贴（`on`）、摘一次，记一行运行日志；成了交回真。那时没连着的照断了算（`Closed`）。
 async fn put(target: &Mark, bots: &Bots, on: bool) -> bool {
-    let result = match bots.get(target.peer.bot) {
+    let result = match bots.get(&target.peer.bot) {
         Some(link) => link.react(&target.message, &target.emoji, on).await,
         None => Err(CallError::Closed),
     };

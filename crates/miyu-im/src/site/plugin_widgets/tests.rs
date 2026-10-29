@@ -18,7 +18,7 @@ fn page_venues_turn_into_venue_ids() {
     );
     for wrong in [
         json!({"type": "channel", "id": "1"}),
-        json!({"type": "group", "id": "abc"}),
+        json!({"type": "group", "id": "a b"}),
         json!({"type": "group", "id": 777}),
         json!({"type": "group"}),
         json!(null),

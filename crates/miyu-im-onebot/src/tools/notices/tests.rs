@@ -19,7 +19,7 @@ fn notices_are_newest_first_and_read_from_several_shapes() {
         ["周六十点东门集合", "新人先看群文件", "群规：不刷屏"],
         "读不出正文的不列"
     );
-    assert_eq!(read[0].sender, Some(2));
+    assert_eq!(read[0].sender, Some(Id::from(2)));
 }
 
 #[test]

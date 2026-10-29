@@ -33,7 +33,7 @@ use miyu_client::places::DataRoot;
 use crate::TARGET;
 use crate::changed::Changed;
 use crate::chat::Bots;
-use crate::chat::{Members, Platforms};
+use crate::chat::{Id, Members, Platforms};
 use crate::core::hooks::{Hooks, Mounted};
 use crate::core::methods::{Methods, register};
 use crate::core::route::{
@@ -108,12 +108,12 @@ pub enum Notice {
     /// NapCat 连上了：机器人的号，连进来时没报的是空的。
     Connected {
         /// 机器人的号。
-        bot: Option<i64>,
+        bot: Option<Id>,
     },
     /// NapCat 断开了。
     Disconnected {
         /// 机器人的号：一直没认出来的是空的。
-        bot: Option<i64>,
+        bot: Option<Id>,
     },
     /// 令牌没设：NapCat 连进来会被拒，说怎么设。跟在 [`Notice::Listening`] 后面说。
     NoToken,

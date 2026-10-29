@@ -20,7 +20,7 @@ use serde_json::{Map, Value, json};
 use super::Route;
 use crate::TARGET;
 use crate::chat::CallError;
-use crate::chat::{Bots, Platform, To, Unclaimed};
+use crate::chat::{Bots, Id, Platform, To, Unclaimed};
 use crate::core::Answerer;
 use crate::core::methods::{MEDIA, VENUE};
 
@@ -37,7 +37,7 @@ struct Request {
     /// 动作的参数：对象，没写的是空的。
     params: Map<String, Value>,
     /// 经哪个机器人号：没写的照这个平台连着的号里最小的那一个（施工 I-70 上：不跨平台）。
-    bot: Option<i64>,
+    bot: Option<Id>,
 }
 
 impl Request {
@@ -59,7 +59,7 @@ impl Request {
         };
         let bot = match &args["bot"] {
             Value::Null => None,
-            bot => Some(bot.as_i64()?),
+            bot => Some(serde_json::from_value::<Id>(bot.clone()).ok()?),
         };
         Some(Request {
             action: action.to_string(),
@@ -121,8 +121,8 @@ impl Route {
         let main = self.main_of(session);
         match self.peers.get(&main) {
             Some(peer) => {
-                let origin = self.origin_of(session, &main, (peer.platform, peer.to));
-                let plugins = self.hooks.plugins_on(peer.platform, peer.to);
+                let origin = self.origin_of(session, &main, (peer.platform, peer.to.clone()));
+                let plugins = self.hooks.plugins_on(peer.platform, peer.to.clone());
                 json!({"platform": peer.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin, "plugins": plugins})
             }
             None => json!({"venue": null}),
@@ -139,7 +139,7 @@ impl Route {
                 let Some(origin) = projection.origin(line) else {
                     return Value::Null;
                 };
-                let cached = self.members.names_in(platform, group, Instant::now());
+                let cached = self.members.names_in(platform, &group, Instant::now());
                 let person = |who: &ExternalId| {
                     let name = number(who)
                         .and_then(|user| cached.get(&user).cloned())
@@ -153,7 +153,7 @@ impl Route {
                 json!({"sender": person(&origin.sender), "quote": quote, "mentions": mentions})
             }
             To::Private(user) => {
-                let Ok(other) = platform.person(user) else {
+                let Ok(other) = platform.person(&user) else {
                     return Value::Null;
                 };
                 let quote = self
@@ -169,15 +169,15 @@ impl Route {
 }
 
 /// 平台上的人 `id` 的号。
-fn number(id: &ExternalId) -> Option<i64> {
-    id.as_str().rsplit_once(':')?.1.parse().ok()
+fn number(id: &ExternalId) -> Option<Id> {
+    Id::new(id.as_str().rsplit_once(':')?.1)
 }
 
 /// 办一次 `chat.action`：经那个号这时的连接调动作，NapCat 回了的（成没成）原样交回、拿掉 `echo`；没连着的、断了的拒
 /// `not_connected`，等不到的拒 `unanswered`。运行日志不记参数、不记回答。
 async fn act(id: Value, from: String, request: Request, bots: Arc<Bots>, answerer: Answerer) {
     let link = match request.bot {
-        Some(bot) => bots.get(bot),
+        Some(bot) => bots.get(&bot),
         None => bots.first().map(|(_, link)| link),
     };
     let Some(link) = link else {

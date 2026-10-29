@@ -1,5 +1,6 @@
 //! 读 NapCat 的回应（施工 I-2 上）：号是整数或者写成整数的字，读不出的行不要；名字照原样。
 
+use miyu_im::chat::Id;
 use serde_json::json;
 
 use super::{fetched, friends, group_name, groups, member, members, nickname};
@@ -16,12 +17,12 @@ fn group_and_friend_lists_keep_rows_with_a_number() {
         groups(&data),
         [
             Group {
-                id: 777,
+                id: Id::from(777),
                 name: Some("测试群".into()),
                 members: Some(12),
             },
             Group {
-                id: 666,
+                id: Id::from(666),
                 name: None,
                 members: Some(3),
             },
@@ -30,7 +31,7 @@ fn group_and_friend_lists_keep_rows_with_a_number() {
     assert_eq!(
         friends(&json!([{"user_id": 1, "nickname": "a"}, {"nickname": "没号"}])),
         [Friend {
-            id: 1,
+            id: Id::from(1),
             name: Some("a".into()),
         }]
     );
@@ -48,13 +49,13 @@ fn members_read_card_before_nickname_and_the_role() {
         members(&data),
         [
             Member {
-                user: 1,
+                user: Id::from(1),
                 name: Some("小明".into()),
                 rank: Some(Rank::Owner),
                 title: Some("龙王".into()),
             },
             Member {
-                user: 2,
+                user: Id::from(2),
                 name: Some("hong".into()),
                 rank: None,
                 title: None,
@@ -69,13 +70,13 @@ fn a_fetched_message_says_where_it_was() {
     let group = fetched(&json!({"group_id": "888", "user_id": 5, "message": "hi"}));
     assert_eq!(
         (group.private, group.group, group.user),
-        (false, Some(888), Some(5))
+        (false, Some(Id::from(888)), Some(Id::from(5)))
     );
     assert_eq!(group.segments.pieces.len(), 1);
     let private = fetched(&json!({"message_type": "private", "user_id": 6}));
     assert_eq!(
         (private.private, private.group, private.user),
-        (true, None, Some(6))
+        (true, None, Some(Id::from(6)))
     );
 }
 

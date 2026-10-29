@@ -5,7 +5,13 @@ use super::*;
 fn known(pairs: &[(&str, i64, To)]) -> HashMap<String, Known> {
     pairs
         .iter()
-        .map(|(session, bot, to)| (session.to_string(), Known { bot: *bot, to: *to }))
+        .map(|(session, bot, to)| {
+            let known = Known {
+                bot: Id::from(*bot),
+                to: to.clone(),
+            };
+            (session.to_string(), known)
+        })
         .collect()
 }
 
@@ -18,12 +24,12 @@ fn sessions_are_grouped_by_the_bot_that_took_them_in() {
         json!({"session": "s4", "venue": "qq:private:10001"}),
     ];
     let known = known(&[
-        ("s1", 100, To::Group(31)),
-        ("s2", 200, To::Private(7)),
-        ("s3", 100, To::Group(32)),
+        ("s1", 100, To::Group(Id::from(31))),
+        ("s2", 200, To::Private(Id::from(7))),
+        ("s3", 100, To::Group(Id::from(32))),
     ]);
-    let groups = HashMap::from([(31, "测试群".to_string())]);
-    let friends = HashMap::from([(7, "小明".to_string())]);
+    let groups = HashMap::from([(Id::from(31), "测试群".to_string())]);
+    let friends = HashMap::from([(Id::from(7), "小明".to_string())]);
     let answer = grouped(&sessions, &known, (&groups, &friends), "qq");
     assert_eq!(
         answer,

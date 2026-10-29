@@ -11,6 +11,7 @@ use std::collections::BTreeSet;
 use serde_json::{Value, json};
 
 use super::Route;
+use crate::chat::Id;
 use crate::core::methods::CARDS_OVERVIEW;
 use crate::rules::{Card, card_edit};
 use miyu_chat::VenueKind;
@@ -48,24 +49,23 @@ impl Route {
 
     /// 一张卡管的场所：交回认场所编号的那一段。
     fn wanted_venues(&self, card: Card) -> Option<Wanted> {
-        let key = |kind, number: u64| -> Option<String> {
-            let number = i64::try_from(number).ok()?;
+        let key = |kind, number: &Id| -> Option<String> {
             Some(self.card_venue(kind, number)?.id().to_string())
         };
         // 一种场所的编号的开头：照号 0 的编号去掉最后一段（`qq:group:`）。
         let prefix = |kind| -> Option<String> {
-            let one = key(kind, 0)?;
+            let one = key(kind, &Id::from(0))?;
             Some(format!("{}:", one.rsplit_once(':')?.0))
         };
         Some(match card {
             // 会话默认值不是哪个场所：没有概况。
             Card::Defaults => return None,
             Card::Group(id) => {
-                let one = key(VenueKind::Group, id)?;
+                let one = key(VenueKind::Group, &id)?;
                 Box::new(move |venue: &str| venue == one)
             }
             Card::Private(id) => {
-                let one = key(VenueKind::Private, id)?;
+                let one = key(VenueKind::Private, &id)?;
                 Box::new(move |venue: &str| venue == one)
             }
             Card::OtherGroups => {
@@ -74,7 +74,7 @@ impl Route {
                     .cards()
                     .groups
                     .iter()
-                    .filter_map(|card| key(VenueKind::Group, card.id))
+                    .filter_map(|card| key(VenueKind::Group, &card.id))
                     .collect();
                 let start = prefix(VenueKind::Group)?;
                 Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))
@@ -83,7 +83,7 @@ impl Route {
                 let listed: BTreeSet<String> = self
                     .whitelist_numbers()
                     .into_iter()
-                    .filter_map(|id| key(VenueKind::Private, id))
+                    .filter_map(|id| key(VenueKind::Private, &id))
                     .collect();
                 let start = prefix(VenueKind::Private)?;
                 Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))

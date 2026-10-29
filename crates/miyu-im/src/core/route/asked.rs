@@ -23,7 +23,7 @@ impl Route {
     ) {
         let model = match to {
             To::Group(group) => platform
-                .venue(miyu_chat::VenueKind::Group, group)
+                .venue(miyu_chat::VenueKind::Group, &group)
                 .ok()
                 .and_then(|venue| self.applied(&venue).params.judge.model),
             To::Private(_) => None,

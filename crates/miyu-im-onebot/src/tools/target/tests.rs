@@ -3,6 +3,7 @@
 //! 时长的写法。
 
 use miyu_client::ids::ExternalId;
+use miyu_im::chat::Id;
 use serde_json::json;
 
 use miyu_im::chat::{Fetched, Platform, To};
@@ -46,6 +47,15 @@ fn quote(msg: &str, sender: Option<i64>) -> Option<Quote> {
         msg: msg.to_string(),
         sender: sender.map(qq),
     })
+}
+
+/// 照整数写的号（测试里好写）换成宿主的号。
+fn ids(arg: Arg<Vec<i64>>) -> Arg<Vec<Id>> {
+    match arg {
+        Arg::Given(list) => Arg::Given(list.into_iter().map(Id::from).collect()),
+        Arg::Absent => Arg::Absent,
+        Arg::Bad(bad) => Arg::Bad(bad),
+    }
 }
 
 /// 在群里定。
@@ -150,7 +160,10 @@ fn orders_are_read_from_the_tool_with_what_she_gives() {
     ] {
         assert_eq!(
             Order::read("qq_mute", &args),
-            Some(Order::Mute { seconds, users }),
+            Some(Order::Mute {
+                seconds,
+                users: ids(users)
+            }),
             "{args}"
         );
     }
@@ -278,7 +291,7 @@ fn mute_takes_the_user_she_gives_over_the_quote() {
     let at_one = origin(40009, None, &[40002]);
     let given = |users: Arg<Vec<i64>>| Order::Mute {
         seconds: Some(600),
-        users,
+        users: ids(users),
     };
     assert_eq!(
         in_group(
@@ -319,7 +332,7 @@ fn mute_takes_the_user_she_gives_over_the_quote() {
     // 秒数先看。
     let no_seconds = Order::Mute {
         seconds: None,
-        users: Arg::Given(vec![40005]),
+        users: Arg::Given(vec![Id::from(40005)]),
     };
     assert_eq!(
         in_group(no_seconds, &caller(40009), None),
@@ -355,14 +368,18 @@ fn poke_takes_the_user_she_gives_over_the_mention() {
     let at_one = origin(BOSS, None, &[40002]);
     assert_eq!(
         Order::read("qq_poke", &json!({"user": "40003"})),
-        Some(Order::Poke(Arg::Given(40003)))
+        Some(Order::Poke(Arg::Given(Id::from(40003))))
     );
     assert_eq!(
-        in_group(Order::Poke(Arg::Given(40003)), &anyone, Some(&at_one)),
+        in_group(
+            Order::Poke(Arg::Given(Id::from(40003))),
+            &anyone,
+            Some(&at_one)
+        ),
         Plan::Poke(qq(40003))
     );
     assert_eq!(
-        in_group(Order::Poke(Arg::Given(40003)), &anyone, None),
+        in_group(Order::Poke(Arg::Given(Id::from(40003))), &anyone, None),
         Plan::Poke(qq(40003)),
         "没有她在回的那一条也戳得了"
     );
@@ -397,12 +414,22 @@ fn a_private_chat_recalls_any_quote_and_pokes_the_peer() {
         "私聊只戳对方"
     );
     assert_eq!(
-        plan(Order::Poke(Arg::Given(BOSS)), &anyone, None, &scene),
+        plan(
+            Order::Poke(Arg::Given(Id::from(BOSS))),
+            &anyone,
+            None,
+            &scene
+        ),
         Plan::Poke(peer.clone()),
         "给的是对方照戳"
     );
     assert_eq!(
-        plan(Order::Poke(Arg::Given(40002)), &anyone, None, &scene),
+        plan(
+            Order::Poke(Arg::Given(Id::from(40002))),
+            &anyone,
+            None,
+            &scene
+        ),
         Plan::Refuse(Why::NoTarget),
         "私聊里戳不了别人"
     );
@@ -420,28 +447,60 @@ fn a_given_msg_is_recallable_only_in_this_chat() {
         user,
         segments: Default::default(),
     };
-    let group = To::Group(888);
-    assert!(recallable(&one(false, Some(888), Some(40001)), group, ME));
+    let group = To::Group(Id::from(888));
+    assert!(recallable(
+        &one(false, Some(Id::from(888)), Some(Id::from(40001))),
+        &group,
+        &Id::from(ME)
+    ));
     assert!(
-        recallable(&one(false, Some(888), Some(ME)), group, ME),
+        recallable(
+            &one(false, Some(Id::from(888)), Some(Id::from(ME))),
+            &group,
+            &Id::from(ME)
+        ),
         "她自己的也算"
     );
     assert!(
-        !recallable(&one(false, Some(999), None), group, ME),
+        !recallable(
+            &one(false, Some(Id::from(999)), None),
+            &group,
+            &Id::from(ME)
+        ),
         "别的群的"
     );
-    assert!(!recallable(&one(true, None, Some(40001)), group, ME));
-    let private = To::Private(BOSS);
-    assert!(recallable(&one(true, None, Some(BOSS)), private, ME));
+    assert!(!recallable(
+        &one(true, None, Some(Id::from(40001))),
+        &group,
+        &Id::from(ME)
+    ));
+    let private = To::Private(Id::from(BOSS));
+    assert!(recallable(
+        &one(true, None, Some(Id::from(BOSS))),
+        &private,
+        &Id::from(ME)
+    ));
     assert!(
-        recallable(&one(true, None, Some(ME)), private, ME),
+        recallable(
+            &one(true, None, Some(Id::from(ME))),
+            &private,
+            &Id::from(ME)
+        ),
         "她发给他的"
     );
     assert!(
-        !recallable(&one(true, None, Some(40001)), private, ME),
+        !recallable(
+            &one(true, None, Some(Id::from(40001))),
+            &private,
+            &Id::from(ME)
+        ),
         "别人的私聊"
     );
-    assert!(!recallable(&one(false, Some(888), Some(BOSS)), private, ME));
+    assert!(!recallable(
+        &one(false, Some(Id::from(888)), Some(Id::from(BOSS))),
+        &private,
+        &Id::from(ME)
+    ));
 }
 
 #[test]

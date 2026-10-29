@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use tokio::sync::{mpsc, watch};
 
 use crate::changed::Changed;
-use crate::chat::{Bots, Cap, Event, Platform, Replier, To};
+use crate::chat::{Bots, Cap, Event, Id, Platform, Replier, To};
 use crate::core::hooks::Hooks;
 use crate::current::Current;
 use crate::plugins::Builtin;
@@ -193,7 +193,7 @@ impl Gate {
 
     /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：
     /// 只问在那个场所开着的插件），认不出的是空的。带上这个驱动的平台（施工 I-70 上）。
-    pub fn event(&self, bot: i64, to: Option<To>, event: &Value) {
+    pub fn event(&self, bot: Id, to: Option<To>, event: &Value) {
         self.hooks.event(self.platform, bot, to, event);
     }
 
@@ -215,7 +215,7 @@ impl Gate {
     /// `name` 不是 `ToolSet::facts` 里的、少了它要的字段：是 bug。
     pub async fn note(
         &self,
-        (bot, to): (i64, To),
+        (bot, to): (Id, To),
         kind: &'static str,
         name: &str,
         fields: &[(&str, &str)],

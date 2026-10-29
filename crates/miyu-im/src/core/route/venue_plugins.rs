@@ -55,7 +55,12 @@ impl Route {
         let venues: BTreeMap<String, (Platform, To)> = self
             .peers
             .values()
-            .map(|peer| (peer.venue.as_str().to_string(), (peer.platform, peer.to)))
+            .map(|peer| {
+                (
+                    peer.venue.as_str().to_string(),
+                    (peer.platform, peer.to.clone()),
+                )
+            })
             .collect();
         for (venue, at) in venues {
             self.tell_plugins(&venue, at).await?;

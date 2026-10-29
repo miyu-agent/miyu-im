@@ -24,6 +24,7 @@
 //! - `plugins.widget`：插件往页面加的内容（施工 I-8 下，`plugin_widgets`）。
 //! - 别的：`unknown_method`。
 
+use crate::chat::Id;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -116,13 +117,13 @@ fn reactions(site: &Arc<Site>) -> Value {
 fn connections(site: &Arc<Site>) -> Vec<Value> {
     let platform = site.running.first().platform.name();
     let avatars = !site.running.tuning.avatar_user_url.is_empty();
-    let card = |bot: i64, connected: bool, since: SystemTime| {
+    let card = |bot: Id, connected: bool, since: SystemTime| {
         let mut one = Map::new();
         one.insert("platform".into(), json!(platform));
         one.insert("bot".into(), json!(bot.to_string()));
         one.insert("connected".into(), json!(connected));
         one.insert("since".into(), json!(millis(since)));
-        if let Some(name) = site.faces.name(site, bot) {
+        if let Some(name) = site.faces.name(site, bot.clone()) {
             one.insert("name".into(), json!(name));
         }
         if avatars {

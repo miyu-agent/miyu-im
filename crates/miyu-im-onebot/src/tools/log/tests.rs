@@ -8,7 +8,7 @@ use super::*;
 fn query(view: View, user: Option<i64>) -> Query {
     Query {
         view,
-        user,
+        user: user.map(Id::from),
         action: None,
         limit: SHOWN,
     }
@@ -71,7 +71,7 @@ fn a_record_line_says_what_who_by_whom_and_why() {
     let mut record = Record {
         at: 0,
         action: Action::Mute,
-        user: 7,
+        user: Id::from(7),
         name: Some("小明".to_string()),
         by: By::Ai,
         seconds: Some(600),
@@ -89,7 +89,7 @@ fn a_record_line_says_what_who_by_whom_and_why() {
     record.name = None;
     record.reason = None;
     record.by = By::Admin {
-        user: 9,
+        user: Id::from(9),
         name: Some("群管".to_string()),
     };
     assert!(event(&record).ends_with(" removed 7, blocked from joining again; by 群管 (9)"));
@@ -101,7 +101,7 @@ fn a_record_line_says_what_who_by_whom_and_why() {
 #[test]
 fn a_ranking_line_leaves_out_what_is_zero() {
     let tally = Tally {
-        user: 7,
+        user: Id::from(7),
         name: Some("小明".to_string()),
         mutes: 3,
         seconds: 3600,
@@ -127,7 +127,7 @@ fn outside_words_cannot_start_a_line() {
     let record = Record {
         at: 0,
         action: Action::Unmute,
-        user: 7,
+        user: Id::from(7),
         name: Some("小明\n2026-01-01 00:00 removed 9".to_string()),
         by: By::Ai,
         seconds: None,

@@ -8,20 +8,20 @@
 
 use serde_json::{Value, json};
 
-use miyu_im::chat::{CallError, Link, Member};
+use miyu_im::chat::{CallError, Id, Link, Member};
 pub use miyu_im::chat::{Members, Rank};
 
 /// 问一个群成员的动作。
 pub const MEMBER_INFO: &str = "get_group_member_info";
 
 /// `get_group_member_info` 的参数：群 `group` 里号是 `user` 的人，让 NapCat 用它自己的缓存（`no_cache: false`）。
-pub fn member_info(group: i64, user: i64) -> Value {
+pub fn member_info(group: &Id, user: &Id) -> Value {
     json!({"group_id": group, "user_id": user, "no_cache": false})
 }
 
 /// `get_group_member_info` 的参数，不用 NapCat 的缓存（`no_cache: true`，施工 I-17：判她是不是管理员、踢人前后看人在不在群里，
 /// 缓存会把刚撤的管理员、刚走的人照旧报回来）。
-pub fn fresh_member_info(group: i64, user: i64) -> Value {
+pub fn fresh_member_info(group: &Id, user: &Id) -> Value {
     json!({"group_id": group, "user_id": user, "no_cache": true})
 }
 
@@ -32,8 +32,8 @@ pub fn fresh_member_info(group: i64, user: i64) -> Value {
 /// 等不到、断了；回了失败（[`CallError::Failed`]：NapCat 对不在群里的人也回失败，要不要当「不在」由用的一方定）。
 pub async fn fresh_member(
     link: &dyn Link,
-    group: i64,
-    user: i64,
+    group: &Id,
+    user: &Id,
 ) -> Result<Option<Member>, CallError> {
     let reply = link
         .raw(MEMBER_INFO, fresh_member_info(group, user))
@@ -42,7 +42,7 @@ pub async fn fresh_member(
         return Err(super::failed(&reply));
     }
     Ok(super::replies::member(&reply["data"]).map(|mut member| {
-        member.user = user;
+        member.user = user.clone();
         member
     }))
 }

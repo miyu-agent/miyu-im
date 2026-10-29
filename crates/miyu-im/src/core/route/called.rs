@@ -303,7 +303,10 @@ impl Route {
             tag: tag(heard),
             chatty: params.chatty,
         };
-        let at = self.peers.get(session).map(|peer| (peer.platform, peer.to));
+        let at = self
+            .peers
+            .get(session)
+            .map(|peer| (peer.platform, peer.to.clone()));
         self.judges.start(judging, asking, at);
     }
 

@@ -3,6 +3,7 @@
 //! 「出站队列」第 7 条）：禁的是她的才认，0 秒、`lift_ban` 是解禁；别人、全员、没带秒数、负的、别的种类不认。请求（施工 O-27，
 //! 「好友请求」）：加好友的认出号和标记，邀请她进群的认出群和邀请的人；入群申请、没带标记的、缺了号的不认。
 
+use miyu_im::chat::Id;
 use serde_json::{Value, json};
 
 use miyu_im_onebot::onebot::{
@@ -34,12 +35,17 @@ fn event(frame: Value) -> Event {
 
 #[test]
 fn a_group_message_carries_its_group_sender_name_and_segments() {
-    let Event::Group { group: 555, posted } = event(group(
+    let Event::Group {
+        group: in_group,
+        posted,
+    } = event(group(
         json!(20002),
         json!({"card": "小林", "nickname": "lin"}),
-    )) else {
+    ))
+    else {
         panic!("该认成群 555 的消息");
     };
+    assert_eq!(in_group, Id::from(555));
     let Posted {
         bot,
         user,
@@ -52,14 +58,14 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
     } = posted;
     assert_eq!(
         (bot, user, message_id, time),
-        (30003, 20002, 9, 1_759_800_000)
+        (Id::from(30003), Id::from(20002), 9, 1_759_800_000)
     );
     assert_eq!(name.as_deref(), Some("小林"));
     assert_eq!(rank, None, "没带 role 的不知道（施工 O-31）");
     assert_eq!(text, "在", "只有字");
     assert_eq!(
         segments.pieces,
-        [Piece::Text("在".to_string()), Piece::At(20003)]
+        [Piece::Text("在".to_string()), Piece::At(Id::from(20003))]
     );
     for (sender, wanted) in [
         (json!({"card": " \t", "nickname": "阿杰"}), Some("阿杰")),
@@ -127,10 +133,10 @@ fn recalls_name_who_recalled() {
     assert_eq!(
         event(in_group.clone()),
         Event::Recalled(Recall {
-            bot: 30003,
-            group: Some(555),
-            user: 20002,
-            by: 40004,
+            bot: Id::from(30003),
+            group: Some(Id::from(555)),
+            user: Id::from(20002),
+            by: Id::from(40004),
             message_id: 1,
         })
     );
@@ -140,10 +146,10 @@ fn recalls_name_who_recalled() {
     assert_eq!(
         event(in_private),
         Event::Recalled(Recall {
-            bot: 30003,
+            bot: Id::from(30003),
             group: None,
-            user: 10001,
-            by: 10001,
+            user: Id::from(10001),
+            by: Id::from(10001),
             message_id: 2,
         })
     );
@@ -173,15 +179,15 @@ fn ban(user: Value, sub_type: &str, duration: Value) -> Value {
 #[test]
 fn her_own_ban_is_a_mute_and_others_are_group_changes() {
     let muted = |seconds| Event::Muted {
-        bot: 30003,
-        group: 555,
+        bot: Id::from(30003),
+        group: Id::from(555),
         seconds,
-        operator: Some(40004),
+        operator: Some(Id::from(40004)),
     };
     let unmuted = Event::Unmuted {
-        bot: 30003,
-        group: 555,
-        operator: Some(40004),
+        bot: Id::from(30003),
+        group: Id::from(555),
+        operator: Some(Id::from(40004)),
     };
     assert_eq!(event(ban(json!(30003), "ban", json!(600))), muted(600));
     assert_eq!(
@@ -206,8 +212,8 @@ fn her_own_ban_is_a_mute_and_others_are_group_changes() {
         assert_eq!(
             event(unknown),
             Event::Muted {
-                bot: 30003,
-                group: 555,
+                bot: Id::from(30003),
+                group: Id::from(555),
                 seconds: 600,
                 operator: None
             }
@@ -217,11 +223,11 @@ fn her_own_ban_is_a_mute_and_others_are_group_changes() {
     assert_eq!(
         event(ban(json!(20002), "ban", json!(600))),
         Event::Happened(miyu_im::chat::Happened {
-            bot: 30003,
-            group: 555,
+            bot: Id::from(30003),
+            group: Id::from(555),
             change: miyu_im::chat::GroupChange::Muted,
-            user: 20002,
-            operator: Some(40004),
+            user: Id::from(20002),
+            operator: Some(Id::from(40004)),
             seconds: Some(600),
         })
     );
@@ -252,8 +258,8 @@ fn request(request_type: &str, sub_type: Value, user: Value, flag: Value) -> Val
 #[test]
 fn friend_requests_and_group_invites_are_read() {
     let befriend = Event::Befriend {
-        bot: 30003,
-        user: 20003,
+        bot: Id::from(30003),
+        user: Id::from(20003),
         flag: "f-1".to_string(),
     };
     assert_eq!(
@@ -273,9 +279,9 @@ fn friend_requests_and_group_invites_are_read() {
             json!("g-1")
         )),
         Event::Invited {
-            bot: 30003,
-            group: 888,
-            user: 20003,
+            bot: Id::from(30003),
+            group: Id::from(888),
+            user: Id::from(20003),
         }
     );
     for (name, frame) in [
@@ -316,7 +322,7 @@ fn her_message_leads_with_the_quote_and_each_mention_once() {
             "40005".to_string(),
         ],
     };
-    let (action, params) = message_to(To::Group(888), "开会了", &lead);
+    let (action, params) = message_to(To::Group(Id::from(888)), "开会了", &lead);
     assert_eq!(action, "send_group_msg");
     let space = json!({"type": "text", "data": {"text": " "}});
     assert_eq!(

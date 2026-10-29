@@ -3,6 +3,7 @@
 use serde_json::json;
 
 use super::card;
+use miyu_im::chat::Id;
 
 #[test]
 fn the_card_is_trimmed_and_the_user_is_optional() {
@@ -12,7 +13,7 @@ fn the_card_is_trimmed_and_the_user_is_optional() {
     );
     assert_eq!(
         card(&json!({"user": "40001", "card": "小明"})),
-        Ok((Some(40001), "小明".to_string())),
+        Ok((Some(Id::from(40001)), "小明".to_string())),
         "号写成字的也认"
     );
     assert_eq!(

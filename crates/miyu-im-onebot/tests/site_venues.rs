@@ -225,7 +225,7 @@ async fn the_venue_page_reads_and_changes_the_cards_through_the_core() {
     assert_eq!(got["result"]["cards"]["groups"], json!([]), "{got}");
 
     // 写错的读的一头拒，核心转成 `method_failed`；整份存（cards.save）不转。
-    let (bad, _) = call_noting(&mut open, 11, "cards.add", json!({"value": "x"})).await;
+    let (bad, _) = call_noting(&mut open, 11, "cards.add", json!({"value": "a b"})).await;
     assert_eq!(bad["error"]["reason"], "method_failed", "{bad}");
     let (whole, _) = call_noting(&mut open, 12, "cards.save", json!({"cards": {}})).await;
     assert_eq!(whole["error"]["reason"], "unknown_method", "{whole}");

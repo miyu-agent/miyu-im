@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::{CallError, Fetch, Lead, Node, Rank, Segments, Source, To};
+use super::{CallError, Fetch, Id, Lead, Node, Rank, Segments, Source, To};
 
 /// 一次调用的结局。
 pub type Reply<'a, T> = Pin<Box<dyn Future<Output = Result<T, CallError>> + Send + 'a>>;
@@ -45,7 +45,7 @@ pub enum Outgoing<'a> {
     /// 一条合并转发（施工 O-59 下）：每一段 `nodes` 一个节点，发的人照机器人号 `bot`、名字 `nickname`。
     Forward {
         /// 机器人号。
-        bot: i64,
+        bot: &'a Id,
         /// 节点上写的名字。
         nickname: &'a str,
         /// 每个节点的字。
@@ -76,9 +76,9 @@ pub struct Fetched {
     /// 是私聊里的。
     pub private: bool,
     /// 群里的：群号；读不出的是空的。
-    pub group: Option<i64>,
+    pub group: Option<Id>,
     /// 发的人的号；读不出的是空的。
-    pub user: Option<i64>,
+    pub user: Option<Id>,
     /// 认出来的段。
     pub segments: Segments,
 }
@@ -96,7 +96,7 @@ pub struct Located {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Member {
     /// 号。
-    pub user: i64,
+    pub user: Id,
     /// 在群里叫什么：群名片，空白的取昵称；都没有的是空的。照原样，没洗。
     pub name: Option<String>,
     /// 群里的身份；没带、认不出的是空的。
@@ -109,7 +109,7 @@ pub struct Member {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Group {
     /// 群号。
-    pub id: i64,
+    pub id: Id,
     /// 群名，照原样；没有的是空的。
     pub name: Option<String>,
     /// 多少人；没有的是空的。
@@ -120,7 +120,7 @@ pub struct Group {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Friend {
     /// 号。
-    pub id: i64,
+    pub id: Id,
     /// 昵称，照原样；没有的是空的。
     pub name: Option<String>,
 }
@@ -178,13 +178,13 @@ pub trait Link: Send + Sync + fmt::Debug {
     fn recall<'a>(&'a self, message: Msg<'a>) -> Reply<'a, ()>;
 
     /// 在群 `group` 里禁言号是 `user` 的人 `seconds` 秒，0 是解禁（施工 O-31）。
-    fn mute(&self, group: i64, user: i64, seconds: u64) -> Reply<'_, ()>;
+    fn mute<'a>(&'a self, group: &'a Id, user: &'a Id, seconds: u64) -> Reply<'a, ()>;
 
     /// 把号是 `user` 的人移出群 `group`，`block` 的以后不收他的加群申请（施工 Q-2，群管理的踢人）。
-    fn kick(&self, group: i64, user: i64, block: bool) -> Reply<'_, ()>;
+    fn kick<'a>(&'a self, group: &'a Id, user: &'a Id, block: bool) -> Reply<'a, ()>;
 
     /// 在 `to` 那里戳一戳号是 `user` 的人（施工 O-31）。
-    fn poke(&self, to: To, user: i64) -> Reply<'_, ()>;
+    fn poke<'a>(&'a self, to: To, user: &'a Id) -> Reply<'a, ()>;
 
     /// 在平台编号是 `message` 的那一条上贴（`on`）、摘表情 `emoji`（施工 O-25 下）。
     fn react<'a>(&'a self, message: &'a str, emoji: &'a str, on: bool) -> Reply<'a, ()>;
@@ -196,10 +196,10 @@ pub trait Link: Send + Sync + fmt::Debug {
     fn join_request<'a>(&'a self, flag: &'a str, approve: bool, reason: &'a str) -> Reply<'a, ()>;
 
     /// 群 `group` 的群文件：`folder` 是哪个文件夹，空的是最外一层（施工 I-12）。
-    fn group_files<'a>(&'a self, group: i64, folder: Option<&'a str>) -> Reply<'a, GroupFiles>;
+    fn group_files<'a>(&'a self, group: &'a Id, folder: Option<&'a str>) -> Reply<'a, GroupFiles>;
 
     /// 群 `group` 里编号是 `file` 的群文件的下载地址（施工 I-12）。
-    fn group_file_url<'a>(&'a self, group: i64, file: &'a str) -> Reply<'a, String>;
+    fn group_file_url<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, String>;
 
     /// 取平台编号是 `id` 的那一条消息（施工 O-33）。
     fn message<'a>(&'a self, id: &'a str) -> Reply<'a, Fetched>;
@@ -211,10 +211,10 @@ pub trait Link: Send + Sync + fmt::Debug {
     fn forwarded<'a>(&'a self, id: &'a str) -> Reply<'a, Option<Vec<Node>>>;
 
     /// 群 `group` 的成员（施工 O-54）。
-    fn members(&self, group: i64) -> Reply<'_, Vec<Member>>;
+    fn members<'a>(&'a self, group: &'a Id) -> Reply<'a, Vec<Member>>;
 
     /// 群 `group` 里号是 `user` 的那个人（施工 O-22）。
-    fn member(&self, group: i64, user: i64) -> Reply<'_, Member>;
+    fn member<'a>(&'a self, group: &'a Id, user: &'a Id) -> Reply<'a, Member>;
 
     /// 机器人在的群（施工 O-58 上）。
     fn groups(&self) -> Reply<'_, Vec<Group>>;
@@ -223,7 +223,7 @@ pub trait Link: Send + Sync + fmt::Debug {
     fn friends(&self) -> Reply<'_, Vec<Friend>>;
 
     /// 群 `group` 的群名，照原样；回了没有的是空的（施工 O-32）。
-    fn group_name(&self, group: i64) -> Reply<'_, Option<String>>;
+    fn group_name<'a>(&'a self, group: &'a Id) -> Reply<'a, Option<String>>;
 
     /// 机器人自己在平台上叫什么，照原样；回了没有的是空的（施工 I-6 中：页面的连接卡）。
     fn nickname(&self) -> Reply<'_, Option<String>>;

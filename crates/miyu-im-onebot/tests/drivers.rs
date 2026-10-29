@@ -9,8 +9,8 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
-use miyu_im::chat::To;
 use miyu_im::chat::fake::Asked;
+use miyu_im::chat::{Id, To};
 use miyu_im::serve::{Failure, Serve, run};
 
 use crate::status_file::until_file;
@@ -39,7 +39,7 @@ async fn up(said: &[&'static str]) -> Two {
     let (serve, relay) = serve_handed(home.root.clone(), config, None);
     let bridge = start(with_tg(serve, &tg, &package)).await;
     let napcat = admin_napcat(bridge.port).await;
-    let link = tg.connect(BOT).await;
+    let link = tg.connect(Id::from(BOT)).await;
     Two {
         home,
         bridge,
@@ -87,13 +87,41 @@ fn text(result: &Value) -> &str {
 }
 
 #[tokio::test]
+async fn ids_written_as_text_get_through_like_numbers() {
+    // 施工 I-79：别的平台的机器人号、对方的号是一串字（QQ 官方机器人、微信）。场所、平台上的人照字拼，回话经那个号的连接发给那个号。
+    let mut two = up(&["字也认"]).await;
+    let bot = Id::new("tgbot_x").expect("合写法");
+    let boss = Id::new(TEXT_ADMIN).expect("合写法");
+    let mut second = two.tg.connect(bot.clone()).await;
+    two.tg.says_as((&bot, &boss), 9, "在吗").await;
+    assert_eq!(
+        Telegram::sent(&mut second).await,
+        (To::Private(boss), "字也认".to_string()),
+        "经号是字的那条连接发给号是字的人"
+    );
+    assert!(two.link.try_recv().is_err(), "另一个号的连接没发");
+    session_of(&two.home, "tg:private:boss_7");
+    let said = two.home.said();
+    let heard = said
+        .iter()
+        .find(|one| one["by"]["via"] == "tg:boss_7")
+        .expect("平台上的人照字拼");
+    assert_eq!(
+        heard["cause"],
+        json!(format!("tg:tgbot_x:9:{TIME}")),
+        "命令编号里的机器人号也是字"
+    );
+    two.bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
 async fn each_platform_hears_and_answers_on_its_own_link() {
     let mut two = up(&["tg 在", "qq 在"]).await;
     // 同一个机器人号、同一个人、同一个消息编号和时刻：先 tg，再 QQ。
     two.tg.says(BOT, 501, "在吗").await;
     assert_eq!(
         Telegram::sent(&mut two.link).await,
-        (To::Private(ADMIN), "tg 在".to_string()),
+        (To::Private(Id::from(ADMIN)), "tg 在".to_string()),
         "tg 的回话经 tg 的连接发"
     );
     two.napcat.admin_says(501, "在吗").await;

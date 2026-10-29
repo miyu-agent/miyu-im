@@ -31,7 +31,7 @@ pub use forwards::{Node, forward_messages, get_forward_msg, node};
 pub use members::{
     MEMBER_INFO, Members, Rank, display_name, fresh_member, fresh_member_info, member_info, rank_of,
 };
-pub use miyu_im::chat::{Event, Lead, Platform, Posted, Recall, To};
+pub use miyu_im::chat::{Event, Id, Lead, Platform, Posted, Recall, To};
 pub use segments::{FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments, segments};
 pub use send::{forward_to, image_to, message_to, picture_to};
 pub use text::text_of;
@@ -75,8 +75,8 @@ pub fn read(frame: Value) -> Frame {
 /// 一条消息：私聊、群的，号都带得出、不是机器人自己发的（「施工时定的」第 69 条）才是。
 fn posted(frame: &Value) -> Option<Event> {
     let (bot, user, message_id) = (
-        number(&frame["self_id"])?,
-        number(&frame["user_id"])?,
+        id(&frame["self_id"])?,
+        id(&frame["user_id"])?,
         number(&frame["message_id"])?,
     );
     if user == bot {
@@ -84,7 +84,7 @@ fn posted(frame: &Value) -> Option<Event> {
     }
     let group = match frame["message_type"].as_str() {
         Some("private") => None,
-        Some("group") => Some(number(&frame["group_id"])?),
+        Some("group") => Some(id(&frame["group_id"])?),
         _ => return None,
     };
     let posted = Posted {
@@ -106,16 +106,13 @@ fn posted(frame: &Value) -> Option<Event> {
 /// 一次撤回：群的（`group_recall`）、私聊的（`friend_recall`），号都带得出的才是。
 fn recall(frame: &Value) -> Option<Event> {
     let (bot, user, message_id) = (
-        number(&frame["self_id"])?,
-        number(&frame["user_id"])?,
+        id(&frame["self_id"])?,
+        id(&frame["user_id"])?,
         number(&frame["message_id"])?,
     );
     let (group, by) = match frame["notice_type"].as_str() {
-        Some("group_recall") => (
-            Some(number(&frame["group_id"])?),
-            number(&frame["operator_id"])?,
-        ),
-        Some("friend_recall") => (None, user),
+        Some("group_recall") => (Some(id(&frame["group_id"])?), id(&frame["operator_id"])?),
+        Some("friend_recall") => (None, user.clone()),
         _ => return None,
     };
     Some(Event::Recalled(Recall {
@@ -135,9 +132,9 @@ fn ban(frame: &Value) -> Option<Event> {
         return None;
     }
     let (bot, user, group) = (
-        number(&frame["self_id"])?,
-        number(&frame["user_id"])?,
-        number(&frame["group_id"])?,
+        id(&frame["self_id"])?,
+        id(&frame["user_id"])?,
+        id(&frame["group_id"])?,
     );
     if user != bot {
         return None;
@@ -148,7 +145,7 @@ fn ban(frame: &Value) -> Option<Event> {
         _ => return None,
     };
     // 谁禁的、谁解的（施工 O-50）：0 和没带的当不知道。
-    let operator = number(&frame["operator_id"]).filter(|operator| *operator > 0);
+    let operator = positive(&frame["operator_id"]);
     Some(match seconds {
         0 => Event::Unmuted {
             bot,
@@ -167,7 +164,7 @@ fn ban(frame: &Value) -> Option<Event> {
 /// 请求（施工 O-27，「好友请求」）：加好友的（`friend`，带得出号、不空的标记）、邀请她进群的（`group` 里 `sub_type` 是
 /// `invite`，带得出号、群号）才是；入群申请（`sub_type` 是 `add`，随入群审批那一步）、别的不是。
 fn request(frame: &Value) -> Option<Event> {
-    let (bot, user) = (number(&frame["self_id"])?, number(&frame["user_id"])?);
+    let (bot, user) = (id(&frame["self_id"])?, id(&frame["user_id"])?);
     match frame["request_type"].as_str()? {
         "friend" => {
             let flag = frame["flag"].as_str().filter(|flag| !flag.is_empty())?;
@@ -179,7 +176,7 @@ fn request(frame: &Value) -> Option<Event> {
         }
         "group" if frame["sub_type"] == "invite" => Some(Event::Invited {
             bot,
-            group: number(&frame["group_id"])?,
+            group: id(&frame["group_id"])?,
             user,
         }),
         _ => None,
@@ -189,14 +186,24 @@ fn request(frame: &Value) -> Option<Event> {
 /// 通知、请求是哪个场所的（施工 I-8 上：挂接点照场所开关问插件）：带群号的是那个群，不然带对方的号的是和他的私聊；都没有的
 /// 是空的。
 pub fn event_to(frame: &Value) -> Option<To> {
-    number(&frame["group_id"])
+    id(&frame["group_id"])
         .map(To::Group)
-        .or_else(|| number(&frame["user_id"]).map(To::Private))
+        .or_else(|| id(&frame["user_id"]).map(To::Private))
 }
 
 /// 事件里机器人的号（`self_id`）：连进来时没带 `X-Self-ID` 的，照第一条事件的认（第 2 条）。
-pub fn self_id(frame: &Value) -> Option<i64> {
-    number(&frame["self_id"])
+pub fn self_id(frame: &Value) -> Option<Id> {
+    id(&frame["self_id"])
+}
+
+/// 一个号（群号、QQ 号、机器人的号）：同 [`number`]，交给宿主的是字（施工 I-79：宿主里的号是字）。
+pub fn id(value: &Value) -> Option<Id> {
+    number(value).map(Id::from)
+}
+
+/// 一个正的号：0 和没带的当不知道（谁禁的、谁解的）。
+pub fn positive(value: &Value) -> Option<Id> {
+    number(value).filter(|number| *number > 0).map(Id::from)
 }
 
 /// 一个号或者时刻：整数，或者写成整数的字符串。
@@ -230,7 +237,7 @@ pub fn delete_msg(message_id: impl Into<Value>) -> (&'static str, Value) {
 
 /// 在群 `group` 里禁言号是 `user` 的人 `seconds` 秒的动作和参数（0 是解禁）：`set_group_ban {group_id, user_id, duration}`（施工
 /// O-31，「平台工具（一）」第 1 条）。
-pub fn group_ban(group: i64, user: i64, seconds: u64) -> (&'static str, Value) {
+pub fn group_ban(group: &Id, user: &Id, seconds: u64) -> (&'static str, Value) {
     (
         "set_group_ban",
         json!({"group_id": group, "user_id": user, "duration": seconds}),
@@ -239,7 +246,7 @@ pub fn group_ban(group: i64, user: i64, seconds: u64) -> (&'static str, Value) {
 
 /// 把号是 `user` 的人移出群 `group` 的动作和参数：`set_group_kick {group_id, user_id, reject_add_request}`，`block` 的以后不收他的
 /// 加群申请（施工 Q-2）。
-pub fn group_kick(group: i64, user: i64, block: bool) -> (&'static str, Value) {
+pub fn group_kick(group: &Id, user: &Id, block: bool) -> (&'static str, Value) {
     (
         "set_group_kick",
         json!({"group_id": group, "user_id": user, "reject_add_request": block}),
@@ -248,7 +255,7 @@ pub fn group_kick(group: i64, user: i64, block: bool) -> (&'static str, Value) {
 
 /// 戳一戳号是 `user` 的人的动作和参数（施工 O-31）：在 `to` 那个群里 `group_poke {group_id, user_id}`，私聊里
 /// `friend_poke {user_id}`（NapCat 的 `SendPoke.ts`：群号没写的是私聊）。
-pub fn poke(to: To, user: i64) -> (&'static str, Value) {
+pub fn poke(to: To, user: &Id) -> (&'static str, Value) {
     match to {
         To::Group(group) => ("group_poke", json!({"group_id": group, "user_id": user})),
         To::Private(_) => ("friend_poke", json!({"user_id": user})),

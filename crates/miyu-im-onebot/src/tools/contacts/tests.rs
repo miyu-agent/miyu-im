@@ -14,9 +14,9 @@ fn the_kind_is_friends_unless_groups_is_asked() {
 #[test]
 fn people_are_found_by_name_or_number_and_capped() {
     let people = [
-        (10001, Some("小明".to_string())),
-        (10002, Some("阿\n杰".to_string())),
-        (20003, None),
+        (Id::from(10001), Some("小明".to_string())),
+        (Id::from(10002), Some("阿\n杰".to_string())),
+        (Id::from(20003), None),
     ];
     assert_eq!(
         listed(&people, None, 50),

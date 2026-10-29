@@ -23,7 +23,7 @@ use super::policy::Wanted;
 use super::projection::Projection;
 use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::core::{Gone, reason};
 use crate::rules::Applied;
 
@@ -32,7 +32,7 @@ use crate::rules::Applied;
 #[derive(Debug, Clone)]
 pub(super) struct Peer {
     pub(super) platform: Platform,
-    pub(super) bot: i64,
+    pub(super) bot: Id,
     pub(super) to: To,
     pub(super) venue: VenueId,
 }
@@ -58,7 +58,7 @@ impl Place {
     pub(super) fn private(
         (platform, venue): (Platform, &Venue),
         external: &ExternalId,
-        (bot, user): (i64, i64),
+        (bot, user): (Id, Id),
         listed: Option<&Applied>,
     ) -> Place {
         // 场所会话不自动起标题（施工 O-43）：群名、对方就是它的名字，起出来的只是第一句话的概括。
@@ -91,8 +91,8 @@ impl Place {
     pub(super) fn group(
         (platform, venue): (Platform, &Venue),
         applied: &Applied,
-        bot: i64,
-        group: i64,
+        bot: Id,
+        group: Id,
     ) -> Place {
         let mut opening = json!({"venue": venue.id(), "kind": "group", "titles": false});
         for (key, value) in super::applied::opening(applied) {
@@ -266,7 +266,7 @@ impl Route {
         // 这个场所开着的插件先告诉核心，第一轮的工具表就照它（施工 S-1 上c）。
         self.tell_plugins(
             place.peer.venue.as_str(),
-            (place.peer.platform, place.peer.to),
+            (place.peer.platform, place.peer.to.clone()),
         )
         .await?;
         // 规则设了模型、人格、预设的先发，第一轮就照它（施工 O-58 补三、补四）。

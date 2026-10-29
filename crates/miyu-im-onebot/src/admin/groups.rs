@@ -2,6 +2,7 @@
 //! `{"<群号>": {"spam": {"on", "window", "mute"}, "view": {"action", "period"}, "clearing"?}}`（面板上怎么看、点没点清空，施工 Q-6）。没写的、读不了的照出厂的：刷屏处理关着（2026-10-20 项目主人定），时间窗 60 秒，
 //! 禁言 10 分钟。读的一方照文件的修改时刻判断要不要重读，不每条消息都读盘。
 
+use miyu_im::chat::Id;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -94,7 +95,7 @@ pub(crate) fn read(store: &Path) -> HashMap<String, Group> {
 /// 改群 `group` 的设置：读、交给 `change` 改、写到旁边再换上（同一个进程里照一把锁排着）。
 pub(crate) fn update(
     store: &Path,
-    group: i64,
+    group: Id,
     change: impl FnOnce(&mut Group),
 ) -> std::io::Result<()> {
     let _writing = WRITING
@@ -130,7 +131,7 @@ pub(crate) struct Cached {
 
 impl Cached {
     /// 群 `group` 的设置：文件变了先重读。
-    pub(crate) fn group(&mut self, store: &Path, group: i64) -> Group {
+    pub(crate) fn group(&mut self, store: &Path, group: Id) -> Group {
         let stamp = std::fs::metadata(file(store))
             .and_then(|meta| meta.modified())
             .ok();

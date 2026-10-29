@@ -2,6 +2,7 @@
 //! 或者她在的群（`groups`），`query` 照名字、号筛，不分大小写；最多列 `members_shown` 个（`bridge.json`，同群成员）。一个一段
 //! `<号> <名字>`，`; ` 隔开（模板换字会转义换行）。私聊、群里都给。
 
+use miyu_im::chat::Id;
 use serde_json::Value;
 
 use miyu_im::toolset::{Call, NAME, Planned, clean};
@@ -29,7 +30,7 @@ pub(crate) fn kind(args: &Value) -> Option<Kind> {
 
 /// 照 `query` 筛、列成一段（纯逻辑）：交回（列的几个、一共几个、那一段）。名字洗过，没有的空着。
 pub(crate) fn listed(
-    people: &[(i64, Option<String>)],
+    people: &[(Id, Option<String>)],
     query: Option<&str>,
     shown: usize,
 ) -> (usize, usize, String) {
@@ -79,7 +80,7 @@ async fn listing(call: &Call, kind: Kind, shown: usize) -> Result<Value, Undone>
     let Some(link) = &call.link else {
         return Err(("unreachable", None));
     };
-    let people: Vec<(i64, Option<String>)> = match kind {
+    let people: Vec<(Id, Option<String>)> = match kind {
         Kind::Friends => link
             .friends()
             .await

@@ -7,7 +7,7 @@
 
 use serde_json::Value;
 
-use super::{Card, Chatty, GroupSet, LongText, OtherPrivateSet, PROBABILITY, PrivateSet};
+use super::{Card, Chatty, GroupSet, LongText, OtherPrivateSet, PROBABILITY, PrivateSet, toml_id};
 use miyu_chat::{File, Source};
 
 /// 只收在卡上 `rules` 里的顶层键（别的顶层键各有一格，或者不归卡管：`allow`、`match`）。私聊卡没有限流、睡眠两格，写在这里
@@ -36,11 +36,15 @@ pub(super) enum Matcher {
 
 /// 一张卡的那一份：`[[rule]]`、匹配条件、设的几格。
 pub(super) fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
-    let matcher = match (card, matcher) {
+    let matcher = match (&card, matcher) {
         (_, Matcher::Others(listed)) => format!("{{ kind = \"group\", not_group = [{listed}] }}"),
         (_, Matcher::Strangers(known)) => format!("{{ kind = \"private\", not_user = [{known}] }}"),
-        (Card::Group(id), Matcher::Own) => format!("{{ kind = \"group\", group = [{id}] }}"),
-        (Card::Private(id), Matcher::Own) => format!("{{ kind = \"private\", user = [{id}] }}"),
+        (Card::Group(id), Matcher::Own) => {
+            format!("{{ kind = \"group\", group = [{}] }}", toml_id(id))
+        }
+        (Card::Private(id), Matcher::Own) => {
+            format!("{{ kind = \"private\", user = [{}] }}", toml_id(id))
+        }
         (Card::OtherGroups, Matcher::Own) => "{ kind = \"group\" }".to_string(),
         (Card::OtherPrivates, Matcher::Own) => "{ kind = \"private\" }".to_string(),
         (_, Matcher::All) | (Card::Defaults, Matcher::Own) => "{}".to_string(),

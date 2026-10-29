@@ -18,7 +18,7 @@ use tokio_tungstenite::tungstenite::protocol::Role;
 
 use crate::onebot::{self, Event, Frame, Wire};
 use miyu_im::TARGET;
-use miyu_im::chat::{Implementation, Link};
+use miyu_im::chat::{Id, Implementation, Link};
 use miyu_im::driver::Gate;
 use miyu_im::serve::Notice;
 
@@ -29,7 +29,7 @@ use crate::admin::spam::Spamming;
 use crate::backfill::{self, Seen};
 
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
-pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<i64>)
+pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<Id>)
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -57,12 +57,12 @@ where
     // 补拉消息（施工 I-15）：号认出来以后才有。
     let mut seen = None;
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
-    let mut reading = match bot {
+    let mut reading = match bot.clone() {
         Some(bot) => known(gate, bot, &link, &mut seen).await,
         None => true,
     };
-    tracing::info!(target: TARGET, bot, "napcat connected");
-    gate.tell(Notice::Connected { bot });
+    tracing::info!(target: TARGET, bot = bot.as_ref().map(tracing::field::display), "napcat connected");
+    gate.tell(Notice::Connected { bot: bot.clone() });
     let probe = version(&wire, gate);
     tokio::pin!(probe);
     let mut probed = false;
@@ -82,11 +82,11 @@ where
     if let Some(seen) = seen.as_mut() {
         seen.flush();
     }
-    if let Some(bot) = bot {
+    if let Some(bot) = &bot {
         gate.bots().remove(bot, &link);
         gate.changed();
     }
-    tracing::info!(target: TARGET, bot, "napcat disconnected");
+    tracing::info!(target: TARGET, bot = bot.as_ref().map(tracing::field::display), "napcat disconnected");
     gate.tell(Notice::Disconnected { bot });
 }
 
@@ -94,7 +94,7 @@ where
 async fn frame_in(
     gate: &Arc<Gate>,
     text: &str,
-    (bot, seen): (&mut Option<i64>, &mut Option<Seen>),
+    (bot, seen): (&mut Option<Id>, &mut Option<Seen>),
     (wire, link, syncing, spamming): (&Wire, &Arc<dyn Link>, &Syncing, &mut Spamming),
 ) -> bool {
     let frame: Value = match serde_json::from_str(text) {
@@ -107,7 +107,7 @@ async fn frame_in(
     if bot.is_none()
         && let Some(id) = onebot::self_id(&frame)
     {
-        *bot = Some(id);
+        *bot = Some(id.clone());
         if !known(gate, id, link, seen).await {
             return false;
         }
@@ -132,11 +132,11 @@ async fn frame_in(
             noted(&event);
             // 补拉消息（施工 I-15）：记下每个群收到的最后一条（刷屏的也算，平台上有它）。
             if let (Event::Group { group, posted }, Some(seen)) = (&event, seen.as_mut()) {
-                seen.note(*group, posted.time);
+                seen.note(group.clone(), posted.time);
             }
             // 刷屏的（施工 Q-5，群管理）：第三条起不交给 im。
             if let Event::Group { group, posted } = &event
-                && !spamming.seen(*group, posted)
+                && !spamming.seen(group.clone(), posted)
             {
                 return true;
             }
@@ -152,51 +152,53 @@ fn noted(event: &Event) {
     match event {
         Event::Private(posted) => tracing::debug!(
             target: TARGET,
-            user = posted.user,
+            user = %posted.user,
             message = posted.message_id,
             chars = posted.text.chars().count(),
             "private message"
         ),
         Event::Group { group, posted } => tracing::debug!(
             target: TARGET,
-            group,
-            user = posted.user,
+            group = %group,
+            user = %posted.user,
             message = posted.message_id,
             chars = posted.text.chars().count(),
             "group message"
         ),
         Event::Backfilled { group, posted } => tracing::debug!(
             target: TARGET,
-            group,
-            user = posted.user,
+            group = %group,
+            user = %posted.user,
             message = posted.message_id,
             "backfilled message"
         ),
         Event::Recalled(recall) => tracing::debug!(
             target: TARGET,
-            group = recall.group,
-            user = recall.user,
+            group = recall.group.as_ref().map(tracing::field::display),
+            user = %recall.user,
             message = recall.message_id,
             "recall"
         ),
         Event::Muted { group, seconds, .. } => {
-            tracing::debug!(target: TARGET, group, seconds, "muted");
+            tracing::debug!(target: TARGET, group = %group, seconds, "muted");
         }
-        Event::Unmuted { group, .. } => tracing::debug!(target: TARGET, group, "unmuted"),
-        Event::Connected { bot } => tracing::debug!(target: TARGET, bot, "bot known"),
-        Event::Befriend { user, .. } => tracing::debug!(target: TARGET, user, "friend request"),
+        Event::Unmuted { group, .. } => tracing::debug!(target: TARGET, group = %group, "unmuted"),
+        Event::Connected { bot } => tracing::debug!(target: TARGET, bot = %bot, "bot known"),
+        Event::Befriend { user, .. } => {
+            tracing::debug!(target: TARGET, user = %user, "friend request")
+        }
         Event::Noted { kind, .. } => tracing::debug!(target: TARGET, kind, "built-in note"),
         Event::Asked { .. } => tracing::debug!(target: TARGET, "built-in model call"),
         Event::Invited { group, user, .. } => {
-            tracing::debug!(target: TARGET, group, user, "group invite");
+            tracing::debug!(target: TARGET, group = %group, user = %user, "group invite");
         }
         Event::Renamed { group, user, .. } => {
-            tracing::debug!(target: TARGET, group, user, "group card changed");
+            tracing::debug!(target: TARGET, group = %group, user = %user, "group card changed");
         }
         Event::Happened(happened) => tracing::debug!(
             target: TARGET,
-            group = happened.group,
-            user = happened.user,
+            group = %happened.group,
+            user = %happened.user,
             change = happened.change.as_str(),
             "group change"
         ),
@@ -204,11 +206,11 @@ fn noted(event: &Event) {
 }
 
 /// 号 `bot` 认出来了：登记这条连接（[`register`]），读它记着的、照记着的补拉（施工 I-15）。跟核心的那一头不收了交回假。
-async fn known(gate: &Arc<Gate>, bot: i64, link: &Arc<dyn Link>, seen: &mut Option<Seen>) -> bool {
-    if !register(gate, bot, link).await {
+async fn known(gate: &Arc<Gate>, bot: Id, link: &Arc<dyn Link>, seen: &mut Option<Seen>) -> bool {
+    if !register(gate, bot.clone(), link).await {
         return false;
     }
-    let loaded = Seen::load(gate.store(), bot);
+    let loaded = Seen::load(gate.store(), bot.clone());
     backfill::start(gate, link, bot, loaded.groups());
     *seen = Some(loaded);
     true
@@ -216,10 +218,10 @@ async fn known(gate: &Arc<Gate>, bot: i64, link: &Arc<dyn Link>, seen: &mut Opti
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
 /// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
-async fn register(gate: &Gate, bot: i64, link: &Arc<dyn Link>) -> bool {
-    if let Some(old) = gate.bots().insert(bot, Arc::clone(link)) {
+async fn register(gate: &Gate, bot: Id, link: &Arc<dyn Link>) -> bool {
+    if let Some(old) = gate.bots().insert(bot.clone(), Arc::clone(link)) {
         old.close();
-        tracing::info!(target: TARGET, bot, "napcat connection replaced");
+        tracing::info!(target: TARGET, bot = %bot, "napcat connection replaced");
     }
     gate.changed();
     gate.inbound(Event::Connected { bot }).await

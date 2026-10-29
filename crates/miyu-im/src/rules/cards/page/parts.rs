@@ -3,11 +3,12 @@
 use serde_json::{Map, Value, json};
 
 use super::{Control, MAX_OPTIONS};
+use crate::chat::Id;
 
 /// 加一项的选项：`all` 里不在 `taken` 的，照号排，最多 [`MAX_OPTIONS`] 个，值是 `prefix` 加号，字是「名字（号）」。
-pub(super) fn choices(all: &[(u64, String)], taken: &[u64], prefix: &str) -> Vec<Value> {
-    let mut left: Vec<&(u64, String)> = all.iter().filter(|(id, _)| !taken.contains(id)).collect();
-    left.sort_by_key(|(id, _)| *id);
+pub(super) fn choices(all: &[(Id, String)], taken: &[Id], prefix: &str) -> Vec<Value> {
+    let mut left: Vec<&(Id, String)> = all.iter().filter(|(id, _)| !taken.contains(id)).collect();
+    left.sort_by(|(left, _), (right, _)| left.cmp(right));
     left.into_iter()
         .take(MAX_OPTIONS)
         .map(|(id, name)| json!({"value": format!("{prefix}{id}"), "label": format!("{name}（{id}）")}))
@@ -50,9 +51,9 @@ pub(super) fn control_name(control: Control) -> &'static str {
 }
 
 /// 号对应的名字。
-pub(super) fn name_of(list: &[(u64, String)], id: u64) -> Option<String> {
+pub(super) fn name_of(list: &[(Id, String)], id: &Id) -> Option<String> {
     list.iter()
-        .find(|(one, _)| *one == id)
+        .find(|(one, _)| one == id)
         .map(|(_, name)| name.clone())
         .filter(|name| !name.is_empty())
 }

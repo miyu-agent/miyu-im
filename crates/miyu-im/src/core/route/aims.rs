@@ -34,8 +34,8 @@ impl Route {
     }
 
     /// 记下线 `line` 第 `turn` 轮她要 @ 的号 `users`（施工 T-4：驱动认好了交回的）：同一轮指定过要引用的留着。
-    pub(super) fn mention(&mut self, line: String, turn: u64, users: &[i64]) {
-        let numbers = users.iter().map(i64::to_string).collect();
+    pub(super) fn mention(&mut self, line: String, turn: u64, users: &[crate::chat::Id]) {
+        let numbers = users.iter().map(ToString::to_string).collect();
         self.aim(line, turn).users = numbers;
     }
 

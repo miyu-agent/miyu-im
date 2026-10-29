@@ -2,7 +2,7 @@
 //! 转发到这里为止；按需取照同一个数法找回那一样。
 
 use super::*;
-use crate::chat::{Fetch, MediaKind, Segments, fake};
+use crate::chat::{Fetch, Id, MediaKind, Segments, fake};
 
 /// 一样图。
 fn image(id: &str) -> Media {
@@ -19,7 +19,7 @@ fn image(id: &str) -> Media {
 /// 转发里的一条：带的、套着的转发。
 fn node(media: &[&str], forwards: Vec<Forwarded>) -> Node {
     Node {
-        user: Some(1),
+        user: Some(Id::from(1)),
         name: Some("阿杰".to_string()),
         segments: Segments {
             media: media.iter().map(|id| image(id)).collect(),

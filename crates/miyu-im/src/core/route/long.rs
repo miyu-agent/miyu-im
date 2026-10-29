@@ -20,7 +20,7 @@ use super::sending::{Body, Image, Page, Piece, What};
 use super::shown::read;
 use super::{Peer, Route};
 use crate::TARGET;
-use crate::chat::{Lead, Platform, To};
+use crate::chat::{Id, Lead, Platform, To};
 use crate::core::{Caller, Gone, reason};
 
 /// 渲染包的编号、方法。
@@ -191,13 +191,15 @@ impl Route {
 
     /// 合并转发的节点上写的名字：群里照她在这个群的群名片（见过的），别的写机器人号。
     pub(super) fn nickname(&self, peer: &Peer) -> String {
-        self.nickname_at(peer.platform, peer.to, peer.bot)
+        self.nickname_at(peer.platform, peer.to.clone(), peer.bot.clone())
     }
 
     /// 同 [`Route::nickname`]，照平台 `platform`、发到哪 `to`、经哪个机器人号 `bot`（主动发消息没有会话可查）。
-    pub(super) fn nickname_at(&self, platform: Platform, to: To, bot: i64) -> String {
+    pub(super) fn nickname_at(&self, platform: Platform, to: To, bot: Id) -> String {
         let known = match to {
-            To::Group(group) => self.members.name((platform, group, bot), Instant::now()),
+            To::Group(group) => self
+                .members
+                .name((platform, group, bot.clone()), Instant::now()),
             To::Private(_) => None,
         };
         known.map_or_else(|| bot.to_string(), str::to_string)

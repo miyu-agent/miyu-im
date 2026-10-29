@@ -6,7 +6,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::plugins::{Builtin, Seen};
 
 use super::{Hooks, Mounted};
@@ -17,7 +17,7 @@ impl Hooks {
     pub(crate) fn impostor(
         &self,
         platform: Platform,
-        group: i64,
+        group: Id,
         seen: &Seen<'_>,
     ) -> Option<String> {
         let mounted = self.mounted(platform)?;
@@ -26,7 +26,7 @@ impl Hooks {
         mounted
             .builtins
             .iter()
-            .filter(|builtin| self.on(builtin.as_ref(), (mounted, platform, to), &config))
+            .filter(|builtin| self.on(builtin.as_ref(), (mounted, platform, to.clone()), &config))
             .find_map(|builtin| builtin.impostor(&config, seen))
     }
 
@@ -39,7 +39,13 @@ impl Hooks {
         mounted
             .builtins
             .iter()
-            .filter(|builtin| self.on(builtin.as_ref(), (mounted, platform, Some(to)), &config))
+            .filter(|builtin| {
+                self.on(
+                    builtin.as_ref(),
+                    (mounted, platform, Some(to.clone())),
+                    &config,
+                )
+            })
             .map(|builtin| builtin.id())
             .collect()
     }
@@ -59,9 +65,9 @@ impl Hooks {
             .filter(|package| match self.owner(package) {
                 Some((mounted, builtin)) => {
                     let config = mounted.config.borrow().clone();
-                    self.on(builtin, (mounted, platform, Some(to)), &config)
+                    self.on(builtin, (mounted, platform, Some(to.clone())), &config)
                 }
-                None => self.allowed(package, platform, Some(to)),
+                None => self.allowed(package, platform, Some(to.clone())),
             })
             .collect()
     }

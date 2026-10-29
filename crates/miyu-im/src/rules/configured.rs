@@ -13,6 +13,7 @@ use miyu_chat::{File, Rules, Source};
 
 use super::cards::GroupSet;
 use crate::PACKAGE;
+use crate::chat::Id;
 
 /// 拼出来的那一份的文件名：排在出厂的 `50-defaults.toml` 后面；系统里名字排在它后面的盖它，同名的整份替换它。
 pub const FILE: &str = "60-settings.toml";
@@ -52,7 +53,7 @@ pub struct Configured {
     /// 模拟真人一条分多条发送。
     humanlike: bool,
     /// 白名单成员的号（`im.whitelist` 里这个平台的，施工 O-60）：不拼进规则，「其他私聊」卡不管他们。
-    whitelist: Vec<u64>,
+    whitelist: Vec<Id>,
 }
 
 impl Default for Configured {
@@ -101,7 +102,7 @@ impl Configured {
                 WHITELIST => {
                     self.whitelist = texts(value)
                         .iter()
-                        .filter_map(|one| one.strip_prefix("qq:")?.parse().ok())
+                        .filter_map(|one| Id::new(one.strip_prefix("qq:")?))
                         .collect();
                 }
                 _ => {}
@@ -186,7 +187,7 @@ impl Configured {
 
 impl Configured {
     /// 白名单成员的号（施工 O-60：「其他私聊」卡不管他们）。
-    pub fn whitelisted(&self) -> &[u64] {
+    pub fn whitelisted(&self) -> &[Id] {
         &self.whitelist
     }
 

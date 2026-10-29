@@ -9,7 +9,7 @@ use std::sync::Arc;
 use miyu_chat::Venue;
 use serde_json::Value;
 
-use super::{Bots, Link, Platform};
+use super::{Bots, Id, Link, Platform};
 
 /// 挂着的几个平台，照先后；每个带它连着的号。
 #[derive(Debug, Clone, Default)]
@@ -69,15 +69,15 @@ impl Platforms {
     }
 
     /// 平台 `platform` 上号 `bot` 现在的连接。
-    pub fn link(&self, platform: Platform, bot: i64) -> Option<Arc<dyn Link>> {
+    pub fn link(&self, platform: Platform, bot: &Id) -> Option<Arc<dyn Link>> {
         self.bots(platform).get(bot)
     }
 
     /// 在平台 `platform` 上经哪个号发：`bot` 写了、连着的照它；不然退回这个平台连着的号里最小的那一个，不跨平台（施工 I-70 上）。
     /// 这个平台一个号都没连着的是空的。
-    pub fn sender(&self, platform: Platform, bot: Option<i64>) -> Option<i64> {
+    pub fn sender(&self, platform: Platform, bot: Option<Id>) -> Option<Id> {
         let bots = self.bots(platform);
-        bot.filter(|bot| bots.get(*bot).is_some())
+        bot.filter(|bot| bots.get(bot).is_some())
             .or_else(|| bots.first().map(|(bot, _)| bot))
     }
 

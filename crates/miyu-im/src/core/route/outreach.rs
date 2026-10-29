@@ -24,7 +24,7 @@ use super::outbound::{pass, private_ctx};
 use super::session::Place;
 use crate::TARGET;
 use crate::chat::Outgoing;
-use crate::chat::{Bots, Platform};
+use crate::chat::{Bots, Id, Platform};
 use crate::chat::{CallError, Lead, To};
 use crate::core::{Answerer, Caller, Gone, reason};
 use crate::toolset::{Answers, send_request as request};
@@ -38,7 +38,7 @@ const HEAD: usize = 30;
 /// 交给任务办的一次。
 struct Job {
     /// 经哪个机器人号。
-    bot: i64,
+    bot: Id,
     /// 发到哪。
     to: To,
     /// 拆好的几段：拆成几条的照它发；转成图画不成的也照它（施工 O-59 下）。
@@ -103,7 +103,7 @@ impl Route {
             answerer.refuse(&id, "bad_params");
             return Ok(());
         };
-        let bot = args["bot"].as_i64();
+        let bot = serde_json::from_value::<Id>(args["bot"].clone()).ok();
         self.reach((platform, bot), request, Answer::Method(id, answerer))
             .await
     }
@@ -112,12 +112,12 @@ impl Route {
     /// 平台连着的号里最小的那一个（不跨平台，施工 I-70 上）；这个平台没有号连着的答 `unreachable`、拒 `not_connected`。
     pub(super) async fn reach(
         &mut self,
-        (platform, bot): (Platform, Option<i64>),
+        (platform, bot): (Platform, Option<Id>),
         (to, text): (To, String),
         answer: Answer,
     ) -> Result<(), Gone> {
         let bot = self.platforms.sender(platform, bot);
-        let made = match to {
+        let made = match &to {
             To::Group(group) => platform.venue(VenueKind::Group, group),
             To::Private(user) => platform.venue(VenueKind::Private, user),
         };
@@ -138,7 +138,7 @@ impl Route {
             Some(LongText::Image) => Long::Image(target.id().clone(), passed.text.clone()),
             Some(LongText::Forward) => Long::Forward(
                 nodes(&applied.params, &passed.text),
-                self.nickname_at(platform, to, bot),
+                self.nickname_at(platform, to.clone(), bot.clone()),
             ),
             Some(LongText::Split) | None => Long::Split,
         };
@@ -147,7 +147,9 @@ impl Route {
             true => passed.pieces,
             false => split(&passed.text, applied.params.split_chars),
         };
-        let session = self.target_session((platform, &target), to, bot).await?;
+        let session = self
+            .target_session((platform, &target), to.clone(), bot.clone())
+            .await?;
         let job = Job {
             bot,
             to,
@@ -169,13 +171,13 @@ impl Route {
         &mut self,
         (platform, target): (Platform, &Venue),
         to: To,
-        bot: i64,
+        bot: Id,
     ) -> Result<Option<String>, Gone> {
         let applied = self.applied(target);
         let place = match to {
             To::Group(group) => Place::group((platform, target), &applied, bot, group),
             To::Private(user) => {
-                let Ok(external) = platform.person(user) else {
+                let Ok(external) = platform.person(&user) else {
                     return Ok(None);
                 };
                 let listed = self.whitelisted(&external).then_some(&applied);
@@ -205,7 +207,7 @@ type Undone = (&'static str, Option<String>);
 
 /// 一条条发，交回发了几条：照长文的办法拼好几个动作（转成图的先画，画不成的照拆好的几段）。
 async fn send(job: &Job) -> Result<usize, Undone> {
-    let Some(link) = job.bots.get(job.bot) else {
+    let Some(link) = job.bots.get(&job.bot) else {
         return Err(("unreachable", None));
     };
     let lead = Lead::default();
@@ -215,7 +217,7 @@ async fn send(job: &Job) -> Result<usize, Undone> {
     };
     let outgoing: Vec<Outgoing<'_>> = match (&job.long, &drawn) {
         (Long::Forward(nodes, nickname), _) => vec![Outgoing::Forward {
-            bot: job.bot,
+            bot: &job.bot,
             nickname,
             nodes,
         }],
@@ -236,11 +238,13 @@ async fn send(job: &Job) -> Result<usize, Undone> {
             .collect(),
     };
     for one in &outgoing {
-        link.send(job.to, *one).await.map_err(|error| match error {
-            CallError::Failed { said, .. } => ("failed", Some(said)),
-            CallError::Timeout => ("unanswered", None),
-            CallError::Closed => ("unreachable", None),
-        })?;
+        link.send(job.to.clone(), *one)
+            .await
+            .map_err(|error| match error {
+                CallError::Failed { said, .. } => ("failed", Some(said)),
+                CallError::Timeout => ("unanswered", None),
+                CallError::Closed => ("unreachable", None),
+            })?;
     }
     Ok(outgoing.len())
 }

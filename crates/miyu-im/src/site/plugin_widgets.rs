@@ -103,8 +103,8 @@ pub(super) fn venue_id(platform: crate::chat::Platform, venue: &Value) -> Option
         "private" => VenueKind::Private,
         _ => return None,
     };
-    let number = venue["id"].as_str()?.parse::<i64>().ok()?;
-    Some(platform.venue(kind, number).ok()?.id().to_string())
+    let number = crate::chat::Id::new(venue["id"].as_str()?)?;
+    Some(platform.venue(kind, &number).ok()?.id().to_string())
 }
 
 #[cfg(test)]

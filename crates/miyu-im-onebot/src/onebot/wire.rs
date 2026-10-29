@@ -19,7 +19,7 @@ use super::{
     number, picture_to, poke, upload_to,
 };
 use miyu_im::chat::{
-    self, CallError, Fetch, Fetched, Friend, Group, GroupFiles, Implementation, Link, Located,
+    self, CallError, Fetch, Fetched, Friend, Group, GroupFiles, Id, Implementation, Link, Located,
     Member, Msg, Node, Outgoing, Reply, To,
 };
 
@@ -94,15 +94,15 @@ impl Link for Wire {
         })
     }
 
-    fn mute(&self, group: i64, user: i64, seconds: u64) -> Reply<'_, ()> {
+    fn mute<'a>(&'a self, group: &'a Id, user: &'a Id, seconds: u64) -> Reply<'a, ()> {
         self.done(group_ban(group, user, seconds))
     }
 
-    fn kick(&self, group: i64, user: i64, block: bool) -> Reply<'_, ()> {
+    fn kick<'a>(&'a self, group: &'a Id, user: &'a Id, block: bool) -> Reply<'a, ()> {
         self.done(group_kick(group, user, block))
     }
 
-    fn poke(&self, to: To, user: i64) -> Reply<'_, ()> {
+    fn poke<'a>(&'a self, to: To, user: &'a Id) -> Reply<'a, ()> {
         self.done(poke(to, user))
     }
 
@@ -137,19 +137,19 @@ impl Link for Wire {
         })
     }
 
-    fn members(&self, group: i64) -> Reply<'_, Vec<Member>> {
+    fn members<'a>(&'a self, group: &'a Id) -> Reply<'a, Vec<Member>> {
         self.read((MEMBER_LIST, json!({"group_id": group})), replies::members)
     }
 
-    fn member(&self, group: i64, user: i64) -> Reply<'_, Member> {
+    fn member<'a>(&'a self, group: &'a Id, user: &'a Id) -> Reply<'a, Member> {
         self.read((MEMBER_INFO, member_info(group, user)), move |data| {
             let mut member = replies::member(data).unwrap_or(Member {
-                user,
+                user: user.clone(),
                 name: None,
                 rank: None,
                 title: None,
             });
-            member.user = user;
+            member.user = user.clone();
             member
         })
     }
@@ -162,7 +162,7 @@ impl Link for Wire {
         self.read((FRIEND_LIST, json!({})), replies::friends)
     }
 
-    fn group_files<'a>(&'a self, group: i64, folder: Option<&'a str>) -> Reply<'a, GroupFiles> {
+    fn group_files<'a>(&'a self, group: &'a Id, folder: Option<&'a str>) -> Reply<'a, GroupFiles> {
         let action = match folder {
             Some(folder) => (
                 FOLDER_FILES,
@@ -173,7 +173,7 @@ impl Link for Wire {
         self.read(action, replies::group_files)
     }
 
-    fn group_file_url<'a>(&'a self, group: i64, file: &'a str) -> Reply<'a, String> {
+    fn group_file_url<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, String> {
         let wanted = (FILE_URL, json!({"group_id": group, "file_id": file}));
         Box::pin(async move {
             self.read(wanted, replies::file_url)
@@ -185,7 +185,7 @@ impl Link for Wire {
         })
     }
 
-    fn group_name(&self, group: i64) -> Reply<'_, Option<String>> {
+    fn group_name<'a>(&'a self, group: &'a Id) -> Reply<'a, Option<String>> {
         self.read(
             (GROUP_INFO, json!({"group_id": group})),
             replies::group_name,

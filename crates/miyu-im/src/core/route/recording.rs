@@ -6,7 +6,7 @@ use miyu_client::ids::ExternalId;
 use serde_json::{Map, Value, json};
 
 use super::Route;
-use crate::chat::{Happened, Media, Platform, Posted};
+use crate::chat::{Happened, Id, Media, Platform, Posted};
 use crate::records::{self, Happening, Said, Write};
 use miyu_chat::VenueKind;
 
@@ -23,7 +23,7 @@ impl Route {
             .segments
             .at()
             .iter()
-            .filter_map(|user| platform.person(*user).ok())
+            .filter_map(|user| platform.person(user).ok())
             .map(|person| person.as_str().to_string())
             .collect();
         let said = Said {
@@ -44,7 +44,7 @@ impl Route {
     /// 她（平台 `platform` 上的机器人号 `bot`）在场所 `venue` 发出去的一条，平台编号 `msg`，正文 `text`；`image` 的是一张图。
     pub(super) fn record_mine(
         &self,
-        (platform, venue, bot): (Platform, &str, i64),
+        (platform, venue, bot): (Platform, &str, &Id),
         (msg, text): (i64, &str),
         image: bool,
     ) {
@@ -74,12 +74,12 @@ impl Route {
     pub(super) fn record_happening(
         &self,
         (platform, venue, kind): (Platform, &str, &'static str),
-        (target, actor): (Option<i64>, Option<i64>),
+        (target, actor): (Option<Id>, Option<Id>),
         (seconds, msg): (Option<u64>, Option<i64>),
     ) {
-        let person = |number: Option<i64>| {
+        let person = |number: Option<Id>| {
             number
-                .and_then(|number| platform.person(number).ok())
+                .and_then(|number| platform.person(&number).ok())
                 .map(|person| person.as_str().to_string())
         };
         let happening = Happening {
@@ -98,7 +98,7 @@ impl Route {
 impl Route {
     /// 平台 `platform` 上群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
     pub(super) fn group_happened(&self, platform: Platform, happened: Happened) {
-        let Ok(venue) = platform.venue(VenueKind::Group, happened.group) else {
+        let Ok(venue) = platform.venue(VenueKind::Group, &happened.group) else {
             return;
         };
         self.record_happening(

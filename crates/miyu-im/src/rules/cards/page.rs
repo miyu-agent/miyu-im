@@ -10,6 +10,7 @@
 use serde_json::{Map, Value, json};
 
 use super::Cards;
+use crate::chat::Id;
 
 mod parts;
 mod words;
@@ -63,13 +64,13 @@ enum Langs<'a> {
 #[derive(Debug, Clone, Default)]
 pub struct Known {
     /// 她在的群：号、群名。
-    pub groups: Vec<(u64, String)>,
+    pub groups: Vec<(Id, String)>,
     /// 好友：号、昵称。
-    pub friends: Vec<(u64, String)>,
+    pub friends: Vec<(Id, String)>,
     /// 人格：编号、名字。
     pub personas: Vec<(String, String)>,
     /// 白名单成员的号。
-    pub whitelist: Vec<u64>,
+    pub whitelist: Vec<Id>,
     /// 卡片下面几层的默认值。
     pub defaults: Value,
 }
@@ -191,7 +192,7 @@ pub fn groups_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> V
             .take(count.min(MAX_ITEMS).saturating_sub(1))
         {
             let number = card.id.to_string();
-            let name = name_of(&known.groups, card.id).unwrap_or_else(|| number.clone());
+            let name = name_of(&known.groups, &card.id).unwrap_or_else(|| number.clone());
             items.push(ink.item(
                 Item {
                     id: number.clone(),
@@ -205,7 +206,7 @@ pub fn groups_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> V
                 &GROUP_FORMS,
             ));
         }
-        let carded: Vec<u64> = cards.groups.iter().map(|card| card.id).collect();
+        let carded: Vec<Id> = cards.groups.iter().map(|card| card.id.clone()).collect();
         let options = choices(&known.groups, &carded, "");
         let sections = sections(items, ink.word("add_group"), options);
         json!([{"type": "buttons", "items": [{"label": ink.word("to_friends"), "action": {"open": FRIENDS}}]}, sections])
@@ -245,7 +246,7 @@ pub fn friends_page(cards: &Cards, known: &Known, words: &Words, lang: &str) -> 
                     .find(|card| card.id == *id)
                     .map(|card| to_object(&card.set))
                     .unwrap_or_default();
-                let name = name_of(&known.friends, *id).unwrap_or_else(|| number.clone());
+                let name = name_of(&known.friends, id).unwrap_or_else(|| number.clone());
                 ink.item(
                     Item {
                         id: number.clone(),

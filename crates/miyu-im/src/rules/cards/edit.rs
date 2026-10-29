@@ -12,6 +12,7 @@ use serde_json::{Map, Value};
 
 use super::lines::key_ok;
 use super::{Card, Cards, GroupCard, GroupSet, PrivateCard, PrivateSet};
+use crate::chat::Id;
 
 /// 改完的样子。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +27,7 @@ pub enum Edit {
 
 /// 照页面交来的 `{"kind", "id"?}` 认是哪一张卡。
 pub fn card_of(value: &Value) -> Option<Card> {
-    let id = || value["id"].as_u64();
+    let id = || serde_json::from_value::<Id>(value["id"].clone()).ok();
     match value["kind"].as_str()? {
         "defaults" => Some(Card::Defaults),
         "other_groups" => Some(Card::OtherGroups),
@@ -40,15 +41,15 @@ pub fn card_of(value: &Value) -> Option<Card> {
 /// 把 `values` 合进 `card` 那一张（部分更新），查过的交回。
 pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
-    let merged = match card {
+    let merged = match &card {
         Card::Defaults => merge(&mut next.defaults, values),
         Card::OtherGroups => merge(&mut next.other_groups, values),
         Card::OtherPrivates => merge(&mut next.other_privates, values),
-        Card::Group(id) => match next.groups.iter_mut().find(|one| one.id == id) {
+        Card::Group(id) => match next.groups.iter_mut().find(|one| one.id == *id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
-        Card::Private(id) => match next.privates.iter_mut().find(|one| one.id == id) {
+        Card::Private(id) => match next.privates.iter_mut().find(|one| one.id == *id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
@@ -56,11 +57,11 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     if let Err(problems) = merged {
         return Edit::Problems(problems);
     }
-    let written = written_rules(&next, card);
+    let written = written_rules(&next, card.clone());
     let problems: Vec<(String, String)> = next
         .problems()
         .into_iter()
-        .filter(|problem| Card::parse(&problem.file) == Some(card))
+        .filter(|problem| Card::parse(&problem.file) == Some(card.clone()))
         .map(|problem| {
             (
                 problem

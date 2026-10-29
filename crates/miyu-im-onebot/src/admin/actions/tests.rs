@@ -78,7 +78,7 @@ async fn clearing_takes_two_clicks() {
     let record = records::Record {
         at: 1,
         action: records::Action::Kick,
-        user: 7,
+        user: Id::from(7),
         name: None,
         by: records::By::Ai,
         seconds: None,
@@ -87,28 +87,31 @@ async fn clearing_takes_two_clicks() {
         verdict: None,
         comment: None,
     };
-    records::append(context.store.clone(), 31, record, 10).await;
+    records::append(context.store.clone(), Id::from(31), record, 10).await;
     let clear = json!({"group": 31});
     assert_eq!(call(&context, "admin.clear", &clear).await, Ok(json!({})));
     assert_eq!(
-        records::read(&context.store, 31).len(),
+        records::read(&context.store, Id::from(31)).len(),
         1,
         "头一次只记下点了"
     );
     assert!(groups::read(&context.store)["31"].clearing.is_some());
     // 点过超过一分钟：从头来，这一次只记下。
-    groups::update(&context.store, 31, |group| {
+    groups::update(&context.store, Id::from(31), |group| {
         group.clearing = Some(records::now() - 61)
     })
     .expect("改得了");
     assert_eq!(call(&context, "admin.clear", &clear).await, Ok(json!({})));
     assert_eq!(
-        records::read(&context.store, 31).len(),
+        records::read(&context.store, Id::from(31)).len(),
         1,
         "过了一分钟的不算"
     );
     assert_eq!(call(&context, "admin.clear", &clear).await, Ok(json!({})));
-    assert!(records::read(&context.store, 31).is_empty(), "再点一次清了");
+    assert!(
+        records::read(&context.store, Id::from(31)).is_empty(),
+        "再点一次清了"
+    );
     assert!(groups::read(&context.store)["31"].clearing.is_none());
     std::fs::remove_dir_all(&context.store).expect("删得了");
 }

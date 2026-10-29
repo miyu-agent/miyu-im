@@ -4,20 +4,20 @@
 
 use serde_json::{Value, json};
 
-use miyu_im::chat::To;
+use miyu_im::chat::{Id, To};
 use miyu_im::toolset::{Call, Planned};
 
-use super::args::{bad_args, group_only, qq_number};
+use super::args::{bad_args, group_only, qq_id};
 use super::lookup::{said, undone};
 
 /// 群名片最多几个字（QQ 的上限照字节算，60 个字够用；多了的报出来让她改短）。
 const MOST: usize = 60;
 
 /// 读 `qq_set_card` 的参数（纯逻辑）：（改谁，空的是她自己；改成什么）。写错的交回哪个参数不对。
-pub(crate) fn card(args: &Value) -> Result<(Option<i64>, String), &'static str> {
+pub(crate) fn card(args: &Value) -> Result<(Option<Id>, String), &'static str> {
     let user = match &args["user"] {
         Value::Null => None,
-        user => Some(qq_number(user).ok_or("user must be a QQ number")?),
+        user => Some(qq_id(user).ok_or("user must be a QQ number")?),
     };
     let card = args["card"]
         .as_str()
@@ -32,7 +32,7 @@ pub(crate) fn card(args: &Value) -> Result<(Option<i64>, String), &'static str> 
 
 /// `qq_set_card` 的一次调用（模块的说明）。
 pub(super) fn set_card(call: Call) -> Planned {
-    let To::Group(group) = call.to else {
+    let To::Group(group) = call.to.clone() else {
         return group_only(&call);
     };
     let (user, card) = match card(&call.args) {
@@ -43,11 +43,11 @@ pub(super) fn set_card(call: Call) -> Planned {
 }
 
 /// 改，答那一句。
-async fn renamed(call: &Call, group: i64, user: Option<i64>, card: &str) -> Value {
+async fn renamed(call: &Call, group: Id, user: Option<Id>, card: &str) -> Value {
     let Some(link) = &call.link else {
         return call.answers.say("unreachable", &[], true);
     };
-    let target = user.unwrap_or(call.bot);
+    let target = user.clone().unwrap_or(call.bot.clone());
     let params = json!({"group_id": group, "user_id": target, "card": card});
     let reply = match link.raw("set_group_card", params).await {
         Ok(reply) if reply["status"] == "ok" => reply,

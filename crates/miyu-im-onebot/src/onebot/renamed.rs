@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use miyu_im::chat::Event;
 
-use super::number;
+use super::id;
 
 /// 认一帧通知；不是 `group_card` 的、号读不出的是空的。
 pub(super) fn renamed(frame: &Value) -> Option<Event> {
@@ -17,9 +17,9 @@ pub(super) fn renamed(frame: &Value) -> Option<Event> {
         .filter(|card| !card.trim().is_empty())
         .map(str::to_string);
     Some(Event::Renamed {
-        bot: number(&frame["self_id"])?,
-        group: number(&frame["group_id"])?,
-        user: number(&frame["user_id"])?,
+        bot: id(&frame["self_id"])?,
+        group: id(&frame["group_id"])?,
+        user: id(&frame["user_id"])?,
         card,
     })
 }

@@ -206,11 +206,15 @@ fn two_hooks(qq: Value, tg: Value) -> Hooks {
 async fn a_plugin_is_usable_by_the_venues_platform() {
     // 施工 I-70 中上：能不能用照场所的平台的驱动的能力表、声明的平台算；没挂的平台都不算。
     let hooks = two_hooks(json!({}), json!({}));
-    let (qq, tg, to) = (Platform::new("qq"), Platform::new("tg"), Some(To::Group(1)));
-    assert!(hooks.allowed("needs-mute", qq, to));
-    assert!(!hooks.allowed("needs-mute", tg, to), "tg 不会禁言");
-    assert!(hooks.allowed("tg-only", tg, to));
-    assert!(!hooks.allowed("tg-only", qq, to));
+    let (qq, tg, to) = (
+        Platform::new("qq"),
+        Platform::new("tg"),
+        Some(To::Group(Id::from(1))),
+    );
+    assert!(hooks.allowed("needs-mute", qq, to.clone()));
+    assert!(!hooks.allowed("needs-mute", tg, to.clone()), "tg 不会禁言");
+    assert!(hooks.allowed("tg-only", tg, to.clone()));
+    assert!(!hooks.allowed("tg-only", qq, to.clone()));
     assert!(
         !hooks.allowed("needs-mute", Platform::new("wx"), to),
         "没挂的平台"
@@ -221,10 +225,14 @@ async fn a_plugin_is_usable_by_the_venues_platform() {
 async fn a_carried_plugin_follows_its_own_driver() {
     // 驱动带的插件只在带它的驱动的平台上开着，总开关照那个驱动的配置。
     let hooks = two_hooks(json!({"x_on": false}), json!({"x_on": true, "k": 1}));
-    let (qq, tg, to) = (Platform::new("qq"), Platform::new("tg"), To::Private(1));
-    assert_eq!(hooks.active(tg, to), ["tg-carried"]);
-    assert!(hooks.active(qq, to).is_empty(), "QQ 的总开关关着");
-    assert_eq!(hooks.plugins_on(tg, to), ["tg-carried", "tg-only"]);
+    let (qq, tg, to) = (
+        Platform::new("qq"),
+        Platform::new("tg"),
+        To::Private(Id::from(1)),
+    );
+    assert_eq!(hooks.active(tg, to.clone()), ["tg-carried"]);
+    assert!(hooks.active(qq, to.clone()).is_empty(), "QQ 的总开关关着");
+    assert_eq!(hooks.plugins_on(tg, to.clone()), ["tg-carried", "tg-only"]);
     assert_eq!(hooks.plugins_on(qq, to), ["needs-mute"]);
     assert_eq!(hooks.driver_config(tg)["k"], 1);
     assert!(hooks.driver_config(Platform::new("wx")).is_empty());

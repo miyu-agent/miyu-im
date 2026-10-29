@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use miyu_im::chat::{Link, To};
+use miyu_im::chat::{Id, Link, To};
 use miyu_im::driver::Gate;
 use miyu_im::toolset::{NAME, clean};
 
@@ -27,16 +27,16 @@ use crate::admin::{self, ID};
 const KIND: &str = "moderated";
 
 /// 群里别的管理员做的一件。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Moderated {
     /// 收到通知的机器人的号。
-    pub bot: i64,
+    pub bot: Id,
     /// 群号。
-    pub group: i64,
+    pub group: Id,
     /// 对谁。
-    pub user: i64,
+    pub user: Id,
     /// 谁做的。
-    pub operator: i64,
+    pub operator: Id,
     /// 禁言几秒；解禁、踢人的是空的。
     pub seconds: Option<u64>,
     /// 做了什么。
@@ -45,12 +45,12 @@ pub(crate) struct Moderated {
 
 /// 读一帧通知 `frame`（纯逻辑）：别的管理员禁言、解禁、踢别人的才是；她做的、对她做的、全员禁言、不知道谁做的、别的不是。
 pub(crate) fn read(frame: &Value) -> Option<Moderated> {
-    let number = |value: &Value| value.as_i64().filter(|number| *number > 0);
+    let id = |value: &Value| value.as_i64().filter(|number| *number > 0).map(Id::from);
     let (bot, group, user, operator) = (
-        number(&frame["self_id"])?,
-        number(&frame["group_id"])?,
-        number(&frame["user_id"])?,
-        number(&frame["operator_id"])?,
+        id(&frame["self_id"])?,
+        id(&frame["group_id"])?,
+        id(&frame["user_id"])?,
+        id(&frame["operator_id"])?,
     );
     if user == bot || operator == bot {
         return None;
@@ -79,18 +79,18 @@ const REMOVED_KEPT: Duration = Duration::from_secs(60);
 
 /// 她自己刚踢走的（施工 I-17）：群号、号 → 收到通知的时刻。
 #[derive(Debug, Default)]
-pub(crate) struct Removals(HashMap<(i64, i64), Instant>);
+pub(crate) struct Removals(HashMap<(Id, Id), Instant>);
 
 impl Removals {
     /// 记下群 `group` 里 `user` 在 `now` 被她踢走了；过了 [`REMOVED_KEPT`] 的顺手拿掉。
-    pub(crate) fn note(&mut self, (group, user): (i64, i64), now: Instant) {
+    pub(crate) fn note(&mut self, (group, user): (Id, Id), now: Instant) {
         self.0
             .retain(|_, at| now.duration_since(*at) < REMOVED_KEPT);
         self.0.insert((group, user), now);
     }
 
     /// 群 `group` 里 `user` 是不是 `now` 以前 [`REMOVED_KEPT`] 以内被她踢走的。
-    pub(crate) fn lately(&self, (group, user): (i64, i64), now: Instant) -> bool {
+    pub(crate) fn lately(&self, (group, user): (Id, Id), now: Instant) -> bool {
         self.0
             .get(&(group, user))
             .is_some_and(|at| now.duration_since(*at) < REMOVED_KEPT)
@@ -101,15 +101,15 @@ impl Removals {
 static REMOVED: LazyLock<Mutex<Removals>> = LazyLock::new(Mutex::default);
 
 /// 一帧通知 `frame` 是不是她自己把人踢出群（`group_decrease` 的 `kick`，做的人是她）：是的交回群号、号（纯逻辑）。
-pub(crate) fn removed_by_her(frame: &Value) -> Option<(i64, i64)> {
-    let number = |value: &Value| value.as_i64().filter(|number| *number > 0);
-    let (bot, operator) = (number(&frame["self_id"])?, number(&frame["operator_id"])?);
+pub(crate) fn removed_by_her(frame: &Value) -> Option<(Id, Id)> {
+    let id = |value: &Value| value.as_i64().filter(|number| *number > 0).map(Id::from);
+    let (bot, operator) = (id(&frame["self_id"])?, id(&frame["operator_id"])?);
     let kicked = frame["notice_type"] == "group_decrease" && frame["sub_type"] == "kick";
-    (kicked && operator == bot).then_some((number(&frame["group_id"])?, number(&frame["user_id"])?))
+    (kicked && operator == bot).then_some((id(&frame["group_id"])?, id(&frame["user_id"])?))
 }
 
 /// 群 `group` 里 `user` 是不是刚被她踢走了（施工 I-17：踢人的工具核实用）。
-pub(crate) fn removed_lately(group: i64, user: i64) -> bool {
+pub(crate) fn removed_lately(group: Id, user: Id) -> bool {
     REMOVED
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -153,21 +153,26 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
         seconds,
         action,
     } = moderated;
-    let to = To::Group(group);
-    if !gate.active(ID, to) {
+    let to = To::Group(group.clone());
+    if !gate.active(ID, to.clone()) {
         return;
     }
     let config = gate.config().borrow().clone();
     if action == Action::Unmute && !admin::switched(&config, admin::SYNC_UNMUTE) {
         return;
     }
-    if !matches!(admin::admin_here(link, group, bot).await, Ok(true)) {
+    if !matches!(admin::admin_here(link, &group, &bot).await, Ok(true)) {
         return;
     }
     let name = |member: Option<String>| member.and_then(|name| clean(&name, NAME));
-    let target = name(link.member(group, user).await.ok().and_then(|one| one.name));
+    let target = name(
+        link.member(&group, &user)
+            .await
+            .ok()
+            .and_then(|one| one.name),
+    );
     let by = name(
-        link.member(group, operator)
+        link.member(&group, &operator)
             .await
             .ok()
             .and_then(|one| one.name),
@@ -176,10 +181,10 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
         let record = Record {
             at: records::now(),
             action,
-            user,
+            user: user.clone(),
             name: target.clone(),
             by: By::Admin {
-                user: operator,
+                user: operator.clone(),
                 name: by.clone(),
             },
             seconds,
@@ -190,7 +195,7 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
         };
         records::append(
             gate.store().to_path_buf(),
-            group,
+            group.clone(),
             record,
             admin::keep(&config),
         )
@@ -214,7 +219,7 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
         }
     };
     if !noted {
-        tracing::debug!(target: miyu_im::TARGET, group, "moderation not noted, stopping");
+        tracing::debug!(target: miyu_im::TARGET, group = %group, "moderation not noted, stopping");
     }
 }
 

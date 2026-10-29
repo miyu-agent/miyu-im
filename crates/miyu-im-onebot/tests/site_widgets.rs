@@ -136,7 +136,7 @@ async fn plugin_content_is_fetched_checked_and_localized_for_the_page() {
         asking(
             "dice",
             "panel",
-            json!({"venue": {"type": "group", "id": "x"}}),
+            json!({"venue": {"type": "group", "id": "a b"}}),
         ),
         asking("dice", "status", json!({})),
         asking("im", "home", json!({})),

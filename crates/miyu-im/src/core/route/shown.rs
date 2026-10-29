@@ -145,7 +145,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     if job.muted {
         return Err(("muted", String::new()));
     }
-    let Some(link) = job.bots.get(job.peer.bot) else {
+    let Some(link) = job.bots.get(&job.peer.bot) else {
         return Err(("unreachable", String::new()));
     };
     let bytes = read(&job.caller, Some(&job.line), &job.file.blob)
@@ -162,7 +162,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
             name: &job.file.name,
         },
     };
-    match link.send(job.peer.to, outgoing).await {
+    match link.send(job.peer.to.clone(), outgoing).await {
         Ok(_) => Ok(()),
         Err(CallError::Failed { said, .. }) => Err(("failed", said)),
         Err(CallError::Timeout) => Err(("unanswered", String::new())),

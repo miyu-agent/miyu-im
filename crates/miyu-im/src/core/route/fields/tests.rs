@@ -4,7 +4,7 @@
 use serde_json::json;
 
 use super::{Flags, MEDIA_NAME, NAME, fields, shown};
-use crate::chat::{Fetch, Media, MediaKind, Platform, Posted, Segments};
+use crate::chat::{Fetch, Id, Media, MediaKind, Platform, Posted, Segments};
 
 /// 测试用的平台。
 const QQ: Platform = Platform::new("qq");
@@ -12,8 +12,8 @@ const QQ: Platform = Platform::new("qq");
 /// 一条消息：名字是 `name`，认出来的段是 `segments`。
 fn posted(name: Option<&str>, segments: Segments) -> Posted {
     Posted {
-        bot: 30003,
-        user: 20002,
+        bot: Id::from(30003),
+        user: Id::from(20002),
         message_id: 9,
         time: 0,
         name: name.map(str::to_string),
@@ -86,7 +86,7 @@ fn only_what_is_there_is_written() {
         media: vec![media("f-1", Some("a.pdf"))],
         ..Segments::default()
     };
-    let mentions = [QQ.person(20003).expect("拼得出")];
+    let mentions = [QQ.person(&Id::from(20003)).expect("拼得出")];
     assert_eq!(
         fields(
             &posted(Some("小林"), segments),
