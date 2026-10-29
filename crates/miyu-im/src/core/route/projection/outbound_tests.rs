@@ -113,6 +113,33 @@ fn a_message_arriving_before_her_receipt_is_still_later_than_hers() {
     }
 }
 
+/// 上一轮那一段的回执晚到，下一轮她已经说了话：回执照它那一轮说的序号算，不照记回执的序号（施工 I-74，`titled` 在 CI 的
+/// macOS 上撞出来的：第 5 条人话被当成在她第 3 条那一段前面，回第 5 条多带了引用）。
+#[test]
+fn a_late_receipt_of_an_earlier_turn_stays_where_she_said_it() {
+    let mut projection = Projection::new(LINE, 0);
+    let spoken = take_all(
+        &mut projection,
+        vec![
+            said_at(1, 1, 20002),
+            started(2, 2, &[1]),
+            assistant(3, 2),
+            ended(4, 2),
+            said_at(5, 5, 20002),
+            started(6, 6, &[5]),
+            assistant(7, 6),
+            delivered(8, 2, "在"),
+            assistant(9, 6),
+        ],
+    );
+    let own: Vec<bool> = spoken.iter().map(|speaking| speaking.last_is_own).collect();
+    assert_eq!(
+        own,
+        [false, false, false],
+        "第 5 条在她第 3 条那一段以后，晚到的第 2 轮的回执不把她挪到第 5 条后面"
+    );
+}
+
 /// 主线发来的（`line` 是主线，这个群的日志里没有那一轮她说的话）照记回执的序号；晚到的这个群的回执不把它往前拉。
 #[test]
 fn a_main_line_delivery_counts_from_its_receipt() {

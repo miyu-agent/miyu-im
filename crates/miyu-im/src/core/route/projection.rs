@@ -52,6 +52,9 @@ pub(super) const MUTED: &str = "ext.im.venues.muted";
 /// 她被解禁记成的事件（O-25 中）：`body` 是 `{}`。
 pub(super) const UNMUTED: &str = "ext.im.venues.unmuted";
 
+/// 记着最近几轮她在主线最后说话的位置（I-74）：回执晚到一两轮也认得出是哪一轮的。
+const SPOKE_TURNS: usize = 8;
+
 /// 说过话的一个人。
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Speaker {
@@ -160,8 +163,9 @@ pub(super) struct Projection {
     own: u64,
     /// 她最近一次把一段交给 NapCat 时，收到的最后一条人话的序号（施工 I-64，`aimed.rs`）；没交过的是空的。
     handed: Option<u64>,
-    /// 她在主线最后说的一段：（回合编号，`message.assistant` 的序号）。主线的回执照回合认它（支线的不认，O-36）。
-    spoke: Option<(u64, u64)>,
+    /// 她在主线每一轮最后说的一段：回合编号 → `message.assistant` 的序号，留最近 [`SPOKE_TURNS`] 轮。主线的回执照回合认它
+    /// （支线的不认，O-36）；上一轮的回执晚到、下一轮她已经说了话的也认得出（I-74）。
+    spoke: BTreeMap<u64, u64>,
     /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。到了时刻、还没记 `unmuted` 的照旧在
     /// （O-50：桥照它补记到点解禁）。
     muted: Option<Timestamp>,
@@ -256,15 +260,16 @@ impl Projection {
                 }
                 self.mine.insert(delivered.msg.clone());
                 let main = delivered.line.as_str() == self.session;
-                let said = match self.spoke {
-                    Some((turn, said)) if main && turn == delivered.turn.started().get() => said,
-                    _ => seq,
-                };
+                let spoke = self.spoke.get(&delivered.turn.started().get());
+                let said = spoke.copied().filter(|_| main).unwrap_or(seq);
                 self.own = self.own.max(said);
             }
             Body::MessageAssistant(_) => {
                 let turn = turn?;
-                self.spoke = Some((turn, seq));
+                self.spoke.insert(turn, seq);
+                if self.spoke.len() > SPOKE_TURNS {
+                    self.spoke.pop_first();
+                }
                 return Some(self.speaking(&self.session, turn, seq <= self.upto));
             }
             Body::Unknown { kind, body } if kind.as_str() == QUEUED => {
