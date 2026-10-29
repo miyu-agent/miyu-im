@@ -299,12 +299,21 @@ async fn a_tool_name_given_by_two_drivers_does_not_start() {
     let (dir, _) = temp_root();
     let problems =
         factory_with(&package_with_tg(&dir), &Telegram::clashing()).expect_err("工具名撞了");
-    assert_eq!(problems.len(), 1, "{problems:?}");
-    assert_eq!(problems[0].file, "tg/tools/qq_poke.json");
-    let why = problems[0].why.clone().unwrap_or_default();
+    // 两条：名字不是 `tg_` 开头（施工 I-83：核心照前缀放），又和 QQ 的撞了。
+    assert_eq!(problems.len(), 2, "{problems:?}");
+    let whys: Vec<String> = problems
+        .iter()
+        .map(|problem| {
+            assert_eq!(problem.file, "tg/tools/qq_poke.json");
+            problem.why.clone().unwrap_or_default()
+        })
+        .collect();
+    assert!(whys[0].contains("does not start with tg_"), "{whys:?}");
     assert!(
-        why.contains("qq_poke") && why.contains("qq") && why.contains("tg"),
-        "{why}"
+        whys[1].contains("qq_poke")
+            && whys[1].contains("qq driver")
+            && whys[1].contains("tg driver"),
+        "{whys:?}"
     );
     // 不撞的照读：两套合成一份。
     assert!(factory_with(&package_with_tg(&dir), &Telegram::echoing()).is_ok());

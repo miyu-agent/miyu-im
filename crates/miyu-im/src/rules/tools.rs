@@ -46,8 +46,8 @@ pub struct Tools {
     driven: Vec<Driven>,
 }
 
-/// 一件工具是哪一套的（[`Tools::driven`]）：那个驱动的平台、那一套、它答的话。
-pub(crate) type Owned = (Platform, Arc<dyn ToolSet>, Arc<Answers>);
+/// 一件工具是哪一套的（[`Tools::driven`]）：那个驱动的平台、那一套、它答的话（施工 I-83 从 `Owned` 改名：「owner」专指主人）。
+pub(crate) type Toolset = (Platform, Arc<dyn ToolSet>, Arc<Answers>);
 
 /// 驱动交的一套工具，说明、答的话读好了。
 struct Driven {
@@ -141,7 +141,7 @@ impl Tools {
     }
 
     /// 工具 `tool` 是驱动交的（施工 T-1）：交回它是哪个平台的那一套、答的话（施工 I-70 中上）；别的是空的。
-    pub(crate) fn driven(&self, tool: &str) -> Option<Owned> {
+    pub(crate) fn driven(&self, tool: &str) -> Option<Toolset> {
         self.driven
             .iter()
             .find(|driven| driven.set.tools().iter().any(|decl| decl.name == tool))
@@ -272,6 +272,22 @@ fn duplicates(toolsets: &[(Platform, Arc<dyn ToolSet>)], problems: &mut Vec<Prob
     let mut seen: Vec<(&str, Platform)> = Vec::new();
     for (platform, set) in toolsets {
         for decl in set.tools() {
+            // 名字照平台开头（施工 I-83）：核心照名字的前缀 `<平台>_` 只给那个平台的场所（核心 IM-3），开头不对的会放错地方。
+            let head = format!("{}_", platform.name());
+            if !decl.name.starts_with(&head) {
+                let why = format!(
+                    "tool {} of the {} driver does not start with {head}",
+                    decl.name,
+                    platform.name()
+                );
+                let file = format!("{}/tools/{}.json", set.dir(), decl.name);
+                problems.push(files::whole(
+                    Code::BadFormat,
+                    Source::Factory,
+                    &file,
+                    Some(why),
+                ));
+            }
             match seen.iter().find(|(name, _)| *name == decl.name) {
                 Some((_, first)) => {
                     let why = format!(

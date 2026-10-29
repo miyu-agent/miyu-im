@@ -18,11 +18,11 @@ use crate::TARGET;
 use crate::chat::{Id, To};
 use crate::core::Answerer;
 use crate::core::Gone;
-use crate::rules::Owned;
+use crate::rules::Toolset;
 use crate::toolset::{Blobs, Call, Done, Effect, NAME, Origin, Planned, Quote, clean};
 
 impl Route {
-    /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是平台 `owner` 的驱动交的 `set`、答的话是 `answers`。
+    /// 核心转来的一次驱动的工具的调用（`pushed` 是 `tool.call`），那一套是平台 `platform` 的驱动交的 `set`、答的话是 `answers`。
     ///
     /// # Errors
     ///
@@ -30,7 +30,7 @@ impl Route {
     pub(super) async fn driven_called(
         &mut self,
         pushed: &Value,
-        (owner, set, answers): Owned,
+        (platform, set, answers): Toolset,
     ) -> Result<(), Gone> {
         let params = &pushed["params"];
         let (id, tool) = (
@@ -47,7 +47,7 @@ impl Route {
             match set.local(tool, &params["args"], &answers) {
                 Some(Planned::Host(Effect::Send { to, text })) => {
                     let answer = Answer::Tool(id, answers, answerer);
-                    return self.reach((owner, None), (to, text), answer).await;
+                    return self.reach((platform, None), (to, text), answer).await;
                 }
                 Some(Planned::Now(answer)) => answerer.answer(&id, answer),
                 _ => {
@@ -57,7 +57,7 @@ impl Route {
             }
             return Ok(());
         };
-        if peer.platform != owner {
+        if peer.platform != platform {
             // 别的平台的工具（施工 I-70 中上）：核心照名字的前缀只给那个平台的场所（IM-3），到了这里是对不上的，不叫驱动做。
             tracing::warn!(target: TARGET, session, tool, why = "another_platform", "platform tool failed");
             answerer.answer(&id, answers.say("unreachable", &[], true));
@@ -125,9 +125,9 @@ impl Route {
             blobs: Blobs(self.core.caller()),
             link: self.platforms.link(peer.platform, &peer.bot),
             answers,
-            plugins: self.hooks.active(owner, peer.to.clone()),
-            config: self.hooks.driver_config(owner),
-            store: crate::status_file::store_in(&self.store, owner),
+            plugins: self.hooks.active(platform, peer.to.clone()),
+            config: self.hooks.driver_config(platform),
+            store: crate::status_file::store_in(&self.store, platform),
             admin,
             history: self.records.history(),
         };
