@@ -34,7 +34,7 @@ fn peer() -> Peer {
         platform: Platform::new("qq"),
         bot: Id::from(BOT),
         to: To::Group(Id::from(5)),
-        venue: VenueId::parse("qq:group:5").expect("合写法"),
+        venue: VenueId::parse("qq:30003:group:5").expect("合写法"),
     }
 }
 

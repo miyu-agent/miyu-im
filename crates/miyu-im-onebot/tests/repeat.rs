@@ -44,7 +44,7 @@ fn words(segments: &[Value]) -> String {
 
 /// 群里记成的事件里种类是 `kind` 的有 `n` 条：交回那时的全部事件。
 async fn until_count(home: &Home, kind: &str, n: usize) -> Vec<Value> {
-    until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         of_kind(events, kind).len() >= n
     })
     .await

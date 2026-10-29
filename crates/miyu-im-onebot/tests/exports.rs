@@ -214,7 +214,7 @@ async fn a_group_session_names_its_venue_and_bot() {
         json!([plain("大家好")]),
         ("小林", "lin"),
     ));
-    let venue = "qq:group:777";
+    let venue = "qq:30003:group:777";
     until_events(&home.root, venue, |events| {
         events
             .iter()

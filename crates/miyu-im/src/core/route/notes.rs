@@ -109,7 +109,7 @@ impl Route {
             tracing::warn!(target: TARGET, kind, "built-in note for a private chat dropped");
             return Ok(());
         };
-        let Ok(venue) = platform.venue(VenueKind::Group, &group) else {
+        let Ok(venue) = platform.venue(&bot, VenueKind::Group, &group) else {
             return Ok(());
         };
         let place = Place::group(

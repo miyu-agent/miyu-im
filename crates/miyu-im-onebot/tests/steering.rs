@@ -77,7 +77,7 @@ async fn record_holds_her_back_except_for_the_admin() {
     })
     .await;
     until_hooked(&home, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(says(LIN, 1, true));
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let held = decided(&events, 1).expect("记了");
@@ -116,7 +116,7 @@ async fn reply_answers_even_a_plain_message_without_the_judge() {
     })
     .await;
     until_hooked(&home, 2).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(says(LIN, 1, false));
     assert_eq!(napcat.group_reply(GROUP).await, "在的");
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
@@ -149,7 +149,7 @@ async fn record_beats_reply() {
     })
     .await;
     until_hooked(&home, 2).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(says(LIN, 1, true));
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let held = decided(&events, 1).expect("记了");
@@ -170,7 +170,7 @@ async fn a_silent_hook_is_waited_for_then_ignored() {
     let (home, mut napcat, _) =
         started_installed(&script, RULES, MEMBERS, |root| hook(root, "slow", "slow")).await;
     until_hooked(&home, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let sent = std::time::Instant::now();
     napcat.send(says(LIN, 1, true));
     // 判官没剧本（一次性入口拒了），冲她来的照回（O-37）：等过挂接点才轮到它。
@@ -199,7 +199,7 @@ async fn an_answer_it_cannot_read_is_a_pass() {
     })
     .await;
     until_hooked(&home, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 别人随口说的：照常只记下（不抽样）；回得不对的不当成 `reply`。
     napcat.send(says(LIN, 1, false));
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
@@ -226,7 +226,7 @@ async fn reply_does_not_get_past_the_rate_limit() {
     })
     .await;
     until_hooked(&home, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(says(LIN, 1, false));
     assert_eq!(napcat.group_reply(GROUP).await, "在的");
     until_events(&home.root, &venue, |events| {
@@ -251,7 +251,7 @@ async fn the_inbound_hook_hears_what_a_message_carries() {
     })
     .await;
     until_hooked(&home, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let words = json!([
         plain("看"),
         {"type": "image", "data": {"file": "cat.png", "file_size": "2048", "sub_type": 0}},

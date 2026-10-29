@@ -98,7 +98,7 @@ impl Route {
 impl Route {
     /// 平台 `platform` 上群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
     pub(super) fn group_happened(&self, platform: Platform, happened: Happened) {
-        let Ok(venue) = platform.venue(VenueKind::Group, &happened.group) else {
+        let Ok(venue) = platform.venue(&happened.bot, VenueKind::Group, &happened.group) else {
             return;
         };
         self.record_happening(

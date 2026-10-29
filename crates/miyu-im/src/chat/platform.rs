@@ -23,23 +23,23 @@ impl Platform {
         self.0
     }
 
-    /// 和号 `user` 的私聊这个场所：`<平台>:private:<号>`。
+    /// 机器人号 `bot` 和号 `user` 的私聊这个场所：`<平台>:<机器人号>:private:<号>`。
     ///
     /// # Errors
     ///
     /// 群聊内核拼不出来，报它的 [`FormatError`]。号已经查过，照说不会；用的一方照实记下，不 `unwrap`。
-    pub fn private_venue(self, user: &Id) -> Result<VenueId, FormatError> {
-        Ok(self.venue(VenueKind::Private, user)?.id().clone())
+    pub fn private_venue(self, bot: &Id, user: &Id) -> Result<VenueId, FormatError> {
+        Ok(self.venue(bot, VenueKind::Private, user)?.id().clone())
     }
 
-    /// 种类是 `kind`、号是 `number`（私聊的对方、群号）的场所（施工 O-22：套场所规则要 [`Venue`]，编号是它的
-    /// [`Venue::id`]）。
+    /// 机器人号 `bot` 收发的、种类是 `kind`、号是 `number`（私聊的对方、群号）的场所（施工 O-22：套场所规则要 [`Venue`]，编号是
+    /// 它的 [`Venue::id`]；施工 I-81：编号带机器人号，同一个平台几个号各是各的场所）。
     ///
     /// # Errors
     ///
     /// 同 [`Platform::private_venue`]。
-    pub fn venue(self, kind: VenueKind, number: &Id) -> Result<Venue, FormatError> {
-        Venue::new(self.0, kind, number.as_str())
+    pub fn venue(self, bot: &Id, kind: VenueKind, number: &Id) -> Result<Venue, FormatError> {
+        Venue::with_bot(self.0, bot.as_str(), kind, number.as_str())
     }
 
     /// 平台上号是 `user` 的那个人：`<平台>:<号>`（`venue.session` 的 `peer`、`session.send` 的 `as.external`）。

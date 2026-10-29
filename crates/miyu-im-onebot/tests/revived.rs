@@ -140,7 +140,7 @@ async fn done(mut served: Served, dir: PathBuf) {
 
 #[tokio::test]
 async fn her_new_words_pushed_before_the_subscribe_reply_reach_the_group() {
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let (mut served, mut napcat, _, dir) = revived(json!({}), &venue, log(&venue, STRANGER)).await;
     appended(&mut served).await;
     let message = napcat.group_message(GROUP).await;
@@ -151,7 +151,7 @@ async fn her_new_words_pushed_before_the_subscribe_reply_reach_the_group() {
 
 #[tokio::test]
 async fn her_new_words_pushed_before_the_subscribe_reply_reach_a_private_chat() {
-    let venue = format!("qq:private:{JIE}");
+    let venue = format!("qq:30003:private:{JIE}");
     let config = json!({"im.whitelist": [format!("qq:{JIE}")]});
     let (mut served, mut napcat, _, dir) = revived(config, &venue, log(&venue, JIE)).await;
     appended(&mut served).await;
@@ -170,9 +170,9 @@ async fn her_new_words_pushed_before_the_subscribe_reply_reach_a_private_chat() 
 async fn her_words_with_nowhere_to_go_are_logged_not_dropped_silently() {
     // 日志里认不出机器人号（人说的那一句的命令编号不是 `qq:<号>:…`）：补完了还不知道发到哪，之后她说的发不出去，记一行。
     for (venue, config) in [
-        (format!("qq:group:{GROUP}"), json!({})),
+        (format!("qq:30003:group:{GROUP}"), json!({})),
         (
-            format!("qq:private:{JIE}"),
+            format!("qq:30003:private:{JIE}"),
             json!({"im.whitelist": [format!("qq:{JIE}")]}),
         ),
     ] {

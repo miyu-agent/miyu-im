@@ -71,9 +71,11 @@ async fn an_opened_card_lets_strangers_talk_to_her() {
     let (home, mut napcat) = up(&lines, json!({"on": true})).await;
     napcat.send(private_frame(STRANGER, 1, json!([plain("你好")])));
     assert_eq!(private_reply(&mut napcat, STRANGER).await, "你好呀");
-    let events = until_events(&home.root, &format!("qq:private:{STRANGER}"), |events| {
-        !of_kind(events, "turn.ended").is_empty()
-    })
+    let events = until_events(
+        &home.root,
+        &format!("qq:30003:private:{STRANGER}"),
+        |events| !of_kind(events, "turn.ended").is_empty(),
+    )
     .await;
     assert_eq!(
         said(&events).iter().map(words).collect::<Vec<_>>(),
@@ -89,9 +91,11 @@ async fn a_stranger_over_the_rate_is_only_recorded() {
     napcat.send(private_frame(STRANGER, 1, json!([plain("第一句")])));
     assert_eq!(private_reply(&mut napcat, STRANGER).await, "一");
     napcat.send(private_frame(STRANGER, 2, json!([plain("第二句")])));
-    let events = until_events(&home.root, &format!("qq:private:{STRANGER}"), |events| {
-        said(events).len() == 2
-    })
+    let events = until_events(
+        &home.root,
+        &format!("qq:30003:private:{STRANGER}"),
+        |events| said(events).len() == 2,
+    )
     .await;
     let second = &said(&events)[1];
     assert_eq!(words(second), "第二句");
@@ -142,9 +146,11 @@ async fn a_stranger_in_the_sleep_time_is_only_recorded() {
     let lines = Lines::new([Line::says("不该说话")]);
     let (home, mut napcat) = up_with(&lines, &asleep_now(), json!({"on": true})).await;
     napcat.send(private_frame(STRANGER, 1, json!([plain("睡了吗")])));
-    let events = until_events(&home.root, &format!("qq:private:{STRANGER}"), |events| {
-        !said(events).is_empty()
-    })
+    let events = until_events(
+        &home.root,
+        &format!("qq:30003:private:{STRANGER}"),
+        |events| !said(events).is_empty(),
+    )
     .await;
     let venue = &said(&events)[0]["body"]["venue"];
     assert_eq!(
@@ -178,7 +184,7 @@ async fn a_closed_card_stops_strangers_she_talked_to() {
             log.contains("not admin or whitelisted, not taken")
         })
         .await;
-        let events = venue_events(&home.root, &format!("qq:private:{STRANGER}"));
+        let events = venue_events(&home.root, &format!("qq:30003:private:{STRANGER}"));
         assert_eq!(
             said(&events).iter().map(words).collect::<Vec<_>>(),
             ["你好"],

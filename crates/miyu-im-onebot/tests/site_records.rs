@@ -21,7 +21,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// 一页，等到有 `least` 条消息、每条都判过。

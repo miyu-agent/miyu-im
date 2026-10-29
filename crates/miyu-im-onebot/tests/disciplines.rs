@@ -40,7 +40,7 @@ fn rules() -> String {
 
 /// 场所编号。
 fn venue(group: i64) -> String {
-    format!("qq:group:{group}")
+    format!("qq:30003:group:{group}")
 }
 
 /// 第 `message` 条消息的那一笔判断的 `body`；没有的是空的。

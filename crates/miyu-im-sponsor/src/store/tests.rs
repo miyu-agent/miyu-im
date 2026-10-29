@@ -22,7 +22,7 @@ fn new(user: Option<&str>, amount: f64) -> New {
         at: 1_000,
         note: None,
         by: Some("qq:9".to_string()),
-        venue: Some("qq:group:1".to_string()),
+        venue: Some("qq:30003:group:1".to_string()),
     }
 }
 

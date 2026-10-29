@@ -73,14 +73,14 @@ async fn only_the_admins_private_chat_asks_for_the_profile() {
         }
     })
     .await;
-    let admin = asked(&relay, &format!("qq:private:{ADMIN}"));
+    let admin = asked(&relay, &format!("qq:30003:private:{ADMIN}"));
     assert_eq!(admin["profile"], true, "终端管理员的私聊要：{admin}");
-    let listed = asked(&relay, &format!("qq:private:{JIE}"));
+    let listed = asked(&relay, &format!("qq:30003:private:{JIE}"));
     assert!(
         listed.get("profile").is_none(),
         "白名单成员的私聊不写：{listed}"
     );
-    let group = asked(&relay, &format!("qq:group:{GROUP}"));
+    let group = asked(&relay, &format!("qq:30003:group:{GROUP}"));
     assert!(group.get("profile").is_none(), "群不写：{group}");
     bridge.stop().await.expect("停得下");
 }

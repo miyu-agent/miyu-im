@@ -49,10 +49,18 @@ pub(crate) async fn call(context: &Context, method: &str, params: &Value) -> Res
     }
 }
 
-/// 场所编号 `qq:group:777` 里的群号；别的是空的。
+/// 场所编号里的群号（`qq:30003:group:777`，施工 I-81 起带机器人号；老写法 `qq:group:777` 也认）：照群聊内核解，只认 QQ 的群、号是
+/// 正整数；别的是空的。
 fn venue_group(venue: &str) -> Option<Id> {
+    let id = miyu_client::ids::VenueId::parse(venue).ok()?;
+    let venue = miyu_chat::Venue::parse(&id)?;
+    if venue.platform() != crate::onebot::PLATFORM.name()
+        || venue.kind() != miyu_chat::VenueKind::Group
+    {
+        return None;
+    }
     venue
-        .strip_prefix("qq:group:")?
+        .number()
         .parse()
         .ok()
         .filter(|group: &i64| *group > 0)

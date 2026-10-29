@@ -97,7 +97,7 @@ Rust 这一边：
 | `File { source, name, text }` | 一份规则文件：来自哪（`Source::Factory` 出厂、`Source::Settings` 桥照包的配置项拼的（O-41，`onebot.md`「场所规则和出厂数据」第 8 条）、`Source::System` 系统），文件名，字 |
 | `Rules::parse(files) -> Parsed { rules, problems }` | 读一组文件。不会失败：坏的文件、坏的规则、坏的一项都变成问题，其余照收 |
 | `Venue::new(platform, kind, number) -> Result<Venue, FormatError>` | 一个场所：平台、`VenueKind::Group` 或 `Private`、平台里的编号（群号或对方的号）。几格私有，只能这样造；读用 `platform()`、`kind()`、`number()`。平台不是名字、号是空的或带空白和控制字符、拼出来的编号超过 128 字节的造不出，报内核的 `FormatError` |
-| `Venue::id() -> &VenueId`、`Venue::parse(&VenueId) -> Option<Venue>` | 场所编号（内核的 `VenueId`）的拼和解：`<平台>:group:<群号>`、`<平台>:private:<对方的号>`（第七条第 1 条）。造的时候拼好、查过，`id()` 不会失败；解的照 `Venue::new` 的规矩查，解不出的是 `None` |
+| `Venue::id() -> &VenueId`、`Venue::parse(&VenueId) -> Option<Venue>` | 场所编号（内核的 `VenueId`）的拼和解：`<平台>:<机器人号>:group:<群号>`、`<平台>:<机器人号>:private:<对方的号>`（im 施工 I-81，`Venue::with_bot` 造），不带机器人号的老写法 `<平台>:group:<群号>`（`Venue::new` 造，套规则算默认值用）照旧拼得出、解得开；平台后面那一段是 `group`、`private` 的是老写法，别的是机器人号（机器人号不能有 `:`、不能正好叫 `group`、`private`），`bot()` 交它（老写法的是空的）。造的时候拼好、查过，`id()` 不会失败；解的照造的规矩查，解不出的是 `None` |
 | `person(platform, number) -> Result<ExternalId, FormatError>`、`parse_person(&ExternalId) -> Option<(&str, &str)>` | 平台上的人（内核的 `ExternalId`）的拼和解：`<平台>:<号>`，规矩同上；管理员的身份 `managers` 照同一份规矩查 |
 | `Rules::resolve(&venue) -> Resolved { entries }` | 套到一个场所上：属性的名字到 `Entry`，没有规则设到的不在里面；参数的表展开成一项一项，名字是 `表.项`（`chatty.probability`） |
 | `Entry { value, origin }` | 一项最后的样子：值（配置的 `Value`，过了校验）、最后设它的那一条规则的来处 |
@@ -532,7 +532,7 @@ Rust 这一边：
 
 | 什么 | 写法 | 谁拼、谁解 |
 |---|---|---|
-| 场所 | `<平台>:group:<群号>`、`<平台>:private:<对方的号>`，内核的 `VenueId` | 群聊内核的 `Venue::id()` 拼、`Venue::parse()` 解；桥不手拼，`"qq"` 只在桥的一处常量里 |
+| 场所 | `<平台>:<机器人号>:group:<群号>`、`<平台>:<机器人号>:private:<对方的号>`（im 施工 I-81；老写法不带机器人号），内核的 `VenueId` | 群聊内核的 `Venue::id()` 拼、`Venue::parse()` 解；桥不手拼，`"qq"` 只在桥的一处常量里 |
 | 平台上的人 | `<平台>:<号>`，内核的 `ExternalId` | 同上，`Venue` 旁边一对 |
 | 群聊内核里的一条消息 | 这条 `message.user` 在场所的主线会话日志里的序号（内核的 `Seq`） | 核心记下时交回；抽样的种子、顶替、承诺都用它 |
 | 平台上的一条消息 | 平台给的编号，原样记进 `message.user` 的场所那几格（下面第 2 条），引用、撤回、贴表情时用 | 桥 |

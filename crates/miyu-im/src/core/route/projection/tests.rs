@@ -42,7 +42,8 @@ pub(super) fn event(
 
 /// 号是 `user` 的人在群里说的一句；`admin` 的带 `owner`。
 fn user(seq: u64, user: i64, admin: bool) -> Event {
-    let mut by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
+    let mut by =
+        json!({"kind": "external", "venue": "qq:30003:group:5", "id": format!("qq:{user}")});
     if admin {
         by["owner"] = json!(true);
     }
@@ -52,7 +53,7 @@ fn user(seq: u64, user: i64, admin: bool) -> Event {
 
 /// 号是 `user` 的人第 `seconds` 秒在群里说的一句。
 pub(super) fn said_at(seq: u64, seconds: i64, user: i64) -> Event {
-    let by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
+    let by = json!({"kind": "external", "venue": "qq:30003:group:5", "id": format!("qq:{user}")});
     let body = json!({"blocks": [{"type": "text", "text": "嗨"}], "venue": {"msg": seq.to_string(), "ambient": true}});
     event(seq, seconds, "message.user", None, by, body)
 }

@@ -10,16 +10,23 @@ use miyu_kernel::id::VenueId;
 
 #[test]
 fn venue_and_person_are_made_by_the_chat_kernel() {
+    // 施工 I-81：场所编号带收发它的机器人号。
     let venue = PLATFORM
-        .private_venue(&Id::from(10001))
+        .private_venue(&Id::from(30003), &Id::from(10001))
         .expect("号是整数，拼得出");
-    assert_eq!(venue.as_str(), "qq:private:10001");
-    let made = Venue::new(PLATFORM.name(), VenueKind::Private, "10001").expect("拼得出");
+    assert_eq!(venue.as_str(), "qq:30003:private:10001");
+    let made =
+        Venue::with_bot(PLATFORM.name(), "30003", VenueKind::Private, "10001").expect("拼得出");
     assert_eq!(&venue, made.id(), "和群聊内核拼的是同一个");
     let parsed = Venue::parse(&venue).expect("群聊内核解得回");
     assert_eq!(
-        (parsed.platform(), parsed.kind(), parsed.number()),
-        ("qq", VenueKind::Private, "10001")
+        (
+            parsed.platform(),
+            parsed.bot(),
+            parsed.kind(),
+            parsed.number()
+        ),
+        ("qq", Some("30003"), VenueKind::Private, "10001")
     );
 
     let who = PLATFORM.person(&Id::from(10001)).expect("号是整数，拼得出");
@@ -33,10 +40,10 @@ fn venue_and_person_are_made_by_the_chat_kernel() {
     // 号照十进制写，负的也照写（照说不会有）。
     assert_eq!(
         PLATFORM
-            .private_venue(&Id::from(-5))
+            .private_venue(&Id::from(30003), &Id::from(-5))
             .expect("拼得出")
             .as_str(),
-        "qq:private:-5"
+        "qq:30003:private:-5"
     );
     assert_eq!(
         PLATFORM
@@ -91,18 +98,18 @@ fn the_bot_and_the_place_are_read_back() {
         let id = VenueId::parse(venue).expect("合写法");
         PLATFORM.to_of(&Venue::parse(&id).expect("解得出"))
     };
-    assert_eq!(place("qq:group:668"), Some(To::Group(Id::from(668))));
+    assert_eq!(place("qq:30003:group:668"), Some(To::Group(Id::from(668))));
     assert_eq!(
-        place("qq:private:20003"),
+        place("qq:30003:private:20003"),
         Some(To::Private(Id::from(20003)))
     );
-    assert_eq!(place("tg:group:668"), None, "别的平台");
+    assert_eq!(place("tg:30003:group:668"), None, "别的平台");
     assert_eq!(
-        place("qq:group:abc"),
+        place("qq:30003:group:abc"),
         Some(To::Group(Id::new("abc").expect("合写法"))),
         "号是字的也认（施工 I-79）"
     );
-    let long = format!("qq:group:{}", "1".repeat(49));
+    let long = format!("qq:30003:group:{}", "1".repeat(49));
     assert_eq!(place(&long), None, "号太长");
 }
 

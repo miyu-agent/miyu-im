@@ -120,3 +120,40 @@ fn bad_people() {
         assert_eq!(parse_person(&id), None, "{text}");
     }
 }
+
+#[test]
+fn venues_with_a_bot_put_it_after_the_platform() {
+    // im 施工 I-81：同一个平台几个号，场所照连接分。
+    let group = Venue::with_bot("qq", "3927564101", VenueKind::Group, "777").expect("造得出");
+    assert_eq!(group.id().as_str(), "qq:3927564101:group:777");
+    assert_eq!(group.bot(), Some("3927564101"));
+    let back = Venue::parse(group.id()).expect("解得开");
+    assert_eq!(back, group);
+    let private = Venue::parse(&venue_id("tg:7890:private:-5")).expect("解得开");
+    assert_eq!(
+        (
+            private.platform(),
+            private.bot(),
+            private.kind(),
+            private.number()
+        ),
+        ("tg", Some("7890"), VenueKind::Private, "-5")
+    );
+    // 老写法照旧解，没有机器人号。
+    let old = Venue::parse(&venue_id("qq:group:777")).expect("解得开");
+    assert_eq!((old.bot(), old.number()), (None, "777"));
+}
+
+#[test]
+fn a_bot_named_like_a_kind_or_with_a_colon_is_refused() {
+    for bot in ["group", "private", "a:b", "", "a b"] {
+        assert!(
+            Venue::with_bot("qq", bot, VenueKind::Group, "1").is_err(),
+            "{bot:?}"
+        );
+    }
+    assert!(
+        Venue::parse(&venue_id("qq:1:other:2")).is_none(),
+        "种类不对"
+    );
+}

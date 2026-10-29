@@ -74,7 +74,7 @@ async fn saved_cards_decide_where_she_talks_at_once() {
         json!({"other_groups": {}, "groups": [{"id": LISTED, "set": {"long_text": "forward", "long_chars": 1}}], "privates": [], "other_privates": {}})
     );
     napcat.send(called(OTHER, 1));
-    let other = format!("qq:group:{OTHER}");
+    let other = format!("qq:30003:group:{OTHER}");
     let events = until_events(&home.root, &other, |events| decided(events, 1).is_some()).await;
     let refused = decided(&events, 1).expect("记了");
     assert_eq!(

@@ -77,7 +77,7 @@ pub const PLATFORM: [&str; 7] = [
 
 /// 这个群的场所编号。
 pub fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:{BOT}:group:{GROUP}")
 }
 
 /// 群名片、昵称照 [`MEMBERS`]。

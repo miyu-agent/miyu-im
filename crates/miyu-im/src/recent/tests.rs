@@ -26,29 +26,29 @@ fn temp(name: &str) -> std::path::PathBuf {
 fn each_venue_keeps_the_latest_and_several_merge_newest_first() {
     let recent = Recent::load(temp("keep").join("recent.json"));
     for at in 0..30 {
-        recent.note("qq:group:1", note(at * 2, "一"));
+        recent.note("qq:30003:group:1", note(at * 2, "一"));
     }
-    recent.note("qq:group:2", note(41, "二"));
-    recent.note("qq:private:3", note(100, "三"));
+    recent.note("qq:30003:group:2", note(41, "二"));
+    recent.note("qq:30003:private:3", note(100, "三"));
     assert_eq!(
-        lock(&recent.held)["qq:group:1"].len(),
+        lock(&recent.held)["qq:30003:group:1"].len(),
         MOST,
         "存的也只留这么多"
     );
-    let one = recent.of(|venue| venue == "qq:group:1");
+    let one = recent.of(|venue| venue == "qq:30003:group:1");
     assert_eq!(one.len(), MOST);
     assert_eq!(one[0].1.at, 58, "新的在前");
     assert_eq!(one[MOST - 1].1.at, 20, "旧的去掉了");
-    let groups = recent.of(|venue| venue.starts_with("qq:group:"));
+    let groups = recent.of(|venue| venue.starts_with("qq:30003:group:"));
     assert_eq!(groups.len(), MOST, "并起来的也只交这么多");
     let ats: Vec<u64> = groups.iter().take(4).map(|(_, note)| note.at).collect();
     assert_eq!(ats, [58, 56, 54, 52]);
     assert!(
         groups
             .iter()
-            .any(|(venue, note)| venue == "qq:group:2" && note.at == 41)
+            .any(|(venue, note)| venue == "qq:30003:group:2" && note.at == 41)
     );
-    assert!(recent.of(|venue| venue == "qq:group:9").is_empty());
+    assert!(recent.of(|venue| venue == "qq:30003:group:9").is_empty());
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn the_written_file_is_read_back() {
     let dir = temp("file");
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let file = dir.join("recent.json");
-    let written = json!({"qq:group:1": [note(5, "在吗")]});
+    let written = json!({"qq:30003:group:1": [note(5, "在吗")]});
     std::fs::write(&file, written.to_string()).expect("写得进");
     assert_eq!(
         Recent::load(file.clone()).of(|_| true)[0].1,

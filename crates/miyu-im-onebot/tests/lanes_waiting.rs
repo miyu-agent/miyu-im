@@ -96,7 +96,7 @@ async fn a_queued_caller_is_not_folded_into_a_turn_the_core_just_started_for_som
         Line::says("回C"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 主线回 A（压着），支线回 B（压着），C 排着。
     calls(&napcat, A, 101, "在吗");
     until_requests(&lines, 1).await;

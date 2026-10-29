@@ -32,7 +32,7 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
 
 /// 场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// 第 `message` 条消息的命令编号加 `/what`。
@@ -201,7 +201,7 @@ async fn a_follow_up_while_judging_is_judged_together() {
         json!([plain("路过")]),
         ("阿杰", "jie"),
     ));
-    until_events(&home.root, &format!("qq:group:{OTHER}"), |events| {
+    until_events(&home.root, &format!("qq:30003:group:{OTHER}"), |events| {
         decided(events, 3).is_some()
     })
     .await;

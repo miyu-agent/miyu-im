@@ -64,7 +64,7 @@ fn rules() -> String {
 async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     let script = Script::new([]);
     let (home, napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 1、2：名字取群名片，空白的取昵称。
     napcat.send(group_frame(
         GROUP,
@@ -246,7 +246,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         .expect("有撤回");
     assert_eq!(recalled["body"], json!({"msg": "1", "by": "qq:40004"}));
 
-    let sleepy = venue_events(&home.root, &format!("qq:group:{SLEEPY}"));
+    let sleepy = venue_events(&home.root, &format!("qq:30003:group:{SLEEPY}"));
     let sleepy = self::said(&sleepy);
     assert_eq!(sleepy.len(), 1, "{sleepy:?}");
     assert_eq!(
@@ -254,7 +254,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         "睡觉时间里的记 asleep"
     );
     assert!(
-        venue_events(&home.root, &format!("qq:group:{BROKEN}")).is_empty(),
+        venue_events(&home.root, &format!("qq:30003:group:{BROKEN}")).is_empty(),
         "规则写了不存在的人格的群什么都不记"
     );
     let log = run_log(&home.root);
@@ -263,7 +263,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         .filter(|line| line.contains("group not recorded"))
         .collect();
     assert_eq!(broken.len(), 1, "同一个群只记一行：{log}");
-    assert!(broken[0].contains("venue=qq:group:777"), "{log}");
+    assert!(broken[0].contains("venue=qq:30003:group:777"), "{log}");
     assert!(broken[0].contains("reason=unknown_persona"), "{log}");
     // 送不进核心的那一行不带原文（施工 I-16 起判断那一行带正文开头，给首页活动流，2026-10-20 项目主人定）。
     assert!(!broken[0].contains("大家好"), "{log}");
@@ -274,7 +274,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
 async fn slash_commands_in_a_group_answer_in_the_group() {
     let script = Script::new([Play::Says("不会说的")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -363,7 +363,7 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
 async fn a_message_with_only_an_image_or_a_sticker_is_recorded() {
     let script = Script::new([]);
     let (home, napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let image =
         json!([{"type": "image", "data": {"file": "only.jpg", "sub_type": 0, "summary": ""}}]);
     napcat.send(group_frame(GROUP, LIN, 1, image, ("小林", "lin")));

@@ -47,7 +47,7 @@ fn rules(rate: &str) -> String {
 
 /// 场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// `user` @ 她说第 `message` 条，后面再 @ 几个人（`more`）。

@@ -35,7 +35,7 @@ async fn spoken(home: &Home, napcat: &Answering, msg: i64) -> Value {
         ("小林", "lin"),
     ));
     let id = msg.to_string();
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_event(&home.root, &venue, |event| {
         event["kind"] == "message.user" && event["body"]["venue"]["msg"] == id.as_str()
     })

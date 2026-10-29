@@ -114,7 +114,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
         "嗯",
         "每一条都开一轮"
     );
-    let theirs = until_events(&home.root, &format!("qq:private:{JIE}"), |events| {
+    let theirs = until_events(&home.root, &format!("qq:30003:private:{JIE}"), |events| {
         of_kind(events, "turn.ended").len() == 2
     })
     .await;
@@ -127,7 +127,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
         "照场所规则造：{:#}",
         theirs[0]
     );
-    let stranger = venue_events(&home.root, &format!("qq:private:{STRANGER}"));
+    let stranger = venue_events(&home.root, &format!("qq:30003:private:{STRANGER}"));
     assert!(
         said(&stranger).is_empty(),
         "陌生人的话不进会话：{stranger:#?}"
@@ -147,12 +147,15 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
     // 终端管理员接着说：她的回话先到，前面那一条就是办完了、没回。
     napcat.send(private_frame(ADMIN, 5, json!([plain("在吗")])));
     assert_eq!(private_reply(&mut napcat, ADMIN).await, "好");
-    let theirs = venue_events(&home.root, &format!("qq:private:{JIE}"));
+    let theirs = venue_events(&home.root, &format!("qq:30003:private:{JIE}"));
     assert_eq!(said(&theirs).len(), 2, "删了以后的不进会话：{theirs:#?}");
     let admins = home.own_sessions();
     assert_eq!(admins.len(), 1, "{admins:?}");
     let created = &home.events(&admins[0])[0];
-    assert_eq!(created["body"]["venue"], format!("qq:private:{ADMIN}"));
+    assert_eq!(
+        created["body"]["venue"],
+        format!("qq:30003:private:{ADMIN}")
+    );
     assert_ne!(
         created["body"]["preset"], "dev",
         "终端管理员的私聊不照规则造：{created:#}"
@@ -199,7 +202,7 @@ async fn friend_requests_from_the_whitelist_are_approved_and_others_wait() {
 async fn the_whitelist_is_answered_while_she_sleeps_and_skips_the_judge() {
     let script = Script::new([Play::Says("醒着呢"), Play::Says("在的"), Play::Says("来了")]);
     let (home, mut napcat, _) = started(&script, &rules(), &whitelist(), MEMBERS).await;
-    let sleepy = format!("qq:group:{SLEEPY}");
+    let sleepy = format!("qq:30003:group:{SLEEPY}");
     // 睡觉时间：别人 @ 她只记下，白名单成员 @ 她照回、不问判官。
     napcat.send(group_frame(
         SLEEPY,
@@ -242,7 +245,7 @@ async fn the_whitelist_is_answered_while_she_sleeps_and_skips_the_judge() {
     assert!(listed.get("judge").is_none(), "不问判官：{listed}");
     // 醒着的群：别人 @ 她照旧问判官（剧本没有一次性入口，判不了，冲她来的照回，O-37），白名单成员的直接回。等别人那一轮
     // 完了再叫：两条挨着来，并不并进一轮看谁先到。
-    let awake = format!("qq:group:{AWAKE}");
+    let awake = format!("qq:30003:group:{AWAKE}");
     napcat.send(group_frame(
         AWAKE,
         LIN,

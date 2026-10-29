@@ -41,8 +41,8 @@ fn platforms_are_found_by_name_and_by_venue() {
     assert_eq!(platforms.named("tg"), Some(TG));
     assert_eq!(platforms.named("qq"), Some(QQ));
     assert_eq!(platforms.named("discord"), None, "没挂的没有");
-    assert_eq!(platforms.of_venue(&venue("tg:group:5")), Some(TG));
-    assert_eq!(platforms.of_venue(&venue("qq:private:7")), Some(QQ));
+    assert_eq!(platforms.of_venue(&venue("tg:30003:group:5")), Some(TG));
+    assert_eq!(platforms.of_venue(&venue("qq:30003:private:7")), Some(QQ));
     assert_eq!(platforms.of_venue(&venue("discord:group:5")), None);
     assert_eq!(platforms.first(), Some(QQ), "第一个驱动的");
     assert_eq!(Platforms::default().first(), None);

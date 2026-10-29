@@ -96,7 +96,7 @@ async fn plugin_content_is_fetched_checked_and_localized_for_the_page() {
         .expect("问了浮窗那一页");
     assert_eq!(
         panel_call["params"],
-        json!({"platform": "qq", "venue": "qq:group:777"})
+        json!({"platform": "qq", "venue": "qq:30003:group:777"})
     );
     let page = call(
         &mut open,

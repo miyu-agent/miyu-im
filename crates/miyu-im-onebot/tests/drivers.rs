@@ -116,7 +116,7 @@ async fn ids_written_as_text_get_through_like_numbers() {
         "经号是字的那条连接发给号是字的人"
     );
     assert!(two.link.try_recv().is_err(), "另一个号的连接没发");
-    session_of(&two.home, "tg:private:boss_7");
+    session_of(&two.home, "tg:tgbot_x:private:boss_7");
     let said = two.home.said();
     let heard = said
         .iter()
@@ -149,8 +149,8 @@ async fn each_platform_hears_and_answers_on_its_own_link() {
     assert!(two.link.try_recv().is_err(), "QQ 的回话没经 tg 的连接");
     let home = &two.home;
     let (tg, qq) = (
-        session_of(home, "tg:private:10001"),
-        session_of(home, "qq:private:10001"),
+        session_of(home, "tg:30003:private:10001"),
+        session_of(home, "qq:30003:private:10001"),
     );
     assert_ne!(tg, qq, "两个平台各一个会话");
     let said = home.said();
@@ -189,8 +189,8 @@ async fn both_toolsets_are_provided_and_a_tool_runs_only_on_its_platform() {
     assert_eq!(names.last(), Some(&ECHO), "{names:?}");
     assert!(names.contains(&"qq_skip_reply"), "{names:?}");
     let (tg, qq) = (
-        session_of(&two.home, "tg:private:10001"),
-        session_of(&two.home, "qq:private:10001"),
+        session_of(&two.home, "tg:30003:private:10001"),
+        session_of(&two.home, "qq:30003:private:10001"),
     );
     // QQ 的场所里调 tg 的工具：不叫 tg 的驱动做，照 tg 那一套的话答够不着。
     let refused = call(&two.relay, "t1", &qq, ECHO).await;
@@ -206,7 +206,7 @@ async fn both_toolsets_are_provided_and_a_tool_runs_only_on_its_platform() {
     let calls = two.tg.calls();
     assert_eq!(calls.len(), 1, "{calls:?}");
     assert_eq!(calls[0].platform, "tg");
-    assert_eq!(calls[0].venue, "tg:private:10001");
+    assert_eq!(calls[0].venue, "tg:30003:private:10001");
     assert_eq!(
         calls[0].config,
         json!({"mode": "a"}).as_object().cloned().expect("对象")
@@ -453,7 +453,7 @@ async fn the_home_stats_follow_the_chosen_connection() {
     assert_eq!(tg + qq, all, "两个连接的加起来是全部");
     assert_eq!(
         tg_shown["venues"],
-        json!([{"name": "tg:private:10001", "received": tg}]),
+        json!([{"name": "tg:30003:private:10001", "received": tg}]),
         "{tg_shown}"
     );
     let wrong = browser::call(&mut open, 10, "stats", json!({"connection": "qq"})).await;

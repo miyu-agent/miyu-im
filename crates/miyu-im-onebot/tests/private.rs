@@ -41,7 +41,10 @@ async fn the_admins_private_chat_goes_in_and_her_reply_comes_back() {
         "命令编号拼机器人的号、消息编号和平台给的时刻"
     );
     let created = &home.events(&home.sessions()[0])[0];
-    assert_eq!(created["body"]["venue"], "qq:private:10001", "{created}");
+    assert_eq!(
+        created["body"]["venue"], "qq:30003:private:10001",
+        "{created}"
+    );
     bridge.stop().await.expect("停得下");
 }
 

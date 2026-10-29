@@ -5,7 +5,7 @@ fn tag(number: i64) -> Tag {
     Tag {
         id: format!("qq:1:{number}:0"),
         number,
-        venue: "qq:group:7".to_string(),
+        venue: "qq:30003:group:7".to_string(),
         who: "小林".to_string(),
         text: "在吗".to_string(),
         facts: Vec::new(),

@@ -4,8 +4,8 @@
 //!
 //! - `plugins.widget {package, place, venue?, page?, language}` → `{"content": [...]}`：
 //!   - `place` 是 `home`：调 `chat.home {platform}`，照首页卡片查（最多 8 段）；
-//!   - `panel`：调 `chat.panel {platform, venue}`（`venue` 是 `{type, id}`，换成场所编号，例如 `qq:group:777`），照整页查（浮窗里也
-//!     能放表单）；
+//!   - `panel`：调 `chat.panel {platform, venue}`（`venue` 是 `{type, id}`，换成场所编号，例如 `qq:10001:group:777`；机器人号照
+//!     参数 `bot`，没写的、没连着的照这个平台连着的号里最小的那一个，施工 I-81），照整页查（浮窗里也能放表单）；
 //!   - `page`：调声明里那个整页写的方法 `{platform}`，照整页查。
 //! - 插件要声明了那一样（`ui.home`、`ui.panel`、`ui.pages` 里有这个编号），不然 `bad_params`。插件回的 `result` 就是内容（段的数组）。
 //! - 写错的拒 `bad_widget_content`，记一行 `WARN plugin widget rejected package=… place=… path=… problem=…`；`package.call` 的错
@@ -39,7 +39,8 @@ pub(super) async fn widget(
         .find(|plugin| plugin["package"] == package)
         .ok_or_else(bad)?;
     let ui = &plugin["ui"];
-    let platform = site.pick(params)?.0.platform;
+    let station = site.pick(params)?.0;
+    let platform = station.platform;
     let (method, place, args) = match params["place"].as_str() {
         Some("home") if ui["home"] == true => (
             HOME.to_string(),
@@ -47,7 +48,9 @@ pub(super) async fn widget(
             json!({"platform": platform.name()}),
         ),
         Some("panel") if ui["panel"] == true => {
-            let venue = venue_id(platform, &params["venue"]).ok_or_else(bad)?;
+            let wanted = params["bot"].as_str().and_then(crate::chat::Id::new);
+            let bot = station.bots.pick(wanted).ok_or_else(bad)?;
+            let venue = venue_id(platform, &bot, &params["venue"]).ok_or_else(bad)?;
             (
                 PANEL.to_string(),
                 WidgetPlace::Page,
@@ -96,15 +99,19 @@ pub(super) async fn widget(
     Ok(json!({"content": localize(&content, language)}))
 }
 
-/// 页面交的场所 `{type, id}`（`group`、`private`，号写成字）换成平台 `platform` 上的场所编号；写错的是空的。
-pub(super) fn venue_id(platform: crate::chat::Platform, venue: &Value) -> Option<String> {
+/// 页面交的场所 `{type, id}`（`group`、`private`，号写成字）换成平台 `platform` 上机器人号 `bot` 的场所编号；写错的是空的。
+pub(super) fn venue_id(
+    platform: crate::chat::Platform,
+    bot: &crate::chat::Id,
+    venue: &Value,
+) -> Option<String> {
     let kind = match venue["type"].as_str()? {
         "group" => VenueKind::Group,
         "private" => VenueKind::Private,
         _ => return None,
     };
     let number = crate::chat::Id::new(venue["id"].as_str()?)?;
-    Some(platform.venue(kind, &number).ok()?.id().to_string())
+    Some(platform.venue(bot, kind, &number).ok()?.id().to_string())
 }
 
 #[cfg(test)]

@@ -42,7 +42,7 @@ fn by_manager(args: Value) -> Value {
 /// im 的 `chat.venue`：群 777，叫她的那一条引用了 `quote`、@ 了 `mentions`。
 fn venue(quote: Option<(&str, &str)>, mentions: &[(&str, &str)]) -> Value {
     let person = |(id, name): (&str, &str)| json!({"id": id, "name": name});
-    json!({"platform": "qq", "venue": "qq:group:777", "bot": 10000, "origin": {
+    json!({"platform": "qq", "venue": "qq:30003:group:777", "bot": 10000, "origin": {
         "sender": {"id": "qq:9", "name": "老板"},
         "quote": quote.map(|one| json!({"msg": "5", "sender": person(one)})),
         "mentions": mentions.iter().copied().map(person).collect::<Vec<_>>(),

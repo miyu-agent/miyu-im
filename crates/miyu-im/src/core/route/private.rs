@@ -22,7 +22,7 @@ impl Route {
     /// 平台 `platform` 上的一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
     pub(super) async fn private(&mut self, platform: Platform, posted: Posted) -> Result<(), Gone> {
         let made = platform
-            .venue(VenueKind::Private, &posted.user)
+            .venue(&posted.bot, VenueKind::Private, &posted.user)
             .and_then(|venue| Ok((venue, platform.person(&posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,

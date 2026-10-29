@@ -24,7 +24,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 群号是 [`GROUP`] 的场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// 终端管理员在群里 @ 她：第 `message` 条，说 `text`。

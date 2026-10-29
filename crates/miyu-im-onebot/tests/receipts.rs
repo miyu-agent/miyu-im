@@ -60,7 +60,7 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
     napcat.send(group_says(LIN, 53, "/stop"));
     // 小林说一句，上下文就不空了：终端管理员 `/clear` 成了，回执撤；再 `/clear` 被拒，那一句也撤。
     napcat.send(group_says(LIN, 54, "大家好"));
-    until_event(&home.root, &format!("qq:group:{GROUP}"), |event| {
+    until_event(&home.root, &format!("qq:30003:group:{GROUP}"), |event| {
         event["kind"] == "message.user"
     })
     .await;
@@ -105,7 +105,7 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
     // 推送和下一条消息谁先到不一定：等桥记下换了（Windows 的 CI 上撞出来过）。
     until_log(&home, |log| log.contains("recall receipts changed count=0")).await;
     napcat.send(group_says(LIN, 57, "又说一句"));
-    until_event(&home.root, &format!("qq:group:{GROUP}"), |event| {
+    until_event(&home.root, &format!("qq:30003:group:{GROUP}"), |event| {
         event["kind"] == "message.user"
             && event["cause"]
                 .as_str()
@@ -126,7 +126,10 @@ async fn group_receipts_are_recalled_as_configured_and_private_ones_are_not() {
             .map(|one| one["body"].clone())
             .collect()
     };
-    let group = queued(&venue_events(&home.root, &format!("qq:group:{GROUP}")));
+    let group = queued(&venue_events(
+        &home.root,
+        &format!("qq:30003:group:{GROUP}"),
+    ));
     assert_eq!(
         group,
         [

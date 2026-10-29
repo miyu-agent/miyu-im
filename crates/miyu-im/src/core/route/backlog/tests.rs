@@ -76,7 +76,7 @@ fn assistant(seq: u64, seconds: i64, turn: u64) -> Value {
 fn the_peer_comes_from_the_venue_and_the_last_message() {
     let mut backlog = qq(9, 0);
     assert!(backlog.peer().is_none());
-    let created = json!({"venue": "qq:group:668"});
+    let created = json!({"venue": "qq:30003:group:668"});
     backlog.take(&event(1, 0, "session.created", created, json!({})));
     assert!(backlog.peer().is_none(), "还不知道哪个号");
     backlog.take(&user(2, 30003));
@@ -91,12 +91,12 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
             QQ,
             Id::from(30004),
             To::Group(Id::from(668)),
-            "qq:group:668"
+            "qq:30003:group:668"
         )
     );
 
     let mut private = qq(9, 0);
-    let created = json!({"venue": "qq:private:20003"});
+    let created = json!({"venue": "qq:30003:private:20003"});
     private.take(&event(1, 0, "session.created", created, json!({})));
     private.take(&user(2, 30003));
     assert_eq!(
@@ -104,7 +104,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
         Some((Id::from(30003), To::Private(Id::from(20003))))
     );
     let mut other = qq(9, 0);
-    let created = json!({"venue": "tg:group:1"});
+    let created = json!({"venue": "tg:30003:group:1"});
     other.take(&event(1, 0, "session.created", created, json!({})));
     other.take(&user(2, 30003));
     assert!(other.peer().is_none(), "别的平台的不认");
@@ -114,7 +114,7 @@ fn the_peer_comes_from_the_venue_and_the_last_message() {
 fn each_platform_reads_its_own_command_ids() {
     // 挂着两个平台（施工 I-70 上）：Telegram 的命令编号认成 Telegram 的号，照 Telegram 的场所发。
     let mut backlog = Backlog::new(vec![QQ, TG], LINE, 9, 0);
-    let created = json!({"venue": "tg:group:668"});
+    let created = json!({"venue": "tg:30003:group:668"});
     backlog.take(&event(1, 0, "session.created", created, json!({})));
     backlog.take(&user_on("tg", 2, 5));
     let peer = backlog.peer().expect("认得出");
@@ -127,14 +127,14 @@ fn each_platform_reads_its_own_command_ids() {
     assert!(backlog.peer().is_none(), "不跨平台");
     // QQ 的场所照 QQ 的号。
     let mut qq_venue = Backlog::new(vec![QQ, TG], LINE, 9, 0);
-    let created = json!({"venue": "qq:group:668"});
+    let created = json!({"venue": "qq:30003:group:668"});
     qq_venue.take(&event(1, 0, "session.created", created, json!({})));
     qq_venue.take(&user_on("qq", 2, 30003));
     let peer = qq_venue.peer().expect("认得出");
     assert_eq!((peer.platform, peer.bot), (QQ, Id::from(30003)));
     // 没挂的平台的命令编号不认。
     let mut unknown = Backlog::new(vec![QQ], LINE, 9, 0);
-    let created = json!({"venue": "tg:group:668"});
+    let created = json!({"venue": "tg:30003:group:668"});
     unknown.take(&event(1, 0, "session.created", created, json!({})));
     unknown.take(&user_on("tg", 2, 5));
     assert!(unknown.peer().is_none());

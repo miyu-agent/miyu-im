@@ -29,7 +29,7 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
 
 /// 场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// `who` 在群里 @ 她：第 `message` 条。各人说的不一样，不成复读（施工 I-28）。

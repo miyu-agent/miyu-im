@@ -40,12 +40,12 @@ const QUEUED: &str = "ext.im.venues.queued";
 
 /// 群的场所编号。
 fn group_venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// 白名单成员的私聊的场所编号。
 fn private_venue() -> String {
-    format!("qq:private:{JIE}")
+    format!("qq:30003:private:{JIE}")
 }
 
 /// 系统配置的 `[im]` 多写的：白名单里只有 [`JIE`]。
@@ -287,7 +287,7 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     assert_eq!(mine.len(), 1, "新会话是终端管理员本人的：{mine:?}");
     assert_eq!(
         home.events(&mine[0])[0]["body"]["venue"],
-        format!("qq:private:{JIE}")
+        format!("qq:30003:private:{JIE}")
     );
     // 重启：旧会话不列、不订阅，她在里面接着说的不发。
     let mut napcat = restarted(&home, listen, napcat).await;

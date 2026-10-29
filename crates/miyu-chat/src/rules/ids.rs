@@ -1,6 +1,7 @@
 //! 场所和编号（`docs/blueprint/chat.md` 第一条、第七条第 1 条，施工 O-12）：场所 [`Venue`] 和它的种类 [`VenueKind`]；
-//! 场所写成内核的 `VenueId`，`<平台>:group:<群号>`、`<平台>:private:<对方的号>`；平台上的人写成内核的 `ExternalId`，
-//! `<平台>:<号>`。桥不手拼，都走这里。
+//! 场所写成内核的 `VenueId`，`<平台>:<机器人号>:group:<群号>`、`<平台>:<机器人号>:private:<对方的号>`（im 施工 I-81：同一个平台
+//! 几个号，场所照连接分）；不带机器人号的老写法 `<平台>:group:<群号>` 照旧造得出、解得开（场所规则套出厂默认值时用它）。
+//! 平台上的人写成内核的 `ExternalId`，`<平台>:<号>`。桥不手拼，都走这里。
 //!
 //! 规矩只有一份：平台照配置清单的名字的写法（小写字母开头，只有小写字母、数字、`-`、`_`，所以里面没有 `:`），号照
 //! [`forms::id`]（不空，没有空白和控制字符；里面有 `:` 的照收，号是平台的）。解的时候在前面的 `:` 处切开，拼出来的
@@ -29,6 +30,9 @@ const BAD_PLATFORM: &str =
 /// 号不合写法时的原因。
 const BAD_NUMBER: &str = "the number must not be empty or have spaces or control characters";
 
+/// 机器人号不合写法时的原因：和号一样，还不能有 `:`、不能正好是 `group`、`private`（和不带机器人号的写法分不开）。
+const BAD_BOT: &str = "the bot must be a number without colons and not group or private";
+
 /// 群的写法：匹配条件的 `kind`、场所编号的中间一段（`chat.md` 第七条第 1 条）。
 const GROUP: &str = "group";
 
@@ -42,6 +46,8 @@ const PRIVATE: &str = "private";
 pub struct Venue {
     /// 平台，例如 `qq`：和规则的 `match.platform` 照字比。
     platform: String,
+    /// 收发这个场所的机器人号（im 施工 I-81）；老写法、只为套规则造的没有。
+    bot: Option<String>,
     /// 群还是私聊。
     kind: VenueKind,
     /// 平台里的编号：群是群号，私聊是对方的号。照十进制写成字，不带平台前缀；和规则的 `match.group`、`match.user` 照字比。
@@ -92,6 +98,36 @@ impl Venue {
         check(VENUE, &text, platform, number)?;
         Ok(Venue {
             platform: platform.to_string(),
+            bot: None,
+            kind,
+            number: number.to_string(),
+            id: VenueId::parse(&text)?,
+        })
+    }
+
+    /// 同 [`Venue::new`]，带上收发它的机器人号 `bot`（im 施工 I-81）：场所编号是 `<平台>:<机器人号>:<种类>:<号>`。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Venue::new`]；机器人号不合写法（同号的规矩，不能有 `:`、不能正好叫 `group`、`private`）也报。
+    pub fn with_bot(
+        platform: &str,
+        bot: &str,
+        kind: VenueKind,
+        number: &str,
+    ) -> Result<Venue, FormatError> {
+        let text = format!("{platform}:{bot}:{}:{number}", kind.as_str());
+        check(VENUE, &text, platform, number)?;
+        if !bot_ok(bot) {
+            return Err(FormatError {
+                what: VENUE,
+                text: got(&text),
+                why: BAD_BOT,
+            });
+        }
+        Ok(Venue {
+            platform: platform.to_string(),
+            bot: Some(bot.to_string()),
             kind,
             number: number.to_string(),
             id: VenueId::parse(&text)?,
@@ -101,6 +137,11 @@ impl Venue {
     /// 平台，例如 `qq`。
     pub fn platform(&self) -> &str {
         &self.platform
+    }
+
+    /// 收发这个场所的机器人号；老写法的没有。
+    pub fn bot(&self) -> Option<&str> {
+        self.bot.as_deref()
     }
 
     /// 群还是私聊。
@@ -113,18 +154,22 @@ impl Venue {
         &self.number
     }
 
-    /// 这个场所的编号：`<平台>:group:<群号>` 或 `<平台>:private:<对方的号>`（第七条第 1 条）。造的时候拼好、查过，
+    /// 这个场所的编号：`<平台>:<机器人号>:<种类>:<号>`，老写法是 `<平台>:<种类>:<号>`（第七条第 1 条）。造的时候拼好、查过，
     /// 不会失败。
     pub fn id(&self) -> &VenueId {
         &self.id
     }
 
-    /// 从场所编号解出场所：[`Venue::id`] 的反面。在前两个 `:` 处切开，照 [`Venue::new`] 的规矩查；不合写法的是 `None`：
-    /// 平台不是名字、种类不是 `group`、`private`、号是空的或者有空白和控制字符。
+    /// 从场所编号解出场所：[`Venue::id`] 的反面。平台后面那一段是 `group`、`private` 的是老写法（后面整段是号），别的是机器人号，
+    /// 再往后是种类和号；照 [`Venue::new`]、[`Venue::with_bot`] 的规矩查，不合写法的是 `None`。
     pub fn parse(id: &VenueId) -> Option<Venue> {
         let (platform, rest) = id.as_str().split_once(':')?;
-        let (kind, number) = rest.split_once(':')?;
-        Venue::new(platform, VenueKind::parse(kind)?, number).ok()
+        let (second, after) = rest.split_once(':')?;
+        if let Some(kind) = VenueKind::parse(second) {
+            return Venue::new(platform, kind, after).ok();
+        }
+        let (kind, number) = after.split_once(':')?;
+        Venue::with_bot(platform, second, VenueKind::parse(kind)?, number).ok()
     }
 }
 
@@ -148,6 +193,11 @@ pub fn parse_person(id: &ExternalId) -> Option<(&str, &str)> {
 pub(super) fn split_person(text: &str) -> Option<(&str, &str)> {
     let (platform, number) = text.split_once(':')?;
     (platform_ok(platform) && forms::id(number)).then_some((platform, number))
+}
+
+/// 机器人号合不合写法：同号（[`forms::id`]），不带 `:`，不正好是 `group`、`private`。
+fn bot_ok(bot: &str) -> bool {
+    forms::id(bot) && !bot.contains(':') && VenueKind::parse(bot).is_none()
 }
 
 /// 平台合不合配置清单的名字的写法。

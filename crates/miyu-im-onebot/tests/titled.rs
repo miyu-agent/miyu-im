@@ -71,7 +71,8 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
     let private = &script.requests()[2].1.system;
     assert!(!private.contains("<venue>"), "私聊没有：{private}");
     // 场所会话不自动起标题（施工 O-43）：群的、私聊的造的时候都说了。
-    let (_, group) = venue_session(&home.root, &format!("qq:group:{GROUP}")).expect("有群会话");
+    let (_, group) =
+        venue_session(&home.root, &format!("qq:30003:group:{GROUP}")).expect("有群会话");
     assert_eq!(group[0]["body"]["titles"], json!(false), "{}", group[0]);
     let places: Vec<_> = said(&group)
         .iter()

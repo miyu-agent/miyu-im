@@ -29,7 +29,7 @@ fn result(reply: &Value) -> &Value {
 async fn the_page_lists_and_deletes_her_sessions() {
     let script = Script::new([Play::Says("在呢")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(group_frame(
         GROUP,
         ADMIN,

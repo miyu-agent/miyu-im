@@ -32,7 +32,7 @@ impl Route {
         posted: Posted,
     ) -> Result<(), Gone> {
         let made = platform
-            .venue(VenueKind::Group, &group)
+            .venue(&posted.bot, VenueKind::Group, &group)
             .and_then(|venue| Ok((venue, platform.person(&posted.user)?)));
         let (venue, external) = match made {
             Ok(made) => made,

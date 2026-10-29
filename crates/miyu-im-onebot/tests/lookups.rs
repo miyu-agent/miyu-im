@@ -87,7 +87,7 @@ async fn group_only_plugins_are_off_in_a_private_chat() {
     let script = Script::new([Play::Says("在")]);
     let (home, napcat, _) = started(&script, "", "", &[(BOT, "米尤", "miyu")]).await;
     napcat.send(private_frame(ADMIN, 1, json!([plain("在吗")])));
-    let venue = format!("venue=qq:private:{ADMIN}");
+    let venue = format!("venue=qq:30003:private:{ADMIN}");
     let log = until_logged(&home.root, |log| {
         log.lines()
             .any(|line| line.contains("venue plugins told") && line.contains(&venue))

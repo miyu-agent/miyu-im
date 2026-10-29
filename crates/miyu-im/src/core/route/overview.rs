@@ -11,10 +11,10 @@ use std::collections::BTreeSet;
 use serde_json::{Value, json};
 
 use super::Route;
-use crate::chat::Id;
 use crate::core::methods::CARDS_OVERVIEW;
 use crate::rules::{Card, card_edit};
-use miyu_chat::VenueKind;
+use miyu_chat::{Venue, VenueKind};
+use miyu_client::ids::VenueId;
 
 /// 认一个场所编号是不是这张卡管的。
 type Wanted = Box<dyn Fn(&str) -> bool>;
@@ -52,26 +52,27 @@ impl Route {
         Some(json!({"today": today, "recent": recent}))
     }
 
-    /// 一张卡管的场所：交回认场所编号的那一段。
+    /// 一张卡管的场所：交回认场所编号的那一段。场所编号解开了照（平台、种类、号）比，不看机器人号（施工 I-81：编号带机器人号，
+    /// 卡片管这个平台所有的号）。
     fn wanted_venues(&self, card: Card) -> Option<Wanted> {
-        let key = |platform: &str, kind, number: &Id| -> Option<String> {
-            Some(Self::card_venue(platform, kind, number)?.id().to_string())
-        };
-        // 一种场所的编号的开头：照号 0 的编号去掉最后一段（`qq:group:`）。
-        let prefix = |platform: &str, kind| -> Option<String> {
-            let one = key(platform, kind, &Id::from(0))?;
-            Some(format!("{}:", one.rsplit_once(':')?.0))
-        };
         Some(match card {
             // 会话默认值不是哪个场所：没有概况。
             Card::Defaults => return None,
             Card::Group(platform, id) => {
-                let one = key(&platform, VenueKind::Group, &id)?;
-                Box::new(move |venue: &str| venue == one)
+                let id = id.to_string();
+                Box::new(move |venue: &str| {
+                    parts(venue).is_some_and(|(on, kind, number)| {
+                        on == platform && kind == VenueKind::Group && number == id
+                    })
+                })
             }
             Card::Private(platform, id) => {
-                let one = key(&platform, VenueKind::Private, &id)?;
-                Box::new(move |venue: &str| venue == one)
+                let id = id.to_string();
+                Box::new(move |venue: &str| {
+                    parts(venue).is_some_and(|(on, kind, number)| {
+                        on == platform && kind == VenueKind::Private && number == id
+                    })
+                })
             }
             Card::OtherGroups(platform) => {
                 let listed: BTreeSet<String> = self
@@ -80,20 +81,36 @@ impl Route {
                     .groups
                     .iter()
                     .filter(|card| card.platform == platform)
-                    .filter_map(|card| key(&platform, VenueKind::Group, &card.id))
+                    .map(|card| card.id.to_string())
                     .collect();
-                let start = prefix(&platform, VenueKind::Group)?;
-                Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))
+                Box::new(move |venue: &str| {
+                    parts(venue).is_some_and(|(on, kind, number)| {
+                        on == platform && kind == VenueKind::Group && !listed.contains(&number)
+                    })
+                })
             }
             Card::OtherPrivates(platform) => {
                 let listed: BTreeSet<String> = self
                     .whitelist_numbers(&platform)
                     .into_iter()
-                    .filter_map(|id| key(&platform, VenueKind::Private, &id))
+                    .map(|id| id.to_string())
                     .collect();
-                let start = prefix(&platform, VenueKind::Private)?;
-                Box::new(move |venue: &str| venue.starts_with(&start) && !listed.contains(venue))
+                Box::new(move |venue: &str| {
+                    parts(venue).is_some_and(|(on, kind, number)| {
+                        on == platform && kind == VenueKind::Private && !listed.contains(&number)
+                    })
+                })
             }
         })
     }
+}
+
+/// 场所编号 `venue` 解成（平台、种类、号）；解不开的是空的。
+fn parts(venue: &str) -> Option<(String, VenueKind, String)> {
+    let venue = Venue::parse(&VenueId::parse(venue).ok()?)?;
+    Some((
+        venue.platform().to_string(),
+        venue.kind(),
+        venue.number().to_string(),
+    ))
 }

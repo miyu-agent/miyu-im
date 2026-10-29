@@ -84,11 +84,11 @@ fn lin() -> ExternalId {
     ExternalId::parse("qq:20002").expect("合写法")
 }
 
-/// 第 12 条：`standing` 的人发的，冲不冲她来是 `addressed`。抽样的种子 `SHA-256("qq:group:5\n12")` 落在千分之 116，出厂的千分之
+/// 第 12 条：`standing` 的人发的，冲不冲她来是 `addressed`。抽样的种子 `SHA-256("qq:30003:group:5\n12")` 落在千分之 116，出厂的千分之
 /// 50 抽不中（拿 Python 的 hashlib 算的）：没条件的结论不随抽样变。
 pub(super) fn facts(standing: Standing, addressed: bool) -> Facts {
     Facts {
-        venue: VenueId::parse("qq:group:5").expect("合写法"),
+        venue: VenueId::parse("qq:30003:group:5").expect("合写法"),
         msg: Seq::new(12).expect("不是 0"),
         said: Said {
             sender: lin(),

@@ -16,7 +16,7 @@ const LANE: &str = "01a0d78c-ffff-7d19-8b64-0e3f5a7c2d91";
 
 /// 号是 `user` 的人在群里说的第 `seq` 条，平台编号 `m<seq>`，命令编号 `c<seq>`，带一张图。
 fn heard(seq: u64, user: i64) -> Event {
-    let by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}"), "role": "member"});
+    let by = json!({"kind": "external", "venue": "qq:30003:group:5", "id": format!("qq:{user}"), "role": "member"});
     let blob = format!("sha256:{}", "a".repeat(64));
     let image = json!({"type": "image", "blob": blob, "name": "msg-1-1", "media_type": "image/png", "width": 1, "height": 1});
     let body = json!({"blocks": [{"type": "text", "text": "嗨"}, image], "venue": {"msg": format!("m{seq}"), "ambient": true}});

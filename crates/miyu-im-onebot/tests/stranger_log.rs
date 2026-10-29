@@ -40,6 +40,9 @@ async fn a_stranger_is_logged_once() {
         .filter(|line| line.contains("not admin or whitelisted, not taken"))
         .collect();
     assert_eq!(refused.len(), 1, "同一个人只记一行：{refused:?}");
-    assert!(refused[0].contains("venue=qq:private:20002"), "{refused:?}");
+    assert!(
+        refused[0].contains("venue=qq:30003:private:20002"),
+        "{refused:?}"
+    );
     bridge.stop().await.expect("停得下");
 }

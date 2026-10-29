@@ -325,11 +325,13 @@ async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
     })
     .await;
     assert!(
-        log.contains("command ran venue=qq:private:10001 message=1 command=stop"),
+        log.contains("command ran venue=qq:30003:private:10001 message=1 command=stop"),
         "{log}"
     );
     assert!(
-        log.contains("command refused venue=qq:private:10001 message=2 reason=memory_unavailable"),
+        log.contains(
+            "command refused venue=qq:30003:private:10001 message=2 reason=memory_unavailable"
+        ),
         "{log}"
     );
     assert!(!log.contains("喜欢猫"), "原文不进运行日志：{log}");

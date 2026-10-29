@@ -140,9 +140,10 @@ fn line(one: &Value, me: Option<&str>, everywhere: bool) -> String {
     let at = one["at"].as_i64().unwrap_or_default();
     let mut line = clock(u64::try_from(at / 1000).unwrap_or_default());
     if everywhere {
+        // 从右边拆：最后一段是号、倒数第二段是种类（施工 I-81 起中间多一段机器人号，号里没有 `:`）。
         let venue = one["venue"].as_str().unwrap_or_default();
-        let mut parts = venue.split(':').skip(1);
-        if let (Some(kind), Some(id)) = (parts.next(), parts.next()) {
+        let mut parts = venue.rsplit(':');
+        if let (Some(id), Some(kind)) = (parts.next(), parts.next()) {
             line.push_str(&format!(" {kind} {id},"));
         }
     }

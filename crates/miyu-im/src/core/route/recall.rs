@@ -26,13 +26,15 @@ impl Route {
             Some(group) => (VenueKind::Group, group.clone()),
             None => (VenueKind::Private, recall.user.clone()),
         };
-        let made = platform.venue(kind, &number).and_then(|venue| {
-            Ok((
-                venue,
-                platform.person(&recall.user)?,
-                platform.person(&recall.by)?,
-            ))
-        });
+        let made = platform
+            .venue(&recall.bot, kind, &number)
+            .and_then(|venue| {
+                Ok((
+                    venue,
+                    platform.person(&recall.user)?,
+                    platform.person(&recall.by)?,
+                ))
+            });
         let (venue, user, by) = match made {
             Ok(made) => made,
             Err(error) => {

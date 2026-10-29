@@ -83,9 +83,7 @@ impl Platforms {
     /// 在平台 `platform` 上经哪个号发：`bot` 写了、连着的照它；不然退回这个平台连着的号里最小的那一个，不跨平台（施工 I-70 上）。
     /// 这个平台一个号都没连着的是空的。
     pub fn sender(&self, platform: Platform, bot: Option<Id>) -> Option<Id> {
-        let bots = self.bots(platform);
-        bot.filter(|bot| bots.get(bot).is_some())
-            .or_else(|| bots.first().map(|(bot, _)| bot))
+        self.bots(platform).pick(bot)
     }
 
     /// 给别的包调的方法、工具的参数 `args` 是冲哪个平台来的（施工 I-1、I-70 上「定了的」第 1 条）：写了 `platform` 的照写的，不是

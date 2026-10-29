@@ -11,14 +11,14 @@ fn at(millis: i64) -> Timestamp {
 #[test]
 fn turns_are_kept_per_venue_for_a_day() {
     let mut strangers = Strangers::default();
-    strangers.opened("qq:private:1", at(1_000));
-    strangers.opened("qq:private:2", at(2_000));
-    strangers.opened("qq:private:1", at(3_000));
-    assert_eq!(strangers.of("qq:private:1"), [at(1_000), at(3_000)]);
-    assert_eq!(strangers.of("qq:private:3"), []);
-    strangers.opened("qq:private:1", at(1_000 + super::DAY + 1));
+    strangers.opened("qq:30003:private:1", at(1_000));
+    strangers.opened("qq:30003:private:2", at(2_000));
+    strangers.opened("qq:30003:private:1", at(3_000));
+    assert_eq!(strangers.of("qq:30003:private:1"), [at(1_000), at(3_000)]);
+    assert_eq!(strangers.of("qq:30003:private:3"), []);
+    strangers.opened("qq:30003:private:1", at(1_000 + super::DAY + 1));
     assert_eq!(
-        strangers.of("qq:private:1"),
+        strangers.of("qq:30003:private:1"),
         [at(3_000), at(1_000 + super::DAY + 1)],
         "一天以前的扔掉"
     );

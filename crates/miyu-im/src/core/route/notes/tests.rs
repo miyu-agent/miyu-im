@@ -28,23 +28,24 @@ fn a_kind_is_a_safe_tag_name() {
 
 #[test]
 fn a_note_reads_its_venue_kind_and_trimmed_text() {
-    let args = json!({"venue": "qq:group:777", "kind": "moderated", "text": "  小周 was muted.
+    let args = json!({"venue": "qq:30003:group:777", "kind": "moderated", "text": "  小周 was muted.
 "});
     let (venue, kind, text) = read(&args).expect("读得出");
     assert_eq!(
         (venue.id().as_str(), kind, text),
-        ("qq:group:777", "moderated", "小周 was muted.")
+        ("qq:30003:group:777", "moderated", "小周 was muted.")
     );
     for wrong in [
-        json!({"venue": "qq:group:777", "kind": "moderated", "text": "  "}),
-        json!({"venue": "qq:group:777", "kind": "moderated", "text": "字".repeat(501)}),
-        json!({"venue": "qq:group:777", "kind": "Moderated", "text": "x"}),
+        json!({"venue": "qq:30003:group:777", "kind": "moderated", "text": "  "}),
+        json!({"venue": "qq:30003:group:777", "kind": "moderated", "text": "字".repeat(501)}),
+        json!({"venue": "qq:30003:group:777", "kind": "Moderated", "text": "x"}),
         json!({"venue": "not a venue", "kind": "moderated", "text": "x"}),
         json!({"kind": "moderated", "text": "x"}),
     ] {
         assert!(read(&wrong).is_none(), "{wrong}");
     }
     assert!(
-        read(&json!({"venue": "qq:group:777", "kind": "a", "text": "字".repeat(500)})).is_some()
+        read(&json!({"venue": "qq:30003:group:777", "kind": "a", "text": "字".repeat(500)}))
+            .is_some()
     );
 }

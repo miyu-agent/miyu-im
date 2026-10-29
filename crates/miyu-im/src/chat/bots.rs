@@ -50,6 +50,13 @@ impl Bots {
             .map(|(bot, held)| (bot.clone(), Arc::clone(&held.link)))
     }
 
+    /// 经哪个号：`wanted` 写了、连着的照它；不然退回连着的号里最小的那一个（[`Bots::first`]，施工 I-70 上）。一个都没连着的是空的。
+    pub fn pick(&self, wanted: Option<Id>) -> Option<Id> {
+        wanted
+            .filter(|bot| self.get(bot).is_some())
+            .or_else(|| self.first().map(|(bot, _)| bot))
+    }
+
     /// 连着的每一个号和它的连接，照号排（施工 O-58 上：`cards.get` 问每个号在的群、好友）。
     pub fn all(&self) -> Vec<(Id, Arc<dyn Link>)> {
         self.held()

@@ -26,7 +26,7 @@ fn history(user: i64, id: i64, time: i64, text: &str) -> Value {
 #[tokio::test(flavor = "multi_thread")]
 async fn messages_missed_while_away_are_backfilled_into_the_chat_log_only() {
     let (home, napcat, listen) = started(&Script::new([]), "", "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(group_frame(
         GROUP,
         LIN,

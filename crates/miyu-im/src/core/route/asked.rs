@@ -21,12 +21,14 @@ impl Route {
         mut request: Value,
         reply: Replier,
     ) {
-        let model = match to {
-            To::Group(group) => platform
-                .venue(miyu_chat::VenueKind::Group, &group)
+        // 场所照这个平台连着的号认（施工 I-81：驱动带的插件只交了群号）。
+        let bot = self.platforms.sender(platform, None);
+        let model = match (to, bot) {
+            (To::Group(group), Some(bot)) => platform
+                .venue(&bot, miyu_chat::VenueKind::Group, &group)
                 .ok()
                 .and_then(|venue| self.applied(&venue).params.judge.model),
-            To::Private(_) => None,
+            _ => None,
         };
         match model {
             Some(model) => request["model"] = json!(model),

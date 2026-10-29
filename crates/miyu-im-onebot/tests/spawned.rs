@@ -356,7 +356,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     assert_eq!(home.said_texts(), ["在吗"]);
     // 核心拉起的桥 `venue.binding` 答得了：认不出的陌生人不问 `venue.session`（施工 I-65），核心不造会话（施工 I-71：场所会话都
     // 在主人名下，照场所找）。
-    let theirs = crate::support::events::venue_session(&home.root, "qq:private:20002");
+    let theirs = crate::support::events::venue_session(&home.root, "qq:30003:private:20002");
     assert!(theirs.is_none(), "陌生人的私聊不造会话：{theirs:?}");
     // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
     let log = std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
@@ -366,7 +366,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
         .filter(|line| line.contains("not admin or whitelisted, not taken"))
         .collect();
     assert_eq!(refused.len(), 1, "同一个人只记一行：{log}");
-    assert!(refused[0].contains("venue=qq:private:20002"), "{log}");
+    assert!(refused[0].contains("venue=qq:30003:private:20002"), "{log}");
     napcat.close().await;
     ok(&home.root, &["stop"]).await;
     home.stop_extensions().await;

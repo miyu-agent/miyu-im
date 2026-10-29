@@ -64,7 +64,7 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
         json!([plain("大家好")]),
         ("小林", "lin"),
     ));
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_events(&home.root, &venue, |events| {
         events.iter().any(|event| event["kind"] == "message.user")
     })
@@ -77,7 +77,7 @@ async fn a_card_pins_the_model_and_follows_its_changes() {
         json!([plain("在吗")]),
         ("小林", "lin"),
     ));
-    let manual = format!("qq:group:{MANUAL}");
+    let manual = format!("qq:30003:group:{MANUAL}");
     until_events(&home.root, &manual, |events| !events.is_empty()).await;
     let kinds: Vec<&str> = events
         .iter()
@@ -149,7 +149,7 @@ async fn a_card_persona_switches_the_existing_session() {
         json!([plain("大家好")]),
         ("小林", "lin"),
     ));
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_events(&home.root, &venue, |events| {
         events.iter().any(|event| event["kind"] == "message.user")
     })

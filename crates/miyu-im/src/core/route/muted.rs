@@ -45,7 +45,7 @@ impl Route {
         seconds: Option<u64>,
         operator: Option<Id>,
     ) -> Result<(), Gone> {
-        let venue = match platform.venue(VenueKind::Group, &group) {
+        let venue = match platform.venue(&bot, VenueKind::Group, &group) {
             Ok(venue) => venue,
             Err(error) => {
                 tracing::warn!(target: TARGET, group = %group, error = %error, "venue not made, mute not noted");

@@ -45,7 +45,7 @@ async fn a_group_card_pins_its_recent_count_on_new_sessions() {
             json!([plain("大家好")]),
             ("小林", "lin"),
         ));
-        let venue = format!("qq:group:{group}");
+        let venue = format!("qq:30003:group:{group}");
         let events = until_events(&home.root, &venue, |events| !events.is_empty()).await;
         created.push(events[0].clone());
     }

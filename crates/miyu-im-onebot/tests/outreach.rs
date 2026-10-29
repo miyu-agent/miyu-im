@@ -73,7 +73,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
         .trim_end()
         .to_string();
     assert_eq!(
-        reached(&home.root, &format!("qq:group:{ELSEWHERE}")),
+        reached(&home.root, &format!("qq:30003:group:{ELSEWHERE}")),
         [fact]
     );
     // 白名单成员（她的私聊会话找得到）：发私聊、记 `reached`。
@@ -88,7 +88,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
     next_send(&mut napcat, "send_private_msg", "user_id", FRIEND).await;
     assert_eq!(ended(&home, 2).await, done("sent", &[]));
     assert_eq!(
-        reached(&home.root, &format!("qq:private:{FRIEND}")).len(),
+        reached(&home.root, &format!("qq:30003:private:{FRIEND}")).len(),
         1
     );
     // 陌生人：照发，没有会话、不记。
@@ -102,7 +102,7 @@ async fn she_messages_another_group_a_friend_and_a_stranger() {
     .await;
     next_send(&mut napcat, "send_private_msg", "user_id", STRANGER).await;
     assert_eq!(ended(&home, 3).await, done("sent", &[]));
-    assert!(reached(&home.root, &format!("qq:private:{STRANGER}")).is_empty());
+    assert!(reached(&home.root, &format!("qq:30003:private:{STRANGER}")).is_empty());
     // 写错的：两个都写了。
     says(
         &home,

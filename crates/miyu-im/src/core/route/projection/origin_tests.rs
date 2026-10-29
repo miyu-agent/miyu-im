@@ -15,7 +15,8 @@ fn quoting(
     mentions: &[i64],
     admin: bool,
 ) -> miyu_client::events::Event {
-    let mut by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
+    let mut by =
+        json!({"kind": "external", "venue": "qq:30003:group:5", "id": format!("qq:{user}")});
     if admin {
         by["owner"] = json!(true);
     }

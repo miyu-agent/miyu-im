@@ -101,7 +101,7 @@ impl Sponsor {
     fn calls(&mut self, id: &str, (by, owner): (Value, bool), args: Value) -> Value {
         let params = json!({"session": "s1", "call_id": id, "tool": "sponsor", "args": args, "cwd": ".", "by": by, "owner": owner});
         self.send(&json!({"jsonrpc": "2.0", "id": id, "method": "tool.call", "params": params}));
-        let venue = json!({"platform": "qq", "venue": "qq:group:777", "bot": 10000, "origin": {
+        let venue = json!({"platform": "qq", "venue": "qq:30003:group:777", "bot": 10000, "origin": {
             "sender": {"id": "qq:9", "name": "老板"},
             "quote": {"msg": "5", "sender": {"id": "qq:40001", "name": "小明"}},
             "mentions": [],
@@ -150,7 +150,7 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
 
     // 场所的管理的人叫的：没写号，照引用的小明记，美元照假服务的汇率换成人民币。
     let manager =
-        json!({"kind": "external", "venue": "qq:group:777", "id": "qq:9", "role": "manager"});
+        json!({"kind": "external", "venue": "qq:30003:group:777", "id": "qq:9", "role": "manager"});
     let added = sponsor.calls(
         "c1",
         (manager, false),
@@ -163,7 +163,7 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
     );
     // 普通成员叫的：不记。
     let member =
-        json!({"kind": "external", "venue": "qq:group:777", "id": "qq:3", "role": "member"});
+        json!({"kind": "external", "venue": "qq:30003:group:777", "id": "qq:3", "role": "member"});
     let refused = sponsor.calls("c2", (member, false), json!({"action": "add", "amount": 5}));
     assert_eq!(refused["error"], true, "{refused}");
 

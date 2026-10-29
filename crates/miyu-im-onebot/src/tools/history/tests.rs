@@ -89,7 +89,7 @@ fn a_line_has_time_speaker_id_text_media_quote_and_recall() {
     let at = OCT20 + 60_000;
     let time = clock(u64::try_from(at / 1000).expect("正的"));
     let one = json!({
-        "venue": "qq:group:31", "msg": "123", "sender": "qq:40001", "name": "小明\u{7}", "at": at,
+        "venue": "qq:30003:group:31", "msg": "123", "sender": "qq:40001", "name": "小明\u{7}", "at": at,
         "text": "今晚\n打团本吗", "reply_to": "99", "mine": false, "recalled_at": at + 1,
         "media": [{"kind": "image", "id": "a"}, {"kind": "file", "id": "f", "name": "排班.pdf"}],
     });
@@ -99,12 +99,12 @@ fn a_line_has_time_speaker_id_text_media_quote_and_recall() {
             "{time} 小明 (40001) msg=123: 今晚 打团本吗 [image] [file 排班.pdf] (reply to msg=99) (recalled)"
         )
     );
-    let mine = json!({"venue": "qq:private:7", "msg": "5", "sender": "qq:10001", "name": null, "at": at, "text": "好", "media": [], "mine": true});
+    let mine = json!({"venue": "qq:30003:private:7", "msg": "5", "sender": "qq:10001", "name": null, "at": at, "text": "好", "media": [], "mine": true});
     assert_eq!(
         line(&mine, Some("qq:10001"), true),
         format!("{time} private 7, you msg=5: 好")
     );
-    let nameless = json!({"venue": "qq:group:31", "msg": "6", "sender": "qq:40002", "name": "  ", "at": at, "text": "", "media": [{"kind": "sticker"}], "mine": false});
+    let nameless = json!({"venue": "qq:30003:group:31", "msg": "6", "sender": "qq:40002", "name": "  ", "at": at, "text": "", "media": [{"kind": "sticker"}], "mine": false});
     assert_eq!(
         line(&nameless, None, true),
         format!("{time} group 31, 40002 msg=6: [sticker]")
@@ -113,15 +113,15 @@ fn a_line_has_time_speaker_id_text_media_quote_and_recall() {
 
 #[test]
 fn only_all_chats_drops_the_venue() {
-    let here = query_of(&asked(), "qq:group:31");
-    assert_eq!(here.venue.as_deref(), Some("qq:group:31"));
+    let here = query_of(&asked(), "qq:30003:group:31");
+    assert_eq!(here.venue.as_deref(), Some("qq:30003:group:31"));
     assert_eq!(here.limit, SHOWN);
     let everywhere = Asked {
         everywhere: true,
         user: Some("小明".to_string()),
         ..asked()
     };
-    let all = query_of(&everywhere, "qq:group:31");
+    let all = query_of(&everywhere, "qq:30003:group:31");
     assert_eq!(all.venue, None, "跨场所的不按场所筛");
     assert_eq!(all.sender.as_deref(), Some("小明"));
 }

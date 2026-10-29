@@ -115,7 +115,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
     );
     is_a_page(&first[2..]);
     is_a_page(&napcat.group_message(GROUP).await);
-    let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    let events = until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         of_kind(events, "venue.delivered").len() == 2
     })
     .await;
@@ -257,7 +257,7 @@ async fn a_long_reply_goes_out_as_one_forwarded_bundle() {
         [cleaned()],
         "一段一个节点，过了出站链的全文"
     );
-    let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    let events = until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         !of_kind(events, "venue.delivered").is_empty()
     })
     .await;

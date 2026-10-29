@@ -66,7 +66,7 @@ async fn until_notes(home: &Home, group: i64, n: usize) -> Vec<Value> {
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {
-    format!("qq:group:{group}")
+    format!("qq:30003:group:{group}")
 }
 
 /// 等到群 `group` 里有 `n` 条 `kind` 的事件：交回那时的全部事件。

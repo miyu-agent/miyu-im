@@ -75,7 +75,7 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
     let (dir, root) = temp_root();
     test_rules(&root);
     assert_eq!(
-        shown(&root, "qq:group:1", &zh(&resources())),
+        shown(&root, "qq:30003:group:1", &zh(&resources())),
         (
             0,
             "allow = false（卡片「其他群」）\n\
@@ -100,7 +100,7 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
 fn without_system_rules_the_factory_ones_are_shown() {
     let (dir, root) = temp_root();
     assert_eq!(
-        shown(&root, "qq:private:5", &zh(&resources())),
+        shown(&root, "qq:30003:private:5", &zh(&resources())),
         (
             0,
             "allow = false（卡片「其他私聊」）\n\
@@ -123,7 +123,7 @@ fn a_venue_nothing_sets_says_so() {
     system_rule(&root, "50-defaults.toml", "");
     let listed = Configured::handed(&serde_json::json!({"im.whitelist": ["qq:1"]}));
     assert_eq!(
-        shown_with(&root, "qq:private:1", &zh(&resources()), Ok(listed)),
+        shown_with(&root, "qq:30003:private:1", &zh(&resources()), Ok(listed)),
         (
             0,
             "没有规则设到这个场所。\n没列出的参数照出厂的 defaults.toml。\n".to_string(),
@@ -138,8 +138,8 @@ fn a_bad_venue_id_is_a_usage_error() {
     let (dir, root) = temp_root();
     for wrong in [
         "qq:channel:1",
-        "qq:group:",
-        "qq:group:1 2",
+        "qq:30003:group:",
+        "qq:30003:group:1 2",
         "QQ:group:1",
         "nonsense",
         "",
@@ -176,7 +176,7 @@ fn broken_factory_data_is_said_with_every_problem() {
     )
     .expect("写得进");
     let texts = zh(&resources);
-    let (code, out, err) = shown(&root, "qq:group:1", &texts);
+    let (code, out, err) = shown(&root, "qq:30003:group:1", &texts);
     assert_eq!((code, out.as_str()), (1, ""));
     assert_eq!(
         err,
@@ -201,7 +201,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
         r#"{"groups": [{"id": 2, "set": {"rate": "7/60s"}}]}"#,
     );
     assert_eq!(
-        shown_with(&root, "qq:group:2", &zh(&resources()), Ok(configured)),
+        shown_with(&root, "qq:30003:group:2", &zh(&resources()), Ok(configured)),
         (
             0,
             "allow = true（群 2 的卡片）\n\
@@ -220,7 +220,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
     );
     let (code, out, err) = shown_with(
         &root,
-        "qq:group:2",
+        "qq:30003:group:2",
         &zh(&resources()),
         Err("refused".to_string()),
     );
@@ -247,7 +247,7 @@ async fn the_program_shows_in_the_system_language() {
     let root = home.root.clone();
     test_rules(&root);
     write_cards(&root, r#"{"groups": [{"id": 1}]}"#);
-    let shown = ran(&root, &["venue", "show", "qq:group:1"]).await;
+    let shown = ran(&root, &["venue", "show", "qq:30003:group:1"]).await;
     assert_eq!(shown.status.code(), Some(0), "{}", text(&shown.stderr));
     assert_eq!(text(&shown.stderr), "");
     assert_eq!(
@@ -266,7 +266,7 @@ async fn the_program_shows_in_the_system_language() {
     for wrong in [
         &["venue"][..],
         &["venue", "show"],
-        &["venue", "list", "qq:group:1"],
+        &["venue", "list", "qq:30003:group:1"],
     ] {
         let refused = ran(&root, wrong).await;
         assert_eq!(refused.status.code(), Some(2), "{wrong:?}");

@@ -34,7 +34,7 @@ const FAILED: &str = "ext.im.venues.failed";
 
 /// 群的场所编号。
 fn venue() -> String {
-    format!("qq:group:{GROUP}")
+    format!("qq:30003:group:{GROUP}")
 }
 
 /// 终端管理员 @ 她：第 `message` 条。

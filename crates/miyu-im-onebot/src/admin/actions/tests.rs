@@ -119,12 +119,21 @@ async fn clearing_takes_two_clicks() {
 #[tokio::test]
 async fn the_panel_is_for_groups_and_the_page_says_when_qq_is_away() {
     let context = context("panel");
-    let panel = call(&context, "chat.panel", &json!({"venue": "qq:group:31"}))
-        .await
-        .expect("答了");
+    let panel = call(
+        &context,
+        "chat.panel",
+        &json!({"venue": "qq:30003:group:31"}),
+    )
+    .await
+    .expect("答了");
     assert_eq!(panel[0]["type"], "heading");
     assert_eq!(
-        call(&context, "chat.panel", &json!({"venue": "qq:private:7"})).await,
+        call(
+            &context,
+            "chat.panel",
+            &json!({"venue": "qq:30003:private:7"})
+        )
+        .await,
         Err("bad_params".to_string())
     );
     let page = call(&context, "admin.page", &json!({}))

@@ -38,7 +38,7 @@ fn says(napcat: &Answering, who: i64, card: &str, message: i64) {
 /// 等到第 `message` 条判过：交回那时的群会话事件。
 async fn until_decided(home: &Home, message: i64) -> Vec<Value> {
     let cause = format!("qq:{BOT}:{message}:{TIME}/decided");
-    until_event(&home.root, &format!("qq:group:{GROUP}"), |event| {
+    until_event(&home.root, &format!("qq:30003:group:{GROUP}"), |event| {
         event["cause"] == cause
     })
     .await

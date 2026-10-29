@@ -21,7 +21,7 @@ const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probabil
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {
-    format!("qq:group:{group}")
+    format!("qq:30003:group:{group}")
 }
 
 /// 第 `message` 条消息的命令编号加 `/what`。

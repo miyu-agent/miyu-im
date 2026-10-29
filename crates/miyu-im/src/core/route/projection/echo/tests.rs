@@ -12,7 +12,7 @@ const WINDOW: i64 = 120_000;
 
 /// 号是 `user`、名字叫 `name` 的人第 `seconds` 秒在群里说 `text`。
 fn said(seq: u64, seconds: i64, user: i64, text: &str) -> Event {
-    let by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
+    let by = json!({"kind": "external", "venue": "qq:30003:group:5", "id": format!("qq:{user}")});
     let body = json!({
         "blocks": [{"type": "text", "text": text}],
         "venue": {"msg": seq.to_string(), "ambient": true, "name": format!("阿{user}")},

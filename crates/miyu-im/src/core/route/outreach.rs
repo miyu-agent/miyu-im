@@ -117,11 +117,14 @@ impl Route {
         answer: Answer,
     ) -> Result<(), Gone> {
         let bot = self.platforms.sender(platform, bot);
-        let made = match &to {
-            To::Group(group) => platform.venue(VenueKind::Group, group),
-            To::Private(user) => platform.venue(VenueKind::Private, user),
-        };
-        let (Some(bot), Ok(target)) = (bot, made) else {
+        let made = bot.as_ref().and_then(|bot| {
+            match &to {
+                To::Group(group) => platform.venue(bot, VenueKind::Group, group),
+                To::Private(user) => platform.venue(bot, VenueKind::Private, user),
+            }
+            .ok()
+        });
+        let (Some(bot), Some(target)) = (bot, made) else {
             finish(answer, Err(("unreachable", None)));
             return Ok(());
         };

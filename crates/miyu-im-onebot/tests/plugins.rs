@@ -105,7 +105,7 @@ async fn only_plugins_usable_here_and_switched_on_are_asked() {
     .await;
     // 五个都挂了，读得懂的插件三个（`plain` 不是插件，`broken` 写错了）。
     until_plugged(&home, 5, 3).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(lin_calls(1));
     until_events(&home.root, &venue, |events| decided(events, 1)).await;
     assert_eq!(calls(&home.root, "good").len(), 1, "能用、开着的问了");
@@ -165,7 +165,7 @@ async fn a_saved_card_switches_a_plugin_on_or_off_in_its_venue_at_once() {
         .page_call_with("cards.save", json!({"cards": cards}))
         .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(lin_calls(1));
     until_events(&home.root, &venue, |events| decided(events, 1)).await;
     assert_eq!(calls(&home.root, "closed").len(), 1, "卡上开了的问");
@@ -184,7 +184,7 @@ async fn a_plugin_notes_a_fact_into_the_venue_session() {
     })
     .await;
     until_plugged(&home, 1, 1).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     napcat.send(lin_calls(1));
     let events = until_events(&home.root, &venue, |events| {
         events
@@ -228,9 +228,9 @@ async fn a_note_where_the_plugin_is_off_or_there_is_no_session_is_refused() {
         let args = [
             record,
             "note:moderated:x".to_string(),
-            format!("note-at:qq:group:{GROUP}"),
-            "note-at:qq:group:888".to_string(),
-            "note-at:qq:group:999".to_string(),
+            format!("note-at:qq:30003:group:{GROUP}"),
+            "note-at:qq:30003:group:888".to_string(),
+            "note-at:qq:30003:group:999".to_string(),
             "note-at:qq:nowhere".to_string(),
             r#"answer:chat.inbound:{"route":"pass"}"#.to_string(),
         ];
@@ -270,13 +270,17 @@ async fn a_note_where_the_plugin_is_off_or_there_is_no_session_is_refused() {
         line["noted"].clone()
     };
     assert_eq!(
-        answer(&format!("qq:group:{GROUP}"))["result"],
+        answer(&format!("qq:30003:group:{GROUP}"))["result"],
         json!({"noted": true})
     );
     // 核心转回来的拒：原因在 `error.data.message`。
     let refused = |venue: &str| answer(venue)["error"]["data"]["message"].clone();
-    assert_eq!(refused("qq:group:888"), "not_allowed", "卡上关了它");
-    assert_eq!(refused("qq:group:999"), "no_session", "开着、还没有会话");
+    assert_eq!(refused("qq:30003:group:888"), "not_allowed", "卡上关了它");
+    assert_eq!(
+        refused("qq:30003:group:999"),
+        "no_session",
+        "开着、还没有会话"
+    );
     assert_eq!(refused("qq:nowhere"), "bad_params", "不是场所");
     stopped(home).await;
 }

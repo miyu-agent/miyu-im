@@ -81,7 +81,7 @@ async fn her_words_go_out_as_the_package_changed_them_in_groups_and_in_private()
     assert_eq!(asked["from"], "miyu-im");
     assert_eq!(
         asked["params"],
-        json!({"platform": "qq", "venue": format!("qq:group:{GROUP}"), "bot": BOT, "text": "在"})
+        json!({"platform": "qq", "venue": format!("qq:30003:group:{GROUP}"), "bot": BOT, "text": "在"})
     );
     napcat.send(private_frame(ADMIN, 2, json!([plain("在吗")])));
     assert_eq!(private_reply(&mut napcat).await, "换过的");

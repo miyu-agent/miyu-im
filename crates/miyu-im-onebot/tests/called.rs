@@ -47,7 +47,7 @@ fn rules() -> String {
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {
-    format!("qq:group:{group}")
+    format!("qq:30003:group:{group}")
 }
 
 /// 第 `message` 条消息的命令编号加 `/what`（「施工时定的」第 77 条）。
@@ -299,7 +299,7 @@ async fn asleep_joined_and_resent() {
     assert_eq!(twice, 1, "重发的不再判");
     let judged = run_log(&home.root)
         .lines()
-        .filter(|line| line.contains("chat decided venue=qq:group:555 message=2 "))
+        .filter(|line| line.contains("chat decided venue=qq:30003:group:555 message=2 "))
         .count();
     assert_eq!(judged, 1, "重发的不再判，运行日志也只一行");
     assert_eq!(

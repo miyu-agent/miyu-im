@@ -14,7 +14,7 @@ fn fresh(name: &str) -> (PathBuf, Connection) {
 
 fn said(msg: &str, text: &str) -> Write {
     Write::Said(Box::new(Said {
-        venue: "qq:group:31".to_string(),
+        venue: "qq:30003:group:31".to_string(),
         msg: msg.to_string(),
         sender: "qq:40001".to_string(),
         name: Some("小明".to_string()),
@@ -64,7 +64,7 @@ fn a_recall_marks_the_message_and_is_an_event() {
     let (dir, connection) = fresh("recall");
     written(&connection, &said("101", "发错了")).expect("记得上");
     let recalled = Happening {
-        venue: "qq:group:31".to_string(),
+        venue: "qq:30003:group:31".to_string(),
         at: 2_000,
         kind: RECALLED,
         target: Some("qq:40001".to_string()),
@@ -107,7 +107,7 @@ fn the_platform_time_is_seconds_and_missing_means_now() {
 /// 场所 31 里号是 `sender` 的人第 `seconds` 秒说的第 `msg` 条。
 fn said_at(msg: &str, sender: &str, name: &str, seconds: i64, text: &str) -> Write {
     Write::Said(Box::new(Said {
-        venue: "qq:group:31".to_string(),
+        venue: "qq:30003:group:31".to_string(),
         msg: msg.to_string(),
         sender: sender.to_string(),
         name: Some(name.to_string()),
@@ -131,14 +131,14 @@ fn a_page_goes_back_with_judgements_and_events_in_time_order() {
         .expect("记得上");
     }
     let judged = Write::Judged {
-        venue: "qq:group:31".to_string(),
+        venue: "qq:30003:group:31".to_string(),
         msg: "5".to_string(),
         outcome: "record".to_string(),
         why: json!({"reason": "quiet"}),
     };
     written(&connection, &judged).expect("记得上");
     let muted = Happening {
-        venue: "qq:group:31".to_string(),
+        venue: "qq:30003:group:31".to_string(),
         at: 45_000,
         kind: "muted",
         target: Some("qq:1".to_string()),
@@ -147,7 +147,7 @@ fn a_page_goes_back_with_judgements_and_events_in_time_order() {
         msg: None,
     };
     written(&connection, &Write::Happened(muted)).expect("记得上");
-    let first = read::page(&connection, "qq:group:31", None, 2).expect("读得出");
+    let first = read::page(&connection, "qq:30003:group:31", None, 2).expect("读得出");
     let kinds: Vec<String> = first["items"]
         .as_array()
         .expect("有")
@@ -173,8 +173,13 @@ fn a_page_goes_back_with_judgements_and_events_in_time_order() {
         first["items"][2]["judged"],
         json!({"outcome": "record", "why": {"reason": "quiet"}})
     );
-    let second =
-        read::page(&connection, "qq:group:31", first["before"].as_i64(), 10).expect("读得出");
+    let second = read::page(
+        &connection,
+        "qq:30003:group:31",
+        first["before"].as_i64(),
+        10,
+    )
+    .expect("读得出");
     let texts: Vec<&str> = second["items"]
         .as_array()
         .expect("有")
@@ -295,10 +300,10 @@ fn venues_are_listed_newest_first_and_several_go_in_one_delete() {
         Write::Said(said)
     };
     for (venue, msg, seconds) in [
-        ("qq:group:31", "1", 10),
-        ("qq:group:31", "2", 50),
-        ("qq:group:32", "3", 30),
-        ("qq:private:7", "4", 40),
+        ("qq:30003:group:31", "1", 10),
+        ("qq:30003:group:31", "2", 50),
+        ("qq:30003:group:32", "3", 30),
+        ("qq:30003:private:7", "4", 40),
     ] {
         written(&connection, &in_venue(venue, msg, seconds)).expect("记得上");
     }
@@ -319,18 +324,21 @@ fn venues_are_listed_newest_first_and_several_go_in_one_delete() {
     assert_eq!(
         rows,
         [
-            ("qq:group:31".to_string(), 50_000, 2),
-            ("qq:private:7".to_string(), 40_000, 1),
-            ("qq:group:32".to_string(), 30_000, 1),
+            ("qq:30003:group:31".to_string(), 50_000, 2),
+            ("qq:30003:private:7".to_string(), 40_000, 1),
+            ("qq:30003:group:32".to_string(), 30_000, 1),
         ]
     );
     let two = delete::Scope {
-        venues: vec!["qq:group:31".to_string(), "qq:private:7".to_string()],
+        venues: vec![
+            "qq:30003:group:31".to_string(),
+            "qq:30003:private:7".to_string(),
+        ],
         ..delete::Scope::default()
     };
     assert_eq!(delete::delete(&mut connection, &two).expect("删得了"), 3);
     let left = read::venues(&connection).expect("读得出");
-    assert_eq!(left["venues"][0]["venue"], "qq:group:32");
+    assert_eq!(left["venues"][0]["venue"], "qq:30003:group:32");
     assert_eq!(left["venues"].as_array().map(Vec::len), Some(1));
     drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");

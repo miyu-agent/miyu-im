@@ -49,7 +49,7 @@ async fn until(home: &Home, sql: &str, wanted: i64) -> i64 {
 async fn messages_her_words_recalls_and_mutes_are_recorded() {
     let script = Script::new([Play::Says("在呢")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 小林说一句、带一张图（没叫她：只记下，聊天记录照记）。
     napcat.send(group_frame(
         GROUP,

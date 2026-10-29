@@ -51,7 +51,7 @@ fn call_her(napcat: &Answering) {
 
 /// 群会话里入队的她的话。
 async fn queued_replies(home: &Home, ended: usize) -> Vec<Value> {
-    let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    let events = until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         of_kind(events, "turn.ended").len() >= ended
     })
     .await;

@@ -24,7 +24,7 @@ fn in_private(user: i64, message: Value) -> Value {
 
 /// 终端管理员的私聊会话的事件。
 fn private_events(home: &Home) -> Vec<Value> {
-    let venue = format!("qq:private:{ADMIN}");
+    let venue = format!("qq:30003:private:{ADMIN}");
     home.sessions()
         .iter()
         .map(|session| home.events(session))

@@ -72,7 +72,7 @@ async fn a_package_lifts_a_no_into_a_reply_and_is_named() {
     until_hooked(&home, 1).await;
     napcat.send(lin_calls(1));
     assert_eq!(napcat.group_reply(GROUP).await, "在的");
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let lifted = decided(&events, 1).expect("记了");
     assert_eq!(lifted["outcome"], "reply", "{lifted}");
@@ -107,7 +107,7 @@ async fn a_package_damps_a_yes_into_silence() {
         .await;
     until_hooked(&home, 1).await;
     napcat.send(lin_calls(1));
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let damped = decided(&events, 1).expect("记了");
     assert_eq!(damped["outcome"], "record", "{damped}");
@@ -137,7 +137,7 @@ async fn a_zero_is_not_written_and_moderation_only_is_not_asked() {
     until_hooked(&home, 1).await;
     napcat.send(lin_calls(1));
     assert_eq!(napcat.group_reply(GROUP).await, "在的");
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let first = decided(&events, 1).expect("记了");
     assert!(
@@ -160,7 +160,7 @@ async fn a_zero_is_not_written_and_moderation_only_is_not_asked() {
         json!([plain("这里有坏词")]),
         ("小乙", "yi"),
     ));
-    let quiet_venue = format!("qq:group:{quiet}");
+    let quiet_venue = format!("qq:30003:group:{quiet}");
     let events = until_events(&home.root, &quiet_venue, |events| {
         decided(events, 2).is_some()
     })

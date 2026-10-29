@@ -48,7 +48,7 @@ fn rules() -> String {
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {
-    format!("qq:group:{group}")
+    format!("qq:30003:group:{group}")
 }
 
 /// 在平台编号是 `message` 的那一条上贴（`set` 是真）、摘（假）出厂的表情：`set_msg_emoji_like` 的参数。

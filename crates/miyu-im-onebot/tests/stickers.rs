@@ -89,7 +89,7 @@ async fn a_sticker_she_sends_reaches_the_group_before_the_words_after_it() {
         .filter_map(|segment| segment["data"]["text"].as_str())
         .collect();
     assert_eq!(text, "看这个", "{words:?}");
-    let events = until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    let events = until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         of_kind(events, "venue.delivered").len() == 2
     })
     .await;
@@ -148,7 +148,7 @@ async fn a_sticker_that_never_got_out_is_noted_for_her() {
     let (home, napcat, _) =
         started_installed_tuned_by(Arc::new(lines), &tuned, MEMBERS, install).await;
     until_provided(&home).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 终端管理员 @ 她开一轮，她调 `sticker`、再说一句：禁言了才放行，都排着，过期作废。
     napcat.send(group_frame(
         GROUP,

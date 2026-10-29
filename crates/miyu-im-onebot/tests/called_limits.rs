@@ -50,7 +50,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
 
 /// 等到第 `message` 条消息的判断记下了：交回那时的全部事件。
 async fn until_decided(home: &Home, message: i64) -> Vec<Value> {
-    until_events(&home.root, &format!("qq:group:{GROUP}"), |events| {
+    until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         decided(events, message).is_some()
     })
     .await
@@ -67,7 +67,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     ]);
     let whitelist = format!("whitelist = [\"qq:{JIE}\"]\n");
     let (home, mut napcat, listen) = started(&script, &rules(), &whitelist, MEMBERS).await;
-    let venue = format!("qq:group:{GROUP}");
+    let venue = format!("qq:30003:group:{GROUP}");
     // 1：小林 @ 她开一轮（别人开的，算进限流）：一小时一轮满了。
     napcat.send(group_frame(
         GROUP,
