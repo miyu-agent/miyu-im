@@ -308,6 +308,9 @@ impl Drop for Home {
     )]
     fn drop(&mut self) {
         self.running.abort();
+        if std::thread::panicking() {
+            events::dump(&self.root);
+        }
         let _ = std::fs::remove_dir_all(&self.dir);
     }
 }

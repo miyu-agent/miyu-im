@@ -112,6 +112,28 @@ pub fn run_log(root: &DataRoot) -> String {
     std::fs::read_to_string(root.state().join("logs").join("im.log")).unwrap_or_default()
 }
 
+/// 测试失败时留下的现场（施工 I-76）：各写最后几行、几条。
+const TAIL: usize = 40;
+
+/// 测试失败、数据根要删以前，把运行日志最后几行和每个会话最后几条事件写到标准错误：测试失败时才显示，CI 上偶发的红看得出
+/// 卡在哪（原来只剩一句「六十秒内没等到」）。读不了的照空的，不再 panic。
+pub fn dump(root: &DataRoot) {
+    let log = run_log(root);
+    let lines: Vec<&str> = log.lines().collect();
+    eprintln!("── im.log 最后几行 ──");
+    for line in &lines[lines.len().saturating_sub(TAIL)..] {
+        eprintln!("{line}");
+    }
+    for session in root.sessions().unwrap_or_default() {
+        let events = read_events(&root.session_dir(&session)).unwrap_or_default();
+        eprintln!("── 会话 {} 最后几条事件 ──", session.as_str());
+        for event in &events[events.len().saturating_sub(TAIL)..] {
+            let line = serde_json::to_string(event).unwrap_or_default();
+            eprintln!("{}", line.chars().take(300).collect::<String>());
+        }
+    }
+}
+
 /// 等到运行日志合 `wanted`，交回那一刻的全文：桥常常先做了事（NapCat 收到了动作）、等回应以后才写日志，测试收到动作就读会
 /// 早一步。最多等六十秒。
 pub async fn until_logged(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> String {
