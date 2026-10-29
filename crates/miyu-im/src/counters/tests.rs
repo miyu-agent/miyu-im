@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{Count, Counters, Daily, Day, today};
+use super::{Count, Counters, Daily, Day, connection_of, today};
 use crate::changed::Changed;
 
 fn counters(dir: &std::path::Path) -> Counters {
@@ -156,4 +156,32 @@ fn the_ranking_adds_up_days_for_one_group() {
         ]
     );
     assert!(super::ranking(&days, "none").is_empty());
+}
+
+#[test]
+fn received_hours_are_also_kept_per_connection() {
+    // 施工 I-85 下：首页统计选了连接，按小时照按连接记的算。
+    let dir = temp("connection-hours");
+    let counters = counters(&dir);
+    let day = "2026-10-20";
+    counters.bump_on(Count::Received, "qq:group:1", day);
+    counters.bump_on(Count::Received, "tg:group:-100", day);
+    counters.bump_on(Count::Received, "tg:7890:private:5", day);
+    counters.bump_on(Count::Replied, "tg:group:-100", day);
+    let held = counters.days(&[day.to_string()]);
+    let by = &held[0].1.connection_hours;
+    let count = |key: &str| by.get(key).map_or(0, |hours| hours.iter().sum::<u64>());
+    assert_eq!(
+        (count("qq"), count("tg"), count("tg:7890")),
+        (1, 1, 1),
+        "{by:?}"
+    );
+    assert_eq!(held[0].1.hours.iter().sum::<u64>(), 3, "合计照旧");
+}
+
+#[test]
+fn a_venue_names_its_connection_before_the_kind() {
+    assert_eq!(connection_of("qq:group:777"), "qq");
+    assert_eq!(connection_of("qq:10001:group:777"), "qq:10001");
+    assert_eq!(connection_of("odd"), "odd");
 }

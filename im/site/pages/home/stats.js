@@ -1,24 +1,38 @@
-// 统计页（施工 I-14，设计 01 第八节第 4 条：看统计主要是看 token，放最上面）：今天、7 天、30 天，三段从上往下：token、消息、运行。
-// 数照宿主的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样长的比；金额算不准不显示（项目主人的规矩）。
+// 首页的统计（施工 I-14 起是一页，I-85 下并进首页，设计 07 第二节第 3 条；设计 01 第八节第 4 条：看统计主要是看 token，放最上面）：
+// 今天、7 天、30 天，三段从上往下：token、消息、运行。数照宿主的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样
+// 长的比；金额算不准不显示（项目主人的规矩）。
 //
-// - 场所照 cards.get 的群、好友名单写名字，没有的写编号；点了去会话页打开那个场所的浮窗（#venues/<种类>/<号>）。
+// - 跟着首页选中的连接（shell/connection.js）：选了一个的问 stats 带 connection，「全部」的不带。连接不止一个、看「全部」时，场所前面
+//   画它的平台标志。
+// - 场所照首页给的名字写（cards.get 的群、好友），没有的写编号；点了去会话页打开那个场所的浮窗（#venues/<种类>/<号>，带上它的连接）。
 // - 图都是条：每天的 token 四样叠着画，构成画成一条，按小时 24 根。
 import { element, say } from '../../shell/i18n.js';
+import { platformDot } from '../../shell/connection-pick.js';
+import { venueParts } from '../records/shared.js';
 
 const PERIODS = ['today', '7d', '30d'];
 const PARTS = ['cache_read', 'uncached', 'cache_write', 'output'];
 const REMEMBER = 'miyu-im-stats-period';
+// 同一个连接隔多久才再问统计（毫秒）。
+const AGAIN = 30000;
 
-/** 在 `view` 里起统计页：`request` 调宿主的方法。 */
-export function mountStats(view, { request }) {
+/** 首页的统计一栏：`request` 调宿主的方法。交回 { head, body, update(connections, picked, names), dispose() }：`head` 是带时段切换的
+ *  一栏标题，`body` 是三段。 */
+export function statsPanel(request) {
   let disposed = false;
   let period = remembered();
+  let connections = [];
+  let picked = null;
   let names = new Map();
+  let shown = null;
+  let asked = 0;
+  // 上一次问的连接、什么时候问到的：宿主一推首页就再问一遍，统计（要问核心的用量账本）同一个连接隔够 `AGAIN` 才再问。
+  let scope = null;
+  let loadedAt = 0;
   const seg = element('div', 'seg');
+  const head = element('div', 'section-head stats-head');
+  head.append(element('h2', null, say('home/stats')), seg);
   const body = element('div', 'stats-body');
-  const head = element('div', 'view-head stats-head');
-  head.append(element('h1', null, say('stats/title')), seg);
-  view.replaceChildren(head, body);
   const drawSeg = () => {
     seg.replaceChildren(
       ...PERIODS.map((one) => {
@@ -37,25 +51,43 @@ export function mountStats(view, { request }) {
       }),
     );
   };
+  const draw = () => {
+    if (!shown) return;
+    const context = { names, connections, tagged: !picked && connections.length > 1 };
+    body.replaceChildren(tokens(shown.token, context), messages(shown.messages, context), running(shown.running));
+  };
   const load = async () => {
-    body.replaceChildren(element('p', 'faint', say('stats/loading')));
-    let stats;
+    const mine = ++asked;
+    if (!shown) body.replaceChildren(element('p', 'faint', say('stats/loading')));
+    let answer;
     try {
-      const [answer, cards] = await Promise.all([request('stats', { period }), request('cards.get').catch(() => null)]);
-      stats = answer;
-      names = nameMap(cards);
+      answer = await request('stats', picked ? { period, connection: picked.id } : { period });
     } catch {
-      if (!disposed) body.replaceChildren(element('p', 'faint', say('stats/failed')));
+      if (!disposed && mine === asked && !shown) body.replaceChildren(element('p', 'faint', say('stats/failed')));
       return;
     }
-    if (disposed) return;
-    body.replaceChildren(tokens(stats.token, names), messages(stats.messages, names), running(stats.running));
+    // 等的时候又换了时段、连接的：这一份不要了。
+    if (disposed || mine !== asked) return;
+    shown = answer;
+    loadedAt = Date.now();
+    draw();
   };
   drawSeg();
-  load();
   return {
-    update() {},
-    event() {},
+    head,
+    body,
+    update(now, chosen, known) {
+      connections = now;
+      picked = chosen;
+      names = known;
+      const wanted = chosen?.id || '';
+      if (wanted === scope && Date.now() - loadedAt < AGAIN) {
+        draw();
+        return;
+      }
+      scope = wanted;
+      load();
+    },
     dispose() {
       disposed = true;
     },
@@ -73,19 +105,16 @@ function remembered() {
   return 'today';
 }
 
-/** 场所编号 → 名字（cards.get 的群、好友）。 */
-function nameMap(cards) {
-  const map = new Map();
-  for (const group of cards?.groups || []) if (group.name) map.set(`group:${group.id}`, group.name);
-  for (const friend of cards?.friends || []) if (friend.name) map.set(`private:${friend.id}`, friend.name);
-  return map;
-}
-
-/** 一个场所（`qq:group:777`）：名字和去浮窗的链接。 */
-function venueLink(id, names) {
-  const [, kind, number] = String(id).split(':');
-  const link = element('a', 'stats-venue', names.get(`${kind}:${number}`) || `${say(`stats/kind-${kind}`)} ${number}`);
-  link.href = `#venues/${encodeURIComponent(kind)}/${encodeURIComponent(number)}`;
+/** 一个场所（`qq:group:777`）：名字和去浮窗的链接（带上它的连接：选中的那一个，「全部」时照平台、号找）；`tagged` 的前面画平台
+ *  标志。 */
+function venueLink(id, { names, connections, tagged }) {
+  const { platform, type, id: number, bot } = venueParts(id);
+  const link = element('a', 'stats-venue');
+  if (tagged) link.append(platformDot(platform));
+  link.append(document.createTextNode(names.get(`${type}:${number}`) || `${say(`stats/kind-${type}`)} ${number}`));
+  const owner = connections.find((one) => one.platform === platform && (!bot || String(one.bot) === bot));
+  const query = owner ? `?c=${encodeURIComponent(owner.id)}` : '';
+  link.href = `#venues/${encodeURIComponent(type)}/${encodeURIComponent(number)}${query}`;
   return link;
 }
 
@@ -170,7 +199,7 @@ function legend(keys, classes) {
 }
 
 /** token 那一段。 */
-function tokens(token, names) {
+function tokens(token, context) {
   const rate = (value) => (value == null ? '—' : `${Math.round(value * 100)}%`);
   const tiles = element('div', 'stat-tiles');
   tiles.append(
@@ -207,14 +236,14 @@ function tokens(token, names) {
   const grid = element('div', 'stats-grid');
   grid.append(
     list(say('stats/by-purpose'), (token.purposes || []).map((one) => [purpose(one.name), `${short(one.requests)} · ${short(one.tokens)}`])),
-    list(say('stats/by-venue'), (token.venues || []).map((one) => [venueLink(one.name, names), short(one.tokens)])),
+    list(say('stats/by-venue'), (token.venues || []).map((one) => [venueLink(one.name, context), short(one.tokens)])),
     list(say('stats/by-model'), (token.models || []).map((one) => [one.name || '—', `${short(one.requests)} · ${short(one.tokens)}`])),
   );
   return section(say('stats/token'), tiles, days, make, grid);
 }
 
 /** 消息那一段。 */
-function messages(shown, names) {
+function messages(shown, context) {
   const now = shown.now;
   const before = shown.prev;
   const rate = now.received ? `${Math.round((now.replied / now.received) * 100)}%` : '—';
@@ -223,6 +252,7 @@ function messages(shown, names) {
     tile(say('stats/received'), short(now.received), delta(now.received, before.received)),
     tile(say('stats/replied'), short(now.replied), delta(now.replied, before.replied)),
     tile(say('stats/reply-rate'), rate, null),
+    tile(say('stats/recorded'), short(now.recorded), delta(now.recorded, before.recorded)),
     tile(say('stats/undelivered'), short(now.undelivered), delta(now.undelivered, before.undelivered)),
   );
   const several = (shown.days || []).length > 1;
@@ -244,7 +274,7 @@ function messages(shown, names) {
     : document.createDocumentFragment();
   const grid = element('div', 'stats-grid');
   grid.append(
-    list(say('stats/busiest'), (shown.venues || []).map((one) => [venueLink(one.name, names), short(one.received)])),
+    list(say('stats/busiest'), (shown.venues || []).map((one) => [venueLink(one.name, context), short(one.received)])),
   );
   return section(say('stats/messages'), tiles, daily, hours, grid);
 }

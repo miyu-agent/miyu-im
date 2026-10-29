@@ -161,7 +161,7 @@ fn recent_logs_come_newest_first_and_filter_by_level() {
     )
     .expect("写得进");
     let texts = |filter: &str, limit: usize| -> Vec<String> {
-        recent(&file, filter, limit)
+        recent(&file, filter, limit, None)
             .iter()
             .map(|line| {
                 format!(
@@ -192,7 +192,7 @@ fn recent_logs_come_newest_first_and_filter_by_level() {
         ["10:00:03 INFO fourth", "10:00:02 ERROR third"]
     );
     assert_eq!(
-        recent(&dir.join("none.log"), "all", 10),
+        recent(&dir.join("none.log"), "all", 10, None),
         Vec::<serde_json::Value>::new()
     );
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -249,4 +249,39 @@ fn the_venue_page_gets_presets_that_are_written_right() {
         super::venues::preset_choices(&listed),
         serde_json::json!({"presets": [{"id": "chat", "name": "聊天"}, {"id": "plain", "name": "plain"}]})
     );
+}
+
+#[test]
+fn a_chosen_connection_keeps_its_venues_lines_and_the_ones_without_a_venue() {
+    // 施工 I-85 下：带场所的行只要选中的连接的，不带场所的都要。
+    use super::logs::recent;
+    use super::scope::Scope;
+    let dir = std::env::temp_dir().join(format!("miyu-im-logs-scope-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("建得了目录");
+    let file = dir.join("im.log");
+    std::fs::write(
+        &file,
+        "2026-10-19 10:00:00.000 INFO  im       bridge started\n\
+         2026-10-19 10:00:01.000 INFO  im       chat decided venue=qq:group:777 outcome=reply\n\
+         2026-10-19 10:00:02.000 INFO  im       chat decided venue=\"tg:group:-100\" outcome=record\n",
+    )
+    .expect("写得进");
+    let scope = Scope::of(&serde_json::json!({"connection": "tg:7890"}))
+        .expect("写法对")
+        .expect("选了一个");
+    let texts: Vec<String> = recent(&file, "all", 10, Some(&scope))
+        .iter()
+        .map(|line| line["text"].as_str().unwrap_or_default().to_string())
+        .collect();
+    assert_eq!(
+        texts,
+        [
+            "chat decided venue=\"tg:group:-100\" outcome=record",
+            "bridge started"
+        ]
+    );
+    assert_eq!(recent(&file, "all", 10, None).len(), 3);
+    if std::fs::remove_dir_all(&dir).is_err() {
+        // 删不掉就留在临时目录里。
+    }
 }

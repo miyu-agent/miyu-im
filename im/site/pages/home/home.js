@@ -1,16 +1,17 @@
 // 首页（设计 01 第八节第 2 条，施工 I-6 上起）：一个连接都没有的正中一个「新建连接」；有连接的「连接」一栏，一个机器人一张卡：
 // 头像（页面服务转的，取不到的写平台的字母）、平台的角标、名字（没问到的写号）、平台和实现、号和连了多久；断开了的卡留着，写断开
-// 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面「今天」四个数（收到、回复、只记录、没发出去）和最近
-// 的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久每分钟照本机的钟重画一次（不问宿主）。
-// 「今天」下面放插件的首页卡片（施工 I-8 下，plugin-cards.js）。
+// 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面是统计（I-85 下从统计页并进来，stats.js）、插件的首页
+// 卡片（施工 I-8 下，plugin-cards.js）和最近的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久
+// 每分钟照本机的钟重画一次（不问宿主）。
 // 连接不止一个时连接那一排就是切换器（施工 I-85 中，设计 07 第二节第 2 条）：前面一张「全部」，点一张选中它（shell/connection.js），
-// 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。
+// 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。统计、日志跟着选中的连接问（施工 I-85 下）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { picture } from '../../shell/avatar.js';
 import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
 import { pluginCards } from './plugin-cards.js';
 import { activityRows, namesOf } from './activity.js';
+import { statsPanel } from './stats.js';
 import { chooseConnection, chosenOf, EVERY, onConnection } from '../../shell/connection.js';
 import { openWizard } from './wizard.js';
 
@@ -18,7 +19,6 @@ import { openWizard } from './wizard.js';
 export function mountHome(view, { request }) {
   let connections = [];
   let wizard = null;
-  let today = null;
   let logs = [];
   let level = 'all';
   let names = new Map();
@@ -30,12 +30,14 @@ export function mountHome(view, { request }) {
     // 记不住就算了。
   }
   const plugins = pluginCards(request);
+  const stats = statsPanel(request);
   const refresh = async () => {
+    const picked = chosenOf(connections);
     try {
       const wanted = mode === 'activity' ? { level: 'all', limit: 120 } : { level, limit: 30 };
+      if (picked) wanted.connection = picked.id;
       let cards;
-      [today, logs, cards] = await Promise.all([
-        request('today'),
+      [logs, cards] = await Promise.all([
         request('logs', wanted).then((answer) => answer.logs),
         request('cards.get').catch(() => null),
       ]);
@@ -43,6 +45,7 @@ export function mountHome(view, { request }) {
     } catch {
       return;
     }
+    stats.update(connections, picked, names);
     draw();
   };
   const newButton = (className) => {
@@ -83,8 +86,6 @@ export function mountHome(view, { request }) {
     for (const one of connections) {
       grid.append(tile(one, request, picking ? { on: picked?.id === one.id } : null));
     }
-    const todayHead = element('div', 'section-head');
-    todayHead.append(element('h2', null, say('home/today')));
     const choose = (chosen) => {
       if (chosen === 'activity' || chosen === 'raw') {
         mode = chosen;
@@ -98,10 +99,14 @@ export function mountHome(view, { request }) {
       }
       refresh();
     };
-    view.replaceChildren(head, section, grid, todayHead, numbers(today), plugins.box, logPanel(logs, { level, mode, names }, choose));
+    const tagged = !picked && picking;
+    view.replaceChildren(head, section, grid, stats.head, stats.body, plugins.box, logPanel(logs, { level, mode, names, tagged }, choose));
   };
   const timer = setInterval(draw, 60000);
-  const unlisten = onConnection(() => draw());
+  const unlisten = onConnection(() => {
+    draw();
+    refresh();
+  });
   draw();
   return {
     update(now) {
@@ -113,29 +118,13 @@ export function mountHome(view, { request }) {
     dispose() {
       clearInterval(timer);
       unlisten();
+      stats.dispose();
     },
   };
 }
 
-/** 今天的四个数。还没问到的写「—」。 */
-function numbers(today) {
-  const grid = element('div', 'home-grid');
-  for (const [key, label] of [
-    ['received', say('home/received')],
-    ['replied', say('home/replied')],
-    ['recorded', say('home/recorded')],
-    ['undelivered', say('home/undelivered')],
-  ]) {
-    const panel = element('div', 'panel stat');
-    const shown = today ? Number(today[key] ?? 0).toLocaleString() : '—';
-    panel.append(element('b', null, shown), element('span', null, label));
-    grid.append(panel);
-  }
-  return grid;
-}
-
 /** 最近的运行日志：头上切「活动」「原始日志」（施工 I-19）；原始的再按级别筛（全部、提醒、出错），一行一条，新的在前。 */
-function logPanel(logs, { level, mode, names }, choose) {
+function logPanel(logs, { level, mode, names, tagged }, choose) {
   const panel = element('div', 'panel logs');
   const head = element('h3', null, say('home/logs'));
   const modes = element('span', 'log-filter');
@@ -156,7 +145,7 @@ function logPanel(logs, { level, mode, names }, choose) {
   }
   panel.append(head);
   if (mode === 'activity') {
-    const rows = activityRows(logs, names);
+    const rows = activityRows(logs, names, tagged);
     if (rows.length === 0) panel.append(element('p', 'faint', say('logs/none')));
     panel.append(...rows);
     return panel;

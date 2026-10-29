@@ -5,13 +5,14 @@
 //!   `bot`（号，写成字）、`connected`、`since`（连上的、断开的时刻，毫秒的 Unix 时间）、`caps`（平台做得到的几样，施工 I-85 上），
 //!   问到了的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）。
 //! - 下面几样多收一格 `platform`（施工 I-85 上）：不写的照第一个驱动，写了没挂的拒 `bad_params`：`status`、`connection.save`、
-//!   `reactions`、`stats`、`plugins.widget`。`records.media` 照场所编号的平台，驱动带的插件照带它的驱动。
+//!   `reactions`、`plugins.widget`。`records.media` 照场所编号的平台，驱动带的插件照带它的驱动。
+//! - `stats`、`logs` 多收一格 `connection`（施工 I-85 下，首页选中的连接，`scope`）：不写的是全部连接。
 //! - `status` → 驱动报的几格（OneBot 是 `listen`、`token`）、`platform`、`path`（NapCat 连进来的路径里最短的那个），同后台页的
 //!   `status`（施工 I-6 中：新建连接、连接设置拼地址）。
 //! - `connection.save {values}` → `{"saved": true}`：存驱动的配置项（`save`）。
 //! - `today` → `{"received", "replied", "recorded", "undelivered"}`：今天的几个数（施工 I-6 下，`crate::counters`）。
-//! - `logs {level?, limit?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，`limit`
-//!   不写的 50）。
+//! - `logs {level?, limit?, connection?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，
+//!   `limit` 不写的 50）。
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
 //! - `sessions.list`、`sessions.delete`：消息记录页列场所会话、删她的上下文（施工 I-34 上），同样转给读的一头。
 //! - `records.media`：消息记录页现取一条带的图片、文件（施工 C-1 中下补，`records_media`）。
@@ -36,7 +37,7 @@ use serde_json::{Map, Value, json};
 use super::logins::Login;
 use super::{
     Person, Site, home_cards, logs, moderation, panels, plugin_settings, plugin_widgets, plugins,
-    records_media, records_page, save, settings, stats, store, venues,
+    records_media, records_page, save, scope, settings, stats, store, venues,
 };
 use crate::core::methods::short_path;
 use crate::running::Station;
@@ -68,7 +69,8 @@ pub(super) async fn answer(
             let limit = params["limit"]
                 .as_u64()
                 .map_or(50, |limit| usize::try_from(limit).unwrap_or(logs::MOST));
-            Ok(json!({"logs": logs::recent(&file, filter, limit)}))
+            let scope = scope::Scope::of(params)?;
+            Ok(json!({"logs": logs::recent(&file, filter, limit, scope.as_ref())}))
         }
         Some("models") => venues::models(&login.person).await,
         Some("presets") => venues::presets(&login.person).await,

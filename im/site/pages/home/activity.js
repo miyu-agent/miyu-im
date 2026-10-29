@@ -3,6 +3,8 @@
 // 补拉、排队。别的提醒、出错照原样写。数据是宿主的运行日志（`logs`），这些行宿主多记了 who、text、why、said 这几格。
 import { element, say } from '../../shell/i18n.js';
 import { reason } from '../venues/overview.js';
+import { platform } from './platforms.js';
+import { venueParts } from '../records/shared.js';
 
 /** 一行日志的字拆成「这件事」和几格（值去掉引号、解开转义）。 */
 export function fieldsOf(text) {
@@ -25,11 +27,13 @@ export function fieldsOf(text) {
   return { msg: msg.trim(), fields };
 }
 
-/** 场所（`qq:group:777`）照名字写：会话页的名单里有名字的写名字，没有的写「群 777」。 */
-function place(venue, names) {
+/** 场所（`qq:group:777`）照名字写：会话页的名单里有名字的写名字，没有的写「群 777」；`tagged` 的（首页看「全部」、连接不止一个，
+ *  施工 I-85 下）前面写平台。 */
+function place(venue, names, tagged) {
   if (!venue) return '';
-  const [, kind, number] = String(venue).split(':');
-  return names.get(`${kind}:${number}`) || say(`stats/kind-${kind}`) + ` ${number || ''}`;
+  const { platform: on, type, id } = venueParts(venue);
+  const name = names.get(`${type}:${id}`) || say(`stats/kind-${type}`) + ` ${id}`;
+  return tagged ? `${platform(on).name()} · ${name}` : name;
 }
 
 /** 判断说成中文：回没回、为什么（同会话浮窗「最近判断」的说法，判过的带分数和门槛）。 */
@@ -41,9 +45,9 @@ function decided(fields) {
 }
 
 /** 一行日志照活动写成一条：认得的几种照中文，别的提醒、出错照原样；平常的别的不写（空的）。 */
-function described(line, names) {
+function described(line, names, tagged) {
   const { msg, fields } = fieldsOf(line.text);
-  const where = place(fields.venue, names);
+  const where = place(fields.venue, names, tagged);
   const tool = fields.tool ? say(`activity/tool-${fields.tool}`) : '';
   const toolName = tool === `activity/tool-${fields.tool}` ? fields.tool : tool;
   switch (msg) {
@@ -83,11 +87,11 @@ function described(line, names) {
   }
 }
 
-/** 活动的几行：新的在前。 */
-export function activityRows(logs, names) {
+/** 活动的几行：新的在前。`tagged` 的场所前面写平台。 */
+export function activityRows(logs, names, tagged) {
   const rows = [];
   for (const line of logs) {
-    const one = described(line, names);
+    const one = described(line, names, tagged);
     if (!one) continue;
     const row = element('div', one.tone ? `act act-${one.tone}` : 'act');
     const time = element('span', 'faint act-time', line.time);

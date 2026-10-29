@@ -1,4 +1,4 @@
-/* 统计页（施工 I-14）：数照卡片，图都是条；颜色照主题的几样，不描边。 */
+/* 首页的统计（施工 I-14 起，I-85 下并进首页）：数照卡片，图都是条；颜色照主题的几样，不描边。 */
 .stats-body { display: flex; flex-direction: column; gap: 16px; }
 .stats-section { padding: 18px 20px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); }
 .stats-section h2 { margin: 0 0 12px; font-size: 16px; }
@@ -26,6 +26,6 @@
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .stats-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; }
 .stats-row > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stats-venue { color: var(--text); text-decoration: none; }
+.stats-venue { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); text-decoration: none; }
 .stats-venue:hover { text-decoration: underline; }
 .stats-head .seg { margin-left: auto; }

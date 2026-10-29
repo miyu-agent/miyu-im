@@ -4,6 +4,7 @@
 // - 写进网址（#venues?c=tg:7890123456）：刷新、收藏不丢；这台浏览器另记一份上次选的，网址里没写的照它。
 // - 「全部」是 all；只有一个连接时页面不画切换器，照那一个看（chosenOf）。
 // - 选了的连接没了（删了、驱动不挂了），照「全部」。
+// - 网址里的换了（点了带 `?c=` 的链接、前进后退）：照网址的选（施工 I-85 下，统计里的场所链接带着它的连接）。
 
 const KEY = 'miyu-im-connection';
 const ALL = 'all';
@@ -72,3 +73,8 @@ export function chosenOf(connections) {
 
 /** 「全部」的编号。 */
 export const EVERY = ALL;
+
+window.addEventListener('hashchange', () => {
+  const given = hashParts().connection;
+  if (given && given !== current) chooseConnection(given);
+});

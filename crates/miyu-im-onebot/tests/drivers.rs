@@ -90,6 +90,13 @@ async fn answered(relay: &Relay, id: &str, method: &str, params: Value) -> Value
     .await
 }
 
+/// 页面经通道问编号 `id` 的 `stats {params}`：交回收到几条和消息那一段。
+async fn received(open: &mut browser::Channel, id: u64, params: Value) -> (u64, Value) {
+    let stats = browser::call(open, id, "stats", params).await;
+    let messages = stats["result"]["messages"].clone();
+    (messages["now"]["received"].as_u64().unwrap_or(0), messages)
+}
+
 /// 答的那一句的字。
 fn text(result: &Value) -> &str {
     result["blocks"][0]["text"].as_str().unwrap_or_default()
@@ -426,4 +433,30 @@ async fn the_cards_come_per_platform_when_a_platform_is_named() {
     );
     assert!(whole["defaults"]["groups"]["777"].is_object(), "{whole}");
     bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn the_home_stats_follow_the_chosen_connection() {
+    // 施工 I-85 下：统计并进首页，`stats` 带 `connection` 的只算那个连接的场所，不带的是全部。日志的筛法在 `site/tests.rs`（这里
+    // 桥在测试进程里跑，不写运行日志）。
+    let mut two = up(&["tg 在", "qq 在"]).await;
+    two.tg.says(BOT, 501, "在吗").await;
+    Telegram::sent(&mut two.link).await;
+    two.napcat.admin_says(501, "在吗").await;
+    two.napcat.reply().await;
+    let port = page_port(&two.bridge, 1).await;
+    let mut open = logged_in(&two.home.root, port).await;
+    let (tg, tg_shown) = received(&mut open, 1, json!({"connection": format!("tg:{BOT}")})).await;
+    let (qq, _) = received(&mut open, 2, json!({"connection": format!("qq:{BOT}")})).await;
+    let (all, _) = received(&mut open, 3, json!({})).await;
+    assert!(tg >= 1 && qq >= 1, "tg {tg}，qq {qq}");
+    assert_eq!(tg + qq, all, "两个连接的加起来是全部");
+    assert_eq!(
+        tg_shown["venues"],
+        json!([{"name": "tg:private:10001", "received": tg}]),
+        "{tg_shown}"
+    );
+    let wrong = browser::call(&mut open, 10, "stats", json!({"connection": "qq"})).await;
+    assert_eq!(wrong["error"]["reason"], "bad_params", "{wrong}");
+    two.bridge.stop().await.expect("停得下");
 }

@@ -28,6 +28,7 @@ mod records_media;
 mod records_page;
 mod request;
 mod save;
+mod scope;
 mod settings;
 mod stats;
 mod store;

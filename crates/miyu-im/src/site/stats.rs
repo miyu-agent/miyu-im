@@ -1,11 +1,12 @@
-//! 统计页（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面）：`stats {period, platform?}` →
-//! `{"token", "messages", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样都和前一段同样长的比。
+//! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页）：
+//! `stats {period, connection?}` → `{"token", "messages", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
+//! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接。
 //!
-//! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算这个平台的场所会话（`venue` 以 `<平台>:` 开头的）：合计、
+//! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
 //!   缓存命中率（读缓存 ÷ 输入）、每次回复平均（合计 ÷ 回复的段数）、请求次数，每天的四样（读缓存、没命中、写缓存、输出），按用途、
 //!   按场所（最多 10 个）、按模型。金额算不准不给（项目主人的规矩）。
 //! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所（最多 10 个），判断的原因，
-//!   按小时收到的。
+//!   按小时收到的。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
 //! - **running**：桥起来多久、进程的内存和 CPU（照 `ps`，Linux、macOS 有；别的系统是空的）、插件开着几个、出错几个。
 
 use std::collections::BTreeMap;
@@ -14,8 +15,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 
 use super::plugins::core;
+use super::scope::{Scope, within};
 use super::{Person, Site};
-use crate::counters::Daily;
+use crate::counters::{Daily, Day};
 
 /// 按场所、按会话最多列几个。
 const TOP: usize = 10;
@@ -40,18 +42,47 @@ fn usage(row: &Value) -> [u64; 4] {
     ]
 }
 
-/// 照 `platform` 挑出场所会话的那几行（纯逻辑）。
-pub(super) fn ours<'a>(rows: &'a Value, platform: &str) -> Vec<&'a Value> {
-    let prefix = format!("{platform}:");
+/// 照 `scope` 挑出场所会话的那几行（纯逻辑）：不是场所会话的（没有 `venue`）不算。
+pub(super) fn ours<'a>(rows: &'a Value, scope: Option<&Scope>) -> Vec<&'a Value> {
     rows.as_array()
         .into_iter()
         .flatten()
         .filter(|row| {
             row["venue"]
                 .as_str()
-                .is_some_and(|venue| venue.starts_with(&prefix))
+                .is_some_and(|venue| within(scope, venue))
         })
         .collect()
+}
+
+/// 一天里 `scope` 那几个场所的数：「全部」是合计。
+fn day_in(daily: &Daily, scope: Option<&Scope>) -> Day {
+    match scope {
+        None => daily.total,
+        Some(_) => daily
+            .venues
+            .iter()
+            .filter(|(venue, _)| within(scope, venue))
+            .fold(Day::default(), |sum, (_, day)| sum.plus(*day)),
+    }
+}
+
+/// 一天里 `scope` 那几个连接按小时收到的：「全部」是合计。
+fn hours_in(daily: &Daily, scope: Option<&Scope>) -> Vec<u64> {
+    match scope {
+        None => daily.hours.clone(),
+        Some(scope) => daily
+            .connection_hours
+            .iter()
+            .filter(|(key, _)| scope.holds_key(key))
+            .fold(Vec::new(), |mut sum, (_, hours)| {
+                sum.resize(hours.len().max(sum.len()), 0);
+                for (slot, count) in sum.iter_mut().zip(hours) {
+                    *slot += count;
+                }
+                sum
+            }),
+    }
 }
 
 /// 用量的那一段（纯逻辑）：这一段的行 `rows`（按场所、天、用途、模型分的）、前一段的 `before`、这一段回复了几段 `replied`。
@@ -112,11 +143,15 @@ pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
     })
 }
 
-/// 消息的那一段（纯逻辑）：这一段的几天 `days`、前一段的 `before`。
-pub(super) fn messages(days: &[(String, Daily)], before: &[(String, Daily)]) -> Value {
+/// 消息的那一段（纯逻辑）：这一段的几天 `days`、前一段的 `before`，只算 `scope` 的。
+pub(super) fn messages(
+    days: &[(String, Daily)],
+    before: &[(String, Daily)],
+    scope: Option<&Scope>,
+) -> Value {
     let total = |days: &[(String, Daily)]| {
         days.iter().fold([0u64; 4], |mut sum, (_, daily)| {
-            let day = daily.total;
+            let day = day_in(daily, scope);
             for (slot, value) in
                 sum.iter_mut()
                     .zip([day.received, day.replied, day.recorded, day.undelivered])
@@ -131,13 +166,19 @@ pub(super) fn messages(days: &[(String, Daily)], before: &[(String, Daily)]) -> 
     let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
     let mut hours = [0u64; 24];
     for (_, daily) in days {
-        for (venue, day) in &daily.venues {
+        for (venue, day) in daily
+            .venues
+            .iter()
+            .filter(|(venue, _)| within(scope, venue))
+        {
             *venues.entry(venue.clone()).or_default() += day.received;
         }
-        for (reason, count) in &daily.reasons {
-            *reasons.entry(reason.clone()).or_default() += count;
+        if scope.is_none() {
+            for (reason, count) in &daily.reasons {
+                *reasons.entry(reason.clone()).or_default() += count;
+            }
         }
-        for (slot, count) in hours.iter_mut().zip(&daily.hours) {
+        for (slot, count) in hours.iter_mut().zip(&hours_in(daily, scope)) {
             *slot += count;
         }
     }
@@ -149,7 +190,10 @@ pub(super) fn messages(days: &[(String, Daily)], before: &[(String, Daily)]) -> 
     json!({
         "now": field(now),
         "prev": field(prev),
-        "days": days.iter().map(|(date, daily)| json!({"day": date, "received": daily.total.received, "replied": daily.total.replied})).collect::<Vec<_>>(),
+        "days": days.iter().map(|(date, daily)| {
+            let day = day_in(daily, scope);
+            json!({"day": date, "received": day.received, "replied": day.replied})
+        }).collect::<Vec<_>>(),
         "venues": busiest.into_iter().map(|(venue, count)| json!({"name": venue, "received": count})).collect::<Vec<_>>(),
         "reasons": reasons,
         "hours": hours,
@@ -163,7 +207,8 @@ pub(super) async fn stats(
     params: &Value,
 ) -> Result<Value, (String, String)> {
     let period = days_of(params["period"].as_str().unwrap_or("today"));
-    let platform = site.pick(params)?.0.platform.name();
+    let scope = Scope::of(params)?;
+    let scope = scope.as_ref();
     let today = jiff::Zoned::now().date();
     let dates = |from: i64, count: i64| -> Vec<String> {
         (0..count)
@@ -198,13 +243,16 @@ pub(super) async fn stats(
     .await?;
     let counted = site.counters.days(&now_days);
     let counted_before = site.counters.days(&prev_days);
-    let replied: u64 = counted.iter().map(|(_, daily)| daily.total.replied).sum();
+    let replied: u64 = counted
+        .iter()
+        .map(|(_, daily)| day_in(daily, scope).replied)
+        .sum();
     let token = token(
-        &ours(&rows["rows"], platform),
-        &ours(&before["rows"], platform),
+        &ours(&rows["rows"], scope),
+        &ours(&before["rows"], scope),
         replied,
     );
-    let messages = messages(&counted, &counted_before);
+    let messages = messages(&counted, &counted_before, scope);
     let running = running(site, person).await;
     Ok(json!({"token": token, "messages": messages, "running": running}))
 }

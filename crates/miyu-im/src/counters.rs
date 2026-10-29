@@ -76,6 +76,9 @@ pub(crate) struct Daily {
     /// 收到的，按本机的小时（0 到 23 点，施工 I-14）；以前写的没有这一格。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) hours: Vec<u64>,
+    /// 同 `hours`，按连接分（施工 I-85 下：首页统计跟着选中的连接）：连接（[`connection_of`]）→ 24 格；以前写的没有这一格。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) connection_hours: BTreeMap<String, Vec<u64>>,
     /// 群里每个人说了几条（施工 I-20，发言排行）：场所编号 → 平台上的人 → 条数；以前写的没有这一格。
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) speakers: BTreeMap<String, BTreeMap<String, u64>>,
@@ -93,7 +96,7 @@ impl Day {
     }
 
     /// 加上 `other`。
-    fn plus(self, other: Day) -> Day {
+    pub(crate) fn plus(self, other: Day) -> Day {
         Day {
             received: self.received + other.received,
             replied: self.replied + other.replied,
@@ -146,7 +149,12 @@ impl Counters {
             let daily = &mut held.1;
             daily.total.add(count);
             if count == Count::Received {
-                hour(daily, now_hour());
+                let at = now_hour();
+                hour(&mut daily.hours, at);
+                let by = daily
+                    .connection_hours
+                    .entry(connection_of(venue).to_string());
+                hour(by.or_default(), at);
             }
             daily
                 .venues
@@ -271,12 +279,12 @@ pub(crate) async fn keep(counters: Arc<Counters>) -> Option<Failure> {
     }
 }
 
-/// 第 `hour` 点收到的那一格数一下：以前写的没有 24 格的先补齐。
-fn hour(daily: &mut Daily, hour: usize) {
-    if daily.hours.len() != 24 {
-        daily.hours.resize(24, 0);
+/// `hours` 里第 `hour` 点收到的那一格数一下：以前写的没有 24 格的先补齐。
+fn hour(hours: &mut Vec<u64>, hour: usize) {
+    if hours.len() != 24 {
+        hours.resize(24, 0);
     }
-    if let Some(slot) = daily.hours.get_mut(hour) {
+    if let Some(slot) = hours.get_mut(hour) {
         *slot += 1;
     }
 }
@@ -312,4 +320,10 @@ pub(crate) fn last_days(count: u32) -> Vec<String> {
 /// 锁里不 `await`、不会崩；真崩了，里面的照样能用。
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// 场所编号 `venue` 里连接的那一段（施工 I-85 下）：去掉末尾的种类、号（号里没有 `:`，施工 I-79）。I-81 以前的编号
+/// （`qq:group:777`）只剩平台 `qq`，带机器人号的（`qq:10001:group:777`）是 `qq:10001`。
+pub(crate) fn connection_of(venue: &str) -> &str {
+    venue.rsplitn(3, ':').nth(2).unwrap_or(venue)
 }
