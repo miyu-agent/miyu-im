@@ -89,6 +89,8 @@ dir = "page"
 # 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
 # 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。NapCat 的两项在
 # 平台那一组（键 im.qq.host、im.qq.listen、im.qq.token，施工 I-3 补；地址是施工 I-27 加的）。
+# 施工 I-81 下（设计 07 第 7.7 节，项目主人 10-30 定：连接只在 im 后台页改）：一个连接一个端口、地址、令牌，存成下面三个藏起来的
+# 列表 hosts、ports、tokens，第几项是第几个连接；原来的三项也藏起来，只在 ports 没写过时当第一个连接读。
 
 [settings.qq.host]
 type = "text"
@@ -96,6 +98,7 @@ max = 45
 default = "0.0.0.0"
 layers = ["system"]
 applies = "now"
+hidden = true
 name = { en = "Listen address", zh = "监听地址", ja = "待ち受けアドレス" }
 description = { en = "The address NapCat's reverse WebSocket connects to. 0.0.0.0 accepts other machines and Docker too, and the token keeps strangers out. 127.0.0.1 accepts only this machine.", zh = "NapCat 反向 WebSocket 连进来的地址。0.0.0.0 是别的机器、Docker 里的也能连，外人靠令牌挡；127.0.0.1 是只收本机的。", ja = "NapCat のリバース WebSocket が接続してくるアドレスです。0.0.0.0 はほかのマシンや Docker からも受け付け、部外者はトークンで防ぎます。127.0.0.1 はこのマシンからだけ受け付けます。" }
 
@@ -106,6 +109,7 @@ max = 65535
 default = 8301
 layers = ["system"]
 applies = "now"
+hidden = true
 name = { en = "Port", zh = "端口", ja = "ポート" }
 description = { en = "The port NapCat's reverse WebSocket connects to. With NapCat on this machine use ws://127.0.0.1:<port>/ws; on another machine use this machine's address.", zh = "NapCat 反向 WebSocket 连进来的端口。NapCat 在这台机器上的，那边的地址填 ws://127.0.0.1:<端口>/ws；在别的机器上的，填这台机器的地址。", ja = "NapCat のリバース WebSocket が接続してくるポートです。NapCat がこのマシンにあるなら ws://127.0.0.1:<ポート>/ws、ほかのマシンにあるならこのマシンのアドレスを使います。" }
 
@@ -113,8 +117,39 @@ description = { en = "The port NapCat's reverse WebSocket connects to. With NapC
 type = "secret"
 layers = ["system"]
 applies = "now"
+hidden = true
 name = { en = "Token", zh = "令牌", ja = "トークン" }
 description = { en = "The token NapCat shows when it connects, the same one as in NapCat. Without it NapCat is refused. Paste it on the Connect Messaging page (miyu im web).", zh = "NapCat 连进来时要出示的验证 Token，和 NapCat 那边的一样。没设的，NapCat 连进来会被拒。在接入通讯平台的页面上粘贴（miyu im web）。", ja = "NapCat が接続するときに示す認証トークンで、NapCat 側と同じものです。未設定だと NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）で貼り付けます。" }
+
+[settings.qq.hosts]
+type = "list"
+element = "text"
+max = 45
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Listen addresses", zh = "监听地址（每个连接）", ja = "待ち受けアドレス（接続ごと）" }
+description = { en = "One per connection, in the same order as the ports. Set on the Connect Messaging page.", zh = "一个连接一项，和端口一一对应。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、ポートと同じ順です。メッセージング接続のページで変更します。" }
+
+[settings.qq.ports]
+type = "list"
+element = "int"
+min = 1024
+max = 65535
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Ports", zh = "端口（每个连接）", ja = "ポート（接続ごと）" }
+description = { en = "One per connection: the port that connection's NapCat connects to. Set on the Connect Messaging page.", zh = "一个连接一项：那个连接的 NapCat 连进来的端口。在接入通讯平台的页面上改。", ja = "接続ごとに一つ：その接続の NapCat が接続してくるポートです。メッセージング接続のページで変更します。" }
+
+[settings.qq.tokens]
+type = "list"
+element = "secret"
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Tokens", zh = "令牌（每个连接）", ja = "トークン（接続ごと）" }
+description = { en = "One per connection, in the same order as the ports: the token that connection's NapCat shows. Set on the Connect Messaging page.", zh = "一个连接一项，和端口一一对应：那个连接的 NapCat 出示的 Token。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、ポートと同じ順：その接続の NapCat が示すトークンです。メッセージング接続のページで変更します。" }
 
 # 识人术（施工 I-10 上，设计 01 第一节第 22 条）：OneBot 驱动带的插件，设置是驱动的配置项，藏起来，只在 im 页面的插件页「识人术」的
 # 「设置」里改；总开关是插件页上的开关。

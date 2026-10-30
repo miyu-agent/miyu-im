@@ -410,3 +410,50 @@ fn without_a_usable_address_anyone_can_connect() {
         std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)
     );
 }
+
+#[test]
+fn the_connection_table_follows_the_ports_column() {
+    // 施工 I-81 下（设计 07 第 7.7 节）：照 `ports` 算几个连接，地址、令牌少了的照默认、没有，多的不认；重了的端口只认第一个，
+    // 读不出的端口跳过。
+    let local = std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
+    let any = std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED);
+    let all = Settings::all(
+        &keys(json!({
+            "listen": 8301,
+            "token": "old",
+            "hosts": ["127.0.0.1"],
+            "ports": [9001, 9002, 9001, "nope", 9003],
+            "tokens": ["a", "b", "c", "d", "e", "extra"],
+        })),
+        |_| None,
+    );
+    let read: Vec<(std::net::IpAddr, u16, Option<&str>)> = all
+        .iter()
+        .map(|one| {
+            (
+                one.host,
+                one.port,
+                one.token.as_ref().map(|token| token.expose()),
+            )
+        })
+        .collect();
+    assert_eq!(
+        read,
+        [
+            (local, 9001, Some("a")),
+            (any, 9002, Some("b")),
+            (any, 9003, Some("e")),
+        ]
+    );
+    assert!(
+        Settings::all(&keys(json!({"listen": 8301, "ports": []})), |_| None).is_empty(),
+        "写了空的连接表就是一个都没有，不回去读原来的"
+    );
+    let old = Settings::all(&keys(json!({"listen": 8301, "token": "old"})), |_| None);
+    assert_eq!(old.len(), 1, "没写连接表的照原来的三项");
+    assert_eq!(old[0].port, 8301);
+    assert_eq!(
+        old[0].token.as_ref().map(|token| token.expose()),
+        Some("old")
+    );
+}
