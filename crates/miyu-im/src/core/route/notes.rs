@@ -69,7 +69,11 @@ impl Route {
             .platforms
             .of_venue(&venue)
             .and_then(|platform| Some((platform, platform.to_of(&venue)?)));
-        if !at.is_some_and(|(platform, to)| self.hooks.allowed(from, platform, Some(to))) {
+        // 机器人号照场所编号（施工 I-81：带号的场所照那个号的卡片）。
+        let bot = venue.bot().and_then(Id::new);
+        if !at.is_some_and(|(platform, to)| {
+            self.hooks.allowed(from, platform, bot.as_ref(), Some(to))
+        }) {
             tracing::info!(target: TARGET, from, venue = %venue.id(), why = "not_allowed", "plugin note refused");
             answerer.refuse(&id, "not_allowed");
             return Ok(());

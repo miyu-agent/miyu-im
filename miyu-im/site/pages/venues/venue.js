@@ -12,7 +12,7 @@
 import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { faceOf } from './face.js';
-import { cardOf, valueFor } from './model.js';
+import { cardOf, ownCardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
@@ -232,7 +232,7 @@ function removal(one, request, close) {
     }
     button.disabled = true;
     try {
-      const answer = await request('cards.remove', { card: cardOf(one) });
+      const answer = await request('cards.remove', { card: ownCardOf(one) });
       if (answer.saved) {
         close();
         return;

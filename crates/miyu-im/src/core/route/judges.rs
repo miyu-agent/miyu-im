@@ -20,7 +20,7 @@ use super::ask::{Answer, Asking, Slots, ask};
 use super::body::kinds;
 use super::decide::Decision;
 use super::persona::Personas;
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::core::Caller;
 use crate::core::hooks::{Hooks, Nudge, SCORE};
 
@@ -129,12 +129,22 @@ impl Judges {
 
     /// 交给判官：记下 `judging`，照 `asking` 起一个任务；要打分的、挂了判断打分挂接点的，判官答了以后同一个任务里问它们。`at`
     /// 是这个群会话的平台和群（施工 I-70 上：挂接点的参数带它的平台）；不知道的（照说不会：判的群会话都找到过）不问挂接点。
-    pub(super) fn start(&mut self, judging: Judging, asking: Asking, at: Option<(Platform, To)>) {
+    pub(super) fn start(
+        &mut self,
+        judging: Judging,
+        asking: Asking,
+        at: Option<(Platform, Id, To)>,
+    ) {
         self.next += 1;
         let ticket = self.next;
         let scoring = at
             .filter(|_| asking.mode == Mode::Reply)
-            .map(|(platform, to)| (platform, self.hooks.at(SCORE, platform, Some(to))))
+            .map(|(platform, bot, to)| {
+                (
+                    platform,
+                    self.hooks.at(SCORE, platform, Some(&bot), Some(to)),
+                )
+            })
             .filter(|(_, packages)| !packages.is_empty())
             .map(|(platform, packages)| (platform, packages, scored_params(&judging)));
         self.judging.push((ticket, judging));

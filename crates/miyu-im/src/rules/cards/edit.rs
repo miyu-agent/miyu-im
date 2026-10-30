@@ -11,7 +11,9 @@ use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
 use super::lines::key_ok;
-use super::{Card, Cards, GroupCard, GroupSet, Others, PrivateCard, PrivateSet, platform_ok};
+use super::{
+    Card, Cards, GroupCard, GroupSet, Others, PrivateCard, PrivateSet, Scope, platform_ok,
+};
 use crate::chat::Id;
 
 /// 改完的样子。
@@ -25,8 +27,8 @@ pub enum Edit {
     Missing,
 }
 
-/// 照页面交来的 `{"kind", "platform"?, "id"?}` 认是哪一张卡（施工 I-80：没写平台的照 `fallback`，调的一方照挂着的平台定；
-/// 定不了的是空的）。平台名不合写法的、号不合写法的是空的。
+/// 照页面交来的 `{"kind", "platform"?, "bot"?, "id"?}` 认是哪一张卡（施工 I-80：没写平台的照 `fallback`，调的一方照挂着的平台定；
+/// 定不了的是空的；施工 I-81 中：写了 `bot` 的只管那个号）。平台名、机器人号、号不合写法的是空的。
 pub fn card_of(value: &Value, fallback: Option<&str>) -> Option<Card> {
     let id = || serde_json::from_value::<Id>(value["id"].clone()).ok();
     let platform = match &value["platform"] {
@@ -34,28 +36,34 @@ pub fn card_of(value: &Value, fallback: Option<&str>) -> Option<Card> {
         Value::Null => fallback?.to_string(),
         named => named.as_str().filter(|name| platform_ok(name))?.to_string(),
     };
+    let bot = match &value["bot"] {
+        Value::Null => None,
+        written => Some(serde_json::from_value::<Id>(written.clone()).ok()?),
+    };
+    let scope = Scope::of(&platform, bot);
     match value["kind"].as_str()? {
         "defaults" => Some(Card::Defaults),
-        "other_groups" => Some(Card::OtherGroups(platform)),
-        "other_privates" => Some(Card::OtherPrivates(platform)),
-        "group" => Some(Card::Group(platform, id()?)),
-        "private" => Some(Card::Private(platform, id()?)),
+        "other_groups" => Some(Card::OtherGroups(scope)),
+        "other_privates" => Some(Card::OtherPrivates(scope)),
+        "group" => Some(Card::Group(scope, id()?)),
+        "private" => Some(Card::Private(scope, id()?)),
         _ => None,
     }
 }
 
-/// 把 `values` 合进 `card` 那一张（部分更新），查过的交回。
+/// 把 `values` 合进 `card` 那一张（部分更新），查过的交回。只管一个号的那一张还没有、整个平台的有的，先照整个平台的抄一张给这个号
+/// 再改（项目主人 10-30 定：在连接下改的卡只管那个号）；「其他群」「其他私聊」同（[`Cards::other_groups_mut`]）。
 pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
     let merged = match &card {
         Card::Defaults => merge(&mut next.defaults, values),
-        Card::OtherGroups(platform) => merge(next.other_groups_mut(platform), values),
-        Card::OtherPrivates(platform) => merge(next.other_privates_mut(platform), values),
-        Card::Group(platform, id) => match group_mut(&mut next, platform, id) {
+        Card::OtherGroups(scope) => merge(next.other_groups_mut(scope), values),
+        Card::OtherPrivates(scope) => merge(next.other_privates_mut(scope), values),
+        Card::Group(scope, id) => match group_for(&mut next, scope, id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
-        Card::Private(platform, id) => match private_mut(&mut next, platform, id) {
+        Card::Private(scope, id) => match private_for(&mut next, scope, id) {
             Some(one) => merge(&mut one.set, values),
             None => return Edit::Missing,
         },
@@ -63,7 +71,9 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     if let Err(problems) = merged {
         return Edit::Problems(problems);
     }
-    next.others.retain(|_, others| *others != Others::default());
+    // 整个平台的一格都没写的不存；只管一个号的留着（它没写的格不再照整个平台的）。
+    next.others
+        .retain(|key, others| key.contains(':') || *others != Others::default());
     let written = written_rules(&next, &card);
     let problems: Vec<(String, String)> = next
         .problems()
@@ -90,20 +100,46 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     }
 }
 
-/// 平台 `platform` 上群号 `id` 的那张卡。
-fn group_mut<'a>(cards: &'a mut Cards, platform: &str, id: &Id) -> Option<&'a mut GroupCard> {
+/// `scope` 上群号 `id` 的那张卡（照写的找，不照整个平台的退）。
+fn group_mut<'a>(cards: &'a mut Cards, scope: &Scope, id: &Id) -> Option<&'a mut GroupCard> {
     cards
         .groups
         .iter_mut()
-        .find(|one| one.platform == platform && one.id == *id)
+        .find(|one| one.platform == scope.platform && one.bot == scope.bot && one.id == *id)
 }
 
-/// 平台 `platform` 上对方的号是 `id` 的那张卡。
-fn private_mut<'a>(cards: &'a mut Cards, platform: &str, id: &Id) -> Option<&'a mut PrivateCard> {
+/// `scope` 上对方的号是 `id` 的那张卡（同 [`group_mut`]）。
+fn private_mut<'a>(cards: &'a mut Cards, scope: &Scope, id: &Id) -> Option<&'a mut PrivateCard> {
     cards
         .privates
         .iter_mut()
-        .find(|one| one.platform == platform && one.id == *id)
+        .find(|one| one.platform == scope.platform && one.bot == scope.bot && one.id == *id)
+}
+
+/// 要改的那张群卡：照写的找；只管一个号的没有、整个平台的有的，抄一张给这个号（见 [`update`]）。
+fn group_for<'a>(cards: &'a mut Cards, scope: &Scope, id: &Id) -> Option<&'a mut GroupCard> {
+    if group_mut(cards, scope, id).is_none() && scope.bot.is_some() {
+        let whole = Scope::platform(&scope.platform);
+        let copied = group_mut(cards, &whole, id).map(|one| GroupCard {
+            bot: scope.bot.clone(),
+            ..one.clone()
+        })?;
+        cards.groups.push(copied);
+    }
+    group_mut(cards, scope, id)
+}
+
+/// 要改的那张私聊卡（同 [`group_for`]）。
+fn private_for<'a>(cards: &'a mut Cards, scope: &Scope, id: &Id) -> Option<&'a mut PrivateCard> {
+    if private_mut(cards, scope, id).is_none() && scope.bot.is_some() {
+        let whole = Scope::platform(&scope.platform);
+        let copied = private_mut(cards, &whole, id).map(|one| PrivateCard {
+            bot: scope.bot.clone(),
+            ..one.clone()
+        })?;
+        cards.privates.push(copied);
+    }
+    private_mut(cards, scope, id)
 }
 
 /// 加一张空卡：已经有的照旧（交回原样）。「其他群」「其他私聊」本来就有。
@@ -111,19 +147,21 @@ pub fn add(cards: &Cards, card: Card) -> Cards {
     let mut next = cards.clone();
     match card {
         Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => {}
-        Card::Group(platform, id) => {
-            if group_mut(&mut next, &platform, &id).is_none() {
+        Card::Group(scope, id) => {
+            if group_mut(&mut next, &scope, &id).is_none() {
                 next.groups.push(GroupCard {
-                    platform,
+                    platform: scope.platform,
+                    bot: scope.bot,
                     id,
                     set: GroupSet::default(),
                 });
             }
         }
-        Card::Private(platform, id) => {
-            if private_mut(&mut next, &platform, &id).is_none() {
+        Card::Private(scope, id) => {
+            if private_mut(&mut next, &scope, &id).is_none() {
                 next.privates.push(PrivateCard {
-                    platform,
+                    platform: scope.platform,
+                    bot: scope.bot,
                     id,
                     set: PrivateSet::default(),
                 });
@@ -133,17 +171,20 @@ pub fn add(cards: &Cards, card: Card) -> Cards {
     next
 }
 
-/// 删一张：会话默认值、「其他群」「其他私聊」删不掉（交回空的），没有的照旧。
+/// 删一张（照写的那一张，整个平台的、别的号的不动）：会话默认值、「其他群」「其他私聊」删不掉（交回空的），没有的照旧。
 pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
     let mut next = cards.clone();
+    let other = |platform: &String, bot: &Option<Id>, scope: &Scope| {
+        *platform != scope.platform || *bot != scope.bot
+    };
     match card {
         Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => return None,
-        Card::Group(platform, id) => next
+        Card::Group(scope, id) => next
             .groups
-            .retain(|one| one.platform != platform || one.id != id),
-        Card::Private(platform, id) => next
+            .retain(|one| other(&one.platform, &one.bot, &scope) || one.id != id),
+        Card::Private(scope, id) => next
             .privates
-            .retain(|one| one.platform != platform || one.id != id),
+            .retain(|one| other(&one.platform, &one.bot, &scope) || one.id != id),
     }
     Some(next)
 }
@@ -152,20 +193,20 @@ pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
 fn written_rules(cards: &Cards, card: &Card) -> Vec<String> {
     let set = match card {
         Card::Defaults => serde_json::to_value(&cards.defaults),
-        Card::OtherGroups(platform) => serde_json::to_value(cards.other_groups_of(platform)),
-        Card::OtherPrivates(platform) => serde_json::to_value(cards.other_privates_of(platform)),
-        Card::Group(platform, id) => serde_json::to_value(
+        Card::OtherGroups(scope) => serde_json::to_value(cards.other_groups_of(scope)),
+        Card::OtherPrivates(scope) => serde_json::to_value(cards.other_privates_of(scope)),
+        Card::Group(scope, id) => serde_json::to_value(
             cards
                 .groups
                 .iter()
-                .find(|one| one.platform == *platform && one.id == *id)
+                .find(|one| one.platform == scope.platform && one.bot == scope.bot && one.id == *id)
                 .map(|one| &one.set),
         ),
-        Card::Private(platform, id) => serde_json::to_value(
+        Card::Private(scope, id) => serde_json::to_value(
             cards
                 .privates
                 .iter()
-                .find(|one| one.platform == *platform && one.id == *id)
+                .find(|one| one.platform == scope.platform && one.bot == scope.bot && one.id == *id)
                 .map(|one| &one.set),
         ),
     };

@@ -8,8 +8,8 @@
 // - 名字照 AI 在的群、好友的表，表里没有的写号。
 
 /** 一张卡：kind（defaults、other_groups、other_privates、group、private）、type（group、private：筛选用）、id（号，兜底卡没有）、
- *  name、members、bot（问到它的机器人的号）、set（卡上写了的格）、defaults（每一格的 {value, from}）、on（是否回复，没有这一格的
- *  是 null）。 */
+ *  name、members、bot（问到它的机器人的号）、scopeBot（卡管的号：只管一个号的卡是那个号，整个平台的是 null；施工 I-81 中）、
+ *  set（卡上写了的格）、defaults（每一格的 {value, from}）、on（是否回复，没有这一格的是 null）。 */
 export function entries(answer) {
   const cards = answer.cards || {};
   const defaults = answer.defaults || {};
@@ -28,9 +28,11 @@ export function entries(answer) {
       name: known?.name || id,
       members: known?.members ?? null,
       bot: known?.bot ?? null,
+      scopeBot: card.bot ?? null,
     });
   }
   const sets = new Map((cards.privates || []).map((card) => [String(card.id), card.set]));
+  const scopes = new Map((cards.privates || []).map((card) => [String(card.id), card.bot ?? null]));
   const people = [...new Set([...(answer.whitelist || []).map(String), ...sets.keys()])];
   for (const id of people) {
     const known = friends.get(id);
@@ -38,6 +40,7 @@ export function entries(answer) {
       ...entry('private', 'private', id, sets.get(id), defaults.privates?.[id]),
       name: known?.name || id,
       bot: known?.bot ?? null,
+      scopeBot: scopes.get(id) ?? null,
     });
   }
   return all;
@@ -47,13 +50,18 @@ function entry(kind, type, id, set, defaults) {
   const card = set || {};
   const shown = defaults || {};
   const on = kind === 'private' || kind === 'defaults' ? null : card.on ?? kind === 'group';
-  return { kind, type, id, name: '', members: null, bot: null, set: card, defaults: shown, on };
+  return { kind, type, id, name: '', members: null, bot: null, scopeBot: null, set: card, defaults: shown, on };
 }
 
 /** 页面交给 cards.save_one 的那张卡。 */
 export function cardOf(one) {
   // 号照原样交（施工 I-85 中：别的平台的号是字、负数；宿主数、字都认）。
   return one.id ? { kind: one.kind, id: one.id } : { kind: one.kind };
+}
+
+/** 移出 `one` 时交的那张卡：照卡自己管的号（整个平台的写 null），不补选中的号（施工 I-81 中）。 */
+export function ownCardOf(one) {
+  return { ...cardOf(one), bot: one.scopeBot ?? null };
 }
 
 /** 把 `one` 的 `key` 那一格改成 `value`：和默认一样的交 null（恢复默认，卡上只写和默认不一样的）。是否回复的默认见上；别的照卡

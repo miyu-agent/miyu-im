@@ -16,6 +16,7 @@ mod card;
 pub mod defaults;
 pub mod edit;
 mod lines;
+mod scoped;
 
 pub use lines::OTHER_GROUPS_RATE;
 pub mod page;
@@ -31,8 +32,10 @@ use miyu_chat::{File, Problem, Rules};
 use crate::chat::Id;
 
 use card::toml_id;
-pub use card::{Card, OLD_PLATFORM, platform_ok};
+pub use card::{Card, OLD_PLATFORM, Scope, platform_ok};
 use lines::{Matcher, defaults_lines, file, group_lines, other_private_lines, private_lines};
+pub use scoped::others_key;
+use scoped::scope_of_key;
 pub use store::{load, path, save};
 
 /// 卡片拼出来的文件名的开头：排在配置项那一份 `60-settings.toml` 后面。
@@ -227,6 +230,9 @@ pub struct GroupCard {
     /// 哪个平台的群（施工 I-80）：没写的是 [`OLD_PLATFORM`]，写盘时它不写（只用 QQ 的人 `cards.json` 不变）。
     #[serde(default = "old_platform", skip_serializing_if = "is_old")]
     pub platform: String,
+    /// 只管哪个号（施工 I-81 中，设计 07 第 7.6 节）：没写的管整个平台。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bot: Option<Id>,
     /// 群号。
     pub id: Id,
     /// 设的几格。
@@ -241,6 +247,9 @@ pub struct PrivateCard {
     /// 哪个平台的人（施工 I-80，同 [`GroupCard::platform`]）。
     #[serde(default = "old_platform", skip_serializing_if = "is_old")]
     pub platform: String,
+    /// 只管哪个号（同 [`GroupCard::bot`]）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bot: Option<Id>,
     /// 对方的号。
     pub id: Id,
     /// 设的几格。
@@ -248,7 +257,8 @@ pub struct PrivateCard {
     pub set: PrivateSet,
 }
 
-/// 别的平台的「其他群」「其他私聊」（施工 I-80）：[`OLD_PLATFORM`] 的照旧在 [`Cards::other_groups`]、[`Cards::other_privates`]。
+/// 别的平台、一个号的「其他群」「其他私聊」（施工 I-80、I-81 中）：整个 [`OLD_PLATFORM`] 的照旧在 [`Cards::other_groups`]、
+/// [`Cards::other_privates`]。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Others {
@@ -272,7 +282,8 @@ pub struct Cards {
     pub privates: Vec<PrivateCard>,
     /// [`OLD_PLATFORM`] 的「其他私聊」：陌生人的私聊（施工 O-60）。
     pub other_privates: OtherPrivateSet,
-    /// 别的平台的「其他群」「其他私聊」（施工 I-80）：平台名到那两张；没写的平台照两张空卡（出厂不回复）。空的不写。
+    /// 别的平台、一个号的「其他群」「其他私聊」（施工 I-80、I-81 中）：键是平台名（整个平台）或 `<平台>:<机器人号>`（只管那个号，
+    /// [`others_key`]），值是那两张；没写的平台照两张空卡（出厂不回复），没写的号照整个平台的。空的不写。
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub others: BTreeMap<String, Others>,
     /// 会话默认值（施工 I-7 下二，设置页）：群、私聊都套，排在别的卡下面，卡上没写的格照它。「是否回复」不归它管（写了也不拼）。
@@ -302,82 +313,16 @@ fn is_old(platform: &String) -> bool {
 }
 
 impl Cards {
-    /// 平台 `platform` 的「其他群」：没写的是空卡。
-    pub fn other_groups_of(&self, platform: &str) -> GroupSet {
-        match platform {
-            OLD_PLATFORM => self.other_groups.clone(),
-            _ => self
-                .others
-                .get(platform)
-                .map(|others| others.groups.clone())
-                .unwrap_or_default(),
-        }
-    }
-
-    /// 平台 `platform` 的「其他私聊」：没写的是空卡。
-    pub fn other_privates_of(&self, platform: &str) -> OtherPrivateSet {
-        match platform {
-            OLD_PLATFORM => self.other_privates.clone(),
-            _ => self
-                .others
-                .get(platform)
-                .map(|others| others.privates.clone())
-                .unwrap_or_default(),
-        }
-    }
-
-    /// 平台 `platform` 那一份（施工 I-85 中，会话页照连接看）：只有这个平台的群卡、私聊卡，「其他群」「其他私聊」两格放这个平台的，
-    /// 不带别的平台的；会话默认值不分平台。是给人看的一份，不拿来整份存（存了别的平台的就丢了）。
-    pub fn of_platform(&self, platform: &str) -> Cards {
-        Cards {
-            other_groups: self.other_groups_of(platform),
-            groups: self
-                .groups
-                .iter()
-                .filter(|card| card.platform == platform)
-                .cloned()
-                .collect(),
-            privates: self
-                .privates
-                .iter()
-                .filter(|card| card.platform == platform)
-                .cloned()
-                .collect(),
-            other_privates: self.other_privates_of(platform),
-            others: BTreeMap::new(),
-            defaults: self.defaults.clone(),
-        }
-    }
-
-    /// 平台 `platform` 的「其他群」，改的那一份（别的平台的没有就建一份）。
-    pub fn other_groups_mut(&mut self, platform: &str) -> &mut GroupSet {
-        match platform {
-            OLD_PLATFORM => &mut self.other_groups,
-            _ => &mut self.others.entry(platform.to_string()).or_default().groups,
-        }
-    }
-
-    /// 平台 `platform` 的「其他私聊」，改的那一份（同 [`Cards::other_groups_mut`]）。
-    pub fn other_privates_mut(&mut self, platform: &str) -> &mut OtherPrivateSet {
-        match platform {
-            OLD_PLATFORM => &mut self.other_privates,
-            _ => {
-                &mut self
-                    .others
-                    .entry(platform.to_string())
-                    .or_default()
-                    .privates
-            }
-        }
-    }
-
     /// 卡片上提到的平台和 `mounted`（挂着的驱动的）合起来，加上 [`OLD_PLATFORM`]，照名字排、不重。
-    fn platforms<'a>(&'a self, mounted: &[&'a str]) -> BTreeSet<&'a str> {
+    pub(super) fn platforms<'a>(&'a self, mounted: &[&'a str]) -> BTreeSet<&'a str> {
         let mut all: BTreeSet<&str> = mounted.iter().copied().collect();
         all.insert(OLD_PLATFORM);
         all.extend(self.groups.iter().map(|card| card.platform.as_str()));
         all.extend(self.privates.iter().map(|card| card.platform.as_str()));
-        all.extend(self.others.keys().map(String::as_str));
+        all.extend(self.others.keys().map(|key| {
+            key.split_once(':')
+                .map_or(key.as_str(), |(platform, _)| platform)
+        }));
         all
     }
 
@@ -389,6 +334,9 @@ impl Cards {
 
     /// 同 [`Cards::files`]：挂着的平台 `mounted` 每个都拼一份「其他群」「其他私聊」（没写过的照空卡，出厂不回复，施工 I-80）；
     /// 「其他私聊」不管 `known` 这几个人（平台上的身份 `<平台>:<号>`：白名单成员、认出来的终端管理员，施工 O-60）。
+    ///
+    /// 有自己卡片的号（施工 I-81 中，设计 07 第 7.6 节）各拼一份自己的「其他群」「其他私聊」（没写的照整个平台的），整个平台的
+    /// 那两份排开这些号（`not_bot`）；号自己的「其他群」排开的是整个平台的群卡加上它自己的群卡。
     pub fn files_for(&self, mounted: &[&str], known: &[String]) -> Vec<File> {
         let mut files = Vec::new();
         // 会话默认值写了的才拼（施工 I-7 下二），排在最前。
@@ -396,12 +344,14 @@ impl Cards {
             files.push(self.defaults_file());
         }
         for platform in self.platforms(mounted) {
-            let listed: Vec<String> = self
-                .groups
-                .iter()
-                .filter(|card| card.platform == platform)
-                .map(|card| toml_id(&card.id))
-                .collect();
+            let listed = |bot: Option<&Id>| -> Vec<String> {
+                self.groups
+                    .iter()
+                    .filter(|card| card.platform == platform)
+                    .filter(|card| card.bot.is_none() || card.bot.as_ref() == bot)
+                    .map(|card| toml_id(&card.id))
+                    .collect()
+            };
             let strangers: Vec<String> = known
                 .iter()
                 .filter_map(|person| person.split_once(':'))
@@ -409,26 +359,42 @@ impl Cards {
                 .filter_map(|(_, number)| Id::new(number))
                 .map(|id| toml_id(&id))
                 .collect();
+            let bots = self.bots_on(platform);
+            let spared: Vec<String> = bots.iter().map(toml_id).collect();
+            let whole = Scope::platform(platform);
             files.push(file(
-                Card::OtherGroups(platform.to_string()),
-                &Matcher::Others(listed.join(", ")),
-                &group_lines(&self.other_groups_of(platform), false),
+                Card::OtherGroups(whole.clone()),
+                &Matcher::Others(listed(None).join(", "), spared.join(", ")),
+                &group_lines(&self.other_groups_of(&whole), false),
             ));
             files.push(file(
-                Card::OtherPrivates(platform.to_string()),
-                &Matcher::Strangers(strangers.join(", ")),
-                &other_private_lines(&self.other_privates_of(platform)),
+                Card::OtherPrivates(whole.clone()),
+                &Matcher::Strangers(strangers.join(", "), spared.join(", ")),
+                &other_private_lines(&self.other_privates_of(&whole)),
             ));
+            for bot in bots {
+                let one = Scope::of(platform, Some(bot.clone()));
+                files.push(file(
+                    Card::OtherGroups(one.clone()),
+                    &Matcher::Others(listed(Some(&bot)).join(", "), String::new()),
+                    &group_lines(&self.other_groups_of(&one), false),
+                ));
+                files.push(file(
+                    Card::OtherPrivates(one.clone()),
+                    &Matcher::Strangers(strangers.join(", "), String::new()),
+                    &other_private_lines(&self.other_privates_of(&one)),
+                ));
+            }
         }
         let mut seen = BTreeSet::new();
         for card in &self.groups {
-            let which = Card::Group(card.platform.clone(), card.id.clone());
+            let which = Card::Group(Scope::of(&card.platform, card.bot.clone()), card.id.clone());
             if seen.insert(which.clone()) {
                 files.push(file(which, &Matcher::Own, &group_lines(&card.set, true)));
             }
         }
         for card in &self.privates {
-            let which = Card::Private(card.platform.clone(), card.id.clone());
+            let which = Card::Private(Scope::of(&card.platform, card.bot.clone()), card.id.clone());
             if seen.insert(which.clone()) {
                 files.push(file(which, &Matcher::Own, &private_lines(&card.set)));
             }
@@ -452,7 +418,7 @@ impl Cards {
     }
 
     /// 写错了的平台名（施工 I-80）：卡片上、`others` 里不合写法的；`others` 里写了 [`OLD_PLATFORM`] 的（它的写在
-    /// `other_groups`、`other_privates`）。
+    /// `other_groups`、`other_privates`）；`others` 的键里机器人号写错的（施工 I-81 中）照整个键报。
     pub fn bad_platforms(&self) -> Vec<String> {
         let mut bad: BTreeSet<String> = BTreeSet::new();
         let named = self
@@ -460,9 +426,17 @@ impl Cards {
             .iter()
             .map(|card| &card.platform)
             .chain(self.privates.iter().map(|card| &card.platform));
-        for platform in named.chain(self.others.keys()) {
+        for platform in named {
             if !platform_ok(platform) {
                 bad.insert(platform.clone());
+            }
+        }
+        for key in self.others.keys() {
+            match scope_of_key(key) {
+                Some(scope) if platform_ok(&scope.platform) => {}
+                _ => {
+                    bad.insert(key.clone());
+                }
             }
         }
         if self.others.contains_key(OLD_PLATFORM) {

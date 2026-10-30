@@ -125,7 +125,9 @@ impl Route {
             blobs: Blobs(self.core.caller()),
             link: self.platforms.link(peer.platform, &peer.bot),
             answers,
-            plugins: self.hooks.active(platform, peer.to.clone()),
+            plugins: self
+                .hooks
+                .active(platform, Some(&peer.bot), peer.to.clone()),
             config: self.hooks.driver_config(platform),
             store: crate::status_file::store_in(&self.store, platform),
             admin,

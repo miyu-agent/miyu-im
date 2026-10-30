@@ -127,7 +127,7 @@ fn a_card_only_holds_on_its_own_platform() {
     }
     assert_eq!(
         Card::parse("70-card-tg~g--100.toml"),
-        Some(Card::Group("tg".to_string(), Id::from(-100)))
+        Some(Card::Group(Scope::platform("tg"), Id::from(-100)))
     );
     let mounted: &[&str] = &["qq", "tg"];
     let engineer = ("persona".to_string(), text("engineer"));
@@ -164,7 +164,7 @@ fn every_mounted_platform_gets_its_own_fallback_cards() {
     assert!(
         values_on(&set, (mounted, &[]), &on("tg", VenueKind::Private, "1")).contains(&allow(false))
     );
-    set.other_groups_mut("tg").on = Some(true);
+    set.other_groups_mut(&Scope::platform("tg")).on = Some(true);
     assert!(
         values_on(&set, (mounted, &[]), &on("tg", VenueKind::Group, "1")).contains(&allow(true))
     );
@@ -214,4 +214,32 @@ fn platform_names_are_checked() {
     ] {
         assert_eq!(Card::parse(other), None, "{other}");
     }
+}
+
+#[test]
+fn a_card_for_one_bot_has_its_own_file_and_reads_back() {
+    // 施工 I-81 中：写了机器人号的卡另起一种文件名，平台、号都在名字里；老的 70- 文件照旧认成整个平台的。
+    let bot = Scope::of("qq", Some(Id::from(30003)));
+    for card in [
+        Card::Group(bot.clone(), Id::from(7)),
+        Card::Private(bot.clone(), Id::from(9)),
+        Card::OtherGroups(bot.clone()),
+        Card::OtherPrivates(bot.clone()),
+    ] {
+        let name = card.file_name();
+        assert!(name.starts_with("71-card-qq~30003~"), "{name}");
+        assert_eq!(Card::parse(&name), Some(card));
+    }
+    let odd = Scope::of("tg", Some(Id::new("room/1@x").expect("合写法")));
+    let card = Card::Group(odd, Id::from(-100));
+    assert_eq!(Card::parse(&card.file_name()), Some(card));
+    assert_eq!(
+        Card::parse("70-card-g-7.toml"),
+        Some(Card::Group(qq(), Id::from(7)))
+    );
+    assert_eq!(
+        Card::parse("71-card-qq~30003.toml"),
+        None,
+        "号后面没隔开的不认"
+    );
 }

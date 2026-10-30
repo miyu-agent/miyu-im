@@ -154,7 +154,7 @@ async fn synced(gate: &Gate, link: &dyn Link, moderated: Moderated) {
         action,
     } = moderated;
     let to = To::Group(group.clone());
-    if !gate.active(ID, to.clone()) {
+    if !gate.active(ID, &bot, to.clone()) {
         return;
     }
     let config = gate.config().borrow().clone();

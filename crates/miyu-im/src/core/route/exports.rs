@@ -122,7 +122,9 @@ impl Route {
         match self.peers.get(&main) {
             Some(peer) => {
                 let origin = self.origin_of(session, &main, (peer.platform, peer.to.clone()));
-                let plugins = self.hooks.plugins_on(peer.platform, peer.to.clone());
+                let plugins =
+                    self.hooks
+                        .plugins_on(peer.platform, Some(&peer.bot), peer.to.clone());
                 json!({"platform": peer.platform.name(), "venue": peer.venue.as_str(), "bot": peer.bot, "origin": origin, "plugins": plugins})
             }
             None => json!({"venue": null}),

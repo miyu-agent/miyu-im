@@ -202,9 +202,12 @@ impl Gate {
         &self.store
     }
 
-    /// 驱动带的插件 `id` 在场所 `to` 开着没有（施工 Q-3：总开关、场所开关，同 `toolset::Call::plugins`）。
-    pub fn active(&self, id: &str, to: To) -> bool {
-        self.hooks.active(self.platform, to).contains(&id)
+    /// 驱动带的插件 `id` 在机器人号 `bot` 收发的场所 `to` 开着没有（施工 Q-3：总开关、场所开关，同 `toolset::Call::plugins`；施工
+    /// I-81 中：场所开关照那个号的卡片）。
+    pub fn active(&self, id: &str, bot: &Id, to: To) -> bool {
+        self.hooks
+            .active(self.platform, Some(bot), to)
+            .contains(&id)
     }
 
     /// 驱动带的插件给场所 `to` 记一句（施工 Q-3）：模板 `name`（`ToolSet::facts` 里的）字段照 `fields` 换、去掉首尾空白，种类是 `kind`，交给跟

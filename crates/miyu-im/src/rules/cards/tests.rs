@@ -9,8 +9,8 @@ use miyu_config::Value;
 use super::*;
 
 /// 卡片上没写平台的那一个。
-fn qq() -> String {
-    crate::rules::OLD_PLATFORM.to_string()
+fn qq() -> Scope {
+    Scope::platform(crate::rules::OLD_PLATFORM)
 }
 
 /// 群 `number`。

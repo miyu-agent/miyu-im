@@ -12,11 +12,11 @@ use crate::plugins::{Builtin, Seen};
 use super::{Hooks, Mounted};
 
 impl Hooks {
-    /// 平台 `platform` 上群 `group` 里的一条 `seen` 借了谁的名字（识人术）：照先后问那个平台的驱动带的、开着的插件，头一个说借了的
-    /// 为准；都没说的是空的。
+    /// 平台 `platform` 上机器人号 `bot` 收到的、群 `group` 里的一条 `seen` 借了谁的名字（识人术）：照先后问那个平台的驱动带的、
+    /// 开着的插件，头一个说借了的为准；都没说的是空的。
     pub(crate) fn impostor(
         &self,
-        platform: Platform,
+        (platform, bot): (Platform, &Id),
         group: Id,
         seen: &Seen<'_>,
     ) -> Option<String> {
@@ -26,12 +26,19 @@ impl Hooks {
         mounted
             .builtins
             .iter()
-            .filter(|builtin| self.on(builtin.as_ref(), (mounted, platform, to.clone()), &config))
+            .filter(|builtin| {
+                self.on(
+                    builtin.as_ref(),
+                    (mounted, platform, Some(bot), to.clone()),
+                    &config,
+                )
+            })
             .find_map(|builtin| builtin.impostor(&config, seen))
     }
 
-    /// 平台 `platform` 上场所 `to` 开着的那个平台的驱动带的插件的编号，照先后（施工 Q-1：交给驱动的工具，`toolset::Call::plugins`）。
-    pub(crate) fn active(&self, platform: Platform, to: To) -> Vec<&'static str> {
+    /// 平台 `platform` 上机器人号 `bot` 收发的场所 `to` 开着的那个平台的驱动带的插件的编号，照先后（施工 Q-1：交给驱动的工具，
+    /// `toolset::Call::plugins`）。
+    pub(crate) fn active(&self, platform: Platform, bot: Option<&Id>, to: To) -> Vec<&'static str> {
         let Some(mounted) = self.mounted(platform) else {
             return Vec::new();
         };
@@ -42,7 +49,7 @@ impl Hooks {
             .filter(|builtin| {
                 self.on(
                     builtin.as_ref(),
-                    (mounted, platform, Some(to.clone())),
+                    (mounted, platform, bot, Some(to.clone())),
                     &config,
                 )
             })
@@ -52,7 +59,7 @@ impl Hooks {
 
     /// 平台 `platform` 上场所 `to` 开着的插件的编号，软件包的和驱动带的都算，照编号排（施工 S-1 上c：经 `venue.plugins` 告诉核心，
     /// 核心 O-60 照它给带 `plugin` 的工具）。驱动带的另看带它的驱动的总开关。
-    pub(crate) fn plugins_on(&self, platform: Platform, to: To) -> Vec<String> {
+    pub(crate) fn plugins_on(&self, platform: Platform, bot: Option<&Id>, to: To) -> Vec<String> {
         let known: Vec<String> = self
             .plugins
             .lock()
@@ -65,9 +72,9 @@ impl Hooks {
             .filter(|package| match self.owner(package) {
                 Some((mounted, builtin)) => {
                     let config = mounted.config.borrow().clone();
-                    self.on(builtin, (mounted, platform, Some(to.clone())), &config)
+                    self.on(builtin, (mounted, platform, bot, Some(to.clone())), &config)
                 }
-                None => self.allowed(package, platform, Some(to.clone())),
+                None => self.allowed(package, platform, bot, Some(to.clone())),
             })
             .collect()
     }
@@ -95,11 +102,11 @@ impl Hooks {
     fn on(
         &self,
         builtin: &dyn Builtin,
-        (owner, platform, to): (&Mounted, Platform, Option<To>),
+        (owner, platform, bot, to): (&Mounted, Platform, Option<&Id>, Option<To>),
         config: &Map<String, Value>,
     ) -> bool {
         let switch = format!("{}on", builtin.settings());
         let on = config.get(&switch).and_then(Value::as_bool).unwrap_or(true);
-        owner.platform == platform && on && self.allowed(builtin.id(), platform, to)
+        owner.platform == platform && on && self.allowed(builtin.id(), platform, bot, to)
     }
 }

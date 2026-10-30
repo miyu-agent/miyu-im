@@ -284,12 +284,14 @@ impl Texts {
                     Some(Card::Defaults) => self.say("venue/card-defaults", &[]),
                     Some(Card::OtherGroups(_)) => self.say("venue/card-other-groups", &[]),
                     Some(Card::OtherPrivates(_)) => self.say("venue/card-other-privates", &[]),
-                    Some(Card::Group(platform, id)) => {
-                        self.say("venue/card-group", &[("id", shown_id(&platform, &id))])
-                    }
-                    Some(Card::Private(platform, id)) => {
-                        self.say("venue/card-private", &[("id", shown_id(&platform, &id))])
-                    }
+                    Some(Card::Group(scope, id)) => self.say(
+                        "venue/card-group",
+                        &[("id", shown_id(&scope.platform, &id))],
+                    ),
+                    Some(Card::Private(scope, id)) => self.say(
+                        "venue/card-private",
+                        &[("id", shown_id(&scope.platform, &id))],
+                    ),
                     None => {
                         let key = rule.and_then(key_of).unwrap_or_else(|| file.to_string());
                         self.say("venue/setting", &[("key", key)])

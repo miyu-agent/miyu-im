@@ -134,7 +134,7 @@ async fn audited(gate: &Gate, link: &dyn Link, applicant: Applicant) {
     let flag = action_flag(&applicant.flag);
     tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, filtered = filtered(&applicant.flag), rewritten = flag != applicant.flag, "join request received");
     let to = To::Group(group.clone());
-    if !gate.active(ID, to.clone()) {
+    if !gate.active(ID, &applicant.bot, to.clone()) {
         tracing::info!(target: miyu_im::TARGET, group = %group, user = %user, "join request left to a person: group admin is off here");
         return;
     }
