@@ -116,6 +116,23 @@ pub async fn admin_napcat(port: u16) -> NapCat {
 }
 
 impl NapCat {
+    /// 连接还通着（施工 I-81 下：端口关了，已经连着的不断）：发一个 Ping，等到桥回 Pong 算通；中间桥发来的别的帧跳过。
+    pub async fn alive(&mut self) -> bool {
+        if self.ws.send(Message::Ping(vec![1].into())).await.is_err() {
+            return false;
+        }
+        within("桥回 Pong", async {
+            loop {
+                match self.ws.next().await {
+                    Some(Ok(Message::Pong(_))) => return true,
+                    Some(Ok(_)) => {}
+                    _ => return false,
+                }
+            }
+        })
+        .await
+    }
+
     /// 发一帧 JSON。
     pub async fn send(&mut self, frame: Value) {
         self.ws

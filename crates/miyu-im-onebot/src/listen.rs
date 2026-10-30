@@ -2,8 +2,8 @@
 //! 101，升级好以后在同一个任务里接着当 WebSocket 用（`connection`）。
 //!
 //! - 只认 `bridge.json` 的 `paths`（出厂是 `/onebot/v11/ws`、`/ws`），别的 404。
-//! - 令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>`、查询参数 `access_token` 的先后取，和桥手里最新的
-//!   （`miyu_im::current`：握手交来的，核心推来新的就换上，施工 O-20）按常数时间比（长短不一样直接不对，一样长的每个字节都比，
+//! - 令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>`、查询参数 `access_token` 的先后取，和桥手里这个端口最新的
+//!   （连接表里这个端口的那一个，施工 I-81 下；握手交来的，核心推来新的就换上，施工 O-20）按常数时间比（长短不一样直接不对，一样长的每个字节都比，
 //!   照核心比本机令牌的规矩，`protocol.md`「握手」第 3 条）：令牌刚在后台页或命令行里设、换、删的，不用重启就照新的。对不上、
 //!   桥手里没有、没出示的 401。查询参数照原样比，不做百分号解码：NapCat 用头出示。
 //! - 不是 WebSocket 的升级请求：400。算出来的 `Sec-WebSocket-Accept` 放不进回应的头：也是 400，不升级。
@@ -30,7 +30,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::onebot::PLATFORM;
-use crate::settings::{NAMES, SECRETS, token};
+use crate::settings::{NAMES, SECRETS};
 use miyu_im::TARGET;
 use miyu_im::chat::{CAPS, Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Reaction, Started};
@@ -86,15 +86,15 @@ impl Driver for OneBot {
 /// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。
 type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
 
-/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。
-async fn accept(stream: TcpStream, gate: Arc<Gate>) {
+/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。`port` 是它连进来的端口，令牌照那个端口的比。
+async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Tokens)) {
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
     let service = {
         let slot = Arc::clone(&slot);
         let gate = Arc::clone(&gate);
         hyper::service::service_fn(move |request| {
-            let (gate, slot) = (Arc::clone(&gate), Arc::clone(&slot));
-            async move { Ok::<_, Infallible>(handle(request, &gate, &slot).await) }
+            let (gate, slot, port) = (Arc::clone(&gate), Arc::clone(&slot), port.clone());
+            async move { Ok::<_, Infallible>(handle(request, (&gate, &port), &slot).await) }
         })
     };
     let served = hyper::server::conn::http1::Builder::new()
@@ -117,7 +117,7 @@ async fn accept(stream: TcpStream, gate: Arc<Gate>) {
 /// 一个请求：路径、令牌、升级都对了的回 101，把升级交进 `slot`；回别的不交。
 async fn handle(
     mut request: Request<Incoming>,
-    gate: &Gate,
+    (gate, port): (&Gate, &(u16, accepting::Tokens)),
     slot: &Mutex<Option<Upgrade>>,
 ) -> Response<Empty<Bytes>> {
     let path = request.uri().path();
@@ -125,8 +125,8 @@ async fn handle(
         return empty(StatusCode::NOT_FOUND);
     }
     let presented = presented(&request).map(str::to_string);
-    if !admitted(gate, presented.as_deref()) {
-        tracing::warn!(target: TARGET, path = request.uri().path(), "token refused");
+    if !admitted(port, presented.as_deref()) {
+        tracing::warn!(target: TARGET, path = request.uri().path(), port = port.0, "token refused");
         return empty(StatusCode::UNAUTHORIZED);
     }
     let headers = request.headers();
@@ -170,9 +170,16 @@ fn switching(accept: &str) -> Response<Empty<Bytes>> {
     response
 }
 
-/// 出示的 `presented` 对得上桥手里最新的令牌（宿主交来的配置里的，施工 I-3）。手里没有、没出示的对不上。
-fn admitted(gate: &Gate, presented: Option<&str>) -> bool {
-    match (presented, token(&gate.config().borrow())) {
+/// 出示的 `presented` 对得上端口 `port` 最新的令牌（连接表里这个端口的，施工 I-3、I-81 下）。手里没有、没出示的、端口已经
+/// 不在连接表里的对不上。
+fn admitted((port, tokens): &(u16, accepting::Tokens), presented: Option<&str>) -> bool {
+    let token = tokens
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(port)
+        .cloned()
+        .flatten();
+    match (presented, token) {
         (Some(presented), Some(token)) => same(presented.as_bytes(), token.expose().as_bytes()),
         _ => false,
     }

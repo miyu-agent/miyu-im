@@ -110,10 +110,22 @@ impl Methods {
                 Value::Object(status)
             }
             (Some(running), TOKEN) => {
-                // 驱动配置里的令牌（施工 I-3；后台页随 I-5 重做，这一处跟着走）：照原样交，去掉前后空白，空的当没有。
-                let token = running
-                    .current
-                    .driver_value(running.first().platform, "token");
+                // 驱动配置里的令牌（施工 I-3；后台页随 I-5 重做，这一处跟着走）：照原样交，去掉前后空白，空的当没有。连接表写了的
+                // （施工 I-81 下）照参数 `port` 交那个连接的，没写端口的交第一个连接的。
+                let platform = running.first().platform;
+                let column = |name| running.current.driver_value(platform, name);
+                let token = match (column("ports"), column("tokens")) {
+                    (Some(Value::Array(ports)), Some(Value::Array(tokens))) => {
+                        let at = params["params"]["port"]
+                            .as_u64()
+                            .and_then(|port| {
+                                ports.iter().position(|one| one.as_u64() == Some(port))
+                            })
+                            .unwrap_or(0);
+                        tokens.get(at).cloned()
+                    }
+                    _ => column("token"),
+                };
                 let token = token
                     .as_ref()
                     .and_then(Value::as_str)

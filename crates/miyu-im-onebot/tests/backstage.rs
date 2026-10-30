@@ -121,6 +121,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
             "listen": listen,
             "path": "/ws",
             "token": "set",
+            "connections": [{"host": "127.0.0.1", "listen": listen, "token": "set"}],
             "platform": "qq",
             "platforms": ["qq"],
         })
@@ -263,6 +264,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
             "listen": listen,
             "path": "/ws",
             "token": "none",
+            "connections": [{"host": "127.0.0.1", "listen": listen, "token": "none"}],
             "platform": "qq",
             "platforms": ["qq"],
         })
