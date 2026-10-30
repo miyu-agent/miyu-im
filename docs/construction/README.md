@@ -177,6 +177,7 @@
 | I-81 上 | 场所编号带机器人号（设计 07 第 7.3 节）：`<平台>:<机器人号>:<种类>:<号>`，群聊内核 `Venue::with_bot`、老写法照旧解；收发都照那个号拼，概况照（平台、种类、号）比；施工单 `I-81上-场所编号带机器人号.md` | 见 `git log --grep I-81上` |
 | I-81 中 | 会话卡按号分（设计 07 第 7.6 节）：群卡、私聊卡、「其他群」「其他私聊」多一格可选的机器人号，只管那个号；规则多 `match.bot`、`not_bot`；会话页照选中的连接读写；插件开关、挂接点照收发的号找卡；施工单 `I-81中-会话卡按号分.md` | 见 `git log --grep I-81中` |
 | I-92 | 依赖升级（发布前审查第 3 条）：rustls 0.23.46、rustls-webpki 0.103.16、webpki-roots 1.0.11、ctutils 0.4.7，换掉撤下的 yoke-derive 0.8.3；只改 `Cargo.lock`；施工单 `I-92-依赖升级.md` | 见 `git log --grep I-92` |
+| I-93 | 第三方许可证清单（发布前审查第 6、7 条）：拷 Lucide 的 ISC 原文；照核心 AU-2 搬 `cargo xtask notices` 生成 `THIRD-PARTY-LICENSES.txt`、门禁查最新；AGPL 没带原文的用仓库 LICENSE；发行包两个文件夹都带 LICENSE 和清单；施工单 `I-93-第三方许可证清单.md` | 见 `git log --grep I-93` |
 | I-94 | 被拒的连接回完就关（发布前审查 I2-1）：401、404、400 带 `Connection: close`；读请求头有时限（`handshake_seconds`）；没升级的连接限 `pending_connections` 条；施工单 `I-94-被拒的连接回完就关.md` | 见 `git log --grep I-94` |
 | I-95 | 回应不排在事件后面（发布前审查 I2-2）：每条连接一个转交和缓冲（`connection_events`），读的循环不等，满了丢、记一行，回应读到当场交；施工单 `I-95-回应不排在事件后面.md` | 见 `git log --grep I-95` |
 | I-91 | QQ 工具拆成三个功能（项目主人 10-30 定，核心 FG-1）：`im-chat` 聊天动作、`im-lookup` 查询信息、`im-admin` 群管理，清单各列工具；插件群聊记录、群资料并成查询信息（`lookup_on`）；显示名改成不回复、艾特、查询聊天记录、获取…、查看…；补：后台页活动记录的工具名跟着显示名改、加一致的测试；施工单 `I-91-QQ工具拆成三个功能.md` | 见 `git log --grep I-91` |

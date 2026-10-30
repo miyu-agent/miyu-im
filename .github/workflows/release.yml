@@ -1,7 +1,8 @@
 # 发包（施工 S-6 中，设计 32 第九节第 4 条）：推 `v*` 标签时三个平台各编 release 的 `miyu-im`，拼成 `miyu-im/` 文件夹
 # （`package.toml`、`page/`、`data/`、`bin/miyu-im`，Windows 带 `.exe`），打成 `miyu-im-<版本>-<平台>.tar.gz`
 # （Windows 用 `.zip`），挂到 GitHub Release。用的人解开以后 `miyu pkg install ./miyu-im`。施工 S-1 上b 起同一趟另编赞助记录
-# `miyu-im-sponsor`，拼成 `miyu-im-sponsor/` 文件夹（`package.toml`、`im/plugin.toml`、后台页 `page/`、`bin/miyu-im-sponsor`；给模型看的字
+# `miyu-im-sponsor`，拼成 `miyu-im-sponsor/` 文件夹（`package.toml`、`im/plugin.toml`、后台页 `page/`、`bin/miyu-im-sponsor`；施工 I-93 起两个
+# 文件夹都带 `LICENSE`、`THIRD-PARTY-LICENSES.txt`；给模型看的字
 # 编进了程序），打成 `miyu-im-sponsor-<版本>-<平台>`，装法同上（`miyu pkg install ./miyu-im-sponsor`）。包文件夹的名字就是包编号
 # （核心设计 48，施工 I-86），仓库里的包文件夹也叫这个名字（施工 O-44：从源码装出来编号一样）。
 #
@@ -63,8 +64,10 @@ jobs:
           rm -rf dist && mkdir -p dist/miyu-im/bin
           cp -R miyu-im/. dist/miyu-im/
           cp "target/release/miyu-im$exe" "dist/miyu-im/bin/miyu-im$exe"
-          # 结构不对就不发：清单、后台页、数据、程序都要在。
-          for need in package.toml page/index.html data/bridge.json "bin/miyu-im$exe"; do
+          # 许可证（施工 I-93）：本仓库的 AGPL 原文、编进程序的第三方包和后台页图标的许可证清单（cargo xtask notices 生成）。
+          cp LICENSE THIRD-PARTY-LICENSES.txt dist/miyu-im/
+          # 结构不对就不发：清单、后台页、数据、程序、许可证都要在。
+          for need in package.toml page/index.html data/bridge.json "bin/miyu-im$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
             [ -f "dist/miyu-im/$need" ] || { echo "包里少了 miyu-im/$need"; exit 1; }
           done
       - name: 拼 miyu-im-sponsor/ 文件夹
@@ -76,7 +79,8 @@ jobs:
           cp miyu-im-sponsor/im/plugin.toml dist/miyu-im-sponsor/im/
           cp -R miyu-im-sponsor/page dist/miyu-im-sponsor/page
           cp "target/release/miyu-im-sponsor$exe" "dist/miyu-im-sponsor/bin/miyu-im-sponsor$exe"
-          for need in package.toml im/plugin.toml page/index.html "bin/miyu-im-sponsor$exe"; do
+          cp LICENSE THIRD-PARTY-LICENSES.txt dist/miyu-im-sponsor/
+          for need in package.toml im/plugin.toml page/index.html "bin/miyu-im-sponsor$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
             [ -f "dist/miyu-im-sponsor/$need" ] || { echo "包里少了 miyu-im-sponsor/$need"; exit 1; }
           done
       - name: 打包

@@ -3,13 +3,15 @@
 //!
 //! 「文档」那一项还查登记簿：`miyu-im/data/` 里给模型看的字和 `docs/ledger.md` 一一对上（[`ledger`]）。「纯逻辑」查群聊内核
 //! 不碰 I/O、时钟，不用遍历顺序会变的容器（[`purity`]，施工 O-40）。「行数」查每个 `.rs`
-//! 不超过 500 行，测试也算。「许可证」查发布的四个平台上用得到的第三方依赖，许可证都能和 AGPL-3.0-or-later 合在一起发。
+//! 不超过 500 行，测试也算。「许可证」查发布的四个平台上用得到的第三方依赖，许可证都能和 AGPL-3.0-or-later 合在一起发，
+//! 第三方许可证清单 `THIRD-PARTY-LICENSES.txt` 是最新的（施工 I-93，`notices.rs`）；`cargo xtask notices` 重新生成它。
 //! 「测试」另查每个测试文件都进了测试程序（`autotests = false` 的 crate）。里面的 cargo 一个接一个跑，不并行。
 
 mod drawing;
 mod files;
 mod ledger;
 mod licenses;
+mod notices;
 mod purity;
 mod size;
 mod test_targets;
@@ -23,8 +25,21 @@ const CODE: [&str; 2] = ["crates", "xtask"];
 fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
         Some("check") => check(),
+        Some("notices") => match notices::write(
+            &root(),
+            &std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string()),
+        ) {
+            Ok(()) => {
+                println!("写好了 {}", notices::PATH);
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("{e}");
+                ExitCode::FAILURE
+            }
+        },
         _ => {
-            eprintln!("用法：cargo xtask check");
+            eprintln!("用法：cargo xtask check | cargo xtask notices");
             ExitCode::from(2)
         }
     }
@@ -115,7 +130,11 @@ fn check() -> ExitCode {
     );
     outcomes.push(Outcome {
         name: "许可证",
-        problems: licenses::check(&root, &cargo),
+        problems: [
+            licenses::check(&root, &cargo),
+            notices::check(&root, &cargo),
+        ]
+        .concat(),
     });
     // 先在锁里把测试程序都编好，再出锁跑（2026-10-22 项目主人定：锁只管编译）。编不过的不再跑。
     let mut tests = cargo_step(

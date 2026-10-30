@@ -60,3 +60,9 @@ cargo xtask check
 AGPL-3.0-or-later，见 `LICENSE`（2026-10-26 项目主人定许可证分层：核心和第一方程序用 AGPL-3.0-or-later）。im 的网页后台在侧边栏底下放了源码链接：别人经网络用到它，也拿得到源码。
 
 不是这个仓库自己写的东西照它们原来的许可证，AGPL 只管这里自己写的部分：依赖照各自的 `license`（门禁的「许可证」一项查能不能合在一起发）；收的第三方资源照各自的许可证，原文随附。
+
+| 第三方资源 | 许可证 | 原文 |
+|---|---|---|
+| Lucide 图标（后台页 `miyu-im/site/shell/lucide-all.json`、`lucide.js`） | ISC | `miyu-im/site/shell/LICENSE-lucide.txt` |
+
+编进程序的第三方包和上面这些资源，版权和许可证原文都在 `THIRD-PARTY-LICENSES.txt`（`cargo xtask notices` 生成，门禁查它是不是最新的），发行包里每个包文件夹都带它和 `LICENSE`。
