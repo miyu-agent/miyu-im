@@ -28,3 +28,7 @@ im 的十九件工具在预设里只是一个开关「QQ 工具」：终端里�
 - `the_lookup_plugin_switches_its_tools`（真核心）：出厂八件都在；卡片上关了八件都没有；卡片恢复、总开关关了也都没有。
 - 显示名、登记的 `plugin`、驱动配置项、插件名单的测试照新名字改了。
 - 本机门禁、三台 CI 全绿。
+
+### 补（2026-10-30）：活动记录里的工具名
+
+I-91 改了工具的显示名（`data/human/<语言>.json`），后台页首页「活动」里那几行（`site/texts.js` 的 `activity/tool-qq_*`）还是旧名字（不说话、@ 群成员、取图和文件……）。照显示名改了三种语言的二十一条，另加 `the_activity_log_names_tools_like_their_display_names`：每件工具的活动记录名和显示名一字不差（换回旧文案报红「zh 的 activity/tool-qq_activity_ranking」）。

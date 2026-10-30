@@ -212,3 +212,26 @@ fn japanese_is_written_in_japanese() {
         "im 自己的页面的日文另写，只有拼格式的、专名一样（「ID」，施工 I-50）"
     );
 }
+
+#[test]
+fn the_activity_log_names_tools_like_their_display_names() {
+    // 施工 I-91 补：活动记录里的工具名和工具的显示名（`data/human/<语言>.json`，终端、网页的过程行照它）一字不差，改名不会只改一边。
+    let im = resources().join("packages/miyu-im");
+    let texts = texts_in(&im.join("site"));
+    for language in ["zh", "en", "ja"] {
+        let human: Value = serde_json::from_str(
+            &std::fs::read_to_string(im.join(format!("data/human/{language}.json")))
+                .expect("读得了"),
+        )
+        .expect("是 JSON");
+        let tools = human["tools"].as_object().expect("有工具");
+        for (tool, face) in tools {
+            let key = format!("activity/tool-{tool}");
+            assert_eq!(
+                texts[language].get(&key),
+                face.get("name"),
+                "{language} 的 {key}"
+            );
+        }
+    }
+}
