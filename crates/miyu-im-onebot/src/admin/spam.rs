@@ -121,7 +121,7 @@ impl Spamming {
     pub(crate) fn seen(&mut self, group: Id, posted: &Posted) -> bool {
         if posted.user == posted.bot
             || matches!(posted.rank, Some(Rank::Owner | Rank::Admin))
-            || !self.gate.active(ID, To::Group(group.clone()))
+            || !self.gate.active(ID, &posted.bot, To::Group(group.clone()))
         {
             return true;
         }

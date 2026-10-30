@@ -306,7 +306,7 @@ impl Route {
         let at = self
             .peers
             .get(session)
-            .map(|peer| (peer.platform, peer.to.clone()));
+            .map(|peer| (peer.platform, peer.bot.clone(), peer.to.clone()));
         self.judges.start(judging, asking, at);
     }
 

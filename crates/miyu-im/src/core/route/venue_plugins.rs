@@ -13,11 +13,11 @@ use serde_json::json;
 
 use super::Route;
 use crate::TARGET;
-use crate::chat::{Platform, To};
+use crate::chat::{Id, Platform, To};
 use crate::core::{Gone, reason};
 
 impl Route {
-    /// 平台 `platform` 上的场所 `venue`（发到 `to`）开着的插件和上一次告诉核心的不一样，就告诉一次。
+    /// 平台 `platform` 上机器人号 `bot` 收发的场所 `venue`（发到 `to`）开着的插件和上一次告诉核心的不一样，就告诉一次。
     ///
     /// # Errors
     ///
@@ -25,9 +25,9 @@ impl Route {
     pub(super) async fn tell_plugins(
         &mut self,
         venue: &str,
-        (platform, to): (Platform, To),
+        (platform, bot, to): (Platform, Id, To),
     ) -> Result<(), Gone> {
-        let on = self.hooks.plugins_on(platform, to);
+        let on = self.hooks.plugins_on(platform, Some(&bot), to);
         if self.plugins_told.get(venue) == Some(&on) {
             return Ok(());
         }
@@ -52,13 +52,13 @@ impl Route {
     ///
     /// 核心断开。
     pub(super) async fn sync_plugins(&mut self) -> Result<(), Gone> {
-        let venues: BTreeMap<String, (Platform, To)> = self
+        let venues: BTreeMap<String, (Platform, Id, To)> = self
             .peers
             .values()
             .map(|peer| {
                 (
                     peer.venue.as_str().to_string(),
-                    (peer.platform, peer.to.clone()),
+                    (peer.platform, peer.bot.clone(), peer.to.clone()),
                 )
             })
             .collect();

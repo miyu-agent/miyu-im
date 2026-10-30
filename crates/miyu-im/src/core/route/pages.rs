@@ -20,7 +20,7 @@ use crate::core::caller::Caller;
 use crate::core::{Gone, reason};
 use crate::plugins::Toggles;
 use crate::rules::card_page::{self, FRIEND_PREFIX, GROUPS};
-use crate::rules::{Card, Cards, Edit, Known, Words, card_edit, save_cards};
+use crate::rules::{Card, Cards, Edit, Known, Scope, Words, card_edit, save_cards};
 use crate::settings::whitelist_key;
 
 /// 在看的那几块。
@@ -72,17 +72,23 @@ impl Route {
         let whitelist = self.whitelist_numbers(page);
         let mut groups = Map::new();
         for card in &cards.groups {
-            groups.insert(card.id.to_string(), self.group_defaults(page, &card.id));
+            groups.insert(
+                card.id.to_string(),
+                self.group_defaults(&Scope::platform(page), &card.id),
+            );
         }
         let mut privates = Map::new();
         for id in &whitelist {
-            privates.insert(id.to_string(), self.private_defaults(page, id));
+            privates.insert(
+                id.to_string(),
+                self.private_defaults(&Scope::platform(page), id),
+            );
         }
         let known = Known {
             whitelist,
             defaults: json!({
-                "other_groups": self.group_defaults(page, &Id::from(0)),
-                "other_privates": self.other_private_defaults(page),
+                "other_groups": self.group_defaults(&Scope::platform(page), &Id::from(0)),
+                "other_privates": self.other_private_defaults(&Scope::platform(page)),
                 "groups": groups,
                 "privates": privates,
             }),
@@ -95,7 +101,8 @@ impl Route {
             words: self.rules.page_words().clone(),
             lang: self.core.language.clone(),
         };
-        let (bots, caller) = (self.card_bots(self.page_platform()), self.core.caller());
+        let bots = self.card_bots(&Scope::platform(self.page_platform()));
+        let caller = self.core.caller();
         self.chores.spawn(push(job, bots, caller));
     }
 
@@ -146,8 +153,14 @@ impl Route {
         let platform = card.platform().unwrap_or(self.page_platform());
         let values = card_page::from_page(args["values"].as_object()?, platform);
         let mut cards = self.rules.cards().clone();
-        if let Card::Private(platform, id) = &card
-            && self.whitelist_numbers(platform).contains(id)
+        // 白名单成员还没有卡的（这个号的、整个平台的都没有）先建一张；整个平台的有的，改的时候照它抄一张给这个号（`card_edit::update`）。
+        if let Card::Private(scope, id) = &card
+            && self.whitelist_numbers(&scope.platform).contains(id)
+            && !cards.privates.iter().any(|one| {
+                one.platform == scope.platform
+                    && one.id == *id
+                    && (one.bot.is_none() || one.bot == scope.bot)
+            })
         {
             cards = card_edit::add(&cards, card.clone());
         }
@@ -167,14 +180,21 @@ impl Route {
         })
     }
 
-    /// `cards.add {value, platform?}`：群号原样是群卡；`p:<号>` 是私聊：先把 `<平台>:<号>` 加进白名单。答 `{id}`。平台照
-    /// [`Route::method_platform`]。
+    /// `cards.add {value, platform?, bot?}`：群号原样是群卡；`p:<号>` 是私聊：先把 `<平台>:<号>` 加进白名单。答 `{id}`。平台照
+    /// [`Route::method_platform`]；写了 `bot` 的只管那个号（施工 I-81 中：会话页在哪个连接下建的卡只管那个号）。
     async fn add_card(&mut self, args: &Value) -> Result<Option<Value>, Gone> {
         let (Some(value), Some(platform)) = (args["value"].as_str(), self.method_platform(args))
         else {
             return Ok(None);
         };
-        let platform = platform.to_string();
+        let bot = match &args["bot"] {
+            Value::Null => None,
+            written => match written.as_str().and_then(Id::new) {
+                Some(bot) => Some(bot),
+                None => return Ok(None),
+            },
+        };
+        let platform = Scope::of(platform, bot);
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
         let (card, number) = match value.strip_prefix(FRIEND_PREFIX) {
@@ -187,9 +207,9 @@ impl Route {
                 None => return Ok(None),
             },
         };
-        if let Card::Private(platform, id) = &card
+        if let Card::Private(scope, id) = &card
             && let Some(failed) = self
-                .change_whitelist((platform, id), true, &words, &lang)
+                .change_whitelist((&scope.platform, id), true, &words, &lang)
                 .await?
         {
             return Ok(Some(failed));
@@ -202,7 +222,8 @@ impl Route {
         Ok(Some(json!({"id": number.to_string()})))
     }
 
-    /// `cards.remove {card}`：删掉那一张；私聊的还把那个号移出白名单。「其他群」不收（拒 `bad_params`）。
+    /// `cards.remove {card}`：删掉那一张（照卡上写的号，整个平台的、别的号的不动）；私聊的这个人在这个平台上没有别的卡了才移出
+    /// 白名单（施工 I-81 中）。「其他群」不收（拒 `bad_params`）。
     async fn remove_card(&mut self, args: &Value) -> Result<Option<Value>, Gone> {
         let Some(card) = card_edit::card_of(&args["card"], self.method_platform(args)) else {
             return Ok(None);
@@ -212,9 +233,13 @@ impl Route {
         };
         let words = self.rules.page_words().clone();
         let lang = self.core.language.clone();
-        if let Card::Private(platform, id) = &card
+        if let Card::Private(scope, id) = &card
+            && !next
+                .privates
+                .iter()
+                .any(|one| one.platform == scope.platform && one.id == *id)
             && let Some(failed) = self
-                .change_whitelist((platform, id), false, &words, &lang)
+                .change_whitelist((&scope.platform, id), false, &words, &lang)
                 .await?
         {
             return Ok(Some(failed));

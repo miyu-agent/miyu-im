@@ -21,7 +21,7 @@ use crate::core::methods::{CARDS_GET, CARDS_SAVE};
 use crate::core::reason;
 use crate::plugins::Toggles;
 use crate::rules::Applied;
-use crate::rules::{Card, Cards, OLD_PLATFORM, card_defaults, save_cards};
+use crate::rules::{Card, Cards, OLD_PLATFORM, Scope, card_defaults, save_cards};
 use miyu_chat::{Venue, VenueKind};
 
 impl Route {
@@ -37,25 +37,32 @@ impl Route {
         true
     }
 
-    /// `cards.get {platform?}`：写了平台的交那个平台的一份（施工 I-85 中，会话页照选中的连接问）：`cards` 只有这个平台的群卡、
-    /// 私聊卡，「其他群」「其他私聊」是这个平台的，会话默认值不分平台，默认值表的键只写号；没写的照旧交整份（整份读、整份存的
-    /// `cards.save` 不丢别的平台的卡），默认值表里别的平台的键写成身份。白名单、默认值、群和好友照写的平台，没写的照后台页的平台。
-    /// 手头的当场拼好，群、好友、人格另起任务问齐了再答。
+    /// `cards.get {platform?, bot?}`：写了平台的交一个连接看的那一份（施工 I-85 中、I-81 中，会话页照选中的连接问，`Cards::of_scope`）：
+    /// 这个平台管整个平台的和只管 `bot` 这个号的卡（同一个号两张都有的只放这个号的），「其他群」「其他私聊」是这个号的（没写的照整个
+    /// 平台的），会话默认值不分平台，默认值表的键只写号、照带这个号的场所算；没写平台的照旧交整份（整份读、整份存的 `cards.save`
+    /// 不丢别的平台、别的号的卡），默认值表里别的平台的键写成身份。白名单、默认值、群和好友照写的平台（写了号的只问那个号），没写的照
+    /// 后台页的平台。手头的当场拼好，群、好友、人格另起任务问齐了再答。
     fn cards_get(&mut self, id: Value, args: &Value) {
         let scoped = args["platform"].as_str();
-        let platform = scoped.unwrap_or(self.page_platform()).to_string();
-        let platform = platform.as_str();
+        let bot = args["bot"].as_str().and_then(Id::new);
+        let scope = Scope::of(scoped.unwrap_or(self.page_platform()), bot);
+        let platform = scope.platform.as_str();
         let cards = match scoped {
-            Some(platform) => self.rules.cards().of_platform(platform),
+            Some(_) => self.rules.cards().of_scope(&scope),
             None => self.rules.cards().clone(),
         };
         let key = |of: &str, id: &Id| match scoped {
             Some(_) => id.to_string(),
             None => card_key(of, id),
         };
+        // 一张卡的默认值照哪儿算：一个连接看的照那个号，整份的照卡自己的。
+        let at = |platform: &str, bot: &Option<Id>| match scoped {
+            Some(_) => scope.clone(),
+            None => Scope::of(platform, bot.clone()),
+        };
         let mut groups = Map::new();
         for card in &cards.groups {
-            let defaults = self.group_defaults(&card.platform, &card.id);
+            let defaults = self.group_defaults(&at(&card.platform, &card.bot), &card.id);
             groups.insert(key(&card.platform, &card.id), defaults);
         }
         // 私聊的：有卡的和白名单成员（施工 I-7 上：会话页上白名单成员还没有卡的也是一张；I-80 起整份的哪个平台的都算）。
@@ -65,21 +72,21 @@ impl Route {
             if scoped.is_some_and(|platform| platform != of) {
                 return None;
             }
-            Some((of.to_string(), Id::new(number)?))
+            Some((Scope::platform(of), Id::new(number)?))
         });
         let carded = cards
             .privates
             .iter()
-            .map(|card| (card.platform.clone(), card.id.clone()));
+            .map(|card| (Scope::of(&card.platform, card.bot.clone()), card.id.clone()));
         for (of, id) in carded.chain(whitelisted) {
-            let defaults = self.private_defaults(&of, &id);
-            privates.insert(key(&of, &id), defaults);
+            let defaults = self.private_defaults(&at(&of.platform, &of.bot), &id);
+            privates.insert(key(&of.platform, &id), defaults);
         }
         let whitelist = self.whitelist_numbers(platform);
         let defaults = json!({
-            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。照问的平台（没写的照后台页的）。
-            "other_groups": other_groups(self.group_defaults(platform, &Id::from(0))),
-            "other_privates": self.other_private_defaults(platform),
+            // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。照问的平台、号（没写的照后台页的平台）。
+            "other_groups": other_groups(self.group_defaults(&scope, &Id::from(0))),
+            "other_privates": self.other_private_defaults(&scope),
             // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
             "defaults": self.defaults_defaults(),
             "groups": groups,
@@ -87,15 +94,22 @@ impl Route {
         });
         // 认得的 im 插件（施工 I-7 中四：会话浮窗「管理插件」）。
         let plugins = self.hooks.listed();
-        let known = json!({"platform": platform, "cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
-        let bots = self.card_bots(platform);
+        let mut known = json!({"platform": platform, "cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
+        if let Some(bot) = &scope.bot {
+            known["bot"] = json!(bot);
+        }
+        let bots = self.card_bots(&scope);
         let (caller, answerer) = (self.core.caller(), self.core.answerer());
         self.chores.spawn(listed(id, known, bots, caller, answerer));
     }
 
-    /// 平台 `platform` 上种类是 `kind`、号是 `number` 的场所（施工 I-80：照卡片的平台）。拼不出的是空的。
-    pub(super) fn card_venue(platform: &str, kind: VenueKind, number: &Id) -> Option<Venue> {
-        Venue::new(platform, kind, number.as_str()).ok()
+    /// 范围 `scope` 上种类是 `kind`、号是 `number` 的场所（施工 I-80：照卡片的平台；I-81 中：只管一个号的照那个号拼，规则里照号写的
+    /// 也算得上）。拼不出的是空的。
+    pub(super) fn card_venue(scope: &Scope, kind: VenueKind, number: &Id) -> Option<Venue> {
+        match &scope.bot {
+            Some(bot) => Venue::with_bot(&scope.platform, bot.as_str(), kind, number.as_str()).ok(),
+            None => Venue::new(&scope.platform, kind, number.as_str()).ok(),
+        }
     }
 
     /// 后台页照的平台（施工 I-80）：第一个驱动的；一个都没挂的（照说不会）照卡片上没写平台的那一个。页面照连接分是 I-85 的事。
@@ -105,32 +119,37 @@ impl Route {
             .map_or(OLD_PLATFORM, |platform| platform.name())
     }
 
-    /// 平台 `platform` 连着的号（施工 I-85 中）；没挂的是空的。
-    pub(super) fn card_bots(&self, platform: &str) -> Arc<Bots> {
-        self.platforms
-            .named(platform)
-            .map_or_else(Arc::default, |platform| self.platforms.bots(platform))
+    /// 范围 `scope` 的平台连着的号（施工 I-85 中）；写了号的只要那一个（施工 I-81 中：一个连接看它自己的群、好友）。没挂的是空的。
+    pub(super) fn card_bots(&self, scope: &Scope) -> Arc<Bots> {
+        let all = self
+            .platforms
+            .named(&scope.platform)
+            .map_or_else(Arc::default, |platform| self.platforms.bots(platform));
+        match &scope.bot {
+            Some(bot) => Arc::new(all.only(bot)),
+            None => all,
+        }
     }
 
-    /// 平台 `platform` 上群号是 `group` 的群卡每一格的默认值。
-    pub(super) fn group_defaults(&self, platform: &str, group: &Id) -> Value {
-        match Self::card_venue(platform, VenueKind::Group, group) {
+    /// 范围 `scope` 上群号是 `group` 的群卡每一格的默认值。
+    pub(super) fn group_defaults(&self, scope: &Scope, group: &Id) -> Value {
+        match Self::card_venue(scope, VenueKind::Group, group) {
             Some(venue) => self.with_rules(card_defaults::group, &venue),
             None => Value::Null,
         }
     }
 
-    /// 平台 `platform` 的「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
-    pub(super) fn other_private_defaults(&self, platform: &str) -> Value {
-        match Self::card_venue(platform, VenueKind::Private, &Id::from(0)) {
+    /// 范围 `scope` 的「其他私聊」卡每一格的默认值（施工 O-60）：照一个不是谁的私聊（号 0）套。
+    pub(super) fn other_private_defaults(&self, scope: &Scope) -> Value {
+        match Self::card_venue(scope, VenueKind::Private, &Id::from(0)) {
             Some(venue) => self.with_rules(card_defaults::other_private, &venue),
             None => Value::Null,
         }
     }
 
-    /// 平台 `platform` 上对方的号是 `user` 的私聊卡每一格的默认值。
-    pub(super) fn private_defaults(&self, platform: &str, user: &Id) -> Value {
-        match Self::card_venue(platform, VenueKind::Private, user) {
+    /// 范围 `scope` 上对方的号是 `user` 的私聊卡每一格的默认值。
+    pub(super) fn private_defaults(&self, scope: &Scope, user: &Id) -> Value {
+        match Self::card_venue(scope, VenueKind::Private, user) {
             Some(venue) => self.with_rules(card_defaults::private, &venue),
             None => Value::Null,
         }
@@ -138,7 +157,11 @@ impl Route {
 
     /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
     fn defaults_defaults(&self) -> Value {
-        match Self::card_venue(self.page_platform(), VenueKind::Group, &Id::from(0)) {
+        match Self::card_venue(
+            &Scope::platform(self.page_platform()),
+            VenueKind::Group,
+            &Id::from(0),
+        ) {
             Some(venue) => {
                 let beneath = self.rules.beneath_defaults(&venue);
                 let mut found = card_defaults::group(&beneath);

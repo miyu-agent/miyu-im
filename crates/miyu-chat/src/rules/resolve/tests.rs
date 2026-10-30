@@ -276,3 +276,35 @@ fn the_repository_factory_rules_set_groups_and_private_chats() {
         assert_eq!(set(&on(platform, private("1"))), private_set);
     }
 }
+
+#[test]
+fn a_bot_condition_matches_only_venues_of_those_bots() {
+    // im 施工 I-81 中：卡片照连接分，规则能写 `bot`。
+    let files = allow_when("match = { bot = [10001, \"tgbot_x\"] }");
+    let mine = Venue::with_bot("qq", "10001", super::VenueKind::Group, "777").expect("造得出");
+    let text_bot =
+        Venue::with_bot("tg", "tgbot_x", super::VenueKind::Private, "5").expect("造得出");
+    let other = Venue::with_bot("qq", "10002", super::VenueKind::Group, "777").expect("造得出");
+    assert!(matches(&files, &mine));
+    assert!(matches(&files, &text_bot));
+    assert!(!matches(&files, &other), "别的号不配");
+    assert!(!matches(&files, &group("777")), "不带机器人号的老写法不配");
+    assert!(
+        !matches(&allow_when("match = { bot = [] }"), &mine),
+        "空列表谁也不配"
+    );
+}
+
+#[test]
+fn a_not_bot_condition_spares_only_those_bots() {
+    let files = allow_when("match = { not_bot = [10001] }");
+    let mine = Venue::with_bot("qq", "10001", super::VenueKind::Group, "777").expect("造得出");
+    let other = Venue::with_bot("qq", "10002", super::VenueKind::Group, "777").expect("造得出");
+    assert!(!matches(&files, &mine), "排开的号不配");
+    assert!(matches(&files, &other));
+    assert!(matches(&files, &group("777")), "不带机器人号的照旧配");
+    assert!(
+        matches(&allow_when("match = { not_bot = [] }"), &mine),
+        "空列表什么都不排"
+    );
+}

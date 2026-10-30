@@ -211,12 +211,15 @@ async fn a_plugin_is_usable_by_the_venues_platform() {
         Platform::new("tg"),
         Some(To::Group(Id::from(1))),
     );
-    assert!(hooks.allowed("needs-mute", qq, to.clone()));
-    assert!(!hooks.allowed("needs-mute", tg, to.clone()), "tg 不会禁言");
-    assert!(hooks.allowed("tg-only", tg, to.clone()));
-    assert!(!hooks.allowed("tg-only", qq, to.clone()));
+    assert!(hooks.allowed("needs-mute", qq, None, to.clone()));
     assert!(
-        !hooks.allowed("needs-mute", Platform::new("wx"), to),
+        !hooks.allowed("needs-mute", tg, None, to.clone()),
+        "tg 不会禁言"
+    );
+    assert!(hooks.allowed("tg-only", tg, None, to.clone()));
+    assert!(!hooks.allowed("tg-only", qq, None, to.clone()));
+    assert!(
+        !hooks.allowed("needs-mute", Platform::new("wx"), None, to),
         "没挂的平台"
     );
 }
@@ -228,6 +231,7 @@ async fn a_venue_switch_is_looked_up_on_the_venues_platform() {
     let mut cards = crate::rules::Cards::default();
     cards.groups.push(crate::rules::GroupCard {
         platform: "qq".to_string(),
+        bot: None,
         id: Id::from(1),
         set: crate::rules::GroupSet {
             plugins: Some(BTreeMap::from([("tg-only".to_string(), false)])),
@@ -236,6 +240,7 @@ async fn a_venue_switch_is_looked_up_on_the_venues_platform() {
     });
     cards.groups.push(crate::rules::GroupCard {
         platform: "tg".to_string(),
+        bot: None,
         id: Id::from(2),
         set: crate::rules::GroupSet {
             plugins: Some(BTreeMap::from([("tg-only".to_string(), false)])),
@@ -245,10 +250,10 @@ async fn a_venue_switch_is_looked_up_on_the_venues_platform() {
     hooks.set_toggles(crate::plugins::Toggles::from_cards(&cards));
     let tg = Platform::new("tg");
     assert!(
-        hooks.allowed("tg-only", tg, Some(To::Group(Id::from(1)))),
+        hooks.allowed("tg-only", tg, None, Some(To::Group(Id::from(1)))),
         "QQ 群 1 的卡不管 tg 群 1"
     );
-    assert!(!hooks.allowed("tg-only", tg, Some(To::Group(Id::from(2)))));
+    assert!(!hooks.allowed("tg-only", tg, None, Some(To::Group(Id::from(2)))));
 }
 
 #[tokio::test]
@@ -260,10 +265,16 @@ async fn a_carried_plugin_follows_its_own_driver() {
         Platform::new("tg"),
         To::Private(Id::from(1)),
     );
-    assert_eq!(hooks.active(tg, to.clone()), ["tg-carried"]);
-    assert!(hooks.active(qq, to.clone()).is_empty(), "QQ 的总开关关着");
-    assert_eq!(hooks.plugins_on(tg, to.clone()), ["tg-carried", "tg-only"]);
-    assert_eq!(hooks.plugins_on(qq, to), ["needs-mute"]);
+    assert_eq!(hooks.active(tg, None, to.clone()), ["tg-carried"]);
+    assert!(
+        hooks.active(qq, None, to.clone()).is_empty(),
+        "QQ 的总开关关着"
+    );
+    assert_eq!(
+        hooks.plugins_on(tg, None, to.clone()),
+        ["tg-carried", "tg-only"]
+    );
+    assert_eq!(hooks.plugins_on(qq, None, to), ["needs-mute"]);
     assert_eq!(hooks.driver_config(tg)["k"], 1);
     assert!(hooks.driver_config(Platform::new("wx")).is_empty());
     // 插件页照第一个驱动（QQ）算能不能用，设置项的键照带它的驱动的平台拼。

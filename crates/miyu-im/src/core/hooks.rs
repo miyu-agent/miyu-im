@@ -216,19 +216,33 @@ impl Hooks {
         *self.toggles.lock().unwrap_or_else(PoisonError::into_inner) = toggles;
     }
 
-    /// 平台 `platform` 上发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的插件、在这个
-    /// 平台上能用、在这个场所开着（施工 I-8 上）。场所认不出的（`to` 是 `None`）照插件声明的默认。
-    pub(crate) fn at(&self, point: &str, platform: Platform, to: Option<To>) -> Vec<String> {
+    /// 平台 `platform` 上机器人号 `bot` 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的
+    /// 插件、在这个平台上能用、在这个场所开着（施工 I-8 上；I-81 中：卡片照号分，`bot` 不知道的照整个平台的卡）。场所认不出的
+    /// （`to` 是 `None`）照插件声明的默认。
+    pub(crate) fn at(
+        &self,
+        point: &str,
+        platform: Platform,
+        bot: Option<&Id>,
+        to: Option<To>,
+    ) -> Vec<String> {
         let hooked = hooked_at(&self.lock().hooked, point);
         hooked
             .into_iter()
-            .filter(|package| self.allowed(package, platform, to.clone()))
+            .filter(|package| self.allowed(package, platform, bot, to.clone()))
             .collect()
     }
 
-    /// 包 `package` 在平台 `platform` 上发到 `to` 的那个场所里算不算开着的 im 插件（施工 I-8 上）：是插件、在这个平台上能用（照这个
-    /// 平台的驱动的能力表，施工 I-70 中上；没挂的平台都不算）、这个场所开着（场所认不出的照声明的默认）。挂接点、`chat.note` 都照它。
-    pub(crate) fn allowed(&self, package: &str, platform: Platform, to: Option<To>) -> bool {
+    /// 包 `package` 在平台 `platform` 上机器人号 `bot` 发到 `to` 的那个场所里算不算开着的 im 插件（施工 I-8 上）：是插件、在这个平台
+    /// 上能用（照这个平台的驱动的能力表，施工 I-70 中上；没挂的平台都不算）、这个场所开着（场所认不出的照声明的默认；卡片照号分，
+    /// 施工 I-81 中）。挂接点、`chat.note` 都照它。
+    pub(crate) fn allowed(
+        &self,
+        package: &str,
+        platform: Platform,
+        bot: Option<&Id>,
+        to: Option<To>,
+    ) -> bool {
         let Some(mounted) = self.mounted(platform) else {
             return false;
         };
@@ -240,8 +254,8 @@ impl Hooks {
             return false;
         }
         let venue = to.as_ref().map(|to| match to {
-            To::Group(group) => (platform.name(), VenueKind::Group, group),
-            To::Private(user) => (platform.name(), VenueKind::Private, user),
+            To::Group(group) => (platform.name(), bot, VenueKind::Group, group),
+            To::Private(user) => (platform.name(), bot, VenueKind::Private, user),
         });
         // 只在群、只在私聊用的插件（施工 I-51）：别的场所当关着。
         let kind = match &to {
@@ -259,7 +273,7 @@ impl Hooks {
     /// 平台 `platform` 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`]
     /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
     pub(crate) fn event(&self, platform: Platform, bot: Id, to: Option<To>, event: &Value) {
-        for package in self.at(EVENT, platform, to) {
+        for package in self.at(EVENT, platform, Some(&bot), to) {
             let caller = self.caller.clone();
             let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {

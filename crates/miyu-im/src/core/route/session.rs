@@ -266,7 +266,11 @@ impl Route {
         // 这个场所开着的插件先告诉核心，第一轮的工具表就照它（施工 S-1 上c）。
         self.tell_plugins(
             place.peer.venue.as_str(),
-            (place.peer.platform, place.peer.to.clone()),
+            (
+                place.peer.platform,
+                place.peer.bot.clone(),
+                place.peer.to.clone(),
+            ),
         )
         .await?;
         // 规则设了模型、人格、预设的先发，第一轮就照它（施工 O-58 补三、补四）。

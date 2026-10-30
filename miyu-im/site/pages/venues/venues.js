@@ -38,16 +38,24 @@ export function mountVenues(view, { request, path }) {
   let open = null;
   // 从别的页点过来的（#venues/group/777，施工 I-14 统计页）：读到卡以后打开它一次。
   let wanted = path || '';
-  // 外壳问到的连接、选中的那一个（「全部」是空的）、它的平台（还没选的是空的）、问卡片时问的那个平台。
+  // 外壳问到的连接、选中的那一个（「全部」是空的）、它的平台和机器人号（还没选的是空的）、问卡片时问的那个连接（平台 + 号）。
   let connections = [];
   let picked = null;
   let chosen = '';
+  let chosenBot = '';
   let asked = '';
   // 连着的机器人（号，逗号隔开）：还没收到过连接的是空的。
   let seen = null;
-  // 卡片相关的方法、能贴的表情都带上选中的平台（施工 I-85 中、补）：浮窗、新建里也照它。
-  const scoped = (method, params) =>
-    request(method, method.startsWith('cards.') || method === 'reactions' ? { ...params, platform: chosen } : params);
+  // 卡片相关的方法、能贴的表情都带上选中的平台（施工 I-85 中、补）：浮窗、新建里也照它。机器人号也带上（施工 I-81 中，项目主人
+  // 10-30 定：在一个连接下建的、改的卡只管那个号）：交的卡没写号的补上选中的号（宿主照整个平台的那张抄一张给它再改）；写了号的（移出时
+  // 照卡自己的，`ownCardOf`）不动。
+  const scoped = (method, params) => {
+    if (!method.startsWith('cards.') && method !== 'reactions') return request(method, params);
+    const card = params?.card;
+    const mine = card && !('bot' in card) ? { card: { ...card, bot: chosenBot } } : {};
+    return request(method, { ...params, ...mine, platform: chosen, bot: chosenBot });
+  };
+  const connectionKey = () => `${chosen}:${chosenBot}`;
   // 墙上画过的卡：编号 → { sig, card }。
   const drawn = new Map();
 
@@ -85,17 +93,18 @@ export function mountVenues(view, { request, path }) {
       return;
     }
     const platform = chosen;
-    asked = platform;
+    const key = connectionKey();
+    asked = key;
     let cards;
     try {
-      cards = await request('cards.get', { platform });
+      cards = await request('cards.get', { platform, bot: chosenBot });
     } catch {
       // 读不到的：还没读到过的写一行，读到过的照旧画。
       if (!answer) wall.replaceChildren(element('p', 'faint wall-none', say('venues/failed')));
       return;
     }
     // 等的时候又换了连接：这一份不要了。
-    if (platform !== chosen) return;
+    if (key !== connectionKey()) return;
     answer = cards;
     all = entries(answer);
     drawHead();
@@ -229,12 +238,14 @@ export function mountVenues(view, { request, path }) {
         .map((one) => [String(one.bot), one.name || String(one.bot)]),
     );
 
-  /** 照这一刻的连接、选中的那一个定看哪个平台；换了的关掉开着的浮窗、重问卡片。 */
+  /** 照这一刻的连接、选中的那一个定看哪个连接（平台 + 号）；换了的关掉开着的浮窗、重问卡片。 */
   const pick = () => {
     picked = chosenOf(connections);
     const platform = picked?.platform || '';
-    if (platform === chosen && (asked === platform || !platform)) return false;
+    const bot = platform && picked?.bot != null ? String(picked.bot) : '';
+    if (platform === chosen && bot === chosenBot && (asked === connectionKey() || !platform)) return false;
     chosen = platform;
+    chosenBot = bot;
     open?.dialog.close();
     return true;
   };

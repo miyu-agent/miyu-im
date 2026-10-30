@@ -7,7 +7,7 @@ use miyu_chat::VenueKind;
 
 use super::{Plugins, Toggles, Unusable, declared};
 use crate::chat::{CAPS, Cap, Id, Platform};
-use crate::rules::{Cards, GroupCard, GroupSet, PrivateCard, PrivateSet};
+use crate::rules::{Cards, GroupCard, GroupSet, PrivateCard, PrivateSet, Scope};
 
 /// 一份写得对的声明。
 const GOOD: &str = r#"
@@ -124,6 +124,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     let mut cards = Cards::default();
     cards.groups.push(GroupCard {
         platform: "qq".to_string(),
+        bot: None,
         id: Id::from(1),
         set: GroupSet {
             plugins: switches(&[("admin", true)]),
@@ -133,6 +134,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     cards.other_groups.plugins = switches(&[("admin", false), ("memes", false)]);
     cards.privates.push(PrivateCard {
         platform: "qq".to_string(),
+        bot: None,
         id: Id::from(9),
         set: PrivateSet {
             plugins: switches(&[("memes", true)]),
@@ -141,7 +143,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     });
     let toggles = Toggles::from_cards(&cards);
     let ids: Vec<Id> = (0..10).map(Id::from).collect();
-    let group = |number: usize| Some(("qq", VenueKind::Group, &ids[number]));
+    let group = |number: usize| Some(("qq", None, VenueKind::Group, &ids[number]));
     assert!(
         toggles.enabled(group(1), "admin", false),
         "这个群的卡上开着"
@@ -159,7 +161,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
         "都没写的照默认"
     );
     assert!(!toggles.enabled(group(1), "identity", false));
-    let private = |number: usize| Some(("qq", VenueKind::Private, &ids[number]));
+    let private = |number: usize| Some(("qq", None, VenueKind::Private, &ids[number]));
     assert!(toggles.enabled(private(9), "memes", false));
     assert!(
         toggles.enabled(private(8), "admin", true),
@@ -167,7 +169,7 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
     );
     assert!(!toggles.enabled(None, "admin", false), "认不出场所的照默认");
     // 施工 I-80：别的平台号一样的群不照这张卡，照它自己平台的陌生群卡（没写的照默认）。
-    let tg = |number: usize| Some(("tg", VenueKind::Group, &ids[number]));
+    let tg = |number: usize| Some(("tg", None, VenueKind::Group, &ids[number]));
     assert!(
         !toggles.enabled(tg(1), "admin", false),
         "tg 的群 1 不是 QQ 的群 1"
@@ -182,9 +184,10 @@ fn a_venue_follows_its_card_then_the_fallback_card_then_the_default() {
 fn each_platform_has_its_own_fallback_cards() {
     let mut cards = Cards::default();
     cards.other_groups.plugins = switches(&[("memes", false)]);
-    cards.other_groups_mut("tg").plugins = switches(&[("memes", true)]);
+    cards.other_groups_mut(&Scope::platform("tg")).plugins = switches(&[("memes", true)]);
     cards.groups.push(GroupCard {
         platform: "tg".to_string(),
+        bot: None,
         id: Id::from(-100),
         set: GroupSet {
             plugins: switches(&[("admin", true)]),
@@ -193,10 +196,10 @@ fn each_platform_has_its_own_fallback_cards() {
     });
     let toggles = Toggles::from_cards(&cards);
     let (minus, one) = (Id::from(-100), Id::from(1));
-    assert!(toggles.enabled(Some(("tg", VenueKind::Group, &minus)), "admin", false));
-    assert!(!toggles.enabled(Some(("qq", VenueKind::Group, &minus)), "admin", false));
-    assert!(toggles.enabled(Some(("tg", VenueKind::Group, &one)), "memes", false));
-    assert!(!toggles.enabled(Some(("qq", VenueKind::Group, &one)), "memes", true));
+    assert!(toggles.enabled(Some(("tg", None, VenueKind::Group, &minus)), "admin", false));
+    assert!(!toggles.enabled(Some(("qq", None, VenueKind::Group, &minus)), "admin", false));
+    assert!(toggles.enabled(Some(("tg", None, VenueKind::Group, &one)), "memes", false));
+    assert!(!toggles.enabled(Some(("qq", None, VenueKind::Group, &one)), "memes", true));
 }
 
 #[test]
@@ -239,5 +242,58 @@ fn ui_declarations_read_and_bad_ones_are_refused() {
             page(&"a".repeat(32), "T", &"m".repeat(64))
         ))
         .is_ok()
+    );
+}
+
+#[test]
+fn a_card_for_one_bot_leaves_the_other_bots_on_the_platform_cards() {
+    // 施工 I-81 中：同一个平台挂两个号，号 A 自己的群卡、陌生群卡只管号 A；号 B 照整个平台的卡。
+    let (a, b) = (Id::from(30003), Id::from(40004));
+    let mut cards = Cards::default();
+    cards.other_groups.plugins = switches(&[("memes", false)]);
+    cards
+        .other_groups_mut(&Scope::of("qq", Some(a.clone())))
+        .plugins = switches(&[("memes", true)]);
+    cards.groups.push(GroupCard {
+        platform: "qq".to_string(),
+        bot: Some(a.clone()),
+        id: Id::from(1),
+        set: GroupSet {
+            plugins: switches(&[("admin", true)]),
+            ..GroupSet::default()
+        },
+    });
+    cards.groups.push(GroupCard {
+        platform: "qq".to_string(),
+        bot: None,
+        id: Id::from(1),
+        set: GroupSet {
+            plugins: switches(&[("admin", false)]),
+            ..GroupSet::default()
+        },
+    });
+    let toggles = Toggles::from_cards(&cards);
+    let (one, two) = (Id::from(1), Id::from(2));
+    fn at<'a>(
+        bot: &'a Id,
+        number: &'a Id,
+    ) -> Option<(&'static str, Option<&'a Id>, VenueKind, &'a Id)> {
+        Some(("qq", Some(bot), VenueKind::Group, number))
+    }
+    let at_a = at(&a, &one);
+    let at_b = at(&b, &one);
+    assert!(toggles.enabled(at_a, "admin", false), "号 A 自己的卡");
+    assert!(!toggles.enabled(at_b, "admin", true), "号 B 照整个平台的卡");
+    assert!(
+        toggles.enabled(at(&a, &two), "memes", false),
+        "号 A 的陌生群卡"
+    );
+    assert!(
+        !toggles.enabled(at(&b, &two), "memes", true),
+        "号 B 照整个平台的陌生群卡"
+    );
+    assert!(
+        !toggles.enabled(Some(("qq", None, VenueKind::Group, &two)), "memes", true),
+        "不知道是哪个号的照整个平台"
     );
 }

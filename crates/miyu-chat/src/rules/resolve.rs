@@ -11,8 +11,16 @@ use super::ids::{Venue, VenueKind};
 use super::{Rules, Source, forms};
 
 /// 匹配条件的键，照 `chat.md` 那张表的先后：拼错的找离得最近的那一个。
-pub(super) const CONDITIONS: &[&str] =
-    &["platform", "kind", "group", "user", "not_group", "not_user"];
+pub(super) const CONDITIONS: &[&str] = &[
+    "platform",
+    "bot",
+    "kind",
+    "group",
+    "user",
+    "not_bot",
+    "not_group",
+    "not_user",
+];
 
 /// 套到一个场所上的结果：每一项属性的值和来处。没有规则设到的项不在里面（「怎么走」第 7 条）：默认值是出厂的规则文件，
 /// 代码里不写死。
@@ -50,12 +58,17 @@ pub struct Origin {
 pub(super) struct Match {
     /// 平台。
     platform: Option<String>,
+    /// 机器人号的列表（im 施工 I-81 中：卡片照连接分）：场所带机器人号，并且在里面；不带机器人号的老写法场所不配。
+    bot: Option<Vec<String>>,
     /// 群还是私聊。
     kind: Option<VenueKind>,
     /// 群号的列表：场所是群，并且群号在里面。
     group: Option<Vec<String>>,
     /// 对方的号的列表：场所是私聊，并且对方的号在里面。
     user: Option<Vec<String>>,
+    /// 不配的机器人号（im 施工 I-81 中：整个平台的「其他群」「其他私聊」排开有自己那一张的号）：场所的机器人号在里面的不配，不带
+    /// 机器人号的、别的号照旧。
+    not_bot: Option<Vec<String>>,
     /// 不配的群号（施工 O-58 上，接入通讯平台 的「其他群」卡）：场所是群、群号在里面的不配，别的照旧。
     not_group: Option<Vec<String>>,
     /// 不配的对方的号：场所是私聊、对方的号在里面的不配，别的照旧。
@@ -85,8 +98,10 @@ impl Match {
                 let kind = value.as_str().ok_or(Code::WrongType)?;
                 self.kind = Some(VenueKind::parse(kind).ok_or(Code::NotAnOption)?);
             }
+            "bot" => self.bot = Some(ids(value)?),
             "group" => self.group = Some(ids(value)?),
             "user" => self.user = Some(ids(value)?),
+            "not_bot" => self.not_bot = Some(ids(value)?),
             "not_group" => self.not_group = Some(ids(value)?),
             _ => self.not_user = Some(ids(value)?),
         }
@@ -106,6 +121,16 @@ impl Match {
         self.platform
             .as_ref()
             .is_none_or(|platform| platform == venue.platform())
+            && self.bot.as_ref().is_none_or(|bots| {
+                venue
+                    .bot()
+                    .is_some_and(|bot| bots.iter().any(|one| one == bot))
+            })
+            && self.not_bot.as_ref().is_none_or(|bots| {
+                venue
+                    .bot()
+                    .is_none_or(|bot| !bots.iter().any(|one| one == bot))
+            })
             && self.kind.is_none_or(|kind| kind == venue.kind())
             && listed(&self.group, VenueKind::Group)
             && listed(&self.user, VenueKind::Private)

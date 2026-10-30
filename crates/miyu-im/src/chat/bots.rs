@@ -121,6 +121,21 @@ impl Bots {
     }
 
     /// 锁里不 `await`、不会崩；真崩了，表照样能用。
+    /// 只有号 `bot` 的一份（施工 I-81 中：会话页一个连接只看它自己的群、好友）；没连着的是空的。
+    pub fn only(&self, bot: &Id) -> Bots {
+        let only = Bots::default();
+        if let Some(held) = self.lock().get(bot) {
+            only.lock().insert(
+                bot.clone(),
+                Held {
+                    link: Arc::clone(&held.link),
+                    since: held.since,
+                },
+            );
+        }
+        only
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Id, Held>> {
         self.links.lock().unwrap_or_else(PoisonError::into_inner)
     }

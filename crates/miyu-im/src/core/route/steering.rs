@@ -42,8 +42,10 @@ impl Route {
     ) -> Result<(), Gone> {
         // 重发的照记下这一刻看：问挂接点的这段时间投影会补上它。
         let known = self.known(&session, seq);
-        let to = self.peers.get(&session).map(|peer| peer.to.clone());
-        let packages = self.hooks.at(INBOUND, platform, to);
+        let peer = self.peers.get(&session);
+        let to = peer.map(|peer| peer.to.clone());
+        let bot = peer.map(|peer| peer.bot.clone());
+        let packages = self.hooks.at(INBOUND, platform, bot.as_ref(), to);
         if packages.is_empty() && self.steering.is_empty() {
             return self
                 .called(&session, seq, heard, (Steered::pass(), known))

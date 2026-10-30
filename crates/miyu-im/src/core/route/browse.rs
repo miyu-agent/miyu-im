@@ -20,6 +20,7 @@ use crate::core::Answerer;
 use crate::core::caller::Caller;
 use crate::core::methods::{SESSIONS_DELETE as DELETE, SESSIONS_LIST as LIST};
 use crate::core::reason;
+use crate::rules::Scope;
 
 /// 桥认得的一个场所会话：收进它的机器人号、对方。
 #[derive(Clone)]
@@ -50,7 +51,7 @@ impl Route {
             .collect();
         if method == LIST {
             // 页面的连接照平台分是 I-70 下的事：这时照卡片、后台页的那一个平台（`Route::card_venue`）。
-            let bots = self.card_bots(self.page_platform());
+            let bots = self.card_bots(&Scope::platform(self.page_platform()));
             let platform = self
                 .platforms
                 .first()

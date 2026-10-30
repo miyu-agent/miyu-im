@@ -27,26 +27,43 @@ pub(crate) const TOP: [&str; 7] = [
 pub(super) enum Matcher {
     /// 会话默认值（施工 I-7 下二）：每一个场所。
     All,
-    /// 「其他群」：群，但不是名单里的这几个（群号照 `, ` 连好）。名单里的群不继承它设的格（施工 O-58 上）。
-    Others(String),
+    /// 「其他群」：群，但不是名单里的这几个（群号照 `, ` 连好）。名单里的群不继承它设的格（施工 O-58 上）。第二格是排开的机器人号
+    /// （整个平台的那张排开有自己那一张的号，施工 I-81 中），空的不写。
+    Others(String, String),
     /// 群卡、私聊卡：只配它自己。
     Own,
-    /// 「其他私聊」：私聊，但不是这几个号（白名单成员、认出来的终端管理员，照 `, ` 连好，施工 O-60）。
-    Strangers(String),
+    /// 「其他私聊」：私聊，但不是这几个号（白名单成员、认出来的终端管理员，照 `, ` 连好，施工 O-60）。第二格同 [`Matcher::Others`]。
+    Strangers(String, String),
 }
 
-/// 一张卡的那一份：`[[rule]]`、匹配条件（会话默认值以外都带卡的平台，施工 I-80）、设的几格。
+/// 一张卡的那一份：`[[rule]]`、匹配条件（会话默认值以外都带卡的平台，施工 I-80；只管一个号的带 `bot`，施工 I-81 中）、设的几格。
 pub(super) fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
-    let on = card
+    let mut on = card
         .platform()
         .map(|platform| format!("platform = {}, ", toml_text(platform)))
         .unwrap_or_default();
-    let matcher = match (&card, matcher) {
-        (_, Matcher::Others(listed)) => {
-            format!("{{ {on}kind = \"group\", not_group = [{listed}] }}")
+    if let Some(bot) = card.bot() {
+        on.push_str(&format!("bot = [{}], ", toml_id(bot)));
+    }
+    let spare = |bots: &str| {
+        if bots.is_empty() {
+            String::new()
+        } else {
+            format!(", not_bot = [{bots}]")
         }
-        (_, Matcher::Strangers(known)) => {
-            format!("{{ {on}kind = \"private\", not_user = [{known}] }}")
+    };
+    let matcher = match (&card, matcher) {
+        (_, Matcher::Others(listed, bots)) => {
+            format!(
+                "{{ {on}kind = \"group\", not_group = [{listed}]{} }}",
+                spare(bots)
+            )
+        }
+        (_, Matcher::Strangers(known, bots)) => {
+            format!(
+                "{{ {on}kind = \"private\", not_user = [{known}]{} }}",
+                spare(bots)
+            )
         }
         (Card::Group(_, id), Matcher::Own) => {
             format!("{{ {on}kind = \"group\", group = [{}] }}", toml_id(id))

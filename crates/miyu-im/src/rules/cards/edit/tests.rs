@@ -6,8 +6,8 @@ use serde_json::{Map, Value, json};
 use super::*;
 
 /// 卡片上没写平台的那一个。
-fn qq() -> String {
-    crate::rules::OLD_PLATFORM.to_string()
+fn qq() -> Scope {
+    Scope::platform(crate::rules::OLD_PLATFORM)
 }
 
 fn cards(value: Value) -> Cards {
@@ -276,7 +276,7 @@ fn the_defaults_card_is_edited_like_any_other_and_never_removed() {
 #[test]
 fn a_card_says_its_platform_or_takes_the_one_given() {
     // 施工 I-80：卡写了平台的照它；没写的照调的一方给的（只挂一个平台时是它），给不出的不认。
-    let tg = || "tg".to_string();
+    let tg = || Scope::platform("tg");
     assert_eq!(
         card_of(
             &json!({"kind": "group", "platform": "tg", "id": -100}),
@@ -329,7 +329,7 @@ fn a_card_says_its_platform_or_takes_the_one_given() {
         panic!("改得了");
     };
     assert_eq!(other.other_groups, GroupSet::default());
-    assert_eq!(other.other_groups_of("tg").on, Some(true));
+    assert_eq!(other.other_groups_of(&tg()).on, Some(true));
     let off = json!({"on": null});
     let Edit::Done(back) = update(
         &other,
@@ -339,4 +339,47 @@ fn a_card_says_its_platform_or_takes_the_one_given() {
         panic!("改得了");
     };
     assert!(back.others.is_empty());
+}
+
+#[test]
+fn a_card_can_be_for_one_bot_and_is_found_by_its_exact_scope() {
+    // 施工 I-81 中：卡写了机器人号的只管那个号；加、改、删照平台加号找，整个平台的那张不动。
+    let bot = || Scope::of("qq", Some(Id::from(30003)));
+    assert_eq!(
+        card_of(&json!({"kind": "group", "bot": 30003, "id": 7}), Some("qq")),
+        Some(Card::Group(bot(), Id::from(7)))
+    );
+    assert_eq!(
+        card_of(&json!({"kind": "other_groups", "bot": "30003"}), Some("qq")),
+        Some(Card::OtherGroups(bot())),
+        "号写成字符串也认"
+    );
+    let both = add(
+        &add(&Cards::default(), Card::Group(qq(), Id::from(7))),
+        Card::Group(bot(), Id::from(7)),
+    );
+    assert_eq!(both.groups.len(), 2, "整个平台的一张、这个号的一张");
+    let values = json!({"persona": "writer"});
+    let Edit::Done(changed) = update(
+        &both,
+        Card::Group(bot(), Id::from(7)),
+        values.as_object().expect("对象"),
+    ) else {
+        panic!("改得了");
+    };
+    let mine = changed
+        .groups
+        .iter()
+        .find(|card| card.bot.is_some())
+        .expect("有这个号的");
+    let whole = changed
+        .groups
+        .iter()
+        .find(|card| card.bot.is_none())
+        .expect("有整个平台的");
+    assert_eq!(mine.set.persona.as_deref(), Some("writer"));
+    assert_eq!(whole.set.persona, None, "整个平台的那张没动");
+    let left = remove(&changed, Card::Group(bot(), Id::from(7))).expect("删得掉");
+    assert_eq!(left.groups.len(), 1);
+    assert_eq!(left.groups[0].bot, None);
 }
