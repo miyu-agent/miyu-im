@@ -208,7 +208,7 @@ const TOOLS: [Decl; 19] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 51] = [
+const ANSWERS: [(&str, &[&str]); 52] = [
     ("skipped", &[]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
@@ -256,6 +256,8 @@ const ANSWERS: [(&str, &[&str]); 51] = [
     ("failed", &["detail"]),
     ("unanswered", &[]),
     ("unreachable", &[]),
+    // 施工 I-81 下下：本机的会话里主动发消息，同一个平台连着几个号又没写、写的没连着的，说有哪几个号。
+    ("which-bot", &["bots"]),
     // 施工 I-17：参数写错的说哪个、私聊里调到只给群的、群友叫的踢人要确认、不踢群主管理员、一次几个人的头一行。
     ("bad-args", &["detail"]),
     ("group-only", &[]),
