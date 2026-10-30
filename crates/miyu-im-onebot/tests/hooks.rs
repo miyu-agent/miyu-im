@@ -170,3 +170,53 @@ async fn a_package_switched_on_after_the_bridge_is_hooked_from_the_pushed_change
     assert_eq!(stopped.status.code(), Some(0), "{}", text(&stopped.stderr));
     home.stop_extensions().await;
 }
+
+#[tokio::test]
+async fn event_hooks_that_never_answer_are_capped_and_let_go() {
+    // 施工 I-96（审查 I2-5）：挂在 `chat.event` 的包收了不答，桥交给它的同时最多 64 件、多的不交；每件最多等 `hook_millis`，
+    // 到点让出名额，后来的照样交得到。
+    let (home, listen) = on_free_port(async |listen| {
+        let home = Home::spawning_with_installed(
+            Arc::new(Script::new([])),
+            &ports_config(listen),
+            |root| {
+                let hung = format!("record:{}", log_of(root, "hung").display());
+                install(
+                    root,
+                    "hung",
+                    &[hung, "slow:chat.event".to_string()],
+                    &["chat.event"],
+                );
+            },
+        );
+        let started = cli(&home.root, &["start"]).await;
+        assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
+        bridge_up(&home.root, listen).await?;
+        Ok((home, listen))
+    })
+    .await;
+    let mut napcat = admin_napcat(listen).await;
+    napcat.version().await;
+    let hung = log_of(&home.root, "hung");
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    while calls(&hung).is_empty() {
+        assert!(tokio::time::Instant::now() < deadline, "测试包一直没收到");
+        napcat.send(joined(5)).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    // 先前那几件到点让出名额。
+    let wait = Duration::from_millis(crate::support::shipped::tuning().hook_millis);
+    tokio::time::sleep(wait * 2).await;
+    let before = calls(&hung).len();
+    for user in 100..170 {
+        napcat.send(joined(user)).await;
+    }
+    tokio::time::sleep(wait / 2).await;
+    let burst = calls(&hung).len() - before;
+    assert!(burst <= 64, "收了不答的同时最多交 64 件，交了 {burst} 件");
+    tokio::time::sleep(wait * 2).await;
+    let settled = calls(&hung).len();
+    napcat.send(joined(999)).await;
+    until_calls(&hung, |seen| seen.len() > settled).await;
+    crate::support::group::stopped(home).await;
+}
