@@ -11,6 +11,10 @@
 //!
 //! 升级好的连接不另起任务：在接这个 TCP 连接的任务里跑（hyper 的连接在交出升级以后就结束了）。接连接的任务都在
 //! `serve` 的一组里，桥停下时一起停。
+//!
+//! 外人连进来（施工 I-94，发布前审查 I2-1：端口出厂听 `0.0.0.0`）：一条连接只收一个请求，回了别的（401、404、400）就关，不留着
+//! 等下一个；`handshake_seconds` 以内读不完请求头的关掉；还没升级的连接同时最多 `pending_connections` 条（`accepting`），升级了才
+//! 让出名额。
 
 mod accepting;
 mod connection;
@@ -25,8 +29,9 @@ use hyper::body::{Bytes, Incoming};
 use hyper::header::{self, HeaderValue};
 use hyper::upgrade::OnUpgrade;
 use hyper::{Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::TcpStream;
+use tokio::sync::OwnedSemaphorePermit;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::onebot::PLATFORM;
@@ -86,8 +91,13 @@ impl Driver for OneBot {
 /// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。
 type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
 
-/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。`port` 是它连进来的端口，令牌照那个端口的比。
-async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Tokens)) {
+/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。`port` 是它连进来的端口，令牌照那个端口的比；
+/// `pending` 是还没升级的连接的名额，升级成了（或者没成、关了）就让出来。
+async fn accept(
+    stream: TcpStream,
+    gate: Arc<Gate>,
+    (port, pending): ((u16, accepting::Tokens), OwnedSemaphorePermit),
+) {
     let entry = port.0;
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
     let service = {
@@ -98,7 +108,13 @@ async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Token
             async move { Ok::<_, Infallible>(handle(request, (&gate, &port), &slot).await) }
         })
     };
-    let served = hyper::server::conn::http1::Builder::new()
+    let mut builder = hyper::server::conn::http1::Builder::new();
+    // 读请求头有时限（模块的说明）。回了别的不升级的带 `Connection: close`（[`empty`]），回完就关；不能整个关掉 keep-alive：
+    // 那样 hyper 把 101 回应的 `Connection: Upgrade` 也改成 `close`，NapCat 升级不成。
+    builder
+        .timer(TokioTimer::new())
+        .header_read_timeout(gate.tuning().handshake());
+    let served = builder
         .serve_connection(TokioIo::new(stream), service)
         .with_upgrades()
         .await;
@@ -109,7 +125,9 @@ async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Token
     let Some((upgrade, bot)) = upgrade else {
         return;
     };
-    match upgrade.await {
+    let upgraded = upgrade.await;
+    drop(pending);
+    match upgraded {
         Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, (bot, entry)).await,
         Err(error) => tracing::debug!(target: TARGET, error = %error, "not upgraded"),
     }
@@ -216,9 +234,14 @@ fn same(presented: &[u8], token: &[u8]) -> bool {
             == 0
 }
 
-/// 没有内容的回应。
+/// 没有内容的回应。不是 101 的带 `Connection: close`：这条连接只用来升级一次，回了别的就关（施工 I-94）。
 fn empty(status: StatusCode) -> Response<Empty<Bytes>> {
     let mut response = Response::new(Empty::new());
     *response.status_mut() = status;
+    if status != StatusCode::SWITCHING_PROTOCOLS {
+        response
+            .headers_mut()
+            .insert(header::CONNECTION, HeaderValue::from_static("close"));
+    }
     response
 }

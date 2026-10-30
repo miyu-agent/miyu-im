@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::{Map, Value, json};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{Semaphore, mpsc, watch};
 use tokio::task::{AbortHandle, JoinSet};
 
 use miyu_client::settings::Secret;
@@ -134,10 +134,18 @@ async fn accepting(
 ) {
     let mut connections = JoinSet::new();
     let mut watching = true;
+    // 还没升级的连接的名额（施工 I-94）：满了的当场关掉，记一行。
+    let pending = Arc::new(Semaphore::new(gate.tuning().pending_connections));
     loop {
         tokio::select! {
             Some((stream, port)) = accepted.recv() => {
-                connections.spawn(super::accept(stream, Arc::clone(&gate), (port, Arc::clone(&tokens))));
+                let Ok(permit) = Arc::clone(&pending).try_acquire_owned() else {
+                    tracing::warn!(target: TARGET, port, "too many pending connections");
+                    drop(stream);
+                    continue;
+                };
+                let port = (port, Arc::clone(&tokens));
+                connections.spawn(super::accept(stream, Arc::clone(&gate), (port, permit)));
             },
             changed = config.changed(), if watching => {
                 if changed.is_err() {
