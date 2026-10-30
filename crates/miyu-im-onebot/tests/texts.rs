@@ -87,7 +87,26 @@ fn problems() -> Vec<Problem> {
 /// 每一句和每一种问题。
 fn everything(texts: &Texts) -> Vec<String> {
     let mut said = vec![
-        texts.usage(),
+        texts.help(None).unwrap_or_default(),
+        // 每个命令的帮助页（施工 I-87）。
+        [
+            "start",
+            "stop",
+            "restart",
+            "status",
+            "web",
+            "logs",
+            "venue",
+            "whitelist",
+            "access",
+        ]
+        .iter()
+        .filter_map(|command| texts.help(Some(command)))
+        .collect::<Vec<_>>()
+        .join("\n"),
+        texts.no_command(),
+        texts.unknown_command("nonsense"),
+        texts.bad_args("logs"),
         texts.no_log("disk full"),
         texts.web_not_running(),
         texts.web_failed("refused"),
@@ -216,88 +235,97 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     };
     assert_eq!(
         texts.notice(&listening),
-        "在 127.0.0.1:8301 等 NapCat 连进来。"
+        "在 127.0.0.1:8301 等待 NapCat 连接"
     );
     assert_eq!(
         texts.notice(&Notice::Disconnected {
             bot: Some(Id::from(30003))
         }),
-        "NapCat 断开了（30003），等它重连。"
+        "NapCat 已断开（机器人 30003），等待重连"
     );
+    // 施工 I-87：报错 `miyu im: …`，建议另起一行「提示：」，结果行不带句号。
     assert_eq!(
         texts.failure(&Failure::Core("refused".to_string())),
-        "连不上核心：refused"
+        "miyu im: 无法连接核心：refused"
     );
     assert_eq!(
         texts.notice(&Notice::NoToken),
-        "还没设 Token（im.qq.token），NapCat 连进来会被拒。打开接入通讯平台的页面（miyu im web），粘贴 NapCat 那边的 Token，几秒内就连上。"
+        "miyu im: 警告：没有设置 Token，NapCat 的连接会被拒绝\n提示：用 'miyu im web' 打开管理页面，粘贴 NapCat 的 Token"
+    );
+    assert!(
+        texts
+            .help(None)
+            .is_some_and(|help| help.starts_with("用法：miyu im <命令>\n"))
     );
     assert_eq!(
-        texts.usage(),
-        "用法：miyu im start | stop | restart | status | web | logs [-f] | venue show <场所> | whitelist [list | add <号> | remove <号>] | access [whitelist | group | skip <群号>] [list | add <号> | remove <号>]（serve 只由核心拉起）"
+        texts.unknown_command("stat"),
+        "miyu im: 未知命令 'stat'\n提示：运行 'miyu im --help' 查看可用命令"
+    );
+    assert_eq!(
+        texts.bad_args("logs"),
+        "miyu im: 'logs' 的参数不对\n提示：运行 'miyu im logs --help' 查看用法"
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
-        "没等到核心的握手回应。miyu-im serve 只由核心拉起：用 miyu im start 打开 接入通讯平台。"
+        "miyu im: 没有收到核心的握手回应\n提示：'miyu-im serve' 只能由核心启动，用 'miyu im start' 启动"
     );
-    assert_eq!(
-        texts.report(&Report::Started),
-        "接入通讯平台开了：核心拉起它，以后核心每次起来都拉起它。"
-    );
-    assert_eq!(
-        texts.report(&Report::Stopped),
-        "接入通讯平台关了：核心停下它，以后不再拉起。"
-    );
-    assert_eq!(texts.report(&Report::Restarted), "接入通讯平台重新拉起了。");
+    assert_eq!(texts.report(&Report::Started), "已启动接入通讯平台");
+    assert_eq!(texts.report(&Report::Stopped), "已停止接入通讯平台");
+    assert_eq!(texts.report(&Report::Restarted), "已重启接入通讯平台");
     assert_eq!(
         texts.report(&Report::Off),
-        "接入通讯平台关着。用 miyu im start 打开。"
+        "接入通讯平台未运行\n提示：用 'miyu im start' 启动"
     );
-    assert_eq!(texts.report(&Report::Starting), "接入通讯平台正在起来。");
+    assert_eq!(texts.report(&Report::Starting), "接入通讯平台正在启动");
     assert_eq!(
         texts.report(&Report::Running(4242)),
-        "接入通讯平台在跑（进程 4242）。"
+        "接入通讯平台正在运行（进程 4242）"
     );
     assert_eq!(
         texts.report(&Report::Waiting {
             seconds: 2,
             failures: 1
         }),
-        "接入通讯平台退出了，2 秒后再拉起（连续失败 1 次）。"
+        "接入通讯平台已退出，2 秒后重新启动（已连续失败 1 次）"
     );
+    let halted = |reason: &str| {
+        format!(
+            "接入通讯平台已停止，不再自动启动：{reason}\n提示：运行 'miyu im logs' 查看日志\n提示：修复后运行 'miyu im restart'"
+        )
+    };
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "接入通讯平台停下了，核心不再拉起它：配置错了或者端口被占（退出码 1）。改好以后 miyu im restart。"
+        halted("配置错误或端口被占用（退出码 1）")
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::FailedRepeatedly(5))),
-        "接入通讯平台停下了，核心不再拉起它：连续失败了 5 次。看 miyu im logs，修好以后 miyu im restart。"
+        halted("连续失败 5 次")
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::NotInstalled)),
-        "接入通讯平台停下了，核心不再拉起它：miyu 旁边没有 miyu-im 这个程序。"
+        halted("找不到 miyu-im 程序")
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::CannotStart)),
-        "接入通讯平台停下了，核心不再拉起它：起不来：系统不让起，或者建不了它的目录、标准错误的文件。"
+        halted("无法启动进程，或无法创建它的目录和标准错误文件")
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ProtocolMismatch)),
-        "接入通讯平台停下了，核心不再拉起它：清单说的协议版本和核心的对不上。"
+        halted("清单的协议版本和核心不一致")
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::Other("new_reason".to_string()))),
-        "接入通讯平台停下了，核心不再拉起它：new_reason",
+        halted("new_reason"),
         "不认识的原因照原样"
     );
-    assert_eq!(texts.report(&Report::Stderr), "它的标准错误的最后几行：");
+    assert_eq!(texts.report(&Report::Stderr), "标准错误的最后几行：");
     assert_eq!(
         texts.report(&Report::Other("dreaming".to_string())),
-        "接入通讯平台的状态：dreaming"
+        "接入通讯平台状态：dreaming"
     );
     assert_eq!(
         texts.report(&Report::Missing),
-        "核心那边没有 im 这个软件包：清单不在、或者写错了，用 miyu check 查一下。"
+        "miyu im: 核心里没有 miyu-im 软件包\n提示：用 'miyu check' 检查"
     );
     assert_eq!(
         texts.report(&Report::Napcat {
@@ -305,36 +333,36 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
             version: "4.8.2".to_string(),
             bot: "30003".to_string(),
         }),
-        "NapCat 连上了：NapCat.Onebot 4.8.2，机器人 30003。"
+        "NapCat 已连接：NapCat.Onebot 4.8.2，机器人 30003"
     );
     assert_eq!(
         texts.report(&Report::NapcatBot("30003".to_string())),
-        "NapCat 连上了：机器人 30003。"
+        "NapCat 已连接：机器人 30003"
     );
-    assert_eq!(texts.report(&Report::NoNapcat), "NapCat 还没连上。");
+    assert_eq!(texts.report(&Report::NoNapcat), "NapCat 未连接");
     assert_eq!(
         texts.report(&Report::Listen(8301)),
-        "NapCat 连 ws://127.0.0.1:8301/ws。"
+        "NapCat 连接地址：ws://127.0.0.1:8301/ws"
     );
     assert_eq!(
         texts.web_opened("http://127.0.0.1:8302/#miyu=x", false),
-        "在浏览器中打开（1 分钟内有效）：http://127.0.0.1:8302/#miyu=x"
+        "在浏览器中打开以下地址（1 分钟内有效）：http://127.0.0.1:8302/#miyu=x"
     );
     assert_eq!(
         texts.report(&Report::Page),
-        "设置和状态在网页里：miyu im web"
+        "提示：用 'miyu im web' 打开管理页面"
     );
     assert_eq!(
         texts.heading(&Heading::Stderr("a/miyu-im.stderr".to_string())),
-        "—— 标准错误 a/miyu-im.stderr ——"
+        "==> 标准错误：a/miyu-im.stderr <=="
     );
     assert_eq!(
         texts.heading(&Heading::Log("a/miyu-im.log".to_string())),
-        "—— 运行日志 a/miyu-im.log ——"
+        "==> 运行日志：a/miyu-im.log <=="
     );
     assert_eq!(
         texts.heading(&Heading::None("a/miyu-im.log".to_string())),
-        "还没有运行日志：a/miyu-im.log"
+        "miyu im: 还没有运行日志：a/miyu-im.log"
     );
 }
 
@@ -350,16 +378,17 @@ fn japanese_is_its_own_and_the_language_can_change() {
         .map(|(ja, _)| ja)
         .collect();
     assert_eq!(same, Vec::<String>::new(), "和英文一样的");
-    assert_eq!(
-        texts.usage(),
-        "使い方：miyu im start | stop | restart | status | web | logs [-f] | venue show <場所> | whitelist [list | add <番号> | remove <番号>] | access [whitelist | group | skip <グループ番号>] [list | add <番号> | remove <番号>]（serve はコアだけが起動します）"
+    assert!(
+        texts
+            .help(None)
+            .is_some_and(|help| help.starts_with("使い方：miyu im <コマンド>\n"))
     );
     assert_eq!(
         texts.report(&Report::Halted(Halt::ConfigError)),
-        "メッセージング接続は止まっていて、コアはもう起動しません：設定の誤りか、ポートが使われています（終了コード 1）。直してから miyu im restart を実行してください。"
+        "メッセージング接続は停止し、自動では再起動しません：設定の誤りかポートの使用中（終了コード 1）\nヒント：'miyu im logs' でログを表示\nヒント：直したら 'miyu im restart' を実行"
     );
     texts.speak("zh").expect("读得出来");
-    assert_eq!(texts.report(&Report::NoNapcat), "NapCat 还没连上。");
+    assert_eq!(texts.report(&Report::NoNapcat), "NapCat 未连接");
 }
 
 #[test]
@@ -381,13 +410,13 @@ fn venue_show_and_problems_read_as_drawn() {
             "系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读",
             "系统 80-x.toml 第 1 条规则，第 3 行：不是 UTF-8，不读",
             "系统 80-x.toml 第 1 条规则，第 3 行：TOML 写法不对：",
-            "系统 80-x.toml 第 1 条规则，第 3 行：不认识 rate",
+            "系统 80-x.toml 第 1 条规则，第 3 行：未知的键 rate",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate 的类型不对：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate 不是能选的值：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate 超出范围：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate 写法不对：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate：unknown_secret",
-            "系统 80-x.toml 第 1 条规则，第 3 行：不认识 rat，是不是想写 rate？",
+            "系统 80-x.toml 第 1 条规则，第 3 行：未知的键 rat（也许是 rate）",
             "出厂 defaults.toml 第 3 行：rate 超出范围：\"abc\"",
             "出厂 defaults.toml：缺了 chatty.base",
             "系统 80-x.toml：读不了：permission denied",
@@ -395,22 +424,22 @@ fn venue_show_and_problems_read_as_drawn() {
     );
     assert_eq!(
         texts.failure(&Failure::Factory(problems()[..2].to_vec())),
-        "接入通讯平台的出厂数据有问题（是打包的错），起不来：\n  \
+        "miyu im: 出厂数据有问题，无法启动（打包错误）：\n  \
          系统 80-x.toml 第 1 条规则，第 3 行：读不了：\n  \
          系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读"
     );
-    assert_eq!(texts.shown(&Shown::None), "没有规则设到这个场所。");
+    assert_eq!(texts.shown(&Shown::None), "没有规则设置这个场所");
     assert_eq!(
         texts.shown(&Shown::Defaults),
-        "没列出的参数照出厂的 defaults.toml。"
+        "未列出的参数使用出厂的 defaults.toml"
     );
     assert_eq!(
         texts.shown(&Shown::Problems),
-        "读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）："
+        "读取时发现以下问题（有问题的项、规则或文件不生效）："
     );
     assert_eq!(
         texts.shown(&Shown::BadVenue("qq:room:1".to_string())),
-        "认不出场所编号 qq:room:1。写成 <平台>:group:<群号> 或 <平台>:private:<号>，例如 qq:group:123456。"
+        "miyu im: 无法识别场所编号 'qq:room:1'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'"
     );
     let english = Texts::load(resources(), crate::support::package(), "en").expect("读得出来");
     assert_eq!(

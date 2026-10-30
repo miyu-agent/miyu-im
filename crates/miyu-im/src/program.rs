@@ -7,7 +7,8 @@
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
 //! - `web`：带交接票打开 im 自己的页面（施工 I-6 上，[`web`]）：连已经在跑的核心要票，照系统的语言说。
-//! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
+//! - `-h`、`--help`：总表印在标准输出上，退出码 0（`miyu help im` 转成 `--help`）；命令后面带的印那个命令的（施工 I-87，照核心
+//!   设计 47「命令行文案」）。没写命令、不认识的命令、参数写错的报 `miyu im: …` 加提示行，退出码 2。
 //!
 //! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份，施工 S-6 上），
 //! 读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
@@ -81,7 +82,13 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         }
     };
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let command = match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    // 帮助（施工 I-87）：`-h`、`--help` 印总表；跟在命令后面的印那个命令的；印在标准输出上，退出码 0。
+    if let Some(help) = asked_help(&args).and_then(|command| texts.help(command)) {
+        println!("{help}");
+        return ExitCode::SUCCESS;
+    }
+    let command = match args[..] {
         ["serve"] => Command::Serve,
         ["start"] => Command::Control(Control::Start),
         ["stop"] => Command::Control(Control::Stop),
@@ -94,25 +101,18 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         ["whitelist", ref rest @ ..] | ["access", "whitelist", ref rest @ ..] => match change(rest)
         {
             Some(change) => Command::Access(Access::Whitelist(change)),
-            None => return usage(&texts),
+            None => return wrong(&texts, &args),
         },
         ["access", "group", ref rest @ ..] => match change(rest) {
             Some(change) => Command::Access(Access::Group(change)),
-            None => return usage(&texts),
+            None => return wrong(&texts, &args),
         },
         ["access", "skip", group, ref rest @ ..] => match change(rest) {
             Some(change) => Command::Access(Access::Skip(group.to_string(), change)),
-            None => return usage(&texts),
+            None => return wrong(&texts, &args),
         },
         ["web"] => Command::Web,
-        ["-h"] | ["--help"] => {
-            println!("{}", texts.usage());
-            return ExitCode::SUCCESS;
-        }
-        _ => {
-            eprintln!("{}", texts.usage());
-            return ExitCode::from(USAGE);
-        }
+        _ => return wrong(&texts, &args),
     };
     let Some(first) = drivers.first().map(|driver| driver.platform()) else {
         eprintln!("{PROGRAM}: no driver");
@@ -296,9 +296,24 @@ fn change(rest: &[&str]) -> Option<Change> {
     }
 }
 
-/// 用法不对：标准错误上说用法，交回退出码 2。
-fn usage(texts: &Texts) -> ExitCode {
-    eprintln!("{}", texts.usage());
+/// 命令行要的帮助（施工 I-87）：只有 `-h`、`--help` 的是总表（`Some(None)`）；命令后面带了的是那个命令的；没要帮助的是空的。
+fn asked_help<'a>(args: &[&'a str]) -> Option<Option<&'a str>> {
+    let wanted = |arg: &&str| matches!(*arg, "-h" | "--help");
+    match args {
+        [only] if wanted(only) => Some(None),
+        [command, rest @ ..] if rest.iter().any(wanted) => Some(Some(command)),
+        _ => None,
+    }
+}
+
+/// 命令行写错了（施工 I-87）：没写命令、不认识的命令、认识的命令参数不对，各说一句加提示，退出码 [`USAGE`]。
+fn wrong(texts: &Texts, args: &[&str]) -> ExitCode {
+    let said = match args.first() {
+        None => texts.no_command(),
+        Some(command) if texts.help(Some(command)).is_some() => texts.bad_args(command),
+        Some(command) => texts.unknown_command(command),
+    };
+    eprintln!("{said}");
     ExitCode::from(USAGE)
 }
 

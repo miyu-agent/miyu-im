@@ -227,17 +227,21 @@ async fn a_port_in_use_stops_it_and_status_says_why() {
     assert_eq!(stopped["reason"], "config_error", "{stopped}");
     let status = ok(&home.root, &["status"]).await;
     let mut lines = status.lines();
-    assert_eq!(
-        lines.next(),
-        Some(zh(&Report::Halted(Halt::ConfigError)).as_str())
-    );
+    // 停下的那一句后面跟两行提示（施工 I-87）。
+    let halted = zh(&Report::Halted(Halt::ConfigError));
+    let mut expected = halted.lines();
+    assert_eq!(lines.next(), expected.next());
+    assert_eq!(lines.next(), expected.next());
+    assert_eq!(lines.next(), expected.next());
     assert_eq!(lines.next(), Some(zh(&Report::Stderr).as_str()));
     let port_in_use = Texts::load(ResourceRoot::at(resources()), package_in(resources()), "zh")
         .expect("读得出来")
         .failure(&miyu_im::serve::Failure::PortInUse(listen));
     assert!(
-        status.contains(&format!("  {port_in_use}\n")),
-        "带出标准错误里「端口被占」那一句：{status}"
+        port_in_use
+            .lines()
+            .all(|line| status.contains(&format!("  {line}\n"))),
+        "带出标准错误里「端口被占」那一句和提示：{status}"
     );
     assert!(
         status.ends_with(&format!("\n{}\n", zh(&Report::Page))),

@@ -681,69 +681,12 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **给人看的字**（`serve` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18；`venue show` 的也是，O-21；`web` 跑不了 `miyu` 的那一句在标准错误上，O-28 补）：放在包文件夹的 `data/human/{zh,en,ja}.json`（出厂的是 `im/data/human/`，施工 S-6 上从 `software/onebot/` 挪来）的 `said` 里，照核心的格式；核心那一份照 `Human::load` 读，桥的这一份照 `Human::with_dir` 补读（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`（施工 S-6 上字挪进包文件夹以后编号照旧）；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 是日文（O-45，2026-10-17 项目主人定；O-8 施工时定的是照英文写，和核心拒绝时的话一样）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status` 握手以后照核心回的说，`logs`、`venue show`（O-21）、`web`（O-28 补）不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
 
-| 编号 | 什么时候 | 中文 | 英文 |
-|---|---|---|---|
-| `notice/listening` | 起来了 | 在 {host}:{port} 等 NapCat 连进来。 | Waiting for NapCat on {host}:{port}. |
-| `notice/connected-as`、`notice/connected` | 连上了 | NapCat 连上了（{bot}）。 | NapCat connected ({bot}). |
-| `notice/disconnected-as`、`notice/disconnected` | 断开了 | NapCat 断开了（{bot}），等它重连。 | NapCat disconnected ({bot}); waiting for it to reconnect. |
-| `notice/no-token`（O-16 补，原来的 `unready/no-token`；补二、O-28 下、O-28 补改了说法） | 令牌没设：照样起来，跟在 `notice/listening` 后面 | 还没设令牌（im.qq.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu im web），填进 NapCat，几秒内就连上。 | No token (im.token) yet, so NapCat will be refused. Generate one on its page in the web app (miyu im web) and put it into NapCat; it connects within seconds. |
-| `failure/port-in-use` | 端口被占 | 端口 {port} 被占了。换一个：miyu config set --system im.qq.listen <端口>，NapCat 那边跟着改。 | Port {port} is in use. Pick another: miyu config set --system im.qq.listen <port>, and change NapCat to match. |
-| `failure/core` | 连不上核心 | 连不上核心：{reason} | Could not reach the core: {reason} |
-| `failure/crashed` | 跟核心的那一头、发回话的任务崩了 | QQ 桥出了错，停下：{reason} | The QQ bridge hit a bug and stops: {reason} |
-| `failure/start` | 别的原因起不来 | QQ 桥起不来：{reason} | The QQ bridge could not start: {reason} |
-| `failure/not-spawned`（O-18） | 等不到握手的回应 | 没等到核心的握手回应。miyu-im serve 只由核心拉起：用 miyu im start 打开 QQ 桥。 | No handshake reply from the core. miyu-im serve is started by the core only: turn the QQ bridge on with miyu im start. |
-| `usage`（O-18 改，O-21 加 `venue show`，O-28 下去掉 `web`，O-28 补加回 `web`） | 用法不对、`-h` | 用法：miyu im start \| stop \| restart \| status \| web \| logs [-f] \| venue show <场所>（serve 只由核心拉起） | usage: miyu im start \| stop \| restart \| status \| web \| logs [-f] \| venue show <venue> (serve is started by the core only) |
-| `web/no-miyu`（O-28 补） | `web` 跑不了旁边的 `miyu` | 打不开网页：跑不了 {path}（{reason}）。miyu-im 在自己旁边找 miyu，两个要放在同一个目录。 | Could not open the web app: cannot run {path} ({reason}). miyu-im looks for miyu in its own directory; keep the two together. |
-| `no-log` | 运行日志装不上（照样跑） | 运行日志写不了：{reason} | The run log cannot be written: {reason} |
-| `control/started`（O-18，下同） | `start` 成了 | QQ 桥开了：核心拉起它，以后核心每次起来都拉起它。 | The QQ bridge is on: the core starts it now and every time the core starts. |
-| `control/stopped` | `stop` 成了 | QQ 桥关了：核心停下它，以后不再拉起。 | The QQ bridge is off: the core stopped it and will not start it again. |
-| `control/restarted` | `restart` 成了 | QQ 桥重新拉起了。 | The QQ bridge was restarted. |
-| `status/off` | 关着 | QQ 桥关着。用 miyu im start 打开。 | The QQ bridge is off. Turn it on with miyu im start. |
-| `status/starting` | 拉起了、还没握手 | QQ 桥正在起来。 | The QQ bridge is starting. |
-| `status/running` | 在跑 | QQ 桥在跑（进程 {pid}）。 | The QQ bridge is running (process {pid}). |
-| `status/waiting` | 退避中（`retry_in` 进成整秒） | QQ 桥退出了，{seconds} 秒后再拉起（连续失败 {failures} 次）。 | The QQ bridge exited; it starts again in {seconds} s ({failures} failures in a row). |
-| `status/stopped` | 停下了 | QQ 桥停下了，核心不再拉起它：{reason} | The QQ bridge stopped and the core will not start it again: {reason} |
-| `status/stderr` | 停下了、带标准错误（接着一行一行缩进两格印） | 它的标准错误的最后几行： | The last lines of its standard error: |
-| `status/other` | 不认识的状态（照说不会） | QQ 桥的状态：{state} | QQ bridge state: {state} |
-| `status/missing` | 核心那边没有这个包 | 核心那边没有 onebot 这个软件包：清单不在、或者写错了，用 miyu check 查一下。 | The core has no onebot package: its manifest is missing or wrong; check it with miyu check. |
-| `status/napcat` | NapCat 连着、问到了实现 | NapCat 连上了：{implementation} {version}，机器人 {bot}。 | NapCat connected: {implementation} {version}, bot {bot}. |
-| `status/napcat-bot` | 连着、还没问到 | NapCat 连上了：机器人 {bot}。 | NapCat connected: bot {bot}. |
-| `status/no-napcat` | 没连着 | NapCat 还没连上。 | NapCat is not connected. |
-| `status/listen`（O-28 下，原来的 `status/ports` 带着网页的地址） | NapCat 那边的地址 | NapCat 连 ws://127.0.0.1:{listen}/ws。 | NapCat connects to ws://127.0.0.1:{listen}/ws. |
-| `status/misread`（O-41 补；O-41 补二起 `{keys}` 是名字） | 状态文件里有没认出来的配置项，排在 `status/page` 前面 | 这几项配置没认出来，照旧用规则文件里的：{keys} | These settings could not be read, the rule files are used instead: {keys} |
-| `status/misread-separator`（O-41 补二） | 几项名字之间 | 、 | , |
-| `status/page`（O-28 下；O-28 补改了说法和时机） | `start`、`status` 说完跟在末尾 | 设置和状态在网页里：miyu im web | Settings and status are in the web app: miyu im web |
-| `reason/config_error` | `config_error` | 配置错了或者端口被占（退出码 1）。改好以后 miyu im restart。 | a configuration error or a port in use (exit code 1). Fix it, then run miyu im restart. |
-| `reason/failed_repeatedly` | `failed_repeatedly` | 连续失败了 {failures} 次。看 miyu im logs，修好以后 miyu im restart。 | it failed {failures} times in a row. See miyu im logs, then run miyu im restart. |
-| `reason/not_installed` | `not_installed` | miyu 旁边没有 miyu-im 这个程序。 | there is no miyu-im program next to miyu. |
-| `reason/cannot_start` | `cannot_start` | 起不来：系统不让起，或者建不了它的目录、标准错误的文件。 | it could not be started: the system refused, or its directory or standard error file could not be made. |
-| `reason/protocol_mismatch` | `protocol_mismatch` | 清单说的协议版本和核心的对不上。 | its manifest speaks a protocol version the core does not. |
-| `logs/stderr` | `logs` 的标准错误那一段的标题 | —— 标准错误 {path} —— | —— standard error {path} —— |
-| `logs/log` | 运行日志那一段的标题（有标准错误那一段时才印） | —— 运行日志 {path} —— | —— run log {path} —— |
-| `logs/none` | 还没有运行日志 | 还没有运行日志：{path} | No run log yet: {path} |
-| `failure/factory`（O-21，下同） | 出厂的数据有问题（接着每一条问题缩进两格一行 `venue/problem`） | QQ 桥的出厂数据有问题（是打包的错），起不来： | The QQ bridge cannot start: its factory data has problems (a packaging error): |
-| `venue/entry` | `venue show`：规则设到的一项 | {key} = {value}（{from}） | {key} = {value} ({from}) |
-| `venue/rule` | 来处、问题在哪：有第几条规则的 | {source} {file} 第 {rule} 条规则，第 {line} 行 | {source} {file}, rule {rule}, line {line} |
-| `venue/line` | 问题在哪：只有第几行的（出厂参数） | {source} {file} 第 {line} 行 | {source} {file}, line {line} |
-| `venue/file` | 问题在哪：整份文件的、缺了的 | {source} {file} | {source} {file} |
-| `venue/factory`、`venue/system` | 上面的 `{source}` | 出厂、系统 | factory、system |
-| `venue/setting`（O-41） | 来处是配置项那一层，整个来处只说这一句 | 配置项 {key} | setting {key} |
-| `venue/none` | 没有规则设到这个场所 | 没有规则设到这个场所。 | No rule sets anything for this venue. |
-| `venue/defaults` | 跟在规则设到的后面 | 没列出的参数照出厂的 defaults.toml。 | Parameters not listed follow the factory defaults.toml. |
-| `venue/problems` | 问题那一段的标题 | 读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）： | Problems found while reading (the wrong item, rule or file is not used; the rest is): |
-| `venue/problem` | 一条问题 | {at}：{what} | {at}: {what} |
-| `venue/bad-venue` | 场所编号认不出 | 认不出场所编号 {venue}。写成 <平台>:group:<群号> 或 <平台>:private:<号>，例如 qq:group:123456。 | Not a venue id: {venue}. Write <platform>:group:<group> or <platform>:private:<user>, for example qq:group:123456. |
-| `problem/unreadable` | 上面的 `{what}`：读不成 | 读不了：{why} | cannot be read: {why} |
-| `problem/too-big` | 超过 1 MiB | 超过 1 MiB，不读 | over 1 MiB, not read |
-| `problem/not-utf8` | 不是 UTF-8 | 不是 UTF-8，不读 | not UTF-8, not read |
-| `problem/syntax` | TOML 写法不对 | TOML 写法不对：{why} | TOML syntax error: {why} |
-| `problem/unknown-key`、`problem/unknown-key-plain` | 不认识的键，有、没有离得最近的名字 | 不认识 {key}，是不是想写 {suggest}？／不认识 {key} | unknown key {key}; did you mean {suggest}?／unknown key {key} |
-| `problem/wrong-type` | 类型不对 | {key} 的类型不对：{got} | {key} has the wrong type: {got} |
-| `problem/missing` | 出厂参数缺了一项（`wrong_type`，没有原文） | 缺了 {key} | {key} is missing |
-| `problem/not-an-option` | 不是能选的值 | {key} 不是能选的值：{got} | {key} is not one of the options: {got} |
-| `problem/out-of-range` | 超出范围 | {key} 超出范围：{got} | {key} is out of range: {got} |
-| `problem/bad-format` | 写法不对 | {key} 写法不对：{got} | {key} is not written right: {got} |
-| `problem/other` | 别的原因码（照说不会） | {key}：{code} | {key}: {code} |
+写法（施工 I-87，照核心设计 47「命令行文案」，2026-10-30 项目主人要求 `miyu im` 的帮助和输出照 Linux 程序的规矩）：
+
+- 报错写在标准错误上：`miyu im: <出了什么事>`，不带句号；警告 `miyu im: 警告：<消息>`；能照着做的办法另起一行 `提示：…`（英文 `hint: `、日文 `ヒント：`），命令用单引号括起来。程序名前缀、「提示：」由 `texts/cli.rs` 拼，字里只有正文。
+- 结果行短、动词打头、不带句号（`已启动接入通讯平台`、`已加入白名单：qq:20007`）；`logs` 的标题照 `tail` 写 `==> 运行日志：<路径> <==`。
+- 帮助页：`miyu im -h`、`--help` 印总表（`help/main`：`用法：miyu im <命令>`，一条命令一行动宾短语，不列子动作），命令后面带 `-h`、`--help` 的印那个命令的（`help/<命令>`），都在标准输出上、退出码 0。没写命令、不认识的命令、参数写错的报 `cli/no-command`、`cli/unknown`、`cli/bad-args` 加提示行，退出码 2。
+- 原话以 `data/human/{zh,en,ja}.json` 为准，这里不再抄。守着它的：`tests/cli_texts.rs`（命令行这些字不以句号结尾、中文里没有「你」「她」、帮助页说明不用「、」串、每个命令都有帮助页）、`tests/texts.rs`（照图纸读、换得进字段）、`tests/stdio.rs`（帮助和写错的各说各的）。
 
 不认识的停下原因照原样印代码。
 

@@ -86,8 +86,8 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
              rate = \"30/60s\"（系统 80-test.toml 第 1 条规则，第 3 行）\n\
              recent = 30（出厂 50-defaults.toml 第 1 条规则，第 18 行）\n\
              show_ids = true（出厂 50-defaults.toml 第 1 条规则，第 19 行）\n\
-             没列出的参数照出厂的 defaults.toml。\n\
-             读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：\n  \
+             未列出的参数使用出厂的 defaults.toml\n\
+             读取时发现以下问题（有问题的项、规则或文件不生效）：\n  \
              系统 90-bad.toml 第 2 条规则，第 6 行：rate 写法不对：\"abc\"\n"
                 .to_string(),
             String::new()
@@ -108,7 +108,7 @@ fn without_system_rules_the_factory_ones_are_shown() {
              parallel = 0（出厂 50-defaults.toml 第 2 条规则，第 25 行）\n\
              rate = \"5/300s\"（出厂 50-defaults.toml 第 2 条规则，第 24 行）\n\
              show_ids = true（出厂 50-defaults.toml 第 2 条规则，第 26 行）\n\
-             没列出的参数照出厂的 defaults.toml。\n"
+             未列出的参数使用出厂的 defaults.toml\n"
                 .to_string(),
             String::new()
         )
@@ -126,7 +126,7 @@ fn a_venue_nothing_sets_says_so() {
         shown_with(&root, "qq:30003:private:1", &zh(&resources()), Ok(listed)),
         (
             0,
-            "没有规则设到这个场所。\n没列出的参数照出厂的 defaults.toml。\n".to_string(),
+            "没有规则设置这个场所\n未列出的参数使用出厂的 defaults.toml\n".to_string(),
             String::new()
         )
     );
@@ -150,7 +150,7 @@ fn a_bad_venue_id_is_a_usage_error() {
                 2,
                 String::new(),
                 format!(
-                    "认不出场所编号 {wrong}。写成 <平台>:group:<群号> 或 <平台>:private:<号>，例如 qq:group:123456。\n"
+                    "miyu im: 无法识别场所编号 '{wrong}'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'\n"
                 )
             ),
             "{wrong:?}"
@@ -181,7 +181,7 @@ fn broken_factory_data_is_said_with_every_problem() {
     assert_eq!(
         err,
         format!(
-            "接入通讯平台的出厂数据有问题（是打包的错），起不来：\n  出厂 defaults.toml 第 {line} 行：chatty.probability 超出范围：5000\n"
+            "miyu im: 出厂数据有问题，无法启动（打包错误）：\n  出厂 defaults.toml 第 {line} 行：chatty.probability 超出范围：5000\n"
         )
     );
     clean(&dir);
@@ -211,8 +211,8 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
              rate = \"7/60s\"（群 2 的卡片）\n\
              recent = 30（出厂 50-defaults.toml 第 1 条规则，第 18 行）\n\
              show_ids = true（配置项 im.show_ids）\n\
-             没列出的参数照出厂的 defaults.toml。\n\
-             读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：\n  \
+             未列出的参数使用出厂的 defaults.toml\n\
+             读取时发现以下问题（有问题的项、规则或文件不生效）：\n  \
              配置项 im.sleep：sleep 写法不对：\"abc\"\n"
                 .to_string(),
             String::new()
@@ -225,7 +225,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
         Err("refused".to_string()),
     );
     assert_eq!((code, out.as_str()), (1, ""));
-    assert_eq!(err, "连不上核心：refused\n");
+    assert_eq!(err, "miyu im: 无法连接核心：refused\n");
     clean(&dir);
 }
 
@@ -259,8 +259,8 @@ async fn the_program_shows_in_the_system_language() {
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\
          recent = 30 (factory 50-defaults.toml, rule 1, line 18)\n\
          show_ids = true (setting im.show_ids)\n\
-         Parameters not listed follow the factory defaults.toml.\n\
-         Problems found while reading (the wrong item, rule or file is not used; the rest is):\n  \
+         parameters not listed use the factory defaults.toml\n\
+         problems found while reading (the faulty key, rule or file is not used):\n  \
          system 90-bad.toml, rule 2, line 6: rate is not written right: \"abc\"\n"
     );
     for wrong in [
@@ -270,15 +270,16 @@ async fn the_program_shows_in_the_system_language() {
     ] {
         let refused = ran(&root, wrong).await;
         assert_eq!(refused.status.code(), Some(2), "{wrong:?}");
-        assert!(
-            text(&refused.stderr).starts_with("usage: "),
-            "{wrong:?}：{}",
-            text(&refused.stderr)
+        // 施工 I-87：参数不对说 `miyu im: 'venue' 的参数不对` 加提示，照系统的语言（英文）。
+        assert_eq!(
+            text(&refused.stderr),
+            "miyu im: invalid arguments for 'venue'\nhint: run 'miyu im venue --help' to see the usage\n",
+            "{wrong:?}"
         );
     }
     let refused = ran(&root, &["venue", "show", "qq:room:1"]).await;
     assert_eq!(refused.status.code(), Some(2));
-    assert!(text(&refused.stderr).starts_with("Not a venue id: qq:room:1."));
+    assert!(text(&refused.stderr).starts_with("miyu im: not a venue: 'qq:room:1'\nhint: "));
 }
 
 #[test]
@@ -304,7 +305,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
     );
     assert_eq!(
         text(&exited.stderr),
-        "Connect Messaging cannot start: its factory data has problems (a packaging error):\n  \
+        "miyu im: cannot start: the factory data has problems (a packaging error):\n  \
          factory 50-defaults.toml, rule 1, line 2: rate is not written right: \"abc\"\n"
     );
     clean(&dir);

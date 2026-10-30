@@ -83,7 +83,10 @@ async fn the_page_opens_with_a_ticket_that_logs_in() {
     let (code, out, _) = ran(&home, &unopened).await;
     assert_eq!(code, 0);
     let url = unopened.seen.lock().expect("没 panic")[0].clone();
-    assert_eq!(out, format!("在浏览器中打开（1 分钟内有效）：{url}\n"));
+    assert_eq!(
+        out,
+        format!("在浏览器中打开以下地址（1 分钟内有效）：{url}\n")
+    );
     stopped(home).await;
 }
 
@@ -97,7 +100,10 @@ async fn without_im_running_it_says_to_start_it() {
     let (code, out, err) = ran(&home, &browser).await;
     assert_eq!(code, 1);
     assert_eq!(out, "");
-    assert_eq!(err, "接入通讯平台没在运行，先执行 miyu im start。\n");
+    assert_eq!(
+        err,
+        "miyu im: 接入通讯平台未运行\n提示：用 'miyu im start' 启动\n"
+    );
     assert!(
         browser.seen.lock().expect("没 panic").is_empty(),
         "没开浏览器"

@@ -117,23 +117,37 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
         let command = program(&root, &[flag]);
         let shown = ran_to_end(command).await;
         assert_eq!(shown.status.code(), Some(0), "{flag}");
-        assert_eq!(text(&shown.stdout), format!("{}\n", en.usage()), "{flag}");
+        let main = en.help(None).expect("有总表");
+        assert_eq!(text(&shown.stdout), format!("{main}\n"), "{flag}");
         assert_eq!(text(&shown.stderr), "", "{flag}");
     }
-    for wrong in [
-        &["nonsense"][..],
-        &["logs", "-x"],
-        &["start", "now"],
-        &[],
-        &["web", "--print"],
+    // 施工 I-87：命令后面带的印那个命令的帮助。
+    for asked in [
+        &["logs", "--help"][..],
+        &["venue", "show", "-h"],
+        &["access", "group", "--help"],
     ] {
+        let shown = ran_to_end(program(&root, asked)).await;
+        assert_eq!(shown.status.code(), Some(0), "{asked:?}");
+        let page = en.help(Some(asked[0])).expect("有这一份");
+        assert_eq!(text(&shown.stdout), format!("{page}\n"), "{asked:?}");
+    }
+    // 没写命令、不认识的命令、参数写错的各说各的（`miyu im: …` 加提示行）。
+    let wrongs: [(&[&str], String); 5] = [
+        (&["nonsense"], en.unknown_command("nonsense")),
+        (&["logs", "-x"], en.bad_args("logs")),
+        (&["start", "now"], en.bad_args("start")),
+        (&[], en.no_command()),
+        (&["web", "--print"], en.bad_args("web")),
+    ];
+    for (wrong, said) in wrongs {
         let command = program(&root, wrong);
         let refused = ran_to_end(command).await;
         assert_eq!(refused.status.code(), Some(2), "{wrong:?}");
-        assert_eq!(
-            text(&refused.stderr),
-            format!("{}\n", en.usage()),
-            "{wrong:?}"
+        assert_eq!(text(&refused.stderr), format!("{said}\n"), "{wrong:?}");
+        assert!(
+            said.starts_with("miyu im: ") && said.contains("\nhint: "),
+            "{said}"
         );
         assert_eq!(text(&refused.stdout), "", "{wrong:?}");
     }
@@ -221,13 +235,13 @@ async fn texts_come_from_the_package_folder_it_is_handed() {
     assert_eq!(shown.status.code(), Some(0), "{}", text(&shown.stderr));
     assert_eq!(
         text(&shown.stdout),
-        format!("{}\n", en.usage()),
+        format!("{}\n", en.help(None).expect("有总表")),
         "读到了包文件夹里的字"
     );
     // 没交的退回资源目录：那里没有，照实印出说法的编号。
     let fallback = run(None).await;
     assert!(
-        text(&fallback.stdout).starts_with("software/onebot/usage"),
+        text(&fallback.stdout).starts_with("software/onebot/help/main"),
         "{}",
         text(&fallback.stdout)
     );

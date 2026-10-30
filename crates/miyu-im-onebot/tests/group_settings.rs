@@ -41,7 +41,7 @@ async fn a_misread_setting_is_shown_until_it_is_fixed() {
     let said =
         crate::support::spawning::until_status(&home.root, |out| out.contains("睡觉时间")).await;
     assert!(
-        said.contains("这几项配置没认出来，照旧用规则文件里的：睡觉时间"),
+        said.contains("miyu im: 警告：以下配置无法读取，改用规则文件中的值：睡觉时间"),
         "{said}"
     );
     set(

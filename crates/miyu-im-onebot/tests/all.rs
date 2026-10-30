@@ -21,6 +21,7 @@ mod called_limits;
 mod calls;
 mod card_model;
 mod cards;
+mod cli_texts;
 mod commands;
 mod contacts;
 mod control;

@@ -7,6 +7,8 @@
 //! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
 //! `language`。三种语言各写一份（`ja.json` 施工 O-45 起是日文，原来照英文写）。
 
+mod cli;
+
 use miyu_chat::{Entry, Problem, Source};
 use miyu_client::places::ResourceRoot;
 use miyu_client::protocol::Said;
@@ -89,14 +91,9 @@ impl Texts {
         &self.package
     }
 
-    /// 用法不对。
-    pub fn usage(&self) -> String {
-        self.say("usage", &[])
-    }
-
-    /// 运行日志装不上（照样跑）。
+    /// 运行日志装不上（照样跑）：警告。
     pub fn no_log(&self, reason: &str) -> String {
-        self.say("no-log", &[("reason", reason.to_string())])
+        self.warning(&self.say("no-log", &[("reason", reason.to_string())]))
     }
 
     /// 这时说话用的语言（`zh`、`en`、`ja`）：`web` 照它拼进页面的网址（施工 I-6 上）。
@@ -104,14 +101,17 @@ impl Texts {
         &self.language
     }
 
-    /// `web`：im 没在跑、页面服务没听上（施工 I-6 上）。
+    /// `web`：im 没在跑、页面服务没听上（施工 I-6 上）：报错加一行提示。
     pub fn web_not_running(&self) -> String {
-        self.say("web/not-running", &[])
+        self.hinted(
+            &self.say("web/not-running", &[]),
+            &[self.say("web/not-running-hint", &[])],
+        )
     }
 
-    /// `web`：连不上核心、核心拒了，`reason` 是原话（施工 I-6 上）。
+    /// `web`：连不上核心、核心拒了，`reason` 是原话（施工 I-6 上）：报错。
     pub fn web_failed(&self, reason: &str) -> String {
-        self.say("web/failed", &[("reason", reason.to_string())])
+        self.error(&self.say("web/failed", &[("reason", reason.to_string())]))
     }
 
     /// `web`：网址 `url` 交给浏览器了（`opened`），或者没打开、照它自己开（施工 I-6 上）。
@@ -139,26 +139,40 @@ impl Texts {
                 self.say("notice/disconnected-as", &[("bot", bot.to_string())])
             }
             Notice::Disconnected { bot: None } => self.say("notice/disconnected", &[]),
-            Notice::NoToken => self.say("notice/no-token", &[]),
+            Notice::NoToken => self.warned(
+                &self.say("notice/no-token", &[]),
+                &[self.say("notice/no-token-hint", &[])],
+            ),
             Notice::Page { port } => self.say("notice/page", &[("port", port.to_string())]),
-            Notice::PageInUse { port } => {
-                self.say("notice/page-in-use", &[("port", port.to_string())])
-            }
+            Notice::PageInUse { port } => self.warned(
+                &self.say("notice/page-in-use", &[("port", port.to_string())]),
+                &[self.say("notice/page-in-use-hint", &[])],
+            ),
         }
     }
 
-    /// 起不来、停了。
+    /// 起不来、停了：报错，能照着做的加提示行。
     pub fn failure(&self, failure: &Failure) -> String {
         match failure {
-            Failure::Core(reason) => self.say("failure/core", &[("reason", reason.clone())]),
-            Failure::NotSpawned => self.say("failure/not-spawned", &[]),
-            Failure::PortInUse(port) => {
-                self.say("failure/port-in-use", &[("port", port.to_string())])
+            Failure::Core(reason) => {
+                self.error(&self.say("failure/core", &[("reason", reason.clone())]))
             }
-            Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
-            Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
+            Failure::NotSpawned => self.hinted(
+                &self.say("failure/not-spawned", &[]),
+                &[self.say("failure/not-spawned-hint", &[])],
+            ),
+            Failure::PortInUse(port) => self.hinted(
+                &self.say("failure/port-in-use", &[("port", port.to_string())]),
+                &[self.say("failure/port-in-use-hint", &[])],
+            ),
+            Failure::Crashed(reason) => {
+                self.error(&self.say("failure/crashed", &[("reason", reason.clone())]))
+            }
+            Failure::Start(reason) => {
+                self.error(&self.say("failure/start", &[("reason", reason.clone())]))
+            }
             Failure::Factory(problems) => {
-                let mut said = self.say("failure/factory", &[]);
+                let mut said = self.error(&self.say("failure/factory", &[]));
                 for problem in problems {
                     said.push_str(&format!("\n  {}", self.problem(problem)));
                 }
@@ -173,7 +187,10 @@ impl Texts {
             Shown::None => self.say("venue/none", &[]),
             Shown::Defaults => self.say("venue/defaults", &[]),
             Shown::Problems => self.say("venue/problems", &[]),
-            Shown::BadVenue(venue) => self.say("venue/bad-venue", &[("venue", venue.clone())]),
+            Shown::BadVenue(venue) => self.hinted(
+                &self.say("venue/bad-venue", &[("venue", venue.clone())]),
+                &[self.say("venue/bad-venue-hint", &[])],
+            ),
         }
     }
 
@@ -182,7 +199,9 @@ impl Texts {
         use crate::whitelist::Said;
         match said {
             Said::Empty => self.say("whitelist/empty", &[]),
-            Said::Bad(number) => self.say("whitelist/bad", &[("number", number.clone())]),
+            Said::Bad(number) => {
+                self.error(&self.say("whitelist/bad", &[("number", number.clone())]))
+            }
             Said::Added(entry) => self.say("whitelist/added", &[("entry", entry.clone())]),
             Said::Already(entry) => self.say("whitelist/already", &[("entry", entry.clone())]),
             Said::Removed(entry) => self.say("whitelist/removed", &[("entry", entry.clone())]),
@@ -197,8 +216,13 @@ impl Texts {
             self.say(key, &[("list", list.clone()), ("entry", entry.clone())])
         };
         match said {
-            Said::NoGroup(group) => self.say("access/no-group", &[("group", group.clone())]),
-            Said::Bad(number) => self.say("whitelist/bad", &[("number", number.clone())]),
+            Said::NoGroup(group) => self.hinted(
+                &self.say("access/no-group", &[("group", group.clone())]),
+                &[self.say("access/no-group-hint", &[("group", group.clone())])],
+            ),
+            Said::Bad(number) => {
+                self.error(&self.say("whitelist/bad", &[("number", number.clone())]))
+            }
             Said::Empty(list) => self.say("access/empty", &[("list", list.clone())]),
             Said::Added(list, entry) => pair("access/added", list, entry),
             Said::Already(list, entry) => pair("access/already", list, entry),
@@ -319,7 +343,11 @@ impl Texts {
             Report::Started => self.say("control/started", &[]),
             Report::Stopped => self.say("control/stopped", &[]),
             Report::Restarted => self.say("control/restarted", &[]),
-            Report::Off => self.say("status/off", &[]),
+            Report::Off => format!(
+                "{}\n{}",
+                self.say("status/off", &[]),
+                self.hint(&self.say("status/off-hint", &[]))
+            ),
             Report::Starting => self.say("status/starting", &[]),
             Report::Running(pid) => self.say("status/running", &[("pid", pid.to_string())]),
             Report::Waiting { seconds, failures } => self.say(
@@ -329,10 +357,18 @@ impl Texts {
                     ("failures", failures.to_string()),
                 ],
             ),
-            Report::Halted(halt) => self.say("status/stopped", &[("reason", self.halt(halt))]),
+            Report::Halted(halt) => format!(
+                "{}\n{}\n{}",
+                self.say("status/stopped", &[("reason", self.halt(halt))]),
+                self.hint(&self.say("status/stopped-logs", &[])),
+                self.hint(&self.say("status/stopped-restart", &[]))
+            ),
             Report::Stderr => self.say("status/stderr", &[]),
             Report::Other(state) => self.say("status/other", &[("state", state.clone())]),
-            Report::Missing => self.say("status/missing", &[]),
+            Report::Missing => self.hinted(
+                &self.say("status/missing", &[]),
+                &[self.say("status/missing-hint", &[])],
+            ),
             Report::Napcat {
                 implementation,
                 version,
@@ -348,17 +384,17 @@ impl Texts {
             Report::NapcatBot(bot) => self.say("status/napcat-bot", &[("bot", bot.clone())]),
             Report::NoNapcat => self.say("status/no-napcat", &[]),
             Report::Listen(listen) => self.say("status/listen", &[("listen", listen.to_string())]),
-            Report::Page => self.say("status/page", &[]),
+            Report::Page => self.hint(&self.say("status/page", &[])),
             Report::Misread(keys) => {
                 // 键换成清单里给人看的名字（施工 O-41 补二），照这时说的语言。
                 let names = crate::settings::labels(&self.package, keys, &self.language);
-                self.say(
+                self.warning(&self.say(
                     "status/misread",
                     &[(
                         "keys",
                         names.join(&self.say("status/misread-separator", &[])),
                     )],
-                )
+                ))
             }
         }
     }
@@ -383,13 +419,13 @@ impl Texts {
         match heading {
             Heading::Stderr(path) => self.say("logs/stderr", &[("path", path.clone())]),
             Heading::Log(path) => self.say("logs/log", &[("path", path.clone())]),
-            Heading::None(path) => self.say("logs/none", &[("path", path.clone())]),
+            Heading::None(path) => self.error(&self.say("logs/none", &[("path", path.clone())])),
         }
     }
 
     /// 说 `key` 那一句，换进 `fields`。换不出来的（没有这一句、少了字段：是 bug，`tests/texts.rs` 守着）不吞掉：
     /// 照实印出说法的编号和字段，再记一行运行日志。
-    fn say(&self, key: &str, fields: &[(&str, String)]) -> String {
+    pub(crate) fn say(&self, key: &str, fields: &[(&str, String)]) -> String {
         let said = fields.iter().fold(
             Said::new(format!("{KEYS}/{key}")),
             |said, (field, value)| said.with(field, value.clone()),
