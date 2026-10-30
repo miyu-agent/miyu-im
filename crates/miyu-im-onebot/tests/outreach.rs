@@ -231,3 +231,57 @@ async fn from_a_local_session_with_qq_disconnected_she_is_told_it_is_unreachable
     );
     stopped(home).await;
 }
+
+#[tokio::test]
+async fn from_a_local_session_with_two_bots_she_says_which_one_sends() {
+    // 施工 I-81 下下（设计 07 第 7.7 节第 5 条）：同一个平台连着两个号，本机的会话里没写 `bot` 的不猜，答有哪几个号；写了的经它发。
+    const OTHER: i64 = 30004;
+    let lines = Lines::new([
+        crate::support::speaking::Line::uses(
+            "",
+            "qq_send",
+            r#"{"group":999,"text":"大家晚上好。"}"#,
+        ),
+        crate::support::speaking::Line::uses(
+            "",
+            "qq_send",
+            r#"{"group":999,"text":"大家晚上好。","bot":30004}"#,
+        ),
+        crate::support::speaking::Line::says("好。"),
+    ]);
+    let (home, _first, listen) = started_ranked(
+        std::sync::Arc::new(lines.clone()),
+        &rules(),
+        &onebot(),
+        (MEMBERS, RANKS),
+    )
+    .await;
+    let mut other = crate::support::napcat::napcat(
+        listen,
+        "/onebot/v11/ws",
+        crate::support::napcat::Auth::Bearer(TOKEN),
+        Some(OTHER),
+    )
+    .await
+    .expect("接了")
+    .answering(MEMBERS);
+    until_logged(&home.root, |line| {
+        line.contains("napcat connected") && line.contains("30004")
+    })
+    .await;
+    local_session(&home, "去 999 打个招呼").await;
+    let sent = next_send(&mut other, "send_group_msg", "group_id", ELSEWHERE).await;
+    assert_eq!(
+        sent["params"]["message"],
+        json!([{"type": "text", "data": {"text": "大家晚上好"}}]),
+        "写了 bot 的经它发"
+    );
+    let requests = lines.requests();
+    let which = sentence("which-bot", &[("bots", &format!("{BOT}, {OTHER}"))]);
+    assert!(
+        format!("{:?}", requests[1]).contains(which.trim()),
+        "没写 bot 的答有哪几个号：{:?}",
+        requests[1]
+    );
+    stopped(home).await;
+}

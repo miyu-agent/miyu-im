@@ -108,6 +108,35 @@ impl Route {
             .await
     }
 
+    /// 本机的会话里主动发消息经哪个号（施工 I-81 下下，设计 07 第 7.7 节第 5 条）：参数 `given` 写了、连着的照它；没写的，这个平台
+    /// 连着的号不止一个的不猜。交回号（空的照 [`Route::reach`] 的老办法挑）；不知道经哪个的交回连着的号，照号排、逗号隔开。
+    pub(super) fn local_sender(
+        &self,
+        platform: Platform,
+        given: &Value,
+    ) -> Result<Option<Id>, String> {
+        let connected: Vec<Id> = self
+            .platforms
+            .bots(platform)
+            .held()
+            .into_iter()
+            .map(|(bot, ..)| bot)
+            .collect();
+        let listed = || {
+            connected
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        match serde_json::from_value::<Id>(given.clone()).ok() {
+            Some(bot) if connected.contains(&bot) => Ok(Some(bot)),
+            Some(_) => Err(listed()),
+            None if connected.len() > 1 => Err(listed()),
+            None => Ok(None),
+        }
+    }
+
     /// 照对方的场所过出站链、找对方的会话，起一个任务发（见模块开头）。经平台 `platform` 上的号 `bot`，没写的、没连着的退回这个
     /// 平台连着的号里最小的那一个（不跨平台，施工 I-70 上）；这个平台没有号连着的答 `unreachable`、拒 `not_connected`。
     pub(super) async fn reach(

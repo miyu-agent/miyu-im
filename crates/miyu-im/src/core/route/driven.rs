@@ -42,12 +42,21 @@ impl Route {
         let answerer = self.core.answerer();
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
-            // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经连着的号里最小的那一个）。
-            // 没有场所，平台照这件工具是哪个驱动的（施工 I-70 中上）。
+            // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经参数 `bot` 写的号，没写的
+            // 这个平台只连着一个号时经它，施工 I-81 下下）。没有场所，平台照这件工具是哪个驱动的（施工 I-70 中上）。
             match set.local(tool, &params["args"], &answers) {
                 Some(Planned::Host(Effect::Send { to, text })) => {
+                    let bot = match self.local_sender(platform, &params["args"]["bot"]) {
+                        Ok(bot) => bot,
+                        Err(bots) => {
+                            tracing::info!(target: TARGET, session, why = "which-bot", "platform tool failed");
+                            answerer
+                                .answer(&id, answers.say("which-bot", &[("bots", &bots)], true));
+                            return Ok(());
+                        }
+                    };
                     let answer = Answer::Tool(id, answers, answerer);
-                    return self.reach((platform, None), (to, text), answer).await;
+                    return self.reach((platform, bot), (to, text), answer).await;
                 }
                 Some(Planned::Now(answer)) => answerer.answer(&id, answer),
                 _ => {
