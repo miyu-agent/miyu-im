@@ -82,7 +82,6 @@ enum Control {
     Persona,
     Textarea,
     List,
-    Chatty,
     Text,
     LongText,
     Number,
@@ -105,7 +104,6 @@ const GROUP_FORMS: [Form; 4] = [
         "call",
         &[
             ("keywords", Control::List),
-            ("chatty", Control::Chatty),
             ("managers", Control::List),
             ("show_ids", Control::Toggle),
         ],
@@ -161,8 +159,7 @@ const PRIVATE_FORMS: [Form; 2] = [
     ),
 ];
 
-/// 插嘴四档、长文两种：值和字的键。
-const CHATTY: [&str; 4] = ["never", "few", "some", "many"];
+/// 长文的几种：值和字的键。
 const LONG_TEXT: [&str; 3] = ["split", "image", "forward"];
 
 /// 「群」那一页：`lang` 是桥这时的语言（太大时只画它）。
@@ -402,7 +399,6 @@ impl Ink<'_> {
         }
         match control {
             Control::Persona => field["options"] = self.personas(value),
-            Control::Chatty => field["options"] = self.options("chatty", &CHATTY),
             Control::LongText => field["options"] = self.options("long_text", &LONG_TEXT),
             Control::Number => {
                 field["min"] = json!(0);
@@ -435,7 +431,7 @@ impl Ink<'_> {
                     shown.join("、")
                 }
             }
-            (Value::String(text), Control::Chatty | Control::LongText) => {
+            (Value::String(text), Control::LongText) => {
                 self.words.get(&format!("{key}.{text}"), lang)
             }
             (Value::String(text), Control::Persona) => {

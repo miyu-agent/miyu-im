@@ -21,8 +21,8 @@ const ALT: i64 = 10007;
 /// 假 NapCat 认得的群成员：她自己（群名片「米尤」）。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 群里不抽样：都只记下。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 群里没叫她的都只记下。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// `who` 用群名片 `card` 说第 `message` 条。
 fn says(napcat: &Answering, who: i64, card: &str, message: i64) {

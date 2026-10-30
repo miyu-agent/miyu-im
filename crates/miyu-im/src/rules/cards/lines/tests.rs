@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
 
-use super::super::{Chatty, GroupSet, LongText, PrivateSet};
+use super::super::{GroupSet, LongText, PrivateSet};
 use super::{group_lines, key_ok, private_lines};
 
 fn rules(pairs: &[(&str, Value)]) -> Option<BTreeMap<String, Value>> {
@@ -47,10 +47,8 @@ fn keys_are_a_table_and_an_item_or_one_of_the_top_ones() {
 #[test]
 fn the_rules_come_last_and_win_over_the_same_key() {
     let set = GroupSet {
-        chatty: Some(Chatty::Few),
         long_text: Some(LongText::Image),
         rules: rules(&[
-            ("chatty.probability", json!(70)),
             ("chatty.base", json!(0.75)),
             ("outbound.quote_after", json!(3)),
             ("parallel", json!(2)),
@@ -65,9 +63,8 @@ fn the_rules_come_last_and_win_over_the_same_key() {
         group_lines(&set, true),
         [
             "allow = true",
-            "discipline = \"chatty\"",
-            "chatty = { probability = 70, base = 0.75 }",
             "outbound = { long_text = \"image\", quote_after = 3 }",
+            "chatty = { base = 0.75 }",
             "dispatch = { supersede_window = \"7s\" }",
             "judge = { model = \"deepseek/v4\" }",
             "parallel = 2",

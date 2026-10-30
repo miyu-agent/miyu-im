@@ -241,7 +241,6 @@ fn an_unjudged_call_to_her_is_answered_and_the_rest_only_recorded() {
         for kinds in [
             &[Kind::Continuation][..],
             &[Kind::AfterSpeaking],
-            &[Kind::Probability],
             &[Kind::Continuation, Kind::AfterSpeaking, Kind::Moderation],
         ] {
             let written = body(&with(kinds), Standing::Member, Some(judged));
@@ -333,7 +332,6 @@ fn kinds_read_back_as_written() {
         Kind::Direct,
         Kind::Continuation,
         Kind::AfterSpeaking,
-        Kind::Probability,
         Kind::Moderation,
     ] {
         let conditions = Conditions {
@@ -358,14 +356,10 @@ fn kinds_read_back_as_written() {
     }
     assert_eq!(
         names,
-        [
-            "direct",
-            "continuation",
-            "after_speaking",
-            "probability",
-            "moderation"
-        ]
+        ["direct", "continuation", "after_speaking", "moderation"]
     );
+    // 抽样删了（施工 I-88）：旧日志里的 `probability` 认不出，投影照「认不出的种类不要」。
+    assert_eq!(kind_of("probability"), None);
     assert_eq!(kind_of("inherited"), None);
     assert_eq!(kind_of(""), None);
 }

@@ -159,7 +159,6 @@ fn blank() -> Params {
             printable: 0,
         },
         chatty: Chatty {
-            probability: 0,
             base: 0.0,
             weights: [0.0; 5],
             adjust: 0.0,
@@ -192,7 +191,6 @@ fn blank() -> Params {
             },
             severity_min: 0,
             judge_called: false,
-            skip_media: false,
             skip_users: Vec::new(),
         },
         repeat_window: 0,

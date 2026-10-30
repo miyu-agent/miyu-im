@@ -47,7 +47,7 @@ pub(super) fn bare(person: &str) -> &str {
 pub(super) fn control_name(control: Control) -> &'static str {
     match control {
         Control::Toggle => "toggle",
-        Control::Persona | Control::Chatty | Control::LongText => "select",
+        Control::Persona | Control::LongText => "select",
         Control::Textarea => "textarea",
         Control::List => "list",
         Control::Text => "text",
@@ -82,7 +82,7 @@ pub(super) fn default_value(
         (Control::Toggle, Value::Bool(_)) | (Control::Number, Value::Number(_)) => true,
         (Control::Text | Control::Textarea, Value::String(_)) => true,
         (Control::List, Value::Array(list)) => list.iter().all(Value::is_string),
-        (Control::Persona | Control::Chatty | Control::LongText, Value::String(_)) => options
+        (Control::Persona | Control::LongText, Value::String(_)) => options
             .as_array()
             .is_some_and(|options| options.iter().any(|option| option["value"] == *value)),
         _ => false,

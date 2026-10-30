@@ -16,7 +16,7 @@ const SCORE: Kind = Kind::Float { min: 0, max: 10 };
 /// 按群冷静数的轮数（施工 I-62）：0 到 100，她在一个群里十来分钟就能回二三十轮。
 const ROUNDS: Kind = Kind::Float { min: 0, max: 100 };
 
-/// 千分比：0 到 1000（抽样、base64 可打印的比例）。
+/// 千分比：0 到 1000（base64 可打印的比例）。
 const PER_MILLE: Kind = Kind::Int { min: 0, max: 1000 };
 
 /// 百分比：1 到 100（去重的相似度）。0 什么都算重复。
@@ -80,7 +80,7 @@ pub(crate) const PAIRED: (&str, &str) = ("outbound.leak_open", "outbound.leak_cl
 
 /// 一项参数的声明。
 pub(crate) struct Item {
-    /// 名字：`表.项`，例如 `chatty.probability`。场所规则套出来的结果（[`Resolved`](crate::Resolved)）、`venue show`、
+    /// 名字：`表.项`，例如 `chatty.base`。场所规则套出来的结果（[`Resolved`](crate::Resolved)）、`venue show`、
     /// 问题的键都照它。
     pub(crate) key: &'static str,
     /// 类型：配置清单的一种，范围写在里面。
@@ -133,9 +133,6 @@ pub(crate) const ITEMS: &[Item] = &[
     }),
     item("inbound.repeat_window", WINDOW, |p, v| {
         p.repeat_window = millis(v)
-    }),
-    item("chatty.probability", PER_MILLE, |p, v| {
-        p.chatty.probability = count(v)
     }),
     item("chatty.base", SCORE, |p, v| p.chatty.base = float(v)),
     // 五维的权重各一项，照相关、意愿、社交、时机、连贯的先后填进 `weights`（施工时定的第 1 条）。
@@ -222,12 +219,9 @@ pub(crate) const ITEMS: &[Item] = &[
     item("chatty.severity_min", SEVERITY, |p, v| {
         p.chatty.severity_min = count(v)
     }),
-    // 被叫时也过判断、跳过纯图片、跳过判断的人（施工 I-7 中三）。
+    // 被叫时也过判断、跳过判断的人（施工 I-7 中三）。
     item("chatty.judge_called", Kind::Bool, |p, v| {
         p.chatty.judge_called = flag(v)
-    }),
-    item("chatty.skip_media", Kind::Bool, |p, v| {
-        p.chatty.skip_media = flag(v)
     }),
     item("chatty.skip_users", PEOPLE, |p, v| {
         p.chatty.skip_users = texts(v)
@@ -357,6 +351,10 @@ impl Item {
         (self.put)(params, value);
     }
 }
+
+/// 删掉的项（施工 I-88：抽样和只挡抽样的跳过纯图片，设计 05 第二节第 7 条）：旧的场所规则、卡片上写着的照没写读，
+/// 不报问题、不套。出厂文件里写着照样报：出厂文件是打包的，写着是打包的错。
+pub(crate) const RETIRED: &[&str] = &["chatty.probability", "chatty.skip_media"];
 
 /// 照名字（`表.项`）找一项。
 pub(crate) fn find(key: &str) -> Option<&'static Item> {

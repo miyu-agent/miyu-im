@@ -9,14 +9,8 @@ export function chips(one, personas) {
   const set = one.set;
   const all = [];
   if (one.on === false) all.push({ text: say('chip/off') });
-  // 线路规程、抽样（施工 I-7 中二）：写在卡上 `rules` 里的照它，没写的照插嘴的旧写法（四档）。
-  const rules = set.rules || {};
-  if (rules.discipline === 'when-called') all.push({ text: say('chip/called-only') });
-  else if (rules['chatty.probability'] !== undefined) {
-    all.push({ text: say('chip/chatty-percent', { n: rules['chatty.probability'] / 10 }), accent: true });
-  } else if (set.chatty) {
-    all.push({ text: set.chatty === 'never' ? say('chip/called-only') : say(`chip/chatty-${set.chatty}`), accent: set.chatty !== 'never' });
-  }
+  // 线路规程（施工 I-7 中二）：写在卡上 `rules` 里的照它。抽样、插嘴的旧写法（四档）施工 I-88 删了，不写。
+  if (set.rules?.discipline === 'when-called') all.push({ text: say('chip/called-only') });
   if (set.keywords?.length) all.push({ text: say('chip/keywords', { words: set.keywords.join(say('chip/joiner')) }) });
   if (set.persona) all.push({ text: say('chip/persona', { name: personas.get(set.persona) || set.persona }) });
   if (set.model) all.push({ text: say('chip/model', { model: set.model }) });

@@ -18,7 +18,7 @@ fn cards(value: Value) -> Cards {
     serde_json::from_value(value).expect("是卡片的样子")
 }
 
-/// 她在两个群、两个好友，两个人格；默认值：群 7 的插嘴是偶尔、其他群不接话。
+/// 她在两个群、两个好友，两个人格；默认值：群 7 的长文转成图、其他群不接话。
 fn known() -> Known {
     Known {
         groups: vec![
@@ -34,7 +34,7 @@ fn known() -> Known {
         defaults: json!({
             "other_groups": {"on": {"value": false, "from": null}},
             "other_privates": {"on": {"value": false, "from": null}, "rate": {"value": "5/300s", "from": "factory"}},
-            "groups": {"7": {"chatty": {"value": "some", "from": "factory"}, "managers": {"value": ["qq:1001"], "from": "setting"}, "persona": {"value": "miyu", "from": "system"}}},
+            "groups": {"7": {"long_text": {"value": "image", "from": "factory"}, "managers": {"value": ["qq:1001"], "from": "setting"}, "persona": {"value": "miyu", "from": "system"}}},
             "privates": {"9": {"long_chars": {"value": 300, "from": "factory"}}},
         }),
     }
@@ -104,8 +104,8 @@ fn the_groups_page_has_other_groups_first_and_forms_per_group() {
     );
     assert_eq!(field(group, "rate")["value"], Value::Null, "没写的是 null");
     assert_eq!(
-        field(group, "chatty")["default"]["text"]["zh"],
-        "默认 · 偶尔"
+        field(group, "long_text")["default"]["text"]["zh"],
+        "默认 · 转成图"
     );
     assert_eq!(
         field(group, "managers")["default"]["text"]["zh"],
@@ -233,7 +233,6 @@ fn every_word_on_the_pages_is_written_in_three_languages() {
         "\"field.",
         "\"heading.",
         "\"hint.",
-        "\"chatty.",
         "\"long_text.",
         "\"other_groups_sub",
         "\"add_",
@@ -261,8 +260,8 @@ fn defaults_carry_their_value_when_the_control_can_take_it() {
     let page = groups_page(&set, &known(), &words(), "zh");
     let group = &page[1]["items"][1];
     assert_eq!(
-        field(group, "chatty")["default"]["value"],
-        "some",
+        field(group, "long_text")["default"]["value"],
+        "image",
         "下拉照选项里的值"
     );
     assert_eq!(

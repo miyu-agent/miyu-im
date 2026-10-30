@@ -30,10 +30,9 @@ pub(crate) const SENDER: &str = "qq:10002";
 /// 另一个人。
 pub(crate) const OTHER: &str = "qq:10003";
 
-/// 旧版的默认值（18 第七节），只有抽样是 0：别的测试不让抽样掺进来，抽样的测试自己设。
+/// 旧版的默认值（18 第七节）。
 pub(crate) fn chatty() -> Chatty {
     Chatty {
-        probability: 0,
         base: 0.8,
         weights: [0.25, 0.25, 0.15, 0.15, 0.20],
         adjust: 0.2,
@@ -73,7 +72,6 @@ pub(crate) fn chatty() -> Chatty {
         },
         severity_min: 7,
         judge_called: true,
-        skip_media: true,
         skip_users: Vec::new(),
     }
 }

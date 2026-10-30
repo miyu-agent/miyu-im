@@ -89,7 +89,7 @@ pub struct Problem {
     pub file: String,
     /// 第几条规则，从 1 数。整份文件的问题、最上面的键、出厂参数的文件（第八条）没有。
     pub rule: Option<usize>,
-    /// 哪一项的键，原样：属性写名字（`rate`），匹配条件带上 `match.`（`match.group`），参数写 `表.项`（`chatty.probability`，
+    /// 哪一项的键，原样：属性写名字（`rate`），匹配条件带上 `match.`（`match.group`），参数写 `表.项`（`chatty.base`，
     /// 整张表的问题写表名），最上面的写它自己（`rule`）。写法不对（`syntax`）的没有。
     pub key: Option<String>,
     /// 在哪：值写错的指到值，不认识的键指到键。写法不对的照 `toml_edit` 报的位置，它没给的没有；出厂参数缺了的项没有。

@@ -1,4 +1,4 @@
-// 会话浮窗各页的控件（施工 I-7 中一起，从 form.js 挪出来；中二多关键词、管理的人、概率、小数、几项一行）：照 fields.js 的 control
+// 会话浮窗各页的控件（施工 I-7 中一起，从 form.js 挪出来；中二多关键词、管理的人、小数、几项一行）：照 fields.js 的 control
 // 画，改了调 `save(value)`（null 是恢复默认），几项一行的照项各存各的（`saveKey(key, value)`）。没写的显示继承的值：下拉多一项、
 // 输入框写在占位字里、开关照现在用着的画。选模型、贴表情点开小窗选（pickers.js），限流、睡眠在 spans.js，标签是 shell/tags.js。
 import { element, say } from '../../shell/i18n.js';
@@ -26,8 +26,6 @@ export function control(field, one, context, save, saveKey) {
     }
     case 'tags':
       return tags(field, one, context, save);
-    case 'percent':
-      return percent(field, one, save);
     case 'reaction':
       return reactionControl(field, one, context.reactions, save);
     case 'float':
@@ -110,25 +108,6 @@ function tags(field, one, context, save) {
     placeholder: say(field.people ? 'field/add-person' : 'field/add-word'),
     save,
   });
-}
-
-/** 概率：拖动条，百分之几，存成千分比（5% 存 50）。 */
-function percent(field, one, save) {
-  // 填数值（施工 I-50，项目主人 10-27：原来是拖动条，拖不准）：存成千分比；空的是跟随默认，提示写着现在用着的。
-  const box = element('span', 'inline');
-  const input = element('input', 'input num narrow');
-  input.inputMode = 'decimal';
-  const mine = written(one, field.key);
-  input.value = mine === undefined ? '' : String(mine / 10);
-  input.placeholder = String((current(one, field.key) ?? 0) / 10);
-  input.addEventListener('change', () => {
-    const text = input.value.trim().replace(/%$/, '');
-    if (text === '') return save(null);
-    const number = Number(text);
-    return save(Number.isFinite(number) ? Math.round(number * 10) : text);
-  });
-  box.append(input, element('span', 'soft', '%'));
-  return box;
 }
 
 /** 小数（门槛、权重）：空的是恢复默认，读不出数的照字交给宿主报错。 */

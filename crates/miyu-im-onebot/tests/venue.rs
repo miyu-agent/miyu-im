@@ -54,7 +54,7 @@ fn test_rules(root: &DataRoot) {
     system_rule(
         root,
         "80-test.toml",
-        "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { probability = 80 }\n",
+        "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { severity_min = 8 }\n",
     );
     system_rule(
         root,
@@ -79,7 +79,7 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
         (
             0,
             "allow = false（卡片「其他群」）\n\
-             chatty.probability = 80（系统 80-test.toml 第 1 条规则，第 4 行）\n\
+             chatty.severity_min = 8（系统 80-test.toml 第 1 条规则，第 4 行）\n\
              discipline = \"chatty\"（出厂 50-defaults.toml 第 1 条规则，第 14 行）\n\
              outbound.final_only = true（出厂 50-defaults.toml 第 1 条规则，第 17 行）\n\
              parallel = 3（出厂 50-defaults.toml 第 1 条规则，第 16 行）\n\
@@ -167,12 +167,12 @@ fn broken_factory_data_is_said_with_every_problem() {
     let good = std::fs::read_to_string(&defaults).expect("读得了");
     let line = good
         .lines()
-        .position(|line| line.starts_with("probability = 50 "))
+        .position(|line| line.starts_with("severity_min = 7 "))
         .expect("有这一行")
         + 1;
     std::fs::write(
         &defaults,
-        good.replace("probability = 50 ", "probability = 5000 "),
+        good.replace("severity_min = 7 ", "severity_min = 70 "),
     )
     .expect("写得进");
     let texts = zh(&resources);
@@ -181,7 +181,7 @@ fn broken_factory_data_is_said_with_every_problem() {
     assert_eq!(
         err,
         format!(
-            "miyu im: 出厂数据有问题，无法启动（打包错误）：\n  出厂 defaults.toml 第 {line} 行：chatty.probability 超出范围：5000\n"
+            "miyu im: 出厂数据有问题，无法启动（打包错误）：\n  出厂 defaults.toml 第 {line} 行：chatty.severity_min 超出范围：70\n"
         )
     );
     clean(&dir);
@@ -253,7 +253,7 @@ async fn the_program_shows_in_the_system_language() {
     assert_eq!(
         text(&shown.stdout),
         "allow = true (card of group 1)\n\
-         chatty.probability = 80 (system 80-test.toml, rule 1, line 4)\n\
+         chatty.severity_min = 8 (system 80-test.toml, rule 1, line 4)\n\
          discipline = \"chatty\" (factory 50-defaults.toml, rule 1, line 14)\noutbound.final_only = true (factory 50-defaults.toml, rule 1, line 17)\n\
          parallel = 3 (factory 50-defaults.toml, rule 1, line 16)\n\
          rate = \"30/60s\" (system 80-test.toml, rule 1, line 3)\n\

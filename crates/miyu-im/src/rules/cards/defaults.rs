@@ -2,8 +2,7 @@
 //! 照卡片的格写。后台页照它画淡字带「默认」的值。
 //!
 //! - 没有规则设到的格是 `null`（页面写「不设」）；`on` 没设的是接话（出厂的群、私聊都不写 `allow`）。
-//! - 插嘴照线路规程和抽样的千分比认档：`when-called` 是 `never`，千分比不到 35 是 `few`、不到 85 是 `some`、别的是 `many`。
-//! - 来处只说是哪一层：`factory`、`setting`、`system`；照出厂参数来的（插嘴、去句号）是 `factory`。
+//! - 来处只说是哪一层：`factory`、`setting`、`system`；照出厂参数来的（长文、仅发送最终消息）是 `factory`。
 //! - 卡上 `rules` 能写的每一个键（施工 I-7 中一，[`rules`]）：出厂参数的每一项，规则改了的照规则、没改的照出厂；
 //!   顶层的几个（`lines::TOP`）和 `judge.model` 规则里有的照规则，没有的是 `null`。
 
@@ -49,7 +48,6 @@ pub fn group(applied: &Applied) -> Value {
     ] {
         set.insert(key.into(), plain(applied, key));
     }
-    set.insert("chatty".into(), chatty(applied));
     long_text(applied, &mut set);
     Value::Object(set)
 }
@@ -88,25 +86,6 @@ fn entry(applied: &Applied, key: &str) -> Option<Value> {
         .entries
         .get(key)
         .map(|entry| json!({"value": entry.value.json(), "from": layer(entry.origin.source)}))
-}
-
-/// 插嘴是哪一档。
-fn chatty(applied: &Applied) -> Value {
-    let discipline = applied.resolved.entries.get("discipline");
-    if discipline.is_some_and(|entry| entry.value.json() == "when-called") {
-        return json!({"value": "never", "from": discipline.map(|entry| layer(entry.origin.source))});
-    }
-    let level = match applied.params.chatty.probability() {
-        0..35 => "few",
-        35..85 => "some",
-        _ => "many",
-    };
-    let from = applied
-        .resolved
-        .entries
-        .get("chatty.probability")
-        .map_or("factory", |entry| layer(entry.origin.source));
-    json!({"value": level, "from": from})
 }
 
 /// 长文的两格（施工 O-59 上）、仅发送最终消息（施工 O-57）：出厂参数套上规则改的。

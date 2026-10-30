@@ -50,9 +50,7 @@ async fn spoken(home: &Home, napcat: &Answering, msg: i64) -> Value {
 #[tokio::test]
 async fn her_name_in_the_group_follows_her_group_card() {
     let script = Script::new([]);
-    let rules = format!(
-        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nchatty = {{ probability = 0 }}\n"
-    );
+    let rules = format!("[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\n");
     let (home, napcat, _) = started(&script, &rules, "", MEMBERS).await;
     assert_eq!(
         spoken(&home, &napcat, 1).await,

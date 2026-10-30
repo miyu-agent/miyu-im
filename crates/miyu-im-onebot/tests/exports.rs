@@ -205,7 +205,7 @@ async fn a_silent_napcat_is_unanswered() {
 #[tokio::test]
 async fn a_group_session_names_its_venue_and_bot() {
     let script = Script::new([]);
-    let rules = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+    let rules = "[[rule]]\nmatch = { kind = \"group\" }\n";
     let (home, napcat, _) = started(&script, rules, "", &[(BOT, "米尤", "miyu")]).await;
     napcat.send(group_frame(
         777,

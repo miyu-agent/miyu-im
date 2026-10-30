@@ -2,7 +2,7 @@
 //! 另装导出 `chat.inbound` 的测试包。
 //!
 //! - 回 `record`：别人 @ 她只记下，判断写 `hook`；终端管理员 @ 她照回、不写 `hook`。问的是这一条的场所、号、发的人、正文。
-//! - 回 `reply`：别人随口说的（不 @、不抽样）也直接回，不问判官；两个包一个 `record` 一个 `reply` 照 `record`。
+//! - 回 `reply`：别人随口说的（不 @）也直接回，不问判官；两个包一个 `record` 一个 `reply` 照 `record`。
 //! - 不回的：等 `hook_millis`（出厂 1.5 秒）以后照常，运行日志记一行。
 
 use serde_json::{Value, json};
@@ -23,8 +23,8 @@ const GROUP: i64 = 777;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 平台编号是 `message` 的那一条判下来的样子。
 fn decided(events: &[Value], message: i64) -> Option<Value> {
@@ -200,7 +200,7 @@ async fn an_answer_it_cannot_read_is_a_pass() {
     .await;
     until_hooked(&home, 1).await;
     let venue = format!("qq:30003:group:{GROUP}");
-    // 别人随口说的：照常只记下（不抽样）；回得不对的不当成 `reply`。
+    // 别人随口说的：照常只记下；回得不对的不当成 `reply`。
     napcat.send(says(LIN, 1, false));
     let events = until_events(&home.root, &venue, |events| decided(events, 1).is_some()).await;
     let plain = decided(&events, 1).expect("记了");
@@ -220,7 +220,7 @@ async fn an_answer_it_cannot_read_is_a_pass() {
 async fn reply_does_not_get_past_the_rate_limit() {
     // 一小时一个回合：头一条照 `reply` 回了，第二条额度满了，`reply` 不越过它，只记下。
     let script = Script::new([Play::Says("在的")]);
-    let rules = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\nrate = \"1/3600s\"\n";
+    let rules = "[[rule]]\nmatch = { kind = \"group\" }\nrate = \"1/3600s\"\n";
     let (home, mut napcat, _) = started_installed(&script, rules, MEMBERS, |root| {
         hook(root, "eager", r#"{"route":"reply"}"#);
     })

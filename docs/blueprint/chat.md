@@ -24,7 +24,7 @@
 | `crates/miyu-chat/src/inbound/` | 每条规则一个文件；违规关键词和 base64；限流的数法和回合闸 |
 | `crates/miyu-chat/src/inbound/addressed.rs` | 是不是冲她来的（施工 O-12 下） |
 | `crates/miyu-chat/src/chatty.rs` | 主动回复判断：两个插槽（加值项、门槛修正）、条件、走哪条路、算分（施工 O-7） |
-| `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静 |
+| `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；冷静 |
 | `crates/miyu-chat/src/chatty/supersede.rs`、`chatty/dispatch.rs` | 顶替、分派，各一个文件（施工 O-9，O-12 下分开） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带四条（清理、去末尾句号、去重、引用和 @）；按段拆开（施工 O-10；去句号 O-47 加，Markdown 转纯文本 O-47 去掉） |
 | `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
@@ -85,9 +85,9 @@ managers = ["qq:10002"]
 | `recent` | 整数 1 到 1000 | 群会话里她回话时带多少条群聊近况（施工 O-62，核心 `venue.session` 的 `recent`）：只管群、只对新造的会话生效（核心造会话时钉进快照）；不写的只照核心的字节预算 |
 | `model` | 模型的引用：`<供应商>/<模型>` 或 `@<池>` | 场所会话回话用的模型（施工 O-58 补三，核心的 `session.configure`）：第一次找到会话时钉上；卡片换了的跟着换，清掉的回到跟着配置的 `models.chat`；没设的不碰（人在别处换的照旧） |
 | `extra_prompt` | 几行字，最多 2000 个字符（施工 O-58 上从一行改成几行） | 场所的附加说明（核心的 `docs/designs/26-提示词.md` 第五节）；接入通讯平台 照模板裹好经 `system.append` 放进这个场所会话的 system 尾部 |
-| `inbound`、`chatty`、`dispatch`、`judge`、`outbound` | 表，每一项照第八条的声明 | 插件参数的表（第八条，施工 O-15）：只改写了的几项，例如 `chatty = { probability = 80 }` |
+| `inbound`、`chatty`、`dispatch`、`judge`、`outbound` | 表，每一项照第八条的声明 | 插件参数的表（第八条，施工 O-15）：只改写了的几项，例如 `chatty = { severity_min = 8 }` |
 
-- **参数的表**：写成行内表、`[rule.chatty]` 表头、点号连着的键（`chatty.probability = 80`）都行，TOML 里是一回事。读的时候展开成一项一项，键是 `表.项`（`chatty.probability`），每一项照第八条的声明查、各自盖。
+- **参数的表**：写成行内表、`[rule.chatty]` 表头、点号连着的键（`chatty.severity_min = 8`）都行，TOML 里是一回事。读的时候展开成一项一项，键是 `表.项`（`chatty.severity_min`），每一项照第八条的声明查、各自盖。
 - **限流** `rate`：`"<回合数>/<时长>"`，回合数 1 到 10000，时长照配置清单的时长写法（正整数，后面可以跟 `s`、`m`、`h`，不写是秒），1 秒到 1 天；或者 `"0"`，不限。例如 `"5/300s"`、`"30/1m"`。
 - **睡眠** `sleep`：`"HH:MM-HH:MM"`，二十四小时制，`00:00` 到 `23:59`；开始晚于结束的跨午夜（`"23:00-07:00"`）；开始和结束一样的不收；或者 `"off"`，不睡。按场所会话的时区算，时区不在这里。
 - **身份** `managers` 的每一个：`<平台>:<编号>`，平台照名字的写法，编号不空、没有空白和控制字符。
@@ -101,7 +101,7 @@ Rust 这一边：
 | `Venue::new(platform, kind, number) -> Result<Venue, FormatError>` | 一个场所：平台、`VenueKind::Group` 或 `Private`、平台里的编号（群号或对方的号）。几格私有，只能这样造；读用 `platform()`、`kind()`、`number()`。平台不是名字、号是空的或带空白和控制字符、拼出来的编号超过 128 字节的造不出，报内核的 `FormatError` |
 | `Venue::id() -> &VenueId`、`Venue::parse(&VenueId) -> Option<Venue>` | 场所编号（内核的 `VenueId`）的拼和解：`<平台>:<机器人号>:group:<群号>`、`<平台>:<机器人号>:private:<对方的号>`（im 施工 I-81，`Venue::with_bot` 造），不带机器人号的老写法 `<平台>:group:<群号>`（`Venue::new` 造，套规则算默认值用）照旧拼得出、解得开；平台后面那一段是 `group`、`private` 的是老写法，别的是机器人号（机器人号不能有 `:`、不能正好叫 `group`、`private`），`bot()` 交它（老写法的是空的）。造的时候拼好、查过，`id()` 不会失败；解的照造的规矩查，解不出的是 `None` |
 | `person(platform, number) -> Result<ExternalId, FormatError>`、`parse_person(&ExternalId) -> Option<(&str, &str)>` | 平台上的人（内核的 `ExternalId`）的拼和解：`<平台>:<号>`，规矩同上；管理员的身份 `managers` 照同一份规矩查 |
-| `Rules::resolve(&venue) -> Resolved { entries }` | 套到一个场所上：属性的名字到 `Entry`，没有规则设到的不在里面；参数的表展开成一项一项，名字是 `表.项`（`chatty.probability`） |
+| `Rules::resolve(&venue) -> Resolved { entries }` | 套到一个场所上：属性的名字到 `Entry`，没有规则设到的不在里面；参数的表展开成一项一项，名字是 `表.项`（`chatty.severity_min`） |
 | `Entry { value, origin }` | 一项最后的样子：值（配置的 `Value`，过了校验）、最后设它的那一条规则的来处 |
 | `Origin { source, file, rule, line }` | 来处：哪一份、哪个文件、第几条规则（从 1 数）、那一项在第几行 |
 | `Problem { code, source, file, rule, key, at, got, suggest, why }` | 一个问题。`code` 用配置的原因码（`miyu_config::problem::Code`），严重程度跟着它 |
@@ -119,7 +119,7 @@ Rust 这一边：
    - 不认识的键：`unknown_key`，给出离得最近的键名，这一项不收，别的照收。
    - 值写错了：照配置的原因码（`wrong_type`、`not_an_option`、`out_of_range`、`bad_format`）报，只丢这一项，别的照收（核心的 `docs/designs/14-配置.md` G8）。
    - 参数的表（第八条）：不是表的 `wrong_type`，整张表不收；表里不认识的项 `unknown_key`，给这张表里离得最近的项，写成 `表.项`；每一项照声明查，写错的只丢那一项。表名拼错的，最近的名字从属性名和表名里一起找。
-6. **套到一个场所上**：照第 1 条的先后，一个文件一个文件、一条规则一条规则地看；匹配的规则，它写的每一项都盖掉之前的，来处跟着换。参数的表展开以后每一项各自盖：一条规则写 `chatty = { probability = 80 }`，后面一条写 `chatty = { base = 0.9 }`，两项都在，没写的照出厂（第八条）。
+6. **套到一个场所上**：照第 1 条的先后，一个文件一个文件、一条规则一条规则地看；匹配的规则，它写的每一项都盖掉之前的，来处跟着换。参数的表展开以后每一项各自盖：一条规则写 `chatty = { severity_min = 8 }`，后面一条写 `chatty = { base = 0.9 }`，两项都在，没写的照出厂（第八条）。
 7. **没有规则设到的项**不在结果里。出厂的规则文件（软件包资源目录里的 `venues.d/`）就是软件包的默认值，代码里不写死；参数的出厂值在第八条的出厂文件里，规则里只有改了的几项。出厂的规则文件是 `im/data/venues.d/50-defaults.toml`（O-15 下），内容照 18 第四节：群走 `chatty`、私聊走 `every-message`，限流都是 `5/300s`，并行群 `1`、私聊 `0`；不写 `persona`、`preset`（施工时定的第 16 条）。`miyu im venue show` 照来处写「出厂」或「系统」和文件名，参数照 `chatty.probability` 印。
 8. **问题的先后**：照文件的先后，同一个文件里照行、列。
 
@@ -179,7 +179,7 @@ Rust 这一边：
 | `Spoken { sender, at, echo }`、`echo(text) -> Option<u64>`、`repeats(echo, &sender, now, earlier, window) -> bool`、`echoed(echo, &sender, later) -> bool` | 复读（I-28，「怎么走」第 13 条）：一条人话的发的人、时刻、正文的指纹；指纹怎么算；这一条是不是在复读（`earlier` 从新到旧）；她回的那一条后来有没有别人跟着说（`later` 从旧到新，第五条第 6 条用） |
 | `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, Repeated, RateLimited}` | 放行、只记下；为什么。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
 | `Flag::Moderation` | 违规旗 |
-| `rate_full(&ctx, clock) -> bool` | 额度满了没有：满了的这段时间线路规程不抽样、不调判官（18 第六节） |
+| `rate_full(&ctx, clock) -> bool` | 额度满了没有：满了的这段时间不调判官（18 第六节） |
 | `gate(&ctx, clock) -> Gate::{Now, Later(at)}` | 回合闸的回答：现在开，或者推迟到某个时刻（`Timestamp`）再问 |
 
 **怎么走**
@@ -262,7 +262,7 @@ Rust 这一边：
 |---|---|
 | `Facts { venue, msg, said, mentions_others, quotes_other, textless, media_only, hollow }` | 一条消息的平台事实：场所编号（`VenueId`）、这条消息在场所主线会话日志里的序号（内核的 `Seq`，第七条第 1 条）、`Said`（第二条）、@ 了别人没有、引用的是不是别人的消息、是不是没有字（只带了东西、只有占位的都算，桥照正文认，O-37）、是不是只有图 |
 | `Reply { at, to }` | 她在这个场所真发出的一轮回复：时刻（`Timestamp`），回的是谁（平台上的人的列表，一轮可以回几个人；没有明确回谁的是空的）。一轮拆成几段发也只算一轮 |
-| `Chatty { … }` | 参数：抽样的千分比、基础门槛、五维的权重、`should_reply` 的调整、各加值项的加分和窗口、冷静的开关和曲线、违规的门槛。从第八条的 `Params::chatty` 拿：`Chatty`、`Window`、`Restraint` 的格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工 O-15）；代码里不写默认值 |
+| `Chatty { … }` | 参数：基础门槛、五维的权重、`should_reply` 的调整、各加值项的加分和窗口、冷静的开关和曲线、违规的门槛。从第八条的 `Params::chatty` 拿：`Chatty`、`Window`、`Restraint` 的格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工 O-15）；代码里不写默认值 |
 | `Bonus` | 加值项的插槽：`judge` 看这条消息成不成立，成立了给一笔 `Hit { kind, bonus }` |
 | `Kind::{Direct, Continuation, AfterSpeaking, Probability, Moderation}` | 触发条件的种类 |
 | `Hit { kind, bonus }`、`Conditions { hits }`、`Conditions::primary()` | 一个成立了的条件；成立了的条件，照插槽的先后；主触发 |
@@ -276,14 +276,14 @@ Rust 这一边：
 
 **怎么走**
 
-1. **加值项的先后**：冲她来、续聊、跟进、刚说过话、违规旗、抽样。各自看成不成立，成立的都记下，加分相加，不封顶（18 第七节）。
+1. **加值项的先后**：冲她来、续聊、跟进、刚说过话、违规旗。各自看成不成立，成立的都记下，加分相加，不封顶（18 第七节）。
 2. **冲她来** `Direct`：`addressed` 是真。加 `direct` 分；只叫了她、没说别的加 0 分（第 13 条，I-29）。
 3. **续聊** `Continuation`：`replies` 里最近一轮回的人里有这个发的人，并且离此刻不到 `continuation.window`（`0 ≤ now − at < window`）；这条消息 @ 了别人、或者引用的是别人的消息，不算（18 第七节，2026-10-07 项目主人定）。加 `continuation` 分。
    - **跟进** `FollowUp`（施工 I-21，2026-10-21 项目主人定「群聊三段：覆盖、跟进、续聊」）：她这时正在为这个发的人跑一轮（`serving`：主线、支线忙着回的人，桥照投影交），`chatty.followup` 开着；@ 了别人、引用别人的不算，只有图的照算（同续聊）。加 `followup_bonus` 分。先照「这条线还在跑」算，不用固定的秒数。判下来要回的分派照常：这条线在回他，并进那一轮。
 4. **刚说过话** `AfterSpeaking`：`replies` 里最近一轮（回谁都算）离此刻不到 `after_speaking.window`；没有字（`textless`）的消息不算：只带了图、文件、表情，或者只有占位的（O-37 改，原来只有都是表情的算，2026-10-11 项目主人定，照旧版）。加 `after_speaking` 分。
 5. **违规旗** `Moderation`：进站链插了 `Flag::Moderation`。加 0 分。
-6. **抽样** `Probability`：前面四样一个都不成立、这条消息不是只有图的时候才抽。种子是 `SHA-256(场所编号 + "\n" + 序号的十进制)` 的前 8 个字节（大端）当无符号整数 `x`；`x × 1000 ÷ 2⁶⁴` 小于 `probability`（千分比）就抽中。加 0 分。同一份日志回放出同样的结果，不碰随机源（02 K1）。
-7. **主触发**：照「冲她来、续聊、跟进、刚说过话、抽样、违规旗」的先后取第一个成立的。只用来归类：日志、贴不贴表情、回合开头那句「为什么叫你」写哪一种。顶替随后面一步，排在冲她来后面。
+6. **抽样**：施工 I-88 删了（im 设计 05：换成「时不时看一眼」）。原来前面几样都不成立时照千分比抽一条交判官；参数 `chatty.probability` 和只挡它的 `chatty.skip_media` 一起删，场所规则里写着的照没写读、不报（参数表的 `RETIRED`），出厂文件写着照报。
+7. **主触发**：照「冲她来、续聊、跟进、刚说过话、违规旗」的先后取第一个成立的。只用来归类：日志、贴不贴表情写哪一种。顶替随后面一步，排在冲她来后面。
 8. **走哪条路**：
    - 一个条件都没有：`Record`，只记下。
    - 冲她来、发的人是终端管理员或白名单成员：`Commit`，不过判官（Q4；白名单成员 O-27 加，2026-10-10 项目主人定）。
@@ -320,8 +320,8 @@ Rust 这一边：
 **守着它的**（`crates/miyu-chat/src/chatty/tests.rs` 等，O-7）
 
 - 按人冷静、只叫了她（I-29，`chatty/person/tests.rs`、`inbound/addressed/tests.rs`、`chatty/tests.rs`）：起点以内不抬、直线抬到满点、满点以后不再抬；只数回他的轮次、一轮回几个人的算；过一个半衰期算一半；晚于此刻的不算；插嘴不抬；关着的不抬；满点不比起点大的一过就抬满。只有名字、标点、表情、@ 的算只叫了她，冲她来成立、加 0 分。
-- 加值项：每一种成立和不成立；几个同时成立加分相加；窗口两头（正好 `window` 以前不算、此刻的算）；续聊只认最近一轮回的人，那一轮回了几个人的每个都算；@ 了别人、引用别人的不算续聊；没有字的不算刚说过话；回谁是空的不算续聊、算刚说过话。几样同时成立时 `Conditions.hits` 照插槽的先后排，抽样看得到前面的：调换相邻两个加值项有测试红（O-12 下）。
-- 抽样：两个种子钉死（拿 Python 的 hashlib 另算）；同样的场所、序号，结果一样；千分比 0 永不中、1000 必中；只有图的不抽；别的条件成立时不抽。
+- 加值项：每一种成立和不成立；几个同时成立加分相加；窗口两头（正好 `window` 以前不算、此刻的算）；续聊只认最近一轮回的人，那一轮回了几个人的每个都算；@ 了别人、引用别人的不算续聊；没有字的不算刚说过话；回谁是空的不算续聊、算刚说过话。几样同时成立时 `Conditions.hits` 照插槽的先后排：调换相邻两个加值项有测试红（O-12 下）。
+- 删掉的项（I-88）：场所规则写着 `chatty.probability`、`chatty.skip_media` 不报、不套；出厂文件写着照不认识报；只有图的照算续聊，别的什么都不成立。
 - 主触发的先后；走哪条路的四种，包括终端管理员 @、白名单成员 @（O-27 起直接回，没冲她来的照旧过判官）、只有违规旗。
 - 算分：照 18 第七节的两个例子算出 0.785 对 0.92 不回、1.085 对 0.8 回；`adjust` 正负和 0；分超过 10；权重全 0；`total`、`threshold` 不低于 0；违规的门槛；只查违规的不打分。
 - 冷静：p 从 0 到 8 的曲线（p=1 抬 0.02，p=2 抬 0.12，p=3 抬 0.22，p=4 抬 0.28，p=5 抬 0.31，p=8 抬 0.34，各到两位小数）；冲她来、`to_bot` 不抬；关着的不抬；晚于此刻的回复不算。
@@ -536,7 +536,7 @@ Rust 这一边：
 |---|---|---|
 | 场所 | `<平台>:<机器人号>:group:<群号>`、`<平台>:<机器人号>:private:<对方的号>`（im 施工 I-81；老写法不带机器人号），内核的 `VenueId` | 群聊内核的 `Venue::id()` 拼、`Venue::parse()` 解；桥不手拼，`"qq"` 只在桥的一处常量里 |
 | 平台上的人 | `<平台>:<号>`，内核的 `ExternalId` | 同上，`Venue` 旁边一对 |
-| 群聊内核里的一条消息 | 这条 `message.user` 在场所的主线会话日志里的序号（内核的 `Seq`） | 核心记下时交回；抽样的种子、顶替、承诺都用它 |
+| 群聊内核里的一条消息 | 这条 `message.user` 在场所的主线会话日志里的序号（内核的 `Seq`） | 核心记下时交回；顶替、承诺都用它 |
 | 平台上的一条消息 | 平台给的编号，原样记进 `message.user` 的场所那几格（下面第 2 条），引用、撤回、贴表情时用 | 桥 |
 | 命令编号（去重） | `<平台>:<机器人的号>:<平台消息编号>:<平台给的时刻>` | 桥；加上时刻，是防 NapCat 重置本地库以后消息编号重号，把新消息当成重发的吞掉（自查第 17 条，待真机查实） |
 
@@ -593,7 +593,7 @@ Rust 这一边：
 
 ### 八、出厂参数和按场所改（施工 O-15）
 
-第二到第六条要的数（base64、抽样、门槛、权重、窗口、顶替、判官的几项、引用和 @、去重、拆段）和清理的两份名单（O-15 下）有一份出厂的数据文件，读进来照类型校验（自查第 14 条：半衰期是 0 会算出 NaN、门槛归零）；场所规则能按场所改其中几项（18 Q26）。表的名字和每一项的类型只在群聊内核里声明一次，出厂文件、场所规则都照它查（第七条第 5 条）。纯逻辑：读文件由桥管，出厂文件有问题时桥起不来、说清每一处（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21）。
+第二到第六条要的数（base64、门槛、权重、窗口、顶替、判官的几项、引用和 @、去重、拆段）和清理的两份名单（O-15 下）有一份出厂的数据文件，读进来照类型校验（自查第 14 条：半衰期是 0 会算出 NaN、门槛归零）；场所规则能按场所改其中几项（18 Q26）。表的名字和每一项的类型只在群聊内核里声明一次，出厂文件、场所规则都照它查（第七条第 5 条）。纯逻辑：读文件由桥管，出厂文件有问题时桥起不来、说清每一处（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21）。
 
 **对外的样子**
 
@@ -601,7 +601,6 @@ Rust 这一边：
 
 ```toml
 [chatty]
-probability = 50              # 千分比
 base = 0.8
 continuation_window = "30s"
 restraint_half_life = "3m"
@@ -614,7 +613,6 @@ restraint_half_life = "3m"
 | `inbound.base64_max_chars` | 整数 1 到 100000 | 5000 | `Base64::max_chars` |
 | `inbound.base64_printable` | 整数 0 到 1000，千分比 | 850 | `Base64::printable` |
 | `inbound.repeat_window` | 时长 1 秒到 1 天 | `2m` | `Params::repeat_window`：复读首尾相接、相邻两条最多隔多久（I-28；旧群 363 串复读，相邻间隔 p50 7 秒、p95 48 秒、p99 123 秒） |
-| `chatty.probability` | 整数 0 到 1000，千分比 | 50 | `Chatty::probability` |
 | `chatty.base` | 小数 0 到 10 | 0.8 | `Chatty::base` |
 | `chatty.relevance`、`willingness`、`social`、`timing`、`continuity` | 小数 0 到 10 | 0.25、0.25、0.15、0.15、0.20 | `Chatty::weights`，照这个先后 |
 | `chatty.adjust` | 小数 0 到 10 | 0.2 | `Chatty::adjust` |
@@ -673,7 +671,7 @@ judge = { model = "@cheap" }      # 不写 match：所有场所
 [[rule]]
 match = { group = [123456] }
 [rule.chatty]
-probability = 80
+severity_min = 8
 base = 0.9
 ```
 

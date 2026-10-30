@@ -15,8 +15,7 @@ use super::test_support::{
 };
 
 /// 照仓库里的出厂文件该读出来的：旧版的默认值。`Chatty`、`Outbound` 照测试里手写的那一份（`chatty`、`outbound` 的
-/// `test_support`），抽样那一格手写的是 0（别的测试不让抽样掺进来），出厂是 50；续聊的窗口手写的是旧版的 15 秒，出厂
-/// 2026-10-11 回放以后改成 30 秒（O-37）。
+/// `test_support`）；续聊的窗口手写的是旧版的 15 秒，出厂 2026-10-11 回放以后改成 30 秒（O-37）。
 fn factory() -> Params {
     Params {
         base64: Base64 {
@@ -25,7 +24,6 @@ fn factory() -> Params {
             printable: 850,
         },
         chatty: halved(Chatty {
-            probability: 50,
             continuation: Window {
                 bonus: 0.1,
                 window: 30_000,
@@ -73,10 +71,7 @@ fn halved(mut chatty: Chatty) -> Chatty {
 fn the_factory_chatty_scores_the_two_examples_like_the_hand_written_one() {
     // 18 第七节的两个例子（I-29 加分减半以后）：刚说过话时有人接一句，0.735 对 0.92 不回；同一句 @ 了她（冲她来加刚说过话），0.885 对 0.8 回。
     let read = defaults();
-    let written = halved(Chatty {
-        probability: 50,
-        ..chatty_support::chatty()
-    });
+    let written = halved(chatty_support::chatty());
     let judged = Judgement {
         scores: [6.0, 5.0, 4.0, 6.0, 3.0],
         should_reply: Some(true),
@@ -131,8 +126,8 @@ fn durations_are_handed_out_in_milliseconds() {
 
 #[test]
 fn a_missing_item_is_reported_as_wrong_type_without_position() {
-    let text = edited("probability = 50", "");
-    assert_eq!(problems(&text), [missing("chatty.probability")]);
+    let text = edited("base64_printable = 850", "");
+    assert_eq!(problems(&text), [missing("inbound.base64_printable")]);
     // 一整张表没写：每一项都缺。
     let text = edited("[dispatch]\nsupersede_window = \"7s\"", "");
     assert_eq!(problems(&text), [missing("dispatch.supersede_window")]);
@@ -184,16 +179,19 @@ fn an_unknown_item_or_table_is_reported_with_the_nearest_name() {
     );
     assert_eq!(problems(&text), [unknown]);
     // 项名拼错：给这张表里最近的项，写成 `表.项`；拼错的那一项照样缺。
-    let text = edited("probability = 50", "probabilty = 50");
-    let line = line_of(&text, "probabilty");
+    let text = edited("base64_printable = 850", "base64_printabl = 850");
+    let line = line_of(&text, "base64_printabl");
     let misspelt = (
         Code::UnknownKey,
-        Some("chatty.probabilty".into()),
+        Some("inbound.base64_printabl".into()),
         Some(At { line, column: 1 }),
-        Some("50".into()),
-        Some("chatty.probability".into()),
+        Some("850".into()),
+        Some("inbound.base64_printable".into()),
     );
-    assert_eq!(problems(&text), [misspelt, missing("chatty.probability")]);
+    assert_eq!(
+        problems(&text),
+        [misspelt, missing("inbound.base64_printable")]
+    );
     // 多一张表、表名拼错：给最近的表名。
     let text = format!("{DEFAULTS}\n[chaty]\nbase = 1\n");
     let line = line_of(&text, "[chaty]");
@@ -218,6 +216,20 @@ fn an_unknown_item_or_table_is_reported_with_the_nearest_name() {
 }
 
 #[test]
+fn a_retired_item_in_the_factory_file_is_still_a_problem() {
+    // 施工 I-88：场所规则里写着删掉的项照没写读；出厂文件是打包的，写着是打包的错，照不认识的报。
+    let text = edited("base = 0.8", "probability = 50\nbase = 0.8");
+    let seen: Vec<_> = problems(&text)
+        .into_iter()
+        .map(|(code, key, ..)| (code, key))
+        .collect();
+    assert_eq!(
+        seen,
+        [(Code::UnknownKey, Some("chatty.probability".to_string()))]
+    );
+}
+
+#[test]
 fn a_table_written_as_something_else_is_one_problem_not_one_per_item() {
     // 写在最上面：写在别的表头下面就成了那张表里的一项。
     let text = format!(
@@ -239,16 +251,16 @@ fn a_table_written_as_something_else_is_one_problem_not_one_per_item() {
 
 #[test]
 fn a_badly_written_value_is_reported_once_and_not_again_as_missing() {
-    let text = edited("probability = 50", "probability = \"50\"");
-    let line = line_of(&text, "probability");
+    let text = edited("base64_printable = 850", "base64_printable = \"850\"");
+    let line = line_of(&text, "base64_printable");
     assert_eq!(
         problems(&text),
         [bad(
             Code::WrongType,
-            "chatty.probability",
+            "inbound.base64_printable",
             line,
-            15,
-            "\"50\""
+            20,
+            "\"850\""
         )]
     );
     // 时长写成了整数。
@@ -263,11 +275,15 @@ fn a_badly_written_value_is_reported_once_and_not_again_as_missing() {
 fn values_out_of_range_are_reported() {
     for (from, to, key) in [
         (
-            "probability = 50",
-            "probability = 1001",
-            "chatty.probability",
+            "base64_printable = 850",
+            "base64_printable = 1001",
+            "inbound.base64_printable",
         ),
-        ("probability = 50", "probability = -1", "chatty.probability"),
+        (
+            "base64_printable = 850",
+            "base64_printable = -1",
+            "inbound.base64_printable",
+        ),
         (
             "severity_min = 7",
             "severity_min = 0",
@@ -334,8 +350,8 @@ fn values_out_of_range_are_reported() {
 #[test]
 fn the_ends_of_the_ranges_are_accepted() {
     for (from, to) in [
-        ("probability = 50", "probability = 0"),
-        ("probability = 50", "probability = 1000"),
+        ("base64_printable = 850", "base64_printable = 0"),
+        ("base64_printable = 850", "base64_printable = 1000"),
         ("severity_min = 7", "severity_min = 1"),
         ("severity_min = 7", "severity_min = 10"),
         ("restraint_k = 2.5", "restraint_k = 0.001"),
@@ -392,7 +408,7 @@ fn a_syntax_error_is_the_only_problem() {
 #[test]
 fn problems_follow_lines_and_missing_items_come_last_in_declared_order() {
     let text = edited("similar = 66", "similar = 0")
-        .replace("probability = 50", "probability = 2000")
+        .replace("severity_min = 7", "severity_min = 70")
         .replace("records = 20", "")
         .replace("base64_min_chars = 24", "");
     let seen: Vec<_> = problems(&text)
@@ -402,7 +418,7 @@ fn problems_follow_lines_and_missing_items_come_last_in_declared_order() {
     assert_eq!(
         seen,
         [
-            (Code::OutOfRange, "chatty.probability".to_string()),
+            (Code::OutOfRange, "chatty.severity_min".to_string()),
             (Code::OutOfRange, "outbound.similar".to_string()),
             (Code::WrongType, "inbound.base64_min_chars".to_string()),
             (Code::WrongType, "judge.records".to_string()),
@@ -470,7 +486,7 @@ fn the_factory_values_are_listed_by_key() {
             .find(|(one, _)| *one == key)
             .map(|(_, value)| value.json())
     };
-    assert_eq!(value("chatty.probability"), Some(serde_json::json!(50)));
+    assert_eq!(value("chatty.base"), Some(serde_json::json!(0.8)));
     assert_eq!(value("judge.persona"), Some(serde_json::json!(true)));
     assert!(value("judge.model").is_none(), "出厂没写的不列");
     assert!(

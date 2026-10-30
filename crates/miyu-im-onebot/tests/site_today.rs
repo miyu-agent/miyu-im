@@ -18,8 +18,8 @@ const LIN: i64 = 20004;
 /// 假 NapCat 认得的群成员：她自己、小林。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 #[tokio::test]
 async fn the_home_page_counts_today_and_shows_the_log() {

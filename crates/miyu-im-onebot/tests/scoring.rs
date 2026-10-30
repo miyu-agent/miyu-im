@@ -25,8 +25,8 @@ const LIN: i64 = 20004;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 平台编号是 `message` 的那一条判下来的样子。
 fn decided(events: &[Value], message: i64) -> Option<Value> {

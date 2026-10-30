@@ -1,4 +1,4 @@
-//! 判一条群消息的线路规程和顶替（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 10、11 条）：`when-called` 不抽样，只有
+//! 判一条群消息的线路规程和顶替（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 10、11 条）：`when-called` 没叫她的只记下，只有
 //! 违规旗的问判官只查违规（额度满了不问），冲她来的照开；`every-message` 有字的都回，违规旗不改它；同一个人在窗口里补发，前一条
 //! 判过要回的接过去，还在判的几条一起重判，`wake` 不看顶替。夹具在 `tests.rs`。
 
@@ -9,11 +9,11 @@ use serde_json::json;
 use super::super::body::body as written;
 use super::super::discipline::Discipline;
 use super::Conclusion;
-use super::tests::{Around, ago, ago_millis, ctx, facts, judged_in, params, pending, sampling};
+use super::tests::{Around, ago, ago_millis, ctx, facts, judged_in, params, pending};
 
 #[test]
 fn other_disciplines_ask_the_judge_only_about_violations() {
-    let params = sampling();
+    let params = params();
     let chatty = &params.chatty;
     let called = Around {
         discipline: Discipline::WhenCalled,
@@ -34,7 +34,7 @@ fn other_disciplines_ask_the_judge_only_about_violations() {
         chatty,
         &called,
     );
-    assert_eq!(idle.conclusion, Conclusion::Record, "抽样必中也不抽");
+    assert_eq!(idle.conclusion, Conclusion::Record, "没叫她的只记下");
     assert_eq!(
         written(&idle, Standing::Member, None)["discipline"],
         "when-called"

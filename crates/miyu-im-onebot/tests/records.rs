@@ -20,8 +20,8 @@ const LIN: i64 = 20002;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样（别人没叫她的只记下）。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：别人没叫她的只记下。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 照 `sql` 数一个数，等到合 `wanted`（写的线程排着写）。
 async fn until(home: &Home, sql: &str, wanted: i64) -> i64 {

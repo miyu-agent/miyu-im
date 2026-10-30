@@ -22,8 +22,8 @@ const OTHER: i64 = 666;
 /// 假 NapCat 认得的群成员：她自己、小林。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { severity_min = 8 }\n";
 
 /// 平台编号是 `message` 的那一条判下来的样子。
 fn decided(events: &[Value], message: i64) -> Option<Value> {
@@ -193,14 +193,17 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
         json!([{"id": BOT, "name": "miyu", "bot": BOT}, {"id": LIN, "name": "lin", "bot": BOT}])
     );
     assert!(got["personas"].is_array(), "{got}");
-    // 默认值照卡片下面几层：限流是出厂的，插嘴照系统的规则（千分比 0 是少插嘴），群卡没写的回复。
+    // 默认值照卡片下面几层：限流是出厂的，群卡没写的回复。
     let group = &got["defaults"]["groups"][LISTED.to_string()];
     assert_eq!(
         group["rate"],
         json!({"value": "30/60s", "from": "factory"}),
         "{group}"
     );
-    assert_eq!(group["chatty"], json!({"value": "few", "from": "system"}));
+    assert!(
+        group.get("chatty").is_none(),
+        "插嘴删了（施工 I-88）：{group}"
+    );
     assert_eq!(group["on"], json!({"value": true, "from": null}));
     assert_eq!(group["persona"], json!({"value": null, "from": null}));
     // 长文（施工 O-59 上）：转成图、300 个字都是出厂的。
@@ -221,8 +224,8 @@ async fn the_page_gets_cards_defaults_groups_friends_and_the_whitelist() {
     // 卡上 `rules` 能写的每一个键（施工 I-7 中一）：系统的规则改了的照它，没改的照出厂，可以不写的没写是空的。
     let rules = &group["rules"];
     assert_eq!(
-        rules["chatty.probability"],
-        json!({"value": 0, "from": "system"}),
+        rules["chatty.severity_min"],
+        json!({"value": 8, "from": "system"}),
         "{rules}"
     );
     assert_eq!(

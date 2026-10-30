@@ -16,8 +16,8 @@ const GROUP: i64 = 777;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 回答里的 `result`，拒了的照原样交回整条好看清。
 fn result(reply: &Value) -> &Value {

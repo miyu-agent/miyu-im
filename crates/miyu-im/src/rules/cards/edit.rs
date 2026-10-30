@@ -307,11 +307,10 @@ fn known<T: DeserializeOwned>(key: &str) -> bool {
     .is_ok()
 }
 
-/// 群聊内核报的规则的键换回卡片的格：`allow` 是 `on`，插嘴拼成的两项是 `chatty`，出站表里的去掉 `outbound.`。
+/// 群聊内核报的规则的键换回卡片的格：`allow` 是 `on`，出站表里的去掉 `outbound.`。
 fn field_of(rule: &str) -> &str {
     match rule {
         "allow" => "on",
-        "discipline" | "chatty.probability" => "chatty",
         other => other.strip_prefix("outbound.").unwrap_or(other),
     }
 }

@@ -31,10 +31,10 @@ const DOOMED_PERSONA: &str = "doomed";
 const PLAIN: i64 = 563;
 
 /// 判官带人格的几条规则：[`PLAIN`] 无人格，[`PERSONA`]、[`PERSONA_OFF`] 用样本人格（后一个关掉判官的人格），[`DOOMED`] 用
-/// [`DOOMED_PERSONA`]；群默认不抽样。
+/// [`DOOMED_PERSONA`]。
 fn persona_rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\n\n\
          [[rule]]\nmatch = {{ group = [{PERSONA}, {PERSONA_OFF}] }}\npersona = \"{SAMPLE_PERSONA}\"\n\n\
          [[rule]]\nmatch = {{ group = [{PERSONA_OFF}] }}\njudge = {{ persona = false }}\n\n\
          [[rule]]\nmatch = {{ group = [{DOOMED}] }}\npersona = \"{DOOMED_PERSONA}\"\n"

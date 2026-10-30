@@ -2,12 +2,11 @@
 //! 第五条第 6 条）：判下来要回的一轮，`session.respond` 的事实里多带一两块，模板是出厂数据（`rules::facts`），给模型的字登记在
 //! `docs/ledger.md`。
 //!
-//! - 主触发是抽中的（插话）：带 `join-in`，旧版实测不带她会说「没 @ 我不接」。
 //! - 因为违规才回的（只查违规那一次判了违规；或者打分没过门槛、严重程度过了）：带 `moderation-precheck`，写判官说的严重程度和理由。
 //!
 //! 纯逻辑，模板由外面交进来；渲染不出的（照说不会：起来时查过字段）记一行，不带。
 
-use miyu_chat::{Kind, Route as Path};
+use miyu_chat::Route as Path;
 use miyu_client::protocol::Template;
 use serde_json::{Value, json};
 
@@ -15,25 +14,19 @@ use super::body::Judged;
 use super::decide::Decision;
 use crate::TARGET;
 
-/// 抽中插话那一块的 `kind`。
-const JOIN_IN: &str = "join-in";
-
 /// 违规预检那一块的 `kind`。
 const PRECHECK: &str = "moderation-precheck";
 
-/// 这一轮要带的几块事实：`join_in`、`precheck` 是两份模板。
+/// 这一轮要带的几块事实：`precheck` 是模板。
 pub(super) fn primer(
     decision: &Decision,
     judged: Option<&Judged<'_>>,
-    (join_in, precheck): (&Template, &Template),
+    precheck: &Template,
 ) -> Vec<Value> {
     let mut facts = Vec::new();
     let Some(passed) = &decision.passed else {
         return facts;
     };
-    if passed.conditions.primary() == Some(Kind::Probability) {
-        facts.extend(render(join_in, &[], JOIN_IN));
-    }
     let judgement = judged.and_then(|judged| judged.answer.result.as_ref().ok());
     let score = judged.and_then(|judged| judged.score);
     let violated = match passed.route {

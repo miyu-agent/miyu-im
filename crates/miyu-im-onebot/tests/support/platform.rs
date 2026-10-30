@@ -1,4 +1,4 @@
-//! 平台工具（一）的测试共用的（施工 O-31，`tests/platform.rs`）：一个不抽样的群、几种人（冒充的、管理的人、群主、白名单成员、
+//! 平台工具（一）的测试共用的（施工 O-31，`tests/platform.rs`）：一个群、几种人（冒充的、管理的人、群主、白名单成员、
 //! QQ 的管理员），她调一件工具、接着说一句的台词，开一轮、等它完、读工具结果，看 NapCat 收到的平台动作。
 
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use super::group::*;
 use super::speaking::{Line, Lines};
 use super::*;
 
-/// 不抽样、谁 @ 她都直接回（`judge_called = false`）、不限流、不贴表情的群：别人没 @ 她的话只记下。别人叫她做的那一条在前面加一个 @ 她（[`asks`]、
+/// 谁 @ 她都直接回（`judge_called = false`）、不限流、不贴表情的群：别人没 @ 她的话只记下。别人叫她做的那一条在前面加一个 @ 她（[`asks`]、
 /// [`called`]）：施工 I-33 以前测试以本机的人对场所会话调 `session.respond` 代判官开轮，核心 Y-2 起人碰不到场所会话，改走桥真走的路。
 pub const GROUP: i64 = 31;
 
@@ -36,10 +36,10 @@ pub const QQ_ADMIN: i64 = 40006;
 /// 终端管理员的小号：对应表里有（`support/mod.rs` 的系统配置），没在群里说过话（施工 O-31）。
 pub const ALT: i64 = 10007;
 
-/// 系统的场所规则：群都不抽样、不让别人叫她（[`GROUP`]），[`MANAGER`] 是管理的人。
+/// 系统的场所规则：不让别人叫她（[`GROUP`]），[`MANAGER`] 是管理的人。
 pub fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0, judge_called = false }}\nreaction = \"off\"\nrate = \"0\"\nmanagers = [\"qq:{MANAGER}\"]\n"
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ judge_called = false }}\nreaction = \"off\"\nrate = \"0\"\nmanagers = [\"qq:{MANAGER}\"]\n"
     )
 }
 

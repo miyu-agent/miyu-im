@@ -22,7 +22,7 @@ fn way(
     discipline.route(conditions, (&said, &params().chatty), media_only)
 }
 
-/// 五种条件都成立的一份（照插槽的先后），抽样只是为了看留不留。
+/// 四种条件都成立的一份（照插槽的先后）。
 fn all() -> Conditions {
     let hit = |kind, bonus| Hit { kind, bonus };
     Conditions {
@@ -31,7 +31,6 @@ fn all() -> Conditions {
             hit(Kind::Continuation, 0.1),
             hit(Kind::AfterSpeaking, 0.1),
             hit(Kind::Moderation, 0.0),
-            hit(Kind::Probability, 0.0),
         ],
     }
 }
@@ -84,35 +83,26 @@ fn the_four_are_read_by_name_and_anything_else_is_chatty() {
 
 #[test]
 fn each_keeps_its_own_conditions() {
-    use Kind::{AfterSpeaking, Continuation, Direct, Moderation, Probability};
+    use Kind::{AfterSpeaking, Continuation, Direct, Moderation};
     assert_eq!(
-        kinds(&Discipline::Chatty.keep(all(), false)),
-        [Direct, Continuation, AfterSpeaking, Moderation, Probability]
+        kinds(&Discipline::Chatty.keep(all())),
+        [Direct, Continuation, AfterSpeaking, Moderation]
+    );
+    // 关了主动回复判断：只有被叫才回，续聊不算（施工 I-16，照旧版）；唤醒的回复以后一小段时间照续聊算。
+    assert_eq!(
+        kinds(&Discipline::WhenCalled.keep(all())),
+        [Direct, Moderation]
     );
     assert_eq!(
-        kinds(&Discipline::Chatty.keep(all(), true)),
-        [Direct, Continuation, AfterSpeaking, Moderation],
-        "额度满了不抽样"
+        kinds(&Discipline::Wake.keep(all())),
+        [Direct, Continuation, Moderation]
     );
-    for full in [false, true] {
-        // 关了主动回复判断：只有被叫才回，续聊不算（施工 I-16，照旧版）；唤醒的回复以后一小段时间照续聊算。
-        assert_eq!(
-            kinds(&Discipline::WhenCalled.keep(all(), full)),
-            [Direct, Moderation]
-        );
-        assert_eq!(
-            kinds(&Discipline::Wake.keep(all(), full)),
-            [Direct, Continuation, Moderation]
-        );
-    }
-    for full in [false, true] {
-        assert_eq!(
-            kinds(&Discipline::EveryMessage.keep(all(), full)),
-            [Direct, Continuation, AfterSpeaking, Moderation]
-        );
-    }
     assert_eq!(
-        Discipline::Chatty.keep(all(), false).hits[0].bonus,
+        kinds(&Discipline::EveryMessage.keep(all())),
+        [Direct, Continuation, AfterSpeaking, Moderation]
+    );
+    assert_eq!(
+        Discipline::Chatty.keep(all()).hits[0].bonus,
         0.3,
         "加分照原样"
     );

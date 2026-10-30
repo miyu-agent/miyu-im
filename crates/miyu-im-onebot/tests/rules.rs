@@ -190,7 +190,7 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
     system_rule(
         &root,
         "80-late.toml",
-        "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { probability = 80 }\njudge = { retries = 3 }\n",
+        "[[rule]]\nmatch = { group = [1] }\nrate = \"30/60s\"\nchatty = { severity_min = 8 }\njudge = { retries = 3 }\n",
     );
     let loaded = plain(&root);
     assert_eq!(loaded.problems, []);
@@ -221,8 +221,8 @@ fn system_files_go_with_the_factory_ones_by_file_name() {
         Some(&late(text("30/60s"), 3))
     );
     assert_eq!(
-        one.resolved.entries.get("chatty.probability"),
-        Some(&late(Value::Int(80), 4))
+        one.resolved.entries.get("chatty.severity_min"),
+        Some(&late(Value::Int(8), 4))
     );
     assert_eq!(one.params.judge.retries, 3, "参数照规则改");
     let two = loaded.at(&group("2"));
@@ -390,7 +390,7 @@ fn factory_mistakes_are_all_reported() {
     let defaults = std::fs::read_to_string(factory.join("defaults.toml")).expect("读得了");
     std::fs::write(
         factory.join("defaults.toml"),
-        defaults.replace("probability = 50 ", "probability = 5000 "),
+        defaults.replace("severity_min = 7 ", "severity_min = 70 "),
     )
     .expect("写得进");
     std::fs::remove_file(factory.join("moderation.txt")).expect("删得了");
@@ -420,7 +420,7 @@ fn factory_mistakes_are_all_reported() {
                 Code::OutOfRange,
                 Source::Factory,
                 "defaults.toml",
-                Some("chatty.probability")
+                Some("chatty.severity_min")
             ),
             (Code::Unreadable, Source::Factory, "moderation.txt", None),
         ]

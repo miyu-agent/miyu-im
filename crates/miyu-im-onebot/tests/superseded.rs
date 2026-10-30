@@ -14,7 +14,7 @@ use crate::support::group::*;
 use crate::support::judge::*;
 use crate::support::*;
 
-/// 不抽样的群。
+/// 一个群。
 const GROUP: i64 = 555;
 
 /// 另一个群：在这里说一句，等桥办完手上的。
@@ -27,8 +27,8 @@ const JIE: i64 = 20003;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 场所编号。
 fn venue() -> String {

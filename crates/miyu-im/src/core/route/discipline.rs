@@ -3,12 +3,12 @@
 //!
 //! | 线路规程 | 算数的条件 | 顶替 | 走哪条路 |
 //! |---|---|---|---|
-//! | `chatty` | 全部（含跟进，施工 I-21；额度满了去掉抽样） | 看 | 群聊内核的 `route` |
+//! | `chatty` | 全部（含跟进，施工 I-21） | 看 | 群聊内核的 `route` |
 //! | `when-called` | 冲她来、违规旗（施工 I-16 照旧版：关了主动回复判断只有被叫才回，续聊不算） | 看 | 只有违规旗的判官只查违规，别的有条件的开一轮 |
 //! | `wake` | 冲她来、续聊、违规旗 | 不看 | 同 `when-called` |
-//! | `every-message` | 去掉抽样（违规旗只记进判断） | 不看 | 有字的开一轮 |
+//! | `every-message` | 全部（违规旗只记进判断） | 不看 | 有字的开一轮 |
 //!
-//! 不是 `chatty` 的不抽样、不打分。违规关键词只能把判官拉起来，不能直接定违规（18 第七节「违规审核」）：`when-called`、`wake`
+//! 不是 `chatty` 的不打分。违规关键词只能把判官拉起来，不能直接定违规（18 第七节「违规审核」）：`when-called`、`wake`
 //! 里只有违规旗的照 `chatty` 的只查违规问判官，严重程度够了才回；`every-message` 有字的本来就回，违规旗不改它（「施工时定的」
 //! 第 90 条）。写在桥里、不进群聊内核（第 87 条）：别的平台的桥要用时再挪。
 
@@ -54,15 +54,14 @@ impl Discipline {
         matches!(self, Discipline::Chatty | Discipline::WhenCalled)
     }
 
-    /// 留下算数的条件，照原来的先后。`rate_full` 是额度满了：`chatty` 这段时间不抽样（18 第六节）；别的本来就不抽样。
-    pub(super) fn keep(self, found: Conditions, rate_full: bool) -> Conditions {
+    /// 留下算数的条件，照原来的先后。
+    pub(super) fn keep(self, found: Conditions) -> Conditions {
         let kept = |kind: Kind| match self {
-            Discipline::Chatty => kind != Kind::Probability || !rate_full,
+            Discipline::Chatty | Discipline::EveryMessage => true,
             Discipline::WhenCalled => matches!(kind, Kind::Direct | Kind::Moderation),
             Discipline::Wake => {
                 matches!(kind, Kind::Direct | Kind::Continuation | Kind::Moderation)
             }
-            Discipline::EveryMessage => kind != Kind::Probability,
         };
         Conditions {
             hits: found

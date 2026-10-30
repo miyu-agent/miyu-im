@@ -27,8 +27,8 @@ const PROMPT: i64 = 779;
 const LIN: i64 = 20002;
 const JIE: i64 = 20003;
 
-/// 系统的场所规则：群都不抽样（别人的话只记下）；[`QUOTED`]、[`PROMPT`] 照上面改出站的参数。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n\n\
+/// 系统的场所规则：别人的话只记下；[`QUOTED`]、[`PROMPT`] 照上面改出站的参数。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n\n\
     [[rule]]\nmatch = { kind = \"group\", group = [778] }\noutbound = { split_chars = 4, mention_after = \"1h\" }\n\n\
     [[rule]]\nmatch = { kind = \"group\", group = [779] }\noutbound = { mention_after = \"1s\" }\n";
 

@@ -23,7 +23,8 @@ impl Reader<'_> {
     /// 一张参数表：`table` 是声明里的表名，`key`、`node` 是写的那一格；`rule` 是第几条规则，出厂文件没有。
     ///
     /// 不是表的（`chatty = 5`、`[[rule.chatty]]`）`wrong_type`，整张表不收。表里每一项照声明读：不认识的 `unknown_key`，
-    /// 给这张表里离得最近的项，写成 `表.项`；写错的照原因码报，只丢那一项。交回写对的几项，照写的先后。
+    /// 给这张表里离得最近的项，写成 `表.项`；写错的照原因码报，只丢那一项。场所规则里写着删掉的项（[`items::RETIRED`]）
+    /// 照没写读，不报。交回写对的几项，照写的先后。
     pub(super) fn table(
         &mut self,
         rule: Option<usize>,
@@ -42,6 +43,9 @@ impl Reader<'_> {
                 continue;
             };
             let full = format!("{table}.{name}");
+            if rule.is_some() && items::RETIRED.contains(&full.as_str()) {
+                continue;
+            }
             let Some(item) = items::in_table(table, name) else {
                 let mut problem =
                     self.item(Code::UnknownKey, rule, &full, item_key, item_node, true);

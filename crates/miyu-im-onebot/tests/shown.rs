@@ -39,8 +39,8 @@ fn note() -> String {
 /// 假 NapCat 认得的群成员：她自己、终端管理员。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (ADMIN, "老板", "boss")];
 
-/// 系统的场所规则：群都不抽样，终端管理员 @ 她照回。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：终端管理员 @ 她照回。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 她第一步调两次 `show`（一张图、一份文本），等 `hold` 放行；第二步说「好了」。
 fn lines(hold: oneshot::Receiver<()>) -> Lines {

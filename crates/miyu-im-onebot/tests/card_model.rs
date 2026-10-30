@@ -25,8 +25,8 @@ const LIN: i64 = 20004;
 /// 假 NapCat 认得的群成员：她自己、小林。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 会话日志里换模型的几条：照先后的模型（回到跟着配置的，核心记空的引用）。
 fn pinned(events: &[Value]) -> Vec<Value> {

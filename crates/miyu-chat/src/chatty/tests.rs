@@ -1,15 +1,13 @@
 //! 加值项和走哪条路（`chat.md` 第三条「守着它的」）：每一种成立和不成立、几个同时成立加分相加、窗口两头、续聊只认最近
-//! 一轮回的人、@ 了别人和引用别人的不算续聊、只有表情的不算刚说过话、回谁是 `None` 的；抽样；插槽的先后（比结果）；
+//! 一轮回的人、@ 了别人和引用别人的不算续聊、只有表情的不算刚说过话、回谁是 `None` 的；只有图的；插槽的先后（比结果）；
 //! 主触发的先后；四条路。
-
-use miyu_kernel::id::VenueId;
 
 use crate::{Flag, Standing};
 
 use super::test_support::{
-    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, route_as, said, seq,
+    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, route_as, said,
 };
-use super::{Chatty, Conditions, Hit, Kind, Route, conditions, route};
+use super::{Conditions, Hit, Kind, Route, conditions, route};
 
 /// 成立了的种类，照插槽的先后。
 fn kinds(conditions: &Conditions) -> Vec<Kind> {
@@ -37,13 +35,6 @@ fn slots_keep_their_order() {
             Kind::Moderation
         ]
     );
-    // 抽样排最后、看得到前面的：违规旗成立了就不抽。排到违规旗前面，就会先抽中。
-    let always = Chatty {
-        probability: 1000,
-        ..chatty()
-    };
-    let got = hits(&facts(), &[Flag::Moderation], &[], &always);
-    assert_eq!(kinds(&got), [Kind::Moderation]);
 }
 
 #[test]
@@ -213,82 +204,6 @@ fn moderation_flag_adds_nothing() {
     );
 }
 
-/// 抽样的千分比是 `probability`，这一条消息（场所 `venue`、序号 `msg`）抽中没有。别的条件都不成立。
-fn drawn(venue: &str, msg: u64, probability: u16) -> bool {
-    let mut message = facts();
-    message.venue = VenueId::parse(venue).expect(venue);
-    message.msg = seq(msg);
-    let params = Chatty {
-        probability,
-        ..chatty()
-    };
-    let got = hits(&message, &[], &[], &params);
-    match kinds(&got).as_slice() {
-        [] => false,
-        [Kind::Probability] => {
-            assert_eq!(bonus(&got), 0, "抽样加 0 分");
-            true
-        }
-        other => panic!("{other:?}"),
-    }
-}
-
-#[test]
-fn sampling_seed_is_pinned() {
-    // 种子写死（第七条第 1 条）：SHA-256("qq:group:123456\n7") 的前 8 个字节大端是 x，x × 1000 ÷ 2⁶⁴ 取整是 462；
-    // SHA-256("qq:private:10002\n42") 的是 512。小于千分比才中，正好相等不中。数是拿 Python 的 hashlib 另算的：
-    // `(int.from_bytes(hashlib.sha256(b"qq:group:123456\n7").digest()[:8], "big") * 1000) >> 64`。
-    assert!(!drawn("qq:group:123456", 7, 462));
-    assert!(drawn("qq:group:123456", 7, 463));
-    assert!(!drawn("qq:private:10002", 42, 512));
-    assert!(drawn("qq:private:10002", 42, 513));
-}
-
-#[test]
-fn sampling_is_repeatable_and_bounded() {
-    for msg in 1..=200 {
-        assert!(!drawn("qq:group:123456", msg, 0), "千分比 0 永不中");
-        assert!(drawn("qq:group:123456", msg, 1000), "千分比 1000 必中");
-        assert_eq!(drawn("qq:group:1", msg, 500), drawn("qq:group:1", msg, 500));
-    }
-    // 200 条里抽中的大约一半：种子真看了序号。
-    let hit = (1..=200)
-        .filter(|&msg| drawn("qq:group:1", msg, 500))
-        .count();
-    assert!((60..140).contains(&hit), "{hit}");
-}
-
-#[test]
-fn sampling_skips_media_only_and_other_hits() {
-    let always = Chatty {
-        probability: 1000,
-        ..chatty()
-    };
-    let mut picture = facts();
-    picture.media_only = true;
-    assert_eq!(kinds(&hits(&picture, &[], &[], &always)), []);
-    // 只有表情的照样抽。
-    let mut sticker = facts();
-    sticker.textless = true;
-    assert_eq!(
-        kinds(&hits(&sticker, &[], &[], &always)),
-        [Kind::Probability]
-    );
-    // 别的条件成立时不抽，违规旗也算。
-    let mut msg = facts();
-    msg.said.addressed = true;
-    assert_eq!(kinds(&hits(&msg, &[], &[], &always)), [Kind::Direct]);
-    assert_eq!(
-        kinds(&hits(&facts(), &[Flag::Moderation], &[], &always)),
-        [Kind::Moderation]
-    );
-    let replies = [reply(20 * SECOND, &[])];
-    assert_eq!(
-        kinds(&hits(&facts(), &[], &replies, &always)),
-        [Kind::AfterSpeaking]
-    );
-}
-
 /// 照这些种类造一个条件集合，加分都是 0。
 fn of(kinds: &[Kind]) -> Conditions {
     Conditions {
@@ -298,7 +213,7 @@ fn of(kinds: &[Kind]) -> Conditions {
 
 #[test]
 fn primary_order() {
-    use Kind::{AfterSpeaking, Continuation, Direct, Moderation, Probability};
+    use Kind::{AfterSpeaking, Continuation, Direct, Moderation};
     assert_eq!(of(&[Moderation, Direct]).primary(), Some(Direct));
     assert_eq!(
         of(&[AfterSpeaking, Continuation]).primary(),
@@ -308,14 +223,12 @@ fn primary_order() {
         of(&[Moderation, AfterSpeaking]).primary(),
         Some(AfterSpeaking)
     );
-    // 抽样排在违规旗前面，和插槽的先后不一样。
-    assert_eq!(of(&[Moderation, Probability]).primary(), Some(Probability));
     assert_eq!(of(&[Moderation]).primary(), Some(Moderation));
 }
 
 #[test]
 fn routes() {
-    use Kind::{AfterSpeaking, Direct, Moderation, Probability};
+    use Kind::{AfterSpeaking, Direct, Moderation};
     assert_eq!(route_as(&of(&[]), Standing::Admin), Route::Record);
     assert_eq!(route_as(&of(&[Direct]), Standing::Admin), Route::Commit);
     assert_eq!(
@@ -347,10 +260,6 @@ fn routes() {
         Route::ModerationOnly
     );
     assert_eq!(
-        route_as(&of(&[Probability]), Standing::Member),
-        Route::Judge
-    );
-    assert_eq!(
         route_as(&of(&[AfterSpeaking, Moderation]), Standing::Member),
         Route::Judge
     );
@@ -369,7 +278,7 @@ fn admin_addressing_commits_end_to_end() {
 #[test]
 fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
     // 施工 I-7 中三：被叫时也过判断关了，谁冲她来都直接回。I-20：跳过判断的人只有冲她来直接回，续聊、插话的照常判。
-    use Kind::{AfterSpeaking, Continuation, Direct, Probability};
+    use Kind::{AfterSpeaking, Continuation, Direct};
     let mut chatty = chatty();
     let member = said(Standing::Member);
     assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Judge);
@@ -384,33 +293,25 @@ fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
     chatty.skip_users = vec![SENDER.to_string()];
     assert_eq!(route(&of(&[Direct]), &member, &chatty), Route::Commit);
     assert_eq!(route(&of(&[Continuation]), &member, &chatty), Route::Judge);
-    assert_eq!(route(&of(&[Probability]), &member, &chatty), Route::Judge);
     assert_eq!(route(&of(&[AfterSpeaking]), &member, &chatty), Route::Judge);
     assert_eq!(route(&of(&[]), &member, &chatty), Route::Record);
     chatty.skip_users = vec![OTHER.to_string()];
     assert_eq!(
-        route(&of(&[Probability]), &member, &chatty),
+        route(&of(&[AfterSpeaking]), &member, &chatty),
         Route::Judge,
         "名单里没有他"
     );
 }
 
 #[test]
-fn media_only_messages_are_drawn_only_when_not_skipped_but_always_followed() {
-    // 施工 I-16 照旧版：跳过纯图片开着（出厂）时只有图的不抽样；续聊照算。关了照常抽样。
+fn a_picture_alone_continues_a_chat_but_starts_nothing() {
+    // 施工 I-16 照旧版：只有图的照算续聊。抽样删了以后（施工 I-88），别的条件都不成立的只有图的什么都不成立。
     let mut picture = facts();
     picture.media_only = true;
     picture.textless = true;
-    let mut chatty = chatty();
-    chatty.probability = 1000;
     let replies = [reply(SECOND, &[SENDER])];
-    let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty);
-    assert!(found.has(Kind::Continuation), "{found:?}");
-    let found = conditions(&picture, &[], (&[], &[]), now(), &chatty);
-    assert!(!found.has(Kind::Probability), "{found:?}");
-    chatty.skip_media = false;
-    let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty);
-    assert!(found.has(Kind::Continuation), "{found:?}");
-    let found = conditions(&picture, &[], (&[], &[]), now(), &chatty);
-    assert!(found.has(Kind::Probability), "{found:?}");
+    let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty());
+    assert_eq!(kinds(&found), [Kind::Continuation]);
+    let found = conditions(&picture, &[], (&[], &[]), now(), &chatty());
+    assert_eq!(found, Conditions::default());
 }

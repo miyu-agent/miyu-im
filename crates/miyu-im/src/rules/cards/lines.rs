@@ -8,7 +8,7 @@
 use serde_json::Value;
 
 use super::card::toml_text;
-use super::{Card, Chatty, GroupSet, LongText, OtherPrivateSet, PROBABILITY, PrivateSet, toml_id};
+use super::{Card, GroupSet, LongText, OtherPrivateSet, PrivateSet, toml_id};
 use miyu_chat::{File, Source};
 
 /// 只收在卡上 `rules` 里的顶层键（别的顶层键各有一格，或者不归卡管：`allow`、`match`）。私聊卡没有限流、睡眠两格，写在这里
@@ -188,18 +188,6 @@ fn group_entries(entries: &mut Entries, set: &GroupSet) {
         &set.preset,
     );
     entries.put("keywords", set.keywords.as_deref().map(texts));
-    match set.chatty {
-        Some(Chatty::Never) => entries.set("discipline", quoted("when-called")),
-        Some(level) => {
-            let per_mille = PROBABILITY
-                .iter()
-                .find_map(|(known, value)| (*known == level).then_some(*value))
-                .unwrap_or_default();
-            entries.set("discipline", quoted("chatty"));
-            entries.set("chatty.probability", per_mille.to_string());
-        }
-        None => {}
-    }
     entries.put("managers", set.managers.as_deref().map(texts));
     entries.put("sleep", set.sleep.as_deref().map(quoted));
     entries.put("rate", set.rate.as_deref().map(quoted));

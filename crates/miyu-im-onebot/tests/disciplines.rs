@@ -1,6 +1,6 @@
 //! 线路规程（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 10 条，18 第七节那张表）：`every-message` 有字的都开一轮；
-//! `when-called` 只认冲她来、续聊、违规旗，看顶替；`wake` 只认唤醒词（触发词）和续聊，不看顶替；三种都不抽样、不打分。工作群
-//! （`when-called`）里只有违规旗的问判官只查违规：判官说不够就不回，够了才回。规则把抽样开到必中：不是 `chatty` 的照样不抽。
+//! `when-called` 只认冲她来、续聊、违规旗，看顶替；`wake` 只认唤醒词（触发词）和续聊，不看顶替；三种都不打分。工作群
+//! （`when-called`）里只有违规旗的问判官只查违规：判官说不够就不回，够了才回。
 
 use serde_json::{Value, json};
 
@@ -28,11 +28,10 @@ const BAD: &str = "坏词";
 /// 核心照中文写的 `/stop` 的回执。
 const STOPPED: &str = "已全部停止。";
 
-/// 系统的场所规则：群都抽样必中；三个群各挂一种线路规程，[`WAKE`] 的唤醒词是她的名字。
+/// 系统的场所规则：三个群各挂一种线路规程，[`WAKE`] 的唤醒词是她的名字。
 fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 1000 }}\n\n\
-         [[rule]]\nmatch = {{ kind = \"group\", group = [{EVERY}] }}\ndiscipline = \"every-message\"\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\", group = [{EVERY}] }}\ndiscipline = \"every-message\"\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{CALLED}] }}\ndiscipline = \"when-called\"\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{WAKE}] }}\ndiscipline = \"wake\"\nkeywords = [\"米尤\"]\n"
     )
@@ -114,11 +113,11 @@ async fn each_discipline_goes_its_own_way() {
         "{only_image}"
     );
 
-    // when-called：没叫她的只记下（不抽样）；@ 她开一轮；她还没开口，同一个人补一句接过去、打断重来（施工 I-21）；违规旗直接开一轮。
+    // when-called：没叫她的只记下；@ 她开一轮；她还没开口，同一个人补一句接过去、打断重来（施工 I-21）；违规旗直接开一轮。
     napcat.send(send(CALLED, LIN, 3, json!([plain("随便聊聊")])));
     let idle = until_decided(&home, CALLED, 3).await;
     assert_eq!(idle["discipline"], "when-called", "{idle}");
-    assert_eq!(idle["conditions"], json!([]), "不抽样：{idle}");
+    assert_eq!(idle["conditions"], json!([]), "{idle}");
     assert_eq!(way(&idle), (json!("record"), json!("record")));
     napcat.send(send(CALLED, LIN, 4, json!([at(BOT), plain(" 在吗")])));
     until_event(&home.root, &venue(CALLED), |event| {

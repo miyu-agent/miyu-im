@@ -104,9 +104,9 @@ fn bad_fields_are_reported_on_themselves_and_nothing_changes() {
         update(
             &before,
             Card::Group(qq(), Id::from(7)),
-            &values(json!({"chatty": "loud"}))
+            &values(json!({"long_text": "loud"}))
         ),
-        Edit::Problems(vec![("chatty".into(), "value".into())])
+        Edit::Problems(vec![("long_text".into(), "value".into())])
     );
 }
 
@@ -127,8 +127,7 @@ fn rule_problems_come_back_as_card_fields() {
         "出站表里的去掉 outbound.：{problems:?}"
     );
     assert_eq!(field_of("allow"), "on");
-    assert_eq!(field_of("chatty.probability"), "chatty");
-    assert_eq!(field_of("discipline"), "chatty");
+    assert_eq!(field_of("discipline"), "discipline");
     assert_eq!(field_of("outbound.final_only"), "final_only");
     assert_eq!(field_of("sleep"), "sleep");
 }

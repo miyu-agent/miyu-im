@@ -14,13 +14,13 @@ fn every_item_lands_in_its_own_field() {
     let files = file(
         "[[rule]]\n\
          [rule.inbound]\nbase64_min_chars = 31\nbase64_max_chars = 4001\nbase64_printable = 801\nrepeat_window = \"33s\"\n\
-         [rule.chatty]\nprobability = 41\nbase = 1.1\nrelevance = 1.2\nwillingness = 1.3\nsocial = 1.4\n\
+         [rule.chatty]\nbase = 1.1\nrelevance = 1.2\nwillingness = 1.3\nsocial = 1.4\n\
          timing = 1.5\ncontinuity = 1.6\nadjust = 1.7\ndirect = 1.8\ncontinuation = 1.9\n\
          continuation_window = \"21s\"\nfollowup = false\nfollowup_bonus = 2.4\nafter_speaking = 2.1\nafter_speaking_window = \"22s\"\n\
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
          person_restraint = false\nperson_half_life = \"34s\"\nperson_start = 3.1\nperson_full = 3.2\nperson_cap = 3.3\n\
          group_restraint = false\ngroup_half_life = \"35s\"\ngroup_start = 3.4\ngroup_full = 3.5\ngroup_cap = 3.6\n\
-         severity_min = 9\njudge_called = false\nskip_media = false\nskip_users = [\"qq:1\"]\n\
+         severity_min = 9\njudge_called = false\nskip_users = [\"qq:1\"]\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nattempt_timeout = \"15s\"\nretries = 2\nreason_chars = 29\n\
@@ -34,7 +34,6 @@ fn every_item_lands_in_its_own_field() {
             printable: 801,
         },
         chatty: Chatty {
-            probability: 41,
             base: 1.1,
             weights: [1.2, 1.3, 1.4, 1.5, 1.6],
             adjust: 1.7,
@@ -73,7 +72,6 @@ fn every_item_lands_in_its_own_field() {
             },
             severity_min: 9,
             judge_called: false,
-            skip_media: false,
             skip_users: vec!["qq:1".to_string()],
         },
         repeat_window: 33_000,

@@ -32,11 +32,11 @@ fn scored(
     score(judgement, conditions, (replies, &sender), now(), chatty)
 }
 
-/// 只有一个加 0 分的抽样：冷静不抬（没有回复），门槛就是 `base`。
-fn sampled() -> Conditions {
+/// 只有一个加 0 分的刚说过话：冷静不抬（没有回复），门槛就是 `base`。
+fn unbonused() -> Conditions {
     Conditions {
         hits: vec![Hit {
-            kind: Kind::Probability,
+            kind: Kind::AfterSpeaking,
             bonus: 0.0,
         }],
     }
@@ -76,7 +76,7 @@ fn example_addressed_goes_through() {
 fn adjust_follows_should_reply() {
     let mut no = judged();
     no.should_reply = Some(false);
-    let got = scored(&no, &sampled(), &[], &chatty());
+    let got = scored(&no, &unbonused(), &[], &chatty());
     assert_eq!(mills(got.adjust), -200);
     assert_eq!(mills(got.total), 285);
     // `adjust` 是 0 就是关了：该不该回都不动。
@@ -89,7 +89,7 @@ fn adjust_follows_should_reply() {
             should_reply,
             ..judged()
         };
-        let got = scored(&judgement, &sampled(), &[], &off);
+        let got = scored(&judgement, &unbonused(), &[], &off);
         assert_eq!(mills(got.adjust), 0);
         assert_eq!(mills(got.total), 485);
     }
@@ -120,7 +120,7 @@ fn scores_above_ten_count_as_ten() {
         scores: [20.0, 10.0, 11.0, 10.0, 99.0],
         ..judged()
     };
-    let got = scored(&judgement, &sampled(), &[], &chatty());
+    let got = scored(&judgement, &unbonused(), &[], &chatty());
     assert_eq!(mills(got.raw), 1000);
 }
 
@@ -131,7 +131,7 @@ fn raw_weighs_each_dimension() {
         let mut scores = [0.0; 5];
         scores[dimension] = 10.0;
         let judgement = Judgement { scores, ..judged() };
-        let got = scored(&judgement, &sampled(), &[], &chatty());
+        let got = scored(&judgement, &unbonused(), &[], &chatty());
         assert_eq!(mills(got.raw), mills(weight), "{dimension}");
     }
 }
@@ -142,7 +142,7 @@ fn zero_weights_give_zero_raw() {
         weights: [0.0; 5],
         ..chatty()
     };
-    let got = scored(&judged(), &sampled(), &[], &flat);
+    let got = scored(&judged(), &unbonused(), &[], &flat);
     assert_eq!(got.raw, 0.0);
     assert_eq!(mills(got.total), 200);
 }
@@ -154,14 +154,14 @@ fn total_and_threshold_never_go_below_zero() {
         should_reply: Some(false),
         ..judged()
     };
-    let got = scored(&judgement, &sampled(), &[], &chatty());
+    let got = scored(&judgement, &unbonused(), &[], &chatty());
     assert_eq!(got.total, 0.0);
     assert!(!got.reply);
     let low = Chatty {
         base: -1.0,
         ..chatty()
     };
-    let got = scored(&judgement, &sampled(), &[], &low);
+    let got = scored(&judgement, &unbonused(), &[], &low);
     assert_eq!(got.threshold, 0.0);
     assert!(got.reply, "0 不低于 0");
 }
@@ -184,7 +184,7 @@ fn severity_overrides_the_score() {
             severity,
             ..quiet.clone()
         };
-        let got = scored(&judgement, &sampled(), &[], &chatty());
+        let got = scored(&judgement, &unbonused(), &[], &chatty());
         assert_eq!(got.reply, reply, "{severity:?}");
         assert_eq!(mills(got.threshold), 800, "违规不动门槛");
     }

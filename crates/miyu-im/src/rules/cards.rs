@@ -7,8 +7,8 @@
 //!   每个私聊一条。
 //! - 每一格可选，没写的照下面几层（配置项、出厂、系统的规则）。群卡没写 `on` 的回复（在白名单里），「其他群」「其他私聊」（施工
 //!   O-60：陌生人的私聊，不管白名单成员和认出来的终端管理员）没写的不回复。
-//! - 插嘴四档：`never` 拼成 `discipline = "when-called"`，别的三档拼成 `discipline = "chatty"` 加 `chatty.probability`
-//!   （[`PROBABILITY`]，「施工时定的」）。长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。去句号
+//! - 插嘴四档（`chatty`）施工 I-88 删了（设计 05 第二节第 7 条）：旧卡片上写着的照没写读、不拼（[`retired`]），存的时候去掉。
+//! - 长文（施工 O-59 上）、仅发送最终消息（施工 O-57）拼进同一张 `outbound` 表。去句号
 //!   O-58 补二挪成配置项（`configured`）：是通用的，不进卡片。
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
@@ -41,22 +41,9 @@ pub use store::{load, path, save};
 /// 卡片拼出来的文件名的开头：排在配置项那一份 `60-settings.toml` 后面。
 const PREFIX: &str = "70-card-";
 
-/// 插嘴三档的千分比：`few`、`some`（出厂的 `chatty.probability`）、`many`。
-const PROBABILITY: [(Chatty, u32); 3] =
-    [(Chatty::Few, 20), (Chatty::Some, 50), (Chatty::Many, 120)];
-
-/// 插嘴：不插嘴（只在叫她时回）、少、偶尔、常。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Chatty {
-    /// 只在叫她时回。
-    Never,
-    /// 少插嘴。
-    Few,
-    /// 偶尔（出厂）。
-    Some,
-    /// 常插嘴。
-    Many,
+/// 删掉的一格（施工 I-88 的插嘴 `chatty`）：旧卡片上写着什么都收下、丢掉，存的时候不写。
+fn retired<'de, D: serde::Deserializer<'de>>(written: D) -> Result<(), D::Error> {
+    serde::de::IgnoredAny::deserialize(written).map(|_| ())
 }
 
 /// 长文怎么发（施工 O-59 上）：拆成几条、转成图、合并转发（O-59 下）。拼成规则的 `outbound.long_text`。
@@ -104,9 +91,9 @@ pub struct GroupSet {
     /// 触发词。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords: Option<Vec<String>>,
-    /// 插嘴。
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chatty: Option<Chatty>,
+    /// 插嘴（施工 I-88 删了）：旧卡片上写着的照没写读，存的时候不写。
+    #[serde(rename = "chatty", skip_serializing, deserialize_with = "retired")]
+    pub retired_chatty: (),
     /// 管理的人：平台身份 `qq:<号>`。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub managers: Option<Vec<String>>,

@@ -77,7 +77,7 @@ async fn the_records_page_reads_searches_and_deletes() {
         json!([at(BOT), plain(" 在吗")]),
         ("终端管理员", "o"),
     ));
-    // 一页：从旧到新，人说的带判断：小林没叫她的只记下（没叫、没抽中），终端管理员 @ 她的回了（陌生群也照回）。
+    // 一页：从旧到新，人说的带判断：小林没叫她的只记下（没叫她），终端管理员 @ 她的回了（陌生群也照回）。
     let first = page(&mut open, 2).await;
     let items = first["items"].as_array().expect("有");
     let texts: Vec<&str> = items

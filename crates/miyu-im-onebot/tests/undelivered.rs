@@ -19,10 +19,10 @@ use crate::support::group::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
-/// 一小时一轮、不抽样的群：别人开过一轮以后再叫她，回一句提示。
+/// 一小时一轮的群：别人开过一轮以后再叫她，回一句提示。
 const GROUP: i64 = 777;
 
-/// 不抽样的群：她被禁言着，排过期。
+/// 一个群：她被禁言着，排过期。
 const QUIET: i64 = 778;
 
 /// 群里的别人。
@@ -31,7 +31,7 @@ const LIN: i64 = 20002;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样、谁 @ 她都直接回（施工 I-33：不再以人的身份代判官开轮），[`GROUP`] 一小时一轮。
+/// 系统的场所规则：谁 @ 她都直接回（施工 I-33：不再以人的身份代判官开轮），[`GROUP`] 一小时一轮。
 fn rules() -> String {
     rules_with("outbound = { humanlike = false }\n")
 }
@@ -39,7 +39,7 @@ fn rules() -> String {
 /// 同 [`rules`]，群的那一条另加 `more`：她的一句话拆不拆（I-26）由各个测试定，退信这几个默认不拆，好照整句的开头比。
 fn rules_with(more: &str) -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0, judge_called = false }}\n{more}\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ judge_called = false }}\n{more}\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\n"
     )
 }

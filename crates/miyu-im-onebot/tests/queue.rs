@@ -29,9 +29,9 @@ const LIN: i64 = 20002;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样（别人没 @ 她的话只记下）、谁 @ 她都直接回（施工 I-33：禁言以前先开一轮，不再以人的身份代判官开）；
+/// 系统的场所规则：别人没 @ 她的话只记下、谁 @ 她都直接回（施工 I-33：禁言以前先开一轮，不再以人的身份代判官开）；
 /// [`SPLIT`] 一段最多 4 个字。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0, judge_called = false }\n\n\
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { judge_called = false }\n\n\
     [[rule]]\nmatch = { kind = \"group\", group = [666] }\noutbound = { split_chars = 4 }\n";
 
 /// 入队、失败、禁言、解禁记成的事件。

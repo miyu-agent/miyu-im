@@ -1,6 +1,6 @@
 //! 问判官（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 7、12、13 条）：真核心照开关拉起真桥，假 NapCat 发群消息，她的
 //! 回合照剧本说，判官那一次（`model.call`）发到本机回环上的假服务器（`support::judge`）。别人 @ 她，判官说回就回、说不回就
-//! 不回；抽样中了交判官；只有违规旗的只查违规，严重程度够了照回；判官回的读不出、等不到的记为什么，读不出的再问一次，冲她来
+//! 不回；没人叫她、什么都不成立的只记下、不问判官（抽样施工 I-88 删了）；只有违规旗的只查违规，严重程度够了照回；判官回的读不出、等不到的记为什么，读不出的再问一次，冲她来
 //! 的照回（O-37；刚说过话的判不了只记下在 `replayed.rs`）；
 //! `ext.im.chat.decided` 的格都在；判官在判的时候，别人说的照样记进、判完。判官带人格在 `judged_persona.rs`（施工 O-23 补）。
 
@@ -14,11 +14,11 @@ use crate::support::group::*;
 use crate::support::judge::*;
 use crate::support::*;
 
-/// 不抽样的群：别人 @ 她交判官。
+/// 别人 @ 她交判官的群。
 const GROUP: i64 = 555;
 
-/// 抽样必中的群。
-const SAMPLED: i64 = 556;
+/// 没人叫她的群：什么都不成立，只记下。
+const IDLE: i64 = 556;
 
 /// 她没说过话的群：只有违规旗的消息只查违规。
 const QUIET: i64 = 557;
@@ -36,11 +36,10 @@ pub(crate) const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 /// 系统的违规词表里的一个词。
 const BAD: &str = "坏词";
 
-/// 系统的场所规则：群默认不抽样，[`SAMPLED`] 抽样必中，[`SLOW`] 判官等一秒、不重试。
+/// 系统的场所规则：[`SLOW`] 判官等一秒、不重试。
 fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
-         [[rule]]\nmatch = {{ kind = \"group\", group = [{SAMPLED}] }}\nchatty = {{ probability = 1000 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{SLOW}] }}\njudge = {{ timeout = \"1s\", retries = 0 }}\n"
     )
 }
@@ -99,14 +98,13 @@ async fn others_calling_her_are_judged() {
     let server = judge(vec![
         yes("they asked her"),
         no("talking to someone else"),
-        yes("an easy one"),
         verdict(json!({
             "relevance": 0, "willingness": 0, "social": 0, "timing": 0, "continuity": 0,
             "should_reply": false, "to_bot": false, "severity": 8, "reason": "abusive",
         })),
     ])
     .await;
-    let script = Script::new([Play::Says("在呢"), Play::Says("是啊"), Play::Says("别这样")]);
+    let script = Script::new([Play::Says("在呢"), Play::Says("别这样")]);
     let words = format!("{BAD}\n");
     let (home, mut napcat, _) =
         started_judged(&script, &server, (&rules(), &words), "", MEMBERS).await;
@@ -128,15 +126,14 @@ async fn others_calling_her_are_judged() {
         ("阿杰", "jie"),
     ));
     let events = until_decided(&home, GROUP, 2).await;
-    // 3：抽样中了。4：她没说过话的群里只有违规旗，只查违规，严重程度够了照回。
+    // 3：没人叫她、她没说过话：只记下，不问判官。4：她没说过话的群里只有违规旗，只查违规，严重程度够了照回。
     napcat.send(group_frame(
-        SAMPLED,
+        IDLE,
         LIN,
         3,
         json!([plain("今天天气不错")]),
         ("小林", "lin"),
     ));
-    assert_eq!(napcat.group_reply(SAMPLED).await, "是啊");
     napcat.send(group_frame(
         QUIET,
         JIE,
@@ -145,7 +142,7 @@ async fn others_calling_her_are_judged() {
         ("阿杰", "jie"),
     ));
     assert_eq!(napcat.group_reply(QUIET).await, "别这样");
-    let sampled = until_decided(&home, SAMPLED, 3).await;
+    let idle = until_decided(&home, IDLE, 3).await;
     let quiet = until_decided(&home, QUIET, 4).await;
 
     let asked_her = decided(&events, 1).expect("记了判断");
@@ -192,16 +189,14 @@ async fn others_calling_her_are_judged() {
     assert_eq!(refused["outcome"], "record", "判官说不回就不回：{refused}");
     assert_eq!(of_kind(&events, "turn.started").len(), 1, "只开了一轮");
 
-    let sample = decided(&sampled, 3).expect("记了判断");
+    let unasked = decided(&idle, 3).expect("记了判断");
+    assert_eq!(unasked["conditions"], json!([]), "{unasked}");
     assert_eq!(
-        sample["conditions"],
-        json!([{"kind": "probability", "bonus": 0.0}])
+        (&unasked["route"], &unasked["outcome"]),
+        (&json!("record"), &json!("record")),
+        "{unasked}"
     );
-    assert_eq!(
-        (&sample["route"], &sample["outcome"]),
-        (&json!("judge"), &json!("reply")),
-        "{sample}"
-    );
+    assert!(unasked.get("judge").is_none(), "不问判官：{unasked}");
 
     let violated = decided(&quiet, 4).expect("记了判断");
     assert_eq!(violated["flags"], json!(["moderation"]), "{violated}");
@@ -232,7 +227,7 @@ async fn others_calling_her_are_judged() {
         first["max_tokens"] != 400 && first["max_completion_tokens"] != 400,
         "{first}"
     );
-    let moderated = asked(&server, 3);
+    let moderated = asked(&server, 2);
     let system = moderated["messages"][0]["content"].as_str().expect("是字");
     assert!(
         system.contains(&judge_text("moderation-only.txt")),
@@ -244,7 +239,7 @@ async fn others_calling_her_are_judged() {
         log.contains("在吗") && log.contains("they asked her"),
         "理由、正文开头进运行日志：{log}"
     );
-    assert_eq!(script.requests().len(), 3, "判官不说回的不开回合");
+    assert_eq!(script.requests().len(), 2, "判官不说回的、没人叫的不开回合");
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;
 }

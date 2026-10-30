@@ -13,11 +13,12 @@ use crate::support::platform::next_platform;
 use crate::support::speaking::{Line, Lines, SKIP_REPLY};
 use crate::support::*;
 
-/// 不抽样的群：别人的话只记下，终端管理员 @ 她开一轮。
+/// 一个群：别人的话只记下，终端管理员 @ 她开一轮。
 const GROUP: i64 = 778;
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\ndispatch = { supersede_window = \"1s\" }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str =
+    "[[rule]]\nmatch = { kind = \"group\" }\ndispatch = { supersede_window = \"1s\" }\n";
 
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];

@@ -29,11 +29,12 @@ const EXPIRE: u64 = 8;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群都不抽样。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
-/// 系统的场所规则：群都不抽样，一段最多 4 个字符（她一句里隔一个空行的两段拆成两条发）。
-const SPLIT_RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\noutbound = { split_chars = 4 }\n";
+/// 系统的场所规则：一段最多 4 个字符（她一句里隔一个空行的两段拆成两条发）。
+const SPLIT_RULES: &str =
+    "[[rule]]\nmatch = { kind = \"group\" }\noutbound = { split_chars = 4 }\n";
 
 /// 入队记成的事件。
 const QUEUED: &str = "ext.im.venues.queued";

@@ -1,7 +1,7 @@
 //! 贴表情（施工 O-25 下，`onebot.md` 第一条「贴表情」；18 第七节那张表）：真核心拉起真桥、假 NapCat，她照台词、剧本说。群里
 //! 判下来要回、主触发是冲她来或续聊的，`session.respond` 成了以后在她要回的那一条（几条一起判的最后一条）上贴 `set_msg_emoji_like {message_id,
 //! emoji_id: "289", set: true}`；那一轮发出去第一段、那一轮结束、贴了以后过了 `reaction_seconds`，先到哪个算哪个，摘一次
-//! （`set: false`）。顶替接过去的挪到新的那一条。判官说不回的、抽样、刚说过话的不贴。假 NapCat 把贴、摘另放一处
+//! （`set: false`）。顶替接过去的挪到新的那一条。判官说不回的、只查违规的、刚说过话的不贴。假 NapCat 把贴、摘另放一处
 //! （`Answering::reacted`）：每个测试最后再叫她一次，看下一个贴、摘是新的那一条，前面没有多出来的。
 
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use crate::support::judge::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
-/// 不抽样的群。
+/// 平常的群。
 const GROUP: i64 = 991;
 
 /// 只在叫她时回的群（`when-called`）：续聊不算（施工 I-16 照旧版）。
@@ -26,8 +26,11 @@ const CALLED: i64 = 992;
 /// 唤醒的群（`wake`）：回了以后一小段时间里续聊不过判官，直接开一轮。
 const WOKEN: i64 = 994;
 
-/// 抽样必中的群。
-const SAMPLED: i64 = 993;
+/// 只有违规旗的那一条判了要回的群：她在这里说过话，后面接着说的照刚说过话算。
+const FLAGGED: i64 = 993;
+
+/// 系统的违规词表里的一个词。
+const BAD: &str = "坏词";
 
 /// 群里的两个别人。
 const LIN: i64 = 20002;
@@ -36,12 +39,11 @@ const JIE: i64 = 20003;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：群默认不抽样，[`CALLED`] 只在叫她时回，[`SAMPLED`] 抽样必中。
+/// 系统的场所规则：[`CALLED`] 只在叫她时回，[`WOKEN`] 叫醒了才回。
 fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{CALLED}] }}\ndiscipline = \"when-called\"\n\n\
-         [[rule]]\nmatch = {{ kind = \"group\", group = [{SAMPLED}] }}\nchatty = {{ probability = 1000 }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{WOKEN}] }}\ndiscipline = \"wake\"\n"
     )
 }
@@ -199,9 +201,15 @@ async fn a_late_reply_is_unmarked_in_time_and_only_once() {
 
 #[tokio::test]
 async fn judged_but_not_called_are_not_marked() {
-    let server = judge(vec![no("not for her"), yes("easy"), yes("go on")]).await;
+    let flagged = verdict(json!({
+        "relevance": 0, "willingness": 0, "social": 0, "timing": 0, "continuity": 0,
+        "should_reply": false, "to_bot": false, "severity": 8, "reason": "abusive",
+    }));
+    let server = judge(vec![no("not for her"), flagged, yes("go on")]).await;
     let script = Script::new([Play::Says("是啊"), Play::Says("对"), Play::Says("在")]);
-    let (home, mut napcat, _) = started_judged(&script, &server, (&rules(), ""), "", MEMBERS).await;
+    let words = format!("{BAD}\n");
+    let (home, mut napcat, _) =
+        started_judged(&script, &server, (&rules(), &words), "", MEMBERS).await;
     // 1：小林 @ 她，判官说不回：不贴。
     napcat.send(group_frame(
         GROUP,
@@ -216,31 +224,31 @@ async fn judged_but_not_called_are_not_marked() {
         of_kind(&events, "ext.im.chat.decided")[0]["body"]["outcome"],
         "record"
     );
-    // 2：抽样中了，判官说回：不贴。3：她刚说过话，阿杰接着说，判官说回：不贴。
+    // 2：只有违规旗，判官说严重程度够了，照回：不贴。3：她刚说过话，阿杰接着说，判官说回：不贴。
     napcat.send(group_frame(
-        SAMPLED,
+        FLAGGED,
         LIN,
         2,
-        json!([plain("今天天气不错")]),
+        json!([plain(&format!("这里有{BAD}"))]),
         ("小林", "lin"),
     ));
-    assert_eq!(next_words(&mut napcat, SAMPLED).await, "是啊");
+    assert_eq!(next_words(&mut napcat, FLAGGED).await, "是啊");
     // 刚说过话照送达算：等 `venue.delivered` 记下了再接着说。
-    until_count(&home, SAMPLED, "venue.delivered", 1).await;
+    until_count(&home, FLAGGED, "venue.delivered", 1).await;
     napcat.send(group_frame(
-        SAMPLED,
+        FLAGGED,
         JIE,
         3,
         json!([plain("是挺好的")]),
         ("阿杰", "jie"),
     ));
-    assert_eq!(next_words(&mut napcat, SAMPLED).await, "对");
-    let events = until_count(&home, SAMPLED, "ext.im.chat.decided", 2).await;
+    assert_eq!(next_words(&mut napcat, FLAGGED).await, "对");
+    let events = until_count(&home, FLAGGED, "ext.im.chat.decided", 2).await;
     let primaries: Vec<Value> = of_kind(&events, "ext.im.chat.decided")
         .iter()
         .map(|one| one["body"]["conditions"][0]["kind"].clone())
         .collect();
-    assert_eq!(primaries, ["probability", "after_speaking"]);
+    assert_eq!(primaries, ["moderation", "after_speaking"]);
     // 4：终端管理员 @ 她：头一个贴的是它，前面三条都没贴。
     admin_says(&napcat, GROUP, 4, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(4, true), "前面的不贴");

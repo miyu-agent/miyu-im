@@ -24,8 +24,8 @@ const WANG: i64 = 20003;
 /// 假 NapCat 认得的群成员。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (OWNER, "群主", "zhu")];
 
-/// 群里不抽样（别人的话只记下）。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 群里别人的话只记下。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 场所编号。
 fn venue() -> String {

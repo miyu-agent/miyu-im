@@ -7,7 +7,8 @@
 //! 文件；现在没有往里加的入口，加的是扩展，随插件那一步。
 //!
 //! 纯逻辑：她最近回过谁（[`Reply`]）、此刻（[`Clock`]），由外面从场所会话的日志投影出来交进来；参数（[`Chatty`]）从
-//! `chat.md` 第八条的 [`Params`](crate::Params) 拿（施工 O-15）。抽样照哈希，不碰随机源（`02-内核.md` K1）：同一份日志回放出同样的结果。
+//! `chat.md` 第八条的 [`Params`](crate::Params) 拿（施工 O-15）。不碰随机源（`02-内核.md` K1）：同一份日志回放出同样的结果。
+//! 抽样（按千分比抽零散的一条交判官）施工 I-88 删了，换成设计 05「时不时看一眼」。
 
 mod after_speaking;
 mod continuation;
@@ -17,9 +18,7 @@ mod followup;
 mod group;
 mod moderation;
 mod person;
-mod probability;
 mod restraint;
-mod sample;
 mod score;
 mod supersede;
 
@@ -37,9 +36,9 @@ use crate::{Clock, Flag, Said, Standing};
 /// 一条消息的平台事实：桥照驱动报上来的填好交进来（18 第七节那张流程图的第二格）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Facts {
-    /// 场所编号（[`Venue::id`](crate::Venue::id) 拼），照原样进抽样的种子（「怎么走」第 6 条）。
+    /// 场所编号（[`Venue::id`](crate::Venue::id) 拼）。
     pub venue: VenueId,
-    /// 这条消息：它在场所主线会话日志里的序号（`chat.md` 第七条第 1 条），进抽样的种子；顶替、承诺也认它。
+    /// 这条消息：它在场所主线会话日志里的序号（`chat.md` 第七条第 1 条）：顶替、承诺认它。
     pub msg: Seq,
     /// 谁发的、他是谁、是不是冲她来的：和进站链共用一份（[`Said`]）。终端管理员、白名单成员冲她来的不过判官（[`route`]）。
     pub said: Said,
@@ -49,7 +48,7 @@ pub struct Facts {
     pub quotes_other: bool,
     /// 是不是没有字（只带了东西、只有占位的都算，桥照它的正文认；O-37 以前只有都是表情的算）：没有字的不算刚说过话。
     pub textless: bool,
-    /// 是不是只有图：只有图的不抽样。
+    /// 是不是只有图、表情、文件，没有字（线路规程 `every-message` 照它只记下）。
     pub media_only: bool,
     /// 冲她来的这一条是不是只叫了她、没说别的（施工 I-29，[`hollow()`](crate::hollow())，没有字、只有图的也算）：冲她来照样
     /// 成立，不加 `direct` 分。
@@ -74,8 +73,6 @@ pub struct Reply {
 /// （自查第 14 条，施工 O-15）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chatty {
-    /// 抽样的千分比：`50` 是 5%，`0` 永不中，`1000` 及以上必中。
-    pub(crate) probability: u16,
     /// 基础门槛：冷静抬高之前的门槛，旧版 `0.8`。
     pub(crate) base: f64,
     /// 五维的权重，照相关、意愿、社交、时机、连贯的先后，和 [`Judgement::scores`] 一一对上。全是 0 的，`raw` 是 0。
@@ -100,8 +97,6 @@ pub struct Chatty {
     pub(crate) severity_min: u8,
     /// 普通群友冲她来也先过判官（施工 I-7 中三）：关着的冲她来就直接回（[`route`]）。
     pub(crate) judge_called: bool,
-    /// 只有图的不抽样、不算续聊（施工 I-7 中三；没有字的本来就不算刚说过话）。
-    pub(crate) skip_media: bool,
     /// 这几个人（平台上的人的编号）冲她来直接回，没冲她来的只记下、不交判官（施工 I-7 中三，[`route`]）。
     pub(crate) skip_users: Vec<String>,
 }
@@ -149,8 +144,6 @@ pub enum Kind {
     FollowUp,
     /// 刚说过话：她刚在场所里说过话，任何人接着说。
     AfterSpeaking,
-    /// 抽样：别的都不成立时照千分比抽中。
-    Probability,
     /// 违规旗：进站链插的旗，只让判官认真查一眼。
     Moderation,
 }
@@ -167,29 +160,20 @@ pub struct Hit {
 /// 一条消息成立了的触发条件，是集合不是梯子：成立的都在，加分相加，不封顶（18 第七节）。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Conditions {
-    /// 成立了的条件，照插槽的先后（冲她来、续聊、刚说过话、违规旗、抽样）。顶替合起来的（[`supersede()`]），前一条的在前，
+    /// 成立了的条件，照插槽的先后（冲她来、续聊、跟进、刚说过话、违规旗）。顶替合起来的（[`supersede()`]），前一条的在前，
     /// 这一条新添的种类跟在后面。
     pub hits: Vec<Hit>,
 }
 
-impl Chatty {
-    /// 抽样的千分比（施工 O-58 上：接入通讯平台 的后台页照它说卡片里「插嘴」的默认是哪一档）。
-    #[must_use]
-    pub fn probability(&self) -> u16 {
-        self.probability
-    }
-}
-
 impl Conditions {
-    /// 主触发：照冲她来、续聊、跟进、刚说过话、抽样、违规旗的先后取第一个成立的（「怎么走」第 7 条）；一个都没有是 `None`。
-    /// 只用来归类：日志、贴不贴表情、回合开头那句「为什么叫你」写哪一种。注意抽样排在违规旗前面，和插槽的先后不一样。
+    /// 主触发：照冲她来、续聊、跟进、刚说过话、违规旗的先后取第一个成立的（「怎么走」第 7 条）；一个都没有是 `None`。
+    /// 只用来归类：日志、贴不贴表情写哪一种。
     pub fn primary(&self) -> Option<Kind> {
         [
             Kind::Direct,
             Kind::Continuation,
             Kind::FollowUp,
             Kind::AfterSpeaking,
-            Kind::Probability,
             Kind::Moderation,
         ]
         .into_iter()
@@ -275,15 +259,14 @@ pub trait Lift {
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64;
 }
 
-/// 自带的加值项，照这个先后：冲她来、续聊、跟进、刚说过话、违规旗、抽样（「怎么走」第 1 条）。抽样排最后，它要看前面的。
-fn bonuses() -> [&'static dyn Bonus; 6] {
+/// 自带的加值项，照这个先后：冲她来、续聊、跟进、刚说过话、违规旗（「怎么走」第 1 条）。
+fn bonuses() -> [&'static dyn Bonus; 5] {
     [
         &direct::Item,
         &continuation::Item,
         &followup::Item,
         &after_speaking::Item,
         &moderation::Item,
-        &probability::Item,
     ]
 }
 
@@ -331,7 +314,7 @@ pub enum Route {
     Judge,
 }
 
-/// 一条消息走哪条路：没有条件只记下；`skip_users` 里的人冲她来直接回，别的（续聊、刚说过话、抽中）照常判（施工 I-20：2026-10-21
+/// 一条消息走哪条路：没有条件只记下；`skip_users` 里的人冲她来直接回，别的（续聊、刚说过话）照常判（施工 I-20：2026-10-21
 /// 项目主人定「跳过判断的只应该有直接触发」）；终端管理员、白名单成员冲她来直接回，`judge_called` 关着时谁冲她来都直接回；只有违规旗
 /// 判官只查违规；别的交给判官打分（「怎么走」第 8 条）。
 pub fn route(conditions: &Conditions, said: &Said, chatty: &Chatty) -> Route {

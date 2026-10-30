@@ -27,7 +27,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 /// 核心照中文写的 `/stop` 的回执（`resources/core/human/zh.json`）。
 const STOPPED: &str = "已全部停止。";
 
-/// 系统的场所规则：两个群都不抽样（判断不随序号变）、她的话一段最多 4 个字符；[`GROUP`] 的触发词是她的名字，[`SLEEPY`] 的
+/// 系统的场所规则：她的话一段最多 4 个字符；[`GROUP`] 的触发词是她的名字，[`SLEEPY`] 的
 /// 睡觉时间盖住此刻（前后各一个小时，照本机的时区）。
 fn rules() -> String {
     let now = jiff::Zoned::now();
@@ -37,7 +37,7 @@ fn rules() -> String {
         format!("{:02}:{:02}", minute / 60, minute % 60)
     };
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\noutbound = {{ split_chars = 4 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\noutbound = {{ split_chars = 4 }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nkeywords = [\"米尤\"]\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{SLEEPY}] }}\nsleep = \"{}-{}\"\n",
         clock(minute - 60),

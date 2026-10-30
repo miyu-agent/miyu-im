@@ -13,11 +13,11 @@ use crate::support::judge::*;
 use crate::support::media::image;
 use crate::support::*;
 
-/// 不抽样的群。
+/// 一个群。
 const GROUP: i64 = 571;
 
-/// 系统的场所规则：群都不抽样（结论不随序号变）。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\nchatty = { probability = 0 }\n";
+/// 系统的场所规则：只有一条配群的空规则。
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\n";
 
 /// 群号是 `group` 的场所编号。
 fn venue(group: i64) -> String {

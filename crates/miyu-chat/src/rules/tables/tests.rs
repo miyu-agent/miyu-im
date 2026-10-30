@@ -66,14 +66,14 @@ fn seen(code: Code, key: &str, line: usize, column: usize, got: &str, near: Opti
 
 #[test]
 fn an_inline_table_sets_only_the_items_it_writes() {
-    let files = file("[[rule]]\nchatty = { probability = 80 }\n");
+    let files = file("[[rule]]\nchatty = { severity_min = 8 }\n");
     let resolved = rules(&files).resolve(&group("1"));
     assert_eq!(
         resolved.entries.keys().copied().collect::<Vec<_>>(),
-        ["chatty.probability"]
+        ["chatty.severity_min"]
     );
-    let entry = &resolved.entries["chatty.probability"];
-    assert_eq!(entry.value, Value::Int(80));
+    let entry = &resolved.entries["chatty.severity_min"];
+    assert_eq!(entry.value, Value::Int(8));
     assert_eq!(entry.origin.line, 2);
     assert_eq!(entry.origin.rule, 1);
 }
@@ -81,14 +81,14 @@ fn an_inline_table_sets_only_the_items_it_writes() {
 #[test]
 fn a_header_table_and_dotted_keys_read_like_an_inline_table() {
     let files = file(
-        "[[rule]]\nmatch = { kind = \"group\" }\n[rule.chatty]\nprobability = 80\nbase = 0.9\n\n\
+        "[[rule]]\nmatch = { kind = \"group\" }\n[rule.chatty]\nseverity_min = 8\nbase = 0.9\n\n\
          [[rule]]\njudge.records = 5\n",
     );
     let resolved = rules(&files).resolve(&group("1"));
-    let probability = &resolved.entries["chatty.probability"];
+    let severity = &resolved.entries["chatty.severity_min"];
     assert_eq!(
-        (probability.value.clone(), probability.origin.line),
-        (Value::Int(80), 4)
+        (severity.value.clone(), severity.origin.line),
+        (Value::Int(8), 4)
     );
     let base = &resolved.entries["chatty.base"];
     assert_eq!((base.value.clone(), base.origin.line), (float(0.9), 5));
@@ -103,19 +103,31 @@ fn a_header_table_and_dotted_keys_read_like_an_inline_table() {
 #[test]
 fn later_rules_win_item_by_item_and_other_tables_are_untouched() {
     let files = file(
-        "[[rule]]\nchatty = { probability = 80, base = 0.9 }\n\
-         [[rule]]\nchatty = { probability = 10 }\njudge = { records = 5 }\n",
+        "[[rule]]\nchatty = { severity_min = 8, base = 0.9 }\n\
+         [[rule]]\nchatty = { severity_min = 3 }\njudge = { records = 5 }\n",
     );
     let resolved = rules(&files).resolve(&group("1"));
-    let probability = &resolved.entries["chatty.probability"];
+    let severity = &resolved.entries["chatty.severity_min"];
     assert_eq!(
-        (probability.value.clone(), probability.origin.rule),
-        (Value::Int(10), 2)
+        (severity.value.clone(), severity.origin.rule),
+        (Value::Int(3), 2)
     );
     let base = &resolved.entries["chatty.base"];
     assert_eq!((base.value.clone(), base.origin.rule), (float(0.9), 1));
     assert_eq!(resolved.entries["judge.records"].value, Value::Int(5));
     assert_eq!(resolved.entries.len(), 3);
+}
+
+#[test]
+fn retired_items_in_venue_rules_read_as_unwritten() {
+    // 施工 I-88：抽样、跳过纯图片删了。旧的场所规则、卡片上写着的不报、不套，同一张表里别的照读。
+    let files = file("[[rule]]\nchatty = { probability = 80, skip_media = false, base = 0.9 }\n");
+    assert_eq!(problems(&files), []);
+    let resolved = rules(&files).resolve(&group("1"));
+    assert_eq!(
+        resolved.entries.keys().copied().collect::<Vec<_>>(),
+        ["chatty.base"]
+    );
 }
 
 #[test]
@@ -133,13 +145,13 @@ fn durations_and_the_judge_model_stay_as_written() {
 
 #[test]
 fn a_misspelt_table_suggests_the_nearest_table_and_the_rest_counts() {
-    let files = file("[[rule]]\nchaty = { probability = 80 }\nallow = true\n");
+    let files = file("[[rule]]\nchaty = { base = 0.9 }\nallow = true\n");
     let unknown = seen(
         Code::UnknownKey,
         "chaty",
         2,
         1,
-        "{ probability = 80 }",
+        "{ base = 0.9 }",
         Some("chatty"),
     );
     assert_eq!(problems(&files), [unknown]);
@@ -151,20 +163,20 @@ fn a_misspelt_table_suggests_the_nearest_table_and_the_rest_counts() {
 
 #[test]
 fn a_misspelt_item_suggests_the_nearest_item_of_that_table() {
-    let files = file("[[rule]]\nchatty = { probabilty = 80, base = 0.9 }\n");
+    let files = file("[[rule]]\nchatty = { severity_mn = 8, base = 0.9 }\n");
     let unknown = seen(
         Code::UnknownKey,
-        "chatty.probabilty",
+        "chatty.severity_mn",
         2,
         12,
-        "80",
-        Some("chatty.probability"),
+        "8",
+        Some("chatty.severity_min"),
     );
     assert_eq!(problems(&files), [unknown]);
     // 别的表里的名字不算：`records` 只在 `judge` 里。
     let files = file("[[rule]]\nchatty = { record = 5 }\n");
     assert_eq!(problems(&files)[0].4, None);
-    let files = file("[[rule]]\nchatty = { probabilty = 80, base = 0.9 }\n");
+    let files = file("[[rule]]\nchatty = { severity_mn = 8, base = 0.9 }\n");
     assert_eq!(set(&files, "chatty.base"), Some(float(0.9)));
 }
 
@@ -181,13 +193,13 @@ fn a_table_written_as_something_else_drops_only_that_table() {
 #[test]
 fn a_bad_item_drops_only_that_item() {
     let files = file(
-        "[[rule]]\nchatty = { probability = 2000, base = 0.9 }\n\
+        "[[rule]]\nchatty = { severity_min = 20, base = 0.9 }\n\
          [[rule]]\nchatty = { restraint_k = 0, restraint_cap = nan, continuation_window = \"0s\" }\n",
     );
     assert_eq!(
         problems(&files),
         [
-            seen(Code::OutOfRange, "chatty.probability", 2, 26, "2000", None),
+            seen(Code::OutOfRange, "chatty.severity_min", 2, 27, "20", None),
             seen(Code::OutOfRange, "chatty.restraint_k", 4, 26, "0", None),
             seen(Code::OutOfRange, "chatty.restraint_cap", 4, 45, "nan", None),
             seen(
@@ -211,13 +223,13 @@ fn a_bad_item_drops_only_that_item() {
 fn at_changes_only_what_the_venue_rules_wrote() {
     let files = [factory(
         "50-defaults.toml",
-        "[[rule]]\nmatch = { group = [1] }\nchatty = { probability = 80 }\njudge = { model = \"@cheap\" }\n\
+        "[[rule]]\nmatch = { group = [1] }\nchatty = { severity_min = 8 }\njudge = { model = \"@cheap\" }\n\
          [[rule]]\nchatty = { continuation_window = \"20s\" }\npersona = \"miyu\"\n",
     )];
     let rules = rules(&files);
     let factory = defaults();
     let mut one = factory.clone();
-    one.chatty.probability = 80;
+    one.chatty.severity_min = 8;
     one.chatty.continuation.window = 20_000;
     one.judge.model = Some("@cheap".to_string());
     assert_eq!(factory.at(&rules.resolve(&group("1"))), one);
@@ -268,7 +280,7 @@ fn at_skips_hand_made_entries_that_break_the_declaration() {
     };
     let entries = BTreeMap::from([
         ("chatty.restraint_k", entry(float(0.0))),
-        ("chatty.probability", entry(text("80"))),
+        ("chatty.severity_min", entry(text("8"))),
         ("chatty.half_life", entry(text("3m"))),
         ("persona", entry(text("miyu"))),
         ("chatty.base", entry(float(0.5))),

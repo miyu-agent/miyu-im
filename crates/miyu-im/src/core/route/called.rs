@@ -205,9 +205,8 @@ impl Route {
             self.counters.bump(Count::Recorded, &tag.venue);
         }
         // 开轮带上为什么叫她（施工 I-16，`primer`）：排着的（禁言时）也带。
-        let templates = (self.rules.join_in(), self.rules.precheck());
         let tag = &Tag {
-            facts: primer(decision, judged.as_ref(), templates),
+            facts: primer(decision, judged.as_ref(), self.rules.precheck()),
             ..tag.clone()
         };
         match finale {

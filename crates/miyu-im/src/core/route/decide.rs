@@ -3,8 +3,8 @@
 //! 得出结论。纯逻辑：要的都由调的一方从场所规则、投影、桥内存里在判的、这一条填好交进来（`called.rs`）。判断写成
 //! `ext.im.chat.decided` 的 `body` 在 `body.rs`。
 //!
-//! 要问判官的结论是 [`Conclusion::Judge`]：判官回来、算完分才知道回不回（`judged.rs`）。额度满了的这段时间 `chatty` 不抽样、
-//! 不问判官（第 14 条），要问判官的只记下。只有主线，不分派（「施工时定的」第 74 条）。
+//! 要问判官的结论是 [`Conclusion::Judge`]：判官回来、算完分才知道回不回（`judged.rs`）。额度满了的这段时间不问判官
+//! （第 14 条），要问判官的只记下。只有主线，不分派（「施工时定的」第 74 条）。
 
 use miyu_chat::{
     Chain, Chatty, Clock, Conditions, Ctx, Facts, Inbound, Mode, Outcome, Pending, Reply, Route,
@@ -124,9 +124,9 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
         case.clock,
         case.chatty,
     );
-    // 额度满了的这段时间不抽样、不问判官（18 第六节）：抽样只有 `chatty` 有，问判官哪种规程都照它。
+    // 额度满了的这段时间不问判官（18 第六节），哪种规程都照它。
     let full = rate_full(&case.ctx, case.clock);
-    let own = discipline.keep(found, full);
+    let own = discipline.keep(found);
     let superseded = match discipline.supersedes() {
         true => supersede(&case.facts, &own, case.pendings, case.clock, case.window),
         false => Supersede::None,

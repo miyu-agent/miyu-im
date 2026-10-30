@@ -82,7 +82,6 @@ fn every_group_field_lands_on_its_attribute() {
         "model": "deepseek/v4",
         "extra_prompt": "第一行\n\"第二行\"",
         "keywords": ["miyu", "小羽"],
-        "chatty": "many",
         "managers": ["qq:1001"],
         "sleep": "23:00-07:00",
         "rate": "3/60s",
@@ -96,8 +95,6 @@ fn every_group_field_lands_on_its_attribute() {
         values(&full, &group("7")),
         [
             ("allow".to_string(), Value::Bool(false)),
-            ("chatty.probability".to_string(), Value::Int(120)),
-            ("discipline".to_string(), text("chatty")),
             ("extra_prompt".to_string(), text("第一行\n\"第二行\"")),
             (
                 "keywords".to_string(),
@@ -121,26 +118,19 @@ fn every_group_field_lands_on_its_attribute() {
 }
 
 #[test]
-fn chatty_levels_map_to_discipline_and_probability() {
-    for (level, discipline, probability) in [
-        ("never", "when-called", None),
-        ("few", "chatty", Some(20)),
-        ("some", "chatty", Some(50)),
-        ("many", "chatty", Some(120)),
-    ] {
-        let one = cards(json!({"groups": [{"id": 1, "set": {"chatty": level}}]}));
-        let got = values(&one, &group("1"));
-        let find = |key: &str| {
-            got.iter()
-                .find(|(name, _)| name == key)
-                .map(|(_, value)| value.clone())
-        };
-        assert_eq!(find("discipline"), Some(text(discipline)), "{level}");
+fn retired_joining_in_and_sampling_read_as_unwritten() {
+    // 施工 I-88：旧卡片上的插嘴四档、`rules` 里的抽样、跳过纯图片照没写读，不拼进规则、不报；存回去插嘴那一格不写。
+    for level in ["never", "few", "some", "many"] {
+        let rules = json!({"chatty.probability": 300, "chatty.skip_media": false});
+        let one = cards(json!({"groups": [{"id": 1, "set": {"chatty": level, "rules": rules}}]}));
+        // 群卡没写 `on` 的回复（拼成 `allow`），别的都没有。
         assert_eq!(
-            find("chatty.probability"),
-            probability.map(Value::Int),
+            values(&one, &group("1")),
+            [("allow".to_string(), Value::Bool(true))],
             "{level}"
         );
+        let saved = serde_json::to_value(&one).expect("写得出");
+        assert!(saved["groups"][0]["set"].get("chatty").is_none(), "{saved}");
     }
 }
 
@@ -261,7 +251,6 @@ fn only_known_fields_are_read_and_unset_ones_are_not_written() {
         json!({"groups": [{"id": "a b"}]}),
         json!({"groups": [{"id": 1.5}]}),
         json!({"privates": [{"id": 1, "set": {"rate": "1/60s"}}]}),
-        json!({"groups": [{"id": 1, "set": {"chatty": "always"}}]}),
         json!({"extra": true}),
     ] {
         assert!(

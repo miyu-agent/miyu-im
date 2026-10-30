@@ -47,13 +47,12 @@ function row(field, one, context) {
   const hint = (one.kind === 'defaults' && field.defaultsHint) || field.hint;
   if (hint) label.append(element('small', null, say(hint)));
   const failed = element('div', 'row-failed');
-  // 存 `key` 那一格（几项一行的照项各存各的）；和默认一样的交 null。这一格是 `clears` 的（线路规程）一起去掉卡上旧写法的那几格。
+  // 存 `key` 那一格（几项一行的照项各存各的）；和默认一样的交 null。
   const saveKey = async (key, value) => {
     failed.textContent = '';
     const fallback = inherited(one, key).value;
     const same = JSON.stringify(value) === JSON.stringify(fallback);
     const sent = values(key, same ? null : value);
-    for (const old of key === field.key ? field.clears || [] : []) sent[old] = null;
     try {
       const answer = await context.request('cards.save_one', { card: cardOf(one), values: sent });
       if (answer.saved) return;

@@ -23,10 +23,10 @@ const WANG: i64 = 20005;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 系统的场所规则：[`GROUP`] 一小时一轮、不抽样。
+/// 系统的场所规则：[`GROUP`] 一小时一轮。
 fn rules() -> String {
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\nchatty = {{ probability = 0, judge_called = false }}\n"
+        "[[rule]]\nmatch = {{ kind = \"group\", group = [{GROUP}] }}\nrate = \"1/1h\"\nchatty = {{ judge_called = false }}\n"
     )
 }
 

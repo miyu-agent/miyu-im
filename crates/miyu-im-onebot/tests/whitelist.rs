@@ -33,7 +33,7 @@ fn whitelist() -> String {
     format!("whitelist = [\"qq:{JIE}\"]\n")
 }
 
-/// 系统的场所规则：群都不抽样；[`SLEEPY`] 的睡觉时间盖住此刻（前后各一个小时，照本机的时区）。
+/// 系统的场所规则：[`SLEEPY`] 的睡觉时间盖住此刻（前后各一个小时，照本机的时区）。
 fn rules() -> String {
     let now = jiff::Zoned::now();
     let minute = i64::from(now.hour()) * 60 + i64::from(now.minute());
@@ -42,7 +42,7 @@ fn rules() -> String {
         format!("{:02}:{:02}", minute / 60, minute % 60)
     };
     format!(
-        "[[rule]]\nmatch = {{ kind = \"group\" }}\nchatty = {{ probability = 0 }}\n\n\
+        "[[rule]]\nmatch = {{ kind = \"group\" }}\n\n\
          [[rule]]\nmatch = {{ kind = \"group\", group = [{SLEEPY}] }}\nsleep = \"{}-{}\"\n",
         clock(minute - 60),
         clock(minute + 60),

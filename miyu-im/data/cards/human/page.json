@@ -45,9 +45,9 @@
     "ja": "会話"
   },
   "heading.call": {
-    "zh": "触发和插嘴",
-    "en": "Triggers and joining in",
-    "ja": "呼びかけと割り込み"
+    "zh": "触发",
+    "en": "Triggers",
+    "ja": "呼びかけ"
   },
   "heading.pace": {
     "zh": "节奏",
@@ -78,11 +78,6 @@
     "zh": "触发词",
     "en": "Trigger words",
     "ja": "トリガー語"
-  },
-  "field.chatty": {
-    "zh": "插嘴",
-    "en": "Joins in",
-    "ja": "割り込み"
   },
   "field.managers": {
     "zh": "管理的人",
@@ -138,26 +133,6 @@
     "zh": "超过几个字算长文，0 是不算",
     "en": "Characters before a reply counts as long; 0 turns it off",
     "ja": "この文字数を超えると長文、0 で無効"
-  },
-  "chatty.never": {
-    "zh": "不插嘴",
-    "en": "Never",
-    "ja": "しない"
-  },
-  "chatty.few": {
-    "zh": "少",
-    "en": "Rarely",
-    "ja": "少なめ"
-  },
-  "chatty.some": {
-    "zh": "偶尔",
-    "en": "Sometimes",
-    "ja": "時々"
-  },
-  "chatty.many": {
-    "zh": "常",
-    "en": "Often",
-    "ja": "よく"
   },
   "long_text.split": {
     "zh": "拆成几条",

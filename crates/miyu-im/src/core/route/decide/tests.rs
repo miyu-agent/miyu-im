@@ -1,6 +1,6 @@
 //! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5、6、10、11、14 条）：终端管理员冲她来的回；没条件的只记下；
 //! 别人、白名单成员冲她来的问判官打分，只有违规旗的问判官只查违规；限流满了冲她来的头一回提示、再来只记下，白名单成员、终端管理员不受限流，
-//! 可额度满了的这段时间不抽样、不问判官；睡着、不让叫的只记下，终端管理员照回。线路规程（O-23 下）：`when-called`、`every-message`
+//! 可额度满了的这段时间不问判官；睡着、不让叫的只记下，终端管理员照回。线路规程（O-23 下）：`when-called`、`every-message`
 //! 不问判官（`follow_tests.rs`）；顶替：同一个人在窗口里，前一条判过要回的接过去，还在判的几条一起重判（同上）。参数照出厂的
 //! `defaults.toml`。
 
@@ -38,11 +38,6 @@ fn read(text: String) -> Params {
 /// 出厂参数。
 pub(in crate::core::route) fn params() -> Params {
     read(defaults())
-}
-
-/// 出厂参数，只是抽样必中。
-pub(super) fn sampling() -> Params {
-    read(defaults().replace("probability = 50 ", "probability = 1000 "))
 }
 
 /// 此刻：UTC 的中午。
@@ -84,8 +79,7 @@ fn lin() -> ExternalId {
     ExternalId::parse("qq:20002").expect("合写法")
 }
 
-/// 第 12 条：`standing` 的人发的，冲不冲她来是 `addressed`。抽样的种子 `SHA-256("qq:30003:group:5\n12")` 落在千分之 116，出厂的千分之
-/// 50 抽不中（拿 Python 的 hashlib 算的）：没条件的结论不随抽样变。
+/// 第 12 条：`standing` 的人发的，冲不冲她来是 `addressed`。
 pub(super) fn facts(standing: Standing, addressed: bool) -> Facts {
     Facts {
         venue: VenueId::parse("qq:30003:group:5").expect("合写法"),
@@ -325,29 +319,6 @@ fn a_full_rate_records_silently_and_spares_admin_and_whitelisted() {
         Conclusion::Reply,
         "终端管理员不受限流、不过判官"
     );
-}
-
-#[test]
-fn a_full_rate_samples_nothing() {
-    let params = sampling();
-    let chatty = &params.chatty;
-    let open = judged(
-        facts(Standing::Whitelisted, false),
-        "大家好",
-        ctx(&params),
-        chatty,
-    );
-    assert_eq!(open.conclusion, Conclusion::Judge(Mode::Reply), "抽样中了");
-    let full = Ctx {
-        rate: Rate::read("1/1h"),
-        turns: vec![ago(60)],
-        ..ctx(&params)
-    };
-    let closed = judged(facts(Standing::Whitelisted, false), "大家好", full, chatty);
-    assert_eq!(closed.conclusion, Conclusion::Record);
-    let body = written(&closed, Standing::Whitelisted, None);
-    assert_eq!(body["conditions"], json!([]), "额度满了不抽样：{body}");
-    assert!(body.get("judge").is_none(), "没条件，不是没问判官：{body}");
 }
 
 #[test]

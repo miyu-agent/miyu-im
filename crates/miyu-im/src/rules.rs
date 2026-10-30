@@ -44,7 +44,7 @@ pub use cards::defaults as card_defaults;
 pub use cards::edit::{self as card_edit, Edit};
 pub use cards::page::{self as card_page, Known, Words};
 pub use cards::{
-    Card, Cards, Chatty, GroupCard, GroupSet, OLD_PLATFORM, Others, PrivateCard, PrivateSet, Scope,
+    Card, Cards, GroupCard, GroupSet, OLD_PLATFORM, Others, PrivateCard, PrivateSet, Scope,
     others_key, platform_ok,
 };
 pub use cards::{load as load_cards, path as cards_path, save as save_cards};
