@@ -60,11 +60,11 @@ async fn the_cores_human_texts_name_the_bridges_tools() {
     .await;
     assert_eq!(
         names(&home, "zh").await,
-        json!({"qq_skip_reply": "不说话", "qq_recall": "撤回", "qq_mute": "禁言", "qq_poke": "戳一戳", "qq_fetch_media": "取图和文件"})
+        json!({"qq_skip_reply": "不回复", "qq_recall": "撤回", "qq_mute": "禁言", "qq_poke": "戳一戳", "qq_fetch_media": "获取图片和文件"})
     );
     assert_eq!(
         names(&home, "en").await,
-        json!({"qq_skip_reply": "Skip reply", "qq_recall": "Recall", "qq_mute": "Mute", "qq_poke": "Poke", "qq_fetch_media": "Fetch media"})
+        json!({"qq_skip_reply": "Skip reply", "qq_recall": "Recall", "qq_mute": "Mute", "qq_poke": "Poke", "qq_fetch_media": "Fetch images and files"})
     );
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await

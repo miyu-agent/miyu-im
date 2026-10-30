@@ -43,6 +43,8 @@ jiff = "0.2"
 workspace = true
 
 [dev-dependencies]
+# 测试里读出厂清单的功能表，核对驱动交的每件工具都归一个功能（施工 I-91）：和宿主用的同一版。
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 # 测试里假的第二个平台用宿主的假连接（`miyu_im::chat::fake`，施工 I-70 中上）。
 miyu-im = { path = "../miyu-im", features = ["fake"] }
 # 测试里读 im 的聊天记录库（设计 04，施工 C-1 上）：和 im 用的同一版、同一份。

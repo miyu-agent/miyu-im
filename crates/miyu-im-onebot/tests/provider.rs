@@ -53,9 +53,8 @@ pub fn shipped_tools() -> Value {
         tool
     };
     let admin = |tool| plugin("miyu-im-qq-admin", tool);
-    // 群聊记录、群资料的几件同样（施工 I-44）。
-    let records = |tool| plugin("miyu-im-qq-records", tool);
-    let info = |tool| plugin("miyu-im-qq-info", tool);
+    // 查询信息的八件同样（施工 I-44、I-91）。
+    let lookup = |tool| plugin("miyu-im-qq-lookup", tool);
     json!({"tools": [
         entry("qq_skip_reply", "read", both),
         entry("qq_recall", "venue", both),
@@ -63,19 +62,19 @@ pub fn shipped_tools() -> Value {
         admin(entry("qq_kick", "venue", group)),
         admin(entry("qq_moderation_log", "read", group)),
         entry("qq_poke", "venue", both),
-        records(entry("qq_fetch_media", "venue", both)),
-        records(entry("qq_avatar", "venue", both)),
-        info(entry("qq_members", "read", group)),
+        lookup(entry("qq_fetch_media", "venue", both)),
+        lookup(entry("qq_avatar", "venue", both)),
+        lookup(entry("qq_members", "read", group)),
         entry("qq_mention", "venue", group),
-        info(entry("qq_notices", "read", group)),
+        lookup(entry("qq_notices", "read", group)),
         entry("qq_set_card", "venue", group),
         entry("qq_quote", "venue", both),
         entry("qq_send", "venue", everywhere),
-        info(entry("qq_contacts", "read", both)),
-        info(entry("qq_group_files", "venue", group)),
+        lookup(entry("qq_contacts", "read", both)),
+        lookup(entry("qq_group_files", "venue", group)),
         entry("qq_react", "venue", group),
-        info(entry("qq_activity_ranking", "read", group)),
-        records(entry("qq_chat_history", "read", both)),
+        lookup(entry("qq_activity_ranking", "read", group)),
+        lookup(entry("qq_chat_history", "read", both)),
     ]})
 }
 

@@ -29,6 +29,8 @@ mod quote;
 mod ranking;
 mod react;
 mod target;
+#[cfg(test)]
+mod tests;
 
 /// 「这一轮不说话」（施工 O-26，「提供者和不说话」第 3 条）：im 的读的一头当场答，她的回复里有这件的调用块，这一轮就不发了。
 pub const SKIP_REPLY: &str = "qq_skip_reply";
@@ -86,6 +88,18 @@ pub const AVATAR: &str = "qq_avatar";
 
 /// 查群成员（施工 O-54）：只给群。
 pub const MEMBERS: &str = "qq_members";
+
+/// 查询信息插件管的八件（施工 I-44、I-91）：只读，插件关着的场所没有它们。
+pub const LOOKUPS: [&str; 8] = [
+    CHAT_HISTORY,
+    FETCH_MEDIA,
+    AVATAR,
+    MEMBERS,
+    NOTICES,
+    GROUP_FILES,
+    CONTACTS,
+    ACTIVITY_RANKING,
+];
 
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
@@ -322,27 +336,21 @@ impl ToolSet for QqTools {
     }
 
     fn plugin(&self, tool: &str) -> Option<&'static str> {
-        // 群管理的三件（施工 S-1 上c，核心 O-60）、群聊记录、群资料的几件（施工 I-44）：插件在这个场所关着的，工具表里没有它们。
+        // 群管理的三件（施工 S-1 上c，核心 O-60）、查询信息的八件（施工 I-44、I-91）：插件在这个场所关着的，工具表里没有它们。
         match tool {
             MUTE | KICK | MODERATION_LOG => Some(crate::admin::ID),
-            CHAT_HISTORY | FETCH_MEDIA | AVATAR => Some(crate::lookups::RECORDS),
-            MEMBERS | NOTICES | GROUP_FILES | CONTACTS | ACTIVITY_RANKING => {
-                Some(crate::lookups::INFO)
-            }
+            tool if LOOKUPS.contains(&tool) => Some(crate::lookups::ID),
             _ => None,
         }
     }
 
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {
-        // 群管理的工具照它的开关（施工 Q-1、Q-2），群聊记录、群资料照各自的总开关（施工 I-44）。
+        // 群管理的工具照它的开关（施工 Q-1、Q-2），查询信息照它的总开关（施工 I-44、I-91）。
         match tool {
             MUTE => crate::admin::offers_mute(config),
             KICK => crate::admin::offers_kick(config),
             MODERATION_LOG => crate::admin::offers_log(config),
-            CHAT_HISTORY | FETCH_MEDIA | AVATAR => crate::lookups::offers_records(config),
-            MEMBERS | NOTICES | GROUP_FILES | CONTACTS | ACTIVITY_RANKING => {
-                crate::lookups::offers_info(config)
-            }
+            tool if LOOKUPS.contains(&tool) => crate::lookups::offers(config),
             _ => true,
         }
     }

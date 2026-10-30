@@ -66,12 +66,11 @@ impl Driver for OneBot {
     }
 
     fn builtins(&self) -> Vec<Arc<dyn Builtin>> {
-        // 识人术（施工 I-10 上）、群管理（施工 Q-1）、群聊记录、群资料（施工 I-44）：OneBot 自己带的 im 插件。
+        // 识人术（施工 I-10 上）、群管理（施工 Q-1）、查询信息（施工 I-44、I-91）：OneBot 自己带的 im 插件。
         vec![
             Arc::new(crate::identity::Identity),
             Arc::new(crate::admin::Admin),
-            Arc::new(crate::lookups::Records),
-            Arc::new(crate::lookups::Info),
+            Arc::new(crate::lookups::Lookup),
         ]
     }
 

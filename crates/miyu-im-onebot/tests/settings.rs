@@ -83,8 +83,7 @@ fn the_shipped_manifest_gives_the_default_port() {
                     "admin_sync_unmute": true,
                     "admin_log": true,
                     "admin_summary": true,
-                    "records_on": true,
-                    "info_on": true,
+                    "lookup_on": true,
                 }))
             )]
             .into(),

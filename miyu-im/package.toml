@@ -28,13 +28,26 @@ start = "manual"
 # 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。
 capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system", "widgets"]
 
-# 平台接入（施工 F-2，设计 30 第五节）：接入本身（开关、配置项）在头的接入页，不进预设。它登记的平台工具是一个功能「QQ 工具」，
-# 照 18 Q16 归预设管（F-3）：只有这一个功能，桥登记的工具都归它。
+# 平台接入（施工 F-2，设计 30 第五节）：接入本身（开关、配置项）在头的接入页，不进预设。它登记的平台工具照后果分三个功能（施工 I-91，
+# 项目主人 10-30 定，核心 FG-1 照它在预设页分组）：聊天动作（别人看得见）、查询信息（只读）、群管理（管人）。功能写了几个，登记的
+# 工具就都得列在某一个里，不然核心整批不收（核心 T-2）；功能编号带 `im-`，免得和别的包的撞。
 [connection]
 platform = "qq"
 
-[features.qq]
-name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
+[features.im-chat]
+name = { en = "Chat actions", zh = "聊天动作", ja = "チャット操作" }
+summary = { en = "Send, mention, quote, react, poke, recall, stay silent, change the group card", zh = "发消息、艾特、引用、贴表情、戳一戳、撤回、不回复、改群名片", ja = "送信、メンション、引用、リアクション、つつく、取り消し、返信しない、グループ名の変更" }
+tools = ["qq_send", "qq_mention", "qq_quote", "qq_react", "qq_poke", "qq_recall", "qq_skip_reply", "qq_set_card"]
+
+[features.im-lookup]
+name = { en = "Lookups", zh = "查询信息", ja = "情報の照会" }
+summary = { en = "Read-only: chat history, images and files, avatars, members, announcements, group files, contacts, activity ranking", zh = "只读：聊天记录、图片和文件、头像、群成员、群公告、群文件、通讯录、发言排行", ja = "読むだけ：チャット履歴、画像とファイル、アイコン、メンバー、お知らせ、グループのファイル、連絡先、発言ランキング" }
+tools = ["qq_chat_history", "qq_fetch_media", "qq_avatar", "qq_members", "qq_notices", "qq_group_files", "qq_contacts", "qq_activity_ranking"]
+
+[features.im-admin]
+name = { en = "Group admin", zh = "群管理", ja = "グループ管理" }
+summary = { en = "Mute, kick and read the moderation log", zh = "禁言、踢人、查看管理记录", ja = "ミュート、退出させる、管理記録を見る" }
+tools = ["qq_mute", "qq_kick", "qq_moderation_log"]
 
 # 对话以外调模型的两处（施工 I-42，核心 Q-3）：照档位从固定池取，人不用为它们另配模型；场所卡片上配了判断模型的照卡片。
 [[side]]
@@ -143,24 +156,15 @@ hidden = true
 name = { en = "People and numbers", zh = "识人映射", ja = "人と番号の対応" }
 description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字对上、号码对不上的，提醒 AI 这不是那个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
 
-# 群聊记录、群资料（施工 I-44，设计 06 第 3.7 条）：OneBot 驱动带的插件，同群管理。总开关关了的，它的工具不登记。
-[settings.qq.records_on]
+# 查询信息（施工 I-44 起，I-91 把群聊记录、群资料并成一个）：OneBot 驱动带的插件，同群管理。总开关关了的，它的工具不登记。
+[settings.qq.lookup_on]
 type = "bool"
 default = true
 layers = ["system"]
 applies = "now"
 hidden = true
-name = { en = "Chat records on", zh = "群聊记录开着", ja = "チャット記録を使う" }
-description = { en = "The switch of the Chat records plugin.", zh = "群聊记录插件的总开关。", ja = "チャット記録プラグインのスイッチです。" }
-
-[settings.qq.info_on]
-type = "bool"
-default = true
-layers = ["system"]
-applies = "now"
-hidden = true
-name = { en = "Group info on", zh = "群资料开着", ja = "グループ情報を使う" }
-description = { en = "The switch of the Group info plugin.", zh = "群资料插件的总开关。", ja = "グループ情報プラグインのスイッチです。" }
+name = { en = "Lookups on", zh = "查询信息开着", ja = "情報の照会を使う" }
+description = { en = "The switch of the Lookups plugin.", zh = "查询信息插件的总开关。", ja = "情報の照会プラグインのスイッチです。" }
 
 # 群管理（施工 Q-1，设计 02）：OneBot 驱动带的插件，同识人术。总开关关了、禁言工具的开关关了的，禁言不登记（改的时候 im 重新登记）。
 [settings.qq.admin_on]

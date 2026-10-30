@@ -207,8 +207,17 @@ capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "e
 [connection]
 platform = "qq"
 
-[features.qq]
-name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
+[features.im-chat]
+name = { en = "Chat actions", zh = "聊天动作", ja = "チャット操作" }
+tools = ["qq_send", "qq_mention", "qq_quote", "qq_react", "qq_poke", "qq_recall", "qq_skip_reply", "qq_set_card"]
+
+[features.im-lookup]
+name = { en = "Lookups", zh = "查询信息", ja = "情報の照会" }
+tools = ["qq_chat_history", "qq_fetch_media", "qq_avatar", "qq_members", "qq_notices", "qq_group_files", "qq_contacts", "qq_activity_ranking"]
+
+[features.im-admin]
+name = { en = "Group admin", zh = "群管理", ja = "グループ管理" }
+tools = ["qq_mute", "qq_kick", "qq_moderation_log"]
 
 [page]
 dir = "page"
@@ -240,7 +249,7 @@ name = { … }
 description = { … }
 ```
 
-不写 `[check]`：随 `miyu im check` 那一步。`capabilities` 随 9-4（下上）；O-23 多 `events.write`：桥记 `ext.im.*`、`venue.*`（`events.append`，`05-内核接口.md` 第三节）；O-26 多 `tools`：桥经 `provide` 给工具目录提供工具（`skip_reply`，05 第三节那张能力表的「提供工具」，「提供者和不说话」第 1 条），都归功能 `qq`（`[features.qq]`，施工 F-2、T-2）。O-28 上多 `[package] icon`（Lucide 的 `message-circle`）、`[page] dir = "page"`：后台页（「后台页」第 1 条，`package-pages.md`「清单多的几格」）。不写 `system_account`（I-71，核心 SU-4 中：包不再各有一个账号，写了的整份清单不收）：场所会话都在主人名下，群、陌生人私聊、白名单成员私聊的关在沙盒里，核心照 `[connection] platform` 认它是平台桥。出厂的包算批过的，不用人批（`extensions.md`「能力」第 3 条）。`[settings]` 三项（O-20 挪过来四项，照核心原来替桥声明的那一份，O-8 的 `OnebotSettings`；O-28 下去掉 `web`）：类型、默认值、层一样；生效时机都是 `now`（端口原来是 `head_start`：推送来了桥当场换，「施工时定的」第 40 条）；设置页在头的「接入」页（施工 F-4，设计 30 第三节）。名字、说明（`name`、`description`，三种语言写在清单里，不进 `core/human`；F-4 补改了名字、说明的写法，O-27 改了 `whitelist` 的说明）：
+不写 `[check]`：随 `miyu im check` 那一步。`capabilities` 随 9-4（下上）；O-23 多 `events.write`：桥记 `ext.im.*`、`venue.*`（`events.append`，`05-内核接口.md` 第三节）；O-26 多 `tools`：桥经 `provide` 给工具目录提供工具（`skip_reply`，05 第三节那张能力表的「提供工具」，「提供者和不说话」第 1 条），I-91 起照后果分三个功能 `im-chat`（聊天动作）、`im-lookup`（查询信息）、`im-admin`（群管理），每件工具列在其中一个里（施工 T-2：写了几个功能的，哪个都没列的工具整批不收；`src/tools/tests.rs` 核对驱动交的每件恰好归一个）。O-28 上多 `[package] icon`（Lucide 的 `message-circle`）、`[page] dir = "page"`：后台页（「后台页」第 1 条，`package-pages.md`「清单多的几格」）。不写 `system_account`（I-71，核心 SU-4 中：包不再各有一个账号，写了的整份清单不收）：场所会话都在主人名下，群、陌生人私聊、白名单成员私聊的关在沙盒里，核心照 `[connection] platform` 认它是平台桥。出厂的包算批过的，不用人批（`extensions.md`「能力」第 3 条）。`[settings]` 三项（O-20 挪过来四项，照核心原来替桥声明的那一份，O-8 的 `OnebotSettings`；O-28 下去掉 `web`）：类型、默认值、层一样；生效时机都是 `now`（端口原来是 `head_start`：推送来了桥当场换，「施工时定的」第 40 条）；设置页在头的「接入」页（施工 F-4，设计 30 第三节）。名字、说明（`name`、`description`，三种语言写在清单里，不进 `core/human`；F-4 补改了名字、说明的写法，O-27 改了 `whitelist` 的说明）：
 
 | 键 | 中文 | 英文 | 日文 |
 |---|---|---|---|
@@ -527,7 +536,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    - **认**：会话推来的她的一条回复（`message.assistant`）里有工具调用块（`type` 是 `tool_call`）、`name` 是 `skip_reply` 的（I-70 中上：「不说话」的工具名是一组，每个驱动报的那一件都认），这一回合（同一个会话、同一个回合编号）就算不说话了：这一条里的字和这一轮以后她说的字都不过出站链、不入队、不发，一条记一行 `INFO reply dropped venue=… why=skipped chars=…`（同出站链丢了的那一行，不记原文）；推来这一轮的 `turn.ended` 清掉（第 142 条），核心接着开的下一轮回合编号是新的，照常发（O-38）。调用没成的（桥停着、出错：`end_turn` 核心不认）核心照旧接着请求，这一轮以后说的照旧不发（第 240 条）。照回复里的调用块认、不等 `tool.call`（施工单「要定的」第 1 条）：同一条回复里先说的字，桥收到时工具还没执行，等调用来了字已经发了。群里照订阅推来的认，从头补来的也认（桥重启时还在跑的那一轮照样认得出）；私聊照订阅以后推来的（「怎么走」第 9 条）。
    - 这一轮在调用以前已经入队的照旧发：收不回。
    - **答**：`tool.call` 回`im/data/tool-results/skipped.txt` 那一句（英文、短：这一条回复里写的都没发；O-38 以前是「这一轮写的都不会发出去」，第 239 条），`error` 是假、`end_turn` 是真（O-38，`providers.md` 的 `tool.call`）：核心这一步齐了不再请求模型，这一轮照 `completed` 结束、`by` 是这一次调用；同一步别的工具照常跑完；这一轮里并进来、排着的（又 @ 她的），核心接着开下一轮，照常发（第 238 条）。理由不另记事件（施工单「要定的」第 3 条：调用块、参数本来就记在会话日志的 `message.assistant` 里）。
-   - 群里、私聊都有，本机的会话没有（`venues` 不含 `local`）。场所会话的工具面照它用的预设挑（`providers.md`「造会话时的工具面」）：`skip_reply` 归清单的功能 `qq`（「QQ 工具」，施工 F-2；只有这一个功能，桥登记的都归它，不用另写，施工 T-2，`providers.md`「`provide`」第 3 条），预设关了这个功能的没有它（施工 F-3，`presets.md`）。出厂的场所规则不写预设，照 `preset.default`，出厂是「全部功能」，开着；「基础功能」不开它。
+   - 群里、私聊都有，本机的会话没有（`venues` 不含 `local`）。场所会话的工具面照它用的预设挑（`providers.md`「造会话时的工具面」）：`skip_reply` 归清单的功能 `im-chat`（「聊天动作」，I-91 起；原来是唯一的功能「QQ 工具」），预设关了这个功能的没有它（施工 F-3，`presets.md`）。出厂的场所规则不写预设，照 `preset.default`，出厂是「全部功能」，开着；「基础功能」不开它。
 4. **给人看的**：显示名在包文件夹 `data/human/{zh,en,ja}.json` 的 `tools`：`skip_reply` 是「不说话」「Skip reply」「返事しない」（`ja.json` O-45 起是日文，同「给人看的字」）。施工 S-6 上字挪进包文件夹以后核心不再读它们：桥 `provide` 时每件带 `display_name`（`{语言: 名字}`，照每种语言那一份的 `tools.<名字>.name`，有几种语言的文件带几种，空白的不带；读得到却读不懂的那一份是打包的错，`rules/names.rs`），同第三方包（作者说明第四节第 4 条），核心照它进 `human.get`，头和核心的视图照它写这一次调用的标题。名字后面跟哪一个参数（`skip_reply` 的 `reason`、`mute` 的 `seconds`、`fetch_media` 的 `msg`）照同一处的 `subject`，`provide` 时带 `subject`，核心一起放进 `human.get`（`providers.md`）。
 
 **平台工具（一）：撤回、禁言、戳一戳**（O-31，2026-10-10；工具和规矩是 18 第十一节定的：撤回的目标以回复的那条为准、不信模型给的编号，禁言单位是秒、结果写明换算成多久、默认不动群主和群管理员；施工单「要定的」四条照推荐定：目标从叫她做的那条的引用、@ 取，秒数 0 到 2592000、0 是解禁，不能做的回一句 `error: true`，名字 `recall`、`mute`、`poke`）：收发消息以外，群里常用的三件事。照「提供者和不说话」那条路登记、答。对谁做是纯逻辑（`route/platform.rs`），收投影、核对编号、调 NapCat、答核心在 `route/acting.rs`（「施工时定的」第 176 条）。O-48（2026-10-17 项目主人定：工具只做动作，做不做由她判断，程序不替她判断）起不挡人：谁叫的都做、禁谁都交给 QQ，撤回能给编号、禁言能给号。不占编号。
@@ -540,7 +549,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    | `mute` | `seconds`（整数，必填；说明写 0 是解禁、最多 2592000），`user`（整数，可不写：QQ 号，O-48） | `group` | `venue` | `set_group_ban {group_id, user_id, duration}` |
    | `poke` | `user`（可选，施工 I-32） | `private`、`group` | `venue` | 群里 `group_poke {group_id, user_id}`，私聊 `friend_poke {user_id}` |
 
-   号写成整数：NapCat 照它的参数格式转成字（`SetGroupBan.ts`、`SendPoke.ts` 的 `Value.Parse`；`DeleteMsg.ts` 数和字都收）。`access` 都是 `venue`（在场所里做的事，第 177 条，`providers.md`「在场所里做的事」）：权限策略在场所会话里放行、不问人，本机的会话里拒绝（`not_in_venue`，兜底：本机的会话的工具面本来没有它们）。O-48 起谁能叫、能动谁桥不挡，QQ 不让的照 NapCat 的原话回。本机的会话没有（跨场所随后面一步）；预设关了「QQ 工具」的会话没有（同 `skip_reply`）。
+   号写成整数：NapCat 照它的参数格式转成字（`SetGroupBan.ts`、`SendPoke.ts` 的 `Value.Parse`；`DeleteMsg.ts` 数和字都收）。`access` 都是 `venue`（在场所里做的事，第 177 条，`providers.md`「在场所里做的事」）：权限策略在场所会话里放行、不问人，本机的会话里拒绝（`not_in_venue`，兜底：本机的会话的工具面本来没有它们）。O-48 起谁能叫、能动谁桥不挡，QQ 不让的照 NapCat 的原话回。本机的会话没有（跨场所随后面一步）；预设关了「聊天动作」（禁言、踢人是「群管理」）的会话没有（同 `skip_reply`）。
 2. **交给跟核心的那一头答**：读的一头读到 `tool.call`、工具是这三件的，不当场答（`skip_reply`、不认识的照旧当场答，第 140 条），照推送交给跟核心的那一头：要这个会话的投影、群成员的缓存、机器人号的连接，都在那一头手上。`session` 是支线的（O-36），照它找到主线：投影、发到哪、群成员的缓存都照主线的。那一头照先后办到它：先把这个会话留着的推送收进投影（同「群里怎么叫她」第 3 条；私聊同「怎么走」第 9 条那条路），照第 3、4 条定对谁做；认不出目标的当场答，做的另起一个任务（`chores`，同贴表情）核对她给的撤回编号、调 NapCat、答核心，那一头接着办别的（第 178 条）。回应照原样的 `id`，写法同「提供者和不说话」第 2 条。这个会话桥不认识的（桥重启以后这个场所还没来过消息）答 `unreachable`。
 3. **叫她做的那条**：这一轮她在回应的那一条。群里是投影里调用所在那条线（主线或者支线，O-36）这一轮她回的那一条（`turn.started` 的 `triggers` 的最后一条，并进来的换成 `turn.joined` 的最后一条，「群里怎么叫她」第 2 条，和核心记 `tool.call` 的 `by` 一个取法）；它的发的人和叫的人对不上的（照说不会）、那条线不在跑的，当没有这一条。私聊是这个会话推来的最近一条人说的话（第 179 条）。
    - **叫的人**：`tool.call` 的 `by` 是外部身份的照 `by.id`；私聊里核心照对应表认出的终端管理员记成本人（`kind` 是 `person`），照它经的平台身份 `by.via`；别的（没有触发、本机的人）没有。
@@ -576,7 +585,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
    |---|---|---|---|---|
    | `fetch_media` | `msg`（字，必填：近况那一行的 `msg=`；整数也认），`index`（整数，可以不写：那一条里第几样，从 1 数，就是那一行的 `#n`，合并转发里的接着数（I-75）；不写是 1） | `private`、`group` | `venue` | `get_msg {message_id}`，再 `get_image {file}`（图）或 `get_file {file}`（视频、文件） |
 
-   O-33 只给群（私聊里人说的话照原样渲染，她看不到消息编号）；O-35 起私聊也给：O-35 起造的私聊会话，带了东西的那条正文后面写 `[msg=…]` 和记号（`kernel/request.md`「群里的一行」私聊那一条）。O-35 以前造的私聊会话看不到编号，工具面里照样有它（工具面照目录换，`providers.md`），她点不了名，用不上。说明写 `from a QQ message`，`not-found` 那一句写 `in this chat`：群里、私聊里都说得对（O-35 从 `group message`、`in this group` 换过来，量过重量不变，登记簿那两格）。`access` 是 `venue`：去平台取东西、写进这个会话自己的工作区，是在场所里做的事（同「平台工具（一）」第 1 条）。预设关了「QQ 工具」的会话没有。
+   O-33 只给群（私聊里人说的话照原样渲染，她看不到消息编号）；O-35 起私聊也给：O-35 起造的私聊会话，带了东西的那条正文后面写 `[msg=…]` 和记号（`kernel/request.md`「群里的一行」私聊那一条）。O-35 以前造的私聊会话看不到编号，工具面里照样有它（工具面照目录换，`providers.md`），她点不了名，用不上。说明写 `from a QQ message`，`not-found` 那一句写 `in this chat`：群里、私聊里都说得对（O-35 从 `group message`、`in this group` 换过来，量过重量不变，登记簿那两格）。`access` 是 `venue`：去平台取东西、写进这个会话自己的工作区，是在场所里做的事（同「平台工具（一）」第 1 条）。预设关了「查询信息」的会话没有。
 2. **认段、取法**（照 NapCat 主线源码核过：`GetFile.ts`、`GetImage.ts`、`GetMsg.ts`、`api/msg.ts`，「施工时定的」第 195 条）：「群消息」第 2 条认段时记下大小（`file_size`）和怎么取：`image` 段（图、表情包、NapCat 发成图的商城表情）照图取，`video`、`file` 照文件取，`record`、`face`、`mface` 取不了。`get_image`、`get_file` 的 `file` 是段里的编号（图的 `file`、视频的 `file`、文件的 `file_id`）：NapCat 先把东西下到它那台机器上再回，回应里 `url`（图、视频是下载地址；文件是它那台机器上的路径）、`file`（它那台机器上的路径）、`file_name`，开了 `enableLocalFile2Url` 的另有 `base64`。群文件也照 `get_file` 取（`get_group_file_url` 只回地址、要 packet 后端，不用）。
 3. **冲她来的那条给原图**（`route/pictures.rs`）：群里冲她来的（「群里怎么叫她」第 4 条：@ 她、引用她（照这个群的投影）、关键词开头）、私聊收下的（「怎么走」第 7 条：找得到会话的才取，陌生人的不取），交 `session.send` 以前，引用的那一条（`get_msg` 现认段）和这一条里照图取的那几样，各取头 `message_images` 张（出厂 4，照段的先后），经收进它的机器人号的连接 `get_image`（等 `call_timeout_seconds`），照第 5 条拿到字节（下载也等这么久），经 `blob.open`、`blob.write`、`blob.close` 存成 blob（名字 `msg-<编号>-<第几个>`，第几个照那一条带的东西从 1 数），`attachments` 带上，引用的那一条的在前。私聊里这一条自己的图交上了的，`venue.media` 里那一样记 `shown: true`（O-35：O-35 起造的私聊会话写记号时跳过它，编号照旧连着数）；引用的那一条的不在 `media` 里，不记；群里冲她来的那条不记（一行里照旧写着记号）：2026-10-11 拿开发端点实测过，记号和原图同时在，`kimi-k3`、`gemini-3.8-flash` 各 60 次没有一次再 `fetch_media` 取那一张，和不写记号的一样，记号还把图和那一条连起来，不值得为它再动群会话的快照（主会话定）。几张一起取，等最慢的那一张。取不到的、存不成图的不带，记一行 `WARN picture not fetched venue=… message=… index=… why=…`（`why` 是 `failed`、`unanswered`、`unreachable`、`unfetched`、`not_an_image` 或核心的原因码），消息照送。群消息都先记下再判开不开一轮（「群消息」第 6 条），交的时候还不知道，照「冲她来」取（2026-10-11 主会话定）：判下来只记下的，图在 blob 里，近况那一行只写字，她看不到；旁听的不取。私聊只有图、取到了的照送（`text` 是空的），一张都没取到、又没有字的照旧不送（「施工时定的」第 67 条）。核心照会话的属主把 blob 拷过去（`venues.md`「`venue.session`」第 3 条）。
 4. **`fetch_media`**（`route/fetching.rs`）：读的一头照推送交给跟核心的那一头（同「平台工具（一）」第 2 条）。先收这个会话留着的推送；桥不认识这个会话的答 `unreachable`。一轮最多取 `fetch_per_turn` 次（出厂 4，照旧 Miyu 的配额；群照投影里调用所在那条线（主线或者支线，O-36）这一轮的回合编号数、记在调用的会话编号上，私聊照推来的事件里最新的回合编号数（O-35，私聊没有投影）；换一轮从头数；取没取到都算），满了答 `too-many {count}`。`msg` 不是整数（字也认，最多 20 位，可以有负号）的答 `not-found`。别的另起任务（`chores`），跟核心的那一头不等 QQ：
@@ -1281,7 +1290,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **改群名片**（I-36，2026-10-23 项目主人定：她自己的、别人的都能改，「让它自己判断就行，这个没什么危害不用做限制」）：一件工具 `qq_set_card {user?, card}`（驱动的 `tools/card.rs`），只给群，`access` 是 `venue`。没写 `user` 的改她自己的，写了的改那个人的；`card` 去掉首尾空白，空的是清掉，最多 60 个字，写错的答 `bad-args`。调 `set_group_card`，成不成由 QQ 说（她不是管理员、改的是群主和管理员的被拒，照原话答 `failed`）；成了的答 `renamed-me {card}`、`renamed {who, card}`。不放进群管理插件的开关里。QQ 昵称、群名、专属头衔不做。
 
-**群聊记录、群资料**（I-44，设计 06 第 3.7 条）：驱动带的两个 im 插件，同群管理（`crate::lookups`）。工具照提供者分块：群聊记录 `miyu-im-qq-records` 管 `qq_chat_history`、`qq_fetch_media`、`qq_avatar`；群资料 `miyu-im-qq-info` 管 `qq_members`、`qq_notices`、`qq_group_files`、`qq_contacts`、`qq_activity_ranking`。登记时这几件带 `plugin`（核心 O-60），一个场所里插件关着的，那个场所的工具表里没有它们；各自一个总开关 `im.qq.records_on`、`im.qq.info_on`（藏起来，在插件页里开关，进驱动配置项的名单 `settings::NAMES`），关了的不登记、改的时候重新登记。两个都出厂开着，没有自己的页面和方法。「说话」那几件（不说话、发消息、引用、@、戳、贴表情、撤回、改群名片）不归插件，场所里一直有。
+**查询信息**（I-44 做成群聊记录、群资料两个插件；I-91 并成一个，项目主人 10-30 定照后果分，和预设里的功能「查询信息」同一批）：驱动带的 im 插件，同群管理（`crate::lookups`）。`miyu-im-qq-lookup` 管只读的八件（`crate::tools::LOOKUPS`）：`qq_chat_history`、`qq_fetch_media`、`qq_avatar`、`qq_members`、`qq_notices`、`qq_group_files`、`qq_contacts`、`qq_activity_ranking`。登记时这几件带 `plugin`（核心 O-60），一个场所里插件关着的，那个场所的工具表里没有它们；总开关 `im.qq.lookup_on`（藏起来，在插件页里开关，进驱动配置项的名单 `settings::NAMES`），关了的不登记、改的时候重新登记。出厂开着，没有自己的页面和方法。「说话」那几件（不回复、发消息、引用、艾特、戳、贴表情、撤回、改群名片，预设里的「聊天动作」）不归插件，场所里一直有。旧的两个插件的开关（卡片上的、总开关）由仓库外的搬家脚本合成这一个：两个都开着才开。
 
 **读群公告**（I-37，2026-10-23 项目主人定）：一件工具 `qq_notices`（驱动的 `tools/notices.rs`），没有参数，只给群，`access` 是 `read`。调 NapCat 的 `_get_group_notice {group_id}`，新的在前、最多 10 条，一条 `[日期（UTC） 名字] 正文`（正文最多 500 个字、换行写成空格、洗掉控制字符；名字照这个群缓存着的，没有的写号；读不出正文的不列），`; ` 隔开，答 `notices {count, list}`；没有的答 `no-notices`；NapCat 拒了的照原话答 `failed`。只读，不发公告。
 

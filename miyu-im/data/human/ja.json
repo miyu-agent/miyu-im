@@ -11,7 +11,7 @@
     "qq_moderation_log": { "name": "管理記録", "subject": "view" },
     "qq_poke": { "name": "つつく" },
     "qq_fetch_media": { "name": "画像やファイルを取得", "subject": "msg" },
-    "qq_avatar": { "name": "アイコン" },
+    "qq_avatar": { "name": "アイコンを取得" },
     "qq_members": { "name": "グループのメンバー", "subject": "query" },
     "qq_mention": { "name": "メンション" },
     "qq_quote": { "name": "引用" },
