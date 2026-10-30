@@ -25,6 +25,10 @@ pub struct Tuning {
     pub inbound_queue: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
+    /// NapCat 的端口上一条连接连进来以后，最多等几秒读完请求头（施工 I-94，发布前审查 I2-1）：读不完的关掉。至少 1。
+    pub handshake_seconds: u64,
+    /// NapCat 的端口上还没过令牌（没升级成 WebSocket）的连接最多同时几条（施工 I-94）：多的当场关掉、记一行。至少 1。
+    pub pending_connections: usize,
     /// 跟核心握手，最多等几秒回应（第 1 条，施工 O-18）：从终端跑起来的等不到就退，说 `serve` 只由核心拉起。
     pub hello_seconds: u64,
     /// `logs -f` 隔几毫秒看一次运行日志长了没有（施工 O-18）。
@@ -107,8 +111,10 @@ impl Tuning {
             || tuning.inbound_queue == 0
             || tuning.judge_concurrency == 0
             || tuning.queue_expire_seconds == 0
+            || tuning.handshake_seconds == 0
+            || tuning.pending_connections == 0
         {
-            return Err(bad("write_queue, inbound_queue, judge_concurrency and queue_expire_seconds must be at least 1".to_string()));
+            return Err(bad("write_queue, inbound_queue, judge_concurrency, queue_expire_seconds, handshake_seconds and pending_connections must be at least 1".to_string()));
         }
         Ok(tuning)
     }
@@ -121,6 +127,11 @@ impl Tuning {
     /// 接不了连接时歇多久。
     pub fn accept_retry(&self) -> Duration {
         Duration::from_millis(self.accept_retry_millis)
+    }
+
+    /// NapCat 连进来以后最多等多久读完请求头。
+    pub fn handshake(&self) -> Duration {
+        Duration::from_secs(self.handshake_seconds)
     }
 
     /// 跟核心握手最多等多久。
