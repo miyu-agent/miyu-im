@@ -119,3 +119,29 @@ async fn without_a_connection_table_the_old_three_settings_are_the_first_connect
     );
     bridge.stop().await.expect("停得下");
 }
+
+#[tokio::test]
+async fn a_bot_on_one_port_is_not_taken_over_from_another() {
+    // 施工 I-96（项目主人 10-30 定只认同一个端口上的顶替）：号从第一个端口连着，拿第二个端口令牌的连接报同一个号，登记不上、被关掉；
+    // 第一个端口上的那一条照样通着。
+    let (_dir, root) = temp_root();
+    let _core = fake_core(&root);
+    let (serve, _relay) = serve_handed(root, two(), None);
+    let bridge = start(serve).await;
+    let ports = within("两个端口都开了", async {
+        loop {
+            let ports = listening(&bridge);
+            if ports.len() >= 2 {
+                return ports;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    let mut first = admitted(ports[0], "/ws", Auth::Bearer(FIRST), Some(BOT)).await;
+    assert!(first.alive().await);
+    let mut second = admitted(ports[1], "/ws", Auth::Bearer(SECOND), Some(BOT)).await;
+    assert!(!second.alive().await, "别的端口上报同一个号的被关掉");
+    assert!(first.alive().await, "原来那一条照样通着");
+    bridge.stop().await.expect("停得下");
+}

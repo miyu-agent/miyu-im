@@ -126,6 +126,13 @@ async fn frame_in(
             return false;
         }
     }
+    // 号认下以后，事件里报的号对不上这条连接的不认（施工 I-96，审查 I2-4）：令牌只管到端口，不让一条连接替别的号报事件。
+    if let (Some(known), Some(said)) = (bot.as_ref(), onebot::self_id(&frame))
+        && *known != said
+    {
+        tracing::warn!(target: TARGET, bot = %known, said = %said, "frame for another bot dropped");
+        return true;
+    }
     // 通知、请求原样交给挂在 `chat.event` 的包（施工 O-43 上）：桥认不认它、怎么办都不影响。
     if matches!(frame["post_type"].as_str(), Some("notice" | "request"))
         && let Some(id) = onebot::self_id(&frame)
@@ -237,7 +244,17 @@ async fn known(
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
 /// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
+///
+/// 同一个号已经从别的端口连着的不登记、交回假（施工 I-96，项目主人 10-30 定只认同一个端口上的顶替）：令牌只管到端口，拿 B 端口
+/// 令牌的连接顶不掉 A 端口上的号。同一个端口上重连（NapCat 重启、断网重连）照旧顶掉旧的。
 async fn register(gate: &Gate, bot: Id, link: &Arc<dyn Link>, handing: &Handing) -> bool {
+    if let Some(old) = gate.bots().get(&bot)
+        && old.listen() != link.listen()
+    {
+        tracing::warn!(target: TARGET, bot = %bot, port = link.listen(), held = old.listen(), "napcat connection refused, bot on another port");
+        link.close();
+        return false;
+    }
     if let Some(old) = gate.bots().insert(bot.clone(), Arc::clone(link)) {
         old.close();
         tracing::info!(target: TARGET, bot = %bot, "napcat connection replaced");

@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use futures_util::future::join_all;
 use serde_json::{Map, Value, json};
-use tokio::sync::watch;
+use tokio::sync::{Semaphore, watch};
 
 use super::caller::Caller;
 use super::reason;
@@ -150,7 +150,12 @@ pub(crate) struct Hooks {
     toggles: Mutex<Toggles>,
     /// 在跑、导出了挂接点的包，照编号排；跟着软件包列表走的先后（[`follow`]）。
     hooked: Mutex<Followed>,
+    /// 交给 [`EVENT`] 的通知、请求同时最多几件在等核心（施工 I-96，审查 I2-5）：满了的这一件不交、记一行。
+    events: Arc<Semaphore>,
 }
+
+/// 交给 [`EVENT`] 的同时最多几件。
+const EVENTS_IN_FLIGHT: usize = 64;
 
 impl Hooks {
     /// 还没看过软件包列表的一份：哪一处都没挂，只认得挂着的驱动 `drivers` 带的插件；问进站挂接点每个最多等 `wait`。
@@ -163,6 +168,7 @@ impl Hooks {
             plugins: Mutex::new(plugins),
             toggles: Mutex::new(Toggles::default()),
             hooked: Mutex::new(Followed::default()),
+            events: Arc::new(Semaphore::new(EVENTS_IN_FLIGHT)),
         }
     }
 
@@ -271,18 +277,30 @@ impl Hooks {
     }
 
     /// 平台 `platform` 推来的一件通知、请求 `event`（原样，机器人的号是 `bot`，驱动认出的场所是 `to`）交给那个场所里挂在 [`EVENT`]
-    /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。
+    /// 的每一个包：各起一个小任务发，不等回应；核心拒了的、别的包答错的记一行 `WARN hook failed`。没有挂的什么都不做。施工 I-96
+    /// （审查 I2-5）起每件最多等 `hook_millis`（同 [`INBOUND`]），同时最多 [`EVENTS_IN_FLIGHT`] 件，满了的不交、记一行。
     pub(crate) fn event(&self, platform: Platform, bot: Id, to: Option<To>, event: &Value) {
         for package in self.at(EVENT, platform, Some(&bot), to) {
-            let caller = self.caller.clone();
+            let Ok(permit) = Arc::clone(&self.events).try_acquire_owned() else {
+                tracing::warn!(target: TARGET, package, point = EVENT, why = "busy", "hook failed");
+                continue;
+            };
+            let (caller, wait) = (self.caller.clone(), self.wait);
             let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
             tokio::spawn(async move {
-                if let Ok(reply) = caller.call("package.call", params).await
-                    && let Some(why) = reason(&reply)
-                {
-                    tracing::warn!(target: TARGET, package, point = EVENT, why, "hook failed");
+                let _permit = permit;
+                match tokio::time::timeout(wait, caller.call("package.call", params)).await {
+                    Ok(Ok(reply)) => {
+                        if let Some(why) = reason(&reply) {
+                            tracing::warn!(target: TARGET, package, point = EVENT, why, "hook failed");
+                        }
+                    }
+                    Err(_) => {
+                        tracing::warn!(target: TARGET, package, point = EVENT, why = "timeout", "hook failed")
+                    }
+                    // 核心断开（`Gone`）：跟核心的那一头会读到头、桥停下，这里没有别的要做。
+                    Ok(Err(_)) => {}
                 }
-                // 核心断开（`Gone`）：跟核心的那一头会读到头、桥停下，这里没有别的要做。
             });
         }
     }
