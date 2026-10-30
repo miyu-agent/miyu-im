@@ -21,8 +21,11 @@ pub struct Tuning {
     pub call_timeout_seconds: u64,
     /// 往一条 NapCat 的连接写，最多攒几帧没写出去；满了，写的一方等着。至少 1。
     pub write_queue: usize,
-    /// 读出来的消息、撤回（施工 O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了，读 NapCat 的那一头等着。至少 1。
+    /// 读出来的消息、撤回（施工 O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了，各连接的转交任务等着（施工 I-95 以前是读
+    /// NapCat 的那一头等着）。至少 1。
     pub inbound_queue: usize,
+    /// 一条 NapCat 的连接读到的事件最多攒几条没转交（施工 I-95，发布前审查 I2-2）：满了的丢掉、记一行，读的循环不等。至少 1。
+    pub connection_events: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
     /// NapCat 的端口上一条连接连进来以后，最多等几秒读完请求头（施工 I-94，发布前审查 I2-1）：读不完的关掉。至少 1。
@@ -113,8 +116,9 @@ impl Tuning {
             || tuning.queue_expire_seconds == 0
             || tuning.handshake_seconds == 0
             || tuning.pending_connections == 0
+            || tuning.connection_events == 0
         {
-            return Err(bad("write_queue, inbound_queue, judge_concurrency, queue_expire_seconds, handshake_seconds and pending_connections must be at least 1".to_string()));
+            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds and pending_connections must be at least 1".to_string()));
         }
         Ok(tuning)
     }

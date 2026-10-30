@@ -3,6 +3,7 @@
   "call_timeout_seconds": 10,
   "write_queue": 64,
   "inbound_queue": 256,
+  "connection_events": 1024,
   "accept_retry_millis": 100,
   "handshake_seconds": 10,
   "pending_connections": 64,

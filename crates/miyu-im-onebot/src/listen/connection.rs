@@ -25,6 +25,7 @@ use miyu_im::serve::Notice;
 /// 交给群管理照先后同步的那一头（施工 Q-3）。
 type Syncing = mpsc::UnboundedSender<crate::admin::sync::Moderated>;
 
+use super::handing::Handing;
 use crate::admin::spam::Spamming;
 use crate::backfill::{self, Seen};
 
@@ -61,9 +62,11 @@ where
     let mut spamming = Spamming::new(gate, &link);
     // 补拉消息（施工 I-15）：号认出来以后才有。
     let mut seen = None;
+    // 读到的事件经这条连接自己的转交交出去，读的循环不等（施工 I-95，`handing`）。
+    let handing = Handing::start(gate);
     // 跟核心的那一头不收了（桥在停）：这条连接不再读。
     let mut reading = match bot.clone() {
-        Some(bot) => known(gate, bot, &link, &mut seen).await,
+        Some(bot) => known(gate, bot, &link, (&mut seen, &handing)).await,
         None => true,
     };
     tracing::info!(target: TARGET, bot = bot.as_ref().map(tracing::field::display), "napcat connected");
@@ -75,7 +78,7 @@ where
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    reading = frame_in(gate, &text, (&mut bot, &mut seen), (&wire, &link, &syncing, &mut spamming)).await;
+                    reading = frame_in(gate, &text, (&mut bot, &mut seen), (&wire, &link, &syncing, &mut spamming, &handing)).await;
                 }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
@@ -100,7 +103,13 @@ async fn frame_in(
     gate: &Arc<Gate>,
     text: &str,
     (bot, seen): (&mut Option<Id>, &mut Option<Seen>),
-    (wire, link, syncing, spamming): (&Wire, &Arc<dyn Link>, &Syncing, &mut Spamming),
+    (wire, link, syncing, spamming, handing): (
+        &Wire,
+        &Arc<dyn Link>,
+        &Syncing,
+        &mut Spamming,
+        &Handing,
+    ),
 ) -> bool {
     let frame: Value = match serde_json::from_str(text) {
         Ok(frame) => frame,
@@ -113,7 +122,7 @@ async fn frame_in(
         && let Some(id) = onebot::self_id(&frame)
     {
         *bot = Some(id.clone());
-        if !known(gate, id, link, seen).await {
+        if !known(gate, id, link, (seen, handing)).await {
             return false;
         }
     }
@@ -145,7 +154,7 @@ async fn frame_in(
             {
                 return true;
             }
-            return gate.inbound(event).await;
+            return handing.hand(event);
         }
         Frame::Other(kind) => tracing::debug!(target: TARGET, kind, "event ignored"),
     }
@@ -211,8 +220,13 @@ fn noted(event: &Event) {
 }
 
 /// 号 `bot` 认出来了：登记这条连接（[`register`]），读它记着的、照记着的补拉（施工 I-15）。跟核心的那一头不收了交回假。
-async fn known(gate: &Arc<Gate>, bot: Id, link: &Arc<dyn Link>, seen: &mut Option<Seen>) -> bool {
-    if !register(gate, bot.clone(), link).await {
+async fn known(
+    gate: &Arc<Gate>,
+    bot: Id,
+    link: &Arc<dyn Link>,
+    (seen, handing): (&mut Option<Seen>, &Handing),
+) -> bool {
+    if !register(gate, bot.clone(), link, handing).await {
         return false;
     }
     let loaded = Seen::load(gate.store(), bot.clone());
@@ -223,13 +237,13 @@ async fn known(gate: &Arc<Gate>, bot: Id, link: &Arc<dyn Link>, seen: &mut Optio
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
 /// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
-async fn register(gate: &Gate, bot: Id, link: &Arc<dyn Link>) -> bool {
+async fn register(gate: &Gate, bot: Id, link: &Arc<dyn Link>, handing: &Handing) -> bool {
     if let Some(old) = gate.bots().insert(bot.clone(), Arc::clone(link)) {
         old.close();
         tracing::info!(target: TARGET, bot = %bot, "napcat connection replaced");
     }
     gate.changed();
-    gate.inbound(Event::Connected { bot }).await
+    handing.hand_surely(Event::Connected { bot }).await
 }
 
 /// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进这条连接，叫一声 `changed`。
