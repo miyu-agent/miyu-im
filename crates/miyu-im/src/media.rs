@@ -21,6 +21,7 @@ use miyu_client::http::{Get, Got, Proxy};
 
 use crate::chat::{CallError, Fetch, Fetched, Link, Source, To};
 
+mod guarded;
 mod numbered;
 pub use numbered::{Numbering, find as find_in_forwards};
 
@@ -149,15 +150,17 @@ pub fn over(limit: usize) -> String {
     format!("over {} MB", limit.div_ceil(1024 * 1024))
 }
 
-/// 下一个地址：回环的不走代理（开发机上设了代理也连得上本机），别的照环境变量。读到 `limit` 字节就停（核心的 HTTP 客户端照它
-/// 截）。
+/// 下一个地址：回环的（NapCat 自己的地址）不走代理（开发机上设了代理也连得上本机）、直接下；别的过地址闸、自己跟跳转
+/// （`guarded`，施工 I-96）。读到 `limit` 字节就停（核心的 HTTP 客户端照它截）。
 async fn download(url: &str, timeout: Duration, limit: usize) -> Result<Vec<u8>, String> {
-    let proxy = if miyu_client::http::is_loopback_url(url) {
-        Proxy::Off
-    } else {
-        Proxy::FromEnvironment
-    };
-    let client = miyu_client::http::fetcher(proxy).map_err(|error| format!("url: {error}"))?;
+    if !miyu_client::http::is_loopback_url(url) {
+        let checks = (
+            &miyu_client::http::Guard::new(),
+            &miyu_client::http::Proxies::from_env(),
+        );
+        return guarded::download(url, checks, timeout, limit).await;
+    }
+    let client = miyu_client::http::fetcher(Proxy::Off).map_err(|error| format!("url: {error}"))?;
     let got = miyu_client::http::get(Get {
         client: &client,
         url,

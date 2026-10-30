@@ -16,6 +16,9 @@ publish.workspace = true
 # 施工 O-33：只 http、https，超时、代理照它）。配置由核心在握手时交、变了推过来，桥不依赖核心的 crate（`miyu-core`、
 # `miyu-endpoint`，18 第一节）。
 miyu-client = { workspace = true }
+# 下平台给的地址时过核心的地址闸（施工 I-96，`media/guarded.rs`；闸、代理、TLS 经门面 `miyu_client::http` 拿）：那一段自己跟跳转、
+# 钉解析好的地址，要直接用客户端，和核心的 miyu-http 用的同一版、同几个特性（不另带一份 TLS）。MIT OR Apache-2.0。
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
 miyu-chat = { workspace = true }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }

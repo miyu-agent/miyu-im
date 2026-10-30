@@ -74,7 +74,7 @@
 | `crates/miyu-im/src/core/route/forwards.rs`（O-34） | 合并转发的展开：群消息、私聊交 `session.send` 以前，照内联的或者 `get_forward_msg` 取出来，照限额和核心的整条上限写进场所的格的 `forwards`（「群消息」第 2 条） |
 | `crates/miyu-im/src/core/route/fetching.rs`（O-33） | `fetch_media` 的那一头：读参数、数一轮几次、核对那一条在不在这个会话里（O-35，纯逻辑）；找到会话发到哪，另起任务 `get_msg` 认段、取、图存成 blob 交回图片块，视频、文件写进 `qq-files/` 回路径（「平台工具（二）」第 4 到 7 条） |
 | `crates/miyu-im/src/core/blobs.rs`（O-33） | 取来的字节经 `blob.open`、`blob.write`、`blob.close` 分块存成 blob（「平台工具（二）」第 3、4 条） |
-| `crates/miyu-im/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
+| `crates/miyu-im/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`；I-96 起不是本机回环的过核心的地址闸、自己跟跳转最多 3 跳、每一跳重新过闸、不走代理的钉解析好的地址，`media/guarded.rs`，审查 I2-3）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
 | `crates/miyu-im-onebot/src/onebot/media.rs`（O-33） | 取东西的 OneBot 动作：`get_msg`、`get_image`、`get_file` 的参数，回应里东西在哪（「平台工具（二）」第 2 条） |
 | `crates/miyu-im/src/core/route/quiet.rs`（O-26） | 这一轮不说话了的（纯逻辑）：推来的她的回复里有 `skip_reply` 的调用块的，记下这个会话这一轮；`turn.ended` 清掉（「提供者和不说话」第 3 条） |
 | `crates/miyu-im/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所一条先进先出的队（I-58 起照场所排：同一个群的主线、支线排一条，原来照会话），一次只交一段、NapCat 回了才交下一段（I-48：NapCat 并着办动作，挨着交的两段 QQ 上可能后交的先到），排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
