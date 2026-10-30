@@ -88,6 +88,7 @@ type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
 
 /// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。`port` 是它连进来的端口，令牌照那个端口的比。
 async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Tokens)) {
+    let entry = port.0;
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
     let service = {
         let slot = Arc::clone(&slot);
@@ -109,7 +110,7 @@ async fn accept(stream: TcpStream, gate: Arc<Gate>, port: (u16, accepting::Token
         return;
     };
     match upgrade.await {
-        Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, bot).await,
+        Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, (bot, entry)).await,
         Err(error) => tracing::debug!(target: TARGET, error = %error, "not upgraded"),
     }
 }

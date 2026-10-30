@@ -314,6 +314,11 @@ pub trait Link: Send + Sync + fmt::Debug {
     /// 对端是哪个实现：还没问到的是空的。
     fn implementation(&self) -> Option<Implementation>;
 
+    /// 从驱动开的哪个端口连进来的（施工 I-81 下：一个连接一个端口，后台页照它认号是哪个连接的）。不开端口的驱动是空的。
+    fn listen(&self) -> Option<u16> {
+        None
+    }
+
     /// 关掉这条连接（同一个号连进来了新的，旧的被顶掉）：在等的都算失败。
     fn close(&self);
 }

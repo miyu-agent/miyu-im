@@ -215,3 +215,117 @@ async fn the_page_reads_the_status_and_saves_the_connection_settings() {
     }
     bridge.stop().await.expect("停得下");
 }
+
+#[tokio::test]
+async fn the_page_adds_edits_and_removes_connections() {
+    // 施工 I-81 下中（设计 07 第 7.7 节）：连接表写进三个藏起来的列表；原来设了 Token 的那一个是头一个连接，写表时原来的三项去掉。
+    crate::support::spawning::linked();
+    let home = Home::new(&Script::new([]));
+    let bridge = bridge(&home).await;
+    let port = page_port(&bridge, 1).await;
+    let mut open = logged_in(&home.root, port).await;
+    let mut head = Head::connect(&home.root).await;
+    let table = |items: &Value| {
+        (
+            items["im.qq.ports"]["value"].clone(),
+            items["im.qq.hosts"]["value"].clone(),
+            items["im.qq.tokens"]["value"].as_array().map(Vec::len),
+        )
+    };
+    // 原来那一个：设了 Token。
+    let saved = call(
+        &mut open,
+        1,
+        "connection.save",
+        json!({"values": {"token": "first-token"}}),
+    )
+    .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    let (second, third) = (40_002, 40_003);
+    let added = call(
+        &mut open,
+        2,
+        "connection.add",
+        json!({"port": second, "token": " second-token "}),
+    )
+    .await;
+    assert_eq!(added["result"], json!({"saved": true}), "{added}");
+    let items = head.call("config.get", json!({})).await["result"]["items"].clone();
+    assert_eq!(
+        table(&items),
+        (
+            json!([8301, second]),
+            json!(["0.0.0.0", "0.0.0.0"]),
+            Some(2)
+        ),
+        "原来那一个在前：{items}"
+    );
+    assert!(
+        items["im.qq.token"].get("value").is_none(),
+        "原来的三项去掉了：{items}"
+    );
+    let secrets = head.call("secret.list", json!({})).await["result"]["secrets"].clone();
+    assert!(
+        secrets
+            .as_array()
+            .expect("是列表")
+            .iter()
+            .any(|one| one["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("im-qq-token-40002-"))),
+        "新的 Token 存成密钥：{secrets}"
+    );
+
+    // 改：换端口、换地址；Token 空的不改。
+    let edited = call(
+        &mut open,
+        3,
+        "connection.edit",
+        json!({"port": second, "values": {"listen": third.to_string(), "host": "127.0.0.1", "token": ""}}),
+    )
+    .await;
+    assert_eq!(edited["result"], json!({"saved": true}), "{edited}");
+    let items = head.call("config.get", json!({})).await["result"]["items"].clone();
+    assert_eq!(
+        table(&items),
+        (
+            json!([8301, third]),
+            json!(["0.0.0.0", "127.0.0.1"]),
+            Some(2)
+        )
+    );
+
+    // 写错的：端口重了、Token 没写、找不到、端口超出范围。
+    for (method, params) in [
+        ("connection.add", json!({"port": third, "token": "x"})),
+        ("connection.add", json!({"port": 40_004, "token": "  "})),
+        ("connection.add", json!({"port": 80, "token": "x"})),
+        (
+            "connection.edit",
+            json!({"port": 40_009, "values": {"host": "127.0.0.1"}}),
+        ),
+        (
+            "connection.edit",
+            json!({"port": third, "values": {"listen": 8301}}),
+        ),
+        ("connection.remove", json!({"port": 40_009})),
+    ] {
+        let wrong = call(&mut open, 4, method, params.clone()).await;
+        assert_eq!(
+            wrong["error"]["reason"], "bad_params",
+            "{method} {params}：{wrong}"
+        );
+    }
+
+    // 删：剩一个以后不让删。
+    let removed = call(&mut open, 5, "connection.remove", json!({"port": 8301})).await;
+    assert_eq!(removed["result"], json!({"saved": true}), "{removed}");
+    let items = head.call("config.get", json!({})).await["result"]["items"].clone();
+    assert_eq!(
+        table(&items),
+        (json!([third]), json!(["127.0.0.1"]), Some(1))
+    );
+    let last = call(&mut open, 6, "connection.remove", json!({"port": third})).await;
+    assert_eq!(last["error"]["reason"], "last_connection", "{last}");
+    bridge.stop().await.expect("停得下");
+}

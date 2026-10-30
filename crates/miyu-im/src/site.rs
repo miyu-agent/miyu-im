@@ -11,6 +11,7 @@
 
 mod builtins;
 mod channel;
+mod connections;
 mod faces;
 mod files;
 mod guard;

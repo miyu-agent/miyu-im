@@ -5,6 +5,8 @@
 // 每分钟照本机的钟重画一次（不问宿主）。
 // 连接不止一个时连接那一排就是切换器（施工 I-85 中，设计 07 第二节第 2 条）：前面一张「全部」，点一张选中它（shell/connection.js），
 // 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。统计、日志跟着选中的连接问（施工 I-85 下）。
+// 连接表（施工 I-81 下中，设计 07 第 7.7 节：一个连接一个端口、一个 Token）：照宿主的 status 的 connections 读；设了 Token、还没有号
+// 从它的端口连进来过的，排在机器人的卡后面一张「等 NapCat 连上」，写端口；机器人的卡、这张卡的齿轮都改它那个端口的连接。
 import { element, icon, say } from '../../shell/i18n.js';
 import { picture } from '../../shell/avatar.js';
 import { mark, platform } from './platforms.js';
@@ -18,6 +20,8 @@ import { openWizard } from './wizard.js';
 /** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountHome(view, { request }) {
   let connections = [];
+  // 连接表：宿主 status 的 connections（地址、端口、有没有 Token）、平台、NapCat 那边的路径。
+  let table = { entries: [], platform: null, path: '/ws' };
   let wizard = null;
   let logs = [];
   let level = 'all';
@@ -37,10 +41,13 @@ export function mountHome(view, { request }) {
       const wanted = mode === 'activity' ? { level: 'all', limit: 120 } : { level, limit: 30 };
       if (picked) wanted.connection = picked.id;
       let cards;
-      [logs, cards] = await Promise.all([
+      let status;
+      [logs, cards, status] = await Promise.all([
         request('logs', wanted).then((answer) => answer.logs),
         request('cards.get').catch(() => null),
+        request('status').catch(() => null),
       ]);
+      if (status) table = { entries: status.connections || [], platform: status.platform, path: status.path || '/ws' };
       names = namesOf(cards);
     } catch {
       return;
@@ -52,13 +59,14 @@ export function mountHome(view, { request }) {
     const button = element('button', className);
     button.append(icon('i-plus'), document.createTextNode(say('home/new')));
     button.addEventListener('click', () => {
-      wizard = openWizard(request);
+      wizard = openWizard(request, table);
       wizard.update(connections);
     });
     return button;
   };
   const draw = () => {
-    if (connections.length === 0) {
+    const waiting = waitingOf(table, connections);
+    if (connections.length === 0 && waiting.length === 0) {
       const box = element('div', 'empty');
       const inner = element('div');
       inner.append(
@@ -84,8 +92,9 @@ export function mountHome(view, { request }) {
     const picked = chosenOf(connections);
     if (picking) grid.append(everyTile(connections, picked === null));
     for (const one of connections) {
-      grid.append(tile(one, request, picking ? { on: picked?.id === one.id } : null));
+      grid.append(tile(one, { request, table }, picking ? { on: picked?.id === one.id } : null));
     }
+    for (const entry of waiting) grid.append(waitingTile(entry, { request, table }));
     const choose = (chosen) => {
       if (chosen === 'activity' || chosen === 'raw') {
         mode = chosen;
@@ -191,8 +200,46 @@ function everyTile(connections, on) {
   return card;
 }
 
+/** 连接表里设了 Token、还没有号从它的端口连进来过的那几个（连着的、断开了的号都带它的端口）。 */
+function waitingOf(table, connections) {
+  const used = new Set(connections.filter((one) => one.platform === table.platform).map((one) => one.listen));
+  return table.entries.filter((entry) => entry.token === 'set' && !used.has(entry.listen));
+}
+
+/** 连接 `one`（机器人）在连接表里的那一项：照它进来的端口找；不知道它从哪个端口进来的、表里又只有一项的就是那一项。找不到的
+ *  是空的（齿轮照旧改原来的那几项）。 */
+function entryOf(one, table) {
+  if (one.platform !== table.platform) return null;
+  if (one.listen === undefined) return table.entries.length === 1 ? table.entries[0] : null;
+  return table.entries.find((entry) => entry.listen === one.listen) || null;
+}
+
+/** 开连接 `one`（机器人，没有的是还没连上的）、连接表里那一项 `entry` 的设置：问、存都带平台。 */
+function settingsOf(one, entry, { request, table }) {
+  const on = one?.platform || table.platform;
+  openSettings((method, params) => request(method, { ...params, platform: on }), one, { entry, count: table.entries.length });
+}
+
+/** 「等 NapCat 连上」：连接表里还没有号连进来过的一个连接，写端口；齿轮改它。 */
+function waitingTile(entry, context) {
+  const shown = platform(context.table.platform);
+  const card = element('div', 'conn-tile off');
+  const face = element('span', `avatar pf-face pf-${context.table.platform}`);
+  face.append(mark(shown));
+  const grow = element('div', 'grow');
+  const state = element('div', 'faint');
+  state.append(element('span', 'dot off'), document.createTextNode(` ${say('conn/waiting-line', { port: entry.listen })}`));
+  grow.append(element('b', null, say('conn/waiting')), element('div', 'soft', shown.name()), state);
+  const gear = element('button', 'icon-button');
+  gear.title = say('settings/open');
+  gear.append(icon('i-gear'));
+  gear.addEventListener('click', () => settingsOf(null, entry, context));
+  card.append(face, grow, gear);
+  return card;
+}
+
 /** 一个连接的卡：`picking` 不空的是切换器上的一张（`on` 是选中着），点了选中它。 */
-function tile(one, request, picking) {
+function tile(one, context, picking) {
   const shown = platform(one.platform);
   let className = one.connected ? 'conn-tile' : 'conn-tile off';
   if (picking) className += picking.on ? ' pick on' : ' pick';
@@ -216,8 +263,8 @@ function tile(one, request, picking) {
   gear.append(icon('i-gear'));
   gear.addEventListener('click', (event) => {
     event.stopPropagation();
-    // 连接设置照这个连接的平台问、存（施工 I-85 中）。
-    openSettings((method, params) => request(method, { ...params, platform: one.platform }), one);
+    // 连接设置照这个连接的平台问、存（施工 I-85 中），改连接表里它进来的那个端口的一项（施工 I-81 下中）。
+    settingsOf(one, entryOf(one, context.table), context);
   });
   card.append(bot, grow, gear);
   if (picking) card.addEventListener('click', () => chooseConnection(one.id));

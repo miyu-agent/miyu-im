@@ -100,7 +100,7 @@ impl Faces {
         let known = |station: &&crate::running::Station| match &whose {
             Whose::Bot(bot) => {
                 station.bots.get(bot).is_some()
-                    || station.bots.gone().iter().any(|(gone, _)| gone == bot)
+                    || station.bots.gone().iter().any(|(gone, ..)| gone == bot)
             }
             Whose::User(_) | Whose::Group(_) => false,
         };
@@ -114,7 +114,7 @@ impl Faces {
         let any = || bots.first().map(|(_, link)| link);
         let (face, link) = match &whose {
             Whose::Bot(bot) => {
-                if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, _)| gone == bot) {
+                if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, ..)| gone == bot) {
                     return None;
                 }
                 (Face::User(bot.clone()), bots.get(bot).or_else(any)?)

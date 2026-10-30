@@ -34,6 +34,8 @@ pub struct Wire {
     pub implementation: OnceLock<Implementation>,
     /// 头像的地址模板：人的、群的（`bridge.json` 的 `avatar_user_url`、`avatar_group_url`，`{id}` 换成号；施工 I-82 从宿主挪来）。
     pub avatars: (String, String),
+    /// 从哪个端口连进来的（施工 I-81 下，[`Wire::on_port`]）。
+    pub listen: Option<u16>,
 }
 
 impl Wire {
@@ -44,7 +46,14 @@ impl Wire {
             calls: Calls::new(timeout),
             implementation: OnceLock::new(),
             avatars,
+            listen: None,
         }
+    }
+
+    /// 记下它是从端口 `port` 连进来的。
+    pub fn on_port(mut self, port: u16) -> Wire {
+        self.listen = Some(port);
+        self
     }
 
     /// 调一个动作，等回应。
@@ -210,6 +219,10 @@ impl Link for Wire {
 
     fn implementation(&self) -> Option<Implementation> {
         self.implementation.get().cloned()
+    }
+
+    fn listen(&self) -> Option<u16> {
+        self.listen
     }
 
     fn close(&self) {

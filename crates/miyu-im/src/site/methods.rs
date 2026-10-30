@@ -3,13 +3,15 @@
 //! - `connections` → `{"connections": [...]}`：挂着的每个平台的机器人（施工 I-85 上，照驱动的先后），一个平台里照号排，连着的在前、
 //!   断开了的（施工 I-6 中：「断开 4 分钟，在重连」）在后。每个：`id`（连接编号 `<平台>:<号>`）、`platform`（驱动给的平台名）、
 //!   `bot`（号，写成字）、`connected`、`since`（连上的、断开的时刻，毫秒的 Unix 时间）、`caps`（平台做得到的几样，施工 I-85 上），
-//!   问到了的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）。
+//!   问到了的带 `name`（机器人在平台上叫什么，`faces`）、`implementation`、`version`；头像模板有的带 `avatar`（页面服务转的地址）；
+//!   带 `listen`（从驱动开的哪个端口进来的，断开了的是原来那一个，施工 I-81 下）。
 //! - 下面几样多收一格 `platform`（施工 I-85 上）：不写的照第一个驱动，写了没挂的拒 `bad_params`：`status`、`connection.save`、
 //!   `reactions`、`plugins.widget`。`records.media` 照场所编号的平台，驱动带的插件照带它的驱动。
 //! - `stats`、`logs` 多收一格 `connection`（施工 I-85 下，首页选中的连接，`scope`）：不写的是全部连接。
 //! - `status` → 驱动报的几格（OneBot 是 `listen`、`token`）、`platform`、`path`（NapCat 连进来的路径里最短的那个），同后台页的
 //!   `status`（施工 I-6 中：新建连接、连接设置拼地址）。
 //! - `connection.save {values}` → `{"saved": true}`：存驱动的配置项（`save`）。
+//! - `connection.add`、`connection.edit`、`connection.remove`：连接表加、改、删一个连接（施工 I-81 下中，`connections`）。
 //! - `today` → `{"received", "replied", "recorded", "undelivered"}`：今天的几个数（施工 I-6 下，`crate::counters`）。
 //! - `logs {level?, limit?, connection?}` → `{"logs": [...]}`：最近的运行日志，新的在前（`logs`；`level` 是 `all`、`warn`、`error`，
 //!   `limit` 不写的 50）。
@@ -36,8 +38,9 @@ use serde_json::{Map, Value, json};
 
 use super::logins::Login;
 use super::{
-    Person, Site, home_cards, logs, moderation, panels, plugin_settings, plugin_widgets, plugins,
-    records_media, records_page, save, scope, settings, stats, store, venues,
+    Person, Site, connections, home_cards, logs, moderation, panels, plugin_settings,
+    plugin_widgets, plugins, records_media, records_page, save, scope, settings, stats, store,
+    venues,
 };
 use crate::core::methods::short_path;
 use crate::running::Station;
@@ -57,6 +60,9 @@ pub(super) async fn answer(
             Ok(Value::Object(status))
         }
         Some("connection.save") => save::save(site, &login.person, params).await,
+        Some("connection.add") => connections::add(site, &login.person, params).await,
+        Some("connection.edit") => connections::edit(site, &login.person, params).await,
+        Some("connection.remove") => connections::remove(site, &login.person, params).await,
         Some("today") => {
             let day = site.counters.today();
             Ok(
@@ -164,16 +170,20 @@ fn on_platform(site: &Arc<Site>, station: &Station, avatars: bool) -> Vec<Value>
                 one.insert("implementation".into(), json!(implementation.name));
                 one.insert("version".into(), json!(implementation.version));
             }
+            // 从哪个端口连进来的（施工 I-81 下）：连接卡的齿轮照它改连接表里的那一项。
+            if let Some(listen) = link.listen() {
+                one.insert("listen".into(), json!(listen));
+            }
             Value::Object(one)
         })
         .collect();
-    all.extend(
-        station
-            .bots
-            .gone()
-            .into_iter()
-            .map(|(bot, at)| Value::Object(card(bot, false, at))),
-    );
+    all.extend(station.bots.gone().into_iter().map(|(bot, at, listen)| {
+        let mut one = card(bot, false, at);
+        if let Some(listen) = listen {
+            one.insert("listen".into(), json!(listen));
+        }
+        Value::Object(one)
+    }));
     all
 }
 

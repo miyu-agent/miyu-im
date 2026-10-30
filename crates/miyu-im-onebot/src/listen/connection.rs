@@ -29,7 +29,7 @@ use crate::admin::spam::Spamming;
 use crate::backfill::{self, Seen};
 
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
-pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, mut bot: Option<Id>)
+pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, (mut bot, port): (Option<Id>, u16))
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -53,7 +53,7 @@ where
         tuning.avatar_user_url.clone(),
         tuning.avatar_group_url.clone(),
     );
-    let wire = Arc::new(Wire::new(out, tuning.call_timeout(), avatars));
+    let wire = Arc::new(Wire::new(out, tuning.call_timeout(), avatars).on_port(port));
     let link: Arc<dyn Link> = wire.clone();
     // 群管理同步别的管理员做的（施工 Q-3）：这条连接一个，照先后办。
     let syncing = crate::admin::sync::start(gate, &link);

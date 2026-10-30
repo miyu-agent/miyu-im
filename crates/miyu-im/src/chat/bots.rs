@@ -17,11 +17,12 @@ struct Held {
     since: SystemTime,
 }
 
-/// 号到连接；断开了的号记下什么时候断的（施工 I-6 中：页面上留着卡写「断开 4 分钟，在重连」），同一个号连回来就拿掉。
+/// 号到连接；断开了的号记下什么时候断的、原来从哪个端口进来的（施工 I-6 中：页面上留着卡写「断开 4 分钟，在重连」；施工 I-81 下：
+/// 齿轮照端口改连接表），同一个号连回来就拿掉。
 #[derive(Debug, Default)]
 pub struct Bots {
     links: Mutex<HashMap<Id, Held>>,
-    gone: Mutex<HashMap<Id, SystemTime>>,
+    gone: Mutex<HashMap<Id, (SystemTime, Option<u16>)>>,
 }
 
 impl Bots {
@@ -103,20 +104,20 @@ impl Bots {
             self.gone
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .insert(bot.clone(), SystemTime::now());
+                .insert(bot.clone(), (SystemTime::now(), link.listen()));
         }
     }
 
-    /// 断开了、还没连回来的号和断开的时刻，照号排（施工 I-6 中）。
-    pub fn gone(&self) -> Vec<(Id, SystemTime)> {
-        let mut gone: Vec<(Id, SystemTime)> = self
+    /// 断开了、还没连回来的号、断开的时刻、原来从哪个端口进来的，照号排（施工 I-6 中、I-81 下）。
+    pub fn gone(&self) -> Vec<(Id, SystemTime, Option<u16>)> {
+        let mut gone: Vec<(Id, SystemTime, Option<u16>)> = self
             .gone
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .map(|(bot, at)| (bot.clone(), *at))
+            .map(|(bot, (at, listen))| (bot.clone(), *at, *listen))
             .collect();
-        gone.sort_by(|(left, _), (right, _)| left.cmp(right));
+        gone.sort_by(|(left, ..), (right, ..)| left.cmp(right));
         gone
     }
 

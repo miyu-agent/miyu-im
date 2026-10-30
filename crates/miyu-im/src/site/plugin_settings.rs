@@ -217,7 +217,7 @@ fn base36(mut n: u128) -> String {
 }
 
 /// 这一刻，毫秒的 Unix 时间。
-fn now_millis() -> u128 {
+pub(super) fn now_millis() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_millis())

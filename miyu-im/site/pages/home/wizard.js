@@ -1,13 +1,18 @@
 // 新建连接（设计 01 第八节第 2 条，施工 I-6 中；样子照样板 d-im.html）：选一个平台 → 平台的几步（QQ：照着填地址「我已填写」、粘贴
 // Token「保存并连接」）→ 等它连上（两个节点之间一条线、光点来回跑）→ 连上了画一个勾，写机器人叫什么、连上的是哪个实现。
 // 存设置经宿主的 connection.save（人的连接替人存）；等的时候照外壳推来的连接看，有连着的就算连上。
+// 连接表（施工 I-81 下中）：填地址那一步多一格端口，先填一个没用过的（表里设了 Token 的端口最大的加一，表里还没有的照 status 的
+// 端口），和表里的重了不让往下走；粘贴 Token 那一步存成连接表里新的一个（connection.add）；等连上照这个端口认号。
 import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
 import { PLATFORMS, mark, platform } from './platforms.js';
 
-/** 开新建连接的浮窗：`request` 调宿主的方法。交回 update(connections)（外壳推来的连接，等连上用）。 */
-export function openWizard(request) {
+/** 开新建连接的浮窗：`request` 调宿主的方法，`table` 是首页读到的连接表。交回 update(connections)（外壳推来的连接，等连上用）。 */
+export function openWizard(request, table = { entries: [] }) {
+  const used = table.entries.filter((entry) => entry.token === 'set').map((entry) => entry.listen);
+  // 新连接的端口：填地址那一步定。
+  let port = used.length ? Math.max(...used) + 1 : null;
   // 先选着第一个平台（现在只有 QQ），进度条照它的步数画。
   let chosen = Object.keys(PLATFORMS)[0] ?? null;
   let at = 0;
@@ -70,19 +75,39 @@ export function openWizard(request) {
     const text = element('p', 'soft lead', shown.text());
     const back = () => (n === 1 ? pick() : step(n - 1));
     if (shown.kind === 'address') {
+      const portFill = element('div', 'fill');
+      const portInput = element('input', 'input num');
+      portInput.inputMode = 'numeric';
+      portFill.append(element('span', 'soft', say('wizard/port')), portInput, element('span'));
       const fill = element('div', 'fill');
       const code = element('code', null, '…');
       const copier = element('button', 'btn', say('dialog/copy'));
       fill.append(element('span', 'soft', say('wizard/address')), code, copier);
-      show(n, text, fill);
-      buttons(back, () => step(n + 1), shown.next());
+      const failed = element('p', 'failed');
+      show(n, text, portFill, fill, failed);
+      const next = buttons(back, () => step(n + 1), shown.next(), false);
+      let status;
       try {
-        const address = platform(chosen).address(await request('status'));
-        code.textContent = address;
-        copier.addEventListener('click', () => copy(address));
+        status = await request('status');
       } catch {
         code.textContent = say('failed/network');
+        return;
       }
+      if (port === null) port = status.listen;
+      portInput.value = String(port);
+      const address = () => platform(chosen).address({ ...status, listen: port });
+      const check = () => {
+        const typed = Number(portInput.value);
+        const fine = Number.isInteger(typed) && typed >= 1024 && typed <= 65535;
+        const taken = used.includes(typed);
+        failed.textContent = taken ? say('failed/port-taken') : '';
+        if (fine) port = typed;
+        code.textContent = address();
+        next.disabled = !fine || taken;
+      };
+      portInput.addEventListener('input', check);
+      copier.addEventListener('click', () => copy(address()));
+      check();
       return;
     }
     // 粘贴一个密钥，存了就连。
@@ -96,10 +121,12 @@ export function openWizard(request) {
     const next = buttons(back, async () => {
       next.disabled = true;
       try {
-        await request('connection.save', { values: { [shown.name]: input.value } });
+        await request('connection.add', { port, [shown.name]: input.value });
         step(n + 1);
       } catch (reason) {
-        failed.textContent = reason === 'config_invalid' ? say('failed/invalid') : say('failed/save');
+        if (reason === 'config_invalid') failed.textContent = say('failed/invalid');
+        else if (reason === 'bad_params') failed.textContent = say('failed/port-taken');
+        else failed.textContent = say('failed/save');
         next.disabled = false;
       }
     }, shown.next(), false);
@@ -137,7 +164,7 @@ export function openWizard(request) {
       if (named) done(named);
       return;
     }
-    const up = latest.find((one) => one.connected && one.platform === chosen);
+    const up = latest.find((one) => one.connected && one.platform === chosen && (port === null || one.listen === port));
     if (!waiting || !up) return;
     waiting = false;
     done(up);
