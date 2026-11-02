@@ -65,7 +65,7 @@ fn test_rules(root: &DataRoot) {
 
 /// 数据根 `root` 里的卡片写成 `json`（施工 O-58 上）。
 fn write_cards(root: &DataRoot, json: &str) {
-    let dir = root.state().join("packages").join("miyu-im");
+    let dir = miyu_im::dirs::state(root);
     std::fs::create_dir_all(&dir).expect("建得了目录");
     std::fs::write(dir.join("cards.json"), json).expect("写得进");
 }
@@ -324,8 +324,7 @@ async fn serve_with_a_system_mistake_starts_and_logs_it() {
         .expect("5 秒内退出")
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
-    let log =
-        std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).expect("有运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&root)).expect("有运行日志");
     let problem = log
         .lines()
         .find(|line| line.contains("venue rules problem"))

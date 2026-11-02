@@ -193,10 +193,8 @@ async fn switching_the_mute_tool_off_takes_it_out_of_her_tools() {
 
 /// 这个群的管理记录（施工 Q-2）：照先后，一行一条。
 fn records(home: &Home) -> Vec<Value> {
-    let path = home
-        .root
-        .state()
-        .join("packages/miyu-im/qq/admin")
+    let path = miyu_im::dirs::state(&home.root)
+        .join("qq/admin")
         .join(format!("{GROUP}.jsonl"));
     std::fs::read_to_string(path)
         .unwrap_or_default()

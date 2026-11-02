@@ -77,10 +77,8 @@ async fn results(home: &Home, turn: usize) -> Vec<(String, String)> {
 
 /// 这个群的管理记录，照先后（同 `admin.rs`）。
 fn records(home: &Home) -> Vec<Value> {
-    let path = home
-        .root
-        .state()
-        .join("packages/miyu-im/qq/admin")
+    let path = miyu_im::dirs::state(&home.root)
+        .join("qq/admin")
         .join(format!("{GROUP}.jsonl"));
     std::fs::read_to_string(path)
         .unwrap_or_default()

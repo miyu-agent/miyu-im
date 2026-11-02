@@ -16,9 +16,11 @@ use crate::support::*;
 
 /// 运行日志、标准错误那一份在哪。
 fn files(root: &DataRoot) -> (PathBuf, PathBuf) {
-    let dir = root.state().join("logs");
-    std::fs::create_dir_all(&dir).expect("建得了");
-    (dir.join("miyu-im.log"), dir.join("miyu-im.stderr"))
+    let (log, stderr) = (miyu_im::dirs::log_file(root), miyu_im::dirs::stderr(root));
+    for file in [&log, &stderr] {
+        std::fs::create_dir_all(file.parent().expect("有上一层")).expect("建得了");
+    }
+    (log, stderr)
 }
 
 /// 印一次（不跟着看）：交回退出码、标准输出、标准错误。

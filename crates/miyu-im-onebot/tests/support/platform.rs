@@ -260,7 +260,7 @@ pub async fn set_system(home: &Home, changes: Value) {
 
 /// 桥的运行日志里 `tools provided` 有几行（登记了几次）。
 pub fn provided(home: &Home) -> usize {
-    std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
+    std::fs::read_to_string(miyu_im::dirs::log_file(&home.root))
         .unwrap_or_default()
         .matches("tools provided")
         .count()

@@ -242,12 +242,7 @@ async fn a_lane_sends_its_held_words_when_its_turn_ends() {
 
 /// 等到测试包登记了 `sticker`（同 `stickers.rs`）。
 async fn until_provided(home: &Home) {
-    let cache = home
-        .root
-        .path()
-        .join("state")
-        .join("providers")
-        .join("stickers.json");
+    let cache = home.root.provide_cache("stickers");
     let deadline = tokio::time::Instant::now() + WAIT;
     while !cache.exists() {
         assert!(tokio::time::Instant::now() < deadline, "测试包没登记工具");

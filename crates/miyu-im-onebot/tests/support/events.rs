@@ -109,7 +109,7 @@ pub fn words(said: &Value) -> &str {
 
 /// 运行日志。
 pub fn run_log(root: &DataRoot) -> String {
-    std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).unwrap_or_default()
+    std::fs::read_to_string(miyu_im::dirs::log_file(root)).unwrap_or_default()
 }
 
 /// 测试失败时留下的现场（施工 I-76）：各写最后几行、几条。
@@ -151,10 +151,10 @@ pub async fn until_logged(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> Str
     }
 }
 
-/// 等到数据根 `root` 里今天的几个数（施工 I-6 下：`state/packages/miyu-im/stats/<日期>.json`，测试的数据根里只有今天那一份）合
+/// 等到数据根 `root` 里今天的几个数（施工 I-6 下：im 的状态目录里 `stats/<日期>.json`，测试的数据根里只有今天那一份）合
 /// `wanted`，交回它。最多等六十秒。
 pub async fn until_counted(root: &DataRoot, wanted: impl Fn(&Value) -> bool) -> Value {
-    let dir = root.state().join("packages").join("miyu-im").join("stats");
+    let dir = miyu_im::dirs::state(root).join("stats");
     super::within("今天的数", async {
         loop {
             let found = std::fs::read_dir(&dir)

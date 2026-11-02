@@ -91,7 +91,7 @@ async fn until_refused(port: u16, token: &str) {
 /// `apply port in use port=<它>`：挑来放掉以后被别人先拿走了，`support/ports.rs`）的换一个再来，最多 [`TRIES`] 次。交回换上的
 /// 端口。
 async fn moved(root: &DataRoot) -> u16 {
-    let log = root.state().join("logs").join("miyu-im.log");
+    let log = miyu_im::dirs::log_file(root);
     for _ in 0..TRIES {
         let new = free_port();
         let change = json!({"layer": "system", "changes": [{"key": "im.qq.listen", "value": new}]});
@@ -182,8 +182,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
         ok(&home.root, &["status"]).await,
         format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page))
     );
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
-        .expect("桥写了运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("桥写了运行日志");
     assert!(
         log.contains("core closed, stopping"),
         "标准输入读到头，桥自己停下，不是被杀的：{log}"
@@ -363,8 +362,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
     let theirs = crate::support::events::venue_session(&home.root, "qq:30003:private:20002");
     assert!(theirs.is_none(), "陌生人的私聊不造会话：{theirs:?}");
     // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
-        .expect("桥写了运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("桥写了运行日志");
     let refused: Vec<&str> = log
         .lines()
         .filter(|line| line.contains("not admin or whitelisted, not taken"))

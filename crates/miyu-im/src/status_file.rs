@@ -1,4 +1,4 @@
-//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：`<数据根>/state/packages/miyu-im/status.json`，一行 JSON：
+//! 桥的状态文件（`onebot.md` 第一条「状态文件」，施工 O-18）：im 的状态目录（[`crate::dirs::state`]）里的 `status.json`，一行 JSON：
 //!
 //! ```json
 //! {"pid": 12345, "listen": 8301, "napcat": {"connected": true, "self_id": "30003"}}
@@ -21,10 +21,10 @@ use serde_json::{Map, Value, json};
 
 use miyu_client::places::DataRoot;
 
+use crate::TARGET;
 use crate::changed::Changed;
 use crate::running::Running;
 use crate::serve::Failure;
-use crate::{PACKAGE, TARGET};
 
 /// 文件名：在这个包放状态的目录里。
 const FILE: &str = "status.json";
@@ -36,7 +36,7 @@ pub fn store(root: &DataRoot, platform: crate::chat::Platform) -> PathBuf {
 
 /// 数据根 `root` 里 im 的状态目录：状态文件、驱动自己的状态目录都在这里（施工 I-70 中上：跟核心的那一头照它找每个驱动的）。
 pub(crate) fn dir(root: &DataRoot) -> PathBuf {
-    root.state().join("packages").join(PACKAGE)
+    crate::dirs::state(root)
 }
 
 /// im 的状态目录 `dir`（[`dir`]）下平台 `platform` 的驱动自己的状态目录（同 [`store`]）。

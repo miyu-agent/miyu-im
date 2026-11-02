@@ -1,4 +1,4 @@
-//! 卡片存在哪（`onebot.md` 第一条「场所卡片」）：`<数据根>/state/packages/miyu-im/cards.json`，和状态文件同一个目录，由桥读写。
+//! 卡片存在哪（`onebot.md` 第一条「场所卡片」）：im 的状态目录（[`crate::dirs::state`]）里的 `cards.json`，和状态文件同一个目录，由桥读写。
 //!
 //! - 读（[`load`]）：没有的是没有卡片；读不成、超过 1 MiB、不是这个样子的交回原因，桥照没有卡片用、记一行运行日志，不挡桥起来
 //!   （施工单「风险」第 2 条）。
@@ -10,7 +10,6 @@ use std::path::PathBuf;
 use miyu_client::places::DataRoot;
 
 use super::Cards;
-use crate::PACKAGE;
 
 /// 文件名：在这个包放状态的目录里。
 const FILE: &str = "cards.json";
@@ -20,7 +19,7 @@ const MAX_BYTES: u64 = 1024 * 1024;
 
 /// 数据根 `root` 里卡片存在哪。
 pub fn path(root: &DataRoot) -> PathBuf {
-    root.state().join("packages").join(PACKAGE).join(FILE)
+    crate::dirs::state(root).join(FILE)
 }
 
 /// 读数据根 `root` 里的卡片。没有那个文件的是没有卡片。

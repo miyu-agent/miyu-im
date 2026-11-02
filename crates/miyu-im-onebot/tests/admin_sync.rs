@@ -22,10 +22,8 @@ fn notice(kind: &str, sub: &str, (user, operator): (i64, i64), duration: Option<
 
 /// 这个群的管理记录。
 fn records(home: &Home) -> Vec<Value> {
-    let path = home
-        .root
-        .state()
-        .join("packages/miyu-im/qq/admin")
+    let path = miyu_im::dirs::state(&home.root)
+        .join("qq/admin")
         .join(format!("{GROUP}.jsonl"));
     std::fs::read_to_string(path)
         .unwrap_or_default()

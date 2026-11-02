@@ -1,5 +1,5 @@
 //! 首页上放不放插件的卡片（施工 I-8 下，设计 01 第四节第 5 条；2026-10-20 项目主人定：只在插件详情里开关「放在首页」，顺序照插件的
-//! 编号，不能调）：声明了 `home` 的插件出厂放；关了的记在 `<数据根>/state/packages/miyu-im/home.json` 的 `hidden`（编号的列表），由页面服务
+//! 编号，不能调）：声明了 `home` 的插件出厂放；关了的记在 im 的状态目录（`crate::dirs::state`）里 `home.json` 的 `hidden`（编号的列表），由页面服务
 //! 读写。读不成的当都放、记一行运行日志；写先写临时文件再改名盖上。
 //!
 //! - `plugins.home {package, shown}` → `{"saved": true}`：不是 im 插件的、`shown` 不是布尔的 `bad_params`。
@@ -12,14 +12,14 @@ use serde_json::{Value, json};
 
 use super::plugins::{bad, is_plugin};
 use super::{Person, Site};
-use crate::{PACKAGE, TARGET};
+use crate::TARGET;
 
 /// 文件名：在这个包放状态的目录里。
 const FILE: &str = "home.json";
 
 /// 数据根 `root` 里这份文件在哪。
 fn path(root: &DataRoot) -> PathBuf {
-    root.state().join("packages").join(PACKAGE).join(FILE)
+    crate::dirs::state(root).join(FILE)
 }
 
 /// 首页上不放的插件；没有这份文件、读不成的是空的。

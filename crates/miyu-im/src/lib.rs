@@ -25,6 +25,7 @@
 //! - [`web`]：`miyu im web`：带交接票打开 im 自己的页面（施工 I-6 上；O-28 补起原来是转给网页软件的后台页）。
 //! - `counters`：今天的几个数（施工 I-6 下）：收到、回复、只记录、没发出去，记在 im 自己的状态目录里。
 //! - `changed`：桥手里的状态变了的计数（施工 I-6 上）：状态文件、页面的通道照它。
+//! - [`dirs`]：im 自己的状态目录、日志目录（施工 I-121）：照核心给的环境变量，没给的照核心的门面算。
 //! - `recent`：最近判断（施工 I-7 上补）：每个会话留最近几笔回没回、为什么，会话浮窗的「概况」照它。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
@@ -38,6 +39,7 @@ pub mod control;
 mod core;
 mod counters;
 mod current;
+pub mod dirs;
 pub mod driver;
 mod glance;
 pub mod logs;

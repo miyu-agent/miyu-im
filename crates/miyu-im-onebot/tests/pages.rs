@@ -88,7 +88,7 @@ fn value_of(content: &Value, item: &str, key: &str) -> Value {
 
 /// 盘上的 `cards.json`。
 fn on_disk(home: &Home) -> Value {
-    let path = home.root.state().join("packages/miyu-im/cards.json");
+    let path = miyu_im::dirs::state(&home.root).join("cards.json");
     serde_json::from_slice(&std::fs::read(path).expect("读得出")).expect("是 JSON")
 }
 

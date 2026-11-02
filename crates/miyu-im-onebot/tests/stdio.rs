@@ -75,8 +75,7 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
         said.starts_with(&listening),
         "说给人听的在标准错误上：{said}"
     );
-    let log =
-        std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).expect("有运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&root)).expect("有运行日志");
     assert!(log.contains("core closed, stopping"), "{log}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。

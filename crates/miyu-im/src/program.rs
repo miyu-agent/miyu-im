@@ -217,7 +217,7 @@ async fn serve(
     (texts, drivers): (&mut Texts, Vec<Arc<dyn Driver>>),
 ) -> u8 {
     let log = miyu_client::log::install(
-        &root.state().join("logs"),
+        &crate::dirs::logs(&root),
         crate::PACKAGE,
         miyu_client::log::LevelFilter::INFO,
         env.home.as_deref(),

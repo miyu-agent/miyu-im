@@ -1,5 +1,5 @@
 //! miyu-im-sponsor：赞助记录（设计 03，施工 S-1 上b）。im 的插件，独立的软件包：核心照清单 `[process] args = ["serve"]` 拉起，
-//! 标准输入输出上说协议；工作目录是核心给的这个包放状态的目录，账本放在那里（`sponsors.json`）。
+//! 标准输入输出上说协议；账本 `sponsors.json` 放在核心给的这个包的状态目录里（`place`）。
 //!
 //! 起来先握手（核心交设置的最终值），经 `provide` 登记工具 `sponsor`（只给场所会话：群、私聊），然后一直读标准输入，读到头退出。
 //! 每次 `tool.call` 先经 `package.call` 问 im 的 `chat.venue`：是哪个平台、哪个场所、叫她的那一条引用了谁、@ 了谁（S-1 上a）。
@@ -7,6 +7,7 @@
 
 mod methods;
 mod money;
+mod place;
 mod rates;
 mod settings;
 mod store;
@@ -15,7 +16,6 @@ mod tool;
 mod wire;
 
 use std::io::{self, BufRead};
-use std::path::Path;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -27,7 +27,7 @@ use settings::{IM, PACKAGE, Settings};
 use store::Book;
 use wire::Wire;
 
-/// 账本的文件名（工作目录里）。
+/// 账本的文件名（状态目录里）。
 const BOOK: &str = "sponsors.json";
 
 /// 工具名。
@@ -51,7 +51,7 @@ fn main() -> ExitCode {
 
 /// 跑起来：读账本、握手、登记工具，然后照核心发来的办，标准输入读到头就退出。
 fn serve() -> ExitCode {
-    let book = match Book::open(Path::new(BOOK)) {
+    let book = match Book::open(&place::of(BOOK)) {
         Ok(book) => book,
         Err(error) => {
             // 退出码 1：账本读不进来，重启也没用，核心不重试；不覆盖它。

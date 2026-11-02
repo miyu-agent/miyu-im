@@ -11,7 +11,7 @@ use crate::support::*;
 
 /// 驱动的状态目录。
 fn store(home: &Home) -> std::path::PathBuf {
-    home.root.state().join("packages/miyu-im/qq")
+    miyu_im::dirs::state(&home.root).join("qq")
 }
 
 /// 写这个群的刷屏处理：开着，禁 `mute` 秒。

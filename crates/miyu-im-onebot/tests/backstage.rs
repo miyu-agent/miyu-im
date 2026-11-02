@@ -179,8 +179,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         "空的路径是入口"
     );
 
-    let log = std::fs::read_to_string(home.root.state().join("logs").join("miyu-im.log"))
-        .expect("桥写了运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("桥写了运行日志");
     assert!(log.contains("methods registered count=15"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
@@ -278,8 +277,7 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
         .await
         .expect("等得到");
     assert_eq!(exited.status.code(), Some(0), "{}", text(&exited.stderr));
-    let log =
-        std::fs::read_to_string(root.state().join("logs").join("miyu-im.log")).expect("有运行日志");
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&root)).expect("有运行日志");
     assert!(
         log.contains("page method not understood method=apply"),
         "{log}"
