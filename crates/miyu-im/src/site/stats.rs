@@ -1,5 +1,5 @@
 //! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页，I-100 拆回侧栏「数据统计」）：
-//! `stats {period, connection? | venues?}` → `{"token", "messages", "connections", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
+//! `stats {period, connection? | venues?}` → `{"token", "messages", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
 //! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接；`venues` 是浮窗「概况」一张卡管的场所（施工
 //! I-101），按小时的不分场所、是零。
 //!
@@ -9,8 +9,6 @@
 //!   按用途、场所、模型的都有；没价钱的请求有几次、没换成的照币种另给。
 //! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所（最多 10 个），判断的原因，
 //!   按小时收到的。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
-//! - **connections**（施工 I-100：数据统计页的「按连接」）：每个连接（[`connection_of`]）的 token、收到、回复、金额（I-104），token
-//!   多的在前。
 //! - **running**：桥起来多久、进程的内存和 CPU（照 `ps`，Linux、macOS 有；别的系统是空的）、插件开着几个、出错几个。
 
 use std::collections::BTreeMap;
@@ -21,7 +19,9 @@ use serde_json::{Map, Value, json};
 use super::plugins::core;
 use super::scope::{Scope, within};
 use super::{Person, Site};
-use crate::counters::{Daily, Day, connection_of};
+use crate::counters::{Daily, Day};
+use miyu_chat::Venue;
+use miyu_client::ids::VenueId;
 use money::Money;
 
 mod money;
@@ -49,7 +49,8 @@ fn usage(row: &Value) -> [u64; 4] {
     ]
 }
 
-/// 照 `scope` 挑出场所会话的那几行（纯逻辑）：不是场所会话的（没有 `venue`）不算。
+/// 照 `scope` 挑出场所会话的那几行（纯逻辑）：不是场所会话的（没有 `venue`）不算；核心别的场所（终端里的会话记成 `local`，施工
+/// I-106）解不成 im 的场所编号，也不算。
 pub(super) fn ours<'a>(rows: &'a Value, scope: Option<&Scope>) -> Vec<&'a Value> {
     rows.as_array()
         .into_iter()
@@ -57,9 +58,17 @@ pub(super) fn ours<'a>(rows: &'a Value, scope: Option<&Scope>) -> Vec<&'a Value>
         .filter(|row| {
             row["venue"]
                 .as_str()
-                .is_some_and(|venue| within(scope, venue))
+                .is_some_and(|venue| is_venue(venue) && within(scope, venue))
         })
         .collect()
+}
+
+/// `venue` 是不是 im 的场所编号（`<平台>[:<机器人号>]:<种类>:<号>`）。
+fn is_venue(venue: &str) -> bool {
+    VenueId::parse(venue)
+        .ok()
+        .and_then(|id| Venue::parse(&id))
+        .is_some()
 }
 
 /// 一天里 `scope` 那几个场所的数：「全部」是合计。
@@ -215,45 +224,6 @@ pub(super) fn messages(
     })
 }
 
-/// 按连接的那一段（纯逻辑）：这一段的用量行 `rows`（已照 `scope` 挑过）、几天的计数 `days`，照 [`connection_of`] 分。
-pub(super) fn connections(
-    rows: &[&Value],
-    days: &[(String, Daily)],
-    scope: Option<&Scope>,
-) -> Vec<Value> {
-    let mut sums: BTreeMap<String, ([u64; 3], Money)> = BTreeMap::new();
-    for row in rows {
-        if let Some(venue) = row["venue"].as_str() {
-            let sum = sums.entry(connection_of(venue).to_string()).or_default();
-            sum.0[0] += usage(row).iter().sum::<u64>();
-            sum.1.add(row);
-        }
-    }
-    for (_, daily) in days {
-        for (venue, day) in daily
-            .venues
-            .iter()
-            .filter(|(venue, _)| within(scope, venue))
-        {
-            let sum = &mut sums.entry(connection_of(venue).to_string()).or_default().0;
-            sum[1] += day.received;
-            sum[2] += day.replied;
-        }
-    }
-    let mut list: Vec<(String, ([u64; 3], Money))> = sums.into_iter().collect();
-    list.sort_by(|a, b| {
-        b.1.0[0]
-            .cmp(&a.1.0[0])
-            .then(b.1.0[1].cmp(&a.1.0[1]))
-            .then(a.0.cmp(&b.0))
-    });
-    list.into_iter()
-        .map(|(name, ([tokens, received, replied], money))| {
-            json!({"name": name, "tokens": tokens, "received": received, "replied": replied, "cost": money.amount()})
-        })
-        .collect()
-}
-
 /// `stats`（模块的说明）。
 pub(super) async fn stats(
     site: &Site,
@@ -302,13 +272,10 @@ pub(super) async fn stats(
         .map(|(_, daily)| day_in(daily, scope).replied)
         .sum();
     let shown = ours(&rows["rows"], scope);
-    let connections = connections(&shown, &counted, scope);
     let token = token(&shown, &ours(&before["rows"], scope), replied);
     let messages = messages(&counted, &counted_before, scope);
     let running = running(site, person).await;
-    Ok(
-        json!({"token": token, "messages": messages, "connections": connections, "running": running}),
-    )
+    Ok(json!({"token": token, "messages": messages, "running": running}))
 }
 
 /// 本机此刻的时区偏移：`+08:00` 这样。

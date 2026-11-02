@@ -26,9 +26,12 @@
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.stats-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; }
-.stats-row > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stats-row > :last-child { flex: none; white-space: nowrap; }
+/* 带列名的小表（施工 I-106）：名字一列占满、截断，数靠右、等宽数字。 */
+.stats-table { display: grid; column-gap: 16px; font-size: 13px; }
+.stats-table > * { padding: 6px 0; white-space: nowrap; }
+.stats-table .th { padding-top: 0; color: var(--text-faint); font-size: 12px; }
+.stats-table .name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.stats-table .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-soft); }
 .stats-venue { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); text-decoration: none; }
 .stats-venue:hover { text-decoration: underline; }
 .stats-head .seg { margin-left: auto; }

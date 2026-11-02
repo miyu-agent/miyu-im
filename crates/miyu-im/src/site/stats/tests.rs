@@ -19,6 +19,8 @@ fn only_the_chosen_connections_venue_sessions_count() {
         {"venue": "qq:private:5", "day": "2026-10-19", "purpose": "judge", "model": "dev/s", "requests": 3, "usage": {"cache_read": 0, "uncached": 300, "cache_write": 0, "output": 30}},
         {"venue": null, "day": "2026-10-20", "purpose": "turn", "model": "dev/m", "requests": 9, "usage": {"cache_read": 9, "uncached": 9, "cache_write": 9, "output": 9}},
         {"venue": "tg:group:1", "day": "2026-10-20", "purpose": "turn", "model": "dev/m", "requests": 9, "usage": {"uncached": 9}},
+        // 施工 I-106：终端里的会话核心记成 `local`，不是 im 的场所。
+        {"venue": "local", "day": "2026-10-20", "purpose": "turn", "model": "dev/m", "requests": 9, "usage": {"uncached": 9}},
     ]);
     let before =
         json!([{"venue": "qq:group:777", "requests": 1, "usage": {"uncached": 100, "output": 10}}]);
@@ -41,7 +43,7 @@ fn only_the_chosen_connections_venue_sessions_count() {
     );
     assert_eq!(shown["venues"][1]["name"], "qq:private:5");
     assert_eq!(token(&[], &[], 0)["per_reply"], serde_json::Value::Null);
-    // 「全部」：场所会话都算，不是场所会话的照旧不算。
+    // 「全部」：场所会话都算，不是场所会话的、不是 im 的场所（`local`）照旧不算。
     assert_eq!(ours(&rows, None).len(), 3);
 }
 
@@ -147,45 +149,6 @@ fn a_chosen_connection_counts_only_its_venues() {
     let all = messages(&now, &[], None);
     assert_eq!(all["now"]["received"], 7);
     assert_eq!(all["hours"][9], 7);
-}
-
-#[test]
-fn each_connection_adds_up_its_tokens_and_messages() {
-    let rows = json!([
-        {"venue": "qq:10001:group:777", "requests": 1, "usage": {"cache_read": 800, "uncached": 200}},
-        {"venue": "qq:10001:private:5", "requests": 1, "usage": {"output": 50}},
-        {"venue": "tg:7890:group:-100", "requests": 1, "usage": {"uncached": 2000}},
-    ]);
-    let day = |received, replied| Day {
-        received,
-        replied,
-        ..Day::default()
-    };
-    let daily = Daily {
-        venues: [
-            ("qq:10001:group:777".to_string(), day(3, 1)),
-            ("qq:10001:private:5".to_string(), day(2, 2)),
-            ("tg:7890:group:-100".to_string(), day(4, 0)),
-            ("qq:group:9".to_string(), day(1, 1)),
-        ]
-        .into(),
-        ..Daily::default()
-    };
-    let days = vec![("2026-10-20".to_string(), daily)];
-    let shown = connections(&ours(&rows, None), &days, None);
-    assert_eq!(
-        shown,
-        vec![
-            json!({"name": "tg:7890", "tokens": 2000, "received": 4, "replied": 0, "cost": null}),
-            json!({"name": "qq:10001", "tokens": 1050, "received": 5, "replied": 3, "cost": null}),
-            json!({"name": "qq", "tokens": 0, "received": 1, "replied": 1, "cost": null}),
-        ],
-        "token 多的在前；I-81 以前的场所照平台算"
-    );
-    let tg = scope("tg:7890");
-    let only = connections(&ours(&rows, Some(&tg)), &days, Some(&tg));
-    assert_eq!(only.len(), 1, "{only:?}");
-    assert_eq!(only[0]["name"], "tg:7890");
 }
 
 #[test]
