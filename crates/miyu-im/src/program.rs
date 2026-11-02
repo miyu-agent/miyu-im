@@ -122,6 +122,8 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         eprintln!("{}", texts.failure(&Failure::Start(reason)));
         ExitCode::from(FAILED)
     };
+    // 堆照核心那一套调（施工 I-98）：还没起别的线程时调一次，大块不再碎在堆里。
+    miyu_client::heap::tune();
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(runtime) => runtime,
         Err(error) => return fail(&texts, error.to_string()),

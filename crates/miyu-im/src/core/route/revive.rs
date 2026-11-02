@@ -73,6 +73,8 @@ impl Route {
             count += usize::from(followed);
         }
         tracing::info!(target: TARGET, count, "venue sessions followed");
+        // 补完日志的那一阵分配多，空着的还给系统（施工 I-98：glibc 一次冲高不还页）；在别的线程上做，不挡路由。
+        tokio::task::spawn_blocking(miyu_client::heap::trim);
         Ok(())
     }
 

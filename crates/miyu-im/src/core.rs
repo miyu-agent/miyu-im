@@ -5,7 +5,8 @@
 //! `serve`。
 //!
 //! 一条连接只有一个用的人（`route`）：它发一条请求、等到回应才发下一条；等回应时来的推送留着，之后照先后交出去，一条都
-//! 不丢（照终端的头的 `rpc.rs`）。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
+//! 不丢（照终端的头的 `rpc.rs`）。事件推送留原文、用的时候才解（施工 I-98，`incoming`）：订阅时补来的整份日志不再同时以 `Value`
+//! 活着。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
 //! 上一次的结果（`venues.md`「`venue.session`」第 4 条），桥重启以后从 1 数起就会撞上。`session.send`、`command.run`（O-19）
 //! 的编号由调的一方拼（第 8 条）。
 //!
@@ -18,6 +19,7 @@
 pub(crate) mod blobs;
 pub(crate) mod caller;
 pub(crate) mod hooks;
+mod incoming;
 pub(crate) mod methods;
 mod provider;
 pub(crate) mod route;
@@ -36,6 +38,7 @@ use crate::rules::Tools;
 use crate::serve::{Failure, Pipe};
 pub(crate) use caller::Caller;
 use caller::{Waiting, Writer, write_line};
+use incoming::{Incoming, Taken};
 use methods::Methods;
 use provider::Heard;
 pub(crate) use provider::{Answerer, follow, provide};
@@ -52,9 +55,9 @@ pub(crate) struct Core {
     /// 并着发的调用口等着的回应：读的一头照编号分出去（施工 O-23 下）。
     waiting: Waiting,
     /// 读进来的回应和推送，照先后。
-    incoming: mpsc::UnboundedReceiver<Value>,
-    /// 等回应时来的推送。
-    held: VecDeque<Value>,
+    incoming: mpsc::UnboundedReceiver<Incoming>,
+    /// 等回应时来的推送（事件推送是原文，施工 I-98）。
+    held: VecDeque<Incoming>,
     /// 自己编的命令编号的前缀：`im-` 加一段随机数。
     prefix: String,
     /// 下一条自己编的序号。
@@ -156,8 +159,11 @@ impl Core {
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         write_line(&self.writer, &request).await?;
         while let Some(message) = self.incoming.recv().await {
-            if message["id"] == json!(id) && message.get("method").is_none() {
-                return Ok(message);
+            if let Incoming::Parsed(reply) = &message
+                && reply["id"] == json!(id)
+                && reply.get("method").is_none()
+            {
+                return Ok(message.value());
             }
             self.held.push_back(message);
         }
@@ -167,8 +173,8 @@ impl Core {
     /// 下一条推送（或者不认识的回应），先交留着的。核心断开了是空的。可以在 `select!` 里取消：取消了什么都不丢。
     pub(crate) async fn next(&mut self) -> Option<Value> {
         match self.held.pop_front() {
-            Some(message) => Some(message),
-            None => self.incoming.recv().await,
+            Some(message) => Some(message.value()),
+            None => self.incoming.recv().await.map(Incoming::value),
         }
     }
 
@@ -184,20 +190,19 @@ impl Core {
 
     /// 留着的推送里会话 `session` 的事件（`event`），照先后取出来；别的照旧留着，先后不变（施工 O-23，`onebot.md` 第一条
     /// 「群里怎么叫她」第 3 条）。核心先推、后回应：一条命令记下的事件，回应到了就都在留着的里面，判一条群消息以前先收它们。
-    pub(crate) fn take_events(&mut self, session: &str) -> Vec<Value> {
+    pub(crate) fn take_events(&mut self, session: &str) -> Taken {
         self.take_events_of(|one| one == session)
     }
 
-    /// 同 [`Core::take_events`]，会话编号合 `wanted` 的都取（施工 O-36：一个群的主线连同它的几条支线，照推来的先后）。
-    pub(crate) fn take_events_of(&mut self, wanted: impl Fn(&str) -> bool) -> Vec<Value> {
-        let (taken, kept): (VecDeque<Value>, VecDeque<Value>) = std::mem::take(&mut self.held)
-            .into_iter()
-            .partition(|message| {
-                message["method"] == "event"
-                    && message["params"]["session"].as_str().is_some_and(&wanted)
-            });
+    /// 同 [`Core::take_events`]，会话编号合 `wanted` 的都取（施工 O-36：一个群的主线连同它的几条支线，照推来的先后）。取出来的照
+    /// 先后一条一条解（施工 I-98）。
+    pub(crate) fn take_events_of(&mut self, wanted: impl Fn(&str) -> bool) -> Taken {
+        let (taken, kept): (VecDeque<Incoming>, VecDeque<Incoming>) =
+            std::mem::take(&mut self.held)
+                .into_iter()
+                .partition(|message| message.event_of(&wanted));
         self.held = kept;
-        taken.into()
+        Taken(taken)
     }
 }
 
@@ -238,7 +243,7 @@ struct Asked {
 /// 答（施工 O-26）。读到头（核心关了管道）就停：`incoming` 跟着关、`waiting` 关上，用的一方看到的是断开。
 async fn read_all(
     reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
-    sender: mpsc::UnboundedSender<Value>,
+    sender: mpsc::UnboundedSender<Incoming>,
     waiting: Waiting,
     asked: Asked,
 ) {
@@ -249,7 +254,7 @@ async fn read_all(
 /// [`read_all`] 读到头为止的那一段。
 async fn read_lines(
     mut reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
-    sender: &mpsc::UnboundedSender<Value>,
+    sender: &mpsc::UnboundedSender<Incoming>,
     waiting: &Waiting,
     asked: &Asked,
 ) {
@@ -260,8 +265,14 @@ async fn read_lines(
             Ok(0) | Err(_) => return,
             Ok(_) => {}
         }
-        match serde_json::from_str::<Value>(&line) {
-            Ok(message) => {
+        match Incoming::read(&line) {
+            // 事件推送：原文交过去，用的时候才解（施工 I-98）。
+            Ok(event @ Incoming::Event { .. }) => {
+                if sender.send(event).is_err() {
+                    return;
+                }
+            }
+            Ok(Incoming::Parsed(message)) => {
                 let Some(message) = waiting.sort(message) else {
                     continue;
                 };
@@ -273,7 +284,7 @@ async fn read_lines(
                     Heard::Cancelled => continue,
                     Heard::Other(message) => message,
                 };
-                if sender.send(message).is_err() {
+                if sender.send(Incoming::Parsed(message)).is_err() {
                     return;
                 }
             }
