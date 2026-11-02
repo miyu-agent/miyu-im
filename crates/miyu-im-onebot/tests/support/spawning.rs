@@ -482,6 +482,17 @@ pub fn ports_config(listen: u16) -> String {
 pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
         "\n[im]\n{onebot}\nqq.host = \"127.0.0.1\"\nqq.listen = {listen}\nqq.token = {{ secret = \"im\" }}\n[im.web]\nport = {}\n[ui]\nlanguage = \"zh\"\n",
-        free_port()
+        other_port(listen)
     )
+}
+
+/// 一个空着的端口，不是 `taken`（施工 I-120：页面服务的端口和 NapCat 的各挑各的，[`free_port`] 挑了就放，两次可能挑到同一个号，桥开
+/// 页面时说端口被占，`site_today` 偶发红过）。
+pub fn other_port(taken: u16) -> u16 {
+    loop {
+        let port = free_port();
+        if port != taken {
+            return port;
+        }
+    }
 }
