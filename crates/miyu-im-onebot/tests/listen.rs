@@ -45,7 +45,8 @@ async fn a_wrong_or_missing_token_is_refused() {
     let bridge = bridge(&home).await;
     let near = &TOKEN[..TOKEN.len() - 1];
     let longer = format!("{TOKEN}x");
-    for auth in [
+    // 施工 I-117（发布前审查 I4-3）：同一个来源猜错五次以后，这一分钟里一律 429、不再比令牌；前五次照旧 401。
+    let all = [
         Auth::Bearer("wrong"),
         Auth::Bearer(near),
         Auth::Bearer(&longer),
@@ -54,9 +55,11 @@ async fn a_wrong_or_missing_token_is_refused() {
         Auth::Query("wrong"),
         Auth::Query(""),
         Auth::Nothing,
-    ] {
+    ];
+    for (at, auth) in all.into_iter().enumerate() {
         let refused = napcat(bridge.port, "/onebot/v11/ws", auth, Some(BOT)).await;
-        assert_eq!(refused.err(), Some(401), "{auth:?}");
+        let expected = if at < 5 { 401 } else { 429 };
+        assert_eq!(refused.err(), Some(expected), "第 {} 次 {auth:?}", at + 1);
     }
     bridge.stop().await.expect("停得下");
 }

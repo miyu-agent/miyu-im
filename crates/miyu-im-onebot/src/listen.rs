@@ -14,17 +14,21 @@
 //!
 //! 外人连进来（施工 I-94，发布前审查 I2-1：端口出厂听 `0.0.0.0`）：一条连接只收一个请求，回了别的（401、404、400）就关，不留着
 //! 等下一个；`handshake_seconds` 以内读不完请求头的关掉；还没升级的连接同时最多 `pending_connections` 条，一个来源地址最多
-//! `pending_per_source` 条（施工 I-107，发布前审查 I4-1，`pending`），升级了才让出名额。
+//! `pending_per_source` 条（施工 I-107，发布前审查 I4-1，`pending`），升级了才让出名额。同一个来源猜错令牌够了的，这一段
+//! 一律 429（施工 I-117，发布前审查 I4-3，`guesses`）。
 
 mod accepting;
 mod connection;
+mod guesses;
 mod handing;
 mod pending;
 #[cfg(test)]
 mod tests;
 
 use std::convert::Infallible;
+use std::net::IpAddr;
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Instant;
 
 use http_body_util::Empty;
 use hyper::body::{Bytes, Incoming};
@@ -98,6 +102,7 @@ async fn accept(
     stream: TcpStream,
     gate: Arc<Gate>,
     (port, pending): ((u16, accepting::Tokens), pending::Slot),
+    guessed: (Arc<guesses::Guesses>, IpAddr),
 ) {
     let entry = port.0;
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
@@ -106,7 +111,8 @@ async fn accept(
         let gate = Arc::clone(&gate);
         hyper::service::service_fn(move |request| {
             let (gate, slot, port) = (Arc::clone(&gate), Arc::clone(&slot), port.clone());
-            async move { Ok::<_, Infallible>(handle(request, (&gate, &port), &slot).await) }
+            let guessed = (Arc::clone(&guessed.0), guessed.1);
+            async move { Ok::<_, Infallible>(handle(request, (&gate, &port), &slot, &guessed).await) }
         })
     };
     let mut builder = hyper::server::conn::http1::Builder::new();
@@ -139,14 +145,27 @@ async fn handle(
     mut request: Request<Incoming>,
     (gate, port): (&Gate, &(u16, accepting::Tokens)),
     slot: &Mutex<Option<Upgrade>>,
+    (guesses, source): &(Arc<guesses::Guesses>, IpAddr),
 ) -> Response<Empty<Bytes>> {
     let path = request.uri().path();
     if !gate.tuning().paths.iter().any(|known| known == path) {
         return empty(StatusCode::NOT_FOUND);
     }
+    // 这一段猜错够了的来源一律 429、不再比令牌（施工 I-117）。
+    if guesses.blocked(*source, Instant::now()) {
+        return empty(StatusCode::TOO_MANY_REQUESTS);
+    }
     let presented = presented(&request).map(str::to_string);
     if !admitted(port, presented.as_deref()) {
-        tracing::warn!(target: TARGET, path = request.uri().path(), port = port.0, "token refused");
+        match guesses.missed(*source, Instant::now()) {
+            guesses::Noted::First => {
+                tracing::warn!(target: TARGET, path = request.uri().path(), port = port.0, %source, "token refused");
+            }
+            guesses::Noted::Blocked(count) => {
+                tracing::warn!(target: TARGET, port = port.0, %source, count, "token guesses blocked");
+            }
+            guesses::Noted::Quiet => {}
+        }
         return empty(StatusCode::UNAUTHORIZED);
     }
     let headers = request.headers();

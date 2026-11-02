@@ -26,6 +26,7 @@ use miyu_im::TARGET;
 use miyu_im::driver::{Gate, Running};
 use miyu_im::serve::{Failure, Notice};
 
+use super::guesses::Guesses;
 use super::pending::{Full, Pending};
 use crate::settings::Settings;
 
@@ -138,6 +139,8 @@ async fn accepting(
     // 还没升级的连接的名额（施工 I-94；I-107 起按来源地址分，`super::pending`）：满了的当场关掉，记一行。
     let tuning = gate.tuning();
     let pending = Pending::new(tuning.pending_connections, tuning.pending_per_source);
+    // 令牌猜错的限次（施工 I-117，`super::guesses`）：所有端口共用一份，照来源地址数。
+    let guesses = Arc::new(Guesses::default());
     loop {
         tokio::select! {
             Some((stream, port)) = accepted.recv() => {
@@ -153,7 +156,8 @@ async fn accepting(
                     }
                 };
                 let port = (port, Arc::clone(&tokens));
-                connections.spawn(super::accept(stream, Arc::clone(&gate), (port, permit)));
+                let guessed = (Arc::clone(&guesses), source);
+                connections.spawn(super::accept(stream, Arc::clone(&gate), (port, permit), guessed));
             },
             changed = config.changed(), if watching => {
                 if changed.is_err() {

@@ -124,3 +124,23 @@ async fn connections_past_the_pending_limit_are_closed_at_once() {
     .await;
     bridge.stop().await.expect("停得下");
 }
+
+#[tokio::test]
+async fn a_source_that_keeps_guessing_the_token_is_turned_away() {
+    // 施工 I-117（发布前审查 I4-3）：同一个来源一段里猜错五次，这一段剩下的时候带对的令牌也回 429，不再比令牌。
+    let home = Home::new(&Script::new([]));
+    let bridge = bridge(&home).await;
+    let ask = |token: &'static str| async move {
+        let mut stream = TcpStream::connect(("127.0.0.1", bridge.port))
+            .await
+            .expect("连得上");
+        refused_once(&mut stream, "/onebot/v11/ws", token).await
+    };
+    for round in 1..=5 {
+        let line = ask("wrong").await;
+        assert!(line.contains("401"), "第 {round} 次猜错：{line}");
+    }
+    let line = ask(TOKEN).await;
+    assert!(line.contains("429"), "猜错够了以后带对的令牌也挡：{line}");
+    bridge.stop().await.expect("停得下");
+}
