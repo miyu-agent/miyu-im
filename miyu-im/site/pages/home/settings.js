@@ -89,17 +89,18 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
       toast(say('dialog/saved'));
       dialog.close();
     } catch (reason) {
-      failed.textContent = failure(reason, 'listen' in values);
+      failed.textContent = failure(reason, values);
       save.disabled = false;
     }
   });
   dialog.foot.replaceChildren(...foot, save);
 }
 
-/** 存不成的那一句：端口改了、宿主说写错了的是端口和别的连接重了。 */
-function failure(reason, portChanged) {
+/** 存不成的那一句：宿主说写错了的，地址改了的是地址不是 IP（施工 I-116），端口改了的是端口占用了。 */
+function failure(reason, values) {
   if (reason === 'config_invalid') return say('failed/invalid');
-  if (reason === 'bad_params' && portChanged) return say('failed/port-taken');
+  if (reason === 'bad_params' && 'host' in values) return say('failed/host-ip');
+  if (reason === 'bad_params' && 'listen' in values) return say('failed/port-taken');
   return say('failed/save');
 }
 

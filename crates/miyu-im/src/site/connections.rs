@@ -46,6 +46,11 @@ fn port_ok(port: u64) -> bool {
     (1024..=65535).contains(&port)
 }
 
+/// 地址只收 IP 的写法（施工 I-116，发布前审查 I4-2：写 `localhost` 的驱动读不出，原来照默认对所有网卡开着）。
+fn is_address(host: &str) -> bool {
+    host.trim().parse::<std::net::IpAddr>().is_ok()
+}
+
 /// 端口 `port` 是不是这个网页自己听着的（施工 I-109）。
 fn page_port(site: &Site, port: u64) -> bool {
     site.running.page.get().map(u64::from) == Some(port)
@@ -187,7 +192,7 @@ pub(super) async fn add(
     }
     let host = match &params["host"] {
         Value::Null => None,
-        Value::String(host) if !host.trim().is_empty() => Some(host.trim().to_string()),
+        Value::String(host) if is_address(host) => Some(host.trim().to_string()),
         _ => return Err(bad()),
     };
     let default_host = entries
@@ -218,8 +223,8 @@ pub(super) async fn edit(
     if let Some(host) = values.get(HOST) {
         let host = host
             .as_str()
+            .filter(|host| is_address(host))
             .map(str::trim)
-            .filter(|host| !host.is_empty())
             .ok_or_else(bad)?;
         entries[at].host = host.to_string();
     }

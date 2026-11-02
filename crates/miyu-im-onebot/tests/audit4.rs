@@ -15,6 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[cfg(target_os = "linux")]
 use tokio::net::{TcpSocket, TcpStream};
 
+use miyu_im_onebot::settings::Settings;
 #[cfg(target_os = "linux")]
 use miyu_session::testkit::Script;
 
@@ -83,4 +84,20 @@ async fn strangers_holding_every_pending_slot_do_not_lock_napcat_out() {
     );
     drop(held);
     bridge.stop().await.expect("停得下");
+}
+
+#[test]
+fn a_host_that_is_not_an_address_does_not_open_every_interface() {
+    // 后台页的 `connection.add {host: "localhost"}` 原样写进连接表（`im.qq.hosts`）
+    let config = serde_json::json!({
+        "hosts": ["localhost"],
+        "ports": [9001],
+        "tokens": ["a"],
+    });
+    let all = Settings::all(config.as_object().expect("是对象"), |_| None);
+    let opened: Vec<std::net::IpAddr> = all.iter().map(|one| one.host).collect();
+    assert!(
+        !opened.iter().any(std::net::IpAddr::is_unspecified),
+        "连接表里写的是 localhost（想只给本机），驱动读成了 {opened:?}：对所有网卡开着"
+    );
 }

@@ -18,6 +18,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use serde_json::{Map, Value};
 
 use miyu_client::settings::Secret;
+use miyu_im::TARGET;
 
 /// 地址：清单里的名字（施工 I-27）。
 const HOST: &str = "host";
@@ -96,7 +97,8 @@ impl Settings {
         })
     }
 
-    /// 连接表（模块的说明）：`ports` 写了的照三个列表，一个都没有的是空的；没写的照上面三项当一个连接（[`Settings::read`]）。
+    /// 连接表（模块的说明）：`ports` 写了的照三个列表，一个都没有的是空的；没写的照上面三项当一个连接（[`Settings::read`]）。地址写了却
+    /// 不是 IP 的那一个不开（施工 I-116）。
     pub fn all(
         config: &Map<String, Value>,
         default: impl Fn(&str) -> Option<Value>,
@@ -124,8 +126,20 @@ impl Settings {
             if all.iter().any(|one| one.port == port && port != 0) {
                 continue;
             }
+            // 写了却读不出 IP 的地址（施工 I-116，发布前审查 I4-2：`localhost` 这类）这一个不开、记一行：原来照默认的 `0.0.0.0`，人
+            // 想只给本机，结果所有网卡都开着。没写的照默认。
+            let host = match hosts.get(index) {
+                None | Some(Value::Null) => fallback,
+                Some(written) => match host(written) {
+                    Some(host) => host,
+                    None => {
+                        tracing::warn!(target: TARGET, port, "connection host not an address, not opened");
+                        continue;
+                    }
+                },
+            };
             all.push(Settings {
-                host: hosts.get(index).and_then(host).unwrap_or(fallback),
+                host,
                 port,
                 token: tokens.get(index).and_then(secret),
             });
