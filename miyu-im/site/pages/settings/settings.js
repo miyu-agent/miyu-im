@@ -1,5 +1,5 @@
 // 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：本人的平台 ID（核心的 `external.bindings`，
-// 施工 I-68）、通用（回执自动撤回的命令）、网页服务（端口；登录用访问密码）。照样板左边一列切段、右边一次一段
+// 施工 I-68）、通用（回执自动撤回的命令）、外观（施工 I-110：跟随系统、浅色、深色）、网页服务（端口；登录用访问密码）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
 // - 本人的平台 ID 列每个平台的身份（施工 I-85 补，设计 07 第七节 im-己）：平台不止一个时每行写平台，加的那一行先选平台（默认是
@@ -11,6 +11,7 @@ import { toast } from '../../shell/dialog.js';
 import { tagInput } from '../../shell/tags.js';
 import { platform, venueKinds } from '../home/platforms.js';
 import { chosenOf } from '../../shell/connection.js';
+import { choose, chosen, handed } from '../../shell/theme.js';
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
@@ -33,6 +34,7 @@ export function mountSettings(view, { request }) {
     const pages = [
       ['bindings', bindings(got, { platforms, adding, choose }, save)],
       ['general', general(got, save)],
+      ['appearance', appearance()],
       ...(words ? [['moderation', moderation(words, request, load)]] : []),
       ['site', site(got, save)],
     ];
@@ -175,6 +177,28 @@ function general(got, save) {
   return section('settings-page/general', null, [
     row(say('settings-page/recall'), say('settings-page/recall-hint'), tags),
   ]);
+}
+
+/** 外观（施工 I-110，项目主人 11-02）：深浅三档，跟随系统、浅色、深色，记在这台浏览器上（shell/theme.js）。从网页软件打开的照它的
+ *  颜色，不给切。 */
+function appearance() {
+  const seg = element('div', 'seg');
+  const draw = () => {
+    seg.replaceChildren(
+      ...['system', 'light', 'dark'].map((one) => {
+        const button = element('button', one === chosen() ? 'on' : null, say(`theme/${one}`));
+        button.disabled = handed();
+        button.addEventListener('click', () => {
+          choose(one);
+          draw();
+        });
+        return button;
+      }),
+    );
+  };
+  draw();
+  const hint = handed() ? say('settings-page/scheme-handed') : null;
+  return section('settings-page/appearance', null, [row(say('settings-page/scheme'), hint, seg)]);
 }
 
 /** 违规判断（施工 I-16，照旧版设置页）：违规关键词，存成系统那一份（整份替换出厂的），能回到出厂的。门槛在会话浮窗「高级」里。 */

@@ -37,6 +37,7 @@ mod store;
 mod tests;
 mod ticket;
 mod venues;
+mod web_link;
 
 use std::convert::Infallible;
 use std::path::PathBuf;

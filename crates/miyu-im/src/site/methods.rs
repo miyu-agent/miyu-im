@@ -28,6 +28,7 @@
 //! - `plugins.panel`：插件面板的地址（施工 I-9 下，`panels`）。
 //! - `plugins.home`：首页上放不放这个插件的卡片（施工 I-8 下，`home_cards`）。
 //! - `plugins.widget`：插件往页面加的内容（施工 I-8 下，`plugin_widgets`）。
+//! - `web.status`、`web.open`：装没装网页软件、带交接票的主网页地址（施工 I-110，`web_link`）。
 //! - 别的：`unknown_method`。
 
 use crate::chat::Id;
@@ -40,7 +41,7 @@ use super::logins::Login;
 use super::{
     Person, Site, connections, home_cards, logs, moderation, panels, plugin_settings,
     plugin_widgets, plugins, records_media, records_page, save, scope, settings, stats, store,
-    venues,
+    venues, web_link,
 };
 use crate::core::methods::short_path;
 use crate::running::Station;
@@ -99,6 +100,8 @@ pub(super) async fn answer(
         Some("plugins.call") => plugin_settings::call(site, &login.person, params).await,
         Some("plugins.panel") => panels::open(site, login, params).await,
         Some("stats") => stats::stats(site, &login.person, params).await,
+        Some("web.status") => web_link::status(&login.person).await,
+        Some("web.open") => web_link::open(&login.person).await,
         Some("store.list") => store::list(&login.person, params).await,
         Some("store.install") => store::install(&login.person, params).await,
         Some("records.venues") => records_page::listed(site).await,

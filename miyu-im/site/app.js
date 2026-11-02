@@ -7,7 +7,7 @@
 // 3. 没有会话号的：登录页。
 import { useLanguage } from './shell/i18n.js';
 import { applyHanded } from './shell/theme.js';
-import { showLogin, signIn, signOut, stored, store } from './shell/login.js';
+import { showLogin, signIn, stored, store } from './shell/login.js';
 import { openChannel } from './shell/channel.js';
 import { mountShell } from './shell/shell.js';
 
@@ -39,12 +39,6 @@ function enter(session, fromWebUi) {
         shell = mountShell(app, {
           request: (method, params) => channel.request(method, params),
           handed: fromWebUi,
-          onSignOut: async () => {
-            channel.close();
-            shell.dispose();
-            await signOut();
-            leave('');
-          },
         });
       }
       shell.refresh();

@@ -3,7 +3,8 @@
 // - 从 WebUI 跳过来的：网址片段带 scheme（light、dark）和 colors（网页软件 design.js 的 page 那一组，下划线的名字）。照它定
 //   深浅、把认得的几个颜色写成 CSS 变量（下划线换连字符），记进 sessionStorage（这个标签页刷新了照旧）。这时不给手动切：颜色
 //   是网页软件那一套的。
-// - 单独打开的：跟随系统，能手动切成浅色、深色（记进 localStorage）。
+// - 单独打开的：跟随系统，能手动切成浅色、深色（记进 localStorage）。施工 I-110（项目主人 11-02）：设置页「外观」三档都能选，侧栏
+//   左下角那一下只在浅色、深色之间切（照现在显示的换成另一个）。
 
 /** 认得的颜色名（网页软件 design.js 的 page 那一组里页面用到的）。 */
 const KNOWN = [
@@ -33,15 +34,29 @@ export function applyHanded(given) {
   return true;
 }
 
+/** 这个标签页的主题是不是网页软件交来的（是的不给手动切）。 */
+export function handed() {
+  return Boolean(parse(recall(sessionStorage, HANDED)));
+}
+
 /** 手动切的那一档：system、light、dark。 */
 export function chosen() {
   return recall(localStorage, CHOSEN) || 'system';
+}
+
+/** 现在显示的是浅色还是深色：手动切了的照它，跟随系统的照系统。 */
+export function shown() {
+  const scheme = chosen();
+  if (scheme === 'light' || scheme === 'dark') return scheme;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 /** 换成 `scheme`（system、light、dark），记下。 */
 export function choose(scheme) {
   remember(localStorage, CHOSEN, scheme);
   applyChosen(scheme);
+  // 侧栏的深浅按钮、设置页「外观」听这一声，各自重画。
+  window.dispatchEvent(new Event('miyu-im-scheme'));
 }
 
 function applyChosen(scheme) {

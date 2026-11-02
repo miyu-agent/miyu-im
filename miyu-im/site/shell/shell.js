@@ -1,11 +1,15 @@
-// 页面的外壳（设计 01 第八节第 1 条，施工 I-6 上）：左边侧边栏（头上名字和在线状态、几页的入口、底下切深浅和登出），右边是这一页。
+// 页面的外壳（设计 01 第八节第 1 条，施工 I-6 上）：左边侧边栏（头上名字和在线状态、几页的入口、底下切深浅、打开主网页、源码），右边是
+// 这一页。施工 I-110（项目主人 11-02）：去掉「登出」（只给一个人用）；源码换成 GitHub 的标志；装了网页软件的多一个「主网页」，带一张
+// 交接票打开（宿主的 web.open），那边直接是登录的；深浅只在浅色、深色之间切，「跟随系统」在设置页「外观」里选。
 //
 // - 收起、展开照网页软件的左栏（shell.css）；收起着、指针靠到最左边，左栏临时浮出来，离开了滑回去。收没收起记进 localStorage。
 // - 哪一页照网址的 #（#home 这样），前进后退照浏览器的。还没做的几页在侧边栏上灰着，写「即将」。
 // - 连接的样子由外壳问（connections），宿主推了变了再问；头上的状态、这一页都照它画。通道断了头上写连不上。宿主推的别的（cards：
 //   卡片变了，施工 I-7 上）交给这一页。
 import { element, icon, say } from './i18n.js';
-import { choose, chosen } from './theme.js';
+import { choose, shown } from './theme.js';
+import { toast } from './dialog.js';
+import { lucide } from './lucide.js';
 import { goTo, hashParts } from './connection.js';
 import { mountHome } from '../pages/home/home.js';
 import { mountVenues } from '../pages/venues/venues.js';
@@ -29,16 +33,14 @@ const PAGES = [
 ];
 
 const COLLAPSED = 'miyu-im-collapsed';
-const SCHEMES = ['system', 'light', 'dark'];
-const SCHEME_ICONS = { system: 'i-monitor', light: 'i-sun', dark: 'i-moon' };
-const SCHEME_NAMES = { system: () => say('theme/system'), light: () => say('theme/light'), dark: () => say('theme/dark') };
+const SCHEME_ICONS = { light: 'i-sun', dark: 'i-moon' };
 
 /** 这个程序的源码。 */
 const SOURCE = 'https://github.com/miyu-agent/miyu-im';
 
-/** 在 `root` 里起外壳：`request` 调宿主的方法，`handed` 是网页软件交来了主题（不给手动切），`onSignOut` 登出。交回
- *  refresh()（变了再问）、event(name)（宿主推的别的）、offline()（通道断了）、dispose()。 */
-export function mountShell(root, { request, handed, onSignOut }) {
+/** 在 `root` 里起外壳：`request` 调宿主的方法，`handed` 是网页软件交来了主题（不给手动切）。交回 refresh()（变了再问）、
+ *  event(name)（宿主推的别的）、offline()（通道断了）、dispose()。 */
+export function mountShell(root, { request, handed }) {
   document.title = say('title');
   const shell = element('div', 'shell');
   const toggle = element('button', 'icon-button side-toggle');
@@ -74,14 +76,37 @@ export function mountShell(root, { request, handed, onSignOut }) {
   const foot = element('div', 'side-foot');
   const scheme = element('button', 'icon-button');
   if (!handed) foot.append(scheme);
-  const out = element('button', 'btn ghost', say('sign-out'));
-  out.addEventListener('click', onSignOut);
+  // 主网页（施工 I-110）：装了网页软件才出现。先开一个空的新标签页（等宿主要票再开会被浏览器当成弹窗挡掉），要到了地址再换过去。
+  const web = element('button', 'btn ghost');
+  web.append(lucide('globe', icon('i-link')), document.createTextNode(say('side/web')));
+  web.hidden = true;
+  web.addEventListener('click', async () => {
+    const tab = window.open('', '_blank');
+    try {
+      const { url } = await request('web.open');
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = url;
+      } else location.href = url;
+    } catch {
+      tab?.close();
+      toast(say('failed/web'));
+    }
+  });
+  request('web.status').then(
+    (answer) => {
+      web.hidden = !answer.installed;
+    },
+    () => {},
+  );
   // 源码（2026-10-26 换 AGPL-3.0-or-later）：经网络用到这个页面的人也拿得到源码。
-  const source = element('a', 'btn ghost', say('source'));
+  const source = element('a', 'icon-button');
   source.href = SOURCE;
   source.target = '_blank';
   source.rel = 'noopener';
-  foot.append(element('span', 'grow'), source, out);
+  source.title = say('source');
+  source.append(icon('i-github'));
+  foot.append(element('span', 'grow'), web, source);
   side.append(foot);
   const main = element('main', 'main');
   shell.append(toggle, peekZone, side, main);
@@ -122,16 +147,17 @@ export function mountShell(root, { request, handed, onSignOut }) {
   }
   collapse(wasCollapsed, false);
 
-  // 深浅：跟随系统、浅色、深色轮着切。
+  // 深浅：照现在显示的换成另一个（施工 I-110）；图标画现在的样子，悬停说点了换成什么。
   const showScheme = () => {
-    const now = chosen();
+    const now = shown();
     scheme.replaceChildren(icon(SCHEME_ICONS[now]));
-    scheme.title = SCHEME_NAMES[now]();
+    scheme.title = say(now === 'dark' ? 'theme/to-light' : 'theme/to-dark');
   };
   scheme.addEventListener('click', () => {
-    choose(SCHEMES[(SCHEMES.indexOf(chosen()) + 1) % SCHEMES.length]);
+    choose(shown() === 'dark' ? 'light' : 'dark');
     showScheme();
   });
+  window.addEventListener('miyu-im-scheme', showScheme);
   showScheme();
 
   // 哪一页。
