@@ -211,6 +211,7 @@ pub(super) fn private_lines(set: &PrivateSet) -> Vec<String> {
         &set.preset,
     );
     entries.put("show_ids", set.show_ids.map(|show| show.to_string()));
+    entries.put("glance", set.glance.map(|on| on.to_string()));
     outbound(
         &mut entries,
         set.final_only,

@@ -148,6 +148,7 @@ const PRIVATE_FORMS: [Form; 2] = [
         &[
             ("persona", Control::Persona),
             ("extra_prompt", Control::Textarea),
+            ("glance", Control::Toggle),
         ],
     ),
     (

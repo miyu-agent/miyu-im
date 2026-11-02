@@ -277,7 +277,7 @@ impl Route {
         self.pin_found(&session, &place.wanted).await;
         self.venues.insert(venue.to_string(), session.clone());
         // 时不时看一眼开着、还没有定时的群补一个（施工 I-89）。
-        self.glance_found(&venue.to_string()).await?;
+        self.glance_found(&venue.to_string(), &session).await?;
         Ok(Some(session))
     }
 

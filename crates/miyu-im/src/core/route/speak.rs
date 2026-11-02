@@ -166,10 +166,10 @@ impl Route {
         // 群的主线这一轮结束了：排着的开下一轮（施工 I-16，`waiting`）。
         if self.groups.contains_key(line) {
             self.next_waiting(line).await?;
-            // 时不时看一眼（施工 I-89）：看一眼开的那一轮再排下一次，等着这一轮结束的那一次再过一遍。排着的先开，过一遍时
-            // 又在跑的接着等。
-            self.glance_turn_ended(line).await?;
         }
+        // 时不时看一眼（施工 I-89）：看一眼开的那一轮再排下一次，等着这一轮结束的那一次再过一遍（群的主线、私聊；支线的什么都
+        // 不做）。群里排着的先开，过一遍时又在跑的接着等。
+        self.glance_turn_ended(line).await?;
         Ok(())
     }
 
@@ -248,6 +248,8 @@ impl Route {
     /// 同 [`Route::heard`]。
     pub(super) async fn say_privately(&mut self, session: &str, event: &Value) -> Result<(), Gone> {
         let quiet = self.quiet.heard(session, event);
+        // 时不时看一眼照它认这个私聊有没有一轮在跑（施工 I-89 下）。
+        self.glance_heard(session, event);
         // 驱动的工具照回合数一轮调了几次（施工 O-35、T-3）：私聊没有投影，推来的事件的回合记下来。
         if let Some(turn) = event["turn"].as_u64() {
             self.turns.insert(session.to_string(), Some(turn));

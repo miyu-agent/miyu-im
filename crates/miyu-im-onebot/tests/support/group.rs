@@ -171,6 +171,16 @@ pub async fn started_tuned(
     up(models, ("", tuned), (rules, ""), "", answer).await
 }
 
+/// 同 [`started_tuned`]，系统配置的 `[im]` 另写 `onebot`（施工 I-89 下：白名单成员的私聊也要调参）。
+pub async fn started_tuned_with(
+    models: Arc<dyn Models>,
+    (rules, onebot): (&str, &str),
+    tuned: &Value,
+    answer: impl FnOnce(NapCat) -> Answering,
+) -> (Home, Answering, u16) {
+    up(models, ("", tuned), (rules, ""), onebot, answer).await
+}
+
 /// 同 [`started`]，假 NapCat 连上以后交给 `answer` 去应答（[`NapCat::reversing`] 这类）。
 pub async fn started_with(
     script: &Script,

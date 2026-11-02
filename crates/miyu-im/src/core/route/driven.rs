@@ -212,6 +212,15 @@ impl Route {
                 };
                 answerer.answer(&id, answer);
             }
+            // 定下一次看一眼（施工 I-89 下）：删掉等着的定时、照它建新的。
+            Planned::Host(Effect::Glance { minutes }) => {
+                self.glance_after(peer.venue.as_str(), minutes).await?;
+                let minutes = minutes.to_string();
+                answerer.answer(
+                    &id,
+                    answers.say("glance-set", &[("minutes", &minutes)], false),
+                );
+            }
             // @ 谁、引用哪条要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
             Planned::Host(Effect::Mention(_) | Effect::Quote(_)) => {
                 answerer.answer(&id, answers.say("unreachable", &[], true));

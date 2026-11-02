@@ -158,6 +158,9 @@ pub struct PrivateSet {
     /// 仅发送最终消息（施工 O-57）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub final_only: Option<bool>,
+    /// 时不时看一眼（设计 05，施工 I-89 下）：拼成 `glance`；到点不看有没有新消息，让她决定要不要主动开口（项目主人 11-02 定）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance: Option<bool>,
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,

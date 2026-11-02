@@ -62,6 +62,8 @@ impl Route {
                 }
                 Some((platform, To::Private(user))) => match platform.person(&user) {
                     Ok(peer) if self.taken(&peer).await? => {
+                        // 时不时看一眼到点照它开轮（施工 I-89 下）：私聊没进 `venues`，另记一份。
+                        self.glance_private(venue.id().as_str(), session);
                         self.subscribe(session, Some(0)).await?
                     }
                     _ => false,

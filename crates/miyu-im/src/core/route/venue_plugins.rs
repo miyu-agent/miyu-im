@@ -27,7 +27,12 @@ impl Route {
         venue: &str,
         (platform, bot, to): (Platform, Id, To),
     ) -> Result<(), Gone> {
-        let on = self.hooks.plugins_on(platform, Some(&bot), to);
+        let mut on = self.hooks.plugins_on(platform, Some(&bot), to);
+        // 时不时看一眼开着的场所才有定下一次的工具（施工 I-89 下）。
+        if self.glance_on(venue) {
+            on.push(crate::toolset::GLANCE_PLUGIN.to_string());
+            on.sort();
+        }
         if self.plugins_told.get(venue) == Some(&on) {
             return Ok(());
         }

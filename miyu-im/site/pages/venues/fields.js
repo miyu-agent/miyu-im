@@ -40,8 +40,8 @@ export const FIELDS = {
   ],
   trigger: [
     { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
-    // 时不时看一眼（设计 05，施工 I-89）：只有名单里的群卡、会话默认值（`has` 把默认值当群卡），「其他群」没有。
-    { key: 'glance', control: 'switch', label: 'field/glance', hint: 'field/glance-hint', kinds: ['group'] },
+    // 时不时看一眼（设计 05，施工 I-89）：名单里的群卡、私聊卡（I-89 下）、会话默认值（`has` 把默认值当群卡），两张「其他」没有。
+    { key: 'glance', control: 'switch', label: 'field/glance', hint: 'field/glance-hint', kinds: ['group', 'private'] },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },

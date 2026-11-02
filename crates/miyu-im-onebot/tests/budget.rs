@@ -24,12 +24,13 @@ use std::path::Path;
 const BUDGET: usize = 4312;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 19] = [
+const TOOLS: [&str; 20] = [
     "qq_activity_ranking",
     "qq_avatar",
     "qq_chat_history",
     "qq_contacts",
     "qq_fetch_media",
+    "qq_glance",
     "qq_group_files",
     "qq_kick",
     "qq_members",

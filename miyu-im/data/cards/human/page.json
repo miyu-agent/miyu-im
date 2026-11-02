@@ -315,8 +315,8 @@
     "ja": "切り替えられませんでした：{detail}"
   },
   "hint.glance": {
-    "zh": "隔一阵自己看一眼群里的新消息，说不说话由 AI 定",
-    "en": "Now and then the AI looks at new messages on its own and decides whether to speak",
-    "ja": "ときどき AI が自分で新着を見て、話すかどうかを決めます"
+    "zh": "隔一阵自己看一眼会话，说不说话由 AI 定",
+    "en": "Now and then the AI checks the chat on its own and decides whether to speak",
+    "ja": "ときどき AI が自分でチャットを覗いて、話すかどうかを決めます"
   }
 }

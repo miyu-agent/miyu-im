@@ -56,7 +56,7 @@ pub fn group(applied: &Applied) -> Value {
 /// 私聊卡的默认值。
 pub fn private(applied: &Applied) -> Value {
     let mut set = Map::new();
-    for key in ["persona", "preset", "extra_prompt", "show_ids"] {
+    for key in ["persona", "preset", "extra_prompt", "show_ids", "glance"] {
         set.insert(key.into(), plain(applied, key));
     }
     long_text(applied, &mut set);

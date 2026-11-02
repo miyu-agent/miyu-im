@@ -18,6 +18,7 @@ mod args;
 mod card;
 mod contacts;
 mod fetch;
+mod glance;
 mod group_files;
 mod history;
 mod log;
@@ -83,6 +84,9 @@ pub const CHAT_HISTORY: &str = "qq_chat_history";
 /// 取图、视频、文件（施工 O-33）：私聊、群都给。
 pub const FETCH_MEDIA: &str = "qq_fetch_media";
 
+/// 定下一次什么时候看一眼（设计 05，施工 I-89 下）：私聊、群都给，只在开着时不时看一眼的场所里有（`GLANCE_PLUGIN`）。
+pub const GLANCE: &str = "qq_glance";
+
 /// 取头像（施工 O-54）：一个人的、一个群的，存进工作区。
 pub const AVATAR: &str = "qq_avatar";
 
@@ -109,7 +113,7 @@ const EVERYWHERE: &[&str] = &["local", "private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 19] = [
+const TOOLS: [Decl; 20] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -205,11 +209,17 @@ const TOOLS: [Decl; 19] = [
         access: Access::Read,
         venues: VENUES,
     },
+    Decl {
+        name: GLANCE,
+        access: Access::Read,
+        venues: VENUES,
+    },
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 52] = [
+const ANSWERS: [(&str, &[&str]); 53] = [
     ("skipped", &[]),
+    ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
     ("mentioned", &["who"]),
@@ -341,6 +351,7 @@ impl ToolSet for QqTools {
         // 群管理的三件（施工 S-1 上c，核心 O-60）、查询信息的八件（施工 I-44、I-91）：插件在这个场所关着的，工具表里没有它们。
         match tool {
             MUTE | KICK | MODERATION_LOG => Some(crate::admin::ID),
+            GLANCE => Some(miyu_im::toolset::GLANCE_PLUGIN),
             tool if LOOKUPS.contains(&tool) => Some(crate::lookups::ID),
             _ => None,
         }
@@ -373,6 +384,7 @@ impl ToolSet for QqTools {
             GROUP_FILES => group_files::group_files(self, call),
             REACT => react::react(call),
             ACTIVITY_RANKING => ranking::ranking(&call),
+            GLANCE => glance::glance(&call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, (self.wait, self.image_limit)),
             MENTION => mention::mention(call),
             QUOTE => quote::quote(call),

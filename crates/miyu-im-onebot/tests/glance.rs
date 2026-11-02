@@ -1,6 +1,7 @@
 //! 时不时看一眼（施工 I-89，设计 05）：真核心照开关拉起真桥、假 NapCat，`bridge.json` 的 `glance_seconds` 改成 2 秒，经网页的样子存卡片。
 //! 名单里的群卡打开看一眼：核心的定时到点，上次以后有没人叫她的新消息的开一轮（带 `glance` 事实），她照剧本说的发回群里；那一轮
-//! 结束了照间隔再排；没有新消息的不开、照间隔再排；卡片关了删掉定时，再来新消息也不看。睡着的不开，顺延到醒。
+//! 结束了照间隔再排；没有新消息的不开、照间隔再排；卡片关了删掉定时，再来新消息也不看。睡着的不开，顺延到醒。私聊（I-89 下）到点
+//! 不看有没有新消息，开一轮只带事实；她用 `qq_glance` 定了下一次的照她的，那一轮结束不再照出厂的间隔排。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -132,6 +133,73 @@ async fn a_glance_while_asleep_waits_for_the_wake() {
     assert_eq!(turns(&home, &venue), 0, "睡着的不开");
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;
+}
+
+/// 白名单成员，有私聊卡。
+const FRIEND: i64 = 40015;
+
+#[tokio::test]
+async fn a_private_glance_opens_without_new_messages_and_her_tool_sets_the_next() {
+    let script = Script::new([
+        Play::Says("在呢"),
+        Play::calls(&[("qq_glance", r#"{"minutes": 60}"#)]),
+        Play::Says("想你了"),
+    ]);
+    let tuned = json!({"glance_seconds": 2});
+    let onebot = format!("whitelist = [\"qq:{FRIEND}\"]\n");
+    let (home, mut napcat, _) = started_tuned_with(
+        Arc::new(script.clone()),
+        (RULES, &onebot),
+        &tuned,
+        |napcat| napcat.answering(MEMBERS),
+    )
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let venue = format!("qq:{BOT}:private:{FRIEND}");
+    // 1：私聊里说一句，她回了：会话有了。
+    napcat.send(private_frame(FRIEND, 1, json!([plain("早")])));
+    assert_eq!(private_reply(&mut napcat).await, "在呢");
+    until_events(&home.root, &venue, |events| {
+        of_kind(events, "turn.ended").len() == 1
+    })
+    .await;
+    // 打开看一眼：到点没有新消息也开一轮，她定下一次 60 分钟以后，再说一句。
+    let cards = json!({"privates": [{"id": FRIEND, "set": {"glance": true}}]});
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    assert_eq!(private_reply(&mut napcat).await, "想你了");
+    let events = until_events(&home.root, &venue, |events| {
+        of_kind(events, "turn.ended").len() == 2
+    })
+    .await;
+    let text = format!("{events:?}");
+    assert!(text.contains("<glance>"), "带一块看一眼的事实：{events:#?}");
+    assert!(
+        text.contains("Next look in 60 min."),
+        "工具答了：{events:#?}"
+    );
+    // 那一轮结束不再照两秒排：过两个间隔也没有第三轮。
+    tokio::time::sleep(TWO_GLANCES).await;
+    assert_eq!(turns(&home, &venue), 2, "照她定的 60 分钟");
+    let log = run_log(&home.root);
+    assert_eq!(log.matches("glance armed").count(), 2, "{log}");
+    assert!(napcat.pending().is_none(), "别的什么都不发");
+    stopped(home).await;
+}
+
+/// 下一个动作是发给 [`FRIEND`] 的 `send_private_msg`：交回里面的字。
+async fn private_reply(napcat: &mut Answering) -> String {
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_private_msg", "{action}");
+    assert_eq!(action["params"]["user_id"], FRIEND, "{action}");
+    action["params"]["message"][0]["data"]["text"]
+        .as_str()
+        .expect("有字")
+        .to_string()
 }
 
 /// 系统的场所规则：群的睡觉时间盖住此刻（前后各一个小时，照本机的时区；同 `whitelist.rs`）。

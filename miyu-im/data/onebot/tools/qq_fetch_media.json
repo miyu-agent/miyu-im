@@ -1,4 +1,4 @@
 {
   "description": "Fetch an image, video or file from a message.",
-  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"The #n item. Default 1."}},"required":["msg"]}
+  "parameters": {"type":"object","properties":{"msg":{"type":"string"},"index":{"type":"integer","description":"Default 1."}},"required":["msg"]}
 }

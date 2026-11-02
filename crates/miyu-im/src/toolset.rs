@@ -246,7 +246,16 @@ pub enum Effect {
         /// 列几个。
         limit: usize,
     },
+    /// 这个场所隔几分钟再看一眼（时不时看一眼，设计 05、施工 I-89 下）：im 删掉等着的定时、照它建新的，答 `glance-set`（`minutes`）。
+    Glance {
+        /// 几分钟，至少 1。
+        minutes: u64,
+    },
 }
+
+/// 时不时看一眼的工具挂的场所插件名（施工 I-89 下）：im 只对开着看一眼的场所告诉核心它开着（`venue.plugins`），别的场所的工具表里
+/// 没有这件。不是真的软件包。
+pub const GLANCE_PLUGIN: &str = "miyu-im-glance";
 
 /// 一次调用怎么办（[`ToolSet::plan`]）。
 pub enum Planned {
