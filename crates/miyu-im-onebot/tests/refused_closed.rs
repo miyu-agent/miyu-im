@@ -94,10 +94,11 @@ async fn a_connection_that_never_finishes_its_header_is_closed() {
 
 #[tokio::test]
 async fn connections_past_the_pending_limit_are_closed_at_once() {
-    // 施工 I-94：还没升级的连接满了 `pending_connections` 条，再连进来的当场关掉；NapCat 等前面的让出名额就进得来。
+    // 施工 I-94：还没升级的连接满了，再连进来的当场关掉；NapCat 等前面的让出名额就进得来。I-107 起一个来源地址最多
+    // `pending_per_source` 条：这里都从本机来，满的是这一份。别的来源照样进得来见 `audit4.rs`。
     let home = Home::new(&Script::new([]));
     let bridge = bridge(&home).await;
-    let limit = crate::support::shipped::tuning().pending_connections;
+    let limit = crate::support::shipped::tuning().pending_per_source;
     let mut held = Vec::new();
     for _ in 0..limit {
         held.push(

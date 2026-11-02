@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::{Map, Value, json};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Semaphore, mpsc, watch};
+use tokio::sync::{mpsc, watch};
 use tokio::task::{AbortHandle, JoinSet};
 
 use miyu_client::settings::Secret;
@@ -26,6 +26,7 @@ use miyu_im::TARGET;
 use miyu_im::driver::{Gate, Running};
 use miyu_im::serve::{Failure, Notice};
 
+use super::pending::{Full, Pending};
 use crate::settings::Settings;
 
 /// 每个听着的端口（实际的）现在的令牌：连进来的那一下照它比（`super::admitted`）。
@@ -134,15 +135,22 @@ async fn accepting(
 ) {
     let mut connections = JoinSet::new();
     let mut watching = true;
-    // 还没升级的连接的名额（施工 I-94）：满了的当场关掉，记一行。
-    let pending = Arc::new(Semaphore::new(gate.tuning().pending_connections));
+    // 还没升级的连接的名额（施工 I-94；I-107 起按来源地址分，`super::pending`）：满了的当场关掉，记一行。
+    let tuning = gate.tuning();
+    let pending = Pending::new(tuning.pending_connections, tuning.pending_per_source);
     loop {
         tokio::select! {
             Some((stream, port)) = accepted.recv() => {
-                let Ok(permit) = Arc::clone(&pending).try_acquire_owned() else {
-                    tracing::warn!(target: TARGET, port, "too many pending connections");
-                    drop(stream);
-                    continue;
+                // 读不出对方地址的（几乎不会）算同一个来源。
+                let source = stream.peer_addr().map_or(IpAddr::from([0, 0, 0, 0]), |peer| peer.ip());
+                let permit = match pending.take(source) {
+                    Ok(permit) => permit,
+                    Err(full) => {
+                        let from = if full == Full::Source { "source" } else { "total" };
+                        tracing::warn!(target: TARGET, port, %source, full = from, "too many pending connections");
+                        drop(stream);
+                        continue;
+                    }
                 };
                 let port = (port, Arc::clone(&tokens));
                 connections.spawn(super::accept(stream, Arc::clone(&gate), (port, permit)));

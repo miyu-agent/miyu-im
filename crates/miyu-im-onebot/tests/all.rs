@@ -91,6 +91,8 @@ mod replaced_bridge;
 mod replayed;
 mod replies;
 mod replies_held;
+// 发布前第四轮审查的防御性测试（2026-11-02）
+mod audit4;
 mod revived;
 mod rules;
 mod scoring;

@@ -13,12 +13,13 @@
 //! `serve` 的一组里，桥停下时一起停。
 //!
 //! 外人连进来（施工 I-94，发布前审查 I2-1：端口出厂听 `0.0.0.0`）：一条连接只收一个请求，回了别的（401、404、400）就关，不留着
-//! 等下一个；`handshake_seconds` 以内读不完请求头的关掉；还没升级的连接同时最多 `pending_connections` 条（`accepting`），升级了才
-//! 让出名额。
+//! 等下一个；`handshake_seconds` 以内读不完请求头的关掉；还没升级的连接同时最多 `pending_connections` 条，一个来源地址最多
+//! `pending_per_source` 条（施工 I-107，发布前审查 I4-1，`pending`），升级了才让出名额。
 
 mod accepting;
 mod connection;
 mod handing;
+mod pending;
 #[cfg(test)]
 mod tests;
 
@@ -32,7 +33,6 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::TcpStream;
-use tokio::sync::OwnedSemaphorePermit;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::onebot::PLATFORM;
@@ -97,7 +97,7 @@ type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
 async fn accept(
     stream: TcpStream,
     gate: Arc<Gate>,
-    (port, pending): ((u16, accepting::Tokens), OwnedSemaphorePermit),
+    (port, pending): ((u16, accepting::Tokens), pending::Slot),
 ) {
     let entry = port.0;
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();

@@ -32,6 +32,8 @@ pub struct Tuning {
     pub handshake_seconds: u64,
     /// NapCat 的端口上还没过令牌（没升级成 WebSocket）的连接最多同时几条（施工 I-94）：多的当场关掉、记一行。至少 1。
     pub pending_connections: usize,
+    /// 同上，一个来源地址最多同时几条（施工 I-107，发布前审查 I4-1）：一台机器开不满所有名额，NapCat 断了照样连得回来。至少 1。
+    pub pending_per_source: usize,
     /// 跟核心握手，最多等几秒回应（第 1 条，施工 O-18）：从终端跑起来的等不到就退，说 `serve` 只由核心拉起。
     pub hello_seconds: u64,
     /// `logs -f` 隔几毫秒看一次运行日志长了没有（施工 O-18）。
@@ -120,11 +122,12 @@ impl Tuning {
             || tuning.queue_expire_seconds == 0
             || tuning.handshake_seconds == 0
             || tuning.pending_connections == 0
+            || tuning.pending_per_source == 0
             || tuning.connection_events == 0
             || tuning.glance_seconds == 0
             || tuning.glance_minute_seconds == 0
         {
-            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, glance_seconds and glance_minute_seconds must be at least 1".to_string()));
+            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds and glance_minute_seconds must be at least 1".to_string()));
         }
         Ok(tuning)
     }
