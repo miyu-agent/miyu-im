@@ -1,6 +1,7 @@
 //! 踢人照旧版（施工 I-17）：真核心拉起真桥、假 NapCat，她照台词说。谁叫的都直接做（施工 I-20：不要二次确认，2026-10-21 项目主人
 //! 定）。一次几个人：一个个做、一个个报，群主和管理员不踢、不在群里的不踢；NapCat 踢成了却回失败的（实测的毛病）现问成员
-//! 核实，走了的算成、记进管理记录。禁言一次几个人同样一个个报。
+//! 核实，走了的算成、记进管理记录。禁言一次几个人同样一个个报。施工 I-97（项目主人 11-02）：禁言、踢人都先现问对方，群主谁都
+//! 动不了、管理员只有她是群主时动得了，挡下的不调 NapCat。
 
 use std::sync::Arc;
 
@@ -28,15 +29,33 @@ const KICKING: &[Member] = &[
 
 /// 起核心、桥、假 NapCat：她照 `lines` 说。
 async fn kicking(lines: &Lines) -> (Home, crate::support::answering::Answering) {
+    ranked_as(lines, KICKING, RANKS).await
+}
+
+/// 同 [`kicking`]，群成员照 `members`、身份照 `ranks`。
+async fn ranked_as(
+    lines: &Lines,
+    members: &'static [Member],
+    ranks: &'static [crate::support::answering::Rank],
+) -> (Home, crate::support::answering::Answering) {
     let (home, napcat, _) = started_ranked(
         Arc::new(lines.clone()),
         &rules(),
         &onebot(),
-        (KICKING, RANKS),
+        (members, ranks),
     )
     .await;
     (home, napcat)
 }
+
+/// 多一个 QQ 的群管理员（施工 I-97）。
+const WITH_ADMIN: &[Member] = &[
+    (BOT, "米尤", "miyu"),
+    (MEMBER, "小明", "ming"),
+    (MANAGER, "群管", "guan"),
+    (OWNER, "群主", "zhu"),
+    (QQ_ADMIN, "管理员", "admin"),
+];
 
 /// 这个群第 `turn` 轮完以后所有的工具结果：（字，状态），照先后。
 async fn results(home: &Home, turn: usize) -> Vec<(String, String)> {
@@ -148,5 +167,76 @@ async fn kicking_several_spares_owners_admins_and_strangers_and_checks_a_failed_
         sentence("muted", &[("who", "40002"), ("duration", "1m")]),
     ];
     assert_eq!((text, state), (wanted.join("\n"), "ok".to_string()));
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn muting_spares_the_owner_admins_and_strangers_when_she_is_an_admin() {
+    // 施工 I-97：QQ 收得下禁言管理员的请求、实际没成；她是管理员时群主、管理员都不禁，不在群里的不禁，挡下的不调 NapCat。
+    let lines = Lines::new(uses(
+        "qq_mute",
+        r#"{"seconds":60,"users":[40004,40006,40001,40099]}"#,
+    ));
+    let ranks: &'static [crate::support::answering::Rank] =
+        &[(OWNER, "owner"), (BOT, "admin"), (QQ_ADMIN, "admin")];
+    let (home, mut napcat) = ranked_as(&lines, WITH_ADMIN, ranks).await;
+    let words = json!([plain("禁言这几个")]);
+    let (text, state) = asks(&home, &napcat, MANAGER, 1301, words, 1).await;
+    let wanted = [
+        sentence("batch", &[("done", "1"), ("total", "4")]),
+        sentence("protected", &[("who", "40004")]),
+        sentence("protected", &[("who", "40006")]),
+        sentence("muted", &[("who", "40001"), ("duration", "1m")]),
+        sentence("not-members", &[("who", &STRANGER.to_string())]),
+    ];
+    assert_eq!((text, state), (wanted.join("\n"), "ok".to_string()));
+    let banned = next_platform(&mut napcat).await;
+    assert_eq!(banned["action"], "set_group_ban", "{banned}");
+    assert_eq!(banned["params"]["user_id"], MEMBER, "只禁了普通成员");
+    // 挡下的没调 NapCat（现问身份不算平台动作）。
+    no_platform(&mut napcat);
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn as_the_owner_she_can_mute_and_kick_an_admin() {
+    // 施工 I-97：QQ 允许群主禁言、踢管理员。
+    let lines = Lines::new(
+        [
+            uses("qq_mute", r#"{"seconds":60,"user":40006}"#),
+            uses("qq_kick", r#"{"user":40006}"#),
+        ]
+        .into_iter()
+        .flatten(),
+    );
+    let ranks: &'static [crate::support::answering::Rank] = &[(BOT, "owner"), (QQ_ADMIN, "admin")];
+    let (home, mut napcat) = ranked_as(&lines, WITH_ADMIN, ranks).await;
+    let (text, _) = asks(
+        &home,
+        &napcat,
+        MANAGER,
+        1401,
+        json!([plain("禁言管理员")]),
+        1,
+    )
+    .await;
+    assert_eq!(
+        text,
+        sentence("muted", &[("who", "40006"), ("duration", "1m")])
+    );
+    let banned = next_platform(&mut napcat).await;
+    assert_eq!(banned["params"]["user_id"], QQ_ADMIN, "{banned}");
+    let (text, _) = asks(
+        &home,
+        &napcat,
+        MANAGER,
+        1402,
+        json!([plain("把管理员踢了")]),
+        2,
+    )
+    .await;
+    assert_eq!(text, sentence("kicked", &[("who", "40006")]));
+    let kicked = next_platform(&mut napcat).await;
+    assert_eq!(kicked["action"], "set_group_kick", "{kicked}");
     stopped(home).await;
 }

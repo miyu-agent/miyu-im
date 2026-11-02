@@ -1,7 +1,7 @@
 //! 平台工具（一）：撤回、禁言、戳一戳（施工 O-31，`onebot.md` 第一条「平台工具（一）」；18 第十一节）：真核心拉起真桥、假 NapCat、
 //! 她照台词说（`support/speaking.rs`）。叫她做的那一条 @ 她开一轮（夹具的群谁 @ 她都直接回，施工 I-33），她调工具，
-//! 看 NapCat 收到的动作和参数、她收到的结果。施工 O-48 起不挡人：昵称冒充终端管理员的、普通成员叫她撤别人的、禁群主和终端管理员
-//! 的都照做。往坏里测：目标是她自己、没引用也没 @、@ 了两个人、引用的是她自己的消息叫她禁言、她给的编号是别的群的、号写错。
+//! 看 NapCat 收到的动作和参数、她收到的结果。施工 O-48 起不挡人：昵称冒充终端管理员的、普通成员叫她撤别人的、禁终端管理员的都照做；
+//! 施工 I-97 起禁言先现问对方，群主、群管理员不禁（QQ 收得下请求、实际没禁上）。往坏里测：目标是她自己、没引用也没 @、@ 了两个人、引用的是她自己的消息叫她禁言、她给的编号是别的群的、号写错。
 
 use serde_json::json;
 
@@ -214,7 +214,7 @@ async fn mute_takes_the_user_she_gives_or_one_person_from_the_quote_or_the_menti
 }
 
 #[tokio::test]
-async fn mute_holds_no_one_back_and_asks_nothing_first() {
+async fn mute_spares_the_owner_and_holds_no_one_else_back() {
     let lines = Lines::new(
         [
             uses("qq_mute", r#"{"seconds":60}"#),
@@ -230,15 +230,15 @@ async fn mute_holds_no_one_back_and_asks_nothing_first() {
     let words = json!([at(BOT), plain(" 禁言")]);
     says(&home, &napcat, (ADMIN, "member"), 301, words).await;
     assert_eq!(ended(&home, 1).await, refused("no-target", &[]));
-    // 施工 O-48：群主、终端管理员、终端管理员的小号都照禁，桥不先问身份；动不动得了由 QQ 说。
+    // 施工 I-97：禁言先现问对方，群主不禁、不调 NapCat（QQ 收得下禁群主、管理员的请求，实际没禁上）。终端管理员、他的小号不是
+    // 群管理员，照禁（施工 O-48）。
     says(&home, &napcat, (OWNER, ""), 3021, json!([plain("开会")])).await;
     let words = json!([quote(3021), plain("禁了")]);
     assert_eq!(
         asks(&home, &napcat, MEMBER, 302, words, 2).await,
-        done("muted", &[("who", "群主"), ("duration", "1m")])
+        refused("protected", &[("who", "群主")])
     );
-    assert_eq!(next_platform(&mut napcat).await["params"]["user_id"], OWNER);
-    assert!(!napcat.asked().contains(&OWNER), "不问群主的身份");
+    assert!(napcat.asked().contains(&OWNER), "现问了群主的身份");
     let words = json!([quote(301), plain("禁他")]);
     assert_eq!(
         asks(&home, &napcat, MEMBER, 303, words, 3).await,

@@ -7,11 +7,12 @@
 //! - 一次能管几个人（`users`，最多 32 个）：一个个做、一个个报，成了几个、哪些没成、为什么（[`answered`]）。
 //! - 踢人不踢群主、管理员，NapCat 回失败时核实人走没走（`kick`）。
 //!
+//! 施工 I-97（项目主人 11-02）：禁言、解禁、踢人动手之前都先现问对方（`target`）：不在群里的不做，群主谁都动不了，管理员只有她是群主
+//! 时动得了。QQ 照 OneBot 收得下禁言管理员的请求、实际没成，不先查她会以为禁上了。
+//!
 //! 施工 I-20（2026-10-21 项目主人定）：踢人不要二次确认；管理记录不记谁让她做的，只有一个备注（`reason`）。
 //!
-//! 禁言照旧只做动作、不挡人（施工 O-48）。
-
-use miyu_im::chat::Id;
+use miyu_im::chat::{Id, Rank};
 use serde_json::{Value, json};
 
 use miyu_im::toolset::{Call, NAME, Planned, clean, duration};
@@ -20,6 +21,7 @@ use super::acting::{Act, Undone, undone};
 use crate::admin::{self, records};
 
 mod kick;
+mod target;
 
 /// 群管理在这个群没生效（插件关着、她不是管理员）答的那一句（施工 Q-1）。
 pub(super) const ADMIN_OFF: &str = "admin-off";
@@ -70,18 +72,23 @@ async fn done(call: &Call, act: &Act) -> Value {
         Act::Mute { group, users, .. } | Act::Kick { group, users, .. } => (group.clone(), users),
         _ => return call.answers.say("unreachable", &[], true),
     };
-    // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。
-    match admin::admin_here(link.as_ref(), &group, &call.bot).await {
-        Ok(true) => {}
-        Ok(false) => return call.answers.say(ADMIN_OFF, &[], true),
+    // 她在这个群里不是管理员、群主的，群管理不生效（施工 Q-1）：问不到身份的照问不到答。是不是群主另记下（施工 I-97：群主动得了
+    // 管理员）。
+    let owner = match crate::onebot::fresh_member(link.as_ref(), &group, &call.bot).await {
+        Ok(Some(me)) if admin::ranked(me.rank) => me.rank == Some(Rank::Owner),
+        Ok(_) => return call.answers.say(ADMIN_OFF, &[], true),
         Err(error) => return said(call, None, undone(error)),
-    }
+    };
     let mut outcomes = Vec::new();
     for user in users {
-        let outcome = match *act {
-            Act::Mute { seconds, .. } => link.mute(&group, user, seconds).await.map_err(undone),
-            Act::Kick { block, .. } => {
-                kick::kick(link.as_ref(), group.clone(), user.clone(), block).await
+        let reachable = target::reachable(link.as_ref(), (&group, user), owner).await;
+        let outcome = match (act, reachable) {
+            (_, Err(undone)) => Err(undone),
+            (Act::Mute { seconds, .. }, Ok(())) => {
+                link.mute(&group, user, *seconds).await.map_err(undone)
+            }
+            (Act::Kick { block, .. }, Ok(())) => {
+                kick::kick(link.as_ref(), group.clone(), user.clone(), *block).await
             }
             _ => Err(Undone("unreachable", None)),
         };
