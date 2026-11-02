@@ -107,6 +107,7 @@ const GROUP_FORMS: [Form; 4] = [
             ("managers", Control::List),
             ("show_ids", Control::Toggle),
             ("glance", Control::Toggle),
+            ("glance_minutes", Control::Number),
         ],
     ),
     ("pace", &[("sleep", Control::Text), ("rate", Control::Text)]),
@@ -149,6 +150,7 @@ const PRIVATE_FORMS: [Form; 2] = [
             ("persona", Control::Persona),
             ("extra_prompt", Control::Textarea),
             ("glance", Control::Toggle),
+            ("glance_minutes", Control::Number),
         ],
     ),
     (
@@ -358,7 +360,7 @@ impl Ink<'_> {
             let other = item.card["kind"] == "other_groups";
             let fields: Vec<Value> = fields
                 .iter()
-                .filter(|(key, _)| !(other && *key == "glance"))
+                .filter(|(key, _)| !(other && (*key == "glance" || *key == "glance_minutes")))
                 .map(|(key, control)| {
                     self.field(key, *control, set.get(*key), &defaults[*key]["value"])
                 })

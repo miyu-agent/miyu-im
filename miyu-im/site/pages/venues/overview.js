@@ -9,12 +9,23 @@ import { element, say } from '../../shell/i18n.js';
 /** 画进 `holder`：`answer` 是 cards.overview 的回答，`type` 是 group、private。 */
 export function drawOverview(holder, answer, type) {
   const parts = [];
+  // 看一眼（施工 I-114）：上一次几点、看到几条新消息，下一次几点、是她定的还是照间隔。
+  if (answer.glance) parts.push(...glanceLines(answer.glance));
   const titles = type === 'group' ? ['venue/recent', 'venue/recent-none'] : ['venue/handled', 'venue/handled-none'];
   parts.push(element('div', 'group-name', say(titles[0])));
   const recent = answer.recent || [];
   if (recent.length === 0) parts.push(element('p', 'faint', say(titles[1])));
   for (const note of recent) parts.push(row(note));
   holder.replaceChildren(...parts);
+}
+
+/** 看一眼那一段：小标题加一两行。 */
+function glanceLines(glance) {
+  const time = (text) => new Date(text).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const lines = [element('div', 'group-name', say('venue/glance'))];
+  if (glance.last) lines.push(element('p', 'glance-line', say('venue/glance-last', { at: time(glance.last), count: glance.count ?? 0 })));
+  if (glance.next) lines.push(element('p', 'glance-line', say(glance.hers ? 'venue/glance-next-hers' : 'venue/glance-next', { at: time(glance.next) })));
+  return lines;
 }
 
 /** 一笔判断。 */

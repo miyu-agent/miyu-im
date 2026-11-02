@@ -19,6 +19,9 @@ pub struct Prompt {
     pub after: u64,
     /// 这一次的间隔，秒：没有新消息的照它再排一次。
     pub seconds: u64,
+    /// 是她定的（`qq_glance`，施工 I-114：会话浮窗「概况」、运行日志写清是谁定的）。I-114 以前的定时没有这一格，当不是。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hers: bool,
 }
 
 impl Prompt {

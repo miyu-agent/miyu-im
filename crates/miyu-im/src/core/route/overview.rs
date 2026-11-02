@@ -5,6 +5,7 @@
 //! - 群卡、私聊卡：那一个场所。
 //! - 「陌生群」：名单以外的群并起来；「陌生私聊」：不在私聊白名单里的人的私聊并起来（终端管理员的私聊也算在里面）。
 //! - 卡写错的拒 `bad_params`。
+//! - 多 `glance`（施工 I-114）：这张卡管的场所里最近看过、排着的那一个看一眼的样子（`glance::seen`），没有的不写。
 //! - 带 `venues: true` 的（施工 I-101：浮窗「概况」的统计）多交 `venues`：最近 [`SEEN_DAYS`] 天计数里见过的、这张卡管的场所，页面拿去问
 //!   `stats {venues}`。没收到过消息的场所（只有她自己发的）不在里面。
 
@@ -56,6 +57,11 @@ impl Route {
             .map(|(_, note)| json!(note))
             .collect();
         let mut answer = json!({"today": today, "recent": recent});
+        // 看一眼（施工 I-114）：上一次几点、看到几条新消息，下一次几点、是不是她定的；都没有的不写。
+        let glance = self.glance_seen(&*wanted);
+        if !glance.is_null() {
+            answer["glance"] = glance;
+        }
         if args["venues"] == true {
             let seen: BTreeSet<String> = self
                 .counters

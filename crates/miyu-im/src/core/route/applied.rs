@@ -174,6 +174,14 @@ pub(super) fn glances(applied: &Applied) -> bool {
     flag(applied, "glance") == Some(true)
 }
 
+/// 规则的 `glance_minutes`（施工 I-114）：她没定下一次时多久看一眼，分钟。没写的是空的（照桥的出厂）。
+pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
+    match entry(applied, "glance_minutes") {
+        Some(Value::Int(minutes)) => u64::try_from(*minutes).ok().filter(|minutes| *minutes > 0),
+        _ => None,
+    }
+}
+
 /// 此刻：本机的钟，时区照本机此刻的偏移（「施工时定的」第 65 条）。钟读不出（早于 1970 年、晚于 9999 年）的是空的。
 pub(super) fn clock() -> Option<Clock> {
     Some(Clock {

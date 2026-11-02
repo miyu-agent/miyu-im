@@ -51,6 +51,11 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("ignore_sleep", Form::Kind(Kind::Bool)),
     // 时不时看一眼（im 设计 05、施工 I-89）：桥照它给名单里的群排定时；没写的是不看。
     ("glance", Form::Kind(Kind::Bool)),
+    // 她没定下一次时多久看一眼，分钟（施工 I-114，项目主人 11-02）：没写的照桥的出厂（`glance_seconds`）。最多一周。
+    (
+        "glance_minutes",
+        Form::Kind(Kind::Int { min: 1, max: 10080 }),
+    ),
     // 确认主动回复后贴哪个表情（施工 I-7 中三下二）：平台的表情编号，`off` 是不贴；没写的照桥的出厂。
     ("reaction", Form::Kind(Kind::Text { max: 32 })),
 ];

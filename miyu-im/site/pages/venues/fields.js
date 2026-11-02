@@ -43,6 +43,8 @@ export const FIELDS = {
     { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
     // 时不时看一眼（设计 05，施工 I-89）：名单里的群卡、私聊卡（I-89 下）、会话默认值（`has` 把默认值当群卡），两张「其他」没有。
     { key: 'glance', control: 'switch', label: 'field/glance', hint: 'field/glance-hint', kinds: ['group', 'private'] },
+    // 她没定下一次时多久看一眼（施工 I-114）：她用工具定了的照她的。
+    { key: 'glance_minutes', control: 'number', label: 'field/glance-minutes', hint: 'field/glance-minutes-hint', unit: 'unit/minutes', kinds: ['group', 'private'], min: 1, max: 10080, dep: { key: 'glance', on: true } },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },

@@ -58,6 +58,7 @@ fn from_group(group: &GroupSet) -> PrivateSet {
         long_chars: group.long_chars,
         final_only: group.final_only,
         glance: group.glance,
+        glance_minutes: group.glance_minutes,
         plugins: group.plugins.clone(),
         rules: (!rules.is_empty()).then_some(rules),
     }

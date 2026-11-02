@@ -25,6 +25,8 @@ use crate::TARGET;
 use crate::core::{Gone, reason};
 use crate::glance::{Prompt, reconcile, unanswered};
 
+mod seen;
+
 /// 看一眼那一块事实的 `kind`。
 const GLANCE: &str = "glance";
 
@@ -51,6 +53,8 @@ pub(super) struct Glances {
     privates: HashMap<String, String>,
     /// 正有一轮在跑的私聊会话（I-89 下）：私聊没有投影，照推来的 `turn.started`、`turn.ended` 记。
     running: HashSet<String>,
+    /// 场所编号 → 上一次看了、下一次几点（施工 I-114，`seen`）。
+    seen: HashMap<String, seen::Seen>,
 }
 
 impl Glances {
@@ -131,10 +135,12 @@ impl Route {
         let (cancelled, added) = (done.cancel.len(), done.add.len());
         for venue in done.add {
             let after = self.glance_last(&venue);
+            let seconds = self.glance_every(&venue);
             let prompt = Prompt {
                 venue,
                 after,
-                seconds: self.glances.default.as_secs(),
+                seconds,
+                hers: false,
             };
             self.arm_glance(prompt, None).await?;
         }
@@ -155,7 +161,8 @@ impl Route {
         let prompt = Prompt {
             venue: venue.to_string(),
             after: self.glance_last(venue),
-            seconds: self.glances.default.as_secs(),
+            seconds: self.glance_every(venue),
+            hers: false,
         };
         self.arm_glance(prompt, None).await
     }
@@ -190,6 +197,7 @@ impl Route {
             venue: venue.to_string(),
             after: self.glance_last(venue),
             seconds: minutes.max(1).saturating_mul(self.glances.minute),
+            hers: true,
         };
         self.arm_glance(prompt, None).await
     }
@@ -224,10 +232,12 @@ impl Route {
         if let Some((venue, after)) = self.glances.looking.remove(session)
             && !self.glances.armed.contains_key(&venue)
         {
+            let seconds = self.glance_every(&venue);
             let prompt = Prompt {
                 venue,
                 after,
-                seconds: self.glances.default.as_secs(),
+                seconds,
+                hers: false,
             };
             self.arm_glance(prompt, None).await?;
         }
@@ -291,6 +301,7 @@ impl Route {
         match self.respond(&session, &to, &facts, &tag).await? {
             Responded::Asked => {
                 tracing::info!(target: TARGET, venue = %prompt.venue, count, "glance opened");
+                self.glance_looked(&prompt.venue, count);
                 self.glances.looking.insert(session, (prompt.venue, last));
                 Ok(())
             }
@@ -323,6 +334,7 @@ impl Route {
         match self.respond(&session, &[], &facts, &tag).await? {
             Responded::Asked => {
                 tracing::info!(target: TARGET, venue = %prompt.venue, count = 0, "glance opened");
+                self.glance_looked(&prompt.venue, 0);
                 self.glances.looking.insert(session, (prompt.venue, 0));
                 Ok(())
             }
@@ -344,7 +356,9 @@ impl Route {
         let reply = self.core.call("schedule.add", params).await?;
         match reply["result"]["schedule"]["id"].as_str() {
             Some(id) => {
-                tracing::info!(target: TARGET, venue = %prompt.venue, schedule = id, at = %at, "glance armed");
+                let by = if prompt.hers { "her" } else { "every" };
+                tracing::info!(target: TARGET, venue = %prompt.venue, schedule = id, at = %at, by, "glance armed");
+                self.glance_planned(&prompt.venue, at, prompt.hers);
                 self.glances.armed.insert(prompt.venue, id.to_string());
             }
             None => {

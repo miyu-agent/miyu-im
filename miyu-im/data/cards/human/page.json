@@ -94,6 +94,11 @@
     "en": "Glances now and then",
     "ja": "ときどき覗く"
   },
+  "field.glance_minutes": {
+    "zh": "多久看一眼（分钟）",
+    "en": "Glance every (minutes)",
+    "ja": "覗く間隔（分）"
+  },
   "field.sleep": {
     "zh": "睡觉时间",
     "en": "Sleep time",

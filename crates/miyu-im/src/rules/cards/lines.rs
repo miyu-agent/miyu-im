@@ -170,6 +170,10 @@ pub(super) fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
     // 时不时看一眼只给名单里的群（设计 05 第二节第 6 条）。
     if listed {
         entries.put("glance", set.glance.map(|on| on.to_string()));
+        entries.put(
+            "glance_minutes",
+            set.glance_minutes.map(|minutes| minutes.to_string()),
+        );
     }
     if !listed && !entries.0.iter().any(|(key, _)| key == "rate") {
         entries.set("rate", quoted(OTHER_GROUPS_RATE));
@@ -182,6 +186,10 @@ pub(super) fn defaults_lines(set: &GroupSet) -> Vec<String> {
     let mut entries = Entries::default();
     group_entries(&mut entries, set);
     entries.put("glance", set.glance.map(|on| on.to_string()));
+    entries.put(
+        "glance_minutes",
+        set.glance_minutes.map(|minutes| minutes.to_string()),
+    );
     entries.lines()
 }
 
@@ -212,6 +220,10 @@ pub(super) fn private_lines(set: &PrivateSet) -> Vec<String> {
     );
     entries.put("show_ids", set.show_ids.map(|show| show.to_string()));
     entries.put("glance", set.glance.map(|on| on.to_string()));
+    entries.put(
+        "glance_minutes",
+        set.glance_minutes.map(|minutes| minutes.to_string()),
+    );
     outbound(
         &mut entries,
         set.final_only,

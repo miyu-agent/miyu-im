@@ -122,6 +122,9 @@ pub struct GroupSet {
     /// 时不时看一眼（设计 05，施工 I-89）：拼成 `glance`。只有群卡、会话默认值认，「陌生群」写了也不拼（名单以外的群不一个一个计时）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub glance: Option<bool>,
+    /// 她没定下一次时多久看一眼，分钟（施工 I-114）：拼成 `glance_minutes`，没写的照桥的出厂。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance_minutes: Option<u32>,
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,
@@ -162,6 +165,9 @@ pub struct PrivateSet {
     /// 时不时看一眼（设计 05，施工 I-89 下）：拼成 `glance`；到点不看有没有新消息，让她决定要不要主动开口（项目主人 11-02 定）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub glance: Option<bool>,
+    /// 她没定下一次时多久看一眼，分钟（施工 I-114）：拼成 `glance_minutes`，没写的照桥的出厂。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance_minutes: Option<u32>,
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,

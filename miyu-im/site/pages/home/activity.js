@@ -79,12 +79,23 @@ function described(line, names, tagged) {
       return { head: say('activity/queue-full', { where }), tone: 'warn' };
     case 'turn interrupted after recall':
       return { head: say('activity/interrupted', { where }) };
+    // 看一眼（施工 I-114）：看了一眼看到几条新消息；下一次几点、是她定的还是照间隔。
+    case 'glance opened':
+      return { head: say('activity/glance-opened', { where, count: fields.count || '0' }) };
+    case 'glance armed':
+      return { head: say(fields.by === 'her' ? 'activity/glance-hers' : 'activity/glance-every', { where, at: clock(fields.at) }) };
     case 'long text not drawn':
       return { head: say('activity/not-drawn', { where, why: fields.why || '' }), tone: 'warn' };
     default:
       if (line.level === 'WARN' || line.level === 'ERROR') return { head: line.text, tone: 'warn' };
       return null;
   }
+}
+
+/** 日志里的时刻（`2026-11-02T12:12:35Z` 这样）写成本地的几点几分；读不出的照原样。 */
+function clock(text) {
+  const at = new Date(text || '');
+  return Number.isNaN(at.getTime()) ? text || '' : at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 /** 活动的几行：新的在前。`tagged` 的场所前面写平台。 */

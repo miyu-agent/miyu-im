@@ -140,6 +140,43 @@ async fn a_glance_never_opens_where_replies_are_off() {
 }
 
 #[tokio::test]
+async fn a_card_sets_how_often_and_the_overview_shows_the_glance() {
+    // 施工 I-114：卡上「多久看一眼」照它排（出厂 100 秒，卡上 1 分钟，一分钟按 2 秒算）；概况写上一次看了、看到几条，下一次几点。
+    let script = Script::new([Play::Says("看到了")]);
+    let tuned = json!({"glance_seconds": 100, "glance_minute_seconds": 2});
+    let (home, mut napcat, _) = started_tuned(Arc::new(script.clone()), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let cards = json!({"groups": [{"id": GROUP, "set": {"glance": true, "glance_minutes": 1}}]});
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    napcat.send(chat(1, "有人吗"));
+    assert_eq!(
+        napcat.group_reply(GROUP).await,
+        "看到了",
+        "照卡上的一分钟（2 秒）看，不等出厂的 100 秒"
+    );
+    let log = until_log(&home, "by=every").await;
+    assert!(log.contains("glance opened"), "{log}");
+    let shown = head
+        .page_call_with(
+            "cards.overview",
+            json!({"card": {"kind": "group", "id": GROUP}}),
+        )
+        .await;
+    let glance = &shown["result"]["glance"];
+    assert_eq!(glance["count"], 1, "{shown}");
+    assert!(glance["last"].is_string(), "{shown}");
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_glance_while_asleep_waits_for_the_wake() {
     let script = Script::new([]);
     let tuned = json!({"glance_seconds": 2});

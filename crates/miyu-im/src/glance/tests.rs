@@ -9,6 +9,7 @@ fn prompt(venue: &str) -> Prompt {
         venue: venue.to_string(),
         after: 7,
         seconds: 1500,
+        hers: false,
     }
 }
 

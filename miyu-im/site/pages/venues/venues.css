@@ -165,3 +165,4 @@
 .pick-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .pick-row .btn { display: inline-flex; align-items: center; gap: 8px; }
 .inherit-note { color: var(--text-faint) !important; }
+.glance-line { margin: 4px 0; font-size: 13px; color: var(--text-soft); }
