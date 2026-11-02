@@ -5,7 +5,7 @@
 // - 开关管着的几行（dep），开关关着时藏起来；「高级」的收进一个默认收起的折叠里。
 import { element, say, spaced } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
-import { FIELDS, current, has, inherited, values } from './fields.js';
+import { FIELDS, current, has, inherit, inherited, values, written } from './fields.js';
 import { cardOf } from './model.js';
 import { control } from './controls.js';
 
@@ -46,6 +46,14 @@ function row(field, one, context) {
   // 会话默认值那张卡上说「只在这个会话」不对的格另有一句（施工 I-7 下补）。
   const hint = (one.kind === 'defaults' && field.defaultsHint) || field.hint;
   if (hint) label.append(element('small', null, say(hint)));
+  // 开关没写在这张卡上的，写一句跟着谁、现在是开是关（施工 I-111，项目主人 11-02：改了会话默认值，没写的卡跟着变，卡上看不出来）。
+  if (field.control === 'switch' && written(one, field.key) === undefined) {
+    const now = current(one, field.key) ?? field.unset;
+    if (now !== undefined && now !== null) {
+      const [yes] = field.values || [true, false];
+      label.append(element('small', 'inherit-note', inherit(one, say(now === yes ? 'field/switch-on' : 'field/switch-off'))));
+    }
+  }
   const failed = element('div', 'row-failed');
   // 存 `key` 那一格（几项一行的照项各存各的）；和默认一样的交 null。
   const saveKey = async (key, value) => {

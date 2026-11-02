@@ -8,10 +8,10 @@ import { current } from './fields.js';
  * 选模型：`models` 是宿主 `models` 的回答（{models: [{ref, state?}], pools, uses}），`use` 是继承到底时核心那一项（chat、judge）；
  * 那一项是空的（判官的池空了）照 `orValue`（这张卡的模型），再照核心的对话模型。
  */
-export function modelControl(field, mine, fallback, models, save, orValue) {
+export function modelControl(field, mine, fallback, models, save, orValue, inherited) {
   const known = models || { models: [], pools: [], uses: {} };
   const used = fallback ?? known.uses?.[field.use] ?? orValue ?? known.uses?.chat ?? null;
-  const inherit = say('field/inherit', { value: used ?? '—' });
+  const inherit = inherited(used);
   const button = pickButton(mine ?? inherit, () =>
     openPicker({
       title: say('picker/model-title'),

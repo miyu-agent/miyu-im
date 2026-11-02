@@ -1,28 +1,19 @@
-// 会话卡上的小标签（施工 I-7 上，设计 01 第八节第 3 条「几个说明它怎么设的小标签」）：只说卡上写了的（和默认不一样的），一样都没写
-// 的不写（I-7 上修，项目主人 10-20：去掉「照默认」）；关着的先写「只记录」。最多 MOST 个，多的写「+N」。
+// 会话卡上的小标签（施工 I-7 上，设计 01 第八节第 3 条「几个说明它怎么设的小标签」）：施工 I-111（项目主人 11-02：卡上只放人格、模型、
+// 预设这三样重要的，别的没意义）起只写这三样。卡上写了的照常画；没写、跟着下面几层的（会话默认值、全局）淡一档画出来，一样都没有的
+// 不写。是否回复看卡上的开关。
 import { say } from '../../shell/i18n.js';
 
-const MOST = 4;
-
-/** `one`（model.js 的一张卡）的标签：[{ text, accent }]；`personas` 是人格编号到名字。 */
-export function chips(one, personas) {
-  const set = one.set;
-  const all = [];
-  if (one.on === false) all.push({ text: say('chip/off') });
-  // 线路规程（施工 I-7 中二）：写在卡上 `rules` 里的照它。抽样、插嘴的旧写法（四档）施工 I-88 删了，不写。
-  if (set.rules?.discipline === 'when-called') all.push({ text: say('chip/called-only') });
-  if (set.glance) all.push({ text: say('chip/glance'), accent: true });
-  if (set.keywords?.length) all.push({ text: say('chip/keywords', { words: set.keywords.join(say('chip/joiner')) }) });
-  if (set.persona) all.push({ text: say('chip/persona', { name: personas.get(set.persona) || set.persona }) });
-  if (set.model) all.push({ text: say('chip/model', { model: set.model }) });
-  if (set.extra_prompt) all.push({ text: say('chip/extra-prompt') });
-  if (set.rate) all.push({ text: say('chip/rate', { rate: set.rate }) });
-  if (set.sleep) all.push({ text: say('chip/sleep') });
-  if (set.managers?.length) all.push({ text: say('chip/managers', { count: set.managers.length }) });
-  if (set.show_ids !== undefined) all.push({ text: say(set.show_ids ? 'chip/ids-shown' : 'chip/ids-hidden') });
-  if (set.recent) all.push({ text: say('chip/recent', { count: set.recent }) });
-  if (set.long_text) all.push({ text: say(`chip/long-${set.long_text}`) });
-  if (set.final_only !== undefined) all.push({ text: say(set.final_only ? 'chip/final-only' : 'chip/every-step') });
-  if (all.length <= MOST) return all;
-  return [...all.slice(0, MOST - 1), { text: `+${all.length - MOST + 1}` }];
+/** `one`（model.js 的一张卡）的标签：[{ text, inherited }]；`personas`、`presets` 是编号到名字。 */
+export function chips(one, personas, presets) {
+  const shown = [];
+  const add = (key, label, names) => {
+    const mine = one.set[key];
+    const value = mine ?? one.defaults[key]?.value;
+    if (value == null || value === '') return;
+    shown.push({ text: say(label, { name: names?.get(value) || value }), inherited: mine == null });
+  };
+  add('persona', 'chip/persona', personas);
+  add('model', 'chip/model');
+  add('preset', 'chip/preset', presets);
+  return shown;
 }

@@ -27,7 +27,7 @@ export function rate(mine, fallback, save) {
 
 /** 睡眠：几点到几点（规则写 `HH:MM-HH:MM`），后面「不睡」点亮了存 `off`、两格藏起来；再点一下灭了，两格填着的存时段、空的恢复默认。
  *  两格都空是恢复默认。没写的照继承的写一行淡字。 */
-export function sleep(mine, fallback, save) {
+export function sleep(mine, fallback, save, inherit) {
   const box = element('span', 'inline sleep');
   const times = element('span', 'inline');
   const from = element('input', 'input time');
@@ -56,7 +56,7 @@ export function sleep(mine, fallback, save) {
   times.append(from, document.createTextNode('–'), to);
   box.append(times, off);
   if (mine === undefined && fallback) {
-    box.append(element('small', 'faint', say('field/inherit', { value: fallback === 'off' ? say('field/sleep-off') : fallback })));
+    box.append(element('small', 'faint', inherit(fallback === 'off' ? say('field/sleep-off') : fallback)));
   }
   return box;
 }

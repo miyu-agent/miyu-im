@@ -13,6 +13,7 @@
 // - needs：浮窗问到的那一样（`reactions`：平台能贴的表情；`presets`：预设）是空的、问不到的就不画（照回答里同名的那个列表）。
 // - optionCaps：下拉的哪一项要平台做得到哪一样（施工 I-85 补，连接的 `caps`）：做不到的不列，卡上已经写了它的照旧列；会话默认值
 //   那张不分平台，都列。
+import { say } from '../../shell/i18n.js';
 
 const GROUPS = ['group', 'other_groups'];
 
@@ -26,7 +27,7 @@ const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 /** 各页的格，照页的编号。 */
 export const FIELDS = {
   persona: [
-    { key: 'persona', control: 'persona', label: 'field/persona', hint: 'field/persona-hint' },
+    { key: 'persona', control: 'persona', label: 'field/persona' },
     { key: 'preset', control: 'preset', label: 'field/preset', needs: 'presets' },
     { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', defaultsHint: 'field/extra-prompt-hint-defaults', wide: true },
     { group: 'field/models' },
@@ -90,6 +91,13 @@ export const FIELDS = {
 export function has(field, one) {
   const kind = one.kind === 'defaults' ? 'group' : one.kind;
   return !field.kinds || field.kinds.includes(kind);
+}
+
+/** 没写这一格时跟着谁的说法（施工 I-111，项目主人 11-02：「跟随默认」有歧义）：会话默认值那张跟着全局（核心的配置），别的卡跟着
+ *  会话默认值。`value` 是跟到的值，空的不写括号。 */
+export function inherit(one, value) {
+  const key = one.kind === 'defaults' ? 'field/inherit-global' : 'field/inherit-defaults';
+  return value == null ? say(`${key}-bare`) : say(key, { value });
 }
 
 /** 卡上写着的值：没写的是 undefined。 */

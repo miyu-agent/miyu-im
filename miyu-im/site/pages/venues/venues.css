@@ -37,6 +37,8 @@
 .chips:empty { display: none; }
 .chip { height: 22px; max-width: 100%; padding: 0 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); font-size: 12px; line-height: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip.accent { background: var(--accent-soft); color: var(--on-primary-container); }
+/* 跟着下面几层的（施工 I-111）：淡一档。 */
+.chip.inherited { background: color-mix(in srgb, var(--surface-2) 50%, transparent); color: var(--text-faint); }
 
 /* 新建会话。 */
 .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 6px; }
@@ -157,8 +159,9 @@
 .plugin-backstage { height: 28px; padding: 0 10px; font-size: 12.5px; text-decoration: none; }
 .plugin-why { color: var(--danger) !important; }
 .switch:disabled { opacity: 0.4; cursor: default; }
-.d-sep { margin: 10px 10px 4px; color: var(--text-faint); font-size: 11.5px; font-weight: 600; }
+.d-sep { margin: 10px 10px 4px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: 11.5px; font-weight: 600; }
 /* 「全部」时请人先选一个连接（施工 I-85 中）。 */
 .pick-prompt { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .pick-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .pick-row .btn { display: inline-flex; align-items: center; gap: 8px; }
+.inherit-note { color: var(--text-faint) !important; }

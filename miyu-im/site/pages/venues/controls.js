@@ -3,7 +3,7 @@
 // 输入框写在占位字里、开关照现在用着的画。选模型、贴表情点开小窗选（pickers.js），限流、睡眠在 spans.js，标签是 shell/tags.js。
 import { element, say } from '../../shell/i18n.js';
 import { tagInput } from '../../shell/tags.js';
-import { current, inherited, written } from './fields.js';
+import { current, inherit, inherited, written } from './fields.js';
 import { modelControl, reactionControl } from './pickers.js';
 import { rate, seconds, sleep } from './spans.js';
 
@@ -41,22 +41,22 @@ export function control(field, one, context, save, saveKey) {
           .filter((value) => can(field.optionCaps?.[value], one, context) || value === mine)
           .map((value) => [value, say(`${field.optionText}${value}`)]),
         mine,
-        say('field/inherit', { value: fallback == null ? '—' : say(`${field.optionText}${fallback}`) }),
+        inherit(one, fallback == null ? null : say(`${field.optionText}${fallback}`)),
         save,
       );
     case 'persona': {
       const names = new Map(context.personas.map((one) => [one.persona, one.name || one.persona]));
-      const shown = fallback == null ? say('field/inherit-persona') : say('field/inherit', { value: names.get(fallback) || fallback });
+      const shown = inherit(one, fallback == null ? null : names.get(fallback) || fallback);
       return select([...names], mine, shown, save);
     }
     case 'preset': {
       // 预设（宿主 `presets` 交 {presets: [{id, name}]}；问不到的这一格不画，form.js 照 `needs`）。
       const names = new Map((context.presets?.presets || []).map((one) => [one.id, one.name || one.id]));
       if (mine && !names.has(mine)) names.set(mine, mine);
-      return select([...names], mine, say('field/inherit', { value: fallback == null ? '—' : names.get(fallback) || fallback }), save);
+      return select([...names], mine, inherit(one, fallback == null ? null : names.get(fallback) || fallback), save);
     }
     case 'model':
-      return modelControl(field, mine, fallback, context.models, save, field.orKey && current(one, field.orKey));
+      return modelControl(field, mine, fallback, context.models, save, field.orKey && current(one, field.orKey), (value) => inherit(one, value));
     case 'area': {
       const area = element('textarea', 'area');
       area.value = mine ?? '';
@@ -85,7 +85,7 @@ export function control(field, one, context, save, saveKey) {
     case 'rate':
       return rate(mine, fallback, save);
     case 'sleep':
-      return sleep(mine, fallback, save);
+      return sleep(mine, fallback, save, (value) => inherit(one, value));
     default:
       return element('span');
   }

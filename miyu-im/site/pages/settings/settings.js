@@ -12,6 +12,7 @@ import { tagInput } from '../../shell/tags.js';
 import { platform, venueKinds } from '../home/platforms.js';
 import { chosenOf } from '../../shell/connection.js';
 import { choose, chosen, handed } from '../../shell/theme.js';
+import { openBind } from './bind.js';
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
@@ -27,12 +28,8 @@ export function mountSettings(view, { request }) {
     if (!got) return;
     const platforms = [...new Set(connections.map((one) => one.platform))];
     if (!platforms.includes(adding)) adding = chosenOf(connections)?.platform || platforms[0] || '';
-    const choose = (next) => {
-      adding = next;
-      draw();
-    };
     const pages = [
-      ['bindings', bindings(got, { platforms, adding, choose }, save)],
+      ['bindings', bindings(got, { platforms, adding }, save)],
       ['general', general(got, save)],
       ['appearance', appearance()],
       ...(words ? [['moderation', moderation(words, request, load)]] : []),
@@ -59,6 +56,7 @@ export function mountSettings(view, { request }) {
       toast(say('failed/save'));
     }
     if (!saved || !quiet) load();
+    return saved;
   };
   load();
   return {
@@ -116,8 +114,8 @@ function row(label, hint, control) {
 }
 
 /** 本人的平台 ID（核心的 `external.bindings`，施工 I-68）：一个身份一行（号、去掉），最后一行加一个。只有一个主人，不写账号。平台不止一个时
- *  （施工 I-85 补）每行写平台，加的那一行先选平台：`platforms` 是挂着的平台，`adding` 是选着的，换了调 `choose`。 */
-function bindings(got, { platforms, adding, choose }, save) {
+ *  （施工 I-85 补）每行写平台：`platforms` 是挂着的平台，`adding` 是新绑定的浮窗先选着的平台（施工 I-111 起浮窗里选）。 */
+function bindings(got, { platforms, adding }, save) {
   const several = platforms.length > 1;
   const rows = [];
   for (const identity of got.bindings || []) {
@@ -132,32 +130,11 @@ function bindings(got, { platforms, adding, choose }, save) {
     const label = several ? `${platform(on).name()} · ${word} ${number}` : `${word} ${number}`;
     rows.push(row(spaced(label), '', remove));
   }
-  // 输入框的提示只写「ID」，不写具体的号（项目主人 10-27）。
-  const number = element('input', 'input num wide-num');
-  number.placeholder = say('settings-page/bind-id');
-  // QQ 号只有数字；别的平台的号照宿主的规矩（不带空白、冒号，48 个字以内，施工 I-79）。
-  const digits = adding === 'qq';
-  if (digits) number.inputMode = 'numeric';
+  // 新绑定（施工 I-111，项目主人 11-02）：点了开浮窗，第一步选平台、第二步填 ID（bind.js）。
   const add = element('button', 'btn', say('settings-page/bind'));
-  add.disabled = !adding;
-  add.addEventListener('click', () => {
-    const typed = number.value.trim();
-    const fine = digits ? /^\d+$/.test(typed) : /^[^\s:"]{1,48}$/.test(typed);
-    if (!fine) return toast(say(digits ? 'settings-page/bind-bad' : 'settings-page/bind-bad-text'));
-    save(`binding:${adding}:${typed}`, true);
-  });
-  const line = element('span', 'inline');
-  if (several) {
-    const seg = element('div', 'seg');
-    for (const one of platforms) {
-      const button = element('button', one === adding ? 'on' : null, platform(one).name());
-      button.addEventListener('click', () => choose(one));
-      seg.append(button);
-    }
-    line.append(seg);
-  }
-  line.append(number, add);
-  rows.push(row(say('settings-page/bind-new'), '', line));
+  add.disabled = platforms.length === 0;
+  add.addEventListener('click', () => openBind(platforms, adding, (on, id) => save(`binding:${on}:${id}`, true)));
+  rows.push(row(say('settings-page/bind-new'), '', add));
   return section('settings-page/bindings', 'settings-page/bindings-hint', rows);
 }
 

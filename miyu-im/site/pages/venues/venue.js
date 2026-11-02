@@ -28,7 +28,8 @@ import { goTo } from '../../shell/connection.js';
 const TABS = [
   { id: 'overview', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
   { id: 'persona', ready: true },
-  { id: 'trigger', kinds: ['group', 'other_groups', 'defaults'], ready: true },
+  // 私聊卡也有「触发方式」（施工 I-111，项目主人 11-02：私聊白名单的卡上找不到「时不时看一眼」）：只有看一眼那一格。
+  { id: 'trigger', kinds: ['group', 'other_groups', 'private', 'defaults'], ready: true },
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
   { id: 'plugins', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },

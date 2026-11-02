@@ -33,6 +33,15 @@ const SECTIONS = [
 export function mountVenues(view, { request, path }) {
   let answer = null;
   let all = [];
+  // 预设的编号到名字（施工 I-111：卡上的小标签写预设名）：起来时问一次，问不到的照编号写。
+  let presets = new Map();
+  request('presets').then(
+    (got) => {
+      presets = new Map((got?.presets || []).map((one) => [one.id, one.name]));
+      if (answer) drawWall();
+    },
+    () => {},
+  );
   let filter = 'all';
   let query = '';
   let open = null;
@@ -183,7 +192,7 @@ export function mountVenues(view, { request, path }) {
       parts.push(element('div', 'wall-label', say(section.label)));
       for (const one of cards) {
         const key = `${one.kind}:${one.id}`;
-        const labels = chips(one, personas);
+        const labels = chips(one, personas, presets);
         const sig = JSON.stringify([one, titleOf(one), idLine(one, context), labels]);
         let made = drawn.get(key);
         if (!made || made.sig !== sig) {
@@ -207,7 +216,7 @@ export function mountVenues(view, { request, path }) {
     top.append(faceOf(one), named);
     if (one.on !== null) top.append(toggle(one, request));
     const tags = element('div', 'chips');
-    for (const chip of labels) tags.append(element('span', chip.accent ? 'chip accent' : 'chip', chip.text));
+    for (const chip of labels) tags.append(element('span', chip.inherited ? 'chip inherited' : 'chip', chip.text));
     shown.append(top, tags);
     shown.addEventListener('click', () => show(one));
     return shown;
