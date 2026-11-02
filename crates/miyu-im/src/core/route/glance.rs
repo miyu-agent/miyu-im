@@ -355,7 +355,9 @@ impl Route {
         Ok(())
     }
 
-    /// 场所 `venue` 该不该看：名单里的群（有它的群卡）、有私聊卡的私聊，规则的 `glance` 开着。
+    /// 场所 `venue` 该不该看：名单里的群（有它的群卡）、有私聊卡的私聊，规则的 `glance` 开着，而且「是否回复」没关（规则的
+    /// `allow` 不是 `false`；施工 I-108：原来没看它，会话默认值打开看一眼时，回复关着的群也被排上、到点开了一轮、她说了话）。到点时
+    /// 照它再查一遍，已经排上的旧定时也开不了。
     pub(super) fn glance_on(&mut self, venue: &str) -> bool {
         let Some(venue) = parse(venue) else {
             return false;
@@ -364,7 +366,11 @@ impl Route {
             VenueKind::Group => self.rules.cards().lists_group(&venue),
             VenueKind::Private => self.rules.cards().lists_private(&venue),
         };
-        listed && applied::glances(&self.applied(&venue))
+        if !listed {
+            return false;
+        }
+        let applied = self.applied(&venue);
+        applied::allow(&applied) != Some(false) && applied::glances(&applied)
     }
 
     /// 场所 `venue` 收到的最后一条（主线序号）：还没有投影的是 0。

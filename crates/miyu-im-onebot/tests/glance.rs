@@ -106,6 +106,40 @@ async fn a_glance_opens_on_new_messages_only_and_stops_when_turned_off() {
 }
 
 #[tokio::test]
+async fn a_glance_never_opens_where_replies_are_off() {
+    // 施工 I-108（项目主人 11-02 部署上撞到：会话默认值打开看一眼，「是否回复」关着的群她也去看了、说了话）：回复关着的场所
+    // 不排看一眼，到点也不开轮。
+    let script = Script::new([Play::Says("不该说")]);
+    let tuned = json!({"glance_seconds": 2});
+    let (home, mut napcat, _) = started_tuned(Arc::new(script.clone()), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let venue = format!("qq:{BOT}:group:{GROUP}");
+    let cards = json!({"groups": [{"id": GROUP, "set": {"glance": true, "on": false}}]});
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    napcat.send(chat(1, "有人吗"));
+    until_event(&home.root, &venue, |event| {
+        event["kind"] == "ext.im.chat.decided"
+    })
+    .await;
+    tokio::time::sleep(TWO_GLANCES).await;
+    assert_eq!(turns(&home, &venue), 0, "回复关着，到点也不开轮");
+    assert!(napcat.pending().is_none(), "群里什么都不发");
+    assert!(
+        !run_log(&home.root).contains("glance armed"),
+        "回复关着的不排看一眼"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_glance_while_asleep_waits_for_the_wake() {
     let script = Script::new([]);
     let tuned = json!({"glance_seconds": 2});
