@@ -6,10 +6,12 @@
 //!   设了代理、这个地址该走代理的照走（闸只看样子，解析交给代理）。
 //! - 跳转不交给客户端：自己跟，最多 [`HOPS`] 跳，每一跳重新过闸。
 //! - 读到 `limit` 字节就停，超了的算错（同原来的下载）。
+//! - 时限是整个的（施工 I-119，发布前审查 I4-5：原来每一跳都给满 `timeout`，最多四跳就是四倍）：开头定一个截止的时刻，每一跳只给
+//!   剩下的；到了的不再往下跳。
 //!
 //! NapCat 回的本机地址（回环）不走这里：照旧直接下（`super::download`）。
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use miyu_client::http::{Guard, Proxies, Resolved};
 use reqwest::redirect::Policy;
@@ -26,11 +28,16 @@ pub(super) async fn download(
     limit: usize,
 ) -> Result<Vec<u8>, String> {
     let mut url = Url::parse(url).map_err(|error| format!("url: {error}"))?;
+    let deadline = Instant::now() + timeout;
     for _ in 0..=HOPS {
-        let client = client(&url, (guard, proxies), timeout).await?;
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Err("url: timed out".to_string());
+        }
+        let client = client(&url, (guard, proxies), left).await?;
         let response = client
             .get(url.clone())
-            .timeout(timeout)
+            .timeout(left)
             .send()
             .await
             .map_err(|error| format!("url: {error}"))?;

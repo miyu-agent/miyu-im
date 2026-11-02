@@ -103,3 +103,29 @@ async fn a_body_over_the_limit_is_refused() {
     let got = download(&url, (&guard(), &Proxies::given(None, "")), WAIT, 1024).await;
     assert!(got.is_err_and(|why| why.starts_with("url: over")));
 }
+
+#[tokio::test]
+async fn the_time_limit_covers_every_hop_together() {
+    // 施工 I-119（发布前审查 I4-5）：一跳 0.4 秒、三跳，每一跳都在 1 秒以内，加起来过了 1 秒：整个算超时，不下。
+    let slow = |status: u16, headers: &[(&str, &str)], body: &[u8]| {
+        let mut one = reply(status, headers, body);
+        one.body
+            .insert(0, Piece::HoldHead(Duration::from_millis(400)));
+        one
+    };
+    let server = Server::start(vec![
+        slow(302, &[("Location", "/b")], b""),
+        slow(302, &[("Location", "/c")], b""),
+        slow(200, &[], b"late"),
+    ])
+    .await;
+    let url = format!("http://cdn.test:{}/a.jpg", port(&server));
+    let got = download(
+        &url,
+        (&guard(), &Proxies::given(None, "")),
+        Duration::from_secs(1),
+        1024,
+    )
+    .await;
+    assert!(got.is_err(), "三跳加起来过了时限还下到了：{got:?}");
+}
