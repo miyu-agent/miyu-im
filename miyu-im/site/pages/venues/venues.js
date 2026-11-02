@@ -14,7 +14,7 @@ import { venueKinds } from '../home/platforms.js';
 import { chips } from './chips.js';
 import { openCreate } from './create.js';
 import { faceOf } from './face.js';
-import { entries } from './model.js';
+import { entries, isDefaults } from './model.js';
 import { idLine, titleOf } from './names.js';
 import { connectionLabel, connectionPick, platformDot } from '../../shell/connection-pick.js';
 import { chooseConnection, chosenOf, goTo, onConnection } from '../../shell/connection.js';
@@ -23,7 +23,7 @@ import { openVenue, toggle } from './venue.js';
 
 /** 墙上的三段：标题、哪几种卡、属于哪一种会话。 */
 const SECTIONS = [
-  { label: 'venues/defaults-section', kinds: ['defaults'] },
+  { label: 'venues/defaults-section', kinds: ['defaults', 'private_defaults'] },
   { label: 'venues/outside', kinds: ['other_groups', 'other_privates'] },
   { label: 'venues/groups', kinds: ['group'], type: 'group' },
   { label: 'venues/privates', kinds: ['private'], type: 'private' },
@@ -180,8 +180,8 @@ export function mountVenues(view, { request, path }) {
     const context = { platform: chosen, bots: names() };
     const kinds = venueKinds(chosen);
     const shown = mine()
-      .filter((one) => one.kind === 'defaults' || kinds[one.type])
-      .filter((one) => filter === 'all' || (one.type === filter && one.kind !== 'defaults'))
+      .filter((one) => isDefaults(one) || kinds[one.type])
+      .filter((one) => filter === 'all' || (one.type === filter && !isDefaults(one)))
       .filter((one) => matches(one, context, query));
     const parts = [];
     const kept = new Set();

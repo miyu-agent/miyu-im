@@ -94,7 +94,7 @@ fn values_are_written_the_toml_way() {
 }
 
 #[test]
-fn the_defaults_card_matches_every_venue_and_never_writes_allow() {
+fn the_group_defaults_card_matches_every_group_and_never_writes_allow() {
     // 施工 I-7 下二：会话默认值那张卡，`allow` 照各自的卡（写了 `on` 也不拼）。
     let set = GroupSet {
         on: Some(false),
@@ -116,7 +116,8 @@ fn the_defaults_card_matches_every_venue_and_never_writes_allow() {
     let file = cards.defaults_file();
     assert_eq!(file.name, "70-card-0.toml", "排在别的卡前面");
     assert!(
-        file.text.starts_with("[[rule]]\nmatch = {}\n"),
+        file.text
+            .starts_with("[[rule]]\nmatch = { kind = \"group\" }\n"),
         "{}",
         file.text
     );

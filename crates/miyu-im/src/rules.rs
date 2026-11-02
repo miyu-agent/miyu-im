@@ -421,7 +421,11 @@ impl Venues {
     /// 卡片下面几层（出厂、配置项、系统的，加上会话默认值，施工 I-7 下二）套到场所 `venue` 上的样子（施工 O-58 上：`cards.get`
     /// 照它说每一格的默认值）。重读一次系统的规则文件，问题不记：页面才调。
     pub fn beneath(&self, venue: &Venue) -> Applied {
-        let layers = vec![self.configured.file(), self.cards.defaults_file()];
+        let layers = vec![
+            self.configured.file(),
+            self.cards.defaults_file(),
+            self.cards.private_defaults_file(),
+        ];
         assemble(&self.factory, &self.root, layers).at(venue)
     }
 

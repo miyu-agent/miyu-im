@@ -6,6 +6,7 @@ import { venueKinds } from '../home/platforms.js';
 /** 卡的名字：兜底卡是「陌生群」「陌生私聊」，会话默认值那张是「会话默认值」。 */
 export function titleOf(one) {
   if (one.kind === 'defaults') return say('venues/defaults');
+  if (one.kind === 'private_defaults') return say('venues/private-defaults');
   if (one.kind === 'other_groups') return say('venues/other-groups');
   if (one.kind === 'other_privates') return say('venues/other-privates');
   return one.name;
@@ -14,6 +15,7 @@ export function titleOf(one) {
 /** 名字下面那一行：`context` 是 { platform, bots }。 */
 export function idLine(one, context) {
   if (one.kind === 'defaults') return say('venues/defaults-hint');
+  if (one.kind === 'private_defaults') return say('venues/private-defaults-hint');
   if (one.kind === 'other_groups') return say('venues/other-groups-hint');
   if (one.kind === 'other_privates') return say('venues/other-privates-hint');
   const parts = [`${idWord(one.type, context.platform)} ${one.id}`];

@@ -13,7 +13,7 @@
 import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { faceOf } from './face.js';
-import { cardOf, ownCardOf, valueFor } from './model.js';
+import { cardOf, isDefaults, ownCardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
@@ -29,7 +29,7 @@ const TABS = [
   { id: 'overview', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
   { id: 'persona', ready: true },
   // 私聊卡也有「触发方式」（施工 I-111，项目主人 11-02：私聊白名单的卡上找不到「时不时看一眼」）：只有看一眼那一格。
-  { id: 'trigger', kinds: ['group', 'other_groups', 'private', 'defaults'], ready: true },
+  { id: 'trigger', kinds: ['group', 'other_groups', 'private', 'defaults', 'private_defaults'], ready: true },
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
   { id: 'plugins', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
@@ -51,9 +51,9 @@ export function openVenue(one, context, onClose) {
   dialog.append(side, main);
   const close = openLayer(dialog, onClose);
   head.append(title, closeButton(close));
-  let tab = one.kind === 'defaults' ? 'persona' : 'overview';
+  let tab = isDefaults(one) ? 'persona' : 'overview';
   // 统计和最近判断：重画浮窗时留着这两块，问到了再换。
-  const counted = one.kind === 'defaults' ? null : venueStats(context.request, () => cardOf(shown));
+  const counted = isDefaults(one) ? null : venueStats(context.request, () => cardOf(shown));
   const today = element('div', 'venue-today');
   let asking = 0;
   // 哪几页的「高级」展开着：重画时照旧。
@@ -102,7 +102,7 @@ export function openVenue(one, context, onClose) {
     })
     .catch(() => {});
   const refresh = async () => {
-    if (shown.kind === 'defaults') return;
+    if (isDefaults(shown)) return;
     counted.refresh();
     const mine = ++asking;
     try {
@@ -124,7 +124,7 @@ export function openVenue(one, context, onClose) {
       ? (context.plugins || []).filter((plugin) => plugin.ui?.panel && fits(shown, plugin) && isOn(shown, plugin, context.fallbacks?.[shown.type] || {}))
       : [];
     const plugin = added.find((one) => `plugin:${one.package}` === tab);
-    if (tab.startsWith('plugin:') && !plugin) tab = shown.kind === 'defaults' ? 'persona' : 'overview';
+    if (tab.startsWith('plugin:') && !plugin) tab = isDefaults(shown) ? 'persona' : 'overview';
     for (const one of TABS) {
       if (one.kinds && !one.kinds.includes(shown.kind)) continue;
       const form = one.id === 'overview' ? null : FIELDS[one.id];

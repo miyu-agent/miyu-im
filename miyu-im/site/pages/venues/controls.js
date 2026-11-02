@@ -6,6 +6,7 @@ import { tagInput } from '../../shell/tags.js';
 import { current, inherit, inherited, written } from './fields.js';
 import { modelControl, reactionControl } from './pickers.js';
 import { rate, seconds, sleep } from './spans.js';
+import { isDefaults } from './model.js';
 
 /** 控件。`save(value)` 存（null 是恢复默认）。 */
 export function control(field, one, context, save, saveKey) {
@@ -127,7 +128,7 @@ function float(mine, fallback, save, narrow) {
 
 /** 这张卡的连接做不做得到 `cap`（施工 I-85 补）：没要求的、会话默认值那张、不知道连接能做什么的都算做得到。 */
 function can(cap, one, context) {
-  return !cap || one.kind === 'defaults' || !context.caps || context.caps.includes(cap);
+  return !cap || isDefaults(one) || !context.caps || context.caps.includes(cap);
 }
 
 /** 下拉：第一项是「继承（…）」（交 null），别的照 `options`（[值, 给人看的]）。 */

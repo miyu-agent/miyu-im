@@ -17,6 +17,8 @@ export function entries(answer) {
   const friends = new Map((answer.friends || []).map((one) => [String(one.id), one]));
   const all = [
     entry('defaults', 'group', null, cards.defaults, defaults.defaults),
+    // 私聊默认值（施工 I-112）：宿主交的是写过的，没写过的照群聊默认值里私聊卡也有的格。
+    entry('private_defaults', 'private', null, cards.private_defaults, defaults.private_defaults),
     entry('other_groups', 'group', null, cards.other_groups, defaults.other_groups),
     entry('other_privates', 'private', null, cards.other_privates, defaults.other_privates),
   ];
@@ -49,8 +51,13 @@ export function entries(answer) {
 function entry(kind, type, id, set, defaults) {
   const card = set || {};
   const shown = defaults || {};
-  const on = kind === 'private' || kind === 'defaults' ? null : card.on ?? kind === 'group';
+  const on = kind === 'private' || isDefaults({ kind }) ? null : card.on ?? kind === 'group';
   return { kind, type, id, name: '', members: null, bot: null, scopeBot: null, set: card, defaults: shown, on };
+}
+
+/** 是不是群聊、私聊默认值那两张（施工 I-112：原来只有一张「会话默认值」）。 */
+export function isDefaults(one) {
+  return one.kind === 'defaults' || one.kind === 'private_defaults';
 }
 
 /** 页面交给 cards.save_one 的那张卡。 */

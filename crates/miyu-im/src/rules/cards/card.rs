@@ -52,8 +52,10 @@ impl Scope {
 /// 一张卡是哪一张：拼出来的文件名里写着。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Card {
-    /// 会话默认值（施工 I-7 下二）：不分平台。
+    /// 群聊默认值（施工 I-7 下二起是「会话默认值」，I-112 起只管群）：不分平台。
     Defaults,
+    /// 私聊默认值（施工 I-112）：不分平台。
+    PrivateDefaults,
     /// 「其他群」。
     OtherGroups(Scope),
     /// 「其他私聊」（施工 O-60）。
@@ -68,7 +70,7 @@ impl Card {
     /// 管哪儿：会话默认值不分平台，是空的。
     pub fn scope(&self) -> Option<&Scope> {
         match self {
-            Card::Defaults => None,
+            Card::Defaults | Card::PrivateDefaults => None,
             Card::OtherGroups(scope)
             | Card::OtherPrivates(scope)
             | Card::Group(scope, _)
@@ -106,6 +108,7 @@ impl Card {
         };
         let rest = match self {
             Card::Defaults => "0".to_string(),
+            Card::PrivateDefaults => "0p".to_string(),
             Card::OtherGroups(_) => "a".to_string(),
             Card::OtherPrivates(_) => "b".to_string(),
             Card::Group(_, id) => format!("g-{}", file_part(id)),
@@ -132,6 +135,7 @@ impl Card {
                 }
                 Some(_) => return None,
                 None if rest == "0" => return Some(Card::Defaults),
+                None if rest == "0p" => return Some(Card::PrivateDefaults),
                 None => (Scope::platform(OLD_PLATFORM), rest),
             }
         };
@@ -154,6 +158,7 @@ impl Card {
     pub fn json(&self) -> Value {
         let mut shown = match self {
             Card::Defaults => return json!({"kind": "defaults"}),
+            Card::PrivateDefaults => return json!({"kind": "private_defaults"}),
             Card::OtherGroups(scope) => json!({"kind": "other_groups", "platform": scope.platform}),
             Card::OtherPrivates(scope) => {
                 json!({"kind": "other_privates", "platform": scope.platform})

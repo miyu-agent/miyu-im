@@ -32,7 +32,9 @@ pub enum Edit {
 pub fn card_of(value: &Value, fallback: Option<&str>) -> Option<Card> {
     let id = || serde_json::from_value::<Id>(value["id"].clone()).ok();
     let platform = match &value["platform"] {
-        Value::Null if value["kind"] == "defaults" => String::new(),
+        Value::Null if value["kind"] == "defaults" || value["kind"] == "private_defaults" => {
+            String::new()
+        }
         Value::Null => fallback?.to_string(),
         named => named.as_str().filter(|name| platform_ok(name))?.to_string(),
     };
@@ -43,6 +45,7 @@ pub fn card_of(value: &Value, fallback: Option<&str>) -> Option<Card> {
     let scope = Scope::of(&platform, bot);
     match value["kind"].as_str()? {
         "defaults" => Some(Card::Defaults),
+        "private_defaults" => Some(Card::PrivateDefaults),
         "other_groups" => Some(Card::OtherGroups(scope)),
         "other_privates" => Some(Card::OtherPrivates(scope)),
         "group" => Some(Card::Group(scope, id()?)),
@@ -57,6 +60,13 @@ pub fn update(cards: &Cards, card: Card, values: &Map<String, Value>) -> Edit {
     let mut next = cards.clone();
     let merged = match &card {
         Card::Defaults => merge(&mut next.defaults, values),
+        // 私聊默认值没写过的（施工 I-112）：照群聊默认值里私聊卡也有的格抄一份再改，私聊照旧。
+        Card::PrivateDefaults => {
+            let mut set = next.private_set();
+            let merged = merge(&mut set, values);
+            next.private_defaults = Some(set);
+            merged
+        }
         Card::OtherGroups(scope) => merge(next.other_groups_mut(scope), values),
         Card::OtherPrivates(scope) => merge(next.other_privates_mut(scope), values),
         Card::Group(scope, id) => match group_for(&mut next, scope, id) {
@@ -146,7 +156,7 @@ fn private_for<'a>(cards: &'a mut Cards, scope: &Scope, id: &Id) -> Option<&'a m
 pub fn add(cards: &Cards, card: Card) -> Cards {
     let mut next = cards.clone();
     match card {
-        Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => {}
+        Card::Defaults | Card::PrivateDefaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => {}
         Card::Group(scope, id) => {
             if group_mut(&mut next, &scope, &id).is_none() {
                 next.groups.push(GroupCard {
@@ -178,7 +188,9 @@ pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
         *platform != scope.platform || *bot != scope.bot
     };
     match card {
-        Card::Defaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => return None,
+        Card::Defaults | Card::PrivateDefaults | Card::OtherGroups(_) | Card::OtherPrivates(_) => {
+            return None;
+        }
         Card::Group(scope, id) => next
             .groups
             .retain(|one| other(&one.platform, &one.bot, &scope) || one.id != id),
@@ -193,6 +205,7 @@ pub fn remove(cards: &Cards, card: Card) -> Option<Cards> {
 fn written_rules(cards: &Cards, card: &Card) -> Vec<String> {
     let set = match card {
         Card::Defaults => serde_json::to_value(&cards.defaults),
+        Card::PrivateDefaults => serde_json::to_value(cards.private_set()),
         Card::OtherGroups(scope) => serde_json::to_value(cards.other_groups_of(scope)),
         Card::OtherPrivates(scope) => serde_json::to_value(cards.other_privates_of(scope)),
         Card::Group(scope, id) => serde_json::to_value(

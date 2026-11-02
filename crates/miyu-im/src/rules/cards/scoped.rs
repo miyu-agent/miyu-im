@@ -144,6 +144,7 @@ impl Cards {
             other_privates: self.other_privates_of(scope),
             others: BTreeMap::new(),
             defaults: self.defaults.clone(),
+            private_defaults: self.private_defaults.clone(),
         }
     }
 

@@ -2,12 +2,13 @@
 // 页面服务转来的头像（/avatar/group/<群号>、/avatar/user/<号>）到了再换上（shell/avatar.js：取到过的直接画）；兜底卡画图标。
 import { element, icon } from '../../shell/i18n.js';
 import { picture } from '../../shell/avatar.js';
+import { isDefaults } from './model.js';
 
 const HUES = 5;
 
 /** 一张卡（model.js）的头像：会话默认值那张画齿轮。 */
 export function faceOf(one) {
-  if (one.kind !== 'defaults') return face(one.type, one.id, one.name);
+  if (!isDefaults(one)) return face(one.type, one.id, one.name);
   const round = element('span', 'avatar sq hx');
   round.append(icon('i-gear'));
   return round;

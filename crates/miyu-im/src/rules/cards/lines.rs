@@ -25,8 +25,6 @@ pub(crate) const TOP: [&str; 7] = [
 
 /// 一张卡匹配哪些场所。
 pub(super) enum Matcher {
-    /// 会话默认值（施工 I-7 下二）：每一个场所。
-    All,
     /// 「其他群」：群，但不是名单里的这几个（群号照 `, ` 连好）。名单里的群不继承它设的格（施工 O-58 上）。第二格是排开的机器人号
     /// （整个平台的那张排开有自己那一张的号，施工 I-81 中），空的不写。
     Others(String, String),
@@ -73,7 +71,9 @@ pub(super) fn file(card: Card, matcher: &Matcher, lines: &[String]) -> File {
         }
         (Card::OtherGroups(_), Matcher::Own) => format!("{{ {on}kind = \"group\" }}"),
         (Card::OtherPrivates(_), Matcher::Own) => format!("{{ {on}kind = \"private\" }}"),
-        (_, Matcher::All) | (Card::Defaults, Matcher::Own) => "{}".to_string(),
+        // 群聊、私聊默认值（施工 I-112）：不分平台，照种类配。
+        (Card::Defaults, Matcher::Own) => "{ kind = \"group\" }".to_string(),
+        (Card::PrivateDefaults, Matcher::Own) => "{ kind = \"private\" }".to_string(),
     };
     let mut text = format!("[[rule]]\nmatch = {matcher}\n");
     for line in lines {

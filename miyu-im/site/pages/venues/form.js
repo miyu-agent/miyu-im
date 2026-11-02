@@ -6,7 +6,7 @@
 import { element, say, spaced } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { FIELDS, current, has, inherit, inherited, values, written } from './fields.js';
-import { cardOf } from './model.js';
+import { cardOf, isDefaults } from './model.js';
 import { control } from './controls.js';
 
 /** 画 `tab` 那一页：`one` 是这张卡，`context` 是 { request, personas, models, reactions, presets, expanded }（expanded 记着哪几页的「高级」展开着，
@@ -44,7 +44,7 @@ function row(field, one, context) {
   const line = element('div', field.wide ? 'row wide' : 'row');
   const label = element('div', 'label', spaced(say(field.label, { id: context.idWord })));
   // 会话默认值那张卡上说「只在这个会话」不对的格另有一句（施工 I-7 下补）。
-  const hint = (one.kind === 'defaults' && field.defaultsHint) || field.hint;
+  const hint = (isDefaults(one) && field.defaultsHint) || field.hint;
   if (hint) label.append(element('small', null, say(hint)));
   // 开关没写在这张卡上的，写一句跟着谁、现在是开是关（施工 I-111，项目主人 11-02：改了会话默认值，没写的卡跟着变，卡上看不出来）。
   if (field.control === 'switch' && written(one, field.key) === undefined) {

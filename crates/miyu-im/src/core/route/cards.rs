@@ -87,14 +87,19 @@ impl Route {
             // 「其他群」：照一个不在任何名单里的群号套（群号 0 不是真群）。照问的平台、号（没写的照后台页的平台）。
             "other_groups": other_groups(self.group_defaults(&scope, &Id::from(0))),
             "other_privates": self.other_private_defaults(&scope),
-            // 会话默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
-            "defaults": self.defaults_defaults(),
+            // 群聊默认值那张卡自己的默认值（施工 I-7 下二）：卡片都不算，照一个群算。
+            "defaults": self.defaults_defaults(VenueKind::Group),
+            // 私聊默认值那张（施工 I-112）：照一个私聊算。
+            "private_defaults": self.defaults_defaults(VenueKind::Private),
             "groups": groups,
             "privates": privates,
         });
         // 认得的 im 插件（施工 I-7 中四：会话浮窗「管理插件」）。
         let plugins = self.hooks.listed();
+        // 私聊默认值没写过的照群聊默认值里私聊卡也有的格（施工 I-112，`Cards::private_set`）：页面上照这一份画。
+        let private_set = cards.private_set();
         let mut known = json!({"platform": platform, "cards": cards, "defaults": defaults, "whitelist": whitelist, "plugins": plugins});
+        known["cards"]["private_defaults"] = json!(private_set);
         if let Some(bot) = &scope.bot {
             known["bot"] = json!(bot);
         }
@@ -155,16 +160,16 @@ impl Route {
         }
     }
 
-    /// 会话默认值那张卡每一格的默认值（施工 I-7 下二）：卡片都不算（`beneath_defaults`），照群号 0 的群套（不是真群）。
-    fn defaults_defaults(&self) -> Value {
-        match Self::card_venue(
-            &Scope::platform(self.page_platform()),
-            VenueKind::Group,
-            &Id::from(0),
-        ) {
+    /// 群聊、私聊默认值那张卡每一格的默认值（施工 I-7 下二、I-112）：卡片都不算（`beneath_defaults`），照号 0 的群、私聊套
+    /// （不是真的）。
+    fn defaults_defaults(&self, kind: VenueKind) -> Value {
+        match Self::card_venue(&Scope::platform(self.page_platform()), kind, &Id::from(0)) {
             Some(venue) => {
                 let beneath = self.rules.beneath_defaults(&venue);
-                let mut found = card_defaults::group(&beneath);
+                let mut found = match kind {
+                    VenueKind::Group => card_defaults::group(&beneath),
+                    VenueKind::Private => card_defaults::private(&beneath),
+                };
                 found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
                 found
             }

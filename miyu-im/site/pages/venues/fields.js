@@ -89,14 +89,20 @@ export const FIELDS = {
 
 /** `one`（model.js 的一张卡）上 `field` 有没有。会话默认值（施工 I-7 下二，设置页）照群卡：群卡有的都有，私聊卡才有的没有。 */
 export function has(field, one) {
-  const kind = one.kind === 'defaults' ? 'group' : one.kind;
+  // 群聊、私聊默认值照群卡、私聊卡的格画（施工 I-112）。
+  const kind = { defaults: 'group', private_defaults: 'private' }[one.kind] || one.kind;
   return !field.kinds || field.kinds.includes(kind);
 }
 
-/** 没写这一格时跟着谁的说法（施工 I-111，项目主人 11-02：「跟随默认」有歧义）：会话默认值那张跟着全局（核心的配置），别的卡跟着
- *  会话默认值。`value` 是跟到的值，空的不写括号。 */
+/** 没写这一格时跟着谁的说法（施工 I-111，项目主人 11-02：「跟随默认」有歧义）：群聊、私聊默认值那两张跟着全局（核心的配置），
+ *  群卡跟着群聊默认值，私聊卡跟着私聊默认值（施工 I-112）。`value` 是跟到的值，空的不写括号。 */
 export function inherit(one, value) {
-  const key = one.kind === 'defaults' ? 'field/inherit-global' : 'field/inherit-defaults';
+  // 施工 I-112 起两张默认值：群卡跟群聊的、私聊卡跟私聊的。
+  const key = one.kind === 'defaults' || one.kind === 'private_defaults'
+    ? 'field/inherit-global'
+    : one.type === 'private'
+      ? 'field/inherit-private'
+      : 'field/inherit-group';
   return value == null ? say(`${key}-bare`) : say(key, { value });
 }
 

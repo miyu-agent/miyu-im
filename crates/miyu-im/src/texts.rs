@@ -306,6 +306,7 @@ impl Texts {
             Source::Settings => {
                 return match Card::parse(file) {
                     Some(Card::Defaults) => self.say("venue/card-defaults", &[]),
+                    Some(Card::PrivateDefaults) => self.say("venue/card-private-defaults", &[]),
                     Some(Card::OtherGroups(_)) => self.say("venue/card-other-groups", &[]),
                     Some(Card::OtherPrivates(_)) => self.say("venue/card-other-privates", &[]),
                     Some(Card::Group(scope, id)) => self.say(

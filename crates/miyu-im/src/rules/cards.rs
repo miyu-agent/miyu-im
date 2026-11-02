@@ -12,6 +12,7 @@
 //!   O-58 补二挪成配置项（`configured`）：是通用的，不进卡片。
 //! - 字照 JSON 的写法写进去（同配置项那一层）：JSON 的转义都是 TOML 基本字符串认的。
 
+mod both;
 mod card;
 pub mod defaults;
 pub mod edit;
@@ -279,10 +280,14 @@ pub struct Cards {
     /// [`others_key`]），值是那两张；没写的平台照两张空卡（出厂不回复），没写的号照整个平台的。空的不写。
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub others: BTreeMap<String, Others>,
-    /// 会话默认值（施工 I-7 下二，设置页）：群、私聊都套，排在别的卡下面，卡上没写的格照它。「是否回复」不归它管（写了也不拼）。
-    /// 不分平台：管的是她这个人。一格都没写的不存这一项（老版本的 im 照旧读得了 `cards.json`）。
+    /// 群聊默认值（施工 I-7 下二起是「会话默认值」，群、私聊都套；I-112 起只套群）：排在别的卡下面，卡上没写的格照它。「是否回复」
+    /// 不归它管（写了也不拼）。不分平台：管的是她这个人。一格都没写的不存这一项（老版本的 im 照旧读得了 `cards.json`）。
     #[serde(skip_serializing_if = "unset")]
     pub defaults: GroupSet,
+    /// 私聊默认值（施工 I-112，项目主人 11-02：会话默认值拆成群聊、私聊两张）：只套私聊。没写过的（I-112 以前的 `cards.json`）
+    /// 是空的：私聊照旧照 `defaults` 套（[`Cards::private_defaults_file`]），页面上照它里面私聊卡也有的格画（[`Cards::private_set`]）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_defaults: Option<PrivateSet>,
 }
 
 /// 一格都没写。
@@ -332,9 +337,12 @@ impl Cards {
     /// 那两份排开这些号（`not_bot`）；号自己的「其他群」排开的是整个平台的群卡加上它自己的群卡。
     pub fn files_for(&self, mounted: &[&str], known: &[String]) -> Vec<File> {
         let mut files = Vec::new();
-        // 会话默认值写了的才拼（施工 I-7 下二），排在最前。
+        // 群聊、私聊默认值写了的才拼（施工 I-7 下二、I-112），排在最前。
         if !unset(&self.defaults) {
             files.push(self.defaults_file());
+        }
+        if !self.private_defaults_unset() {
+            files.push(self.private_defaults_file());
         }
         for platform in self.platforms(mounted) {
             let listed = |bot: Option<&Id>| -> Vec<String> {
@@ -395,11 +403,11 @@ impl Cards {
         files
     }
 
-    /// 会话默认值拼成的那一份（施工 I-7 下二：别的卡的默认值照它和下面几层算）。
+    /// 群聊默认值拼成的那一份（施工 I-7 下二：别的卡的默认值照它和下面几层算；I-112 起只配群）。
     pub fn defaults_file(&self) -> File {
         file(
             Card::Defaults,
-            &Matcher::All,
+            &Matcher::Own,
             &defaults_lines(&self.defaults),
         )
     }

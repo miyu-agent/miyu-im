@@ -74,7 +74,7 @@ impl Route {
     fn wanted_venues(&self, card: Card) -> Option<Wanted> {
         Some(match card {
             // 会话默认值不是哪个场所：没有概况。
-            Card::Defaults => return None,
+            Card::Defaults | Card::PrivateDefaults => return None,
             Card::Group(scope, id) => {
                 let id = id.to_string();
                 Box::new(move |venue: &str| {

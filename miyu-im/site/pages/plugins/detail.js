@@ -7,7 +7,7 @@
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { face } from '../venues/face.js';
-import { entries } from '../venues/model.js';
+import { entries, isDefaults } from '../venues/model.js';
 import { idLine, titleOf } from '../venues/names.js';
 import { fallbacksOf, fits, isOn, named, pluginSwitch } from '../venues/plugins.js';
 import { back } from './plugins.js';
@@ -25,7 +25,7 @@ let tab = 'readme';
 /** 插件 `plugin` 的详情：`context` 是 { request, platform, cards（cards.get 的回答）, reload }。 */
 export function drawDetail(plugin, context) {
   // 「会话默认值」那张卡不是一个会话：不列在「用在哪」里。
-  const all = entries(context.cards).filter((one) => one.kind !== 'defaults');
+  const all = entries(context.cards).filter((one) => !isDefaults(one));
   const parts = [back(), detailHead(plugin, context)];
   if (plugin.enabled && plugin.state && plugin.state !== 'running') {
     const why = plugin.reason ? say(`plugins-page/stopped-${plugin.reason}`) : say('plugins-page/not-running');
