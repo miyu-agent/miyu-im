@@ -295,9 +295,14 @@ async fn the_page_adds_edits_and_removes_connections() {
         )
     );
 
-    // 写错的：端口重了、Token 没写、找不到、端口超出范围。
+    // 写错的：端口重了、Token 没写、找不到、端口超出范围、是这个网页自己的端口（施工 I-109）。
     for (method, params) in [
         ("connection.add", json!({"port": third, "token": "x"})),
+        ("connection.add", json!({"port": port, "token": "x"})),
+        (
+            "connection.edit",
+            json!({"port": third, "values": {"listen": port}}),
+        ),
         ("connection.add", json!({"port": 40_004, "token": "  "})),
         ("connection.add", json!({"port": 80, "token": "x"})),
         (

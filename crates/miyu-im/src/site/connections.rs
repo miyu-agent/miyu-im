@@ -2,10 +2,11 @@
 //! 后台页新建连接、连接卡齿轮里改、删一个连接。连接表是驱动的三个藏起来的配置项（`hosts`、`ports`、`tokens`，第几项是第几个连接），
 //! 这里在这份登录的人的连接上替人读、写（人的权限）。
 //!
-//! - `connection.add {platform?, port, token, host?}` → `{"saved": true}`：加一个连接。端口 1024 到 65535、不能和表里的重；Token
+//! - `connection.add {platform?, port, token, host?}` → `{"saved": true}`：加一个连接。端口 1024 到 65535、不能和表里的重、不能是
+//!   这个网页自己的端口（施工 I-109：原来建议的端口是表里最大的加一，撞上了网页的）；Token
 //!   必写（NapCat 那边生成的）；地址不写的照驱动的默认。
 //! - `connection.edit {platform?, port, values: {host?, listen?, token?}}` → `{"saved": true}`：改端口是 `port` 的那一个。`listen` 是新
-//!   端口（不能和别的重）；`token` 空的不改。
+//!   端口（不能和别的重、不能是网页的）；`token` 空的不改。
 //! - `connection.remove {platform?, port}` → `{"saved": true}`：删端口是 `port` 的那一个；表里只剩它的不删（`last_connection`）。
 //!
 //! 读：`config.get` 三个列表（密钥是引用，不是值）。表还没写过的（原来只有一个连接）：原来的 `host`、`listen`、`token` 设了 Token 的
@@ -43,6 +44,11 @@ fn bad() -> (String, String) {
 /// 合不合端口的写法：1024 到 65535。
 fn port_ok(port: u64) -> bool {
     (1024..=65535).contains(&port)
+}
+
+/// 端口 `port` 是不是这个网页自己听着的（施工 I-109）。
+fn page_port(site: &Site, port: u64) -> bool {
+    site.running.page.get().map(u64::from) == Some(port)
 }
 
 /// `config.get` 的回答 `got` 里平台 `platform` 的连接表（模块的说明「读」）。`fallback` 是驱动默认的地址、端口。
@@ -176,7 +182,7 @@ pub(super) async fn add(
         .filter(|token| !token.trim().is_empty())
         .ok_or_else(bad)?;
     let (platform, mut entries) = read(site, person, params).await?;
-    if entries.iter().any(|entry| entry.port == port) {
+    if entries.iter().any(|entry| entry.port == port) || page_port(site, port) {
         return Err(bad());
     }
     let host = match &params["host"] {
@@ -227,6 +233,7 @@ pub(super) async fn edit(
             .iter()
             .enumerate()
             .any(|(other, entry)| other != at && entry.port == listen)
+            || page_port(site, listen)
         {
             return Err(bad());
         }

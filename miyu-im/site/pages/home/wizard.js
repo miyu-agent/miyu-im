@@ -1,8 +1,9 @@
 // 新建连接（设计 01 第八节第 2 条，施工 I-6 中；样子照样板 d-im.html）：选一个平台 → 平台的几步（QQ：照着填地址「我已填写」、粘贴
 // Token「保存并连接」）→ 等它连上（两个节点之间一条线、光点来回跑）→ 连上了画一个勾，写机器人叫什么、连上的是哪个实现。
 // 存设置经宿主的 connection.save（人的连接替人存）；等的时候照外壳推来的连接看，有连着的就算连上。
-// 连接表（施工 I-81 下中）：填地址那一步多一格端口，先填一个没用过的（表里设了 Token 的端口最大的加一，表里还没有的照 status 的
-// 端口），和表里的重了不让往下走；粘贴 Token 那一步存成连接表里新的一个（connection.add）；等连上照这个端口认号。
+// 连接表（施工 I-81 下中）：填地址那一步先给一个没用过的端口（表里设了 Token 的端口最大的加一，表里还没有的照 status 的端口；
+// 施工 I-109 起跳过这个网页自己的端口，原来会建议成它），和表里的、网页的重了不让往下走；粘贴 Token 那一步存成连接表里新的一个
+// （connection.add）；等连上照这个端口认号。施工 I-109（项目主人 11-02）：不另放一格端口，地址那一格直接能改，端口照地址里写的读。
 import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
@@ -76,38 +77,38 @@ export function openWizard(request, table = { entries: [] }) {
     const text = element('p', 'soft lead', shown.text());
     const back = () => (n === 1 ? pick() : step(n - 1));
     if (shown.kind === 'address') {
-      const portFill = element('div', 'fill');
-      const portInput = element('input', 'input num');
-      portInput.inputMode = 'numeric';
-      portFill.append(element('span', 'soft', say('wizard/port')), portInput, element('span'));
       const fill = element('div', 'fill');
-      const code = element('code', null, '…');
+      const input = element('input', 'input mono');
+      input.spellcheck = false;
       const copier = element('button', 'btn', say('dialog/copy'));
-      fill.append(element('span', 'soft', say('wizard/address')), code, copier);
+      fill.append(element('span', 'soft', say('wizard/address')), input, copier);
       const failed = element('p', 'failed');
-      show(n, text, portFill, fill, failed);
+      show(n, text, fill, failed);
       const next = buttons(back, () => step(n + 1), shown.next(), false);
       let status;
       try {
         status = await request('status');
       } catch {
-        code.textContent = say('failed/network');
+        failed.textContent = say('failed/network');
         return;
       }
+      // 用着的端口：表里的、这个网页自己的（施工 I-109）。
+      const taken = new Set(status.web ? [...used, status.web] : used);
       if (port === null) port = status.listen;
-      portInput.value = String(port);
-      const address = () => platform(chosen).address({ ...status, listen: port });
+      while (taken.has(port)) port += 1;
+      input.value = platform(chosen).address({ ...status, listen: port });
       const check = () => {
-        const typed = Number(portInput.value);
+        // 地址里冒号后面、路径前面那一段是端口；地址的别处随人改（NapCat 在别的机器上的照它改主机）。
+        const found = input.value.trim().match(/^wss?:\/\/[^/]*:(\d+)(?:\/|$)/);
+        const typed = found ? Number(found[1]) : NaN;
         const fine = Number.isInteger(typed) && typed >= 1024 && typed <= 65535;
-        const taken = used.includes(typed);
-        failed.textContent = taken ? say('failed/port-taken') : '';
+        const clash = fine && taken.has(typed);
+        failed.textContent = clash ? say('failed/port-taken') : fine ? '' : say('failed/address');
         if (fine) port = typed;
-        code.textContent = address();
-        next.disabled = !fine || taken;
+        next.disabled = !fine || clash;
       };
-      portInput.addEventListener('input', check);
-      copier.addEventListener('click', () => copy(address()));
+      input.addEventListener('input', check);
+      copier.addEventListener('click', () => copy(input.value.trim()));
       check();
       return;
     }
