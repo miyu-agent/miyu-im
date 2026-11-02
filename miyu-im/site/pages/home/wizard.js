@@ -48,7 +48,8 @@ export function openWizard(request, table = { entries: [] }) {
     dialog.setTitle(say('wizard/pick'));
     dialog.setSteps(1, total());
     const list = element('div', 'platforms');
-    for (const [id, shown] of Object.entries(PLATFORMS)) {
+    // 没有几步的平台（Telegram 等真驱动）不列（施工 I-103）。
+    for (const [id, shown] of Object.entries(PLATFORMS).filter(([, shown]) => shown.steps.length > 0)) {
       const choice = element('button', `pf${chosen === id ? ' on' : ''}`);
       const tile = element('span', `pi pf-${id}`);
       tile.append(mark(shown));

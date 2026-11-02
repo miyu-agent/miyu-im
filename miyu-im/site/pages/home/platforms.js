@@ -50,6 +50,16 @@ export const PLATFORMS = {
       { kind: 'address', label: () => say('settings/qq-address') },
     ],
   },
+  // Telegram（施工 I-103，设计 07 第 3.5 节）：先只有样子（标志、名字），连接页、会话页、统计里认得出是它。新建连接的几步、连接
+  // 设置随真驱动（机器人令牌、代理），没有几步的平台不在新建连接里列。会话的叫法照通用的。
+  tg: {
+    badge: 'T',
+    logo: 'logo-tg',
+    name: () => say('platform/tg'),
+    driver: () => say('platform/tg-driver'),
+    steps: [],
+    settings: [],
+  },
 };
 
 /** 平台 `shown` 的标志：有图形的画图形（白色，底色由外面的 class 定），没有的写字母。 */

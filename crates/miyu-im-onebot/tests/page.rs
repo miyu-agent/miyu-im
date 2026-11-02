@@ -206,6 +206,7 @@ fn japanese_is_written_in_japanese() {
         [
             "conn/line",
             "platform/qq",
+            "platform/tg",
             "settings-page/bind-id",
             "venues/filter"
         ],

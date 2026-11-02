@@ -13,6 +13,7 @@
 .bot .avatar { width: 46px; height: 46px; font-size: 18px; }
 .pf-badge { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--text-soft); color: #fff; font-size: 10px; font-weight: 700; box-shadow: 0 0 0 2.5px var(--surface-1); }
 .pf-qq { background: #12b7f5; }
+.pf-tg { background: #229ed9; }
 .section-head .grow { flex: 1; }
 .conn-grid + .section-head { margin-top: 24px; }
 .bot .avatar { overflow: hidden; }
@@ -31,6 +32,7 @@
 .pf.on { background: var(--accent-soft); color: var(--on-primary-container); }
 .pf .pi { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--text-soft); color: #fff; font-weight: 700; }
 .pi.pf-qq { background: #12b7f5; }
+.pi.pf-tg { background: #229ed9; }
 .fill { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; margin-top: 14px; }
 .fill code { padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fill .input, .fill .secret { width: 100%; }

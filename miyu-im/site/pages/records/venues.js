@@ -9,7 +9,7 @@ import { idWord } from '../venues/names.js';
 import { drawFound, filterBar } from './filter.js';
 import { openPurge } from './purge.js';
 import { botNames, namer, openVenue, throttled, venueParts, when } from './shared.js';
-import { connectionPick } from '../../shell/connection-pick.js';
+import { connectionPick, platformDot } from '../../shell/connection-pick.js';
 import { chooseConnection, chosenOf, onConnection } from '../../shell/connection.js';
 
 /** 在 `view` 里画列表：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
@@ -80,27 +80,31 @@ export function mountVenues(view, { request }) {
     }
     const order = [];
     const groups = new Map();
+    // 一个连接一组（施工 I-103：照平台和号分，不同平台号一样的不并在一起）。
     for (const row of shown) {
-      const bot = row.bot ? String(row.bot) : '';
-      if (!groups.has(bot)) {
-        groups.set(bot, []);
-        order.push(bot);
+      const key = row.bot ? `${row.platform}:${row.bot}` : '';
+      if (!groups.has(key)) {
+        groups.set(key, []);
+        order.push(key);
       }
-      groups.get(bot).push(row);
+      groups.get(key).push(row);
     }
     // 认不出连接的那一组放最后。
     order.sort((a, b) => (a === '') - (b === ''));
-    body.replaceChildren(...order.map((bot) => drawGroup(bot, groups.get(bot))));
+    // 挂着不止一个平台的，组名前面画平台标志、不画头像（施工 I-103，同数据统计）。
+    const tagged = new Set(connections.map((one) => one.platform)).size > 1;
+    body.replaceChildren(...order.map((key) => drawGroup(key, groups.get(key), tagged)));
   };
 
-  const drawGroup = (bot, list) => {
+  const drawGroup = (key, list, tagged) => {
     const section = element('section', 'records-group');
     const title = element('div', 'records-group-title');
-    if (bot) {
+    if (key) {
       // 机器人的名字问到了写名字、号写在后面；没问到的只写号。
-      const name = bots.get(bot);
-      const id = `${idWord('private', list[0].platform)} ${bot}`;
-      title.append(face('private', bot, name || bot), element('strong', null, name || id));
+      const { platform: on, bot } = list[0];
+      const name = connections.find((one) => one.platform === on && String(one.bot) === String(bot))?.name || bots.get(String(bot));
+      const id = `${idWord('private', on)} ${bot}`;
+      title.append(tagged ? platformDot(on) : face('private', bot, name || bot), element('strong', null, name || id));
       if (name) title.append(element('span', 'muted', id));
     } else {
       title.append(element('strong', null, say('records/unknown-connection')));
