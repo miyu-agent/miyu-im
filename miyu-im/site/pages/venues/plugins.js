@@ -4,9 +4,11 @@
 //   没有兜底）；都没写的照插件声明的默认。改了存进卡上的 `plugins`（和兜底一样的去掉，去光了整格去掉）。
 // - 在这个平台上用不了的（读不成、只在别的平台上用、缺平台能力）灰着，写为什么，不能开关。
 // - 名字后面一个小箭头去插件页上它的详情（施工 I-9 上）。插件页「用在哪」照同一套算法画开关（pluginSwitch）。
+// - 有后台的（施工 I-102，backstage/entries.js）开关前面一个「后台」，去插件后台里打开它的第一个后台。
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { cardOf } from './model.js';
+import { backstages } from '../backstage/entries.js';
 
 /** 画 `one` 的这一页：`context` 是 { request, plugins（宿主认得的插件）, fallbacks（{group, private}：兜底卡上的开关） }。 */
 export function drawPlugins(one, context) {
@@ -32,7 +34,14 @@ function row(one, plugin, fallback, request) {
   const summary = named(plugin.summary);
   if (summary) label.append(element('small', null, summary));
   if (plugin.unusable) label.append(element('small', 'plugin-why', say(`plugins/unusable-${plugin.unusable}`)));
-  line.append(label, pluginSwitch(one, plugin, fallback, request));
+  line.append(label);
+  const [first] = plugin.unusable ? [] : backstages(plugin);
+  if (first) {
+    const open = element('a', 'btn ghost plugin-backstage', say('plugins/backstage'));
+    open.href = first.href;
+    line.append(open);
+  }
+  line.append(pluginSwitch(one, plugin, fallback, request));
   return line;
 }
 

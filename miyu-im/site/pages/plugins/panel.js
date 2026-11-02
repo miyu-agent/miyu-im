@@ -22,12 +22,13 @@ const COLORS = [
   ['--danger', 'danger'],
 ];
 
-/** 插件 `plugin` 的面板：交回 { parts（要放进页面的元素）, close() }。`context` 是 { request, platform, connections() }。 */
-export function drawPanel(plugin, { request, platform, connections }) {
+/** 插件 `plugin` 的面板：交回 { parts（要放进页面的元素）, close() }。`context` 是 { request, platform, connections(), back? }：`back`
+ *  是 { href, label }，从插件后台打开的回插件后台（施工 I-102），没有的回详情。 */
+export function drawPanel(plugin, { request, platform, connections, back: backTo }) {
   const bar = element('div', 'panel-bar');
   const back = element('a', 'btn ghost');
-  back.href = `#plugins/${encodeURIComponent(plugin.package)}`;
-  back.append(icon('i-left'), document.createTextNode(named(plugin.name) || plugin.package));
+  back.href = backTo?.href || `#plugins/${encodeURIComponent(plugin.package)}`;
+  back.append(icon('i-left'), document.createTextNode(backTo?.label || named(plugin.name) || plugin.package));
   bar.append(back);
   const frame = element('iframe', 'plug-frame');
   frame.setAttribute('sandbox', 'allow-scripts allow-forms');

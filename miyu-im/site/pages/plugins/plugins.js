@@ -71,13 +71,14 @@ export function mountPlugins(view, { request, path }) {
   };
 }
 
-/** 插件声明的整页 `id`：上面一条返回详情、整页的标题，下面照界面块画（经插件写的方法取）。 */
-function widgetPage(plugin, id, request) {
+/** 插件声明的整页 `id`：上面一条返回详情、整页的标题，下面照界面块画（经插件写的方法取）。从插件后台打开的（施工 I-102）`back` 是
+ *  { href, label }、`base` 是 `backstage`：返回插件后台，整页里再开别的整页也留在插件后台。 */
+export function widgetPage(plugin, id, request, { back, base = 'plugins' } = {}) {
   const page = (plugin.ui?.pages || []).find((one) => one.id === id);
   const bar = element('div', 'panel-bar');
   const backTo = element('a', 'btn ghost');
-  backTo.href = `#plugins/${encodeURIComponent(plugin.package)}`;
-  backTo.append(icon('i-left'), document.createTextNode(named(plugin.name) || plugin.package));
+  backTo.href = back?.href || `#plugins/${encodeURIComponent(plugin.package)}`;
+  backTo.append(icon('i-left'), document.createTextNode(back?.label || named(plugin.name) || plugin.package));
   bar.append(backTo);
   if (!page) return [bar, element('p', 'faint', say('plugins-page/gone'))];
   const box = element('div', 'panel widget-page');
@@ -87,7 +88,7 @@ function widgetPage(plugin, id, request) {
   mountWidget(body, plugin.package, { place: 'page', page: id }, {
     request,
     openPage: (other) => {
-      goTo(`plugins/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(other)}`);
+      goTo(`${base}/${encodeURIComponent(plugin.package)}/page/${encodeURIComponent(other)}`);
     },
   });
   return [bar, box];

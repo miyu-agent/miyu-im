@@ -7,6 +7,9 @@
 .plug-card .grow b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plug-card p { margin: 10px 0 0; color: var(--text-soft); }
 .plug-card.off .ico, .plug-card.off .grow, .plug-card.off p, .plug-card.off .chips { opacity: 0.55; }
+/* 插件后台（施工 I-102）：照插件卡片，整张是链接，右边一个箭头。 */
+.backstage-card { display: block; color: var(--text); text-decoration: none; }
+.backstage-card .top > .icon { width: 16px; height: 16px; color: var(--text-faint); }
 .chip.bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .plug-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; text-decoration: none; }
 .plug-about h3 { margin: 0 0 6px; font-size: 14px; }
