@@ -1,5 +1,9 @@
 /* 消息记录页（施工 C-1 中下；I-34 下的平台会话页改的）。 */
 .records-head { position: sticky; top: 0; z-index: 2; margin: -4px -8px 10px; padding: 4px 8px; background: var(--surface); }
+/* 一个场所的页：标题和搜的那一行一起钉在上面（施工 I-115）。 */
+.records-top { position: sticky; top: 0; z-index: 2; margin: -4px -8px 10px; padding: 4px 8px 2px; background: var(--surface); }
+.records-top .records-head { position: static; margin: 0 0 10px; padding: 0; }
+.records-top .records-filter { margin-bottom: 8px; }
 .records-head .grow { flex: 1; min-width: 0; }
 .records-venue-title { display: flex; align-items: center; gap: 10px; }
 .records-venue-title .avatar { width: 32px; height: 32px; flex: none; }

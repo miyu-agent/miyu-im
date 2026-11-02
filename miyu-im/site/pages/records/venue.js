@@ -2,7 +2,7 @@
 // 事件（items.js），人说的底下一行回没回、为什么。往上「更早的」接着读前一页；宿主推了变了，重读最新一页、换掉里面的几条。
 // 从搜到的一条点进来的（`at` 是它的行号）从那一条往回看、把它标出来，这时候不跟着新消息走，底下「回到最新」。
 //
-// 上面一行在这个场所里搜（filter.js）。右上角两样删：「删除记录」开删的浮窗（purge.js，这个场所，能选时间段和人）；「删除 AI 会话」删的
+// 上面一行在这个场所里搜（filter.js），和标题一起钉在上面（施工 I-115）。右上角两样删：「删除记录」开删的浮窗（purge.js，这个场所，能选时间段和人）；「删除 AI 会话」删的
 // 是她在这里的上下文（桥的场所会话，施工 I-34），和记录无关，点两次才删，桥认不出这个场所的会话时不出现。
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
@@ -58,7 +58,11 @@ export function mountVenue(view, { request, venue, at }) {
   const latest = element('button', 'btn ghost records-older', say('records/latest'));
   latest.hidden = !at;
   latest.addEventListener('click', () => openVenue(venue));
-  view.replaceChildren(head, filter.element, older, list, latest);
+  // 标题和搜的那一行一起钉在上面（施工 I-115，项目主人 11-02：点进一个场所以后找不到搜和按日子筛：一进来就滚到最新的一条，搜的那一行
+  // 在很远的上面）。
+  const top = element('div', 'records-top');
+  top.append(head, filter.element);
+  view.replaceChildren(top, older, list, latest);
 
   const drawTitle = () => {
     const name = titleOf(row);
