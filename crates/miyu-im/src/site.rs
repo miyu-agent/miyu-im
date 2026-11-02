@@ -97,6 +97,8 @@ pub(crate) struct Site {
     counters: Arc<Counters>,
     /// 插件面板的票据（施工 I-9 下）。
     panels: panels::Panels,
+    /// 连接表一次只一个人改（施工 I-118，发布前审查 I4-4：读、改、写三步之间没锁，两个标签页同时改会丢一边）。
+    table: tokio::sync::Mutex<()>,
 }
 
 impl Site {
@@ -121,6 +123,7 @@ impl Site {
             faces: Faces::default(),
             counters,
             panels: panels::Panels::default(),
+            table: tokio::sync::Mutex::new(()),
         }
     }
 }

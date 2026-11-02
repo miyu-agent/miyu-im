@@ -331,9 +331,23 @@ async fn the_page_adds_edits_and_removes_connections() {
         );
     }
 
-    // 删：剩一个以后不让删。
+    // 删：剩一个以后不让删。删了的那个连接的密钥跟着删（施工 I-118，发布前审查 I4-4）。
+    let items = head.call("config.get", json!({})).await["result"]["items"].clone();
+    let gone = items["im.qq.tokens"]["value"][0]["secret"]
+        .as_str()
+        .expect("8301 的 Token 是密钥")
+        .to_string();
     let removed = call(&mut open, 5, "connection.remove", json!({"port": 8301})).await;
     assert_eq!(removed["result"], json!({"saved": true}), "{removed}");
+    let secrets = head.call("secret.list", json!({})).await["result"]["secrets"].clone();
+    assert!(
+        !secrets
+            .as_array()
+            .expect("是列表")
+            .iter()
+            .any(|one| one["name"] == gone.as_str()),
+        "删了的连接的密钥还在：{gone} {secrets}"
+    );
     let items = head.call("config.get", json!({})).await["result"]["items"].clone();
     assert_eq!(
         table(&items),

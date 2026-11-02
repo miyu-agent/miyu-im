@@ -156,10 +156,12 @@ async fn stored(
 }
 
 /// 写回连接表。
+/// 写回连接表；写成了把原来的表 `before` 里引用、新表里不再引用的密钥删掉（施工 I-118，发布前审查 I4-4：换令牌、删连接以后旧的
+/// 密钥原来留在核心里）。删不成的记一行，表照样算存成了。
 async fn write(
     person: &Person,
     platform: &str,
-    entries: &[Entry],
+    (before, entries): (&[Entry], &[Entry]),
 ) -> Result<Value, (String, String)> {
     let changes = changes(platform, entries);
     call(
@@ -169,7 +171,25 @@ async fn write(
     )
     .await?;
     tracing::info!(target: crate::TARGET, connections = entries.len(), "connection table saved");
+    for name in retired(before, entries) {
+        if let Err((reason, _)) = call(person, "secret.delete", json!({"name": name})).await {
+            tracing::warn!(target: crate::TARGET, secret = %name, reason, "old connection token not deleted");
+        }
+    }
     Ok(json!({"saved": true}))
+}
+
+/// 原来的表 `before` 里引用、新表 `after` 里不再引用的密钥名（纯逻辑）。
+pub(super) fn retired(before: &[Entry], after: &[Entry]) -> Vec<String> {
+    let name = |entry: &Entry| entry.token["secret"].as_str().map(str::to_string);
+    let kept: Vec<String> = after.iter().filter_map(name).collect();
+    let mut gone: Vec<String> = before
+        .iter()
+        .filter_map(name)
+        .filter(|old| !kept.contains(old))
+        .collect();
+    gone.dedup();
+    gone
 }
 
 /// `connection.add`（模块的说明）。
@@ -186,7 +206,10 @@ pub(super) async fn add(
         .as_str()
         .filter(|token| !token.trim().is_empty())
         .ok_or_else(bad)?;
+    // 读、改、写之间一次只一个人（施工 I-118）。
+    let _turn = site.table.lock().await;
     let (platform, mut entries) = read(site, person, params).await?;
+    let before = entries.clone();
     if entries.iter().any(|entry| entry.port == port) || page_port(site, port) {
         return Err(bad());
     }
@@ -204,7 +227,7 @@ pub(super) async fn add(
         port,
         token,
     });
-    write(person, &platform, &entries).await
+    write(person, &platform, (&before, &entries)).await
 }
 
 /// `connection.edit`（模块的说明）。
@@ -215,7 +238,10 @@ pub(super) async fn edit(
 ) -> Result<Value, (String, String)> {
     let port = params["port"].as_u64().ok_or_else(bad)?;
     let values = params["values"].as_object().ok_or_else(bad)?;
+    // 读、改、写之间一次只一个人（施工 I-118）。
+    let _turn = site.table.lock().await;
     let (platform, mut entries) = read(site, person, params).await?;
+    let before = entries.clone();
     let at = entries
         .iter()
         .position(|entry| entry.port == port)
@@ -250,7 +276,7 @@ pub(super) async fn edit(
             entries[at].token = stored(person, &platform, entries[at].port, token).await?;
         }
     }
-    write(person, &platform, &entries).await
+    write(person, &platform, (&before, &entries)).await
 }
 
 /// `connection.remove`（模块的说明）。
@@ -260,7 +286,10 @@ pub(super) async fn remove(
     params: &Value,
 ) -> Result<Value, (String, String)> {
     let port = params["port"].as_u64().ok_or_else(bad)?;
+    // 读、改、写之间一次只一个人（施工 I-118）。
+    let _turn = site.table.lock().await;
     let (platform, mut entries) = read(site, person, params).await?;
+    let before = entries.clone();
     let at = entries
         .iter()
         .position(|entry| entry.port == port)
@@ -269,7 +298,7 @@ pub(super) async fn remove(
         return Err(("last_connection".to_string(), String::new()));
     }
     entries.remove(at);
-    write(person, &platform, &entries).await
+    write(person, &platform, (&before, &entries)).await
 }
 
 #[cfg(test)]

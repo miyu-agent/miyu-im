@@ -3,7 +3,7 @@
 
 use serde_json::{Value, json};
 
-use super::{Entry, changes, table};
+use super::{Entry, changes, retired, table};
 
 /// 照 `config.get` 回答的样子包一层：键到 `{"value": …}`。
 fn got(values: Value) -> Value {
@@ -96,4 +96,25 @@ fn writing_sets_the_three_columns_and_drops_the_old_settings() {
             json!({"key": "im.qq.token", "unset": true}),
         ]
     );
+}
+
+#[test]
+fn only_secrets_the_new_table_no_longer_names_are_retired() {
+    // 施工 I-118（发布前审查 I4-4）：换了令牌、删了连接，原来的密钥删掉；还在用的、写成别的样子的不动。
+    let entry = |port: u64, token: Value| Entry {
+        host: "0.0.0.0".to_string(),
+        port,
+        token,
+    };
+    let before = [
+        entry(8301, json!({"secret": "im-qq-token-8301-1"})),
+        entry(8302, json!({"secret": "im-qq-token-8302-1"})),
+        entry(8303, json!({"env": "QQ_TOKEN"})),
+    ];
+    let after = [
+        entry(8301, json!({"secret": "im-qq-token-8301-1"})),
+        entry(8303, json!({"secret": "im-qq-token-8303-2"})),
+    ];
+    assert_eq!(retired(&before, &after), ["im-qq-token-8302-1"]);
+    assert!(retired(&after, &after).is_empty());
 }
