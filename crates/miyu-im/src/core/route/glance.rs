@@ -36,6 +36,8 @@ const SECOND: i64 = 1000;
 pub(super) struct Glances {
     /// 没定下一次时隔多久（`bridge.json` 的 `glance_seconds`）。
     default: Duration,
+    /// 她定的一分钟按几秒算（`glance_minute_seconds`，施工 I-90：回放压缩时间用，出厂 60）。
+    minute: u64,
     /// 对过账了：起来时、卡片存了以后是假的，下一次 [`Route::sync_glances`] 照它对账。
     synced: bool,
     /// 场所编号 → 等着的定时编号。
@@ -52,10 +54,11 @@ pub(super) struct Glances {
 }
 
 impl Glances {
-    /// 没定下一次时隔 `default`。
-    pub(super) fn new(default: Duration) -> Glances {
+    /// 没定下一次时隔 `default`，她定的一分钟按 `minute` 秒算。
+    pub(super) fn new((default, minute): (Duration, u64)) -> Glances {
         Glances {
             default,
+            minute,
             ..Glances::default()
         }
     }
@@ -186,7 +189,7 @@ impl Route {
         let prompt = Prompt {
             venue: venue.to_string(),
             after: self.glance_last(venue),
-            seconds: minutes.max(1).saturating_mul(60),
+            seconds: minutes.max(1).saturating_mul(self.glances.minute),
         };
         self.arm_glance(prompt, None).await
     }
