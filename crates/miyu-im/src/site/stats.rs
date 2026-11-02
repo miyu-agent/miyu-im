@@ -5,10 +5,12 @@
 //!
 //! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
 //!   缓存命中率（读缓存 ÷ 输入）、每次回复平均（合计 ÷ 回复的段数）、请求次数，每天的四样（读缓存、没命中、写缓存、输出），按用途、
-//!   按场所（最多 10 个）、按模型。金额算不准不给（项目主人的规矩）。
+//!   按场所（最多 10 个）、按模型。金额（施工 I-104，`money`）：照核心换算成 `usage.currency` 的加起来，合计、和前一段比、每天的、
+//!   按用途、场所、模型的都有；没价钱的请求有几次、没换成的照币种另给。
 //! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所（最多 10 个），判断的原因，
 //!   按小时收到的。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
-//! - **connections**（施工 I-100：数据统计页的「按连接」）：每个连接（[`connection_of`]）的 token、收到、回复，token 多的在前。
+//! - **connections**（施工 I-100：数据统计页的「按连接」）：每个连接（[`connection_of`]）的 token、收到、回复、金额（I-104），token
+//!   多的在前。
 //! - **running**：桥起来多久、进程的内存和 CPU（照 `ps`，Linux、macOS 有；别的系统是空的）、插件开着几个、出错几个。
 
 use std::collections::BTreeMap;
@@ -20,6 +22,9 @@ use super::plugins::core;
 use super::scope::{Scope, within};
 use super::{Person, Site};
 use crate::counters::{Daily, Day, connection_of};
+use money::Money;
+
+mod money;
 
 /// 按场所、按会话最多列几个。
 const TOP: usize = 10;
@@ -87,6 +92,9 @@ fn hours_in(daily: &Daily, scope: Option<&Scope>) -> Vec<u64> {
     }
 }
 
+/// 按天、用途、场所、模型分的一组：四样用量、请求次数、金额。
+type Entry = ([u64; 4], u64, Money);
+
 /// 用量的那一段（纯逻辑）：这一段的行 `rows`（按场所、天、用途、模型分的）、前一段的 `before`、这一段回复了几段 `replied`。
 pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
     let sum = |rows: &[&Value]| -> ([u64; 4], u64) {
@@ -108,7 +116,7 @@ pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
         let input = parts[0] + parts[1] + parts[2];
         (input > 0).then(|| parts[0] as f64 / input as f64)
     };
-    let mut by: [BTreeMap<String, ([u64; 4], u64)>; 4] = Default::default();
+    let mut by: [BTreeMap<String, Entry>; 4] = Default::default();
     for row in rows {
         for (map, key) in by.iter_mut().zip(["day", "purpose", "venue", "model"]) {
             let name = row[key].as_str().unwrap_or("").to_string();
@@ -117,27 +125,32 @@ pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
                 *slot += value;
             }
             entry.1 += row["requests"].as_u64().unwrap_or_default();
+            entry.2.add(row);
         }
     }
     let [days, purposes, venues, models] = by;
-    let listed = |map: BTreeMap<String, ([u64; 4], u64)>, top: Option<usize>| -> Vec<Value> {
-        let mut list: Vec<(String, ([u64; 4], u64))> = map.into_iter().collect();
+    let listed = |map: BTreeMap<String, Entry>, top: Option<usize>| -> Vec<Value> {
+        let mut list: Vec<(String, Entry)> = map.into_iter().collect();
         list.sort_by(|a, b| all(b.1.0).cmp(&all(a.1.0)).then(a.0.cmp(&b.0)));
         list.into_iter()
             .take(top.unwrap_or(usize::MAX))
-            .map(|(name, (parts, requests))| json!({"name": name, "tokens": all(parts), "requests": requests}))
+            .map(|(name, (parts, requests, money))| {
+                json!({"name": name, "tokens": all(parts), "requests": requests, "cost": money.amount()})
+            })
             .collect()
     };
     let days: Vec<Value> = days
         .into_iter()
-        .map(|(day, (parts, _))| json!({"day": day, "parts": parts}))
+        .map(|(day, (parts, _, money))| json!({"day": day, "parts": parts, "cost": money.amount()}))
         .collect();
+    let (cost, prev_cost) = (Money::of(rows), Money::of(before));
     json!({
         "total": all(total), "prev_total": all(prev),
         "hit_rate": rate(total), "prev_hit_rate": rate(prev),
         "per_reply": (replied > 0).then(|| all(total) / replied),
         "requests": requests, "prev_requests": prev_requests,
         "parts": total,
+        "cost": cost.shown(), "prev_cost": prev_cost.amount(),
         "days": days,
         "purposes": listed(purposes, None),
         "venues": listed(venues, Some(TOP)),
@@ -208,11 +221,12 @@ pub(super) fn connections(
     days: &[(String, Daily)],
     scope: Option<&Scope>,
 ) -> Vec<Value> {
-    let mut sums: BTreeMap<String, [u64; 3]> = BTreeMap::new();
+    let mut sums: BTreeMap<String, ([u64; 3], Money)> = BTreeMap::new();
     for row in rows {
         if let Some(venue) = row["venue"].as_str() {
-            sums.entry(connection_of(venue).to_string()).or_default()[0] +=
-                usage(row).iter().sum::<u64>();
+            let sum = sums.entry(connection_of(venue).to_string()).or_default();
+            sum.0[0] += usage(row).iter().sum::<u64>();
+            sum.1.add(row);
         }
     }
     for (_, daily) in days {
@@ -221,20 +235,22 @@ pub(super) fn connections(
             .iter()
             .filter(|(venue, _)| within(scope, venue))
         {
-            let sum = sums.entry(connection_of(venue).to_string()).or_default();
+            let sum = &mut sums.entry(connection_of(venue).to_string()).or_default().0;
             sum[1] += day.received;
             sum[2] += day.replied;
         }
     }
-    let mut list: Vec<(String, [u64; 3])> = sums.into_iter().collect();
+    let mut list: Vec<(String, ([u64; 3], Money))> = sums.into_iter().collect();
     list.sort_by(|a, b| {
-        b.1[0]
-            .cmp(&a.1[0])
-            .then(b.1[1].cmp(&a.1[1]))
+        b.1.0[0]
+            .cmp(&a.1.0[0])
+            .then(b.1.0[1].cmp(&a.1.0[1]))
             .then(a.0.cmp(&b.0))
     });
     list.into_iter()
-        .map(|(name, [tokens, received, replied])| json!({"name": name, "tokens": tokens, "received": received, "replied": replied}))
+        .map(|(name, ([tokens, received, replied], money))| {
+            json!({"name": name, "tokens": tokens, "received": received, "replied": replied, "cost": money.amount()})
+        })
         .collect()
 }
 

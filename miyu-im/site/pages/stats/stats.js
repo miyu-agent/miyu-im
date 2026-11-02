@@ -1,6 +1,7 @@
 // 数据统计（施工 I-14 起是一页，I-85 下并进首页，I-100 又拆回侧栏：项目主人 11-02 定首页只留今天的几个数，点进来看明细；设计 01
 // 第八节第 4 条：看统计主要是看 token，放最上面）：今天、7 天、30 天，从上往下：按连接（不止一个连接时）、token、消息、运行。数照宿主
-// 的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样长的比；金额算不准不显示（项目主人的规矩）。
+// 的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样长的比。金额照核心换算成你设的币种的写，没价钱的请求写
+// 「另有几次请求没记录金额」（施工 I-104，项目主人 11-02 改了原来的「算不准不显示」）。
 //
 // - 这一页算的是全部：所有平台、所有连接、所有会话的合计和明细，不跟着首页选中的连接（设计 07 第二节第 3 条 11-02 改）。连接不止
 //   一个时，场所前面画它的平台标志。
@@ -53,7 +54,7 @@ export function mountStats(view, { request }) {
     if (!shown) return;
     const context = { names, connections, tagged: connections.length > 1 };
     const parts = [];
-    if ((shown.connections || []).length > 1) parts.push(byConnection(shown.connections, connections));
+    if ((shown.connections || []).length > 1) parts.push(byConnection(shown.connections, connections, shown.token?.cost?.currency));
     parts.push(tokens(shown.token, context), messages(shown.messages, context), running(shown.running));
     body.replaceChildren(...parts);
   };
@@ -94,14 +95,14 @@ export function mountStats(view, { request }) {
   };
 }
 
-/** 按连接：一个连接一行，平台标志、名字（没连着、不认得的写编号），右边收到、回复、token。 */
-function byConnection(rows, connections) {
+/** 按连接：一个连接一行，平台标志、名字（没连着、不认得的写编号），右边收到、回复、token、金额（施工 I-104）。 */
+function byConnection(rows, connections, currency) {
   const listed = rows.map((one) => {
     const known = connections.find((connection) => connection.id === one.name);
     const name = element('span', 'stats-venue');
     name.append(platformDot(known?.platform || one.name.split(':')[0]), document.createTextNode(known ? connectionLabel(known) : one.name));
-    const right = say('stats/connection-line', { received: short(one.received), replied: short(one.replied), tokens: short(one.tokens) });
-    return [name, right];
+    const line = say('stats/connection-line', { received: short(one.received), replied: short(one.replied), tokens: short(one.tokens) });
+    return [name, one.cost == null ? line : `${line} · ${money(one.cost, currency)}`];
   });
   return section(say('stats/by-connection'), list(null, listed));
 }
@@ -213,9 +214,13 @@ export function legend(keys, classes) {
 /** token 那一段。 */
 function tokens(token, context) {
   const rate = (value) => (value == null ? '—' : `${Math.round(value * 100)}%`);
+  // 金额（施工 I-104）：照核心换算成你设的币种的；没价钱的、没换成的各写一行。
+  const cost = token.cost || {};
+  const priced = (one) => (one.cost == null ? '' : ` · ${money(one.cost, cost.currency)}`);
   const tiles = element('div', 'stat-tiles');
   tiles.append(
     tile(say('stats/tokens'), short(token.total), delta(token.total, token.prev_total)),
+    tile(say('stats/cost'), money(cost.amount, cost.currency), delta(cost.amount, token.prev_cost)),
     tile(say('stats/hit-rate'), rate(token.hit_rate), null),
     tile(say('stats/per-reply'), short(token.per_reply), null),
     tile(say('stats/requests'), short(token.requests), delta(token.requests, token.prev_requests)),
@@ -228,6 +233,10 @@ function tokens(token, context) {
     ? bars(say('stats/daily-tokens'), token.days.map((day) => [day.day.slice(5), day.parts]), classes)
     : document.createDocumentFragment();
   if (several) days.append(legend(keys, classes));
+  // 每天的花费：有一天有金额才画。
+  const spent = several && token.days.some((day) => day.cost)
+    ? bars(say('stats/daily-cost'), token.days.map((day) => [day.day.slice(5), [day.cost || 0], `${day.day.slice(5)} · ${money(day.cost, cost.currency)}`]), ['p2'])
+    : document.createDocumentFragment();
   // 一个 token 都没有的不画构成、按小时（空条像坏了）。
   const total = token.parts.reduce((sum, one) => sum + one, 0);
   const make = total > 0 ? element('div', 'stats-chart') : document.createDocumentFragment();
@@ -247,11 +256,37 @@ function tokens(token, context) {
   };
   const grid = element('div', 'stats-grid');
   grid.append(
-    list(say('stats/by-purpose'), (token.purposes || []).map((one) => [purpose(one.name), `${short(one.requests)} · ${short(one.tokens)}`])),
-    list(say('stats/by-venue'), (token.venues || []).map((one) => [venueLink(one.name, context), short(one.tokens)])),
-    list(say('stats/by-model'), (token.models || []).map((one) => [one.name || '—', `${short(one.requests)} · ${short(one.tokens)}`])),
+    list(say('stats/by-purpose'), (token.purposes || []).map((one) => [purpose(one.name), `${short(one.requests)} · ${short(one.tokens)}${priced(one)}`])),
+    list(say('stats/by-venue'), (token.venues || []).map((one) => [venueLink(one.name, context), `${short(one.tokens)}${priced(one)}`])),
+    list(say('stats/by-model'), (token.models || []).map((one) => [one.name || '—', `${short(one.requests)} · ${short(one.tokens)}${priced(one)}`])),
   );
-  return section(say('stats/token'), tiles, days, make, grid);
+  return section(say('stats/token'), tiles, unpriced(cost), days, spent, make, grid);
+}
+
+/** 金额照币种写：不到 1 的多留两位（$0.0832）；没有的写「—」，认不得的币种照「0.08 XYZ」写。 */
+export function money(amount, currency) {
+  if (amount == null || !currency) return '—';
+  const digits = Math.abs(amount) < 1 ? 4 : 2;
+  try {
+    return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+      style: 'currency',
+      currencyDisplay: 'narrowSymbol',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: digits,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(digits)} ${currency}`;
+  }
+}
+
+/** 金额底下的小字：另有几次请求没记录金额，另有多少没换成你设的币种。都没有的是空的。 */
+export function unpriced(cost) {
+  const box = element('div', 'stats-note');
+  if (cost.unpriced > 0) box.append(element('p', 'faint', say('stats/unpriced', { count: cost.unpriced.toLocaleString() })));
+  const rest = (cost.unconverted || []).map((one) => money(one.amount, one.currency));
+  if (rest.length > 0) box.append(element('p', 'faint', say('stats/unconverted', { amounts: rest.join(say('plugins-page/separator')), currency: cost.currency || '' })));
+  return box.childElementCount > 0 ? box : document.createDocumentFragment();
 }
 
 /** 消息那一段。 */

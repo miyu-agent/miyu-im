@@ -33,11 +33,11 @@ fn only_the_chosen_connections_venue_sessions_count() {
     assert_eq!(shown["parts"], json!([800, 500, 0, 80]));
     assert_eq!(
         shown["days"],
-        json!([{"day": "2026-10-19", "parts": [0, 300, 0, 30]}, {"day": "2026-10-20", "parts": [800, 200, 0, 50]}])
+        json!([{"day": "2026-10-19", "parts": [0, 300, 0, 30], "cost": null}, {"day": "2026-10-20", "parts": [800, 200, 0, 50], "cost": null}])
     );
     assert_eq!(
         shown["purposes"][0],
-        json!({"name": "turn", "tokens": 1050, "requests": 2})
+        json!({"name": "turn", "tokens": 1050, "requests": 2, "cost": null})
     );
     assert_eq!(shown["venues"][1]["name"], "qq:private:5");
     assert_eq!(token(&[], &[], 0)["per_reply"], serde_json::Value::Null);
@@ -176,9 +176,9 @@ fn each_connection_adds_up_its_tokens_and_messages() {
     assert_eq!(
         shown,
         vec![
-            json!({"name": "tg:7890", "tokens": 2000, "received": 4, "replied": 0}),
-            json!({"name": "qq:10001", "tokens": 1050, "received": 5, "replied": 3}),
-            json!({"name": "qq", "tokens": 0, "received": 1, "replied": 1}),
+            json!({"name": "tg:7890", "tokens": 2000, "received": 4, "replied": 0, "cost": null}),
+            json!({"name": "qq:10001", "tokens": 1050, "received": 5, "replied": 3, "cost": null}),
+            json!({"name": "qq", "tokens": 0, "received": 1, "replied": 1, "cost": null}),
         ],
         "token 多的在前；I-81 以前的场所照平台算"
     );
@@ -186,4 +186,42 @@ fn each_connection_adds_up_its_tokens_and_messages() {
     let only = connections(&ours(&rows, Some(&tg)), &days, Some(&tg));
     assert_eq!(only.len(), 1, "{only:?}");
     assert_eq!(only[0]["name"], "tg:7890");
+}
+
+#[test]
+fn token_carries_the_money() {
+    // 施工 I-104：合计、和前一段比、每天、按模型都带换算好的金额；没价钱的次数照加。
+    let paid = |day: &str, model: &str, amount: f64, unpriced: u64| {
+        json!({"venue": "qq:10001:group:777", "day": day, "purpose": "turn", "model": model, "requests": 1 + unpriced,
+               "usage": {"uncached": 100}, "unpriced": unpriced,
+               "amounts": [{"currency": "USD", "amount": amount}], "converted": {"currency": "USD", "amount": amount}})
+    };
+    let rows = [
+        paid("2026-10-19", "dev/m", 0.5, 0),
+        paid("2026-10-20", "dev/m", 0.25, 2),
+        paid("2026-10-20", "dev/s", 1.0, 0),
+    ];
+    let before = [paid("2026-10-18", "dev/m", 2.0, 0)];
+    let shown = token(
+        &rows.iter().collect::<Vec<_>>(),
+        &before.iter().collect::<Vec<_>>(),
+        3,
+    );
+    assert_eq!(shown["cost"]["amount"], 1.75, "{shown}");
+    assert_eq!(shown["cost"]["currency"], "USD", "{shown}");
+    assert_eq!(shown["cost"]["unpriced"], 2, "{shown}");
+    assert_eq!(shown["prev_cost"], 2.0, "{shown}");
+    assert_eq!(shown["days"][1]["cost"], 1.25, "{shown}");
+    let models = shown["models"].as_array().expect("有");
+    let of = |name: &str| {
+        models
+            .iter()
+            .find(|one| one["name"] == name)
+            .map(|one| one["cost"].clone())
+    };
+    assert_eq!(
+        (of("dev/m"), of("dev/s")),
+        (Some(json!(0.75)), Some(json!(1.0))),
+        "{shown}"
+    );
 }

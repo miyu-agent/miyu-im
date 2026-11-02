@@ -4,6 +4,8 @@
 .stats-section h2 { margin: 0 0 12px; font-size: 16px; }
 .stats-section h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-soft); font-weight: 500; }
 .stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stats-note { margin: -6px 0 14px; font-size: 12.5px; }
+.stats-note p { margin: 2px 0; }
 .stat-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
 .stat-tile b { font-size: 22px; font-weight: 600; }
 .stat-tile small.up { color: var(--online); }
@@ -26,6 +28,7 @@
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .stats-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; }
 .stats-row > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-row > :last-child { flex: none; white-space: nowrap; }
 .stats-venue { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); text-decoration: none; }
 .stats-venue:hover { text-decoration: underline; }
 .stats-head .seg { margin-left: auto; }
