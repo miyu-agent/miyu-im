@@ -1,5 +1,6 @@
 // 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：本人的平台 ID（核心的 `external.bindings`，
-// 施工 I-68）、通用（回执自动撤回的命令）、外观（施工 I-110：跟随系统、浅色、深色）、网页服务（端口；登录用访问密码）。照样板左边一列切段、右边一次一段
+// 施工 I-68）、通用（回执自动撤回的命令）、外观（施工 I-110：跟随系统、浅色、深色）、网页服务（端口；登录用访问密码）。违规关键词
+// 施工 I-113 起挪到群管理插件的设置里（plugins/moderation.js）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
 // - 本人的平台 ID 列每个平台的身份（施工 I-85 补，设计 07 第七节 im-己）：平台不止一个时每行写平台，加的那一行先选平台（默认是
@@ -21,9 +22,8 @@ export function mountSettings(view, { request }) {
   let adding = '';
   // 正开着的一段。
   let page = 'bindings';
-  // 问到的两样：连接变了照它重画，不再问。
+  // 问到的：连接变了照它重画，不再问。
   let got = null;
-  let words = null;
   const draw = () => {
     if (!got) return;
     const platforms = [...new Set(connections.map((one) => one.platform))];
@@ -32,14 +32,13 @@ export function mountSettings(view, { request }) {
       ['bindings', bindings(got, { platforms, adding }, save)],
       ['general', general(got, save)],
       ['appearance', appearance()],
-      ...(words ? [['moderation', moderation(words, request, load)]] : []),
       ['site', site(got, save)],
     ];
     view.replaceChildren(head(), tabbed(pages, page, (key) => (page = key)));
   };
   const load = async () => {
     try {
-      [got, words] = await Promise.all([request('settings.get'), request('moderation.get').catch(() => null)]);
+      got = await request('settings.get');
     } catch {
       view.replaceChildren(head(), element('p', 'faint', say('settings-page/failed')));
       return;
@@ -176,30 +175,6 @@ function appearance() {
   draw();
   const hint = handed() ? say('settings-page/scheme-handed') : null;
   return section('settings-page/appearance', null, [row(say('settings-page/scheme'), hint, seg)]);
-}
-
-/** 违规判断（施工 I-16，照旧版设置页）：违规关键词，存成系统那一份（整份替换出厂的），能回到出厂的。门槛在会话浮窗「高级」里。 */
-function moderation(words, request, reload) {
-  const put = async (keywords) => {
-    try {
-      const answer = await request('moderation.set', { keywords });
-      if (!answer.saved) toast(say('failed/save'));
-    } catch {
-      toast(say('failed/save'));
-      reload();
-    }
-  };
-  const tags = tagInput({ items: words.keywords || [], save: (list) => put(list) });
-  const rows = [row(say('settings-page/moderation-words'), say('settings-page/moderation-words-hint'), tags)];
-  if (words.own) {
-    const back = element('button', 'btn', say('settings-page/moderation-factory'));
-    back.addEventListener('click', async () => {
-      await put(null);
-      reload();
-    });
-    rows.push(row(say('settings-page/moderation-factory-label'), null, back));
-  }
-  return section('settings-page/moderation', 'settings-page/moderation-hint', rows);
 }
 
 /** 网页服务：端口；登录用 Miyu 账号。 */

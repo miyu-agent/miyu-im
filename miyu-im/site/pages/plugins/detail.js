@@ -13,6 +13,7 @@ import { fallbacksOf, fits, isOn, named, pluginSwitch } from '../venues/plugins.
 import { back } from './plugins.js';
 import { pluginIcon, subtitle, usable } from './card.js';
 import { drawSettings } from './config-form.js';
+import { ADMIN, moderationSection } from './moderation.js';
 import { readme } from './readme.js';
 import { masterSwitch } from './switch.js';
 
@@ -79,7 +80,11 @@ function tabs(plugin, all, context) {
   const body = element('div');
   const pages = {
     readme: () => intro(plugin, context.request),
-    settings: () => [drawSettings(plugin.package, context.request)],
+    // 群管理多一段违规关键词（施工 I-113：从设置页挪来）。
+    settings: () =>
+      plugin.package === ADMIN
+        ? [drawSettings(plugin.package, context.request), moderationSection(context.request)]
+        : [drawSettings(plugin.package, context.request)],
     where: () => where(plugin, all, context),
   };
   const show = (key) => {
