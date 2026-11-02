@@ -95,7 +95,9 @@
 .venue-stats-head { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
 .venue-stats-head .group-name { margin: 0; }
 .venue-stats-head .seg { margin-left: auto; }
-.venue-stats .stat-tile { background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.venue-stats .stat-tiles { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.venue-stats .stat-tile { padding: 10px 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.venue-stats .stat-tile b { font-size: 20px; }
 .venue-stats .bars { height: 110px; }
 .venue-stats h3 { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; font-weight: 500; }
 .group-name { margin: 18px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; }

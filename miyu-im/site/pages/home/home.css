@@ -60,6 +60,7 @@
 /* 「今天」（施工 I-100）：格子同数据统计（stats.css），整块点了去数据统计。 */
 .home-today { margin-bottom: 12px; cursor: pointer; }
 .home-today .stat-tiles { margin-bottom: 0; }
+.home-today .stats-note { margin: 6px 0 0; }
 .home-today .stat-tile { background: var(--surface-1); box-shadow: var(--card-shadow); }
 .home-today:hover .stat-tile { background: var(--surface-2); }
 .today-more { display: inline-flex; align-items: center; gap: 2px; color: var(--text-soft); font-size: 12.5px; text-decoration: none; }

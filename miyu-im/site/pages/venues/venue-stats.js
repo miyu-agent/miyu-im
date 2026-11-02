@@ -1,8 +1,8 @@
 // 会话浮窗「概况」里这个会话的统计（施工 I-101，项目主人 11-02 定「小号统计页」）：今天、7 天、30 天；收到、回复、只记录、token、
-// 缓存命中率，和前一段同样长的比；7 天、30 天的再画每天的消息、每天的 token。只算这张卡管的场所：先问 cards.overview 带
+// 花费（施工 I-105，没价钱的请求底下写一行）、缓存命中率，和前一段同样长的比；7 天、30 天的再画每天的消息、每天的 token。只算这张卡管的场所：先问 cards.overview 带
 // `venues: true` 拿到场所，再问 stats 带 `venues`（陌生群、陌生私聊是名单以外的那些并起来）。
 import { element, say } from '../../shell/i18n.js';
-import { bars, delta, legend, short, tile } from '../stats/stats.js';
+import { bars, delta, legend, money, short, tile, unpriced } from '../stats/stats.js';
 
 const PERIODS = ['today', '7d', '30d'];
 const REMEMBER = 'miyu-im-venue-stats-period';
@@ -51,9 +51,10 @@ export function venueStats(request, card) {
       tile(say('stats/replied'), short(now?.replied), now && delta(now.replied, before.replied)),
       tile(say('stats/recorded'), short(now?.recorded), now && delta(now.recorded, before.recorded)),
       tile(say('stats/tokens'), short(token?.total), token && delta(token.total, token.prev_total)),
+      tile(say('stats/cost'), money(token?.cost?.amount, token?.cost?.currency), token && delta(token.cost?.amount, token.prev_cost)),
       tile(say('stats/hit-rate'), rate, null),
     );
-    const parts = [tiles];
+    const parts = [tiles, unpriced(token?.cost || {})];
     const days = shown?.messages?.days || [];
     if (days.length > 1) {
       const daily = bars(
