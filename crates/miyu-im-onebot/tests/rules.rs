@@ -20,18 +20,18 @@ pub fn group(number: &str) -> Venue {
     Venue::new("qq", VenueKind::Group, number).expect("合写法")
 }
 
-/// 系统的 `venues.d/<name>` 写成 `text`（字节）。
+/// 系统的（im 的配置目录里的）`venues.d/<name>` 写成 `text`（字节）。
 pub fn system_rule(root: &DataRoot, name: &str, text: impl AsRef<[u8]>) -> PathBuf {
-    let dir = root.path().join("venues.d");
+    let dir = miyu_im::dirs::config(root).join("venues.d");
     std::fs::create_dir_all(&dir).expect("建得了");
     let path = dir.join(name);
     std::fs::write(&path, text).expect("写得进");
     path
 }
 
-/// 系统的违规词表 `modules/im/moderation.txt` 写成 `text`（字节）。
+/// 系统的违规词表（im 的配置目录里的 `moderation.txt`）写成 `text`（字节）。
 pub fn system_words(root: &DataRoot, text: impl AsRef<[u8]>) -> PathBuf {
-    let dir = root.path().join("modules").join("miyu-im");
+    let dir = miyu_im::dirs::config(root);
     std::fs::create_dir_all(&dir).expect("建得了");
     let path = dir.join("moderation.txt");
     std::fs::write(&path, text).expect("写得进");
@@ -260,7 +260,12 @@ fn only_rule_files_are_read() {
     system_rule(&root, "80-notes.txt", rule);
     system_rule(&root, "80-backup.toml~", rule);
     system_rule(&root, ".#80-lock.toml", rule);
-    std::fs::create_dir_all(root.path().join("venues.d").join("80-dir.toml")).expect("建得了");
+    std::fs::create_dir_all(
+        miyu_im::dirs::config(&root)
+            .join("venues.d")
+            .join("80-dir.toml"),
+    )
+    .expect("建得了");
     let loaded = plain(&root);
     assert_eq!(loaded.problems, [], "不是规则文件的不读，也不报");
     assert_eq!(
@@ -361,7 +366,9 @@ fn a_system_file_that_cannot_be_read_still_replaces_the_same_name() {
 #[test]
 fn venues_d_that_cannot_be_listed_is_a_problem() {
     let (dir, root) = temp_root();
-    std::fs::write(root.path().join("venues.d"), "not a directory").expect("写得进");
+    let config = miyu_im::dirs::config(&root);
+    std::fs::create_dir_all(&config).expect("建得了");
+    std::fs::write(config.join("venues.d"), "not a directory").expect("写得进");
     let loaded = plain(&root);
     assert_eq!(loaded.problems.len(), 1);
     let problem = &loaded.problems[0];
@@ -376,124 +383,4 @@ fn venues_d_that_cannot_be_listed_is_a_problem() {
         "出厂的照用"
     );
     clean(&dir);
-}
-
-#[test]
-fn factory_mistakes_are_all_reported() {
-    let resources = copied_resources();
-    let factory = resources.join("packages/miyu-im/data");
-    std::fs::write(
-        factory.join("venues.d/50-defaults.toml"),
-        "[[rule]]\nrate = \"abc\"\n",
-    )
-    .expect("写得进");
-    let defaults = std::fs::read_to_string(factory.join("defaults.toml")).expect("读得了");
-    std::fs::write(
-        factory.join("defaults.toml"),
-        defaults.replace("severity_min = 7 ", "severity_min = 70 "),
-    )
-    .expect("写得进");
-    std::fs::remove_file(factory.join("moderation.txt")).expect("删得了");
-    let problems =
-        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("读不出来");
-    let seen = problems
-        .iter()
-        .map(|problem| {
-            (
-                problem.code,
-                problem.source,
-                problem.file.as_str(),
-                problem.key.as_deref(),
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        seen,
-        [
-            (
-                Code::BadFormat,
-                Source::Factory,
-                "50-defaults.toml",
-                Some("rate")
-            ),
-            (
-                Code::OutOfRange,
-                Source::Factory,
-                "defaults.toml",
-                Some("chatty.severity_min")
-            ),
-            (Code::Unreadable, Source::Factory, "moderation.txt", None),
-        ]
-    );
-    clean(resources.parent().expect("有上一级"));
-}
-
-#[test]
-fn broken_judge_texts_are_factory_mistakes() {
-    // 判官的说明（施工 O-23 下）：`violations.txt` 的模板写坏了、要了别的字段，记一条 `bad_format`；少了一份记一条读不成。
-    let resources = copied_resources();
-    let judge = resources.join("packages/miyu-im/data/judge");
-    std::fs::write(judge.join("violations.txt"), "Severity {nope}.\n").expect("写得进");
-    let problems =
-        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("模板写坏了");
-    assert_eq!(
-        problems
-            .iter()
-            .map(|problem| (problem.code, problem.source, problem.file.as_str()))
-            .collect::<Vec<_>>(),
-        [(Code::BadFormat, Source::Factory, "judge/violations.txt")]
-    );
-    assert!(
-        problems[0]
-            .why
-            .as_deref()
-            .is_some_and(|why| why.contains("nope")),
-        "{problems:?}"
-    );
-    std::fs::copy(
-        resources_file("packages/miyu-im/data/judge/violations.txt"),
-        judge.join("violations.txt"),
-    )
-    .expect("抄得了");
-    std::fs::remove_file(judge.join("answer.txt")).expect("删得了");
-    let problems =
-        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("少了一份");
-    assert_eq!(
-        problems
-            .iter()
-            .map(|problem| (problem.code, problem.file.as_str()))
-            .collect::<Vec<_>>(),
-        [(Code::Unreadable, "judge/answer.txt")]
-    );
-    clean(resources.parent().expect("有上一级"));
-}
-
-/// 源码树里资源目录的一份文件。
-fn resources_file(path: &str) -> PathBuf {
-    resources().join(path)
-}
-
-#[test]
-fn a_factory_warning_or_a_missing_directory_is_a_mistake_too() {
-    let resources = copied_resources();
-    let rules = resources.join("packages/miyu-im/data/venues.d");
-    std::fs::write(rules.join("60-extra.toml"), "nonsense = 1\n").expect("写得进");
-    let problems =
-        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("警告也算");
-    assert_eq!(problems.len(), 1);
-    assert_eq!(
-        (problems[0].code, problems[0].file.as_str()),
-        (Code::UnknownKey, "60-extra.toml")
-    );
-    std::fs::remove_dir_all(&rules).expect("删得了");
-    let problems =
-        crate::support::shipped::factory_at(&package_in(&resources)).expect_err("出厂的规则不在");
-    assert_eq!(
-        problems
-            .iter()
-            .map(|problem| (problem.code, problem.file.as_str()))
-            .collect::<Vec<_>>(),
-        [(Code::Unreadable, "venues.d")]
-    );
-    clean(resources.parent().expect("有上一级"));
 }

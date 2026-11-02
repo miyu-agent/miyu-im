@@ -1,8 +1,9 @@
 //! 桥自己的包文件夹（施工 S-6 上，设计 `32-仓库拆分.md` 第九节第 2 条，作者说明第四节第 1 条）：清单 `package.toml` 在它
 //! 根上，桥自己读的出厂数据、给模型看的字、给人看的字在它的 `data/` 里（原来在资源目录的 `software/onebot/`）。
 //!
-//! 在哪由核心定：核心拉起扩展、转交包的命令时把 `MIYU_PACKAGE_DIR` 设成这个包的文件夹（出厂的在资源目录、自己装的在家目录，
-//! 哪一层就是哪一层）；桥不自己拼家目录的布局。没设的（老核心、人在终端里直接跑）退回资源目录的 `packages/miyu-im/`。
+//! 在哪由核心定：核心拉起扩展、转交包的命令时把 `MIYU_APP_DIR` 设成这个包的文件夹（出厂的在资源目录、自己装的在数据根的
+//! `opt/<编号>/`，哪一层就是哪一层；核心设计 55 第四节，过渡期间一起给的旧名字 `MIYU_PACKAGE_DIR` 也认）；桥不自己拼家目录的
+//! 布局。没设的（人在终端里直接跑）退回资源目录的 `packages/miyu-im/`。
 
 #[cfg(test)]
 mod tests;
@@ -14,13 +15,13 @@ use miyu_client::places::ResourceRoot;
 
 use crate::PACKAGE;
 
-/// 核心交来包文件夹的环境变量。
-pub const VARIABLE: &str = "MIYU_PACKAGE_DIR";
+/// 核心交来包文件夹的环境变量：新名字在前（施工 I-121）。
+pub const VARIABLES: &[&str] = &["MIYU_APP_DIR", "MIYU_PACKAGE_DIR"];
 
 /// 包文件夹里放桥自己的数据的目录。
 const DATA: &str = "data";
 
-/// 资源目录里放出厂的软件包的目录：没设 [`VARIABLE`] 时照它找。
+/// 资源目录里放出厂的软件包的目录：没设 [`VARIABLES`] 时照它找。
 const SHIPPED: &str = "packages";
 
 /// 这个包的文件夹。
@@ -30,7 +31,7 @@ pub struct Package {
 }
 
 impl Package {
-    /// 照环境变量 [`VARIABLE`] 的值 `given` 找：设了、不是空的就是它；没设、空的退回资源目录 `resources` 里出厂的那一份
+    /// 照环境变量 [`VARIABLES`] 的值 `given` 找：设了、不是空的就是它；没设、空的退回资源目录 `resources` 里出厂的那一份
     /// （`packages/miyu-im/`）。
     pub fn locate(given: Option<&OsStr>, resources: &ResourceRoot) -> Package {
         match given.filter(|given| !given.is_empty()) {

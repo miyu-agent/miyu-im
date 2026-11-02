@@ -1,4 +1,4 @@
-//! 包文件夹在哪（施工 S-6 上）：设了 `MIYU_PACKAGE_DIR` 的照它，没设、空的退回资源目录里出厂的那一份。
+//! 包文件夹在哪（施工 S-6 上）：设了 `MIYU_APP_DIR`（旧名字 `MIYU_PACKAGE_DIR`）的照它，没设、空的退回资源目录里出厂的那一份。
 
 use std::ffi::OsStr;
 use std::path::Path;

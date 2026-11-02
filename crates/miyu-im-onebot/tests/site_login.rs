@@ -15,7 +15,7 @@ const PASSWORD: &str = "correct horse battery";
 
 /// 核心记着的登录令牌有几个。
 fn tokens(home: &Home) -> usize {
-    let path = home.root.path().join("logins.json");
+    let path = home.root.logins_file();
     let logins: Value =
         serde_json::from_slice(&std::fs::read(path).expect("读得了")).expect("是 JSON");
     logins["tokens"].as_array().expect("有令牌表").len()

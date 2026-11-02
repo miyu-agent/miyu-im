@@ -4,6 +4,8 @@
 //!
 //! - 状态目录：`MIYU_STATE_DIR`，过渡期间核心一起给的旧名字 `MIYU_PACKAGE_STATE` 也认（核心 FH-6 删旧名字）。
 //! - 日志目录：`MIYU_LOG_DIR`。im 自己的运行日志 `miyu-im.log` 写在这里，核心记的 im 的标准错误也在这里，叫 `stderr`。
+//! - 配置目录：`MIYU_CONFIG_DIR`。主人手改的场所规则 `venues.d/`、违规词表 `moderation.txt` 在这里；旧位置（数据根下的
+//!   `venues.d/`、`modules/miyu-im/`）不读，核心 FH-7 一次搬过来。
 //! - 只认绝对路径：给了个相对的、空的，当没给。
 
 use std::ffi::OsString;
@@ -19,6 +21,9 @@ const STATE: &[&str] = &["MIYU_STATE_DIR", "MIYU_PACKAGE_STATE"];
 /// 日志目录的名字。
 const LOG: &[&str] = &["MIYU_LOG_DIR"];
 
+/// 配置目录的名字。
+const CONFIG: &[&str] = &["MIYU_CONFIG_DIR"];
+
 /// 核心记的标准错误在日志目录里叫什么（设计 55 第二节 `var/log/<编号>/stderr`）。
 const STDERR: &str = "stderr";
 
@@ -30,6 +35,11 @@ pub fn state(root: &DataRoot) -> PathBuf {
 /// 数据根 `root` 里 im 的日志目录。
 pub fn logs(root: &DataRoot) -> PathBuf {
     given(LOG, env).unwrap_or_else(|| root.package_logs(PACKAGE))
+}
+
+/// 数据根 `root` 里 im 的配置目录：主人手改的场所规则、违规词表在这里。
+pub fn config(root: &DataRoot) -> PathBuf {
+    given(CONFIG, env).unwrap_or_else(|| root.package_config(PACKAGE))
 }
 
 /// im 自己的运行日志（[`logs`] 下的 `miyu-im.log`，`miyu_client::log::install` 照目录和名字写）。

@@ -47,12 +47,7 @@ fn script() -> Script {
 
 /// 等到测试包登记了 `sticker`（核心写了它的登记缓存）：不然她的第一轮可能比它早，工具面上还没有。
 async fn until_provided(home: &Home) {
-    let cache = home
-        .root
-        .path()
-        .join("state")
-        .join("providers")
-        .join("stickers.json");
+    let cache = home.root.provide_cache("stickers");
     let deadline = tokio::time::Instant::now() + WAIT;
     while !cache.exists() {
         assert!(tokio::time::Instant::now() < deadline, "测试包没登记工具");

@@ -1,11 +1,11 @@
 //! 场所规则和出厂数据（`docs/blueprint/onebot.md` 第一条「场所规则和出厂数据」，施工 O-21）：写法、怎么套由群聊内核管
 //! （`chat.md` 第一条、第八条、第二条第 12 条），读文件是桥的事（群聊内核在第 2 层，不碰磁盘）。
 //!
-//! | 什么 | 出厂（包文件夹的 `data/`，施工 S-6 上从资源目录的 `software/onebot/` 挪来） | 系统（数据根下） |
+//! | 什么 | 出厂（包文件夹的 `data/`，施工 S-6 上从资源目录的 `software/onebot/` 挪来） | 系统（im 的配置目录，[`crate::dirs::config`]） |
 //! |---|---|---|
 //! | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml` |
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
-//! | 违规词表 | `moderation.txt` | `modules/miyu-im/moderation.txt`，在的话整份替换出厂的 |
+//! | 违规词表 | `moderation.txt` | `moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
 //! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、场所会话 system 尾部的群名（施工 O-49）、附加提示词（施工 O-58 上） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt`、`system/note.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
@@ -37,8 +37,8 @@ use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, 
 use miyu_client::places::DataRoot;
 use miyu_client::settings::problem::Code;
 
+use crate::TARGET;
 use crate::package::Package;
-use crate::{PACKAGE, TARGET};
 pub use cards::OTHER_GROUPS_RATE;
 pub use cards::defaults as card_defaults;
 pub use cards::edit::{self as card_edit, Edit};
@@ -53,20 +53,17 @@ use files::Stamp;
 pub use tools::Tools;
 pub(crate) use tools::Toolset;
 
-/// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的直接在数据根下（核心 SU-5 上起没有 `system/` 那一层了）。
+/// 场所规则的目录：出厂的在包文件夹的 `data/` 里，系统的在 im 的配置目录里（施工 I-121）。
 const VENUES: &str = "venues.d";
 
 /// 出厂参数：只有出厂的（`chat.md` 第八条「怎么走」第 3 条）。
 const DEFAULTS: &str = "defaults.toml";
 
-/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在数据根的 `modules/miyu-im/` 里。
+/// 违规词表：出厂的在包文件夹的 `data/` 里，系统的在 im 的配置目录里（施工 I-121）。
 const MODERATION: &str = "moderation.txt";
 
 /// 场所卡片两页上给人看的字（施工 O-58 下）：不放进 `human/`，那里只放语言文件（工具说明照语言读整个目录）。
 const PAGE: &str = "cards/human/page.json";
-
-/// 包自己的系统数据在数据根下的哪个目录里，再往下是包的编号（2026-10-09 核心的主会话定）。
-const MODULES: &str = "modules";
 
 /// 出厂参数每一项的值：`表.项` → 值。
 pub type Values = std::collections::BTreeMap<&'static str, serde_json::Value>;
@@ -251,7 +248,7 @@ pub fn load(
 
 /// 出厂的、桥拼的几份 `layers`、系统的合起来读（[`load`]；卡片的默认值不带卡片那几份，[`Venues::beneath`]）。
 fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
-    let system = root.path();
+    let system = crate::dirs::config(root);
     let mut problems = Vec::new();
     let mut files = factory.rules.clone();
     files.extend(layers);
@@ -282,14 +279,15 @@ fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
     }
 }
 
-/// 系统的违规词表：`modules/miyu-im/moderation.txt`（在数据根下）（施工 I-16 起页面也写它，`site::moderation`）。
+/// 系统的违规词表：im 的配置目录里的 `moderation.txt`（施工 I-16 起页面也写它，`site::moderation`；I-121 从
+/// `modules/miyu-im/` 挪来）。
 pub(crate) fn words(root: &DataRoot) -> PathBuf {
-    root.path().join(MODULES).join(PACKAGE).join(MODERATION)
+    crate::dirs::config(root).join(MODERATION)
 }
 
 /// 系统的两处这一刻的样子。
 fn stamp(root: &DataRoot) -> Stamp {
-    Stamp::of(&root.path().join(VENUES), &words(root))
+    Stamp::of(&crate::dirs::config(root).join(VENUES), &words(root))
 }
 
 /// 桥手里的场所规则和出厂数据：要用时交进当时的时刻，隔够了才看一眼系统的变没变，变了整份重读（「场所规则和出厂数据」
@@ -298,7 +296,7 @@ fn stamp(root: &DataRoot) -> Stamp {
 pub struct Venues {
     /// 出厂的：不再读。
     factory: Factory,
-    /// 数据根：系统的那几份直接在它下面。
+    /// 数据根：系统的那几份在它里面 im 的配置目录里。
     root: DataRoot,
     /// 配置项那一层这一刻的三项（施工 O-41）。
     configured: Configured,

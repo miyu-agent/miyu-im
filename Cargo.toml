@@ -14,22 +14,22 @@ publish = false
 [workspace.dependencies]
 # 门面：桥只经它拿核心的东西（设计 32 第九节第 1 条）。`http`、`tool` 两组（HTTP 客户端、工具的字怎么读）在核心 7384e880
 # 起要开 feature 才有，桥两样都用。`testkit` 只在测试里开：照钉住的那份核心检出读出厂资源。
-miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37", features = ["http", "tool"] }
+miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1", features = ["http", "tool"] }
 # 群聊内核要的：编号、时刻、模板（内核），配置清单的类型和问题（配置）。
-miyu-kernel = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-config = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
+miyu-kernel = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-config = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
 # 下面几个只给桥的测试用（开发依赖）：测试进程里起一个真的核心、拼请求、读会话日志。
-miyu-ipc = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-store = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-log = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-tool = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-core = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37", default-features = false }
-miyu-endpoint = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
+miyu-ipc = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-store = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-log = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-tool = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-core = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1", default-features = false }
+miyu-endpoint = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
 
-miyu-basesystem = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-session = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-http = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
-miyu-models = { git = "https://github.com/miyu-agent/miyu", rev = "1dd1929f9b91ad413e9de6364dbee60993008f37" }
+miyu-basesystem = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-session = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-http = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
+miyu-models = { git = "https://github.com/miyu-agent/miyu", rev = "77d7c20cdf27a58502b9ed9287a4838c4dcf14b1" }
 # 这个仓库自己的：桥用群聊内核。
 miyu-chat = { path = "crates/miyu-chat" }
 

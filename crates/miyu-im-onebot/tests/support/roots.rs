@@ -31,7 +31,7 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
     (dir, root)
 }
 
-/// 主人的家目录：人格、预设、技能、脚本只认这里。核心 SU-5 上起数据根只剩一层，就是数据根本身（原来是 `home/<主人>/`）。
+/// 主人那一层：人格、预设、技能、脚本只认这里（核心设计 55 起是数据根的 `root/`，[`DataRoot::user_layer`]）。
 pub fn owner_home(root: &DataRoot) -> PathBuf {
-    root.path().to_path_buf()
+    root.user_layer()
 }

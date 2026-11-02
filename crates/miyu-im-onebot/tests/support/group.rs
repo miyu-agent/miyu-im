@@ -407,7 +407,7 @@ async fn up_installed(
             },
             (install.clone(), catalog.clone()),
         );
-        let dir = home.root.path().join("venues.d");
+        let dir = miyu_im::dirs::config(&home.root).join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
         // 卡片那一层（施工 O-58 上）：出厂「其他群」关着，这里打开，测试的群照老的默认接话；要测「不接话」的规则自己写。群出厂
@@ -420,9 +420,9 @@ async fn up_installed(
         )
         .expect("写得进");
         if !words.is_empty() {
-            let modules = home.root.path().join("modules").join("miyu-im");
-            std::fs::create_dir_all(&modules).expect("建得了目录");
-            std::fs::write(modules.join("moderation.txt"), words).expect("写得进");
+            let config = miyu_im::dirs::config(&home.root);
+            std::fs::create_dir_all(&config).expect("建得了目录");
+            std::fs::write(config.join("moderation.txt"), words).expect("写得进");
         }
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));

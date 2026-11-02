@@ -10,7 +10,7 @@
 //! - `-h`、`--help`：总表印在标准输出上，退出码 0（`miyu help im` 转成 `--help`）；命令后面带的印那个命令的（施工 I-87，照核心
 //!   设计 47「命令行文案」）。没写命令、不认识的命令、参数写错的报 `miyu im: …` 加提示行，退出码 2。
 //!
-//! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_PACKAGE_DIR`，没有的照资源目录里出厂的那一份，施工 S-6 上），
+//! 先找资源目录、自己的包文件夹（[`Package`]：核心交来的 `MIYU_APP_DIR`（旧名字 `MIYU_PACKAGE_DIR`），没有的照资源目录里出厂的那一份，施工 S-6 上），
 //! 读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
 //! `state/logs/miyu-im.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
 //! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
@@ -66,7 +66,10 @@ enum Command {
 pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
     let env = Env::current();
     let locale = locale();
-    let given = std::env::var_os(package::VARIABLE);
+    let given = package::VARIABLES
+        .iter()
+        .filter_map(std::env::var_os)
+        .find(|given| !given.is_empty());
     let texts = ResourceRoot::locate(&env)
         .map_err(|error| error.to_string())
         .and_then(|resources| {

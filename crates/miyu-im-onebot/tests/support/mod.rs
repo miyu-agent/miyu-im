@@ -199,11 +199,13 @@ impl Home {
     ) -> Home {
         let (dir, root) = temp_root();
         install(&root);
-        let file = root.path().join("config.toml");
+        let file = root.config_file();
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
         std::fs::write(&file, config).expect("写得进");
         if let Some(secrets) = secrets {
-            std::fs::write(file.with_file_name("secrets.toml"), secrets).expect("写得进");
+            let file = root.secrets_file();
+            std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
+            std::fs::write(&file, secrets).expect("写得进");
         }
         let shipped = shipped(&dir);
         let dirs = miyu_ipc::Dirs {

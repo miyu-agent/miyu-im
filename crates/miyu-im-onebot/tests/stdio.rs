@@ -226,7 +226,9 @@ async fn texts_come_from_the_package_folder_it_is_handed() {
         command.env("MIYU_RESOURCES", &empty);
         match handed {
             Some(folder) => command.env("MIYU_PACKAGE_DIR", folder),
-            None => command.env_remove("MIYU_PACKAGE_DIR"),
+            None => command
+                .env_remove("MIYU_PACKAGE_DIR")
+                .env_remove("MIYU_APP_DIR"),
         };
         ran_to_end(command)
     };

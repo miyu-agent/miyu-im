@@ -33,6 +33,7 @@ mod disciplines;
 mod display_names;
 mod drivers;
 mod exports;
+mod factory_rules;
 mod final_only;
 mod followed;
 mod forwards;
