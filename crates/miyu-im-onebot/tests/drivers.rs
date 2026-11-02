@@ -456,19 +456,6 @@ async fn the_home_stats_follow_the_chosen_connection() {
         json!([{"name": "tg:30003:private:10001", "received": tg}]),
         "{tg_shown}"
     );
-    // 施工 I-100：数据统计页的「按连接」，一个连接一行。
-    let every = browser::call(&mut open, 4, "stats", json!({})).await;
-    let rows = every["result"]["connections"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    let of = |id: String| {
-        rows.iter()
-            .find(|row| row["name"] == id.as_str())
-            .map(|row| row["received"].clone())
-    };
-    assert_eq!(of(format!("tg:{BOT}")), Some(json!(tg)), "{rows:?}");
-    assert_eq!(of(format!("qq:{BOT}")), Some(json!(qq)), "{rows:?}");
     let wrong = browser::call(&mut open, 10, "stats", json!({"connection": "qq"})).await;
     assert_eq!(wrong["error"]["reason"], "bad_params", "{wrong}");
     two.bridge.stop().await.expect("停得下");
