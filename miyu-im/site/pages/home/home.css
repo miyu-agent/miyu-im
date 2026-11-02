@@ -55,6 +55,14 @@
 }
 
 /* 今天的数字、运行日志（施工 I-6 下）：照样板 d-im.html。 */
+/* 「今天」（施工 I-100）：格子同数据统计（stats.css），整块点了去数据统计。 */
+.home-today { margin-bottom: 12px; cursor: pointer; }
+.home-today .stat-tiles { margin-bottom: 0; }
+.home-today .stat-tile { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.home-today:hover .stat-tile { background: var(--surface-2); }
+.today-more { display: inline-flex; align-items: center; gap: 2px; color: var(--text-soft); font-size: 12.5px; text-decoration: none; }
+.today-more:hover { color: var(--text); }
+.today-more svg { width: 14px; height: 14px; }
 .home-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .logs h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; font-weight: 600; }
 .log-filter { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border-radius: 8px; background: var(--surface-2); }

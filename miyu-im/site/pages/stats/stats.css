@@ -1,4 +1,4 @@
-/* 首页的统计（施工 I-14 起，I-85 下并进首页）：数照卡片，图都是条；颜色照主题的几样，不描边。 */
+/* 数据统计（施工 I-14 起，I-85 下并进首页，I-100 拆回侧栏）：数照卡片，图都是条；颜色照主题的几样，不描边。 */
 .stats-body { display: flex; flex-direction: column; gap: 16px; }
 .stats-section { padding: 18px 20px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); }
 .stats-section h2 { margin: 0 0 12px; font-size: 16px; }

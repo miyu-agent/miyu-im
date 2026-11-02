@@ -1,10 +1,10 @@
 // 首页（设计 01 第八节第 2 条，施工 I-6 上起）：一个连接都没有的正中一个「新建连接」；有连接的「连接」一栏，一个机器人一张卡：
 // 头像（页面服务转的，取不到的写平台的字母）、平台的角标、名字（没问到的写号）、平台和实现、号和连了多久；断开了的卡留着，写断开
-// 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面是统计（I-85 下从统计页并进来，stats.js）、插件的首页
+// 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面是「今天」四个数（I-100：统计拆回侧栏「数据统计」，首页只留这几个，today.js）、插件的首页
 // 卡片（施工 I-8 下，plugin-cards.js）和最近的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久
 // 每分钟照本机的钟重画一次（不问宿主）。
 // 连接不止一个时连接那一排就是切换器（施工 I-85 中，设计 07 第二节第 2 条）：前面一张「全部」，点一张选中它（shell/connection.js），
-// 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。统计、日志跟着选中的连接问（施工 I-85 下）。
+// 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。「今天」、日志跟着选中的连接问（施工 I-85 下）。
 // 连接表（施工 I-81 下中，设计 07 第 7.7 节：一个连接一个端口、一个 Token）：照宿主的 status 的 connections 读；设了 Token、还没有号
 // 从它的端口连进来过的，排在机器人的卡后面一张「等 NapCat 连上」，写端口；机器人的卡、这张卡的齿轮都改它那个端口的连接。
 import { element, icon, say } from '../../shell/i18n.js';
@@ -13,7 +13,7 @@ import { mark, platform } from './platforms.js';
 import { openSettings } from './settings.js';
 import { pluginCards } from './plugin-cards.js';
 import { activityRows, namesOf } from './activity.js';
-import { statsPanel } from './stats.js';
+import { todayPanel } from './today.js';
 import { chooseConnection, chosenOf, EVERY, onConnection } from '../../shell/connection.js';
 import { openWizard } from './wizard.js';
 
@@ -34,7 +34,7 @@ export function mountHome(view, { request }) {
     // 记不住就算了。
   }
   const plugins = pluginCards(request);
-  const stats = statsPanel(request);
+  const today = todayPanel(request);
   const refresh = async () => {
     const picked = chosenOf(connections);
     try {
@@ -52,7 +52,7 @@ export function mountHome(view, { request }) {
     } catch {
       return;
     }
-    stats.update(connections, picked, names);
+    today.update(picked);
     draw();
   };
   const newButton = (className) => {
@@ -109,7 +109,7 @@ export function mountHome(view, { request }) {
       refresh();
     };
     const tagged = !picked && picking;
-    view.replaceChildren(head, section, grid, stats.head, stats.body, plugins.box, logPanel(logs, { level, mode, names, tagged }, choose));
+    view.replaceChildren(head, section, grid, today.head, today.body, plugins.box, logPanel(logs, { level, mode, names, tagged }, choose));
   };
   const timer = setInterval(draw, 60000);
   const unlisten = onConnection(() => {
@@ -127,7 +127,7 @@ export function mountHome(view, { request }) {
     dispose() {
       clearInterval(timer);
       unlisten();
-      stats.dispose();
+      today.dispose();
     },
   };
 }

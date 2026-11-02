@@ -1,38 +1,36 @@
-// 首页的统计（施工 I-14 起是一页，I-85 下并进首页，设计 07 第二节第 3 条；设计 01 第八节第 4 条：看统计主要是看 token，放最上面）：
-// 今天、7 天、30 天，三段从上往下：token、消息、运行。数照宿主的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样
-// 长的比；金额算不准不显示（项目主人的规矩）。
+// 数据统计（施工 I-14 起是一页，I-85 下并进首页，I-100 又拆回侧栏：项目主人 11-02 定首页只留今天的几个数，点进来看明细；设计 01
+// 第八节第 4 条：看统计主要是看 token，放最上面）：今天、7 天、30 天，从上往下：按连接（不止一个连接时）、token、消息、运行。数照宿主
+// 的 stats（核心的用量账本、宿主自己记的、进程的），每一样和前一段同样长的比；金额算不准不显示（项目主人的规矩）。
 //
-// - 跟着首页选中的连接（shell/connection.js）：选了一个的问 stats 带 connection，「全部」的不带。连接不止一个、看「全部」时，场所前面
-//   画它的平台标志。
+// - 这一页算的是全部：所有平台、所有连接、所有会话的合计和明细，不跟着首页选中的连接（设计 07 第二节第 3 条 11-02 改）。连接不止
+//   一个时，场所前面画它的平台标志。
 // - 场所照首页给的名字写（cards.get 的群、好友），没有的写编号；点了去会话页打开那个场所的浮窗（#venues/<种类>/<号>，带上它的连接）。
 // - 图都是条：每天的 token 四样叠着画，构成画成一条，按小时 24 根。
 import { element, say } from '../../shell/i18n.js';
-import { platformDot } from '../../shell/connection-pick.js';
+import { connectionLabel, platformDot } from '../../shell/connection-pick.js';
+import { namesOf } from '../home/activity.js';
 import { venueParts } from '../records/shared.js';
 
 const PERIODS = ['today', '7d', '30d'];
 const PARTS = ['cache_read', 'uncached', 'cache_write', 'output'];
 const REMEMBER = 'miyu-im-stats-period';
-// 同一个连接隔多久才再问统计（毫秒）。
+// 宿主推了变了，隔多久才再问统计（毫秒）。
 const AGAIN = 30000;
 
-/** 首页的统计一栏：`request` 调宿主的方法。交回 { head, body, update(connections, picked, names), dispose() }：`head` 是带时段切换的
- *  一栏标题，`body` 是三段。 */
-export function statsPanel(request) {
+/** 在 `view` 里起数据统计：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
+export function mountStats(view, { request }) {
   let disposed = false;
   let period = remembered();
   let connections = [];
-  let picked = null;
   let names = new Map();
   let shown = null;
   let asked = 0;
-  // 上一次问的连接、什么时候问到的：宿主一推首页就再问一遍，统计（要问核心的用量账本）同一个连接隔够 `AGAIN` 才再问。
-  let scope = null;
   let loadedAt = 0;
   const seg = element('div', 'seg');
-  const head = element('div', 'section-head stats-head');
-  head.append(element('h2', null, say('home/stats')), seg);
+  const head = element('div', 'view-head stats-head');
+  head.append(element('h1', null, say('nav/stats')), seg);
   const body = element('div', 'stats-body');
+  view.replaceChildren(head, body);
   const drawSeg = () => {
     seg.replaceChildren(
       ...PERIODS.map((one) => {
@@ -53,45 +51,59 @@ export function statsPanel(request) {
   };
   const draw = () => {
     if (!shown) return;
-    const context = { names, connections, tagged: !picked && connections.length > 1 };
-    body.replaceChildren(tokens(shown.token, context), messages(shown.messages, context), running(shown.running));
+    const context = { names, connections, tagged: connections.length > 1 };
+    const parts = [];
+    if ((shown.connections || []).length > 1) parts.push(byConnection(shown.connections, connections));
+    parts.push(tokens(shown.token, context), messages(shown.messages, context), running(shown.running));
+    body.replaceChildren(...parts);
   };
   const load = async () => {
     const mine = ++asked;
     if (!shown) body.replaceChildren(element('p', 'faint', say('stats/loading')));
     let answer;
     try {
-      answer = await request('stats', picked ? { period, connection: picked.id } : { period });
+      answer = await request('stats', { period });
     } catch {
       if (!disposed && mine === asked && !shown) body.replaceChildren(element('p', 'faint', say('stats/failed')));
       return;
     }
-    // 等的时候又换了时段、连接的：这一份不要了。
+    // 等的时候又换了时段的：这一份不要了。
     if (disposed || mine !== asked) return;
     shown = answer;
     loadedAt = Date.now();
     draw();
   };
   drawSeg();
+  request('cards.get').then(
+    (cards) => {
+      names = namesOf(cards);
+      draw();
+    },
+    () => {},
+  );
+  load();
   return {
-    head,
-    body,
-    update(now, chosen, known) {
+    update(now) {
       connections = now;
-      picked = chosen;
-      names = known;
-      const wanted = chosen?.id || '';
-      if (wanted === scope && Date.now() - loadedAt < AGAIN) {
-        draw();
-        return;
-      }
-      scope = wanted;
-      load();
+      if (Date.now() - loadedAt < AGAIN) draw();
+      else load();
     },
     dispose() {
       disposed = true;
     },
   };
+}
+
+/** 按连接：一个连接一行，平台标志、名字（没连着、不认得的写编号），右边收到、回复、token。 */
+function byConnection(rows, connections) {
+  const listed = rows.map((one) => {
+    const known = connections.find((connection) => connection.id === one.name);
+    const name = element('span', 'stats-venue');
+    name.append(platformDot(known?.platform || one.name.split(':')[0]), document.createTextNode(known ? connectionLabel(known) : one.name));
+    const right = say('stats/connection-line', { received: short(one.received), replied: short(one.replied), tokens: short(one.tokens) });
+    return [name, right];
+  });
+  return section(say('stats/by-connection'), list(null, listed));
 }
 
 /** 记着的那一段；没记过、记不住的是今天。 */
@@ -119,7 +131,7 @@ function venueLink(id, { names, connections, tagged }) {
 }
 
 /** 一个数照人读的写法：1.2k、3.4M（.0 不写）。 */
-function short(value) {
+export function short(value) {
   if (value == null) return '—';
   const one = (number, unit) => `${number.toFixed(1).replace(/\.0$/, '')}${unit}`;
   if (value >= 1e6) return one(value / 1e6, 'M');
@@ -128,14 +140,14 @@ function short(value) {
 }
 
 /** 和前一段比：↑12%、↓5%、前一段是零的不写。 */
-function delta(now, before) {
+export function delta(now, before) {
   if (now == null || before == null || before === 0) return null;
   const change = Math.round(((now - before) / before) * 100);
   return { text: `${change >= 0 ? '↑' : '↓'}${Math.abs(change)}%`, up: change >= 0 };
 }
 
 /** 一格数：名字、值、和前一段比。 */
-function tile(label, value, compare) {
+export function tile(label, value, compare) {
   const box = element('div', 'stat-tile');
   box.append(element('span', 'faint', label), element('b', null, value));
   if (compare) box.append(element('small', compare.up ? 'up' : 'down', compare.text));
@@ -152,7 +164,7 @@ function section(title, ...parts) {
 /** 一列「名字 · 数」：`rows` 是 [节点或字, 右边的字]。 */
 function list(title, rows) {
   const box = element('div', 'stats-list');
-  box.append(element('h3', null, title));
+  if (title) box.append(element('h3', null, title));
   if (rows.length === 0) box.append(element('p', 'faint', say('stats/none')));
   for (const [name, right] of rows) {
     const row = element('div', 'stats-row');

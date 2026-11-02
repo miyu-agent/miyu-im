@@ -1,5 +1,5 @@
-//! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页）：
-//! `stats {period, connection?}` → `{"token", "messages", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
+//! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页，I-100 拆回侧栏「数据统计」）：
+//! `stats {period, connection?}` → `{"token", "messages", "connections", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
 //! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接。
 //!
 //! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
@@ -7,6 +7,7 @@
 //!   按场所（最多 10 个）、按模型。金额算不准不给（项目主人的规矩）。
 //! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所（最多 10 个），判断的原因，
 //!   按小时收到的。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
+//! - **connections**（施工 I-100：数据统计页的「按连接」）：每个连接（[`connection_of`]）的 token、收到、回复，token 多的在前。
 //! - **running**：桥起来多久、进程的内存和 CPU（照 `ps`，Linux、macOS 有；别的系统是空的）、插件开着几个、出错几个。
 
 use std::collections::BTreeMap;
@@ -17,7 +18,7 @@ use serde_json::{Map, Value, json};
 use super::plugins::core;
 use super::scope::{Scope, within};
 use super::{Person, Site};
-use crate::counters::{Daily, Day};
+use crate::counters::{Daily, Day, connection_of};
 
 /// 按场所、按会话最多列几个。
 const TOP: usize = 10;
@@ -200,6 +201,42 @@ pub(super) fn messages(
     })
 }
 
+/// 按连接的那一段（纯逻辑）：这一段的用量行 `rows`（已照 `scope` 挑过）、几天的计数 `days`，照 [`connection_of`] 分。
+pub(super) fn connections(
+    rows: &[&Value],
+    days: &[(String, Daily)],
+    scope: Option<&Scope>,
+) -> Vec<Value> {
+    let mut sums: BTreeMap<String, [u64; 3]> = BTreeMap::new();
+    for row in rows {
+        if let Some(venue) = row["venue"].as_str() {
+            sums.entry(connection_of(venue).to_string()).or_default()[0] +=
+                usage(row).iter().sum::<u64>();
+        }
+    }
+    for (_, daily) in days {
+        for (venue, day) in daily
+            .venues
+            .iter()
+            .filter(|(venue, _)| within(scope, venue))
+        {
+            let sum = sums.entry(connection_of(venue).to_string()).or_default();
+            sum[1] += day.received;
+            sum[2] += day.replied;
+        }
+    }
+    let mut list: Vec<(String, [u64; 3])> = sums.into_iter().collect();
+    list.sort_by(|a, b| {
+        b.1[0]
+            .cmp(&a.1[0])
+            .then(b.1[1].cmp(&a.1[1]))
+            .then(a.0.cmp(&b.0))
+    });
+    list.into_iter()
+        .map(|(name, [tokens, received, replied])| json!({"name": name, "tokens": tokens, "received": received, "replied": replied}))
+        .collect()
+}
+
 /// `stats`（模块的说明）。
 pub(super) async fn stats(
     site: &Site,
@@ -247,14 +284,14 @@ pub(super) async fn stats(
         .iter()
         .map(|(_, daily)| day_in(daily, scope).replied)
         .sum();
-    let token = token(
-        &ours(&rows["rows"], scope),
-        &ours(&before["rows"], scope),
-        replied,
-    );
+    let shown = ours(&rows["rows"], scope);
+    let connections = connections(&shown, &counted, scope);
+    let token = token(&shown, &ours(&before["rows"], scope), replied);
     let messages = messages(&counted, &counted_before, scope);
     let running = running(site, person).await;
-    Ok(json!({"token": token, "messages": messages, "running": running}))
+    Ok(
+        json!({"token": token, "messages": messages, "connections": connections, "running": running}),
+    )
 }
 
 /// 本机此刻的时区偏移：`+08:00` 这样。

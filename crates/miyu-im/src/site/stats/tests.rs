@@ -148,3 +148,42 @@ fn a_chosen_connection_counts_only_its_venues() {
     assert_eq!(all["now"]["received"], 7);
     assert_eq!(all["hours"][9], 7);
 }
+
+#[test]
+fn each_connection_adds_up_its_tokens_and_messages() {
+    let rows = json!([
+        {"venue": "qq:10001:group:777", "requests": 1, "usage": {"cache_read": 800, "uncached": 200}},
+        {"venue": "qq:10001:private:5", "requests": 1, "usage": {"output": 50}},
+        {"venue": "tg:7890:group:-100", "requests": 1, "usage": {"uncached": 2000}},
+    ]);
+    let day = |received, replied| Day {
+        received,
+        replied,
+        ..Day::default()
+    };
+    let daily = Daily {
+        venues: [
+            ("qq:10001:group:777".to_string(), day(3, 1)),
+            ("qq:10001:private:5".to_string(), day(2, 2)),
+            ("tg:7890:group:-100".to_string(), day(4, 0)),
+            ("qq:group:9".to_string(), day(1, 1)),
+        ]
+        .into(),
+        ..Daily::default()
+    };
+    let days = vec![("2026-10-20".to_string(), daily)];
+    let shown = connections(&ours(&rows, None), &days, None);
+    assert_eq!(
+        shown,
+        vec![
+            json!({"name": "tg:7890", "tokens": 2000, "received": 4, "replied": 0}),
+            json!({"name": "qq:10001", "tokens": 1050, "received": 5, "replied": 3}),
+            json!({"name": "qq", "tokens": 0, "received": 1, "replied": 1}),
+        ],
+        "token 多的在前；I-81 以前的场所照平台算"
+    );
+    let tg = scope("tg:7890");
+    let only = connections(&ours(&rows, Some(&tg)), &days, Some(&tg));
+    assert_eq!(only.len(), 1, "{only:?}");
+    assert_eq!(only[0]["name"], "tg:7890");
+}
