@@ -90,11 +90,14 @@
   .tags { max-width: 100%; }
 }
 
-/* 概况里今天的数和最近判断（施工 I-7 上补），照样板 d-im.html。 */
-.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
-.fact { padding: 12px 14px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
-.fact b { display: block; font-size: 22px; }
-.fact span { color: var(--text-soft); }
+/* 概况里的最近判断（施工 I-7 上补），照样板 d-im.html。 */
+/* 这个会话的统计（施工 I-101）：格子、条照数据统计（stats.css），底色照「是否回复」那一行。 */
+.venue-stats-head { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
+.venue-stats-head .group-name { margin: 0; }
+.venue-stats-head .seg { margin-left: auto; }
+.venue-stats .stat-tile { background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.venue-stats .bars { height: 110px; }
+.venue-stats h3 { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; font-weight: 500; }
 .group-name { margin: 18px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
 .why { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .why:last-child { border-bottom: 0; }

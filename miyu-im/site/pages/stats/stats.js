@@ -175,7 +175,7 @@ function list(title, rows) {
 }
 
 /** 竖条图：`rows` 是 [标签, [每一段的值…], 悬停的字?]，段照 `classes` 上色、从下往上叠。 */
-function bars(title, rows, classes) {
+export function bars(title, rows, classes) {
   const box = element('div', 'stats-chart');
   box.append(element('h3', null, title));
   const max = Math.max(1, ...rows.map(([, values]) => values.reduce((sum, one) => sum + one, 0)));
@@ -200,7 +200,7 @@ function bars(title, rows, classes) {
 }
 
 /** 图例。 */
-function legend(keys, classes) {
+export function legend(keys, classes) {
   const box = element('div', 'legend');
   keys.forEach((key, index) => {
     const item = element('span');

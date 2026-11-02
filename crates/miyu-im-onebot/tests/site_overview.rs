@@ -162,6 +162,56 @@ async fn the_overview_counts_today_and_says_why_each_message_was_answered() {
         .unwrap_or_default();
     assert_eq!(hours, 2, "{stats}");
     assert!(stats["result"]["running"]["uptime"].is_u64(), "{stats}");
+    // 施工 I-101：浮窗「概况」的统计，先问卡管的场所，再只算它们的；不带 `venues: true` 的不交。
+    assert!(listed["venues"].is_null(), "{listed}");
+    let own = |card: Value| json!({"card": card, "venues": true});
+    let seen = call(
+        &mut open,
+        7,
+        "cards.overview",
+        own(json!({"kind": "group", "id": LISTED})),
+    )
+    .await;
+    let venues = seen["result"]["venues"].clone();
+    assert_eq!(venues.as_array().map(Vec::len), Some(1), "{seen}");
+    assert!(
+        venues[0]
+            .as_str()
+            .is_some_and(|venue| venue.ends_with(&format!(":group:{LISTED}"))),
+        "{seen}"
+    );
+    let counted = call(
+        &mut open,
+        8,
+        "stats",
+        json!({"period": "7d", "venues": venues}),
+    )
+    .await;
+    let now = &counted["result"]["messages"]["now"];
+    assert_eq!(
+        (&now["received"], &now["replied"]),
+        (&json!(1), &json!(1)),
+        "{counted}"
+    );
+    let strangers = call(
+        &mut open,
+        9,
+        "cards.overview",
+        own(json!({"kind": "other_groups"})),
+    )
+    .await;
+    let venues = strangers["result"]["venues"].clone();
+    assert!(
+        venues[0]
+            .as_str()
+            .is_some_and(|venue| venue.ends_with(&format!(":group:{OTHER}"))),
+        "{strangers}"
+    );
+    assert_eq!(
+        venues.as_array().map(Vec::len),
+        Some(1),
+        "名单里的不算：{strangers}"
+    );
     // 不认的段照今天。
     let wrong = call(&mut open, 6, "stats", json!({"period": "year"})).await;
     assert_eq!(wrong["result"]["messages"]["now"]["received"], 2, "{wrong}");

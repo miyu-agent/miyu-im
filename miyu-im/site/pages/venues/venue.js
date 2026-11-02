@@ -4,7 +4,8 @@
 //   限流与并发、发送消息处理（I-7 中一，form.js 照 fields.js 画）、触发方式（I-7 中二）、管理插件（I-7 中四，plugins.js）做好了；
 //   一格都没有的页不列。
 // - 概况：是否回复（私聊白名单里的人没有这一格：在名单里就是要回），改了当场存（cards.save_one），存好了宿主推 cards、墙跟着变。
-//   下面今天的数和最近判断（施工 I-7 上补，overview.js）：开的时候问一次 cards.overview，宿主推了变了（来了消息、卡片变了）再问。
+//   下面这个会话的统计（施工 I-101，venue-stats.js：今天、7 天、30 天，宿主推了变了隔 30 秒才再问）和最近判断（施工 I-7 上补，
+//   overview.js）：开的时候问一次 cards.overview，宿主推了变了（来了消息、卡片变了）再问。
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
 // - 「插件加的」（施工 I-8 下，设计 01 第四节第 5 条）：声明了浮窗一页、在这个会话开着的插件（2026-10-20 项目主人定：开着才出现）
 //   一个一页，兜底卡上没有；内容经插件登记的 chat.panel 取（plugins/widget-host.js），这一个浮窗开着时只取一次，点了动作、存了表单再取。
@@ -16,6 +17,7 @@ import { cardOf, ownCardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, idWord as idWordOf, titleOf } from './names.js';
 import { drawOverview } from './overview.js';
+import { venueStats } from './venue-stats.js';
 import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
 import { drawPlugins, fits, isOn, named as pick } from './plugins.js';
@@ -49,7 +51,8 @@ export function openVenue(one, context, onClose) {
   const close = openLayer(dialog, onClose);
   head.append(title, closeButton(close));
   let tab = one.kind === 'defaults' ? 'persona' : 'overview';
-  // 今天的数和最近判断：重画浮窗时留着这一块，问到了再换。
+  // 统计和最近判断：重画浮窗时留着这两块，问到了再换。
+  const counted = one.kind === 'defaults' ? null : venueStats(context.request, () => cardOf(shown));
   const today = element('div', 'venue-today');
   let asking = 0;
   // 哪几页的「高级」展开着：重画时照旧。
@@ -99,6 +102,7 @@ export function openVenue(one, context, onClose) {
     .catch(() => {});
   const refresh = async () => {
     if (shown.kind === 'defaults') return;
+    counted.refresh();
     const mine = ++asking;
     try {
       const answer = await context.request('cards.overview', { card: cardOf(shown) });
@@ -148,7 +152,7 @@ export function openVenue(one, context, onClose) {
     }
     title.textContent = plugin ? pick(plugin.name) || plugin.package : say(`venue/tab-${tab}`);
     if (plugin) body.replaceChildren(panelOf(plugin));
-    else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, today));
+    else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, [counted.box, today]));
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));
     else {
       const idWord = idWordOf('private', context.platform);
@@ -170,8 +174,8 @@ export function openVenue(one, context, onClose) {
   };
 }
 
-/** 概况那一页。 */
-function overview(one, { request, platform }, close, today) {
+/** 概况那一页：`kept` 是统计和最近判断那两块。 */
+function overview(one, { request, platform }, close, kept) {
   const parts = [];
   const reply = element('div', 'row big');
   const label = element('div', 'label');
@@ -183,7 +187,7 @@ function overview(one, { request, platform }, close, today) {
     label.append(element('b', null, say('venue/reply')), element('small', null, say('venue/reply-hint')));
     reply.append(label, toggle(one, request));
   }
-  parts.push(reply, today);
+  parts.push(reply, ...kept);
   if (one.id) parts.push(removal(one, request, close));
   return parts;
 }

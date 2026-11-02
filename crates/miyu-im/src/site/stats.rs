@@ -1,6 +1,7 @@
 //! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页，I-100 拆回侧栏「数据统计」）：
-//! `stats {period, connection?}` → `{"token", "messages", "connections", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
-//! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接。
+//! `stats {period, connection? | venues?}` → `{"token", "messages", "connections", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
+//! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接；`venues` 是浮窗「概况」一张卡管的场所（施工
+//! I-101），按小时的不分场所、是零。
 //!
 //! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
 //!   缓存命中率（读缓存 ÷ 输入）、每次回复平均（合计 ÷ 回复的段数）、请求次数，每天的四样（读缓存、没命中、写缓存、输出），按用途、

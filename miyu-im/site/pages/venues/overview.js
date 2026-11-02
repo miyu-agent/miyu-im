@@ -1,7 +1,6 @@
-// 会话浮窗「概况」里的今天和最近判断（施工 I-7 上补，设计 01 第八节第 7 条，照样板 d-im.html 的 .facts、.why）：宿主的
-// cards.overview 交这张卡今天的数和最近判断（新的在前），这里画。
+// 会话浮窗「概况」里的最近判断（施工 I-7 上补，设计 01 第八节第 7 条，照样板 d-im.html 的 .why）：宿主的 cards.overview 交这张卡
+// 最近判断（新的在前），这里画。今天的数 I-101 起并进这个会话的统计（venue-stats.js）。
 //
-// - 三个数：今天收到、今天回复、只记录。
 // - 最近判断（群聊的）、最近处理（私聊的，施工 I-56：私聊不判，交给 AI 的写「私聊，直接回复」，只记下的写为什么）：一条一行，回了的打勾、没回的一横；引号里是那条消息的开头，下面「谁 · 几点 · 为什么」。为什么照
 //   宿主给的原因编号写（noted.rs 的那几种，`skip_user` 是在跳过判断的人里），挂接点改了结论的后面写是哪个插件；带了判官的理由
 //   （`why.reason_text`）的再写一行小字。
@@ -9,17 +8,7 @@ import { element, say } from '../../shell/i18n.js';
 
 /** 画进 `holder`：`answer` 是 cards.overview 的回答，`type` 是 group、private。 */
 export function drawOverview(holder, answer, type) {
-  const facts = element('div', 'facts');
-  for (const [key, label] of [
-    ['received', 'venue/today-received'],
-    ['replied', 'venue/today-replied'],
-    ['recorded', 'venue/today-recorded'],
-  ]) {
-    const fact = element('div', 'fact');
-    fact.append(element('b', null, Number(answer.today?.[key] ?? 0).toLocaleString()), element('span', null, say(label)));
-    facts.append(fact);
-  }
-  const parts = [facts];
+  const parts = [];
   const titles = type === 'group' ? ['venue/recent', 'venue/recent-none'] : ['venue/handled', 'venue/handled-none'];
   parts.push(element('div', 'group-name', say(titles[0])));
   const recent = answer.recent || [];

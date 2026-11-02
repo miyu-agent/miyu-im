@@ -5,6 +5,8 @@
 //! - 群卡、私聊卡：那一个场所。
 //! - 「陌生群」：名单以外的群并起来；「陌生私聊」：不在私聊白名单里的人的私聊并起来（终端管理员的私聊也算在里面）。
 //! - 卡写错的拒 `bad_params`。
+//! - 带 `venues: true` 的（施工 I-101：浮窗「概况」的统计）多交 `venues`：最近 [`SEEN_DAYS`] 天计数里见过的、这张卡管的场所，页面拿去问
+//!   `stats {venues}`。没收到过消息的场所（只有她自己发的）不在里面。
 
 use std::collections::BTreeSet;
 
@@ -12,9 +14,13 @@ use serde_json::{Value, json};
 
 use super::Route;
 use crate::core::methods::CARDS_OVERVIEW;
+use crate::counters::last_days;
 use crate::rules::{Card, Scope, card_edit};
 use miyu_chat::{Venue, VenueKind};
 use miyu_client::ids::VenueId;
+
+/// 找这张卡管的场所看最近几天的计数：30 天和它前面的 30 天（统计和前一段比）。
+const SEEN_DAYS: u32 = 60;
 
 /// 认一个场所编号是不是这张卡管的。
 type Wanted = Box<dyn Fn(&str) -> bool>;
@@ -49,7 +55,18 @@ impl Route {
             .into_iter()
             .map(|(_, note)| json!(note))
             .collect();
-        Some(json!({"today": today, "recent": recent}))
+        let mut answer = json!({"today": today, "recent": recent});
+        if args["venues"] == true {
+            let seen: BTreeSet<String> = self
+                .counters
+                .days(&last_days(SEEN_DAYS))
+                .into_iter()
+                .flat_map(|(_, daily)| daily.venues.into_keys())
+                .filter(|venue| wanted(venue))
+                .collect();
+            answer["venues"] = json!(seen);
+        }
+        Some(answer)
     }
 
     /// 一张卡管的场所：交回认场所编号的那一段。场所编号解开了照（平台、机器人号、种类、号）比（施工 I-81：只管一个号的卡只认那个号

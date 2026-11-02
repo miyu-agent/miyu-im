@@ -28,3 +28,21 @@ fn a_connection_is_written_platform_colon_bot() {
         assert!(Scope::of(&json!({"connection": wrong})).is_err(), "{wrong}");
     }
 }
+
+#[test]
+fn a_card_holds_just_its_venues() {
+    let scope = Scope::of(&json!({"venues": ["qq:10001:group:777", "qq:group:777"]}))
+        .expect("写法对")
+        .expect("写了");
+    assert!(within(Some(&scope), "qq:group:777"));
+    assert!(within(Some(&scope), "qq:10001:group:777"));
+    assert!(!within(Some(&scope), "qq:10001:group:778"));
+    assert!(!scope.holds_key("qq:10001"), "按小时的没有按场所记");
+    for wrong in [
+        json!({"venues": "qq:group:777"}),
+        json!({"venues": [7]}),
+        json!({"venues": [], "connection": "qq:10001"}),
+    ] {
+        assert!(Scope::of(&wrong).is_err(), "{wrong}");
+    }
+}
