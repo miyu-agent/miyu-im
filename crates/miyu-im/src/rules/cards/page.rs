@@ -106,6 +106,7 @@ const GROUP_FORMS: [Form; 4] = [
             ("keywords", Control::List),
             ("managers", Control::List),
             ("show_ids", Control::Toggle),
+            ("glance", Control::Toggle),
         ],
     ),
     ("pace", &[("sleep", Control::Text), ("rate", Control::Text)]),
@@ -352,8 +353,11 @@ impl Ink<'_> {
         let mut blocks = Vec::new();
         for (name, fields) in forms {
             blocks.push(json!({"type": "heading", "text": self.word(&format!("heading.{name}"))}));
+            // 时不时看一眼只给名单里的群（施工 I-89）：「其他群」那张不画。
+            let other = item.card["kind"] == "other_groups";
             let fields: Vec<Value> = fields
                 .iter()
+                .filter(|(key, _)| !(other && *key == "glance"))
                 .map(|(key, control)| {
                     self.field(key, *control, set.get(*key), &defaults[*key]["value"])
                 })

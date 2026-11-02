@@ -89,6 +89,11 @@
     "en": "Sees QQ numbers",
     "ja": "QQ 番号を見る"
   },
+  "field.glance": {
+    "zh": "时不时看一眼",
+    "en": "Glances now and then",
+    "ja": "ときどき覗く"
+  },
   "field.sleep": {
     "zh": "睡觉时间",
     "en": "Sleep time",
@@ -308,5 +313,10 @@
     "zh": "没换成：{detail}",
     "en": "Not switched: {detail}",
     "ja": "切り替えられませんでした：{detail}"
+  },
+  "hint.glance": {
+    "zh": "隔一阵自己看一眼群里的新消息，说不说话由 AI 定",
+    "en": "Now and then the AI looks at new messages on its own and decides whether to speak",
+    "ja": "ときどき AI が自分で新着を見て、話すかどうかを決めます"
   }
 }

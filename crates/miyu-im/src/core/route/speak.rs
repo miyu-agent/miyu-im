@@ -166,6 +166,9 @@ impl Route {
         // 群的主线这一轮结束了：排着的开下一轮（施工 I-16，`waiting`）。
         if self.groups.contains_key(line) {
             self.next_waiting(line).await?;
+            // 时不时看一眼（施工 I-89）：看一眼开的那一轮再排下一次，等着这一轮结束的那一次再过一遍。排着的先开，过一遍时
+            // 又在跑的接着等。
+            self.glance_turn_ended(line).await?;
         }
         Ok(())
     }

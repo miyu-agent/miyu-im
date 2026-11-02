@@ -155,6 +155,39 @@ fn a_listed_group_does_not_inherit_the_other_groups_card() {
 }
 
 #[test]
+fn glancing_is_set_by_listed_group_cards_and_defaults_but_not_the_other_groups_card() {
+    // 施工 I-89：群卡的「时不时看一眼」拼成 `glance`；「其他群」写了也不拼（名单以外的群不一个一个计时）。
+    let set = cards(json!({
+        "other_groups": {"on": true, "glance": true},
+        "groups": [{"id": 7, "set": {"glance": true}}],
+    }));
+    let glance = |venue: &str| {
+        values(&set, &group(venue))
+            .into_iter()
+            .find(|(key, _)| key == "glance")
+            .map(|(_, value)| value)
+    };
+    assert_eq!(glance("7"), Some(Value::Bool(true)));
+    assert_eq!(glance("8"), None);
+    assert!(set.lists_group(&group("7")));
+    assert!(!set.lists_group(&group("8")));
+    // 会话默认值那张拼进它自己的一份（`defaults_file`），名单里没写这一格的照它。
+    let rules = Rules::parse(&[set.defaults_file()]);
+    assert_eq!(rules.problems, []);
+    let with_default = cards(json!({"defaults": {"glance": true}}));
+    let parsed = Rules::parse(&[with_default.defaults_file()]);
+    assert_eq!(
+        parsed
+            .rules
+            .resolve(&group("9"))
+            .entries
+            .get("glance")
+            .map(|entry| &entry.value),
+        Some(&Value::Bool(true))
+    );
+}
+
+#[test]
 fn private_cards_set_only_their_own_chat() {
     let set = cards(
         json!({"privates": [{"id": 9, "set": {"persona": "engineer", "long_text": "image", "model": "@fast"}}]}),

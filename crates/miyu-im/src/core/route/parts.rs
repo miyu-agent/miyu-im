@@ -10,7 +10,8 @@ pub(crate) struct Recalling {
     pub(crate) default: Vec<String>,
 }
 
-/// 问到的记多久：「是不是终端管理员」（施工 O-31，`binding_seconds`），群名隔多久再问（施工 O-49，`group_info_seconds`）。
+/// 问到的记多久：「是不是终端管理员」（施工 O-31，`binding_seconds`），群名隔多久再问（施工 O-49，`group_info_seconds`）；另带禁言的
+/// 两个数和时不时看一眼没定下一次时隔多久（施工 I-89，`glance_seconds`）。
 pub(crate) struct Asking {
     /// 「是不是终端管理员」记多久。
     pub(crate) binding: Duration,
@@ -20,6 +21,8 @@ pub(crate) struct Asking {
     pub(crate) mute_window: Duration,
     /// 解禁以后最多回几条排着的（施工 O-50，`mute_replies`）。
     pub(crate) mute_replies: usize,
+    /// 时不时看一眼没定下一次时隔多久（施工 I-89）。
+    pub(crate) glance: Duration,
 }
 
 /// 一个发回话、撤回执的任务结束了：交回它交出来的（等来的结局，施工 O-25 中；从 `route.rs` 挪来，施工 T-4）。崩了（是 bug：任务里只等

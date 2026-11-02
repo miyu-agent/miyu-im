@@ -343,6 +343,7 @@ pub async fn run(
             group_info: serve.tuning.group_info(),
             mute_window: serve.tuning.mute_window(),
             mute_replies: serve.tuning.mute_replies,
+            glance: serve.tuning.glance(),
         },
         Fetching {
             images: serve.tuning.message_images,

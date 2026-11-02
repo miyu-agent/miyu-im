@@ -76,6 +76,8 @@ struct Speaker {
     echo: Option<u64>,
     /// 判过了没有（I-28）：记下的判断里进站链放行了它（`ext.im.chat.decided` 的 `inbound` 是 `pass`）。
     passed: bool,
+    /// 当过一轮的触发没有（施工 I-89）：主线、支线开轮、并进一轮的 `triggers` 里有它。看一眼只交没当过的。
+    answered: bool,
 }
 
 /// 判过要回、她还没回完的一笔（O-23 下）。
@@ -222,6 +224,7 @@ impl Projection {
                         name: venue.and_then(|venue| venue.name.clone()),
                         echo: miyu_chat::echo(&text),
                         passed: false,
+                        answered: false,
                     };
                     self.said.insert(seq, speaker);
                     self.remember(seq, &text);
@@ -478,6 +481,7 @@ fn add<'a>(to: &mut Vec<ExternalId>, more: impl IntoIterator<Item = &'a External
 
 mod aimed;
 mod echo;
+mod glance;
 mod lanes;
 mod origin;
 mod track;

@@ -21,6 +21,15 @@ use miyu_client::time::{Timestamp, UtcOffset};
 
 use crate::rules::Applied;
 
+use super::Route;
+
+impl Route {
+    /// 这一刻套到场所 `venue` 上的场所规则（「场所规则和出厂数据」第 3、5 条）。
+    pub(super) fn applied(&mut self, venue: &miyu_chat::Venue) -> Applied {
+        self.rules.current(std::time::Instant::now()).at(venue)
+    }
+}
+
 /// `venue.session` 的格和场所规则里对着的键（「群消息」第 3 条）。
 const OPENING: [(&str, &str); 3] = [
     ("persona", "persona"),
@@ -76,8 +85,13 @@ pub(super) fn show_ids(applied: &Applied) -> bool {
 /// 此刻落在规则的睡觉时间里没有：没设、写成 `off` 的醒着。照群聊内核的回合闸问：只交睡眠（不限流、没禁言），闸说推迟就是
 /// 睡着。本机的钟读不出（早于 1970 年、晚于 9999 年）的当醒着。
 pub(super) fn asleep(applied: &Applied) -> bool {
+    wakes(applied).is_some()
+}
+
+/// 此刻睡着的话什么时候醒（施工 I-89：看一眼顺延到睡觉时段结束）：醒着的、钟读不出的是空的。
+pub(super) fn wakes(applied: &Applied) -> Option<Timestamp> {
     let (Some(sleep), Some(clock)) = (sleep(applied), clock()) else {
-        return false;
+        return None;
     };
     let ctx = Ctx {
         rate: None,
@@ -91,7 +105,10 @@ pub(super) fn asleep(applied: &Applied) -> bool {
             base64: applied.params.base64,
         },
     };
-    matches!(gate(&ctx, clock), Gate::Later(_))
+    match gate(&ctx, clock) {
+        Gate::Later(wake) => Some(wake),
+        _ => None,
+    }
 }
 
 /// 规则的限流（施工 O-23）：没设、`"0"`、写错的是空的（[`Rate::read`]）。
@@ -152,6 +169,11 @@ pub(super) fn recent(applied: &Applied) -> Option<i64> {
     }
 }
 
+/// 规则的开关 `glance`（施工 I-89）：时不时看一眼。没写的是不看。
+pub(super) fn glances(applied: &Applied) -> bool {
+    flag(applied, "glance") == Some(true)
+}
+
 /// 此刻：本机的钟，时区照本机此刻的偏移（「施工时定的」第 65 条）。钟读不出（早于 1970 年、晚于 9999 年）的是空的。
 pub(super) fn clock() -> Option<Clock> {
     Some(Clock {
@@ -179,7 +201,7 @@ fn text<'a>(applied: &'a Applied, key: &str) -> Option<&'a str> {
 }
 
 /// 此刻，照本机的钟。
-fn now() -> Option<Timestamp> {
+pub(super) fn now() -> Option<Timestamp> {
     let since = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
     Timestamp::from_unix_millis(i64::try_from(since.as_millis()).ok()?)
 }

@@ -39,6 +39,7 @@ mod core;
 mod counters;
 mod current;
 pub mod driver;
+mod glance;
 pub mod logs;
 mod media;
 pub mod package;

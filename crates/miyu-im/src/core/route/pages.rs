@@ -260,6 +260,7 @@ impl Route {
         self.hooks
             .set_toggles(Toggles::from_cards(self.rules.cards()));
         self.forget_privates();
+        self.glances_changed();
         self.repush_pages();
         json!({"saved": true})
     }

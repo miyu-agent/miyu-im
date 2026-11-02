@@ -118,6 +118,9 @@ pub struct GroupSet {
     /// 仅发送最终消息（施工 O-57）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub final_only: Option<bool>,
+    /// 时不时看一眼（设计 05，施工 I-89）：拼成 `glance`。只有群卡、会话默认值认，「陌生群」写了也不拼（名单以外的群不一个一个计时）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance: Option<bool>,
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,

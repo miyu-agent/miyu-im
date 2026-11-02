@@ -90,6 +90,8 @@ pub struct Tuning {
     pub mute_window_seconds: u64,
     /// 解禁以后最多回几条排着的（施工 O-50，「禁言」第 3 条）：多的丢掉。0 是一条都不回。
     pub mute_replies: usize,
+    /// 时不时看一眼没定下一次时隔几秒再看（设计 05 第一节第 2 条，施工 I-89）：出厂 1500，就是 25 分钟。至少 1。
+    pub glance_seconds: u64,
     /// 一个人的头像的地址（施工 O-54，`onebot.md`「头像和群成员」）：`{id}` 换成 QQ 号。
     pub avatar_user_url: String,
     /// 一个群的头像的地址（施工 O-54）：`{id}` 换成群号。
@@ -117,8 +119,9 @@ impl Tuning {
             || tuning.handshake_seconds == 0
             || tuning.pending_connections == 0
             || tuning.connection_events == 0
+            || tuning.glance_seconds == 0
         {
-            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds and pending_connections must be at least 1".to_string()));
+            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections and glance_seconds must be at least 1".to_string()));
         }
         Ok(tuning)
     }
@@ -186,6 +189,11 @@ impl Tuning {
     /// 禁言以后多久以内来的排着（施工 O-50）。
     pub fn mute_window(&self) -> Duration {
         Duration::from_secs(self.mute_window_seconds)
+    }
+
+    /// 时不时看一眼没定下一次时隔多久（施工 I-89）。
+    pub fn glance(&self) -> Duration {
+        Duration::from_secs(self.glance_seconds)
     }
 
     /// 群名问到了隔多久再问（施工 O-49）。

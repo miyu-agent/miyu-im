@@ -35,6 +35,18 @@ impl Cards {
             .map(|others| (&others.groups, &others.privates))
     }
 
+    /// 群 `venue` 在名单里没有（施工 I-89：时不时看一眼只给名单里的群）：有它的群卡，平台、号对上，卡上写了机器人号的号也对上。
+    pub fn lists_group(&self, venue: &miyu_chat::Venue) -> bool {
+        self.groups.iter().any(|card| {
+            card.platform == venue.platform()
+                && card.id.as_str() == venue.number()
+                && card
+                    .bot
+                    .as_ref()
+                    .is_none_or(|bot| Some(bot.as_str()) == venue.bot())
+        })
+    }
+
     /// `scope` 的「其他群」：写了的照写的；只管一个号的没写照整个平台的（设计 07 第 7.6 节）；都没写的是空卡。
     pub fn other_groups_of(&self, scope: &Scope) -> GroupSet {
         self.others_written(scope)

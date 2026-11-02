@@ -45,6 +45,7 @@ pub fn group(applied: &Applied) -> Value {
         "rate",
         "show_ids",
         "recent",
+        "glance",
     ] {
         set.insert(key.into(), plain(applied, key));
     }

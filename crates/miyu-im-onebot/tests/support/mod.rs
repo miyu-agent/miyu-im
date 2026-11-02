@@ -231,6 +231,8 @@ impl Home {
         if extensions.is_some() {
             core.start_extensions();
         }
+        // 定时照真的钟到点（施工 I-89：看一眼的定时要真的推 `schedule.fired`），同生产里核心起来时开。
+        core.start_schedules();
         let running = tokio::spawn(miyu_endpoint::run(opened.listener, Arc::clone(&core)));
         Home {
             dir,

@@ -49,6 +49,8 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     // 白名单成员的私聊忽略限流、忽略睡眠（施工 I-7 中三下一）：桥照它们管；没写的是忽略。
     ("ignore_rate", Form::Kind(Kind::Bool)),
     ("ignore_sleep", Form::Kind(Kind::Bool)),
+    // 时不时看一眼（im 设计 05、施工 I-89）：桥照它给名单里的群排定时；没写的是不看。
+    ("glance", Form::Kind(Kind::Bool)),
     // 确认主动回复后贴哪个表情（施工 I-7 中三下二）：平台的表情编号，`off` 是不贴；没写的照桥的出厂。
     ("reaction", Form::Kind(Kind::Text { max: 32 })),
 ];

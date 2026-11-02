@@ -39,7 +39,7 @@ const SEALED: &str = "session_sealed";
 
 /// 开一轮、并进一轮怎么样了。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Responded {
+pub(super) enum Responded {
     /// 开了一轮、并进了一轮。
     Asked,
     /// 被拒了（记了运行日志）。
@@ -290,7 +290,7 @@ impl Route {
     /// 照记下的几条 `to` 在会话 `target`（主线或者支线）开一轮（第 7 条）：`session.respond {session, to, facts?}`，命令编号照
     /// 最后一条的 `tag` 加 `/respond`；正在跑一轮的核心并进去。核心说已经当过触发、不是旁听的不再开，记一行；封存了的交回
     /// `Sealed`，调的一方重新分派。
-    async fn respond(
+    pub(super) async fn respond(
         &mut self,
         target: &str,
         to: &[u64],

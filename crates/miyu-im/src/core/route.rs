@@ -59,6 +59,7 @@ mod exports;
 mod fetching;
 mod fields;
 mod forwards;
+mod glance;
 mod group;
 mod impostor;
 mod judged;
@@ -111,11 +112,10 @@ use message::{Message, reply_text};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use futures_util::stream::FuturesOrdered;
-use miyu_chat::Venue;
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::task::{JoinHandle, JoinSet};
@@ -129,7 +129,7 @@ use crate::counters::{Count, Counters};
 use crate::plugins::Toggles;
 use crate::recent::Recent;
 use crate::records::Records;
-use crate::rules::{Applied, Tools, Venues};
+use crate::rules::{Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
 use aims::Aims;
@@ -266,6 +266,8 @@ pub(crate) struct Route {
     pages: pages::Pages,
     /// 陌生人的私聊开过的回合（施工 O-60，`strangers`）：限流照它数。
     strangers: strangers::Strangers,
+    /// 时不时看一眼（施工 I-89，`glance`）。
+    glances: glance::Glances,
 }
 
 impl Route {
@@ -354,6 +356,7 @@ impl Route {
             voicing: FuturesOrdered::new(),
             pages: pages::Pages::default(),
             strangers: strangers::Strangers::default(),
+            glances: glance::Glances::new(asking.glance),
         }
     }
 
@@ -372,6 +375,7 @@ impl Route {
             || self.follow_packages().await.is_err()
             || self.reload_plugins().await.is_err()
             || self.sync_plugins().await.is_err()
+            || self.sync_glances().await.is_err()
         {
             return None;
         }
@@ -433,7 +437,7 @@ impl Route {
                 return ended;
             }
             // 场所开着的插件变了的告诉核心（施工 S-1 上c）：卡片、插件、驱动的配置都是办事时变的。
-            if self.sync_plugins().await.is_err() {
+            if self.sync_plugins().await.is_err() || self.sync_glances().await.is_err() {
                 return None;
             }
         }
@@ -485,10 +489,5 @@ impl Route {
             }
         }
         Ok(Some((session, reply)))
-    }
-
-    /// 这一刻套到场所 `venue` 上的场所规则（「场所规则和出厂数据」第 3、5 条）。
-    fn applied(&mut self, venue: &Venue) -> Applied {
-        self.rules.current(Instant::now()).at(venue)
     }
 }

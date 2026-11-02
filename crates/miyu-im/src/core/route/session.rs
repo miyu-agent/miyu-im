@@ -276,6 +276,8 @@ impl Route {
         // 规则设了模型、人格、预设的先发，第一轮就照它（施工 O-58 补三、补四）。
         self.pin_found(&session, &place.wanted).await;
         self.venues.insert(venue.to_string(), session.clone());
+        // 时不时看一眼开着、还没有定时的群补一个（施工 I-89）。
+        self.glance_found(&venue.to_string()).await?;
         Ok(Some(session))
     }
 

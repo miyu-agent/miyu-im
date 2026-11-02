@@ -230,6 +230,7 @@ impl Route {
         self.hooks
             .set_toggles(Toggles::from_cards(self.rules.cards()));
         self.forget_privates();
+        self.glances_changed();
         answerer.answer(id, json!({"saved": true}));
         // 在看两页的照新的推（施工 O-58 下，`pages`）。
         self.repush_pages();

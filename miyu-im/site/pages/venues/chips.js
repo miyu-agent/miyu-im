@@ -11,6 +11,7 @@ export function chips(one, personas) {
   if (one.on === false) all.push({ text: say('chip/off') });
   // 线路规程（施工 I-7 中二）：写在卡上 `rules` 里的照它。抽样、插嘴的旧写法（四档）施工 I-88 删了，不写。
   if (set.rules?.discipline === 'when-called') all.push({ text: say('chip/called-only') });
+  if (set.glance) all.push({ text: say('chip/glance'), accent: true });
   if (set.keywords?.length) all.push({ text: say('chip/keywords', { words: set.keywords.join(say('chip/joiner')) }) });
   if (set.persona) all.push({ text: say('chip/persona', { name: personas.get(set.persona) || set.persona }) });
   if (set.model) all.push({ text: say('chip/model', { model: set.model }) });

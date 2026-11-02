@@ -99,6 +99,7 @@ impl Projection {
         turn: Option<u64>,
         at: Timestamp,
     ) {
+        self.answered(triggers);
         let by = self.speakers(triggers);
         let mut to = Vec::new();
         add(&mut to, by.iter().map(|speaker| &speaker.id));
@@ -118,6 +119,7 @@ impl Projection {
 
     /// 线 `line` 里序号是 `seq` 的 `turn.joined`：`triggers`（主线序号）并进回合编号是 `turn` 的那一轮。
     pub(super) fn joined(&mut self, line: &str, seq: u64, triggers: &[Seq], turn: Option<u64>) {
+        self.answered(triggers);
         let by = self.speakers(triggers);
         if let Some(track) = self.track_mut(line) {
             track.joined.insert(seq, triggers.to_vec());

@@ -18,6 +18,10 @@ impl Route {
     /// 读的一头交来的平台工具的调用（`tool.call`，施工 O-31）交给 `acting`。
     pub(super) async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
         let params = &pushed["params"];
+        // 时不时看一眼的定时到点了（施工 I-89）：不带会话，下面照会话分的走不到。
+        if pushed["method"] == "schedule.fired" {
+            return self.glance_fired(params).await;
+        }
         if pushed["method"] == "extension.config" {
             let Some(keys) = params["keys"].as_object() else {
                 return Ok(());
