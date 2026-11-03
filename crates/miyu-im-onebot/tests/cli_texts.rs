@@ -17,6 +17,7 @@ const CLI: &[&str] = &[
     "web/",
     "failure/",
     "logs/",
+    "records/",
     "notice/",
     "no-log",
     "venue/none",
@@ -36,6 +37,7 @@ const PAGES: &[&str] = &[
     "venue",
     "whitelist",
     "access",
+    "records",
 ];
 
 /// 语言 `language` 的 `said`。

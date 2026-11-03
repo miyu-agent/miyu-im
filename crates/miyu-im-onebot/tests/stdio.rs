@@ -125,6 +125,7 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
         &["logs", "--help"][..],
         &["venue", "show", "-h"],
         &["access", "group", "--help"],
+        &["records", "import", "--help"],
     ] {
         let shown = ran_to_end(program(&root, asked)).await;
         assert_eq!(shown.status.code(), Some(0), "{asked:?}");
@@ -132,12 +133,13 @@ async fn help_goes_to_stdout_and_a_wrong_word_is_a_usage_error() {
         assert_eq!(text(&shown.stdout), format!("{page}\n"), "{asked:?}");
     }
     // 没写命令、不认识的命令、参数写错的各说各的（`miyu im: …` 加提示行）。
-    let wrongs: [(&[&str], String); 5] = [
+    let wrongs: [(&[&str], String); 6] = [
         (&["nonsense"], en.unknown_command("nonsense")),
         (&["logs", "-x"], en.bad_args("logs")),
         (&["start", "now"], en.bad_args("start")),
         (&[], en.no_command()),
         (&["web", "--print"], en.bad_args("web")),
+        (&["records", "import"], en.bad_args("records")),
     ];
     for (wrong, said) in wrongs {
         let command = program(&root, wrong);

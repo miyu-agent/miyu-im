@@ -44,7 +44,7 @@ impl Texts {
             None => "help/main",
             Some(
                 name @ ("start" | "stop" | "restart" | "status" | "web" | "logs" | "venue"
-                | "whitelist" | "access"),
+                | "whitelist" | "access" | "records"),
             ) => {
                 return Some(self.say(&format!("help/{name}"), &[]));
             }
