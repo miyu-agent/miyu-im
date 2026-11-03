@@ -1,6 +1,10 @@
 # 赞助记录（设计 03，施工 S-1 上b）：im 的插件，通讯平台上的人给主人赞助了，主人叫她记一笔；谁都能查。给人看的字，不发给模型。
 
 [package]
+# 版本、能装的系统（施工 I-126，进官方软件源要的）：版本两个包一样，打标签 `v<版本>` 发版；系统是三台 CI 测过的那三种，
+# 一种打一个 `.miyu`（`.github/workflows/release.yml`）。
+version = "0.1.0"
+targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
 name = { en = "Sponsorships", zh = "赞助记录", ja = "スポンサー記録" }
 summary = { en = "She records sponsorships when an admin asks, and anyone can look them up", zh = "管理员叫她记赞助，谁都能查", ja = "管理者に頼まれてスポンサーを記録し、誰でも確認できる" }

@@ -19,15 +19,16 @@ Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 A
 ## 装
 
 1. 先装好 Miyu。
-2. 从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己平台的包：`miyu-im-<版本>-<平台>.tar.gz`（Windows 是 `.zip`），解开得到一个 `miyu-im/` 文件夹。
-3. 装上：
+2. 装上（收进官方软件源以后）：
 
    ```sh
-   miyu pkg install ./miyu-im
+   miyu pkg install miyu-im
    ```
 
+   也可以从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己系统的包文件 `miyu-im-<版本>-<系统>.miyu`（Linux x86_64、macOS Apple 芯片、Windows x86_64），`miyu pkg install ./miyu-im-<版本>-<系统>.miyu`。赞助记录插件是另一个包 `miyu-im-sponsor`，装法一样。
+
    它要的能力（代平台上的人发话、联网、读写会话……）照自己装的包走人批，装的时候核心会问。
-4. 运行 `miyu im web` 打开接入通讯平台的页面，点「新建连接」照着走：在 NapCat 那边新建反向 WebSocket，填页面上给的地址，再把 NapCat 生成的 Token 粘贴回页面。
+3. 运行 `miyu im web` 打开接入通讯平台的页面，点「新建连接」照着走：在 NapCat 那边新建反向 WebSocket，填页面上给的地址，再把 NapCat 生成的 Token 粘贴回页面。
 
 ## 从源码编
 
