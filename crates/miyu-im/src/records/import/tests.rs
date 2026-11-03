@@ -75,6 +75,8 @@ fn every_kind_of_line_is_written_and_the_text_is_searchable() {
         })
         .expect("读得出");
     assert_eq!(why, r#"{"route":"called"}"#);
+    // 先关掉连接（Windows 上开着的文件删不掉）。
+    drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
 
@@ -115,6 +117,8 @@ fn importing_twice_adds_nothing_and_a_clashing_number_keeps_what_is_there() {
         })
         .expect("读得出");
     assert_eq!(text, "今天晚上一起打团本吗");
+    // 先关掉连接（Windows 上开着的文件删不掉）。
+    drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
 
@@ -162,5 +166,7 @@ fn one_wrong_line_rejects_the_whole_file() {
         ]
     );
     assert_eq!(count(&connection, "messages"), 0, "对的那一行也不导");
+    // 先关掉连接（Windows 上开着的文件删不掉）。
+    drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
