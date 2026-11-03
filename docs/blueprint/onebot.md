@@ -28,6 +28,7 @@
 | `crates/miyu-im/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说，`start`、`status` 末尾接设置在哪那一句（O-28 补） |
 | `crates/miyu-im/src/web.rs`（O-28 补） | `web`：跑交进来的 `miyu`，参数 `web --package im`，标准输入输出照原样接着，退出码照它的；跑不了的说 `web/no-miyu`、退出码 1 |
 | `crates/miyu-im/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
+| `crates/miyu-im/src/import_records.rs`（I-127） | `records import <文件>`：读文件、交 `records/import.rs` 导，照系统的语言说导了几样、跳过几条，有不对的行说第几行 |
 | `crates/miyu-im/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、后台页的方法、换端口共用。I-70 中上起驱动的配置照平台各一份：推来的变了哪个平台的，只换、只通知那个驱动 |
 | `crates/miyu-im/src/running.rs`（O-28 下，从 `web.rs` 挪出来） | 桥跑着的样子（`Running`）：实际听的 NapCat 端口、连着的机器人号、桥手里最新的配置、桥自己的数；后台页 `status` 的数据（`Running::status`），状态文件、换端口都照它。I-70 中上起记几个驱动（`Station`：平台、连着的号、报的状态），只说一个的照第一个（`Running::first`；页面也照它，分平台是 I-70 下的事） |
 | `crates/miyu-im-onebot/src/listen/accepting.rs`（I-3，从宿主的 `serve.rs`、`running/rebind.rs` 挪来） | 驱动起来：开端口、说听上了、接连接；推来的端口变化开新的换掉旧的，开不了的不换；端口、有没有令牌报给宿主。I-81 下起一个连接一个端口：每个端口一个任务接连接，连进来的照那个端口的令牌比；推来新的连接表先照端口认出没变的，剩下的新旧照先后配对换，多出来的旧端口关掉，已经连着的不断；`status` 多 `connections` |
@@ -188,6 +189,7 @@
 | `web`（O-28 补） | 打开网页软件里接入通讯平台 的后台页：跑 `miyu-im` 真实位置旁边的 `miyu`（Windows 上 `miyu.exe`；`miyu im …` 本来就是 `miyu` 转给旁边的 `miyu-im`，`packages.md`「怎么走」第 5 条），参数 `web --package im`（`package-pages.md`「终端」第 2 条），标准输入输出照原样接着，等它退出，输出、退出码照 `miyu web` 的。不带别的参数（多带的是用法不对） |
 | `logs [-f]` | 印运行日志（日志目录里的 `miyu-im.log`）；标准错误那一份（日志目录里核心记的 `stderr`）有内容的，先印它、再印运行日志，各带一行标题。`-f`：印完接着跟运行日志，每 `follow_millis` 看一次，文件变短了（换了一份）从头读，Ctrl+C 停 |
 | `venue show <场所>`（O-21） | 一个场所每一项的值和来处，像 `udevadm info`（18 第四节「看和改」）：场所编号写成 `qq:<机器人号>:group:<群号>`、`qq:<机器人号>:private:<号>`（I-81），不带机器人号的老写法也认（规则不看机器人号）。照系统的语言说；读的文件和桥一样，配置项那一层向核心要（O-41：核心没在跑就拉起，「场所规则和出厂数据」第 7、8 条） |
+| `records import <文件>`（I-127） | 把一份中立写法的 JSON Lines 导进 im 的聊天记录库（设计 04 第四节）：整份先查，有一行不对整份不导、标准错误上说第几行哪里不对，退出码 1；导成的说导了几条消息、几件群事件、几条判断，跳过的（库里已经有的、编号被别的消息占了的）另说一句，退出码 0。重导、和库里的重叠不多出来 |
 | `serve` | 只由核心拉起（`extensions.md`）：标准输入输出是协议，说给人听的在标准错误上。从终端跑起来，照协议发握手、等回应，`hello_seconds` 内等不到就说 `failure/not-spawned`、退出码 1 |
 | `-h`、`--help` | 用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`，9-2） |
 
@@ -1306,7 +1308,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **守着它的**：`tests/quote.rs`：她 `qq_quote` 这个群的一条，下一句引用它、不 @ 叫她的人，答 `quoted`；下一轮不带；别的群的编号不记、答 `not-found`。`tests/outbound.rs`：本该自动 @ 的情形，她挑了引用的引用她挑的、不 @。
 
-**聊天记录**（C-1 上，设计 04；2026-10-23 项目主人定：聊天记录是通讯平台自己的数据，和核心没关系）：`crates/miyu-im/src/records.rs`（库）、`core/route/recording.rs`（记）。im 状态目录里的 `records.db`：人说的照记进场所会话的同一处记一份（群、补拉、私聊），她发出去的照回了编号的记，撤回标在那一条上、另记一件事，她被禁言、解禁记一件事，群里别人被禁言、解禁、被踢、退群、进群也记一件事（C-1 上补：驱动把群通知认成 `Event::Happened`，`onebot/happenings.rs`）；带的东西只记种类、平台编号、名字、大小。一个专门的线程排着写，不影响回不回；库打不开的记一行运行日志、照跑。每判一条照平台编号另记一笔判断（`judgments` 表，C-1 中上：消息记录页照它写回没回、为什么，她查聊天记录的工具不读）。页面服务直接开库读、搜、删（`site/records_page.rs` 的 `records.page`、`records.search`、`records.delete`，`records/read.rs`、`records/delete.rs`）。
+**聊天记录**（C-1 上，设计 04；2026-10-23 项目主人定：聊天记录是通讯平台自己的数据，和核心没关系）：`crates/miyu-im/src/records.rs`（库）、`records/import.rs`（导入，I-127，设计 04 第四节）、`core/route/recording.rs`（记）。im 状态目录里的 `records.db`：人说的照记进场所会话的同一处记一份（群、补拉、私聊），她发出去的照回了编号的记，撤回标在那一条上、另记一件事，她被禁言、解禁记一件事，群里别人被禁言、解禁、被踢、退群、进群也记一件事（C-1 上补：驱动把群通知认成 `Event::Happened`，`onebot/happenings.rs`）；带的东西只记种类、平台编号、名字、大小。一个专门的线程排着写，不影响回不回；库打不开的记一行运行日志、照跑。每判一条照平台编号另记一笔判断（`judgments` 表，C-1 中上：消息记录页照它写回没回、为什么，她查聊天记录的工具不读）。页面服务直接开库读、搜、删（`site/records_page.rs` 的 `records.page`、`records.search`、`records.delete`，`records/read.rs`、`records/delete.rs`）。
 
 **改群名片**（I-36，2026-10-23 项目主人定：她自己的、别人的都能改，「让它自己判断就行，这个没什么危害不用做限制」）：一件工具 `qq_set_card {user?, card}`（驱动的 `tools/card.rs`），只给群，`access` 是 `venue`。没写 `user` 的改她自己的，写了的改那个人的；`card` 去掉首尾空白，空的是清掉，最多 60 个字，写错的答 `bad-args`。调 `set_group_card`，成不成由 QQ 说（她不是管理员、改的是群主和管理员的被拒，照原话答 `failed`）；成了的答 `renamed-me {card}`、`renamed {who, card}`。不放进群管理插件的开关里。QQ 昵称、群名、专属头衔不做。
 

@@ -13,6 +13,7 @@
 //! - [`status_file`]：桥的状态文件 `state/packages/miyu-im/status.json`，`status` 读它（施工 O-18）。
 //! - [`control`]：`miyu im start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18）。
 //! - [`logs`]：`miyu im logs [-f]`：印运行日志和标准错误（施工 O-18）。
+//! - [`import_records`]：`miyu im records import <文件>`：把中立写法的 JSON Lines 导进聊天记录库（施工 I-127）。
 //! - [`texts`]：说给人听的字（包文件夹的 `data/human/`）。
 //! - `current`：桥手里最新的配置：握手交来的，核心推来新的就换上，改了不用重启（施工 O-20）。
 //! - `running`：桥跑着的样子：实际听的端口、连着的号、最新的配置；后台页的 `status`、状态文件照它说，推来的端口变化照它换
@@ -42,6 +43,7 @@ mod current;
 pub mod dirs;
 pub mod driver;
 mod glance;
+pub mod import_records;
 pub mod logs;
 mod media;
 pub mod package;

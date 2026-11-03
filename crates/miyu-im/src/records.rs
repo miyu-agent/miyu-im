@@ -21,6 +21,7 @@ use crate::TARGET;
 
 pub(crate) mod delete;
 pub(crate) mod history;
+pub(crate) mod import;
 pub(crate) mod read;
 
 /// 库文件的名字（im 状态目录里）。

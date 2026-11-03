@@ -6,6 +6,7 @@
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
+//! - `records import <文件>`：把中立写法的 JSON Lines 导进聊天记录库（施工 I-127，[`crate::import_records`]）。
 //! - `web`：带交接票打开 im 自己的页面（施工 I-6 上，[`web`]）：连已经在跑的核心要票，照系统的语言说。
 //! - `-h`、`--help`：总表印在标准输出上，退出码 0（`miyu help im` 转成 `--help`）；命令后面带的印那个命令的（施工 I-87，照核心
 //!   设计 47「命令行文案」）。没写命令、不认识的命令、参数写错的报 `miyu im: …` 加提示行，退出码 2。
@@ -58,6 +59,8 @@ enum Command {
     Venue(String),
     /// `web`：带交接票打开 im 自己的页面（施工 I-6 上）。
     Web,
+    /// `records import`：要导的文件（施工 I-127）。
+    Import(PathBuf),
     /// `whitelist`、`access`：看、改白名单、名单里的群、跳过判断的人（施工 I-13、I-16）。
     Access(Access),
 }
@@ -115,6 +118,7 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
             None => return wrong(&texts, &args),
         },
         ["web"] => Command::Web,
+        ["records", "import", file] => Command::Import(PathBuf::from(file)),
         _ => return wrong(&texts, &args),
     };
     let Some(first) = drivers.first().map(|driver| driver.platform()) else {
@@ -198,6 +202,13 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
                 }
             })
         }
+        Command::Import(file) => crate::import_records::run(
+            &root,
+            &file,
+            &texts,
+            &mut std::io::stdout(),
+            &mut std::io::stderr(),
+        ),
         Command::Web => runtime.block_on(web(
             &root,
             &texts,
