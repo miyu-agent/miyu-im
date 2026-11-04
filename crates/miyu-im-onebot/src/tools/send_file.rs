@@ -12,7 +12,6 @@
 //! - 认了的交给 im（`Effect::Upload`）：另起任务传，当场答 `uploading`；没传成的照 `show` 的文件记 `unshown`。
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use miyu_im::TARGET;
@@ -52,8 +51,9 @@ pub(super) fn send_file(call: &Call, upload: Duration) -> Planned {
     }
 }
 
-/// 钉住了的一份。
+/// 钉住了的一份。不是 Unix 的系统上不传，造不出来。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) struct Pinned {
     /// `outbox/` 里的那一份：交给 NapCat 的路径。
     pub(crate) path: PathBuf,
@@ -140,7 +140,9 @@ pub(crate) fn pin(workspace: &Path, asked: &Path, _outbox: &Path) -> Result<Pinn
 }
 
 /// `outbox/` 里一份的名字：钉住的那一刻（秒）、进程号、进程里第几份。名字带时刻，清的时候照它认老的（硬链接的修改时刻是原文件的）。
+#[cfg(unix)]
 fn fresh_name() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     static NEXT: AtomicU64 = AtomicU64::new(0);
     format!(
         "{}-{}-{}",
