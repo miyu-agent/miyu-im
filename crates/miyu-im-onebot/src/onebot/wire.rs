@@ -36,6 +36,8 @@ pub struct Wire {
     pub avatars: (String, String),
     /// 从哪个端口连进来的（施工 I-81 下，[`Wire::on_port`]）。
     pub listen: Option<u16>,
+    /// 发图、传文件、合并转发等回应最多多久（施工 I-129，[`Wire::media_wait`]）：没设的同一次调用的时限。
+    media: Option<Duration>,
 }
 
 impl Wire {
@@ -47,7 +49,14 @@ impl Wire {
             implementation: OnceLock::new(),
             avatars,
             listen: None,
+            media: None,
         }
+    }
+
+    /// 发图、传文件、合并转发等回应最多 `wait`（施工 I-129）：NapCat 要先把东西传上 QQ 才回，偶尔比一次调用的时限久。
+    pub fn media_wait(mut self, wait: Duration) -> Wire {
+        self.media = Some(wait);
+        self
     }
 
     /// 记下它是从端口 `port` 连进来的。
@@ -78,6 +87,13 @@ impl Wire {
 
 impl Link for Wire {
     fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, chat::Pending> {
+        let wait = match outgoing {
+            Outgoing::Text { .. } => None,
+            Outgoing::Image { .. }
+            | Outgoing::Picture { .. }
+            | Outgoing::Forward { .. }
+            | Outgoing::Upload { .. } => self.media,
+        };
         let (action, params) = match outgoing {
             Outgoing::Text { text, lead } => message_to(to, text, lead),
             Outgoing::Image { file, sticker } => image_to(to, file, sticker),
@@ -92,7 +108,10 @@ impl Link for Wire {
         Box::pin(async move {
             let pending = self.calls.begin(&self.out, action, params).await?;
             let sent: chat::Pending = Box::pin(async move {
-                let reply = pending.wait().await?;
+                let reply = match wait {
+                    Some(wait) => pending.wait_for(wait).await?,
+                    None => pending.wait().await?,
+                };
                 Ok(message_id(&reply["data"]["message_id"]))
             });
             Ok(sent)

@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::{Wire, avatar_url};
-use miyu_im::chat::{CallError, Face, Fetch, Id, Link, To};
+use miyu_im::chat::{CallError, Face, Fetch, Id, Lead, Link, Outgoing, To};
 
 /// 一次调用最多等 10 秒。
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -68,6 +68,55 @@ async fn fetching_waits_as_long_as_it_was_given() {
         .expect("没崩")
         .expect("一次调用的时限过了也还在等");
     assert_eq!(located.name.as_deref(), Some("a.mp4"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_picture_waits_longer_than_a_line_of_text() {
+    // 施工 I-129：发图 NapCat 要先传上 QQ 才回，偶尔过了一次调用的时限，图其实到了；发图等 `media_wait`，文字照一次调用的时限。
+    let (out, mut frames) = mpsc::channel(8);
+    let wire = std::sync::Arc::new(
+        Wire::new(out, TIMEOUT, (String::new(), String::new())).media_wait(Duration::from_secs(30)),
+    );
+    let to = || To::Group(Id::from(1));
+    let picture = tokio::spawn({
+        let wire = std::sync::Arc::clone(&wire);
+        async move {
+            let outgoing = Outgoing::Image {
+                file: "base64://AA==",
+                sticker: false,
+            };
+            wire.send(to(), outgoing).await
+        }
+    });
+    let sent = frame(&mut frames).await;
+    let text = tokio::spawn({
+        let wire = std::sync::Arc::clone(&wire);
+        async move {
+            let lead = Lead::default();
+            let outgoing = Outgoing::Text {
+                text: "在",
+                lead: &lead,
+            };
+            wire.send(to(), outgoing).await
+        }
+    });
+    let _ = frame(&mut frames).await;
+    tokio::time::sleep(Duration::from_secs(20)).await;
+    let data = json!({"message_id": 7});
+    assert!(
+        wire.calls
+            .answer(json!({"status": "ok", "data": data, "echo": sent["echo"]}))
+    );
+    assert_eq!(
+        picture.await.expect("没崩"),
+        Ok(Some("7".to_string())),
+        "过了一次调用的时限，图还在等"
+    );
+    assert_eq!(
+        text.await.expect("没崩"),
+        Err(CallError::Timeout),
+        "文字照一次调用的时限"
+    );
 }
 
 #[test]

@@ -54,7 +54,11 @@ where
         tuning.avatar_user_url.clone(),
         tuning.avatar_group_url.clone(),
     );
-    let wire = Arc::new(Wire::new(out, tuning.call_timeout(), avatars).on_port(port));
+    let wire = Arc::new(
+        Wire::new(out, tuning.call_timeout(), avatars)
+            .on_port(port)
+            .media_wait(tuning.send_media()),
+    );
     let link: Arc<dyn Link> = wire.clone();
     // 群管理同步别的管理员做的（施工 Q-3）：这条连接一个，照先后办。
     let syncing = crate::admin::sync::start(gate, &link);
