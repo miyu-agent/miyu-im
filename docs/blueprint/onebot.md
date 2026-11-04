@@ -44,7 +44,8 @@
 | `crates/miyu-im/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
 | `crates/miyu-im/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`chat.event` 原样交通知、请求（「挂接点」） |
 | `crates/miyu-im-onebot/src/bin/miyu-im-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
-| `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」） |
+| `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」）；I-130 起也办 `qq_send_file` 交的本机文件（路径原样交 NapCat，不读进来） |
+| `crates/miyu-im-onebot/src/tools/send_file.rs`（I-130） | `qq_send_file {path}`：只认会话工作区里的普通文件（真实位置比、链接解开再判），NapCat 从本机连进来才传，交 im 另起任务传（「传文件」） |
 | `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
 | `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」）；`exports/media.rs`（I-39）`chat.media` 取一张图和来历 |
@@ -141,6 +142,7 @@
 | `paths` | `["/onebot/v11/ws", "/ws"]` | NapCat 连得进来的路径（第 2 条） |
 | `call_timeout_seconds` | 10 | 一次 OneBot 调用等回应最多几秒（第 4 条） |
 | `send_media_seconds` | 30 | 发图、传文件、合并转发等 NapCat 回应最多几秒（I-129）：NapCat 先把东西传上 QQ 才回，偶尔过了一次调用的时限，东西其实到了；不超过 `queue_expire_seconds` |
+| `upload_seconds` | 3600 | `qq_send_file` 传文件等 NapCat 回应最多几秒（I-130）：大文件要传好几分钟，另起任务等，不挡别的 |
 | `write_queue` | 64 | 往一条 NapCat 的连接写，最多攒几帧没写出去；满了写的一方等着。至少 1 |
 | `inbound_queue` | 256 | 读出来的消息、撤回（O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了各连接的转交任务等着（I-95 以前是读 NapCat 的那一头等着）。至少 1 |
 | `connection_events` | 1024 | 一条 NapCat 的连接读到的事件最多攒几条没转交（施工 I-95，发布前审查 I2-2）：读的循环把事件放进这条连接自己的缓冲就接着读，回应读到当场交给在等的调用；缓冲满了的丢掉、记一行 `event dropped, im busy`；号认出来那一件一定交到。至少 1 |
@@ -525,6 +527,15 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 4. **发不了**（她被禁言着 `muted`、那个号没连着 `unreachable`、读不出 `unreadable`、NapCat 回失败 `failed`、等不到 `unanswered`）：照 `facts/unshown.txt`（登记在 `docs/ledger.md`）写一块，经核心的 `session.note` 记进工具结果出现在的那条线（支线封存了的改记主线，同「退信」），`kind` 是 `unshown`、`why`、`detail`（NapCat 说的原话）、`name` 填进去；她下一步看得到：工具结果已经说了「给人看了」，这一块说其实没到。不改那次工具结果，不另发一句，要不要再说由她定。核心拒了的记一行 `WARN note refused`。
 
 **守着它的**（`src/core/route/shown/tests.rs`、`shown.rs`）：只认工具结果里三格齐的 `file.shown`；常见四种图片发成图片段，svg、PDF、文本、HTML 传成文件。真核心（工具目录只装基础系统的 `show`，`tests/support/hooked.rs` 的 `showing`）拉起真桥、她照台词调 `show`：终端管理员私聊里一张图发成图片段、`base64://` 是图的原样，一份文本传成文件、带文件名，她的两句话照常发，运行日志两行 `file shown`；NapCat 回失败的，管理员名下的会话里记两块 `unshown`（`why="failed"`、文件名）。群里（O-46 补，核心钉到 f4eb1b1e，W-6 补以后 `blob.get` 带 `session` 读得到群会话的 blob）：终端管理员在群里 @ 她，图发成群里的图片段、文本传成群文件；她这一轮里被禁言了的不发，群会话里记两块 `unshown`（`why="muted"`），运行日志没有 `file shown`。
+
+**传文件**（I-130，2026-11-04 项目主人定：往群里、私聊里传文件是平台的功能，不走核心的 `show`（给人看的，有 20 MiB 的上限，要读进来），照 QQ 自己的上限，im 不设）：工具 `qq_send_file {path}`（驱动的 `tools/send_file.rs`），私聊、群都给，`access` 是 `venue`，归清单的「聊天动作」。
+
+1. **认哪些**：会话工作区（`tool.call` 的 `cwd`）里的普通文件，相对的照工作区算；照真实位置比，链接解开了再判，指出工作区的、不在的、是目录的答 `no-file {path}`（core1 11-04：场所会话关在工作区里，她碰不到的路径不能借它发出去）。
+2. **谁读**：NapCat 读。只有从本机（回环地址）连进来的连接读得到这台机器上的文件（`Link::local_files`），别的答 `not-local`；号没连着答 `unreachable`。
+3. **怎么传**：交给 im（`Effect::Upload`），当场答 `uploading {name, size}`；另起任务把真实路径原样交 `upload_group_file`、`upload_private_file`（同「展示」第 2 条的传文件，只是 `file` 是路径不是 `base64://`），最多等 `upload_seconds`。没传成的照「展示」第 4 条记 `unshown`，QQ 收不了的就是 NapCat 回的原话。
+4. **记**：同「展示」第 3 条（`kind=file`）。
+
+**守着它的**（`tools/send_file/tests.rs`、`tests/send_file.rs`）：工作区里的照相对、绝对路径都认；`..`、工作区外面的绝对路径、目录、不在的、指出去的链接不认（去掉工作区的检查，测试变红）。真核心拉起真桥、假 NapCat 从本机连进来：她在群里调两次，工作区里的那份把真实路径原样交 `upload_group_file`、答 `uploading`，工作区外面的答 `no-file`。
 
 **退信**（O-25 下，2026-10-09；施工单「要定的」第 1、2 条照推荐定：一段一块、带那一段的开头；18 第十节「发不出去就退回给她，像退信」、Q15）：她的话没发出去（NapCat 拒了、等不到、连接断了、排过期了），她自己要知道，不然会以为群里看到了。经核心的 `session.note`（`venues.md`「记几块事实」）给那个会话记一块事实：这一轮还在跑的，她下一次请求看到；不在跑的，下一轮开头看到。接在 `route/sending.rs` 记 `failed` 的后面（「施工时定的」第 129 条）。不占编号。
 

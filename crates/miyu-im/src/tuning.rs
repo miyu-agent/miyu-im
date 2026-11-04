@@ -22,6 +22,8 @@ pub struct Tuning {
     /// 发图、传文件、合并转发等 NapCat 回应最多几秒（施工 I-129）：NapCat 要先把东西传上 QQ 才回，偶尔比一次调用的时限久，过了时
     /// 东西其实到了。不超过出站队列作废的时限（`queue_expire_seconds`），免得排在后面的等作废。
     pub send_media_seconds: u64,
+    /// `qq_send_file` 传文件等 NapCat 回应最多几秒（施工 I-130）：大文件要传好几分钟。另起任务等，不挡别的。
+    pub upload_seconds: u64,
     /// 往一条 NapCat 的连接写，最多攒几帧没写出去；满了，写的一方等着。至少 1。
     pub write_queue: usize,
     /// 读出来的消息、撤回（施工 O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了，各连接的转交任务等着（施工 I-95 以前是读
@@ -221,6 +223,11 @@ impl Tuning {
     /// 发图、传文件、合并转发等 NapCat 回应最多多久（施工 I-129）。
     pub fn send_media(&self) -> Duration {
         Duration::from_secs(self.send_media_seconds)
+    }
+
+    /// 传文件等 NapCat 回应最多多久（施工 I-130）。
+    pub fn upload(&self) -> Duration {
+        Duration::from_secs(self.upload_seconds)
     }
 
     /// `fetch_media` 等 NapCat、下载各最多多久（施工 O-33）。

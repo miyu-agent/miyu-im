@@ -19,7 +19,7 @@ fn files_shown_are_read_from_tool_results_only() {
             .collect::<Vec<_>>(),
         [("a.png", true), ("b.pdf", false)]
     );
-    assert_eq!(files[0].blob, "sha256:a");
+    assert_eq!(files[0].source, Source::Blob("sha256:a".to_string()));
     let message = json!({"kind": "message.assistant", "body": {"effects": [png]}});
     assert!(shown_in(&message).is_empty(), "只认工具结果");
     assert!(shown_in(&json!({"kind": "tool.result", "body": {}})).is_empty());
@@ -28,7 +28,7 @@ fn files_shown_are_read_from_tool_results_only() {
 #[test]
 fn only_the_four_common_images_go_as_pictures() {
     let file = |media_type: &str| Shown {
-        blob: "sha256:a".to_string(),
+        source: Source::Blob("sha256:a".to_string()),
         name: "x".to_string(),
         media_type: media_type.to_string(),
     };

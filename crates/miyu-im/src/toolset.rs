@@ -251,6 +251,16 @@ pub enum Effect {
         /// 几分钟，至少 1。
         minutes: u64,
     },
+    /// 把本机的一份文件传进这个场所（`qq_send_file`，施工 I-130）：im 另起任务交给平台照路径读、传，当场答 `uploading`（`name`、
+    /// `size`）；没传成的照 `show` 的文件那样记一块 `unshown`。驱动已经查过路径在她的工作区里、连接读得到本机的文件。
+    Upload {
+        /// 真实路径（链接解开了的）。
+        path: String,
+        /// 文件名。
+        name: String,
+        /// 多大，照人的单位写好（`3.4 MB`）。
+        size: String,
+    },
 }
 
 /// 时不时看一眼的工具挂的场所插件名（施工 I-89 下）：im 只对开着看一眼的场所告诉核心它开着（`venue.plugins`），别的场所的工具表里

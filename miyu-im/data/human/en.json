@@ -12,6 +12,7 @@
     "qq_moderation_log": { "name": "View moderation log", "subject": "view" },
     "qq_poke": { "name": "Poke" },
     "qq_fetch_media": { "name": "Fetch images and files", "subject": "msg" },
+    "qq_send_file": { "name": "Send a file", "subject": "path" },
     "qq_avatar": { "name": "Get avatar" },
     "qq_members": { "name": "View group members", "subject": "query" },
     "qq_mention": { "name": "Mention" },

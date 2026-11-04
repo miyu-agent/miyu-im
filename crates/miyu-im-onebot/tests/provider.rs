@@ -77,6 +77,8 @@ pub fn shipped_tools() -> Value {
         lookup(entry("qq_chat_history", "read", both)),
         // 定下一次看一眼（施工 I-89 下）：只在开着时不时看一眼的场所里有。
         plugin("miyu-im-glance", entry("qq_glance", "read", both)),
+        // 传文件（施工 I-130）。
+        entry("qq_send_file", "venue", both),
     ]})
 }
 

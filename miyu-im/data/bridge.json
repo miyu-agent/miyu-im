@@ -2,6 +2,7 @@
   "paths": ["/onebot/v11/ws", "/ws"],
   "call_timeout_seconds": 10,
   "send_media_seconds": 30,
+  "upload_seconds": 3600,
   "write_queue": 64,
   "inbound_queue": 256,
   "connection_events": 1024,

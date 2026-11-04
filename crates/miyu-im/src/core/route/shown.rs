@@ -31,11 +31,20 @@ const CHUNK: u64 = 512 * 1024;
 /// 没发出去那一块事实的 `kind`。
 const UNSHOWN: &str = "unshown";
 
-/// 一个 `file.shown` 里桥要的几格。
+/// 内容从哪来。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Source {
+    /// 核心的 blob：经 `blob.get` 读出来，写成 `base64://…` 交 NapCat（`show`）。
+    Blob(String),
+    /// 本机的一份文件：路径原样交 NapCat，它自己读（`qq_send_file`，施工 I-130；im 不读进内存，不设大小上限）。
+    Path(String),
+}
+
+/// 一个 `file.shown` 里桥要的几格（`qq_send_file` 的也照它办）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Shown {
-    /// 内容的哈希。
-    blob: String,
+    /// 内容从哪来。
+    source: Source,
     /// 文件名。
     name: String,
     /// 媒体类型。
@@ -49,7 +58,7 @@ impl Shown {
             return None;
         }
         Some(Shown {
-            blob: effect["blob"].as_str()?.to_string(),
+            source: Source::Blob(effect["blob"].as_str()?.to_string()),
             name: effect["name"].as_str()?.to_string(),
             media_type: effect["media_type"].as_str()?.to_string(),
         })
@@ -106,23 +115,45 @@ impl Route {
             tracing::warn!(target: TARGET, session, why = "unknown_peer", count = files.len(), "file not shown");
             return;
         };
+        for file in files {
+            let job = self.job((session, line), &peer, file);
+            self.chores.spawn(send(job));
+        }
+    }
+
+    /// 她用 `qq_send_file` 交的一份本机文件 `path`（文件名 `name`）传进会话 `session` 的场所（施工 I-130）：同 `show` 的文件另起
+    /// 任务传，NapCat 照路径自己读；没传成的照样记 `unshown`。调的一方已经查过路径在她的工作区里。
+    pub(super) fn upload(
+        &mut self,
+        (session, line): (&str, &str),
+        peer: &Peer,
+        (path, name): (String, String),
+    ) {
+        let file = Shown {
+            source: Source::Path(path),
+            name,
+            media_type: String::new(),
+        };
+        let job = self.job((session, line), peer, file);
+        self.chores.spawn(send(job));
+    }
+
+    /// 给场所 `peer` 发 `file` 的一份活：她这时被禁言着的不试。
+    fn job(&self, (session, line): (&str, &str), peer: &Peer, file: Shown) -> Job {
         let muted = applied::clock().is_some_and(|clock| {
             self.groups
                 .get(session)
                 .is_some_and(|group| group.muted(clock.now).is_some())
         });
-        for file in files {
-            let job = Job {
-                session: session.to_string(),
-                line: line.to_string(),
-                peer: peer.clone(),
-                file,
-                muted,
-                bots: self.platforms.bots(peer.platform),
-                caller: self.core.caller(),
-                template: self.rules.unshown().clone(),
-            };
-            self.chores.spawn(send(job));
+        Job {
+            session: session.to_string(),
+            line: line.to_string(),
+            peer: peer.clone(),
+            file,
+            muted,
+            bots: self.platforms.bots(peer.platform),
+            caller: self.core.caller(),
+            template: self.rules.unshown().clone(),
         }
     }
 }
@@ -148,10 +179,15 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     let Some(link) = job.bots.get(&job.peer.bot) else {
         return Err(("unreachable", String::new()));
     };
-    let bytes = read(&job.caller, Some(&job.line), &job.file.blob)
-        .await
-        .map_err(|why| ("unreadable", why))?;
-    let file = format!("base64://{}", STANDARD.encode(bytes));
+    let file = match &job.file.source {
+        Source::Path(path) => path.clone(),
+        Source::Blob(blob) => {
+            let bytes = read(&job.caller, Some(&job.line), blob)
+                .await
+                .map_err(|why| ("unreadable", why))?;
+            format!("base64://{}", STANDARD.encode(bytes))
+        }
+    };
     let outgoing = match job.file.is_image() {
         true => Outgoing::Image {
             file: &file,

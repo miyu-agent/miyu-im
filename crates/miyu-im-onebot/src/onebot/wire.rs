@@ -38,6 +38,10 @@ pub struct Wire {
     pub listen: Option<u16>,
     /// 发图、传文件、合并转发等回应最多多久（施工 I-129，[`Wire::media_wait`]）：没设的同一次调用的时限。
     media: Option<Duration>,
+    /// 传文件等回应最多多久（施工 I-130，[`Wire::upload_wait`]）：没设的同发图。
+    upload: Option<Duration>,
+    /// 对端从本机连进来（施工 I-130，[`Wire::from_here`]）：读得到本机的文件。
+    local: bool,
 }
 
 impl Wire {
@@ -50,7 +54,21 @@ impl Wire {
             avatars,
             listen: None,
             media: None,
+            upload: None,
+            local: false,
         }
+    }
+
+    /// 传文件等回应最多 `wait`（施工 I-130）：NapCat 照路径读、传上 QQ 才回，大文件要好几分钟。
+    pub fn upload_wait(mut self, wait: Duration) -> Wire {
+        self.upload = Some(wait);
+        self
+    }
+
+    /// 对端从本机连进来（施工 I-130）：读得到本机的文件，传文件交路径给它。
+    pub fn from_here(mut self, local: bool) -> Wire {
+        self.local = local;
+        self
     }
 
     /// 发图、传文件、合并转发等回应最多 `wait`（施工 I-129）：NapCat 要先把东西传上 QQ 才回，偶尔比一次调用的时限久。
@@ -89,10 +107,10 @@ impl Link for Wire {
     fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, chat::Pending> {
         let wait = match outgoing {
             Outgoing::Text { .. } => None,
-            Outgoing::Image { .. }
-            | Outgoing::Picture { .. }
-            | Outgoing::Forward { .. }
-            | Outgoing::Upload { .. } => self.media,
+            Outgoing::Image { .. } | Outgoing::Picture { .. } | Outgoing::Forward { .. } => {
+                self.media
+            }
+            Outgoing::Upload { .. } => self.upload.or(self.media),
         };
         let (action, params) = match outgoing {
             Outgoing::Text { text, lead } => message_to(to, text, lead),
@@ -242,6 +260,10 @@ impl Link for Wire {
 
     fn listen(&self) -> Option<u16> {
         self.listen
+    }
+
+    fn local_files(&self) -> bool {
+        self.local
     }
 
     fn close(&self) {

@@ -221,6 +221,13 @@ impl Route {
                     answers.say("glance-set", &[("minutes", &minutes)], false),
                 );
             }
+            // 传文件（施工 I-130）：另起任务交给平台照路径传，当场答在传了；没传成的照 `show` 的文件记 `unshown`。
+            Planned::Host(Effect::Upload { path, name, size }) => {
+                let said = answers.say("uploading", &[("name", &name), ("size", &size)], false);
+                self.upload((&session, &line), &peer, (path, name));
+                logged(&venue, &tool, &said);
+                answerer.answer(&id, said);
+            }
             // @ 谁、引用哪条要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
             Planned::Host(Effect::Mention(_) | Effect::Quote(_)) => {
                 answerer.answer(&id, answers.say("unreachable", &[], true));

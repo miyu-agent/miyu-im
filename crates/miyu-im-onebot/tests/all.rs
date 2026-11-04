@@ -99,6 +99,7 @@ mod revived;
 mod rules;
 mod scoring;
 mod segments;
+mod send_file;
 mod settings;
 mod shown;
 mod site;

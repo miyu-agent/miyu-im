@@ -105,6 +105,8 @@ async fn accept(
     guessed: (Arc<guesses::Guesses>, IpAddr),
 ) {
     let entry = port.0;
+    // 从本机连进来的读得到本机的文件（施工 I-130：传文件交路径）。
+    let local = guessed.1.is_loopback();
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
     let service = {
         let slot = Arc::clone(&slot);
@@ -135,7 +137,7 @@ async fn accept(
     let upgraded = upgrade.await;
     drop(pending);
     match upgraded {
-        Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, (bot, entry)).await,
+        Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, (bot, entry, local)).await,
         Err(error) => tracing::debug!(target: TARGET, error = %error, "not upgraded"),
     }
 }

@@ -319,6 +319,11 @@ pub trait Link: Send + Sync + fmt::Debug {
         None
     }
 
+    /// 对端读得到本机的文件（施工 I-130）：传文件交本机路径给它读，不用把内容读进来。对端在别的机器上、不开端口的驱动是假。
+    fn local_files(&self) -> bool {
+        false
+    }
+
     /// 关掉这条连接（同一个号连进来了新的，旧的被顶掉）：在等的都算失败。
     fn close(&self);
 }

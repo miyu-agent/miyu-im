@@ -29,8 +29,8 @@ use super::handing::Handing;
 use crate::admin::spam::Spamming;
 use crate::backfill::{self, Seen};
 
-/// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
-pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, (mut bot, port): (Option<Id>, u16))
+/// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号；`local` 是对端从本机连进来的（施工 I-130）。
+pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, (mut bot, port, local): (Option<Id>, u16, bool))
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -57,7 +57,9 @@ where
     let wire = Arc::new(
         Wire::new(out, tuning.call_timeout(), avatars)
             .on_port(port)
-            .media_wait(tuning.send_media()),
+            .media_wait(tuning.send_media())
+            .upload_wait(tuning.upload())
+            .from_here(local),
     );
     let link: Arc<dyn Link> = wire.clone();
     // 群管理同步别的管理员做的（施工 Q-3）：这条连接一个，照先后办。
