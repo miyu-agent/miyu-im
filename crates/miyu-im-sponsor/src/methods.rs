@@ -10,7 +10,8 @@
 //! - `delete {id}` → `{deleted}`。
 //! - `rate {currency}` → `{base, rate}`：照现在的默认币种查一次（补汇率时页面先问），查不到的 `rate` 是 `null`。
 //! - `export` → `{version, entries}`、`import {entries}` → `{added, skipped}`：备份、搬家、迁移（施工 I-131，[`transfer`]）。这两件
-//!   也写进清单的 `[export]`：别的包（迁移程序）经 `package.call` 调，核心照它批过的能力放行；后台页只有主人打得开。
+//!   也写进清单的 `[export]`：别的包经 `package.call` 调（核心拉起的扩展照批过的能力放行，人在终端起的迁移程序算本机的人）；
+//!   后台页只有主人打得开。
 //!
 //! 参数写错的回 JSON-RPC 的 -32602，`message` 说哪个；没有这一笔的回 `not_found`。
 
