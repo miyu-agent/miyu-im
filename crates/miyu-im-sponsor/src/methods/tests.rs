@@ -199,3 +199,79 @@ fn totals_follow_the_local_month_and_year() {
     );
     std::fs::remove_dir_all(dir).expect("删得掉");
 }
+
+/// 照迁移程序转出来的样子写一笔旧版的记录（施工 I-131）：带原来的时刻和汇率。
+fn old_one(user: Option<&str>, name: &str, at: i64) -> Value {
+    json!({
+        "platform": "qq", "user": user, "name": name, "amount": 10, "currency": "CNY",
+        "base": "CNY", "converted": 10, "rate": 1, "at": at, "note": "QQ群红包赞助", "by": "qq:2433516202",
+    })
+}
+
+#[test]
+fn importing_keeps_the_original_times_and_importing_again_adds_nothing() {
+    let (dir, state) = state("import");
+    let entries = json!([
+        old_one(Some("qq:40001"), "小明", 1_000),
+        old_one(None, "只有名字", 2_000)
+    ]);
+    let first = call_one(&state, "import", json!({"entries": entries})).expect("导得进");
+    assert_eq!(first, json!({"added": 2, "skipped": 0}));
+    let listed = call_one(&state, "list", json!({})).expect("列得出");
+    let ats: Vec<&Value> = listed["entries"]
+        .as_array()
+        .expect("有明细")
+        .iter()
+        .map(|entry| &entry["at"])
+        .collect();
+    assert_eq!(
+        ats,
+        [&json!(2_000), &json!(1_000)],
+        "照原来的时刻，不换成此刻"
+    );
+    let again = call_one(&state, "import", json!({"entries": entries})).expect("导得进");
+    assert_eq!(again, json!({"added": 0, "skipped": 2}), "重导是空操作");
+    // 名字改了的、换了顺序的照样认得：有号认号。
+    let renamed = json!([old_one(Some("qq:40001"), "改了名字", 1_000)]);
+    let third = call_one(&state, "import", json!({"entries": renamed})).expect("导得进");
+    assert_eq!(third, json!({"added": 0, "skipped": 1}));
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn what_is_exported_imports_back_into_an_empty_book() {
+    let (dir, source) = state("export");
+    call_one(
+        &source,
+        "add",
+        json!({"platform": "qq", "user": "40001", "amount": 5, "currency": "USD"}),
+    )
+    .expect("记得上");
+    let exported = call_one(&source, "export", json!({})).expect("导得出");
+    assert_eq!(exported["version"], 1);
+    let (other_dir, other) = state("export-target");
+    let imported =
+        call_one(&other, "import", json!({"entries": exported["entries"]})).expect("导得进");
+    assert_eq!(imported, json!({"added": 1, "skipped": 0}));
+    let back = call_one(&other, "export", json!({})).expect("导得出");
+    assert_eq!(back, exported, "搬过去一模一样（编号、汇率、时刻都在）");
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+    std::fs::remove_dir_all(other_dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn one_wrong_entry_imports_nothing() {
+    let (dir, state) = state("wrong");
+    let mut bad = old_one(Some("qq:40001"), "小明", 0);
+    bad["at"] = json!(0);
+    let entries = json!([old_one(Some("qq:40002"), "对的", 1_000), bad]);
+    let refused = call_one(&state, "import", json!({"entries": entries})).expect_err("不收");
+    assert_eq!(refused["code"], -32602);
+    assert_eq!(
+        refused["message"],
+        "entries[1]: at must be milliseconds since 1970"
+    );
+    let listed = call_one(&state, "list", json!({})).expect("列得出");
+    assert_eq!(listed["entries"], json!([]), "对的那一笔也不导");
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}

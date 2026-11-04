@@ -149,6 +149,43 @@ impl Book {
         Ok(entry)
     }
 
+    /// 几笔一起记、一次写回（导入，施工 I-131）：交回记下的那几笔，照给的先后编号。
+    ///
+    /// # Errors
+    ///
+    /// 写不进去：原话；这时一笔都不算记上。
+    pub fn add_all(&mut self, news: Vec<New>) -> Result<Vec<Entry>, String> {
+        if news.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut file = self.file.clone();
+        let mut added = Vec::with_capacity(news.len());
+        for new in news {
+            let entry = Entry {
+                id: file.next.max(1),
+                platform: new.platform,
+                user: new.user,
+                name: new.name,
+                amount: new.amount,
+                currency: new.currency,
+                base: new.base,
+                converted: new.converted,
+                rate: new.rate,
+                at: new.at,
+                note: new.note,
+                by: new.by,
+                venue: new.venue,
+            };
+            file.next = entry.id + 1;
+            file.entries.push(entry.clone());
+            added.push(entry);
+        }
+        file.version = VERSION;
+        write(&self.path, &file)?;
+        self.file = file;
+        Ok(added)
+    }
+
     /// 改编号是 `id` 的那一笔（`change` 改它）、写回：交回改过的那一笔；没有这一笔的是空的。
     ///
     /// # Errors

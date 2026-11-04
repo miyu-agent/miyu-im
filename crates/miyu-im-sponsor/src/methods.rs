@@ -9,6 +9,8 @@
 //!   金额、币种的照原来的汇率重算（币种变了的汇率作废、照现在的再查一次）。
 //! - `delete {id}` → `{deleted}`。
 //! - `rate {currency}` → `{base, rate}`：照现在的默认币种查一次（补汇率时页面先问），查不到的 `rate` 是 `null`。
+//! - `export` → `{version, entries}`、`import {entries}` → `{added, skipped}`：备份、搬家、迁移（施工 I-131，[`transfer`]）。这两件
+//!   也写进清单的 `[export]`：别的包（迁移程序）经 `package.call` 调，核心照它批过的能力放行；后台页只有主人打得开。
 //!
 //! 参数写错的回 JSON-RPC 的 -32602，`message` 说哪个；没有这一笔的回 `not_found`。
 
@@ -24,9 +26,11 @@ use crate::settings::currency;
 use crate::store::{Book, Entry, New};
 use crate::wire::Answer;
 
+mod transfer;
+
 /// 登记的方法。
-pub const NAMES: [&str; 7] = [
-    "totals", "list", "ranking", "add", "update", "delete", "rate",
+pub const NAMES: [&str; 9] = [
+    "totals", "list", "ranking", "add", "update", "delete", "rate", "import", "export",
 ];
 
 /// 名字、号最多几个字。
@@ -113,6 +117,8 @@ pub fn call(state: &State, request: &Value, (now, zone): (i64, &TimeZone)) -> An
             let (rate, _) = frozen(state.rates.as_ref(), 1.0, &currency, &base);
             Ok(json!({"base": base, "rate": rate}))
         }
+        "import" => transfer::import(state, params),
+        "export" => transfer::export(state),
         _ => Err(crate::wire::unknown_method()),
     }
 }
