@@ -226,10 +226,11 @@ const TOOLS: [Decl; 21] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 56] = [
+const ANSWERS: [(&str, &[&str]); 57] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
+    ("unsendable", &[]),
     ("skipped", &[]),
     ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
@@ -314,6 +315,8 @@ pub struct QqTools {
     pub(crate) per_turn: usize,
     /// 一张图最多多少字节（`image_max_mb`，施工 I-23）：`fetch_media` 取的图、头像照它。
     pub(crate) image_limit: usize,
+    /// 传文件最多等多久（`upload_seconds`，施工 I-130）：`outbox/` 里比它还老的照没删掉的清。
+    pub(crate) upload: Duration,
 }
 
 impl QqTools {
@@ -328,6 +331,7 @@ impl QqTools {
             wait: tuning.fetch(),
             per_turn: tuning.fetch_per_turn,
             image_limit: tuning.image_limit(),
+            upload: tuning.upload(),
         }
     }
 }
@@ -403,7 +407,7 @@ impl ToolSet for QqTools {
             SET_CARD => card::set_card(call),
             NOTICES => notices::notices_of(call),
             CHAT_HISTORY => history::history(call),
-            SEND_FILE => send_file::send_file(&call),
+            SEND_FILE => send_file::send_file(&call, self.upload),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),
                 // 没写发给谁（施工 I-16：以前借禁言那句「要对方引用或 @」，把她带偏去反复试）：回这个会话直接写字。

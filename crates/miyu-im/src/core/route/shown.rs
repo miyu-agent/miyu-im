@@ -36,7 +36,8 @@ const UNSHOWN: &str = "unshown";
 enum Source {
     /// 核心的 blob：经 `blob.get` 读出来，写成 `base64://…` 交 NapCat（`show`）。
     Blob(String),
-    /// 本机的一份文件：路径原样交 NapCat，它自己读（`qq_send_file`，施工 I-130；im 不读进内存，不设大小上限）。
+    /// 本机的一份文件：路径原样交 NapCat，它自己读（`qq_send_file`，施工 I-130；im 不读进内存，不设大小上限）。是驱动钉在
+    /// `outbox/` 里的那一份，传完、没传成都删。
     Path(String),
 }
 
@@ -162,7 +163,14 @@ impl Route {
 async fn send(job: Job) {
     let venue = job.peer.venue.as_str().to_string();
     let kind = if job.file.is_image() { "image" } else { "file" };
-    match deliver(&job).await {
+    let delivered = deliver(&job).await;
+    // 钉住的那一份（施工 I-130）：NapCat 回了、过了时都不再读它，删掉。
+    if let Source::Path(path) = &job.file.source
+        && let Err(error) = std::fs::remove_file(path)
+    {
+        tracing::debug!(target: TARGET, error = %error, "pinned file not removed");
+    }
+    match delivered {
         Ok(()) => tracing::info!(target: TARGET, venue, kind, "file shown"),
         Err((why, detail)) => {
             tracing::warn!(target: TARGET, venue, kind, why, "file not shown");

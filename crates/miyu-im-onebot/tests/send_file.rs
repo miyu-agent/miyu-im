@@ -1,5 +1,6 @@
-//! 传文件（施工 I-130）：真核心照开关拉起真桥、假 NapCat 从本机连进来、她照台词说。群里她调 `qq_send_file`：工作区里的文件把
-//! 真实路径原样交给 NapCat 的 `upload_group_file`（不读进来、不转 base64），当场答在传了；工作区外面的不传，答不是工作区里的文件。
+//! 传文件（施工 I-130）：真核心照开关拉起真桥、假 NapCat 从本机连进来、她照台词说。群里她调 `qq_send_file`：工作区里的文件钉进
+//! im 状态目录的 `qq/outbox/`，把那一份的路径交给 NapCat 的 `upload_group_file`（不读进来、不转 base64），当场答在传了，传完删掉；
+//! 工作区外面的不传，答不是工作区里的文件。只在 Unix 上：别的系统核不了 inode，不传（`tools/send_file.rs`）。
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -71,11 +72,16 @@ async fn a_file_in_her_workspace_goes_to_napcat_by_path() {
             break action;
         }
     };
-    let real = std::fs::canonicalize(cwd.join("out/report.pdf")).expect("在");
-    assert_eq!(
-        upload["params"],
-        json!({"group_id": GROUP, "file": real.to_string_lossy(), "name": "report.pdf"}),
-        "真实路径原样交，不转 base64"
+    let outbox = std::fs::canonicalize(miyu_im::dirs::state(&home.root))
+        .expect("有状态目录")
+        .join("qq/outbox");
+    assert_eq!(upload["params"]["group_id"], GROUP);
+    assert_eq!(upload["params"]["name"], "report.pdf");
+    let file = PathBuf::from(upload["params"]["file"].as_str().expect("是路径"));
+    assert!(
+        file.starts_with(&outbox),
+        "交的是钉住的那一份，不转 base64：{}",
+        file.display()
     );
     let events = until_events(&home.root, &venue(), |events| {
         events
@@ -102,5 +108,8 @@ async fn a_file_in_her_workspace_goes_to_napcat_by_path() {
             .any(|text| text.contains("../outside.txt is not a file in your workspace")),
         "{results:?}"
     );
+    // 传完删掉钉住的那一份：发出去了才写「file shown」。
+    until_logged(&home.root, |log| log.contains("file shown")).await;
+    assert!(!file.exists(), "传完删掉");
     stopped(home).await;
 }

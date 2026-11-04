@@ -45,7 +45,7 @@
 | `crates/miyu-im/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照软件包列表记谁挂在哪（订阅 `packages`、推来的 `package.changed`、掉了队重订），`chat.event` 原样交通知、请求（「挂接点」） |
 | `crates/miyu-im-onebot/src/bin/miyu-im-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
 | `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」）；I-130 起也办 `qq_send_file` 交的本机文件（路径原样交 NapCat，不读进来） |
-| `crates/miyu-im-onebot/src/tools/send_file.rs`（I-130） | `qq_send_file {path}`：只认会话工作区里的普通文件（真实位置比、链接解开再判），NapCat 从本机连进来才传，交 im 另起任务传（「传文件」） |
+| `crates/miyu-im-onebot/src/tools/send_file.rs`（I-130） | `qq_send_file {path}`：只认会话工作区里的普通文件（真实位置比、链接解开再判），判过的硬链接进驱动状态目录的 `outbox/` 钉住、链接好再核一遍 inode，NapCat 从本机连进来才传，交 im 另起任务传（「传文件」） |
 | `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
 | `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」）；`exports/media.rs`（I-39）`chat.media` 取一张图和来历 |
@@ -532,10 +532,11 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 1. **认哪些**：会话工作区（`tool.call` 的 `cwd`）里的普通文件，相对的照工作区算；照真实位置比，链接解开了再判，指出工作区的、不在的、是目录的答 `no-file {path}`（core1 11-04：场所会话关在工作区里，她碰不到的路径不能借它发出去）。
 2. **谁读**：NapCat 读。只有从本机（回环地址）连进来的连接读得到这台机器上的文件（`Link::local_files`），别的答 `not-local`；号没连着答 `unreachable`。
-3. **怎么传**：交给 im（`Effect::Upload`），当场答 `uploading {name, size}`；另起任务把真实路径原样交 `upload_group_file`、`upload_private_file`（同「展示」第 2 条的传文件，只是 `file` 是路径不是 `base64://`），最多等 `upload_seconds`。没传成的照「展示」第 4 条记 `unshown`，QQ 收不了的就是 NapCat 回的原话。
-4. **记**：同「展示」第 3 条（`kind=file`）。
+3. **钉住**（core1 11-04 审出来的：判完到 NapCat 真去读之间有时间差，她能把文件换成指出去的链接，NapCat 不在沙盒里、以主人的身份读）：判过的文件硬链接进驱动状态目录（im 状态目录的 `qq/`）的 `outbox/`，名字 im 起（`<钉住的秒>-<进程号>-<第几份>`），交给 NapCat 的是这一份；链接好了再核一遍：原路径照样解在工作区里、和判的时候是同一个 inode，钉住的那一份也是，不然删掉、答 `no-file`。硬链接不了的（跨文件系统）、不是 Unix 的系统（核不了 inode）答 `unsendable`，不退回拷一份（拷也有同样的时间差）。传完、没传成都删；每次调用顺手清掉钉住超过 `upload_seconds` 加一分钟的（桥崩了没删掉的）。
+4. **怎么传**：交给 im（`Effect::Upload`），当场答 `uploading {name, size}`；另起任务把钉住那一份的路径交 `upload_group_file`、`upload_private_file`（同「展示」第 2 条的传文件，只是 `file` 是路径不是 `base64://`），最多等 `upload_seconds`。没传成的照「展示」第 4 条记 `unshown`，QQ 收不了的就是 NapCat 回的原话。
+5. **记**：同「展示」第 3 条（`kind=file`）。
 
-**守着它的**（`tools/send_file/tests.rs`、`tests/send_file.rs`）：工作区里的照相对、绝对路径都认；`..`、工作区外面的绝对路径、目录、不在的、指出去的链接不认（去掉工作区的检查，测试变红）。真核心拉起真桥、假 NapCat 从本机连进来：她在群里调两次，工作区里的那份把真实路径原样交 `upload_group_file`、答 `uploading`，工作区外面的答 `no-file`。
+**守着它的**（`tools/send_file/tests.rs`、`tests/send_file.rs`）：工作区里的照相对、绝对路径都认、钉进 `outbox/`；`..`、工作区外面的绝对路径、目录、不在的、指出去的链接不认（去掉工作区的检查，测试变红）；钉住以后原文件换成指出去的链接，钉住的那一份照旧是原来的内容（交原路径不钉，测试变红）；只清过了时限的。真核心拉起真桥、假 NapCat 从本机连进来（只在 Unix 上）：她在群里调两次，工作区里的那份把钉住的路径交 `upload_group_file`、答 `uploading`、传完删掉，工作区外面的答 `no-file`。
 
 **退信**（O-25 下，2026-10-09；施工单「要定的」第 1、2 条照推荐定：一段一块、带那一段的开头；18 第十节「发不出去就退回给她，像退信」、Q15）：她的话没发出去（NapCat 拒了、等不到、连接断了、排过期了），她自己要知道，不然会以为群里看到了。经核心的 `session.note`（`venues.md`「记几块事实」）给那个会话记一块事实：这一轮还在跑的，她下一次请求看到；不在跑的，下一轮开头看到。接在 `route/sending.rs` 记 `failed` 的后面（「施工时定的」第 129 条）。不占编号。
 

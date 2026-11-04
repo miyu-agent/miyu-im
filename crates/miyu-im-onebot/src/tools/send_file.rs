@@ -1,21 +1,31 @@
 //! 传文件（施工 I-130，2026-11-04 项目主人定）：`qq_send_file {path}`，私聊、群都给。往 QQ 里传文件是平台的功能，不走核心的
-//! `show`（那是给人看的，有 20 MiB 的上限）：路径原样交给 NapCat 的 `upload_group_file`、`upload_private_file`，它自己读、自己传，
+//! `show`（那是给人看的，有 20 MiB 的上限）：路径交给 NapCat 的 `upload_group_file`、`upload_private_file`，它自己读、自己传，
 //! im 不读进内存，不设大小上限，QQ 收不了的照 NapCat 回的原话告诉她。
 //!
 //! - 只认她这个会话工作区（`cwd`）里的普通文件：相对的照工作区算；照真实位置比，链接解开了再判，指出工作区的不认（场所会话是
 //!   关起来的，她本来就只碰得到自己的工作区；core1 11-04）。不认的答 `no-file`。
+//! - 判完到 NapCat 真去读之间有时间差（core1 11-04 审出来的）：她能把那个文件换成指出去的链接，NapCat 不在沙盒里、以主人的身份
+//!   读。所以判过的文件先硬链接进 im 自己的 `outbox/`（驱动的状态目录下，名字 im 起），钉住那个 inode，交给 NapCat 的是这一份；
+//!   链接好了再核一遍：原路径照样解在工作区里、是同一个 inode，和钉住的也是同一个，不然删掉、不认。传完、没传成都删（im 那一头，
+//!   `shown.rs`）。硬链接不了的（跨文件系统；不是 Unix 的系统上核不了 inode）答 `unsendable`，不退回拷一份：拷也有同样的时间差。
 //! - 对端读不到本机的文件（NapCat 不是从本机连进来的）答 `not-local`；没连着答 `unreachable`。
 //! - 认了的交给 im（`Effect::Upload`）：另起任务传，当场答 `uploading`；没传成的照 `show` 的文件记 `unshown`。
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use miyu_im::TARGET;
 use miyu_im::toolset::{Call, Effect, Planned};
 
 use super::args::bad_args;
 use super::group_files::size;
 
-/// `qq_send_file` 的一次调用（模块的说明）。
-pub(super) fn send_file(call: &Call) -> Planned {
+/// 钉住的文件放在驱动状态目录下的哪里。
+const OUTBOX: &str = "outbox";
+
+/// `qq_send_file` 的一次调用（模块的说明）：`upload` 是传文件最多等多久，`outbox/` 里比它还老的是没删掉的，顺手清。
+pub(super) fn send_file(call: &Call, upload: Duration) -> Planned {
     let Some(asked) = call.args["path"]
         .as_str()
         .map(str::trim)
@@ -29,22 +39,41 @@ pub(super) fn send_file(call: &Call) -> Planned {
     if !link.local_files() {
         return Planned::Now(call.answers.say("not-local", &[], true));
     }
-    match within(Path::new(&call.cwd), Path::new(asked)) {
-        Some((path, bytes)) => Planned::Host(Effect::Upload {
-            name: path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_default(),
+    let outbox = call.store.join(OUTBOX);
+    sweep(&outbox, upload);
+    match pin(Path::new(&call.cwd), Path::new(asked), &outbox) {
+        Ok(Pinned { path, name, bytes }) => Planned::Host(Effect::Upload {
             path: plain(&path),
+            name,
             size: size(bytes),
         }),
-        None => Planned::Now(call.answers.say("no-file", &[("path", asked)], true)),
+        Err(Refused::NoFile) => Planned::Now(call.answers.say("no-file", &[("path", asked)], true)),
+        Err(Refused::Unsendable) => Planned::Now(call.answers.say("unsendable", &[], true)),
     }
 }
 
-/// `asked`（相对的照工作区 `workspace` 算）的真实位置在工作区的真实位置里、是普通文件：交回真实位置和大小。工作区没给的、
-/// 不在的、解不开的、指出去的、是目录的都是空的。碰磁盘。
-pub(crate) fn within(workspace: &Path, asked: &Path) -> Option<(PathBuf, u64)> {
+/// 钉住了的一份。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Pinned {
+    /// `outbox/` 里的那一份：交给 NapCat 的路径。
+    pub(crate) path: PathBuf,
+    /// 原来的文件名：传上去叫这个。
+    pub(crate) name: String,
+    /// 多大。
+    pub(crate) bytes: u64,
+}
+
+/// 为什么不传。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Refused {
+    /// 不是她工作区里的普通文件（不在、是目录、指出去了、判的时候被换了）。
+    NoFile,
+    /// 钉不住：硬链接不了（跨文件系统），或者这个系统上核不了 inode。
+    Unsendable,
+}
+
+/// `asked`（相对的照工作区 `workspace` 算）的真实位置在工作区的真实位置里、是普通文件：交回真实位置和它的元数据。碰磁盘。
+fn checked(workspace: &Path, asked: &Path) -> Option<(PathBuf, std::fs::Metadata)> {
     if workspace.as_os_str().is_empty() {
         return None;
     }
@@ -53,8 +82,97 @@ pub(crate) fn within(workspace: &Path, asked: &Path) -> Option<(PathBuf, u64)> {
     if !real.starts_with(&base) {
         return None;
     }
-    let meta = std::fs::metadata(&real).ok()?;
-    meta.is_file().then_some((real, meta.len()))
+    let meta = std::fs::symlink_metadata(&real).ok()?;
+    meta.is_file().then_some((real, meta))
+}
+
+/// 判 `asked`，判过的硬链接进 `outbox`（模块的说明），链接好再核一遍。碰磁盘。
+///
+/// # Errors
+///
+/// 不是工作区里的普通文件、核的时候对不上的是 [`Refused::NoFile`]；钉不住的是 [`Refused::Unsendable`]。
+#[cfg(unix)]
+pub(crate) fn pin(workspace: &Path, asked: &Path, outbox: &Path) -> Result<Pinned, Refused> {
+    use std::os::unix::fs::MetadataExt;
+    let same = |one: &std::fs::Metadata, other: &std::fs::Metadata| {
+        one.dev() == other.dev() && one.ino() == other.ino()
+    };
+    let (real, meta) = checked(workspace, asked).ok_or(Refused::NoFile)?;
+    std::fs::create_dir_all(outbox).map_err(|_| Refused::Unsendable)?;
+    let path = outbox.join(fresh_name());
+    std::fs::hard_link(&real, &path).map_err(|_| Refused::Unsendable)?;
+    let held = std::fs::symlink_metadata(&path).ok();
+    let again = checked(workspace, asked);
+    let kept = match (&held, &again) {
+        (Some(held), Some((real_again, meta_again))) => {
+            held.is_file() && *real_again == real && same(held, &meta) && same(meta_again, &meta)
+        }
+        _ => false,
+    };
+    if !kept {
+        if std::fs::remove_file(&path).is_err() {
+            tracing::debug!(target: TARGET, path = %path.display(), "pinned file not removed");
+        }
+        return Err(Refused::NoFile);
+    }
+    let name = real
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    Ok(Pinned {
+        path,
+        name,
+        bytes: meta.len(),
+    })
+}
+
+/// 不是 Unix 的系统上核不了 inode：判过照样不传（模块的说明）。
+///
+/// # Errors
+///
+/// 不是工作区里的普通文件的是 [`Refused::NoFile`]，别的一律 [`Refused::Unsendable`]。
+#[cfg(not(unix))]
+pub(crate) fn pin(workspace: &Path, asked: &Path, _outbox: &Path) -> Result<Pinned, Refused> {
+    match checked(workspace, asked) {
+        None => Err(Refused::NoFile),
+        Some(_) => Err(Refused::Unsendable),
+    }
+}
+
+/// `outbox/` 里一份的名字：钉住的那一刻（秒）、进程号、进程里第几份。名字带时刻，清的时候照它认老的（硬链接的修改时刻是原文件的）。
+fn fresh_name() -> String {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    format!(
+        "{}-{}-{}",
+        now_seconds(),
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
+/// 此刻：秒的 Unix 时间。
+fn now_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs())
+}
+
+/// 清掉 `outbox` 里钉住超过 `upload` 再加一分钟的：传的任务早就不等了，是桥崩了、重启前没删掉的。删不了的不管。
+fn sweep(outbox: &Path, upload: Duration) {
+    let Ok(entries) = std::fs::read_dir(outbox) else {
+        return;
+    };
+    let cutoff = now_seconds().saturating_sub(upload.as_secs() + 60);
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let pinned_at = name
+            .to_str()
+            .and_then(|name| name.split('-').next())
+            .and_then(|seconds| seconds.parse::<u64>().ok());
+        if pinned_at.is_some_and(|at| at < cutoff) && std::fs::remove_file(entry.path()).is_err() {
+            tracing::debug!(target: TARGET, path = %entry.path().display(), "stale pinned file not removed");
+        }
+    }
 }
 
 /// 交给 NapCat 的写法：Windows 上 `canonicalize` 给的 `\\?\` 前缀去掉（NapCat 照普通路径读）。

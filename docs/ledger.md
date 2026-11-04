@@ -53,7 +53,7 @@
 - 施工 I-88（2026-10-31，设计 05 删抽样）删了 `miyu-im/data/facts/join-in.txt`（41）：抽中插话的那一轮没有了，那一行从登记簿里拿掉。
 - 施工 I-89 上（2026-11-02，设计 05 看一眼）的一份（`miyu-im/data/facts/glance.txt`）照 opencode Console Go 的 `deepseek-v4.1-flash` 量（magpie 网关这阵子 429），量法同 O-11：接在 `hi` 和一个换行后面、带行尾换行，20；同一趟顺带量 `precheck.txt` 是 64（登记的 65），对得上。
 - 施工 I-89 下（2026-11-02）的两份（`miyu-im/data/onebot/tools/qq_glance.json`、`tool-results/glance-set.txt`）照 opencode Console Go 的 `deepseek-v4.1-flash` 量：工具面照「带工具减不带」，驱动的二十件一起时 `qq_glance` 第一稿的边际 57、二十件合计 1645；加了它说明合计 4502 字节、超了预算 4312（`tests/budget.rs`），照「超预算改内容不提门禁」改短：`qq_glance` 说明改成一句、`minutes` 不标必填（193 → 170 字节），`qq_fetch_media`、`qq_react`、`qq_quote` 的 `msg` 去掉「The msg= id.」（`qq_recall` 本来就不写，近况、结果里都是 `msg=`），`qq_react` 的 `emoji` 去掉「One emoji.」，`qq_fetch_media` 的 `index` 只留「Default 1.」，`qq_skip_reply` 去掉重复的「in this turn」，`qq_send` 的「For the chat you are in」改「For this chat」：合计 4310 字节；改过的六件重量（二十件一起时的边际）：`qq_glance` 56、`qq_fetch_media` 71、`qq_react` 56、`qq_quote` 49、`qq_skip_reply` 69、`qq_send` 88，二十件合计 1574；结果接在 `hi` 和一个换行后面、带行尾换行，`minutes` 填 `60` 是 8。
-- 施工 I-130（2026-11-04）的四份（`miyu-im/data/onebot/tools/qq_send_file.json`、`tool-results/uploading.txt`、`not-local.txt`、`no-file.txt`）照 opencode Console Go 的 `deepseek-v4.1-flash` 量：工具面照「带工具减不带」，驱动的二十一件一起时 `qq_send_file` 的边际 52、二十一件合计 1637；结果接在 `hi` 和一个换行后面、带行尾换行：`uploading`（`report.pdf`、`3.4 MB`）15、`not-local` 15、`no-file`（`out/report.pdf`）16。为什么加：项目主人 11-04 定她往群里、私聊里发文件走平台自己的上传、不设上限，`show` 有 20 MiB 的上限、要把文件读进来，不合用。工具面预算：照文件数合计 4476 字节、超了 4312；项目主人定门禁照模型收到的紧凑 JSON 数（文件里的换行、缩进 210 字节解析以后就没了，到不了模型），合计 4266，预算不动，别的说明一个字不改。
+- 施工 I-130（2026-11-04）的五份（`miyu-im/data/onebot/tools/qq_send_file.json`、`tool-results/uploading.txt`、`not-local.txt`、`no-file.txt`、`unsendable.txt`）照 opencode Console Go 的 `deepseek-v4.1-flash` 量：工具面照「带工具减不带」，驱动的二十一件一起时 `qq_send_file` 的边际 52、二十一件合计 1637；结果接在 `hi` 和一个换行后面、带行尾换行：`uploading`（`report.pdf`、`3.4 MB`）15、`not-local` 15、`no-file`（`out/report.pdf`）16、`unsendable` 14（core1 审出判完到 NapCat 读之间的时间差以后加：钉不住的不传）。为什么加：项目主人 11-04 定她往群里、私聊里发文件走平台自己的上传、不设上限，`show` 有 20 MiB 的上限、要把文件读进来，不合用。工具面预算：照文件数合计 4476 字节、超了 4312；项目主人定门禁照模型收到的紧凑 JSON 数（文件里的换行、缩进 210 字节解析以后就没了，到不了模型），合计 4266，预算不动，别的说明一个字不改。
 
 ### 登记簿
 
@@ -135,7 +135,8 @@
 | `miyu-im/data/onebot/tool-results/glance-set.txt` | 工具结果 | `qq_glance` 换好了定时（施工 I-89 下） | 8（字段填 `60`） | 告诉她下一次在几分钟以后 | `d9da9776` |
 | `miyu-im/data/onebot/tool-results/uploading.txt` | 工具结果 | `qq_send_file` 交出去了，在传（施工 I-130） | 15（字段填 `report.pdf`、`3.4 MB`） | 告诉她在传了、多大；没传成的另记一块 `unshown` | `0b6c206c` |
 | `miyu-im/data/onebot/tool-results/not-local.txt` | 工具结果 | `qq_send_file`：NapCat 不是从本机连进来的，读不到她的文件（施工 I-130） | 15 | 别再换路径重试 | `cd89405a` |
-| `miyu-im/data/onebot/tool-results/no-file.txt` | 工具结果 | `qq_send_file`：路径不是她工作区里的文件（不在、是目录、指出工作区，施工 I-130） | 16（字段填 `out/report.pdf`） | 告诉她只认工作区里的文件 | `56dec745` |
+| `miyu-im/data/onebot/tool-results/no-file.txt` | 工具结果 | `qq_send_file`：路径不是她工作区里的文件（不在、是目录、指出工作区、判的时候被换了，施工 I-130） | 16（字段填 `out/report.pdf`） | 告诉她只认工作区里的文件 | `56dec745` |
+| `miyu-im/data/onebot/tool-results/unsendable.txt` | 工具结果 | `qq_send_file`：钉不住（跨文件系统硬链接不了；不是 Unix 的系统上核不了 inode），不传（施工 I-130） | 14 | 别再换路径重试；不退回拷一份，拷也有同样的时间差 | `426c28ee` |
 | `miyu-im/data/onebot/tool-results/no-activity.txt` | 工具结果 | `qq_activity_ranking`：那几天一条都没数到（施工 I-20） | 13 | 照实说没数到，免得她编一个排行 | `92b94717` |
 | `miyu-im/data/onebot/tool-results/many-targets.txt` | 工具结果 | 禁言、戳一戳：引用的和 @ 的合起来不止一个人（施工 T-2 起挪进驱动的目录） | 17 | 一次只动一个人，不猜是哪一个 | `1feae897` |
 | `miyu-im/data/onebot/tool-results/bad-seconds.txt` | 工具结果 | 禁言：秒数没写、不是整数、不在 0 到 2592000，或者不在群管理设置的最短、最长中间（施工 Q-1 起带 `{min}`、`{max}`，照时长写） | 19（施工 Q-1 改；填 `1m`、`30d` 量；原来 14） | QQ 的上限是 30 天；施工 Q-1 起最短、最长是群管理的设置，参数说明里写不了，写错的说这一刻的范围 | `842dc85c` |
