@@ -125,10 +125,7 @@ pub(crate) fn ago(ago: i64) -> Timestamp {
 
 /// 她在此刻之前 `ago` 毫秒回了 `to` 这几个人一轮；空的是没有明确回谁。
 pub(crate) fn reply(ago_ms: i64, to: &[&str]) -> Reply {
-    Reply {
-        at: ago(ago_ms),
-        to: to.iter().map(|id| person(id)).collect(),
-    }
+    Reply::first(ago(ago_ms), to.iter().map(|id| person(id)).collect())
 }
 
 /// 自带的加值项算一条消息，此刻是 [`now`]。

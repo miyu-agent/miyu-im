@@ -252,13 +252,11 @@ impl Projection {
                     delivered.turn.started().get(),
                 );
                 match self.rounds.get(&round) {
-                    Some(&index) => add(&mut self.replies[index].to, &delivered.to),
+                    Some(&index) => self.replies[index].more(event.at, &delivered.to),
                     None => {
                         self.rounds.insert(round, self.replies.len());
-                        self.replies.push(Reply {
-                            at: event.at,
-                            to: delivered.to.clone(),
-                        });
+                        self.replies
+                            .push(Reply::first(event.at, delivered.to.clone()));
                     }
                 }
                 self.mine.insert(delivered.msg.clone());

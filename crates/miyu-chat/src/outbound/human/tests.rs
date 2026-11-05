@@ -193,6 +193,26 @@ fn quotes_code_and_links_are_not_cut() {
 }
 
 #[test]
+fn exclamation_and_question_marks_stay_after_a_cut() {
+    // 11-05 项目主人：拆开以后叹号要留着（问号同样），句号照旧去掉。
+    let texts = |text: &str| {
+        bubbles(text, SPEED)
+            .into_iter()
+            .map(|bubble| bubble.text)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        texts("这个真好用！不过要先装依赖"),
+        ["这个真好用！", "不过要先装依赖"]
+    );
+    assert_eq!(
+        texts("你重启过了吗？没重启就先重启"),
+        ["你重启过了吗？", "没重启就先重启"]
+    );
+    assert_eq!(texts("装好了。再试一次看看"), ["装好了", "再试一次看看"]);
+}
+
+#[test]
 fn an_ascii_semicolon_does_not_cut_a_command() {
     // 施工 I-142：主群 11-03 的实例，一行接着的两条命令在 `; ` 处被切成了两条发。
     let text = "清掉旧的挂载点，跑 sudo umount /var/lib/os-prober/mount 2>/dev/null; sudo rm -rf /var/lib/os-prober/mount 再重新生成一遍";

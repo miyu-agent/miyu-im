@@ -249,10 +249,7 @@ fn the_factory_continuation_window_is_thirty_seconds() {
     // 以前的不算（刚说过话的窗口也是 30 秒，一起没了）。
     let params = params();
     let after = |seconds: i64| {
-        let replies = [Reply {
-            at: ago(seconds),
-            to: vec![lin()],
-        }];
+        let replies = [Reply::first(ago(seconds), vec![lin()])];
         let decision = decide(&Case {
             facts: facts(Standing::Member, false),
             text: "接着说".to_string(),

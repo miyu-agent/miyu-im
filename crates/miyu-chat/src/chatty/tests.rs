@@ -5,7 +5,7 @@
 use crate::{Flag, Standing};
 
 use super::test_support::{
-    OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, route_as, said,
+    OTHER, SECOND, SENDER, ago, chatty, facts, hits, mills, now, reply, route_as, said,
 };
 use super::{Conditions, Hit, Kind, Route, conditions, route};
 
@@ -179,6 +179,25 @@ fn continuation_counts_anyone_the_round_answered() {
 fn reply_to_nobody_is_not_a_continuation() {
     let got = hits(&facts(), &[], &[reply(5 * SECOND, &[])], &chatty());
     assert_eq!(kinds(&got), [Kind::AfterSpeaking]);
+}
+
+#[test]
+fn after_speaking_counts_from_her_last_piece() {
+    // 11-05 主群（施工 I-155）：她这一轮先发表情、19 秒后才发出字；37 秒后有人接着问。照第一条早过了 30 秒，照最后一条只隔 18 秒。
+    let mut round = reply(37 * SECOND, &[]);
+    round.more(ago(18 * SECOND), &[]);
+    let got = hits(&facts(), &[], &[round], &chatty());
+    assert_eq!(kinds(&got), [Kind::AfterSpeaking]);
+    // 后面那段还没发出（比此刻晚）的，照第一条：夹在她两条中间的那一条离第一条 8 秒，算。
+    let mut round = reply(8 * SECOND, &[]);
+    round.more(ago(-11 * SECOND), &[]);
+    let got = hits(&facts(), &[], &[round], &chatty());
+    assert_eq!(kinds(&got), [Kind::AfterSpeaking]);
+    // 最后一段也过了 30 秒的照旧不算。
+    let mut round = reply(70 * SECOND, &[]);
+    round.more(ago(31 * SECOND), &[]);
+    let got = hits(&facts(), &[], &[round], &chatty());
+    assert_eq!(kinds(&got), []);
 }
 
 #[test]

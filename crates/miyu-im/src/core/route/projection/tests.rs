@@ -322,14 +322,12 @@ fn her_replies_are_one_per_turn_and_her_ids_are_kept() {
         [
             Reply {
                 at: at(10),
+                last: at(11),
                 to: vec![qq(20002), qq(20003)],
             },
-            Reply {
-                at: at(30),
-                to: Vec::new(),
-            },
+            Reply::first(at(30), Vec::new()),
         ],
-        "同一轮的几条并成一笔：时刻取第一条，回的人取并集"
+        "同一轮的几条并成一笔：时刻取第一条，最后一条另记（I-155），回的人取并集"
     );
     assert!(projection.mine("m1") && projection.mine("m2") && projection.mine("m3"));
     assert!(!projection.mine("m4"));

@@ -61,9 +61,33 @@ pub struct Facts {
 pub struct Reply {
     /// 发出的时刻：这一轮第一条发出的时刻。
     pub at: Timestamp,
+    /// 这一轮到目前最后一条发出的时刻（施工 I-155）：拆成几段发的、先发表情再打字的，刚说过话照它算。
+    pub last: Timestamp,
     /// 回的是谁：平台上的人的编号，一轮可以回几个人（第七条第 4 条的投影，几条的并集）；没有明确回谁的是空的，不算谁的
     /// 续聊。
     pub to: Vec<ExternalId>,
+}
+
+impl Reply {
+    /// 这一轮发出的第一条：`at` 发出，回的是 `to`。
+    pub fn first(at: Timestamp, to: Vec<ExternalId>) -> Reply {
+        Reply { at, last: at, to }
+    }
+
+    /// 这一轮又发出了一条：`at` 发出，回的是 `to`（还没有的照先后加上）。
+    pub fn more(&mut self, at: Timestamp, to: &[ExternalId]) {
+        self.last = self.last.max(at);
+        for one in to {
+            if !self.to.contains(one) {
+                self.to.push(one.clone());
+            }
+        }
+    }
+
+    /// 此刻 `now` 以前她这一轮最后说话的时刻：后面几条都还没发出的（日志补回来、比此刻晚的），照第一条。
+    fn said_before(&self, now: Timestamp) -> Timestamp {
+        if self.last <= now { self.last } else { self.at }
+    }
 }
 
 /// 主动回复判断的参数，代码里不写默认值（施工时定的第 5 条）：从 [`Params::chatty`](crate::Params::chatty) 拿，出厂的数
@@ -336,6 +360,15 @@ pub fn route(conditions: &Conditions, said: &Said, chatty: &Chatty) -> Route {
 }
 
 /// 她不晚于此刻的回复里最近的一轮：同一毫秒的几轮取交进来靠后的那一轮。晚于此刻的不看，交多了不要紧。
+/// 此刻以前她最近一次说话的时刻（施工 I-155）：每一轮照它最后发出的那一条，不照第一条。
+fn last_said(replies: &[Reply], now: Timestamp) -> Option<Timestamp> {
+    replies
+        .iter()
+        .filter(|reply| reply.at <= now)
+        .map(|reply| reply.said_before(now))
+        .max()
+}
+
 fn latest(replies: &[Reply], now: Timestamp) -> Option<&Reply> {
     replies
         .iter()
