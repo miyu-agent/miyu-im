@@ -49,3 +49,19 @@ small.warn, em.warn { font-style: normal; }
 .model-price .input { width: 100%; }
 .persona-field > .seg { align-self: flex-start; }
 @media (max-width: 760px) { .model-wrap { grid-template-columns: 1fr; } }
+/* 添加供应商的几屏（施工 I-151）。 */
+.add-group { margin-top: 4px; color: var(--text-faint); font-size: 12px; }
+.add-rows { display: flex; flex-direction: column; gap: 2px; }
+.add-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.add-row:hover:not(:disabled) { background: var(--surface-2); }
+.add-row:disabled { opacity: 0.5; cursor: default; }
+.add-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-row > .icon:last-child { width: 14px; height: 14px; color: var(--text-faint); }
+.add-row .chip.good { color: var(--online); }
+.add-result { display: flex; flex-direction: column; gap: 6px; }
+.add-result.good { flex-direction: row; align-items: center; color: var(--online); }
+.add-result.bad .add-result-line { display: flex; align-items: center; gap: 6px; color: var(--danger); }
+.add-result p { margin: 0; overflow-wrap: anywhere; }
+.add-fail { display: flex; gap: 8px; }
+.add-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
+.persona-field > .select { align-self: flex-start; }

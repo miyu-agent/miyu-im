@@ -1334,7 +1334,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 
 **预设页**（I-147，设计 09）：侧栏「预设」（`#presets`，`im/site/pages/presets/`），紧挨着人格，照网页软件设置页的「预设」：卡片网格（图标、名字、简单描述，默认的标「默认」，没设的照 `full`；`preset: null` 那一项不出），「＋ 新建」先填名字；详情浮窗都是当场存（`preset.set` 只带改的那一项）：名字、简单描述、图标（先列网页软件 `preset_icons` 的出厂那组，能搜整套 Lucide，「不用图标」发 unset）、无人值守步数（回应里有才画，只认正整数）、功能树（`tree.js`，照 `sections` 两列，只有软件包那组有总开关，带搜索）；删除、恢复出厂先问。列表部件和人格页共用 `personas/list.js`。
 
-**模型页**（I-149 起，设计 09）：侧栏「模型」（`#models`，`im/site/pages/models/`），紧挨着预设，照网页软件设置页的「模型」。读 `model.list`、`config.schema`、`config.get {all}`（`state.js`），存一律一条 `config.set`（系统那一层，每项带 `expect`；`config_conflict` 先重读、写现在的值）。供应商那一栏（`providers.js`）：左边一家一格（核心给的图标照 data 地址画，所以内容安全策略的图片另收 `data:`），右边测试连接、编辑（`provider-form.js`，粘贴的密钥先 `secret.set` 存成新名字）、删除（系统配置写过才有，先问）、密钥、模型列表带搜索；点一个模型开设置浮窗（`detail.js`）。
+**模型页**（I-149 起，设计 09）：侧栏「模型」（`#models`，`im/site/pages/models/`），紧挨着预设，照网页软件设置页的「模型」。读 `model.list`、`config.schema`、`config.get {all}`（`state.js`），存一律一条 `config.set`（系统那一层，每项带 `expect`；`config_conflict` 先重读、写现在的值）。供应商那一栏（`providers.js`）：左边一家一格（核心给的图标照 data 地址画，所以内容安全策略的图片另收 `data:`），右边测试连接、编辑（`provider-form.js`，粘贴的密钥先 `secret.set` 存成新名字）、删除（系统配置写过才有，先问）、密钥、模型列表带搜索；点一个模型开设置浮窗（`detail.js`）。「＋ 添加供应商」（I-151，`add-provider.js`、纯逻辑 `add-logic.js`）：浮窗里照核心目录选一家（已配好、常用、本机的服务，搜索整份目录、自定义、手动填写），测试连接成了才「保存」，测不成给「重新设置」「跳过」，只写这一家。
 
 **改群名片**（I-36，2026-10-23 项目主人定：她自己的、别人的都能改，「让它自己判断就行，这个没什么危害不用做限制」）：一件工具 `qq_set_card {user?, card}`（驱动的 `tools/card.rs`），只给群，`access` 是 `venue`。没写 `user` 的改她自己的，写了的改那个人的；`card` 去掉首尾空白，空的是清掉，最多 60 个字，写错的答 `bad-args`。调 `set_group_card`，成不成由 QQ 说（她不是管理员、改的是群主和管理员的被拒，照原话答 `failed`）；成了的答 `renamed-me {card}`、`renamed {who, card}`。不放进群管理插件的开关里。QQ 昵称、群名、专属头衔不做。
 
