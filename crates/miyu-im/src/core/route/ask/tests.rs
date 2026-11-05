@@ -327,16 +327,16 @@ async fn what_cannot_be_judged_is_asked_again_and_the_last_why_kept() {
 #[tokio::test(start_paused = true)]
 async fn slow_answers_time_out_and_are_not_asked_again() {
     let (caller, mut core) = connected();
-    // 施工 I-16 照旧版：每问一次最多等 15 秒（出厂的），等不到的不再问。
+    // 施工 I-16 照旧版：每问一次最多等出厂的那么久（I-157 起 25 秒），等不到的不再问。
     let task = asked(asking(|asking| asking.judge.retries = 0), &caller, &slots());
     core.records("", "C\n").await;
     core.next().await;
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(
         (answer.tries, answer.millis, answer.model, answer.result),
-        (1, 15_000, None, Err(Unjudged::Timeout))
+        (1, 25_000, None, Err(Unjudged::Timeout))
     );
-    // 只查违规的也是每次 15 秒。
+    // 只查违规的也是每次 25 秒。
     let task = asked(
         asking(|asking| {
             asking.mode = Mode::ModerationOnly;
@@ -350,7 +350,7 @@ async fn slow_answers_time_out_and_are_not_asked_again() {
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(
         (answer.millis, answer.result),
-        (15_000, Err(Unjudged::Timeout))
+        (25_000, Err(Unjudged::Timeout))
     );
     // 能再问也不再问：等不到就是等不到，晚来的回答没人收。
     let task = asked(asking(|asking| asking.judge.retries = 1), &caller, &slots());
@@ -359,7 +359,7 @@ async fn slow_answers_time_out_and_are_not_asked_again() {
     let answer = task.await.expect("没崩").expect("核心在");
     assert_eq!(
         (answer.tries, answer.millis, answer.result),
-        (1, 15_000, Err(Unjudged::Timeout))
+        (1, 25_000, Err(Unjudged::Timeout))
     );
     let reply = json!({"jsonrpc": "2.0", "id": late["id"], "result": {"text": verdict("late")}});
     assert_eq!(core.waiting.sort(reply), None, "晚来的丢掉");

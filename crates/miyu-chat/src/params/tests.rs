@@ -39,7 +39,7 @@ fn factory() -> Params {
             max_tokens: 0,
             timeout: 60_000,
             moderation_timeout: 120_000,
-            attempt_timeout: 15_000,
+            attempt_timeout: 25_000,
             retries: 1,
             reason_chars: REASON_CHARS,
         },
