@@ -26,13 +26,13 @@
     "prefix": "miyu im",
     "hint": "提示：",
     "warning": "警告：",
-    "help/main": "用法：miyu im <命令>\n\n命令：\n  start                  启动接入通讯平台\n  stop                   停止接入通讯平台\n  restart                重启接入通讯平台\n  status                 显示运行状态\n  web                    在浏览器中打开管理页面\n  logs [-f]              显示运行日志\n  venue show <场所>      显示场所各项设置的值和来源\n  records import <文件>  导入聊天记录\n  whitelist <命令>       管理私聊白名单\n  access <命令>          管理访问名单\n\n运行 'miyu im <命令> --help' 查看命令的用法",
+    "help/main": "用法：miyu im <命令>\n\n命令：\n  start                  启动接入通讯平台\n  stop                   停止接入通讯平台\n  restart                重启接入通讯平台\n  status                 显示运行状态\n  web                    在浏览器中打开管理页面\n  logs [-f]              显示运行日志\n  logs watch [会话]      实时看 AI 在做什么\n  venue show <场所>      显示场所各项设置的值和来源\n  records import <文件>  导入聊天记录\n  whitelist <命令>       管理私聊白名单\n  access <命令>          管理访问名单\n\n运行 'miyu im <命令> --help' 查看命令的用法",
     "help/start": "用法：miyu im start\n\n启动接入通讯平台，之后核心每次启动都会启动它",
     "help/stop": "用法：miyu im stop\n\n停止接入通讯平台，之后核心不再启动它",
     "help/restart": "用法：miyu im restart\n\n重启接入通讯平台",
     "help/status": "用法：miyu im status\n\n显示运行状态和 NapCat 的连接",
     "help/web": "用法：miyu im web\n\n在浏览器中打开管理页面（链接 1 分钟内有效）",
-    "help/logs": "用法：miyu im logs [-f]\n\n显示运行日志，标准错误里有内容的先显示它\n\n选项：\n  -f    持续显示新写入的日志",
+    "help/logs": "用法：miyu im logs [-f]\n      miyu im logs watch [会话]\n\n显示运行日志，标准错误里有内容的先显示它\n\n选项：\n  -f    持续显示新写入的日志\n\nwatch：实时看 AI 在会话里做什么：收到的消息、判断、思考、调用的工具、发出的话。会话写 qq:号（群号或私聊的号），不写看全部",
     "help/venue": "用法：miyu im venue show <场所>\n\n显示场所各项设置的值和来源\n\n场所的写法：\n  <平台>:<机器人号>:group:<群号>  群\n  <平台>:<机器人号>:private:<号>  私聊\n\n例如 'miyu im venue show qq:10001:group:123456'",
     "help/records": "用法：miyu im records import <文件>\n\n从 JSON Lines 文件导入聊天记录，一行一条消息、一件群事件或一条判断（格式见 miyu-im 设计 04）。已有的记录保留、不重复导入。有一行不对就什么都不导入",
     "help/whitelist": "用法：miyu im whitelist [<命令>]\n\n管理私聊白名单（同 miyu im access whitelist）\n\n命令：\n  list          列出白名单（默认）\n  add <号>      加入白名单\n  remove <号>   移出白名单",
@@ -198,6 +198,13 @@
     "watch/compacted": "压缩了上下文",
     "watch/ended": "这一轮停了：{reason}",
     "watch/ended-why-interrupted": "被打断",
-    "watch/ended-why-error": "出错"
+    "watch/ended-why-error": "出错",
+    "watch/cli-failed": "连不上 im 的页面服务：{why}",
+    "watch/cli-none": "没见过会话 {venue}：im 起来以后还没有哪个会话有动静",
+    "watch/cli-unknown": "没见过会话 {venue}。见过的：{seen}",
+    "watch/cli-both": "{id} 既是群又是私聊，写 qq:group:{id} 或 qq:private:{id}",
+    "watch/cli-closed": "im 断开了",
+    "watch/cli-watching": "正在看 {name}，Ctrl+C 退出",
+    "watch/cli-watching-all": "正在看全部会话，Ctrl+C 退出"
   }
 }

@@ -26,13 +26,13 @@
     "prefix": "miyu im",
     "hint": "hint: ",
     "warning": "warning: ",
-    "help/main": "Usage: miyu im <COMMAND>\n\nCommands:\n  start                  Start Connect Messaging\n  stop                   Stop Connect Messaging\n  restart                Restart Connect Messaging\n  status                 Show the running state\n  web                    Open the management page in a browser\n  logs [-f]              Show the run log\n  venue show <venue>     Show the settings of a venue and their sources\n  records import <file>  Import chat records\n  whitelist <command>    Manage the private chat whitelist\n  access <command>       Manage the access lists\n\nRun 'miyu im <command> --help' for the usage of a command",
+    "help/main": "Usage: miyu im <COMMAND>\n\nCommands:\n  start                  Start Connect Messaging\n  stop                   Stop Connect Messaging\n  restart                Restart Connect Messaging\n  status                 Show the running state\n  web                    Open the management page in a browser\n  logs [-f]              Show the run log\n  logs watch [<venue>]   Watch what the AI does, live\n  venue show <venue>     Show the settings of a venue and their sources\n  records import <file>  Import chat records\n  whitelist <command>    Manage the private chat whitelist\n  access <command>       Manage the access lists\n\nRun 'miyu im <command> --help' for the usage of a command",
     "help/start": "Usage: miyu im start\n\nStart Connect Messaging and keep starting it with the core",
     "help/stop": "Usage: miyu im stop\n\nStop Connect Messaging and stop starting it with the core",
     "help/restart": "Usage: miyu im restart\n\nRestart Connect Messaging",
     "help/status": "Usage: miyu im status\n\nShow the running state and the NapCat connections",
     "help/web": "Usage: miyu im web\n\nOpen the management page in a browser (the link is valid for 1 minute)",
-    "help/logs": "Usage: miyu im logs [-f]\n\nShow the run log, after the standard error if it is not empty\n\nOptions:\n  -f    Keep showing new lines as they are written",
+    "help/logs": "Usage: miyu im logs [-f]\n       miyu im logs watch [<venue>]\n\nShow the run log, the standard error first if it has anything\n\nOptions:\n  -f    keep showing new lines\n\nwatch: follow what the AI does in a venue live: messages, decisions, thinking, tool calls, what it sends. Write the venue as qq:<number> (group or private chat); leave it out to watch all",
     "help/venue": "Usage: miyu im venue show <venue>\n\nShow the settings of a venue and their sources\n\nVenues:\n  <platform>:<bot>:group:<group>   A group\n  <platform>:<bot>:private:<user>  A private chat\n\nExample: 'miyu im venue show qq:10001:group:123456'",
     "help/records": "Usage: miyu im records import <file>\n\nImport chat records from a JSON Lines file, one message, event or judgment per line (format: design 04 of miyu-im). Records already there are kept and not added again. If any line is wrong, nothing is imported",
     "help/whitelist": "Usage: miyu im whitelist [<command>]\n\nManage the private chat whitelist (same as miyu im access whitelist)\n\nCommands:\n  list           List the whitelist (default)\n  add <user>     Add a user\n  remove <user>  Remove a user",
@@ -198,6 +198,13 @@
     "watch/compacted": "context compacted",
     "watch/ended": "turn stopped: {reason}",
     "watch/ended-why-interrupted": "interrupted",
-    "watch/ended-why-error": "error"
+    "watch/ended-why-error": "error",
+    "watch/cli-failed": "cannot reach the im page server: {why}",
+    "watch/cli-none": "no conversation {venue} seen: nothing has happened since im started",
+    "watch/cli-unknown": "no conversation {venue} seen. Seen: {seen}",
+    "watch/cli-both": "{id} is both a group and a private chat; write qq:group:{id} or qq:private:{id}",
+    "watch/cli-closed": "im disconnected",
+    "watch/cli-watching": "watching {name}, Ctrl+C to quit",
+    "watch/cli-watching-all": "watching every conversation, Ctrl+C to quit"
   }
 }

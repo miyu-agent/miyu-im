@@ -55,6 +55,8 @@ enum Command {
     Control(Control),
     /// `logs`，带不带 `-f`。
     Logs { follow: bool },
+    /// `logs watch [会话]`：实时看 AI 在干嘛（设计 10，施工 I-160 下）。
+    Watch(Option<String>),
     /// `venue show`：场所编号的原文。
     Venue(String),
     /// `web`：带交接票打开 im 自己的页面（施工 I-6 上）。
@@ -102,6 +104,8 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         ["status"] => Command::Control(Control::Status),
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
+        ["logs", "watch"] => Command::Watch(None),
+        ["logs", "watch", venue] => Command::Watch(Some(venue.to_string())),
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
         ["access"] => Command::Access(Access::List),
         ["whitelist", ref rest @ ..] | ["access", "whitelist", ref rest @ ..] => match change(rest)
@@ -209,6 +213,13 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
             &mut std::io::stdout(),
             &mut std::io::stderr(),
         ),
+        Command::Watch(venue) => runtime.block_on(crate::watch::follow::follow(
+            &root,
+            venue.as_deref(),
+            &texts,
+            &mut std::io::stdout(),
+            &mut std::io::stderr(),
+        )),
         Command::Web => runtime.block_on(web(
             &root,
             &texts,

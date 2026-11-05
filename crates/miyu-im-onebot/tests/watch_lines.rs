@@ -283,3 +283,160 @@ fn clock_is_local_and_wraps_the_day() {
     assert_eq!(clock(-1000, 0), "23:59:59");
     assert_eq!(clock(86_399_000, 60), "00:59:59");
 }
+
+#[test]
+fn the_terminal_streams_a_block_on_one_line() {
+    use miyu_im::watch::follow::Printer;
+    use miyu_im::watch::hub::Batch;
+    let zh = texts("zh");
+    let line = |at: i64, item: Item| Line { at, item };
+    let batch = |venue: &str, lines: Vec<Line>| Batch {
+        venue: venue.into(),
+        name: "Arch 群".into(),
+        lines,
+    };
+    let mut out = Vec::new();
+    let mut printer = Printer {
+        all: false,
+        ..Printer::default()
+    };
+    let writing = Item::Wrote {
+        id: "L:3:0".into(),
+        block: Block::Thinking,
+        text: String::new(),
+        done: false,
+    };
+    printer.print(&batch("g", vec![line(0, writing)]), 0, &zh, &mut out);
+    for piece in ["先", "想一想"] {
+        let more = Item::Appended {
+            id: "L:3:0".into(),
+            text: piece.into(),
+        };
+        printer.print(&batch("g", vec![line(1000, more)]), 0, &zh, &mut out);
+    }
+    let done = Item::Wrote {
+        id: "L:3:0".into(),
+        block: Block::Thinking,
+        text: "先想一想".into(),
+        done: true,
+    };
+    let sent = Item::Delivered {
+        text: "在的".into(),
+        images: 0,
+    };
+    printer.print(
+        &batch("g", vec![line(2000, done), line(3000, sent)]),
+        0,
+        &zh,
+        &mut out,
+    );
+    assert_eq!(
+        String::from_utf8(out).expect("UTF-8"),
+        "00:00:00 想：先想一想\n00:00:03 发出：在的\n",
+        "写着的接在同一行，写完不再印一遍"
+    );
+    // 看全部的：每行带会话名；写到一半来了别的行，先换行，接着的那段另起一行。
+    let mut out = Vec::new();
+    let mut printer = Printer {
+        all: true,
+        ..Printer::default()
+    };
+    let writing = Item::Wrote {
+        id: "L:4:0".into(),
+        block: Block::Text,
+        text: String::new(),
+        done: false,
+    };
+    let other = Item::Heard {
+        who: "小林".into(),
+        text: "嗯".into(),
+        extras: Vec::new(),
+    };
+    let more = Item::Appended {
+        id: "L:4:0".into(),
+        text: "好".into(),
+    };
+    printer.print(
+        &batch("g", vec![line(0, writing), line(0, other), line(0, more)]),
+        0,
+        &zh,
+        &mut out,
+    );
+    printer.end(&mut out);
+    assert_eq!(
+        String::from_utf8(out).expect("UTF-8"),
+        "00:00:00 [Arch 群] 说：\n00:00:00 [Arch 群] 小林：嗯\n00:00:00 [Arch 群] … 好\n"
+    );
+}
+
+#[test]
+fn blocks_written_one_after_another_are_not_printed_twice() {
+    // 11-05 沙箱里真模型的一轮：先写思考、再写调工具，写完的那一条两块一起来；原来只记得最后一块，思考又整行印了一遍。
+    use miyu_im::watch::follow::Printer;
+    use miyu_im::watch::hub::Batch;
+    let zh = texts("zh");
+    let one = |item: Item| Batch {
+        venue: "g".into(),
+        name: String::new(),
+        lines: vec![Line { at: 0, item }],
+    };
+    let mut out = Vec::new();
+    let mut printer = Printer {
+        all: false,
+        ..Printer::default()
+    };
+    let thinking = |done: bool, text: &str| Item::Wrote {
+        id: "L:5:0".into(),
+        block: Block::Thinking,
+        text: text.into(),
+        done,
+    };
+    let calling = |done: bool, text: &str| Item::Wrote {
+        id: "L:5:1".into(),
+        block: Block::Call("web_search".into()),
+        text: text.into(),
+        done,
+    };
+    for item in [
+        thinking(false, ""),
+        Item::Appended {
+            id: "L:5:0".into(),
+            text: "要搜一下".into(),
+        },
+        calling(false, ""),
+        Item::Appended {
+            id: "L:5:1".into(),
+            text: "{\"query\": \"niri\"}".into(),
+        },
+    ] {
+        printer.print(&one(item), 0, &zh, &mut out);
+    }
+    let done = Batch {
+        venue: "g".into(),
+        name: String::new(),
+        lines: vec![
+            Line {
+                at: 0,
+                item: thinking(true, "要搜一下"),
+            },
+            Line {
+                at: 0,
+                item: calling(true, "{\"query\": \"niri\"}"),
+            },
+        ],
+    };
+    printer.print(&done, 0, &zh, &mut out);
+    printer.print(
+        &one(Item::Delivered {
+            text: "v26.04".into(),
+            images: 0,
+        }),
+        0,
+        &zh,
+        &mut out,
+    );
+    assert_eq!(
+        String::from_utf8(out).expect("UTF-8"),
+        "00:00:00 想：要搜一下\n00:00:00 调用 web_search {\"query\": \"niri\"}\n00:00:00 发出：v26.04\n"
+    );
+}

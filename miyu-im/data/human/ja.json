@@ -26,13 +26,13 @@
     "prefix": "miyu im",
     "hint": "ヒント：",
     "warning": "警告：",
-    "help/main": "使い方：miyu im <コマンド>\n\nコマンド：\n  start                      メッセージング接続を起動\n  stop                       メッセージング接続を停止\n  restart                    メッセージング接続を再起動\n  status                     実行状態を表示\n  web                        管理ページをブラウザで開く\n  logs [-f]                  実行ログを表示\n  venue show <場所>          場所の各設定の値と出所を表示\n  records import <ファイル>  チャット記録を取り込む\n  whitelist <コマンド>       個人チャットのホワイトリストを管理\n  access <コマンド>          アクセスリストを管理\n\n'miyu im <コマンド> --help' でコマンドの使い方を表示",
+    "help/main": "使い方：miyu im <コマンド>\n\nコマンド：\n  start                      メッセージング接続を起動\n  stop                       メッセージング接続を停止\n  restart                    メッセージング接続を再起動\n  status                     実行状態を表示\n  web                        管理ページをブラウザで開く\n  logs [-f]                  実行ログを表示\n  logs watch [<場所>]        AI の動きをリアルタイムに表示\n  venue show <場所>          場所の各設定の値と出所を表示\n  records import <ファイル>  チャット記録を取り込む\n  whitelist <コマンド>       個人チャットのホワイトリストを管理\n  access <コマンド>          アクセスリストを管理\n\n'miyu im <コマンド> --help' でコマンドの使い方を表示",
     "help/start": "使い方：miyu im start\n\nメッセージング接続を起動し、以後コアが起動するたびに起動",
     "help/stop": "使い方：miyu im stop\n\nメッセージング接続を停止し、以後コアは起動しない",
     "help/restart": "使い方：miyu im restart\n\nメッセージング接続を再起動",
     "help/status": "使い方：miyu im status\n\n実行状態と NapCat の接続を表示",
     "help/web": "使い方：miyu im web\n\n管理ページをブラウザで開く（リンクは 1 分間有効）",
-    "help/logs": "使い方：miyu im logs [-f]\n\n実行ログを表示（標準エラーに内容があれば先に表示）\n\nオプション：\n  -f    新しく書かれた行を表示し続ける",
+    "help/logs": "使い方：miyu im logs [-f]\n        miyu im logs watch [<場所>]\n\n実行ログを表示します。標準エラーに内容があれば先に表示します\n\nオプション：\n  -f    新しく書かれたログを表示し続ける\n\nwatch：場所で AI がしていることをリアルタイムに表示します：受け取ったメッセージ、判断、考え、ツールの呼び出し、送った言葉。場所は qq:番号（グループか個人チャット）で書きます。省くとすべて表示",
     "help/venue": "使い方：miyu im venue show <場所>\n\n場所の各設定の値と出所を表示\n\n場所の書き方：\n  <プラットフォーム>:<ボット番号>:group:<グループ番号>  グループ\n  <プラットフォーム>:<ボット番号>:private:<番号>        個人チャット\n\n例：'miyu im venue show qq:10001:group:123456'",
     "help/records": "使い方：miyu im records import <ファイル>\n\nJSON Lines ファイルからチャット記録を取り込む。1 行に 1 件のメッセージ、グループのイベント、判断（形式は miyu-im の設計 04）。既にある記録はそのまま残し、重ねて取り込まない。1 行でも誤りがあれば何も取り込まない",
     "help/whitelist": "使い方：miyu im whitelist [<コマンド>]\n\n個人チャットのホワイトリストを管理（miyu im access whitelist と同じ）\n\nコマンド：\n  list            一覧を表示（既定）\n  add <番号>      追加\n  remove <番号>   削除",
@@ -198,6 +198,13 @@
     "watch/compacted": "コンテキストを圧縮",
     "watch/ended": "このターンは停止：{reason}",
     "watch/ended-why-interrupted": "中断",
-    "watch/ended-why-error": "エラー"
+    "watch/ended-why-error": "エラー",
+    "watch/cli-failed": "im のページサーバーにつながりません：{why}",
+    "watch/cli-none": "会話 {venue} は見当たりません：im の起動後まだ動きがありません",
+    "watch/cli-unknown": "会話 {venue} は見当たりません。見たもの：{seen}",
+    "watch/cli-both": "{id} はグループと個人チャットの両方です。qq:group:{id} か qq:private:{id} と書いてください",
+    "watch/cli-closed": "im との接続が切れました",
+    "watch/cli-watching": "{name} を表示中、Ctrl+C で終了",
+    "watch/cli-watching-all": "すべての会話を表示中、Ctrl+C で終了"
   }
 }

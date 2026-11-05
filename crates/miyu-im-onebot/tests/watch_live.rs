@@ -177,3 +177,117 @@ async fn a_watched_group_streams_what_she_does() {
     .await;
     assert!(quiet.is_err(), "停了还推：{quiet:?}");
 }
+
+/// 命令行印出来的：照写的时候拼起来。
+#[derive(Clone, Default)]
+struct Printed(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Printed {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().expect("没崩").extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Printed {
+    fn text(&self) -> String {
+        String::from_utf8(self.0.lock().expect("没崩").clone()).expect("UTF-8")
+    }
+}
+
+#[tokio::test]
+async fn the_command_follows_a_group_by_its_number() {
+    let script = Script::new([Play::Thinks {
+        thinking: "先想一想",
+        text: "在的。",
+    }]);
+    let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
+    // 先有动静，命令行才认得 `qq:号`。
+    napcat.send(group_frame(
+        GROUP,
+        LIN,
+        1,
+        json!([plain("大家好")]),
+        ("小林", "lin"),
+    ));
+    let board = miyu_im::status_file::read(&home.root).expect("写了状态文件");
+    let port = u16::try_from(board["web"].as_u64().expect("页面的端口")).expect("是端口");
+    let mut open = logged_in(&home.root, port).await;
+    within("见过这个群", async {
+        let mut asked = 10;
+        loop {
+            let venues = call(&mut open, asked, "watch.venues", json!({})).await;
+            if venues["result"]["venues"]
+                .as_array()
+                .is_some_and(|all| !all.is_empty())
+            {
+                return;
+            }
+            asked += 1;
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    let texts = miyu_im::texts::Texts::load(
+        miyu_store::resources::ResourceRoot::at(resources()),
+        package_in(resources()),
+        "zh",
+    )
+    .expect("读得出来");
+    let (out, err) = (Printed::default(), Printed::default());
+    let (mut printing, mut erring) = (out.clone(), err.clone());
+    let venue = format!("qq:{GROUP}");
+    let following = miyu_im::watch::follow::follow(
+        &home.root,
+        Some(&venue),
+        &texts,
+        &mut printing,
+        &mut erring,
+    );
+    let driving = async {
+        within("开始看了", async {
+            while !out.text().contains("正在看") {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await;
+        napcat.send(group_frame(
+            GROUP,
+            LIN,
+            2,
+            json!([at(BOT), plain(" 在吗")]),
+            ("小林", "lin"),
+        ));
+        assert_eq!(napcat.group_reply(GROUP).await, "在的");
+        within("印到发出", async {
+            while !out.text().contains("发出：在的") {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await;
+    };
+    tokio::select! {
+        code = following => panic!("命令先退出了：{code}，{}", err.text()),
+        () = driving => {}
+    }
+    let printed = out.text();
+    assert!(printed.starts_with("正在看 "), "{printed}");
+    for expected in [
+        "小林：大家好",
+        "小林：@米尤 在吗",
+        "▶ 开始回复 小林",
+        "想：先想一想",
+        "说：在的。",
+        "发出：在的",
+    ] {
+        assert!(
+            printed.contains(expected),
+            "少了「{expected}」：\n{printed}"
+        );
+    }
+    assert_eq!(err.text(), "");
+}

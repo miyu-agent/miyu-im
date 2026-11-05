@@ -12,6 +12,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod follow;
 pub mod hub;
 pub mod render;
 

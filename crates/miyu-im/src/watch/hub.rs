@@ -1,7 +1,8 @@
 //! 实时日志的汇总（设计 10 第二节，施工 I-160 中）：桥收到的场所会话事件（主线、支线）照场所整理成行，留最近的一段，推给看着的。
 //!
 //! - 每个场所留最近 [`KEEP`] 行定下来的（写着的增量不留）；桥重启从空的开始。
-//! - 记着最近 [`NAMES`] 条消息是谁说的（开轮、判断照触发的序号找名字），工具名对显示名（照结果里的 `display_name` 记）。
+//! - 记着最近 [`NAMES`] 条消息是谁说的（开轮、判断照触发的序号找名字），工具名对显示名（照结果里的 `display_name` 记，调工具
+//!   的那一行照它写显示名）。
 //! - 看的人照场所数着（[`Hub::watch`] 交回的 [`Watching`] 放下就少一个）：没人看的场所，增量（`model.delta`）不整理、不推，
 //!   定下来的行照留不推。
 //! - 推的是结构化的行（[`Batch`]），说成话在看的那一头。
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::broadcast;
 
-use super::{Item, Line, lines};
+use super::{Block, Item, Line, lines};
 
 /// 每个场所留几行。
 pub const KEEP: usize = 300;
@@ -110,7 +111,13 @@ impl Hub {
             return;
         }
         remember(&mut inner, event);
-        let place = inner.places.entry(venue.to_string()).or_default();
+        let Inner {
+            places,
+            tools,
+            calls,
+            ..
+        } = &mut *inner;
+        let place = places.entry(venue.to_string()).or_default();
         if event["kind"] == "message.user" {
             let venue_of = &event["body"]["venue"];
             if let Some(name) = venue_of["place"]
@@ -129,7 +136,30 @@ impl Hub {
                 .find(|(at, _)| *at == seq)
                 .map(|(_, name)| name.clone())
         };
-        let made = lines(event, lane, &found);
+        let mut made = lines(event, lane, &found);
+        // 调工具的那一行写显示名（结果里见过的），没见过的照工具名；结果里没带显示名的（核心自带的工具）照调用编号补工具名。
+        let called = event["body"]["call_id"]
+            .as_str()
+            .and_then(|id| calls.iter().rev().find(|(call, _)| call == id))
+            .map(|(_, name)| name.clone());
+        for line in &mut made {
+            match &mut line.item {
+                Item::Wrote {
+                    block: Block::Call(name),
+                    ..
+                } => {
+                    if let Some(shown) = tools.get(name.as_str()) {
+                        shown.clone_into(name);
+                    }
+                }
+                Item::Result { tool, .. } if tool.is_empty() => {
+                    if let Some(name) = &called {
+                        *tool = tools.get(name.as_str()).unwrap_or(name).clone();
+                    }
+                }
+                _ => {}
+            }
+        }
         if let (
             Some(seq),
             Some(Line {

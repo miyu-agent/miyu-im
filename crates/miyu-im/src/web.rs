@@ -69,7 +69,7 @@ pub async fn web(
 }
 
 /// im 在跑（`extension.status` 里它那一项是 `running`）、状态文件的进程号对得上的，状态文件写着的页面服务的端口。
-fn page_port(status: &Value, board: Option<&Value>) -> Option<u16> {
+pub(crate) fn page_port(status: &Value, board: Option<&Value>) -> Option<u16> {
     let entry = status["extensions"]
         .as_array()?
         .iter()

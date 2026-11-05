@@ -137,7 +137,19 @@ fn tool_names_are_learnt_from_results() {
     assert_eq!(hub.tool("qq_quote").as_deref(), Some("引用"));
     let items = kept(&hub, "g");
     assert!(
-        matches!(&items[0], Item::Wrote { block: Block::Call(name), .. } if name == "qq_quote")
+        matches!(&items[0], Item::Wrote { block: Block::Call(name), .. } if name == "qq_quote"),
+        "还没见过的照工具名"
+    );
+    hub.heard(
+        "g",
+        "main",
+        &json!({"kind": "message.assistant", "body": {"seen": 2, "blocks": [
+        {"type": "tool_call", "call_id": "c2", "name": "qq_quote", "args": "{}"}]}}),
+    );
+    let items = kept(&hub, "g");
+    assert!(
+        matches!(items.last(), Some(Item::Wrote { block: Block::Call(name), .. }) if name == "引用"),
+        "见过的写显示名"
     );
 }
 
@@ -194,4 +206,27 @@ fn places_are_kept_without_the_bot_number() {
         &heard(1, "2026-11-05T11:00:00.000Z", "甲", "一"),
     );
     assert_eq!(pushed.try_recv().expect("推了").venue, "qq:group:777");
+}
+
+#[test]
+fn a_result_without_a_display_name_takes_the_tool_name() {
+    // 核心自带的工具（`web_search`）的结果里不带显示名：照调用编号补工具名。
+    let hub = Hub::default();
+    hub.heard(
+        "g",
+        "main",
+        &json!({"kind": "message.assistant", "body": {"seen": 1, "blocks": [
+        {"type": "tool_call", "call_id": "c9", "name": "web_search", "args": "{}"}]}}),
+    );
+    hub.heard(
+        "g",
+        "main",
+        &json!({"kind": "tool.result", "body": {"call_id": "c9", "status": "ok",
+        "blocks": [{"type": "text", "text": "[1] niri"}]}}),
+    );
+    let items = kept(&hub, "g");
+    assert!(
+        matches!(items.last(), Some(Item::Result { tool, .. }) if tool == "web_search"),
+        "{items:?}"
+    );
 }
