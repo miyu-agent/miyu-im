@@ -126,9 +126,16 @@ async fn a_call_the_judge_cannot_judge_is_answered_but_a_follow_up_is_not() {
 }
 
 #[tokio::test]
-async fn textless_messages_after_she_speaks_are_only_recorded() {
-    // 判官只该被问一次（有字的那一句）；多备两份，多问了看得出来。
-    let server = judge(vec![no("just chatting"), yes("spare"), yes("spare")]).await;
+async fn textless_messages_after_she_speaks_are_judged_too() {
+    // 施工 I-164（11-05 项目主人）：她说完话 30 秒里只发图、只发转发的也算刚说过话，照样问判官（O-37 起到 I-163 只记下）。
+    // 判官照先后答三个「不回」；多备一份，多问了看得出来。
+    let server = judge(vec![
+        no("a picture"),
+        no("a forward"),
+        no("just chatting"),
+        yes("spare"),
+    ])
+    .await;
     let script = Script::new([Play::Says("在"), Play::Says("嗯")]);
     let (home, mut napcat, _) = started_judged(&script, &server, (RULES, ""), "", MEMBERS).await;
     admin_calls(&napcat, 1);
@@ -164,14 +171,18 @@ async fn textless_messages_after_she_speaks_are_only_recorded() {
     assert_eq!(napcat.group_reply(GROUP).await, "嗯");
     until_count(&home, GROUP, "turn.ended", 2).await;
 
-    for message in [2, 3] {
+    for (message, reason) in [(2, "a picture"), (3, "a forward")] {
         let body = decided(&events, message).expect("记了判断");
         assert_eq!(
             (&body["conditions"], &body["route"], &body["outcome"]),
-            (&json!([]), &json!("record"), &json!("record")),
-            "没有字的不算刚说过话：{body}"
+            (
+                &json!([{"kind": "after_speaking", "bonus": 0.05}]),
+                &json!("judge"),
+                &json!("record")
+            ),
+            "没有字的也算刚说过话：{body}"
         );
-        assert!(body.get("judge").is_none(), "{body}");
+        assert_eq!(body["judge"]["answer"]["reason"], reason, "{body}");
     }
     let worded = decided(&events, 4).expect("记了判断");
     assert_eq!(
@@ -182,7 +193,7 @@ async fn textless_messages_after_she_speaks_are_only_recorded() {
         worded["judge"]["answer"]["reason"], "just chatting",
         "{worded}"
     );
-    assert_eq!(server.received().len(), 1, "判官只问了有字的那一句");
+    assert_eq!(server.received().len(), 3, "三条都问了判官");
     // 近况里照常写：图的那一条记下了带的东西，转发的那一条正文是占位。
     let said = said(&events);
     assert_eq!(

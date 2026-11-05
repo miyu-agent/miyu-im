@@ -101,7 +101,7 @@ impl MediaKind {
 
 impl Segments {
     /// 没有字（施工 O-37，`onebot.md`「施工时定的」第 79 条）：正文的每一块都是空白或者占位（`[forward]`、`[card]`），没有 @；
-    /// 带没带东西、带的什么都不看。没有字的不算刚说过话（`core/route/called.rs` 填进 `Facts::textless`）。
+    /// 带没带东西、带的什么都不看。没有字的原来不算刚说过话（`core/route/called.rs` 填进 `Facts::textless`；施工 I-164 起算了）。
     ///
     /// 占位照「一段字正好是它」认：人自己打的一段字正好是 `[card]` 的也当没有字，分不开，也很少见（「施工时定的」第 221 条）。
     pub fn wordless(&self) -> bool {

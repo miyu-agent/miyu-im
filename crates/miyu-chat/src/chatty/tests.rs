@@ -201,14 +201,15 @@ fn after_speaking_counts_from_her_last_piece() {
 }
 
 #[test]
-fn textless_is_not_after_speaking() {
+fn textless_counts_as_after_speaking() {
+    // 施工 I-164，11-05 项目主人：她刚说完话有人回个图、贴个表情，也送去判断（O-37 起到 I-163 是不算的）。
     let mut sticker = facts();
     sticker.textless = true;
     let got = hits(&sticker, &[], &[reply(5 * SECOND, &[OTHER])], &chatty());
-    assert_eq!(kinds(&got), []);
-    // 续聊不看有没有字。
+    assert_eq!(kinds(&got), [Kind::AfterSpeaking]);
+    // 续聊同样不看有没有字，两样一起成立。
     let got = hits(&sticker, &[], &[reply(5 * SECOND, &[SENDER])], &chatty());
-    assert_eq!(kinds(&got), [Kind::Continuation]);
+    assert_eq!(kinds(&got), [Kind::Continuation, Kind::AfterSpeaking]);
 }
 
 #[test]
@@ -324,13 +325,14 @@ fn called_ones_may_skip_the_judge_and_listed_people_skip_it_entirely() {
 
 #[test]
 fn a_picture_alone_continues_a_chat_but_starts_nothing() {
-    // 施工 I-16 照旧版：只有图的照算续聊。抽样删了以后（施工 I-88），别的条件都不成立的只有图的什么都不成立。
+    // 施工 I-16 照旧版：只有图的照算续聊；施工 I-164 起她刚说过话的也算。抽样删了以后（施工 I-88），别的条件都不成立的只有图
+    // 的什么都不成立。
     let mut picture = facts();
     picture.media_only = true;
     picture.textless = true;
     let replies = [reply(SECOND, &[SENDER])];
     let found = conditions(&picture, &[], (&replies, &[]), now(), &chatty());
-    assert_eq!(kinds(&found), [Kind::Continuation]);
+    assert_eq!(kinds(&found), [Kind::Continuation, Kind::AfterSpeaking]);
     let found = conditions(&picture, &[], (&[], &[]), now(), &chatty());
     assert_eq!(found, Conditions::default());
 }
