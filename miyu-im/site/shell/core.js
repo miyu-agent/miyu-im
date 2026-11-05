@@ -25,8 +25,14 @@ export async function core(request, method, params = {}) {
   return answer.result;
 }
 
-/** 拒了的写给人看的一句：核心的原话，没有原话的照原因写一句通用的。 */
+/** 拒了的写给人看的一句：核心照连接的语言给人看的那一句（data.message），写错的几处（data.problems 的 message 连起来），再是原话，都没有的
+ *  照原因写一句通用的。 */
 export function refusalText(error) {
-  if (error instanceof Refused && error.said) return error.said;
+  if (error instanceof Refused) {
+    if (typeof error.data?.message === 'string' && error.data.message) return error.data.message;
+    const problems = Array.isArray(error.data?.problems) ? error.data.problems.map((one) => one?.message).filter(Boolean) : [];
+    if (problems.length) return problems.join('；');
+    if (error.said) return error.said;
+  }
   return say('failed/refused', { reason: error?.reason || String(error) });
 }
