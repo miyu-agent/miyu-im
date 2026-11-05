@@ -35,8 +35,8 @@ use crate::core::{Gone, reason};
 /// 「你只回这几条」那一块事实的 `kind`（「群里怎么叫她」第 7 条「事实」，施工 I-21 改字）。
 const ANOTHER_LINE: &str = "another-line";
 
-/// 说短话那一块事实的 `kind`（施工 I-139）。
-const BRIEF: &str = "brief";
+/// 说话方式提醒那一块事实的 `kind`（施工 I-140）。
+const STYLE_NOTE: &str = "style-note";
 
 /// 拒绝码：支线封存了（`session/fork.md`「封存」）。
 const SEALED: &str = "session_sealed";
@@ -303,10 +303,10 @@ impl Route {
     ) -> Result<Responded, Gone> {
         let id = format!("{}/respond", tag.id);
         let mut params = json!({"session": target, "to": to});
-        // 说短话（施工 I-139）排第一块：11-05 的回放实验里放得越靠后越管用，respond 的事实落在这一轮那条消息的开头。为什么叫她
-        // （施工 I-16，`primer`）跟在别的事实后面。
-        let brief = self.brief_fact(&tag.venue);
-        let facts: Vec<&Value> = brief.iter().chain(facts).chain(&tag.facts).collect();
+        // 说话方式提醒（施工 I-139、I-140）排第一块：11-05 的回放实验里放得越靠后越管用，respond 的事实落在这一轮那条消息的开头。
+        // 为什么叫她（施工 I-16，`primer`）跟在别的事实后面。
+        let note = self.style_note_fact(&tag.venue);
+        let facts: Vec<&Value> = note.iter().chain(facts).chain(&tag.facts).collect();
         if !facts.is_empty() {
             params["facts"] = json!(facts);
         }
@@ -330,20 +330,25 @@ impl Route {
         }
     }
 
-    /// 说短话那一块事实（施工 I-139）：场所 `venue` 是群、卡片没关「说短话」的才有；模板写不出的（照说不会：起来时查过）记一行、
-    /// 不带。
-    fn brief_fact(&mut self, venue: &str) -> Option<Value> {
+    /// 说话方式提醒那一块事实（施工 I-140）：场所 `venue` 是群、卡片上写了「说话方式提醒」的才有，写的那段照模板转义填进去；模板
+    /// 写不出的（照说不会：起来时查过字段）记一行、不带。
+    fn style_note_fact(&mut self, venue: &str) -> Option<Value> {
         let venue = VenueId::parse(venue)
             .ok()
             .and_then(|id| Venue::parse(&id))?;
-        if venue.kind() != VenueKind::Group || !applied::brief(&self.applied(&venue)) {
+        if venue.kind() != VenueKind::Group {
             return None;
         }
-        let fields: [(&str, &str); 0] = [];
-        match self.rules.brief().render(&fields.iter().copied().collect()) {
-            Ok(text) => Some(json!({"kind": BRIEF, "text": text})),
+        let applied = self.applied(&venue);
+        let note = applied::style_note(&applied)?;
+        match self
+            .rules
+            .style_note()
+            .render(&[("text", note)].into_iter().collect())
+        {
+            Ok(text) => Some(json!({"kind": STYLE_NOTE, "text": text})),
             Err(error) => {
-                tracing::warn!(target: TARGET, error = %error, "brief fact not written");
+                tracing::warn!(target: TARGET, error = %error, "style note not written");
                 None
             }
         }

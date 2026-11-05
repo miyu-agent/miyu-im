@@ -185,9 +185,11 @@ pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
     }
 }
 
-/// 说短话（施工 I-139）：规则的 `brief`，没写的是带。
-pub(super) fn brief(applied: &Applied) -> bool {
-    flag(applied, "brief") != Some(false)
+/// 说话方式提醒（施工 I-140）：规则的 `style_note`，去掉首尾空白；没写的、空的是空的。
+pub(super) fn style_note(applied: &Applied) -> Option<&str> {
+    text(applied, "style_note")
+        .map(str::trim)
+        .filter(|note| !note.is_empty())
 }
 
 /// 规则的使用限制（设计 08，施工 I-135）：卡片 `rules` 里的三条线，没写的、不是正整数的不限。

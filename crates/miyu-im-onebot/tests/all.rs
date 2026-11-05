@@ -15,7 +15,6 @@ mod admin_sync;
 mod apply;
 mod backfill;
 mod backstage;
-mod brief;
 mod browse;
 mod budget;
 mod called;
@@ -95,6 +94,7 @@ mod replaced_bridge;
 mod replayed;
 mod replies;
 mod replies_held;
+mod style_note;
 // 发布前第四轮审查的防御性测试（2026-11-02）
 mod audit4;
 mod revived;
