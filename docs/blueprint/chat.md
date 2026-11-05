@@ -408,7 +408,7 @@ Rust 这一边：
 | `Sent { texts, images }` | 这一回合已经发出去的：正文、图的哈希（`ContentHash`；去重只看这一回合） |
 | `Target { quote, mention }` | 引用、@ 那个人：这一条要不要。她回的那一条后来有别人跟着复读了的（第二条第 13 条的 `echoed`），外面交进来两样都是假：回的是一串复读，不是哪一个人（I-28，2026-10-23 项目主人定） |
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
-| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike, typing_speed }` | 参数：隔几条别人的消息才引用（出厂 2，施工 I-137 以前是 4）、隔多少毫秒才 @（出厂 20 秒，施工 I-137 以前是 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
+| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike, typing_speed, ordered }` | 参数：隔几条别人的消息才引用（出厂 2，施工 I-137 以前是 4）、隔多少毫秒才 @（出厂 20 秒，施工 I-137 以前是 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）；按不按顺序发送（出厂开，施工 I-159）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
 | `OutboundRule` | 出站链的插槽：一条规则，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
 | `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的四条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
@@ -656,6 +656,7 @@ restraint_half_life = "3m"
 | `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
 | `outbound.humanlike` | 开关 | `true` | `Outbound::humanlike`：第五条第 9 条，模拟真人一条分多条发送（施工 I-26） |
 | `outbound.typing_speed` | 整数 20 到 600 | `80` | `Outbound::typing_speed`：第五条第 9 条，分条发送照多快的打字速度停顿，字/分钟（施工 I-49）；出厂 80 就是真人的停顿那条线，别的照它折算（施工 I-138） |
+| `outbound.ordered` | 是或否 | `true` | `Outbound::ordered`：按顺序发送（施工 I-159）：开着的一段等前一段 NapCat 回了、停够了才交；关了的全部立即发，不停顿、不等前一段，先后可能乱（桥的出站队列照它，`onebot.md`「出站队列」） |
 | `outbound.split_chars` | 整数 0 到 100000 | 3000 | `Params::split_chars`：交给第五条的 `split`，`0` 是不拆 |
 | `outbound.long_text` | 选项 `split`、`image`、`forward` | `image` | `Params::long_text`（`LongText`，施工 O-59 上；`forward` O-59 下）：超过 `long_chars` 的一句怎么发，桥照它拆段、画成图或者打成合并转发 |
 | `outbound.long_chars` | 整数 0 到 100000 | 300 | `Params::long_chars`：超过几个字算长文，`0` 是不算 |

@@ -7,6 +7,8 @@
 //! 施工 I-58（10-27 项目主人：并着回的几句还是秒发）：照场所排（一个群、一个私聊一条队），不照会话：同一个群里主线、支线
 //! 的话排进同一条，一段接一段。一句的第一段从这个场所上一次交出去的时刻算停顿（打字的工夫），上一次早就交了的不用等。
 //!
+//! 施工 I-159：场所关了按顺序发送的，那一段入队就能交，不停顿、不等前一段 NapCat 回、不排在前面那段后面，也不挡后面的。
+//!
 //! 门开没开、禁言到什么时候不记在这里：禁言照投影（日志算得出，桥重启照样重建），号连没连着照连着的号（「施工时定的」第 117 条）。
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -35,6 +37,8 @@ struct Waiting<T> {
     at: Timestamp,
     /// 最早什么时候交，毫秒：前一段的这个时刻（排空了的照入队的时刻）加上这一段的停顿。
     ready: i64,
+    /// 按顺序发送（施工 I-159）：关了的到了就交，不等前一段。
+    ordered: bool,
     /// 要发的。
     item: T,
 }
@@ -78,17 +82,28 @@ impl<T> Queue<T> {
     }
 
     /// 场所 `line` 在 `at` 入队了一段 `item`，离前一段停 `pause`：排在这个场所的最后。前一段还排着的从它最早交的时刻
-    /// 算起；排空了的从这个场所上一次交出去的时刻算起（施工 I-58：早就交了的不用等），没交过的不等。
-    pub(super) fn push(&mut self, line: &str, (at, pause): (Timestamp, Duration), item: T) {
+    /// 算起；排空了的从这个场所上一次交出去的时刻算起（施工 I-58：早就交了的不用等），没交过的不等。不按顺序的（`ordered`
+    /// 是假，施工 I-159）入队就能交。
+    pub(super) fn push(
+        &mut self,
+        line: &str,
+        (at, pause, ordered): (Timestamp, Duration, bool),
+        item: T,
+    ) {
         let sent = self.last.get(line).copied().unwrap_or(i64::MIN);
         let line = self.lines.entry(line.to_string()).or_default();
         let after = line
             .back()
             .map_or(sent, |last| last.ready.max(at.unix_millis()));
         let pause = i64::try_from(pause.as_millis()).unwrap_or(i64::MAX);
+        let ready = match ordered {
+            true => after.saturating_add(pause),
+            false => at.unix_millis(),
+        };
         line.push_back(Waiting {
             at,
-            ready: after.saturating_add(pause),
+            ready,
+            ordered,
             item,
         });
     }
@@ -120,6 +135,10 @@ impl<T> Queue<T> {
         for waiting in line.drain(..) {
             if deadline(&waiting, expire) <= now.unix_millis() {
                 taken.expired.push(waiting.item);
+            } else if open && !waiting.ordered {
+                // 不按顺序的（施工 I-159）：门开着就交，不占「在外面」，不挡后面的。
+                self.last.insert(session.to_string(), now.unix_millis());
+                taken.ready.push(waiting.item);
             } else if free && kept.is_empty() && waiting.ready <= now.unix_millis() {
                 taken.ready.push(waiting.item);
                 self.out.insert(session.to_string());

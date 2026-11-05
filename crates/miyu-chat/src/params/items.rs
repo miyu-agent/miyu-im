@@ -283,6 +283,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.typing_speed", TYPING, |p, v| {
         p.outbound.typing_speed = count(v)
     }),
+    // 按顺序发送（施工 I-159）。
+    item("outbound.ordered", Kind::Bool, |p, v| {
+        p.outbound.ordered = flag(v)
+    }),
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)
     }),

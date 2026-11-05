@@ -66,6 +66,7 @@ pub(crate) fn ctx() -> OutCtx {
             strip_period: true,
             humanlike: true,
             typing_speed: 80,
+            ordered: true,
         },
     }
 }

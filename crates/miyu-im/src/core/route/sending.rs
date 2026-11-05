@@ -211,14 +211,17 @@ impl Route {
         if let Some(why) = self.shut(session, clock.now) {
             tracing::info!(target: TARGET, venue = %peer.venue, why, chars, "reply waiting");
         }
-        let pause = piece.pause;
+        // 按顺序发送关了的（施工 I-159）：不停顿、不等前一段，全部立即发。
+        let ordered = miyu_chat::Venue::parse(&peer.venue)
+            .is_none_or(|venue| self.applied(&venue).params.outbound.ordered());
+        let pause = if ordered { piece.pause } else { Duration::ZERO };
         let item = Item {
             session: session.to_string(),
             queued,
             piece,
         };
         self.waiting
-            .push(peer.venue.as_str(), (clock.now, pause), item);
+            .push(peer.venue.as_str(), (clock.now, pause, ordered), item);
         self.pump().await
     }
 

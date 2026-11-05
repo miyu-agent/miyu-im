@@ -90,6 +90,8 @@ export const FIELDS = {
     { key: 'rules.outbound.strip_period', control: 'switch', label: 'field/strip-period', hint: 'field/strip-period-hint' },
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },
     { key: 'rules.outbound.typing_speed', control: 'number', label: 'field/typing-speed', hint: 'field/typing-speed-hint', unit: 'unit/chars-per-minute', min: 20, max: 600, dep: { key: 'rules.outbound.humanlike', on: true } },
+    // 按顺序发送（施工 I-159，项目主人 11-05：关了全部立即发）。
+    { key: 'rules.outbound.ordered', control: 'switch', label: 'field/ordered', hint: 'field/ordered-hint' },
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
     { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['image', 'forward'], optionCaps: { forward: 'forward' }, optionText: 'long/' },
     { key: 'long_chars', control: 'number', label: 'field/long-chars', hint: 'field/long-chars-hint', unit: 'unit/chars', min: 0, max: 100000 },

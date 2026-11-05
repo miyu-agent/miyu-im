@@ -96,6 +96,8 @@ pub struct Outbound {
     pub(crate) humanlike: bool,
     /// 分条发送照多快的打字速度停顿，字/分钟（出厂 80；施工 I-49，[`bubbles()`]）。
     pub(crate) typing_speed: u32,
+    /// 按顺序发送（出厂开；施工 I-159）：一段等前一段 QQ 回了、停够了才交。关了的全部立即发，不停顿、不等，先后可能乱。
+    pub(crate) ordered: bool,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -178,6 +180,12 @@ impl Outbound {
     #[must_use]
     pub fn humanlike(&self) -> bool {
         self.humanlike
+    }
+
+    /// 按不按顺序发送（施工 I-159）：关了的全部立即发。
+    #[must_use]
+    pub fn ordered(&self) -> bool {
+        self.ordered
     }
 
     /// 分条发送的打字速度，字/分钟（施工 I-49，[`bubbles()`]）。

@@ -219,6 +219,7 @@ fn blank() -> Params {
             strip_period: false,
             humanlike: false,
             typing_speed: 0,
+            ordered: false,
         },
         split_chars: 0,
         long_text: LongText::Split,
