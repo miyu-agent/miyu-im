@@ -15,6 +15,7 @@ mod admin_sync;
 mod apply;
 mod backfill;
 mod backstage;
+mod brief;
 mod browse;
 mod budget;
 mod called;

@@ -30,6 +30,9 @@ const PRECHECK: &str = "facts/precheck.txt";
 /// 时不时看一眼那一轮带的一句（设计 05，施工 I-89）在出厂目录里的位置。
 const GLANCE: &str = "facts/glance.txt";
 
+/// 说短话（施工 I-139）：群里每开一轮都带的一句，没有字段。
+const BRIEF: &str = "facts/brief.txt";
+
 /// 违规预检认的字段：严重程度、判官的理由。
 const PRECHECK_FIELDS: &[&str] = &["severity", "reason"];
 
@@ -108,6 +111,8 @@ pub(super) struct Facts {
     pub(super) precheck: Template,
     /// 时不时看一眼（施工 I-89）。
     pub(super) glance: Template,
+    /// 说短话（施工 I-139）。
+    pub(super) brief: Template,
 }
 
 /// 读出厂目录 `dir`（包文件夹的 `data/`）里的几份模板，查过交回。问题照退信、另一条线的先后记；有问题的交回空的。
@@ -124,6 +129,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let reached = template(dir, REACHED, REACHED_FIELDS, problems);
     let precheck = template(dir, PRECHECK, PRECHECK_FIELDS, problems);
     let glance = template(dir, GLANCE, &[], problems);
+    let brief = template(dir, BRIEF, &[], problems);
     Some(Facts {
         undelivered: undelivered?,
         another_line: another_line?,
@@ -137,6 +143,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         reached: reached?,
         precheck: precheck?,
         glance: glance?,
+        brief: brief?,
     })
 }
 
@@ -195,6 +202,11 @@ impl super::Venues {
     /// 时不时看一眼那一轮带的一句（施工 I-89）：出厂的，跑着不再读。
     pub fn glance(&self) -> &Template {
         &self.factory.facts.glance
+    }
+
+    /// 说短话那一句（施工 I-139，im 设计 08 以后 11-05 的说话方式 A/B）：出厂的，跑着不再读。
+    pub fn brief(&self) -> &Template {
+        &self.factory.facts.brief
     }
 
     /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。

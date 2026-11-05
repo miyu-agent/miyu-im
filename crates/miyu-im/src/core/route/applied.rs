@@ -185,6 +185,11 @@ pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
     }
 }
 
+/// 说短话（施工 I-139）：规则的 `brief`，没写的是带。
+pub(super) fn brief(applied: &Applied) -> bool {
+    flag(applied, "brief") != Some(false)
+}
+
 /// 规则的使用限制（设计 08，施工 I-135）：卡片 `rules` 里的三条线，没写的、不是正整数的不限。
 pub(super) fn limits(applied: &Applied) -> Lines {
     Lines::from_caps(KEYS.map(|key| match entry(applied, key) {
