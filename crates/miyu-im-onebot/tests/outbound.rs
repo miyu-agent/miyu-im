@@ -1,6 +1,6 @@
 //! 出站链（施工 O-25 上，`onebot.md` 第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条）：真核心拉起真桥、假 NapCat、她照台词
 //! 说（`support/speaking.rs`）。漏进正文的工具调用清掉；只有空白的、整条括号旁白的、整条是工具调用的不发；同一轮说两遍一样的
-//! 只发一次（她连着说的后一句引用）；隔了 4 条别人的话以后回，第一段带引用、后面几段不带；隔够了时候、期间有人说过话，第一段带 @；刚说完紧接着回，
+//! 只发一次（她连着说的后一句引用）；隔了 4 条别人的话以后回，第一段带引用、后面几段不带；隔够了两条、隔够了时候，第一段引用连着 @（施工 I-137：@ 跟着引用走）；刚说完紧接着回，
 //! 两样都不带；她自己用 `qq_quote` 挑了的（施工 I-31）引用她挑的、不 @；她自己用 `qq_mention` @ 了人的（施工 I-45）只 @ 她挑的，
 //! 不自动引用、不自动 @。私聊（进程里的桥）不带，同一轮说两遍一样的也只发一次。
 
@@ -161,7 +161,7 @@ async fn four_others_later_only_the_first_piece_quotes() {
 }
 
 #[tokio::test]
-async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
+async fn a_while_later_with_others_talking_she_quotes_and_mentions_but_not_right_away() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([
         Line::says("在"),
@@ -172,18 +172,20 @@ async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
     admin_calls(&napcat, PROMPT, 31);
     assert_eq!(napcat.group_message(PROMPT).await, [words("在")]);
     until_count(&home, PROMPT, "turn.ended", 1).await;
-    // 再叫她，她还没开口，别人说了一句，过了一秒多。
+    // 再叫她，她还没开口，别人说了两句，过了一秒多。
     admin_calls(&napcat, PROMPT, 32);
     until_count(&home, PROMPT, "turn.started", 2).await;
     other_says(&napcat, PROMPT, LIN, 33);
-    until_count(&home, PROMPT, "message.user", 3).await;
+    other_says(&napcat, PROMPT, LIN, 34);
+    until_count(&home, PROMPT, "message.user", 4).await;
     tokio::time::sleep(Duration::from_millis(1100)).await;
     release.send(()).expect("她在等");
+    let quote = json!({"type": "reply", "data": {"id": "32"}});
     let mention = json!({"type": "at", "data": {"qq": ADMIN.to_string()}});
     assert_eq!(
         napcat.group_message(PROMPT).await,
-        [mention, words(" "), words("嗯，刚才在忙")],
-        "@ 终端管理员，只隔了一条不引用"
+        [quote, mention, words(" "), words("嗯，刚才在忙")],
+        "隔了两条引用，@ 跟着引用一起带（施工 I-137）"
     );
     stopped(home).await;
 }

@@ -1,14 +1,14 @@
-//! 测试共用的几样：造要发的一条、造情形、过自带的链。参数照出厂的数（4 条、15 秒）和名单，只在测试里写。
+//! 测试共用的几样：造要发的一条、造情形、过自带的链。参数照出厂的数（2 条、20 秒，施工 I-137）和名单，只在测试里写。
 
 use miyu_kernel::id::ContentHash;
 
 use super::{Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target};
 
 /// 出厂的「隔几条别人的消息才引用」。
-pub(crate) const QUOTE_AFTER: u64 = 4;
+pub(crate) const QUOTE_AFTER: u64 = 2;
 
-/// 出厂的「隔多少毫秒才 @」：15 秒。
-pub(crate) const MENTION_AFTER: i64 = 15_000;
+/// 出厂的「隔多少毫秒才 @」：20 秒。
+pub(crate) const MENTION_AFTER: i64 = 20_000;
 
 /// 出厂的不可见字符：U+200B 到 U+200F、U+2060 到 U+2064、BOM、软连字号、U+180E、U+2028、U+2029。
 pub(crate) const INVISIBLE: [char; 15] = [

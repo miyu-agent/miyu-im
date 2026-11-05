@@ -114,11 +114,11 @@ fn only_the_first_piece_carries_what_the_chain_left() {
             at: None,
             more: Vec::new(),
         },
-        "隔了 4 条引用，没到 15 秒不 @"
+        "隔了 4 条引用，没到 20 秒不 @"
     );
     let mentioned = pass(
         "嗯",
-        &group_ctx(&speaking(1), at(15), params.outbound.clone()),
+        &group_ctx(&speaking(2), at(20), params.outbound.clone()),
         Some(&aim()),
         params.split_chars,
     )
@@ -126,11 +126,23 @@ fn only_the_first_piece_carries_what_the_chain_left() {
     assert_eq!(
         mentioned.lead,
         Lead {
-            reply: None,
+            reply: Some("21".to_string()),
             at: Some("10001".to_string()),
             more: Vec::new(),
         },
-        "隔了 15 秒、有人说过话 @ 发它的人"
+        "隔了 2 条引用，隔了 20 秒连着 @ 发它的人（施工 I-137）"
+    );
+    let alone = pass(
+        "嗯",
+        &group_ctx(&speaking(1), at(60), params.outbound.clone()),
+        Some(&aim()),
+        params.split_chars,
+    )
+    .expect("过得了");
+    assert_eq!(
+        alone.lead,
+        Lead::default(),
+        "只隔 1 条不引用，也不单独 @（施工 I-137）"
     );
     let right_away = pass(
         "嗯",

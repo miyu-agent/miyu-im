@@ -358,9 +358,10 @@ fn target(others: u64, elapsed: i64, last_is_own: bool) -> Target {
 
 #[test]
 fn quote_after_enough_others() {
-    assert!(target(4, 0, false).quote);
+    // 施工 I-137：出厂隔 2 条就引用，紧挨着、只隔 1 条的不引用。
+    assert!(target(2, 0, false).quote);
     assert!(target(5, 0, false).quote);
-    assert!(!target(3, 0, false).quote);
+    assert!(!target(1, 0, false).quote);
     assert!(!target(0, 0, false).quote);
 }
 
@@ -381,11 +382,40 @@ fn quote_after_zero_always_quotes() {
 }
 
 #[test]
-fn mention_needs_time_and_others() {
-    assert!(target(1, MENTION_AFTER, false).mention);
-    assert!(!target(1, MENTION_AFTER - 1, false).mention);
-    assert!(!target(0, MENTION_AFTER * 10, true).mention);
+fn mention_needs_time_and_a_quote() {
+    assert!(target(2, MENTION_AFTER, false).mention);
+    assert!(!target(2, MENTION_AFTER - 1, false).mention);
+    assert!(
+        !target(1, MENTION_AFTER * 10, false).mention,
+        "不引用的不 @"
+    );
     assert!(!target(5, -1, false).mention);
+    // 施工 I-137：@ 跟着引用走。她连着说、靠引用分清的，隔够了时候也带；紧挨着、不引用的不 @。
+    assert!(target(0, MENTION_AFTER * 10, true).mention);
+    assert!(!target(0, MENTION_AFTER * 10, false).mention);
+}
+
+#[test]
+fn mention_does_not_come_without_a_quote() {
+    // 施工 I-137：引用的门槛调高了、这一条不该引用，就算隔够了时候也不单独 @。
+    let mut ctx = ctx();
+    ctx.target = Target {
+        quote: true,
+        mention: true,
+    };
+    ctx.outbound.quote_after = 5;
+    ctx.since.others = 3;
+    ctx.since.elapsed = MENTION_AFTER * 10;
+    let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
+        panic!("dropped");
+    };
+    assert_eq!(target, Target::default());
+    // 智能引用关了的照原来：别人说过话、隔够了时候就 @。
+    ctx.outbound.quote = false;
+    let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
+        panic!("dropped");
+    };
+    assert!(target.mention && !target.quote);
 }
 
 #[test]

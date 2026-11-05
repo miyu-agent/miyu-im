@@ -337,7 +337,7 @@ fn values_out_of_range_are_reported() {
             "chatty.restraint_cap",
         ),
         (
-            "mention_after = \"15s\"",
+            "mention_after = \"20s\"",
             "mention_after = \"25h\"",
             "outbound.mention_after",
         ),
@@ -358,7 +358,7 @@ fn the_ends_of_the_ranges_are_accepted() {
         ("restraint_k = 2.5", "restraint_k = 10"),
         ("base = 0.8", "base = 0"),
         ("base = 0.8", "base = 10"),
-        ("quote_after = 4", "quote_after = 0"),
+        ("quote_after = 2", "quote_after = 0"),
         ("split_chars = 3000", "split_chars = 0"),
         ("records = 20", "records = 1"),
         ("records = 20", "records = 100"),
@@ -366,8 +366,8 @@ fn the_ends_of_the_ranges_are_accepted() {
         ("reason_chars = 500", "reason_chars = 0"),
         ("base64_printable = 850", "base64_printable = 0"),
         ("similar = 66", "similar = 100"),
-        ("mention_after = \"15s\"", "mention_after = \"1s\""),
-        ("mention_after = \"15s\"", "mention_after = \"24h\""),
+        ("mention_after = \"20s\"", "mention_after = \"1s\""),
+        ("mention_after = \"20s\"", "mention_after = \"24h\""),
         ("timeout = \"60s\"", "timeout = \"1h\""),
     ] {
         assert!(Params::read(&file(&edited(from, to))).is_ok(), "{to}");

@@ -408,7 +408,7 @@ Rust 这一边：
 | `Sent { texts, images }` | 这一回合已经发出去的：正文、图的哈希（`ContentHash`；去重只看这一回合） |
 | `Target { quote, mention }` | 引用、@ 那个人：这一条要不要。她回的那一条后来有别人跟着复读了的（第二条第 13 条的 `echoed`），外面交进来两样都是假：回的是一串复读，不是哪一个人（I-28，2026-10-23 项目主人定） |
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
-| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike, typing_speed }` | 参数：隔几条别人的消息才引用（出厂 4）、隔多少毫秒才 @（出厂 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
+| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike, typing_speed }` | 参数：隔几条别人的消息才引用（出厂 2，施工 I-137 以前是 4）、隔多少毫秒才 @（出厂 20 秒，施工 I-137 以前是 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
 | `OutboundRule` | 出站链的插槽：一条规则，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
 | `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的四条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
@@ -429,7 +429,7 @@ Rust 这一边：
    - 图：哈希在 `Sent.images` 里的去掉；同一条里重复的只留一张。图都去掉了、正文也没了：`Drop(Repeated)`。
 4. **引用和 @**（`Target` 交进来的是「本来想要」，这里决定这一条实际带不带）：
    - 引用：本来要引用，并且（群里最后一条是她自己的，或者 `others` 不少于 `quote_after`）。`quote_after` 是 0 时后一样恒成立，不另写一条。
-   - @：本来要 @，并且 `elapsed` 不少于 `mention_after`，并且 `others` 大于 0。
+   - @：本来要 @，并且 `elapsed` 不少于 `mention_after`，并且这一条引用了（施工 I-137：@ 跟着引用走，不单独 @）；智能引用关着的照原来，`others` 大于 0。
    - 私聊不带引用和 @（外面交进来的 `Target` 两样都是假）。
 5. **Markdown 转纯文本**：施工 O-47 去掉，过了链的正文原样交给按段拆开。
 6. **按段拆开**（`max_chars` 按字符数，不是字节，中文不会被切到半个字）：
@@ -452,7 +452,7 @@ Rust 这一边：
 - 清理：两种工具调用、没有收尾的、几段、去完以后是空的、零宽字符、只有括号旁白（套括号、括号外有字的不算、有图的不丢）。参数照测试里手写的那一份，值是出厂的（O-15 下）。
 - 清理照参数走（`outbound/tests.rs`，O-15 下）：换一份标记、换一份不可见字符，照换的去、照换的判空，出厂的那几个不再算；照位置对上（一对的开头遇上另一对的收尾不算收尾）；两份名单都是空的，什么都不去、只有空白算空；收尾是开头的一段的，从开头后面找起。
 - 去重：一字不差、只差标点大小写、相似度正好 0.66、两字组 15 个的不比相似度、跨回合的不管、正文重复带图、图重复、同一条里两张一样的图。
-- 引用和 @：最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条；@ 正好 15 秒、14.999 秒、别人没说过话。
+- 引用和 @：最后一条是她自己的、`quote_after` 是 0、正好 2 条、1 条；@ 正好 20 秒、19.999 秒、不引用的不 @、智能引用关着的照原来（施工 I-137）。
 - 去末尾句号（`outbound/period/tests.rs`，O-47）：去一个、两个只去一个、省略号后面的去、末尾空白不挡、只去中文句号（英文句号、感叹号、半角句点不去）、中间的不动、只有句号的不去、关了不去。
 - 拆段：正好 `max_chars`、空段、超长的段、超长的行、中文。
 - 模拟真人一条分多条发送（`outbound/human/tests.rs`，I-26）：短的、超长的、带换行的不拆；同一句每次一样；拆了的句号处都断、断开处不留句号逗号、每条至少两个字、至多五条、拼回去只少了断开处的标点；引号、代码、网址（带半角逗号问号的）、`!=` 里不断；一批拼出来的话 26 到 50 个字拆的比例在 0.38 到 0.62、11 到 25 个字在 0.18 到 0.42；停顿在下一条字数算出的范围里、照字数涨、最多 14 秒的 1.35 倍。
@@ -649,8 +649,8 @@ restraint_half_life = "3m"
 | `judge.moderation_timeout` | 时长 1 秒到 1 小时 | `120s` | `Judge::moderation_timeout`：只查违规的那一次 |
 | `judge.retries` | 整数 0 到 10 | 1 | `Judge::retries` |
 | `judge.reason_chars` | 整数 0 到 100000 | 500 | `Judge::reason_chars`：交给第六条的 `read` |
-| `outbound.quote_after` | 整数 0 到 1000 | 4 | `Outbound::quote_after` |
-| `outbound.mention_after` | 时长 1 秒到 1 天 | `15s` | `Outbound::mention_after` |
+| `outbound.quote_after` | 整数 0 到 1000 | 2（I-137 以前 4） | `Outbound::quote_after` |
+| `outbound.mention_after` | 时长 1 秒到 1 天 | `20s`（I-137 以前 `15s`） | `Outbound::mention_after` |
 | `outbound.min_bigrams` | 整数 1 到 10000 | 16 | `Outbound::min_bigrams` |
 | `outbound.similar` | 整数 1 到 100，百分比 | 66 | `Outbound::similar` |
 | `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
