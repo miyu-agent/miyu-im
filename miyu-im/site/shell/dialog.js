@@ -6,8 +6,9 @@ import { element, icon, say } from './i18n.js';
 /** 开着的几层（后开的在后）：Esc 只关最上面那一层（会话浮窗上再开选模型的小窗时，Esc 只关小窗）。 */
 const layers = [];
 
-/** 把浮窗 `dialog` 盖着底放上页面。交回 close()；关了调 `onClose`。 */
-export function openLayer(dialog, onClose) {
+/** 把浮窗 `dialog` 盖着底放上页面。交回 close()（直接关）；关了调 `onClose`。给了 `canClose` 的（施工 I-145：人格改了没存），点底、按
+ *  Esc、点关闭先问它，交回假的不关。 */
+export function openLayer(dialog, onClose, canClose) {
   const layer = element('div', 'layer');
   const scrim = element('div', 'scrim');
   layer.append(scrim, dialog);
@@ -19,7 +20,7 @@ export function openLayer(dialog, onClose) {
   const keys = (event) => {
     if (event.key === 'Escape' && layers[layers.length - 1] === layer) {
       event.stopImmediatePropagation();
-      close();
+      tryClose();
     }
   };
   const close = () => {
@@ -30,8 +31,12 @@ export function openLayer(dialog, onClose) {
     setTimeout(() => layer.remove(), 180);
     onClose?.();
   };
+  const tryClose = () => {
+    if (!canClose || canClose()) close();
+  };
+  close.tryClose = tryClose;
   document.addEventListener('keydown', keys);
-  scrim.addEventListener('click', close);
+  scrim.addEventListener('click', tryClose);
   return close;
 }
 
@@ -47,8 +52,9 @@ export function closeButton(close) {
 /** 系统要求少动画的不做过渡。 */
 const still = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** 开一个小浮窗：标题 `title`。交回 { body, foot, setTitle(text), swap(children, back), close() }；关了调 `onClose`。 */
-export function openDialog(title, onClose) {
+/** 开一个小浮窗：标题 `title`。交回 { body, foot, setTitle(text), swap(children, back), close() }；关了调 `onClose`，`canClose` 同
+ *  openLayer。 */
+export function openDialog(title, onClose, canClose) {
   const dialog = element('div', 'dialog');
   const head = element('div', 'd-head');
   const heading = element('h2', null, title);
@@ -57,8 +63,8 @@ export function openDialog(title, onClose) {
   const body = element('div', 'd-body');
   const foot = element('div', 'd-foot');
   dialog.append(head, steps, body, foot);
-  const close = openLayer(dialog, onClose);
-  head.append(heading, closeButton(close));
+  const close = openLayer(dialog, onClose, canClose);
+  head.append(heading, closeButton(close.tryClose));
   return {
     head,
     body,
@@ -107,4 +113,26 @@ export async function copy(text) {
   } catch {
     // 浏览器不让：字照样在页面上，人自己选。
   }
+}
+
+/** 先问一句再做（施工 I-145，同网页软件 10-20 项目主人定的删除先弹窗问）：标题 `title`、一句 `text`、确认按钮的字 `ok`。交回
+ *  Promise：点了确认是真的，取消、点底、Esc 是假的。 */
+export function confirmFirst(title, text, ok) {
+  return new Promise((resolve) => {
+    let answered = false;
+    const dialog = openDialog(title, () => {
+      if (!answered) resolve(false);
+    });
+    dialog.body.append(element('p', null, text));
+    const cancel = element('button', 'btn', say('dialog/cancel'));
+    const go = element('button', 'btn danger', ok);
+    cancel.addEventListener('click', () => dialog.close());
+    go.addEventListener('click', () => {
+      answered = true;
+      resolve(true);
+      dialog.close();
+    });
+    dialog.foot.append(element('span', 'grow'), cancel, go);
+    go.focus();
+  });
 }

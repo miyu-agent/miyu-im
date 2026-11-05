@@ -19,6 +19,7 @@ import { mountPlugins } from '../pages/plugins/plugins.js';
 import { mountStore } from '../pages/store/store.js';
 import { mountStats } from '../pages/stats/stats.js';
 import { mountLimits } from '../pages/limits/limits.js';
+import { mountPersonas } from '../pages/personas/personas.js';
 import { mountBackstage } from '../pages/backstage/backstage.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
@@ -28,6 +29,7 @@ const PAGES = [
   { id: 'records', name: () => say('nav/records'), mount: mountRecords },
   { id: 'stats', name: () => say('nav/stats'), mount: mountStats },
   { id: 'limits', name: () => say('nav/limits'), mount: mountLimits },
+  { id: 'personas', name: () => say('nav/personas'), mount: mountPersonas },
   { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins },
   { id: 'backstage', name: () => say('nav/backstage'), mount: mountBackstage },
   { id: 'store', name: () => say('nav/store'), mount: mountStore },
