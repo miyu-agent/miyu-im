@@ -7,10 +7,13 @@
 //!   断也只断一处，挑最靠中间、两边都够 [`MIN_CHARS`] 个字的那个逗号。所以多数条里还留着逗号。引号、括号、代码、网址里面不断。
 //! - 不够 [`MIN_CHARS`] 个字的一条并进前一条（第一条并进后一条）；多于 [`MAX_PIECES`] 条的后面几条并成一条。
 //! - 断开处的句号、分号、逗号、顿号去掉，问号、叹号留着。
-//! - 每条前面停一会儿 = 想的工夫 + 这一条照打字速度打完要多久（[`typed`]）：第二条前面想得久一点（[`THINK_FIRST`]），第三条起
-//!   短（[`THINK_NEXT`]）；上下抖 0.8 到 1.2 倍，夹在 [`SHORTEST`] 到 [`LONGEST_PAUSE`] 之间。打字速度是场所参数
-//!   `outbound.typing_speed`（字/分钟）。第一条当场发（她想、打字的工夫就是模型生成那一会儿），它算好的工夫交给出站队列：
-//!   这个会话前面还有没发完的，它也照这个工夫等。
+//! - 每条前面停一会儿（[`typed`]，施工 I-138 照主群 10 天的真人数据重做）：真人一个人连着发，后一条前面停多久和字数有关、
+//!   关系不大（5 字以内约 5 秒，10 字约 9 秒，20 来字约 15 秒，40 来字约 19 秒），而且忽长忽短。照这条线取中位
+//!   （[`PAUSE_SCALE`] × 字数^[`PAUSE_POWER`]），再照对数均匀抖 0.5 到 2 倍，夹在 [`SHORTEST`] 到 [`LONGEST_PAUSE`] 之间。原来照
+//!   「想的工夫加打字速度」算，十来个字以上的全顶到 8 秒的上限，几乎每次都停 8 秒整。打字速度（场所参数
+//!   `outbound.typing_speed`，字/分钟）照出厂的 [`TYPICAL_SPEED`] 折算：出厂就是这条真人的线，调快了停得短，调慢了停得长。
+//!   第一条当场发（她想、打字的工夫就是模型生成那一会儿），它算好的工夫交给出站队列：这个会话前面还有没发完的，它也照这个
+//!   工夫等。
 //!
 //! 随机照这句话的内容取种子：同一句拆出来、停多久都一样，桥重启补发不会拆出两个样子。
 
@@ -47,17 +50,20 @@ pub const LONG_COMMA: u32 = 300;
 /// 短句在逗号处断开的千分比。
 pub const SHORT_COMMA: u32 = 100;
 
-/// 第二条前面想多久，毫秒。
-pub const THINK_FIRST: u64 = 1000;
+/// 停顿的中位：一个字时多少毫秒（主群真人数据拟合，施工 I-138）。
+pub const PAUSE_SCALE: f64 = 2900.0;
 
-/// 第三条起前面想多久，毫秒。
-pub const THINK_NEXT: u64 = 400;
+/// 停顿的中位随字数长的幂（施工 I-138）：字数翻四倍，停顿大约翻一倍。
+pub const PAUSE_POWER: f64 = 0.49;
+
+/// 出厂的打字速度（字/分钟）：照它的就是真人的那条线，别的照它折算。
+pub const TYPICAL_SPEED: u32 = 80;
 
 /// 停顿至少多久，毫秒。
-pub const SHORTEST: u64 = 600;
+pub const SHORTEST: u64 = 1000;
 
-/// 停顿至多多久，毫秒。
-pub const LONGEST_PAUSE: u64 = 8000;
+/// 停顿至多多久，毫秒（真人 p90 约 22 秒）。
+pub const LONGEST_PAUSE: u64 = 30_000;
 
 /// 句子到这儿完了的标点：拆就在这里断。
 const STRONG: [char; 6] = ['。', '！', '？', '；', '…', '～'];
@@ -101,7 +107,7 @@ pub fn bubbles(text: &str, speed: u32) -> Vec<Bubble> {
                 true => piece.trim().to_string(),
                 false => trimmed(&piece).to_string(),
             };
-            let typed = typed(index, text.chars().count(), speed, &mut rng);
+            let typed = typed(text.chars().count(), speed, &mut rng);
             let pause = match index {
                 0 => Duration::ZERO,
                 _ => typed,
@@ -111,14 +117,14 @@ pub fn bubbles(text: &str, speed: u32) -> Vec<Bubble> {
         .collect()
 }
 
-/// 第 `index` 条（从 0 数）有 `chars` 个字，每分钟打 `speed` 个字：想的工夫（第一、二条 [`THINK_FIRST`]，往后
-/// [`THINK_NEXT`]）加打字的工夫，上下抖 0.8 到 1.2 倍，夹在 [`SHORTEST`] 到 [`LONGEST_PAUSE`] 之间。
-fn typed(index: usize, chars: usize, speed: u32, rng: &mut Rng) -> Duration {
-    let think = if index <= 1 { THINK_FIRST } else { THINK_NEXT };
-    let chars = u64::try_from(chars).unwrap_or(u64::MAX);
-    let typing = chars.saturating_mul(60_000) / u64::from(speed.max(1));
-    let factor = 800 + u64::from(rng.below(401));
-    let millis = think.saturating_add(typing).saturating_mul(factor) / 1000;
+/// 一条 `chars` 个字、打字速度每分钟 `speed` 个字，前面停多久（见模块开头）：中位照真人的线，照对数均匀抖 0.5 到 2 倍，夹在
+/// [`SHORTEST`] 到 [`LONGEST_PAUSE`] 之间。
+fn typed(chars: usize, speed: u32, rng: &mut Rng) -> Duration {
+    let chars = chars.max(1) as f64;
+    let median =
+        PAUSE_SCALE * chars.powf(PAUSE_POWER) * f64::from(TYPICAL_SPEED) / f64::from(speed.max(1));
+    let spread = 2f64.powf(f64::from(rng.below(2001)) / 1000.0 - 1.0);
+    let millis = (median * spread).round().max(0.0) as u64;
     Duration::from_millis(millis.clamp(SHORTEST, LONGEST_PAUSE))
 }
 

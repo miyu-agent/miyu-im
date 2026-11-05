@@ -5,8 +5,8 @@
 use std::time::Duration;
 
 use super::{
-    Bubble, LONG_SENTENCE, LONGEST, LONGEST_PAUSE, MAX_PIECES, MIN_CHARS, SHORTEST, THINK_FIRST,
-    THINK_NEXT, bubbles,
+    Bubble, LONG_SENTENCE, LONGEST, LONGEST_PAUSE, MAX_PIECES, MIN_CHARS, PAUSE_POWER, PAUSE_SCALE,
+    SHORTEST, TYPICAL_SPEED, bubbles,
 };
 
 /// 出厂的打字速度。
@@ -193,21 +193,31 @@ fn quotes_code_and_links_are_not_cut() {
 }
 
 #[test]
-fn pauses_are_thinking_plus_typing() {
+fn pauses_follow_the_people_and_grow_with_length() {
+    // 施工 I-138：中位照真人的线（PAUSE_SCALE × 字数^PAUSE_POWER），抖 0.5 到 2 倍，夹在 SHORTEST 到 LONGEST_PAUSE 之间。
+    let mut ratios = Vec::new();
     for text in corpus() {
-        let said = bubbles(&text, SPEED);
+        let said = bubbles(&text, TYPICAL_SPEED);
         assert_eq!(said[0].pause, Duration::ZERO);
-        for (index, bubble) in said.iter().enumerate().skip(1) {
+        for bubble in said.iter().skip(1) {
             assert_eq!(bubble.pause, bubble.typed);
-            let think = if index == 1 { THINK_FIRST } else { THINK_NEXT };
-            let chars = bubble.text.chars().count() as u64;
-            let base = think + chars * 60_000 / u64::from(SPEED);
-            let millis = bubble.pause.as_millis() as u64;
-            let low = (base * 800 / 1000).clamp(SHORTEST, LONGEST_PAUSE);
-            let high = (base * 1200 / 1000).clamp(SHORTEST, LONGEST_PAUSE);
-            assert!((low..=high).contains(&millis), "{bubble:?} 照 {base}");
+            let chars = bubble.text.chars().count().max(1) as f64;
+            let median = PAUSE_SCALE * chars.powf(PAUSE_POWER);
+            let millis = bubble.pause.as_millis() as f64;
+            let low = (median * 0.5).clamp(SHORTEST as f64, LONGEST_PAUSE as f64) - 1.0;
+            let high = (median * 2.0).clamp(SHORTEST as f64, LONGEST_PAUSE as f64) + 1.0;
+            assert!((low..=high).contains(&millis), "{bubble:?} 照 {median}");
+            ratios.push(millis / median);
         }
     }
+    // 忽长忽短：不再几乎每次一样长（原来十来个字以上都顶到 8 秒）。
+    ratios.sort_by(f64::total_cmp);
+    let (p25, p75) = (ratios[ratios.len() / 4], ratios[ratios.len() * 3 / 4]);
+    assert!(p75 / p25 > 1.4, "四分位 {p25} 到 {p75}");
+    // 字数要算上：同一种子下，长的一条的中位比短的长。
+    let short = PAUSE_SCALE * 5f64.powf(PAUSE_POWER);
+    let long = PAUSE_SCALE * 40f64.powf(PAUSE_POWER);
+    assert!(long > short * 2.5, "{short} {long}");
     // 打字越快停得越短：同一句慢的每一段都不比快的短。
     let text = "我刚看了一下。应该是配置写错了。换个镜像源试试";
     let (slow, fast) = (bubbles(text, 40), bubbles(text, 200));
