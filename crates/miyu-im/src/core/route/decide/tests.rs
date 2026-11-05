@@ -6,7 +6,7 @@
 
 use miyu_chat::{
     Chatty, Clock, Conditions, Ctx, Facts, File, Hit, Kind, Mode, Moderation, Params, Pending,
-    Rate, Reply, Said, Sleep, Source, Standing, Status,
+    Quota, Rate, Reply, Said, Sleep, Source, Standing, Status,
 };
 use miyu_client::ids::{ExternalId, Seq, VenueId};
 use miyu_client::time::{Timestamp, UtcOffset};
@@ -71,6 +71,7 @@ pub(super) fn ctx(params: &Params) -> Ctx {
             keywords: vec!["违规".to_string()],
             base64: params.base64,
         },
+        quota: Quota::default(),
     }
 }
 

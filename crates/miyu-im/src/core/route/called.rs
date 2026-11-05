@@ -391,6 +391,12 @@ impl Route {
             repeated,
             turns: group.turns(&self.whitelist),
             moderation,
+            // 使用限制（设计 08，施工 I-135）。
+            quota: self.limits.quota(
+                heard.venue.id().as_str(),
+                applied::limits(&applied),
+                &heard.sender,
+            ),
         };
         let decision = decide(&Case {
             facts,

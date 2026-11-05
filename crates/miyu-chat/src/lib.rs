@@ -51,9 +51,9 @@ pub use chatty::{
 };
 
 pub use inbound::{
-    Base64, Chain, Clock, Ctx, Flag, Gate, Inbound, InboundRule, Moderation, Outcome, Rate, Said,
-    Sleep, Spoken, Standing, Step, Verdict, Why, addressed, echo, echoed, gate, hollow, rate_full,
-    repeats,
+    Base64, Chain, Clock, Ctx, Flag, Gate, Inbound, InboundRule, Moderation, Outcome, Quota, Rate,
+    Said, Sleep, Spoken, Standing, Step, Verdict, Why, addressed, echo, echoed, gate, hollow,
+    quota_full, rate_full, repeats,
 };
 pub use judge::{
     Answering, Ask, Judge, JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable,

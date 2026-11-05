@@ -6,7 +6,9 @@
 
 use std::collections::HashMap;
 
-use miyu_chat::{Chain, Ctx, Inbound, Moderation, Outcome, Said, Standing, Venue, VenueKind};
+use miyu_chat::{
+    Chain, Ctx, Inbound, Moderation, Outcome, Quota, Said, Standing, Venue, VenueKind,
+};
 use miyu_client::ids::ExternalId;
 use miyu_client::time::Timestamp;
 
@@ -79,6 +81,13 @@ impl Route {
             moderation: Moderation {
                 keywords: loaded.keywords.clone(),
                 base64: applied.params.base64,
+            },
+            // 额度（设计 08，施工 I-135）照限流管不管：白名单成员没关「忽略限流」的不管。
+            quota: match rate {
+                true => self
+                    .limits
+                    .quota(venue.id().as_str(), applied::limits(&applied), sender),
+                false => Quota::default(),
             },
         };
         let msg = Inbound {

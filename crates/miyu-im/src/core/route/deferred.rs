@@ -5,7 +5,7 @@
 //!
 //! 只在桥的内存里：桥重启就丢（禁言当中重启少见，丢了的只是解禁以后少回几句）。
 
-use miyu_chat::{Ctx, Moderation, Standing, Venue, rate_full};
+use miyu_chat::{Ctx, Moderation, Quota, Standing, Venue, rate_full};
 use miyu_client::ids::ExternalId;
 
 use super::decide::Decision;
@@ -103,7 +103,8 @@ impl Route {
         Ok(())
     }
 
-    /// 群会话 `session` 此刻限流满了没有：照套到这个群上的 `rate`、投影里别人开的回合（同进站链）。不知道是哪个群的当没满。
+    /// 群会话 `session` 此刻限流满了没有：照套到这个群上的 `rate`、投影里别人开的回合（同进站链）；会话的额度满了的也算（施工
+    /// I-135）。不知道是哪个群的当没满。
     fn rate_filled(&mut self, session: &str) -> bool {
         let Some(venue) = self
             .peers
@@ -127,7 +128,12 @@ impl Route {
                 keywords: Vec::new(),
                 base64: applied.params.base64,
             },
+            quota: Quota::default(),
         };
+        // 会话的额度满了的也一样（设计 08，施工 I-135）。
         rate_full(&ctx, clock)
+            || self
+                .limits
+                .venue_full(venue.id().as_str(), applied::limits(&applied))
     }
 }

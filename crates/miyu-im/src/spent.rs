@@ -127,6 +127,28 @@ impl Spent {
             }
         }
     }
+
+    /// `person` 从 `from`（毫秒，含）起用了多少。读不出的是 0。
+    pub(crate) fn since(&self, person: &str, from: i64) -> u64 {
+        let Some(connection) = &self.connection else {
+            return 0;
+        };
+        let connection = connection
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let summed = connection.query_row(
+            "SELECT COALESCE(SUM(tokens), 0) FROM spent WHERE person = ?1 AND at >= ?2",
+            params![person, from],
+            |row| row.get::<_, i64>(0),
+        );
+        match summed {
+            Ok(sum) => u64::try_from(sum).unwrap_or_default(),
+            Err(error) => {
+                tracing::warn!(target: TARGET, error = %error, "usage not read");
+                0
+            }
+        }
+    }
 }
 
 /// 打开 `path`、建好表。

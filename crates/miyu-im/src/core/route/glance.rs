@@ -3,7 +3,8 @@
 //!
 //! - 对账（[`Route::reconcile_glances`]）：起来订阅完、卡片存了以后列自己建的定时，照开关删多的、补没有的（核心停着、桥没连着时
 //!   到点的一次性定时核心直接删掉，靠这里补回来）。头一回来消息的群另外补一个（[`Route::glance_found`]）。
-//! - 到点过一道（[`Route::glance_due`]）：开关关了的什么都不做；睡着的顺延到醒；这个群正有一轮在跑的等那一轮结束再过一遍；
+//! - 到点过一道（[`Route::glance_due`]）：开关关了的什么都不做；睡着的顺延到醒；会话的使用限制满了的（设计 08，施工 I-135）这一次
+//!   不看，照间隔再排；这个群正有一轮在跑的等那一轮结束再过一遍；
 //!   上次看过以后没有新消息的不请求模型，照上一次的间隔再排；都不是的照新消息开一轮（`session.respond` 的 `to`），带一块
 //!   `glance` 事实。私聊（I-89 下，项目主人 11-02 定）不看有没有新消息：闲着就开一轮（`to` 是空的，只带那块事实，核心 O-64），
 //!   让她决定要不要主动开口；正有一轮在跑的同样等它结束。
@@ -261,6 +262,14 @@ impl Route {
         if let Some(wake) = applied::wakes(&applied) {
             tracing::info!(target: TARGET, venue = %prompt.venue, wake = %wake, "glance after sleep");
             return self.arm_glance(prompt, Some(wake)).await;
+        }
+        // 会话的使用限制满了（设计 08，施工 I-135）：这一次不看，照间隔再排。
+        if self
+            .limits
+            .venue_full(&prompt.venue, applied::limits(&applied))
+        {
+            tracing::info!(target: TARGET, venue = %prompt.venue, "glance skipped, quota reached");
+            return self.arm_glance(prompt, None).await;
         }
         if venue.kind() == VenueKind::Private {
             return self.glance_private_due(id, prompt).await;

@@ -5,7 +5,9 @@ use miyu_kernel::time::{Timestamp, UtcOffset};
 
 use crate::VenueKind;
 
-use super::{Base64, Chain, Clock, Ctx, Inbound, Moderation, Rate, Said, Sleep, Standing, Verdict};
+use super::{
+    Base64, Chain, Clock, Ctx, Inbound, Moderation, Quota, Rate, Said, Sleep, Standing, Verdict,
+};
 
 /// 一分钟的毫秒数。
 pub(crate) const MINUTE: i64 = 60_000;
@@ -61,6 +63,7 @@ pub(crate) fn ctx() -> Ctx {
                 printable: 900,
             },
         },
+        quota: Quota::default(),
     }
 }
 

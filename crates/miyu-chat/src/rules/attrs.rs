@@ -17,6 +17,12 @@ mod tests;
 /// 线路规程的几种（`18-通讯平台.md` 第七节）。
 const DISCIPLINES: &[&str] = &["every-message", "when-called", "chatty", "wake"];
 
+/// 使用限制的一条线：token 数，一万亿以内。
+const LIMIT: Kind = Kind::Int {
+    min: 1,
+    max: 1_000_000_000_000,
+};
+
 /// 一项属性的写法。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Form {
@@ -56,6 +62,10 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
         "glance_minutes",
         Form::Kind(Kind::Int { min: 1, max: 10080 }),
     ),
+    // 使用限制（im 设计 08，施工 I-135）：这个会话最近 5 小时、7 天、30 天最多用多少 token；没写的不限。
+    ("limit_5h", Form::Kind(LIMIT)),
+    ("limit_week", Form::Kind(LIMIT)),
+    ("limit_month", Form::Kind(LIMIT)),
     // 确认主动回复后贴哪个表情（施工 I-7 中三下二）：平台的表情编号，`off` 是不贴；没写的照桥的出厂。
     ("reaction", Form::Kind(Kind::Text { max: 32 })),
 ];

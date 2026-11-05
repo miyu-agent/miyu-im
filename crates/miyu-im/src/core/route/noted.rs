@@ -30,6 +30,7 @@ pub(super) fn recorded(why: Why) -> &'static str {
         Why::Asleep => "asleep",
         Why::Muted => "muted",
         Why::RateLimited => "rate",
+        Why::QuotaReached => "quota",
         Why::Repeated => "repeated",
         Why::NotAllowed => "off",
     }
@@ -57,6 +58,7 @@ fn reason(body: &Value) -> Value {
             Some("asleep") => "asleep",
             Some("muted") => "muted",
             Some("rate_limited") => "rate",
+            Some("quota_reached") => "quota",
             Some("repeated") => "repeated",
             _ => "off",
         };

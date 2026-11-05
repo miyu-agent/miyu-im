@@ -1,7 +1,7 @@
 //! 进站链与限流的判定（`docs/blueprint/chat.md` 第二条，`docs/designs/18-通讯平台.md` 第六节、第十六节，施工 O-5）。
 //!
 //! 进来的每条消息先过进站链，像 netfilter 的 INPUT 链：一条条规则（[`InboundRule`]）照顺序过，每条给出往下走、插旗往下走、
-//! 或者停下给结果（[`Step`]）。自带六条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、复读（施工 I-28）、违规关键词、限流，
+//! 或者停下给结果（[`Step`]）。自带七条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、复读（施工 I-28）、违规关键词、限流、额度（im 施工 I-135），
 //! 每条一个文件。
 //! 核心自己开的回合不过链，先问回合闸（[`gate()`]）。
 //!
@@ -14,6 +14,7 @@ mod base64;
 mod gate;
 mod moderation;
 mod muted;
+mod quota;
 mod rate;
 mod repeat;
 mod sleep;
@@ -22,6 +23,7 @@ pub use addressed::{addressed, hollow};
 pub use base64::Base64;
 pub use gate::{Gate, gate};
 pub use moderation::Moderation;
+pub use quota::{Quota, quota_full};
 pub use rate::{Rate, rate_full};
 pub use repeat::{Spoken, echo, echoed, repeats};
 pub use sleep::Sleep;
@@ -94,6 +96,8 @@ pub struct Ctx {
     pub turns: Vec<Timestamp>,
     /// 违规关键词的参数。
     pub moderation: Moderation,
+    /// 额度满了没有（im 设计 08，施工 I-135）：外面照用量账本判好交进来。
+    pub quota: Quota,
 }
 
 /// 进站链的结果：这条消息怎么办（`18-通讯平台.md` 第六节那张表）。
@@ -118,6 +122,8 @@ pub enum Why {
     RateLimited,
     /// 在复读：别人刚说过同一句（施工 I-28）。
     Repeated,
+    /// 用量碰到了使用限制（im 设计 08，施工 I-135）：这个会话的，或者发的人的。
+    QuotaReached,
 }
 
 /// 插在消息上的旗：不拦，交给线路规程。
@@ -163,7 +169,7 @@ pub struct Chain {
 }
 
 impl Chain {
-    /// 自带的六条，照这个顺序：睡眠、她被禁言、谁能叫她、复读、违规关键词、限流（「怎么走」第 1 条）。复读排在限流前面：只记下的
+    /// 自带的七条，照这个顺序：睡眠、她被禁言、谁能叫她、复读、违规关键词、限流、额度（「怎么走」第 1 条）。复读排在限流前面：只记下的
     /// 不占额度。
     pub fn builtin() -> Self {
         Self {
@@ -174,6 +180,7 @@ impl Chain {
                 Box::new(repeat::Rule),
                 Box::new(moderation::Rule),
                 Box::new(rate::Rule),
+                Box::new(quota::Rule),
             ],
         }
     }

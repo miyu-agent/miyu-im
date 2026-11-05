@@ -8,7 +8,7 @@
 
 use miyu_chat::{
     Chain, Chatty, Clock, Conditions, Ctx, Facts, Inbound, Mode, Outcome, Pending, Reply, Route,
-    Supersede, VenueKind, Verdict, conditions, rate_full, supersede,
+    Supersede, VenueKind, Verdict, conditions, quota_full, rate_full, supersede,
 };
 
 use miyu_client::ids::ExternalId;
@@ -79,6 +79,8 @@ pub(super) struct Passed {
     pub(super) route: Route,
     /// 要问判官、额度满了没问（第 14 条）。
     pub(super) rate_full: bool,
+    /// 要问判官、会话的使用限制满了没问（设计 08，施工 I-135）：限流也满了的照限流记。
+    pub(super) quota_full: bool,
 }
 
 /// 判一条（「群里怎么叫她」第 5、6、10、11、14 条）：进站链只记下的只记下（限流满了的也是，施工 O-47）；放行的照线路规程留下条件、看顶替：
@@ -98,7 +100,7 @@ pub(super) fn decide(case: &Case<'_>) -> Decision {
             let conclusion = match passed.route {
                 Route::Commit => Conclusion::Reply,
                 Route::Record => Conclusion::Record,
-                _ if passed.rate_full => Conclusion::Record,
+                _ if passed.rate_full || passed.quota_full => Conclusion::Record,
                 Route::Judge => Conclusion::Judge(Mode::Reply),
                 Route::ModerationOnly => Conclusion::Judge(Mode::ModerationOnly),
             };
@@ -126,6 +128,7 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
     );
     // 额度满了的这段时间不问判官（18 第六节），哪种规程都照它。
     let full = rate_full(&case.ctx, case.clock);
+    let quota = quota_full(&case.ctx);
     let own = discipline.keep(found);
     let superseded = match discipline.supersedes() {
         true => supersede(&case.facts, &own, case.pendings, case.clock, case.window),
@@ -151,13 +154,16 @@ fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
             (conditions.clone(), route, msgs)
         }
     };
-    let rate_full = full && matches!(route, Route::Judge | Route::ModerationOnly);
+    let asks = matches!(route, Route::Judge | Route::ModerationOnly);
+    let rate_full = full && asks;
+    let quota_full = quota && asks && !rate_full;
     let passed = Passed {
         discipline,
         conditions,
         supersede: superseded,
         route,
         rate_full,
+        quota_full,
     };
     (passed, msgs)
 }

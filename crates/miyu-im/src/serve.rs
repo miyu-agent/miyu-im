@@ -375,7 +375,14 @@ pub async fn run(
             Arc::clone(&cards),
             Arc::clone(&recent),
             status_file::dir(&serve.root),
-            (Arc::clone(&records), Arc::clone(&spent)),
+            (
+                Arc::clone(&records),
+                Arc::clone(&spent),
+                (
+                    crate::dirs::config(&serve.root).join(crate::limits::FILE),
+                    serve.tuning.usage_refresh(),
+                ),
+            ),
         ),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();

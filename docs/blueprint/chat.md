@@ -82,6 +82,7 @@ managers = ["qq:10002"]
 | `managers` | 带平台前缀的身份的列表，例如 `qq:10002` | 谁能用管理命令 |
 | `show_ids` | 开关 | 她看不看得到发送者的号码 |
 | `glance` | 开关 | 时不时看一眼（im 设计 05、施工 I-89）：桥照它给名单里的群排定时，到点自己看一眼新消息；没写的是不看 |
+| `limit_5h`、`limit_week`、`limit_month` | 整数 1 到一万亿 | 使用限制（im 设计 08、施工 I-135）：这个会话最近 5 小时、7 天、30 天最多用多少 token（四项合计），桥照核心的用量账本判，满了只记下；没写的不限 |
 | `workspace` | 文字，最多 4096 个字符 | 场所会话的工作区 |
 | `recent` | 整数 1 到 1000 | 群会话里她回话时带多少条群聊近况（施工 O-62，核心 `venue.session` 的 `recent`）：只管群、只对新造的会话生效（核心造会话时钉进快照）；不写的只照核心的字节预算 |
 | `model` | 模型的引用：`<供应商>/<模型>` 或 `@<池>` | 场所会话回话用的模型（施工 O-58 补三，核心的 `session.configure`）：第一次找到会话时钉上；卡片换了的跟着换，清掉的回到跟着配置的 `models.chat`；没设的不碰（人在别处换的照旧） |
@@ -169,23 +170,24 @@ Rust 这一边：
 | `addressed(kind, mentions_me, quotes_me, text, keywords) -> bool` | 是不是冲她来的（「怎么走」第 11 条）：场所是群还是私聊、@ 了她没有、引用的是不是她的消息、正文、场所规则的触发词 `keywords` |
 | `Inbound { kind, said, text }` | 一条进来的消息：场所是群还是私聊（`VenueKind`）、`Said`、正文 |
 | `Clock { now, offset }` | 此刻（内核的 `Timestamp`）；场所会话的时区（内核的 `UtcOffset`） |
-| `Ctx { rate, sleep, allow, muted, repeated, turns, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、这一条是不是在复读（I-28，外面用 `repeats` 算好）、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻（`Timestamp`）、违规关键词的参数。原来的 `notices`（限流提示过的时刻）施工 O-47 去掉 |
+| `Ctx { rate, sleep, allow, muted, repeated, turns, moderation, quota }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、这一条是不是在复读（I-28，外面用 `repeats` 算好）、最近开过的回合（不算终端管理员、白名单成员开的）的开始时刻（`Timestamp`）、违规关键词的参数、额度满了没有（`Quota { venue, person }`，im 施工 I-135：外面照用量账本判好交进来）。原来的 `notices`（限流提示过的时刻）施工 O-47 去掉 |
 | `Rate::read(text) -> Option<Rate>` | 从 `rate` 的原文读出来：几个回合（不会是 0）、窗口多少毫秒（不会是 0，时长照旧是毫秒数）；不限、写错的读成 `None`。几格私有，只能这样造 |
 | `Sleep::read(text) -> Option<Sleep>` | 从 `sleep` 的原文读出来：一天里的第几分钟开始、第几分钟结束（不会相等）；开始晚于结束的跨午夜；`off`、写错的读成 `None`。几格私有，只能这样造 |
 | `Moderation { keywords, base64 }`、`Base64 { min_chars, max_chars, printable }` | 违规关键词（违规词表读出来的，`Moderation::parse_keywords`），和 base64 的三个数：至少多长才去解、解出来最多看多少个字符、可打印的字符至少占几成（千分比）。`Base64` 从第八条的 `Params::base64` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `Moderation::parse_keywords(text) -> Vec<String>` | 读违规词表的原文（「怎么走」第 12 条）：一行一个，空行、`#` 开头的不要，重复的只留第一个。不会失败：词表里没有写错这一说（施工 O-15 下） |
 | `Base64::reveal(text) -> Option<String>` | 正文里的 base64 解出来的字（「怎么走」第 10 条）：违规关键词查它，桥拿它填判官的 `Ask.decoded`（第六条）；一段都没有是 `None` |
 | `InboundRule` | 进站链的插槽：一条规则，`judge` 给出 `Step::Continue`、`Step::Flag(Flag)`（插旗、往下走）或 `Step::Stop(Outcome)` |
-| `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的六条照顺序过；`Verdict { outcome, flags }` |
+| `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的七条照顺序过；`Verdict { outcome, flags }` |
 | `Spoken { sender, at, echo }`、`echo(text) -> Option<u64>`、`repeats(echo, &sender, now, earlier, window) -> bool`、`echoed(echo, &sender, later) -> bool` | 复读（I-28，「怎么走」第 13 条）：一条人话的发的人、时刻、正文的指纹；指纹怎么算；这一条是不是在复读（`earlier` 从新到旧）；她回的那一条后来有没有别人跟着说（`later` 从旧到新，第五条第 6 条用） |
-| `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, Repeated, RateLimited}` | 放行、只记下；为什么。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
+| `Outcome::{Pass, RecordOnly(Why)}`、`Why::{Asleep, Muted, NotAllowed, Repeated, RateLimited, QuotaReached}` | 放行、只记下；为什么（`QuotaReached` im 施工 I-135）。原来的「拒绝并回一句」`Notice` 施工 O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示） |
 | `Flag::Moderation` | 违规旗 |
 | `rate_full(&ctx, clock) -> bool` | 额度满了没有：满了的这段时间不调判官（18 第六节） |
+| `quota_full(&ctx) -> bool` | 这个会话的使用限制满了没有（im 施工 I-135）：同 `rate_full`，满了的这段时间不调判官 |
 | `gate(&ctx, clock) -> Gate::{Now, Later(at)}` | 回合闸的回答：现在开，或者推迟到某个时刻（`Timestamp`）再问 |
 
 **怎么走**
 
-1. **先后**：睡眠、她被禁言、谁能叫她、复读（I-28，第 13 条）、违规关键词、限流。哪一条给出 `Stop` 就停，后面的不看；插旗的接着往下走，旗都记在 `Verdict.flags` 里。六条都过了是 `Pass`。复读排在限流前面：只记下的不占额度。
+1. **先后**：睡眠、她被禁言、谁能叫她、复读（I-28，第 13 条）、违规关键词、限流、额度（im 施工 I-135，第 14 条）。哪一条给出 `Stop` 就停，后面的不看；插旗的接着往下走，旗都记在 `Verdict.flags` 里。七条都过了是 `Pass`。复读排在限流前面：只记下的不占额度。
 2. **睡眠**：设了睡眠，此刻（照 `offset` 换成当地时间，取一天里的第几分钟：内核的 `Timestamp::local_minute` 交回的是字，这里照 `unix_millis`、`UtcOffset::minutes` 自己算，内核不加）落在 `[start, end)` 里算睡着；跨午夜的，落在 `[start, 1440)` 或 `[0, end)` 里。睡着时：终端管理员、白名单成员继续，私聊、群里都是（白名单成员原来只在私聊，O-27，2026-10-10 项目主人定）；别的一律 `RecordOnly(Asleep)`。
 3. **她被禁言**：谁说的都 `RecordOnly(Muted)`：她开不了口。
 4. **谁能叫她**：`allow` 是 `false` 时，终端管理员继续；白名单成员在私聊里继续；别的 `RecordOnly(NotAllowed)`。没设 `allow` 当 `true`。
@@ -210,6 +212,7 @@ Rust 这一边：
     - 触发词只认开头，不认中间：中间出现就算，「为什么」这类词会误叫（旧版 `group_trigger_text`，08-29 实测）。名字也算触发词，写在 `keywords` 里，出厂是空的。
 12. **违规词表**（`Moderation::parse_keywords`，O-15 下）：开头的 BOM 去掉；一行一个；每一行去掉首尾的空白（`\r` 也去）；去完是空的、以 `#` 开头的不要；一字不差重复的只留第一个，照出现的先后。不会失败：一行一个字，没什么能写错的。出厂的词表是 `im/data/moderation.txt`：旧版的 153 个词（旧版 `real_context.rs` 的 `default_real_context_moderation_keywords`）照原样搬，一个不改；开头几行 `#` 写着这是什么、改了要拿真实聊天记录审一遍（旧版 `OD` 一个词 7 天误报 447 次）。读文件、系统里放同名的文件 im 的配置目录里的 `moderation.txt`（数据根的 `etc/miyu-im/`，核心给的 `MIYU_CONFIG_DIR`，I-122；原来在 `modules/miyu-im/`） 替换出厂的那一份，由桥读（`onebot.md` 第一条「场所规则和出厂数据」，施工 O-21；第七条第 5 条）。
 13. **复读**（I-28，2026-10-23 项目主人定：几个人接连发同一句，她只回一次；10-22 群里 5 个人刷「miyu似了」她挨个回了 4 句）：`ctx.repeated` 是真的，终端管理员继续，别的 `RecordOnly(Repeated)`。外面照最近的人话用 `repeats` 算：正文的指纹（`echo`：只留 `char::is_alphanumeric` 的字、字母小写，照 UTF-8 算 FNV-1a；一个字都不剩的没有指纹）一样，从此刻往回一串首尾相接、相邻两条隔得不超过 `inbound.repeat_window`（出厂 2 分钟，含）的同一句里有别人说的、判过了的（`Spoken::counted`：进站链放行了，正在判或者判完了；睡着、限流这类只记下的不算，一串里谁都没被判过，后面的照常判），就是复读；中间夹着别的话不断，隔得太久就断；同一个人自己重复的不算（照顶替办），没有指纹的不算。一串里只有第一条往下走。
+14. **额度**（im 设计 08，施工 I-135）：终端管理员、白名单成员继续（同限流）；`quota.venue`（这个会话碰到了卡片上的线）或者 `quota.person`（发的人碰到了使用限制页给他的线）是真的，`RecordOnly(QuotaReached)`，冲她来的也是，不出声。`quota_full` 只看 `quota.venue`。用量怎么数、线从哪来由桥管，这里不数。
 
 **守着它的**（`crates/miyu-chat/src/inbound/tests.rs` 等，O-5）
 

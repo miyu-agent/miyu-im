@@ -134,12 +134,14 @@ impl Route {
             To::Group(_) => None,
         };
         let venue = peer.venue.as_str().to_string();
-        self.charging.private(session, &venue, &event, person);
+        self.limits
+            .charging
+            .private(session, &venue, &event, person);
     }
 }
 
 /// 此刻，毫秒。
-fn now() -> i64 {
+pub(super) fn now() -> i64 {
     let since = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();

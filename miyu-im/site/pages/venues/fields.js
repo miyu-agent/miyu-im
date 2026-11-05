@@ -24,6 +24,14 @@ const JUDGE = { key: 'rules.discipline', on: 'chatty' };
 const WEIGHTS = ['relevance', 'willingness', 'social', 'timing', 'continuity'].map((name) => `rules.chatty.${name}`);
 const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 
+/** 使用限制的三格（`kinds` 那几种卡，`dep` 照给的）：第一格带小字。 */
+function limits(kinds, dep) {
+  return ['5h', 'week', 'month'].map((line, index) => ({
+    key: `rules.limit_${line}`, control: 'number', label: `field/limit-${line}`, hint: index === 0 ? 'field/limit-5h-hint' : undefined,
+    unit: 'unit/tokens', kinds, dep, min: 1, max: 1000000000000,
+  }));
+}
+
 /** 各页的格，照页的编号。 */
 export const FIELDS = {
   persona: [
@@ -70,6 +78,9 @@ export const FIELDS = {
     { key: 'rules.sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ['private'], dep: { key: 'rules.ignore_sleep', on: false, unset: true } },
     { key: 'rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ALL_BUT_PRIVATE },
     { key: 'sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ALL_BUT_PRIVATE },
+    // 使用限制（设计 08，施工 I-135）：这个会话最近 5 小时、7 天、30 天最多用多少 token，没写的不限。私聊卡照限流，关了忽略限流才画。
+    ...limits(ALL_BUT_PRIVATE),
+    ...limits(['private'], { key: 'rules.ignore_rate', on: false, unset: true }),
     { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 16 },
   ],
   send: [

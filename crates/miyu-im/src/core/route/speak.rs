@@ -50,7 +50,7 @@ impl Route {
             .get(session)
             .map_or("", |peer| peer.venue.as_str());
         let payers = group.payers(session, turn);
-        self.charging.group(session, venue, &event, &payers);
+        self.limits.charging.group(session, venue, &event, &payers);
         let speaking = group.take(&event);
         self.reactions.seen(session, &event);
         let quiet = self.quiet.heard(session, raw);

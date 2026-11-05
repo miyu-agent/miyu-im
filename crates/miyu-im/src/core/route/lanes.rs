@@ -432,7 +432,7 @@ impl Route {
             .peers
             .get(session)
             .map_or("", |peer| peer.venue.as_str());
-        self.charging.group(lane, venue, &event, &payers);
+        self.limits.charging.group(lane, venue, &event, &payers);
         match group.lane_take(lane, &event) {
             Seen::Took { turn, msgs } => self.reactions.taken(session, lane, &msgs, turn),
             Seen::Ended(turn) => {

@@ -1,8 +1,8 @@
 //! 判一条群消息的线路规程和顶替（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 10、11 条）：`when-called` 没叫她的只记下，只有
-//! 违规旗的问判官只查违规（额度满了不问），冲她来的照开；`every-message` 有字的都回，违规旗不改它；同一个人在窗口里补发，前一条
+//! 违规旗的问判官只查违规（额度满了、会话的使用限制满了都不问），冲她来的照开；`every-message` 有字的都回，违规旗不改它；同一个人在窗口里补发，前一条
 //! 判过要回的接过去，还在判的几条一起重判，`wake` 不看顶替。夹具在 `tests.rs`。
 
-use miyu_chat::{Ctx, Facts, Mode, Rate, Standing, Status, Supersede};
+use miyu_chat::{Ctx, Facts, Mode, Quota, Rate, Standing, Status, Supersede};
 use miyu_client::ids::Seq;
 use serde_json::json;
 
@@ -73,6 +73,26 @@ fn other_disciplines_ask_the_judge_only_about_violations() {
     assert_eq!(
         written(&held, Standing::Whitelisted, None)["judge"],
         json!({"mode": "moderation_only", "unjudged": "rate_full"})
+    );
+    // 会话的使用限制满了也不问（设计 08，施工 I-135）：白名单成员不受它拦，判官照样不问。
+    let quota = Ctx {
+        quota: Quota {
+            venue: true,
+            person: false,
+        },
+        ..ctx(&params)
+    };
+    let held = judged_in(
+        facts(Standing::Whitelisted, false),
+        "这是违规的话",
+        quota,
+        chatty,
+        &called,
+    );
+    assert_eq!(held.conclusion, Conclusion::Record, "使用限制满了不问判官");
+    assert_eq!(
+        written(&held, Standing::Whitelisted, None)["judge"],
+        json!({"mode": "moderation_only", "unjudged": "quota_full"})
     );
     let both = judged_in(
         facts(Standing::Member, true),

@@ -11,14 +11,16 @@
 //! - 最多几条支线（施工 O-36，第 6 条）：`parallel`，没设的是 0。
 //! - 对话模型（施工 O-58 补三）：`model`，找到会话以后经 `session.configure` 钉（`policy`，补四起人格、预设也照它换）。
 //! - 群聊近况带多少条（施工 O-62）：`recent`，只给群的 `venue.session` 带，没设的不带。
+//! - 使用限制（设计 08，施工 I-135）：卡片 `rules` 里的 `limit_5h`、`limit_week`、`limit_month`。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use miyu_chat::{Clock, Ctx, Gate, Moderation, Rate, Sleep, gate};
+use miyu_chat::{Clock, Ctx, Gate, Moderation, Quota, Rate, Sleep, gate};
 use miyu_client::ids::ExternalId;
 use miyu_client::manifest::Value;
 use miyu_client::time::{Timestamp, UtcOffset};
 
+use crate::limits::{KEYS, Lines};
 use crate::rules::Applied;
 
 use super::Route;
@@ -104,6 +106,7 @@ pub(super) fn wakes(applied: &Applied) -> Option<Timestamp> {
             keywords: Vec::new(),
             base64: applied.params.base64,
         },
+        quota: Quota::default(),
     };
     match gate(&ctx, clock) {
         Gate::Later(wake) => Some(wake),
@@ -180,6 +183,14 @@ pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
         Some(Value::Int(minutes)) => u64::try_from(*minutes).ok().filter(|minutes| *minutes > 0),
         _ => None,
     }
+}
+
+/// 规则的使用限制（设计 08，施工 I-135）：卡片 `rules` 里的三条线，没写的、不是正整数的不限。
+pub(super) fn limits(applied: &Applied) -> Lines {
+    Lines::from_caps(KEYS.map(|key| match entry(applied, key) {
+        Some(Value::Int(cap)) => u64::try_from(*cap).ok().filter(|cap| *cap > 0),
+        _ => None,
+    }))
 }
 
 /// 此刻：本机的钟，时区照本机此刻的偏移（「施工时定的」第 65 条）。钟读不出（早于 1970 年、晚于 9999 年）的是空的。

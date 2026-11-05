@@ -121,6 +121,8 @@ pub(super) fn body(decision: &Decision, standing: Standing, judged: Option<Judge
     let mut asked = json!({"mode": mode_name(mode)});
     if passed.rate_full {
         asked["unjudged"] = json!("rate_full");
+    } else if passed.quota_full {
+        asked["unjudged"] = json!("quota_full");
     }
     if let Some(Judged {
         answer,
@@ -190,6 +192,7 @@ pub(super) fn why_name(why: Why) -> &'static str {
         Why::Muted => "muted",
         Why::NotAllowed => "not_allowed",
         Why::RateLimited => "rate_limited",
+        Why::QuotaReached => "quota_reached",
         Why::Repeated => "repeated",
     }
 }

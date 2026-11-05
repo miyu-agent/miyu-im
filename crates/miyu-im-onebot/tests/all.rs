@@ -78,6 +78,7 @@ mod pronoun;
 mod provider;
 mod queue;
 mod queue_waits;
+mod quota;
 mod quote;
 mod quote_timing;
 mod ranking;
