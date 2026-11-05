@@ -56,7 +56,7 @@ pub struct Target {
 /// 她回的那条消息之后，群里的动静：外面从场所会话的日志数出来交进来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Since {
-    /// 来了几条别人的消息：不算那个人自己补的，也不算她自己的。
+    /// 隔了几条：别人的消息，加上她回别的话发出去的（施工 I-162）；不算那个人自己补的。
     pub others: u64,
     /// 从那条消息进来到此刻过了多少毫秒；负的当没过。
     pub elapsed: i64,

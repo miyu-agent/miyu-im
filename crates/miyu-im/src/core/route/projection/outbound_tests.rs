@@ -225,3 +225,30 @@ fn the_bridge_counts_first_and_the_log_does_not_count_twice() {
     let spoken = take_all(&mut projection, vec![assistant(10, 9)]);
     assert_eq!(spoken[0].sent, ["四"], "换了回合就清，上一轮的不算");
 }
+
+#[test]
+fn her_replies_to_others_count_as_messages_in_between() {
+    // 施工 I-162，11-05 主群：符明颜说「我不喜欢入耳式」以后，她回了鹏起鲸落两句，鹏起鲸落又说了一句；再回符明颜时中间隔了
+    // 三条，原来只数别人的（一条），没引用，看的人分不清她在回谁。
+    let mut projection = Projection::new(LINE, 0);
+    take_all(
+        &mut projection,
+        vec![
+            said_at(1, 1, 20002),
+            delivered(2, 10, "现在都纯血 NEXT 了"),
+            delivered(3, 11, "确实是我说漏了"),
+            said_at(4, 4, 20003),
+            said_at(5, 5, 20002),
+        ],
+    );
+    assert_eq!(
+        projection.since_aim(1, &qq(20002)),
+        (3, false),
+        "她回别的话的两句也算，发它的人自己补的照旧不算"
+    );
+    assert_eq!(
+        projection.since_aim(4, &qq(20003)),
+        (1, false),
+        "之前她说的不算，后来别人那一句算"
+    );
+}

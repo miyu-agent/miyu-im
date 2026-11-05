@@ -163,6 +163,8 @@ pub(super) struct Projection {
     /// `venue.delivered`：发出去到平台回执之间进来的人话在日志里排在回执前面，可群里她那一段在前（CI 的 macOS 上撞出来的）。
     /// 这个群的日志里没有那一轮她说的话的（主线发来的）照回执的序号。
     own: u64,
+    /// 她发出去的话（`venue.delivered`）的序号，留最近 [`aimed::OWN_KEPT`] 条（施工 I-162，`aimed.rs`）：数隔了几条时也算。
+    own_sent: std::collections::BTreeSet<u64>,
     /// 她最近一次把一段交给 NapCat 时，收到的最后一条人话的序号（施工 I-64，`aimed.rs`）；没交过的是空的。
     handed: Option<u64>,
     /// 她在主线每一轮最后说的一段：回合编号 → `message.assistant` 的序号，留最近 [`SPOKE_TURNS`] 轮。主线的回执照回合认它
@@ -260,6 +262,7 @@ impl Projection {
                     }
                 }
                 self.mine.insert(delivered.msg.clone());
+                self.sent_own(seq);
                 let main = delivered.line.as_str() == self.session;
                 let spoke = self.spoke.get(&delivered.turn.started().get());
                 let said = spoke.copied().filter(|_| main).unwrap_or(seq);

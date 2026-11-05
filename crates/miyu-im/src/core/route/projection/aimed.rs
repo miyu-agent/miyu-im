@@ -5,11 +5,25 @@ use miyu_client::ids::ExternalId;
 
 use super::Projection;
 
+/// 她发出去的话留最近几条的序号（施工 I-162）。
+pub(super) const OWN_KEPT: usize = 200;
+
 impl Projection {
-    /// 序号是 `seq` 的那一条以后来的人说的话里，不是 `sender` 说的有几条（她的话不是人说的话，本来就不算）。
+    /// 序号是 `seq` 的那一条以后，群里隔了几条：不是 `sender` 说的人话，加上她已经发出去的话（施工 I-162，项目主人 11-05：她在
+    /// 中间回了别人两句，再回这一条不引用就分不清在回谁）。带引用的只有一句话的第一段，交出去那一刻这一句自己还一段都没发，
+    /// 所以算进去的都是她回别的话的。
     pub(super) fn others_after(&self, seq: u64, sender: &ExternalId) -> u64 {
         let later = self.said.range(seq + 1..);
-        later.filter(|(_, speaker)| speaker.id != *sender).count() as u64
+        let people = later.filter(|(_, speaker)| speaker.id != *sender).count();
+        (people + self.own_sent.range(seq + 1..).count()) as u64
+    }
+
+    /// 她发出去了一段，记的是序号 `seq`（`venue.delivered`）：留最近 [`OWN_KEPT`] 条。
+    pub(super) fn sent_own(&mut self, seq: u64) {
+        self.own_sent.insert(seq);
+        while self.own_sent.len() > OWN_KEPT {
+            self.own_sent.pop_first();
+        }
     }
 
     /// 群里最后一条是不是她的：她说的最后一段排在最后一条人说的话后面。她的位置照说它的 `message.assistant`（回执晚到，
