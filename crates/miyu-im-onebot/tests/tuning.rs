@@ -67,8 +67,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     );
     // 问挂接点的包最多等一秒半（施工 O-43 中）。
     assert_eq!(tuning.hook(), Duration::from_millis(1500));
-    // 时不时看一眼：没定下一次 25 分钟（施工 I-89），她定的一分钟按 60 秒算（施工 I-90）。
-    assert_eq!(tuning.glance(), (Duration::from_secs(1500), 60));
+    // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90）。
+    assert_eq!(tuning.glance(), (Duration::from_secs(420), 60));
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn a_bad_file_is_not_read_and_named() {
         ),
         (
             "glance-zero",
-            good.replace("\"glance_seconds\": 1500", "\"glance_seconds\": 0"),
+            good.replace("\"glance_seconds\": 420", "\"glance_seconds\": 0"),
         ),
         (
             "glance-minute-zero",

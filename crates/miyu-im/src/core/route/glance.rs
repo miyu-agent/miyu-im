@@ -8,7 +8,7 @@
 //!   上次看过以后没有新消息的不请求模型，照上一次的间隔再排；都不是的照新消息开一轮（`session.respond` 的 `to`），带一块
 //!   `glance` 事实。私聊（I-89 下，项目主人 11-02 定）不看有没有新消息：闲着就开一轮（`to` 是空的，只带那块事实，核心 O-64），
 //!   让她决定要不要主动开口；正有一轮在跑的同样等它结束。
-//! - 看一眼那一轮结束了（[`Route::glance_turn_ended`]）：没定下一次的照 `glance_seconds`（出厂 25 分钟）再排。她用工具定了的
+//! - 看一眼那一轮结束了（[`Route::glance_turn_ended`]）：没定下一次的照 `glance_seconds`（出厂 7 分钟，施工 I-143；原来 25 分钟）再排。她用工具定了的
 //!   （[`Route::glance_after`]，I-89 下）照她的。
 
 use std::collections::{HashMap, HashSet};
