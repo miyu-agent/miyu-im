@@ -109,10 +109,7 @@ fn every_sentence_end_breaks_and_the_marks_go() {
             assert!(!bubble.text.contains('。'), "{said:?}");
             assert!(bubble.text.chars().count() >= MIN_CHARS, "{said:?}");
             if index + 1 < said.len() {
-                assert!(
-                    !bubble.text.ends_with(['，', '；', '、']),
-                    "断开处不留：{said:?}"
-                );
+                assert!(!bubble.text.ends_with(['，', '；']), "断开处不留：{said:?}");
             }
         }
         let joined: String = said.iter().map(|bubble| bubble.text.as_str()).collect();
@@ -210,6 +207,17 @@ fn exclamation_and_question_marks_stay_after_a_cut() {
         ["你重启过了吗？", "没重启就先重启"]
     );
     assert_eq!(texts("装好了。再试一次看看"), ["装好了", "再试一次看看"]);
+}
+
+#[test]
+fn an_enumeration_comma_never_cuts() {
+    // 施工 I-156，11-05 项目主人：顿号连着的是并列的几样，不在那里断。一句很长、只有顿号的，怎么取种子都是一整条。
+    let text = "要装的有git、curl、wget、base-devel、neovim、tmux、htop、ripgrep这几个包";
+    for salt in 0..60 {
+        let text = format!("{text}{}", "啊".repeat(salt % 5));
+        let said = bubbles(&text, SPEED);
+        assert_eq!(said.len(), 1, "{said:?}");
+    }
 }
 
 #[test]
