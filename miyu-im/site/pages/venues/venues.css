@@ -166,3 +166,21 @@
 .pick-row .btn { display: inline-flex; align-items: center; gap: 8px; }
 .inherit-note { color: var(--text-faint) !important; }
 .glance-line { margin: 4px 0; font-size: 13px; color: var(--text-soft); }
+
+/* 实时日志（设计 10，施工 I-161，watch.js）：一行一件事，时刻在左；写着的块末尾一个闪的光标。不画描边，颜色照配色变量。 */
+.watch { display: flex; flex-direction: column; min-height: 0; height: min(62vh, 640px); }
+.watch-lines { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; font-size: 13px; line-height: 1.55; }
+.watch-line { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 3px 8px; border-radius: 6px; }
+.watch-line:hover { background: var(--surface-2); }
+.watch-at { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.watch-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.watch-line.is-decided .watch-text, .watch-line.is-result .watch-text, .watch-line.is-call .watch-text { color: var(--text-soft); }
+.watch-line.is-thinking .watch-text { color: var(--text-soft); font-style: italic; }
+.watch-line.is-started .watch-text { color: var(--accent); font-weight: 600; }
+.watch-line.is-said .watch-text { font-weight: 600; }
+.watch-line.is-delivered .watch-text { color: var(--online); }
+.watch-line.is-failed .watch-text, .watch-line.is-ended .watch-text { color: var(--danger); }
+.watch-line.writing .watch-text::after { content: "▍"; margin-left: 2px; color: var(--accent); animation: watch-caret 1s steps(2) infinite; }
+.watch-empty { margin: 8px; }
+@keyframes watch-caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .watch-line.writing .watch-text::after { animation: none; } }

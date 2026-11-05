@@ -9,6 +9,7 @@
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
 // - 「插件加的」（施工 I-8 下，设计 01 第四节第 5 条）：声明了浮窗一页、在这个会话开着的插件（2026-10-20 项目主人定：开着才出现）
 //   一个一页，兜底卡上没有；内容经插件登记的 chat.panel 取（plugins/widget-host.js），这一个浮窗开着时只取一次，点了动作、存了表单再取。
+// - 「实时日志」（设计 10，施工 I-161，watch.js）：名单里的群、私聊卡上有，切到这一页才开始看，离开、关浮窗就停。
 // - 「会话默认值」那张卡（2026-10-20 项目主人验收：从设置页挪到会话页墙上第一张）也开这个浮窗：没有概况、管理插件，从人格和模型起。
 import { element, say } from '../../shell/i18n.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
@@ -23,6 +24,7 @@ import { drawForm } from './form.js';
 import { drawPlugins, fits, isOn, named as pick } from './plugins.js';
 import { mountWidget } from '../plugins/widget-host.js';
 import { goTo } from '../../shell/connection.js';
+import { watchVenue } from './watch.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
@@ -33,6 +35,8 @@ const TABS = [
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
   { id: 'plugins', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
+  // 实时日志（设计 10，施工 I-161）：名单里一个群、一个私聊的卡上才有，看它里面 AI 在干嘛。
+  { id: 'watch', kinds: ['group', 'private'], ready: true },
 ];
 
 /** 开 `one` 的浮窗；`context` 是 { request, platform, bots, personas }（bots 是机器人的号到名字，连着不止一个时卡上写是哪个；
@@ -49,7 +53,16 @@ export function openVenue(one, context, onClose) {
   const body = element('div', 'd-body');
   main.append(head, body);
   dialog.append(side, main);
-  const close = openLayer(dialog, onClose);
+  // 实时日志那一页开着的：跨重画留着，离开那一页、关浮窗时停。
+  let watching = null;
+  const unwatch = () => {
+    watching?.stop();
+    watching = null;
+  };
+  const close = openLayer(dialog, () => {
+    unwatch();
+    onClose?.();
+  });
   head.append(title, closeButton(close));
   let tab = isDefaults(one) ? 'persona' : 'overview';
   // 统计和最近判断：重画浮窗时留着这两块，问到了再换。
@@ -151,11 +164,15 @@ export function openVenue(one, context, onClose) {
       });
       tabs.append(button);
     }
+    if (tab !== 'watch') unwatch();
     title.textContent = plugin ? pick(plugin.name) || plugin.package : say(`venue/tab-${tab}`);
     if (plugin) body.replaceChildren(panelOf(plugin));
     else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, [counted.box, today]));
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));
-    else {
+    else if (tab === 'watch') {
+      watching ??= watchVenue(`${context.platform}:${shown.type}:${shown.id}`, context.request);
+      body.replaceChildren(watching.box);
+    } else {
       const idWord = idWordOf('private', context.platform);
       body.replaceChildren(...drawForm(tab, shown, { ...context, models, reactions, presets, expanded, idWord }));
     }

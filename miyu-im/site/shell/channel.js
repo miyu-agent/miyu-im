@@ -4,7 +4,8 @@
 // - 关闭帧 4401：会话号不认了（登出了、im 重启过），交给 onExpired，不再连。
 // - 别的断开：交给 onLost，过一会儿再连（1 秒起、每次翻倍、最多 10 秒）；连上了交给 onOpen。在等回答的都算失败。
 
-/** 用会话号 `session` 开通道；`handlers` 是 onOpen()、onEvent(name)、onLost()、onExpired()。 */
+/** 用会话号 `session` 开通道；`handlers` 是 onOpen()、onEvent(name, message)（message 是整帧，实时日志要它带的行）、onLost()、
+ *  onExpired()。 */
 export function openChannel(session, handlers) {
   let socket;
   let next = 1;
@@ -30,7 +31,7 @@ export function openChannel(session, handlers) {
         return;
       }
       if (message.event) {
-        handlers.onEvent?.(message.event);
+        handlers.onEvent?.(message.event, message);
         return;
       }
       const asked = waiting.get(message.id);

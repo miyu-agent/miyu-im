@@ -10,6 +10,7 @@ import { applyHanded } from './shell/theme.js';
 import { showLogin, signIn, stored, store } from './shell/login.js';
 import { openChannel } from './shell/channel.js';
 import { mountShell } from './shell/shell.js';
+import { pushWatch, reopenWatch } from './shell/watch.js';
 
 const login = document.getElementById('login');
 const app = document.getElementById('app');
@@ -42,9 +43,11 @@ function enter(session, fromWebUi) {
         });
       }
       shell.refresh();
+      reopenWatch();
     },
-    onEvent(name) {
+    onEvent(name, message) {
       if (name === 'changed') shell?.refresh();
+      else if (name === 'watch') pushWatch(message);
       else shell?.event(name);
     },
     onLost() {

@@ -159,7 +159,7 @@
     "watch/images": "[画像 {count} 枚]",
     "watch/sticker": "[スタンプ]",
     "watch/forward": "[転送 {count} 件]",
-    "watch/other": "[{kind}]",
+    "watch/other": "［{kind}］",
     "watch/decided": "判断 {who}：{text}",
     "watch/outcome-reply": "返信する",
     "watch/outcome-record": "記録だけ",
