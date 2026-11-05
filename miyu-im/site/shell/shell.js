@@ -24,20 +24,21 @@ import { mountPresets } from '../pages/presets/presets.js';
 import { mountModels } from '../pages/models/models.js';
 import { mountBackstage } from '../pages/backstage/backstage.js';
 
-/** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）。 */
+/** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）、分在哪一组（施工 I-150，2026-11-05 项目主人：十二项太长，照用途分组加小
+ *  标题；没写的是头一组，不带标题；`end` 只隔开一点、不带标题）。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
   { id: 'records', name: () => say('nav/records'), mount: mountRecords },
   { id: 'stats', name: () => say('nav/stats'), mount: mountStats },
   { id: 'limits', name: () => say('nav/limits'), mount: mountLimits },
-  { id: 'personas', name: () => say('nav/personas'), mount: mountPersonas },
-  { id: 'presets', name: () => say('nav/presets'), mount: mountPresets },
-  { id: 'models', name: () => say('nav/models'), mount: mountModels },
-  { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins },
-  { id: 'backstage', name: () => say('nav/backstage'), mount: mountBackstage },
-  { id: 'store', name: () => say('nav/store'), mount: mountStore },
-  { id: 'settings', name: () => say('nav/settings'), mount: mountSettings },
+  { id: 'personas', name: () => say('nav/personas'), mount: mountPersonas, group: 'ai' },
+  { id: 'presets', name: () => say('nav/presets'), mount: mountPresets, group: 'ai' },
+  { id: 'models', name: () => say('nav/models'), mount: mountModels, group: 'ai' },
+  { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins, group: 'extend' },
+  { id: 'backstage', name: () => say('nav/backstage'), mount: mountBackstage, group: 'extend' },
+  { id: 'store', name: () => say('nav/store'), mount: mountStore, group: 'extend' },
+  { id: 'settings', name: () => say('nav/settings'), mount: mountSettings, group: 'end' },
 ];
 
 const COLLAPSED = 'miyu-im-collapsed';
@@ -65,7 +66,13 @@ export function mountShell(root, { request, handed }) {
   brand.append(element('span', 'toggle-slot'), named);
   side.append(brand);
   const navs = new Map();
+  let group;
   for (const page of PAGES) {
+    if (page.group !== group) {
+      group = page.group;
+      if (group === 'end') side.append(element('div', 'nav-gap'));
+      else if (group) side.append(element('div', 'nav-group', say(`nav/group-${group}`)));
+    }
     const nav = element('button', 'nav', page.name());
     if (!page.mount) {
       nav.disabled = true;
