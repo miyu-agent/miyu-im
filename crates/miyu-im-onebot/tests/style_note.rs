@@ -1,4 +1,4 @@
-//! 说话方式提醒（施工 I-139、I-140）：真核心照开关拉起真的桥，假 NapCat 发群消息，她照台词说。卡片上写了「说话方式提醒」的群，
+//! 会话的说话方式（施工 I-139、I-140）：真核心照开关拉起真的桥，假 NapCat 发群消息，她照台词说。卡片上写了「这个会话的说话方式」的群，
 //! 开一轮的请求最后那条消息带 `<style-note>写的那段</style-note>`，排在「你只回这几条」前面，写的字照模板转义；没写的群不带。
 
 use std::sync::Arc;
@@ -60,7 +60,7 @@ async fn a_written_note_rides_first_in_its_group_and_nowhere_else() {
     let another = noted
         .find("<another-line>")
         .unwrap_or_else(|| panic!("{noted}"));
-    assert!(at < another, "说话方式提醒排第一块：{noted}");
+    assert!(at < another, "会话的说话方式排第一块：{noted}");
     assert!(!last(&requests[1]).contains("<style-note>"), "没写的群不带");
     stopped(home).await;
 }

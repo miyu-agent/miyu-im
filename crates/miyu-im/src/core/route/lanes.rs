@@ -35,7 +35,7 @@ use crate::core::{Gone, reason};
 /// 「你只回这几条」那一块事实的 `kind`（「群里怎么叫她」第 7 条「事实」，施工 I-21 改字）。
 const ANOTHER_LINE: &str = "another-line";
 
-/// 说话方式提醒那一块事实的 `kind`（施工 I-140）。
+/// 会话的说话方式那一块事实的 `kind`（施工 I-140）。
 const STYLE_NOTE: &str = "style-note";
 
 /// 拒绝码：支线封存了（`session/fork.md`「封存」）。
@@ -303,7 +303,7 @@ impl Route {
     ) -> Result<Responded, Gone> {
         let id = format!("{}/respond", tag.id);
         let mut params = json!({"session": target, "to": to});
-        // 说话方式提醒（施工 I-139、I-140）排第一块：11-05 的回放实验里放得越靠后越管用，respond 的事实落在这一轮那条消息的开头。
+        // 会话的说话方式（施工 I-139、I-140）排第一块：11-05 的回放实验里放得越靠后越管用，respond 的事实落在这一轮那条消息的开头。
         // 为什么叫她（施工 I-16，`primer`）跟在别的事实后面。
         let note = self.style_note_fact(&tag.venue);
         let facts: Vec<&Value> = note.iter().chain(facts).chain(&tag.facts).collect();
@@ -330,7 +330,7 @@ impl Route {
         }
     }
 
-    /// 说话方式提醒那一块事实（施工 I-140）：场所 `venue` 是群、卡片上写了「说话方式提醒」的才有，写的那段照模板转义填进去；模板
+    /// 会话的说话方式那一块事实（施工 I-140）：场所 `venue` 是群、卡片上写了「这个会话的说话方式」的才有，写的那段照模板转义填进去；模板
     /// 写不出的（照说不会：起来时查过字段）记一行、不带。
     fn style_note_fact(&mut self, venue: &str) -> Option<Value> {
         let venue = VenueId::parse(venue)

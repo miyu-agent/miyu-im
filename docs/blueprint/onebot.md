@@ -109,7 +109,7 @@
 | `im/data/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）、冲她来的那条带几张图、一轮取几次、取一次等多久（O-33）（「对外的样子」） |
 | `im/data/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
 | `im/data/facts/undelivered.txt`（O-25 下） | 退信那一块事实的模板（给模型看的字，登记在 `docs/ledger.md`；「退信」第 3 条） |
-| `im/data/facts/style-note.txt`（I-139、I-140） | 「说话方式提醒」那一块事实的外壳（给模型看的字，登记在 `docs/ledger.md`），字段 `text` 是卡片 `style_note` 写的那段：写了的群每开一轮、并进一轮都带，排第一块；没写的不带（`lanes.rs` 的 `respond`） |
+| `im/data/facts/style-note.txt`（I-139、I-140） | 「这个会话的说话方式」那一块事实的外壳（给模型看的字，登记在 `docs/ledger.md`），字段 `text` 是卡片 `style_note` 写的那段：写了的群每开一轮、并进一轮都带，排第一块；没写的不带（`lanes.rs` 的 `respond`） |
 | `im/data/facts/another-line.txt`（O-36，I-21 改字） | 「你只回这几条」那一块事实的模板（给模型看的字，登记在 `docs/ledger.md`；「群里怎么叫她」第 7 条） |
 | `im/data/tools/fetch_media.json`，`tool-results/` 里 `saved`、`not-found`、`no-item`、`not-fetchable`、`unfetched`、`too-many`、`not-saved` 七句（O-33） | `fetch_media` 的说明和答的话（给模型看的字，登记在 `docs/ledger.md`；说明同一份预算；「平台工具（二）」第 1、6 条） |
 | `im/data/tools/recall.json`、`mute.json`、`poke.json`，`tool-results/` 里成了、不做的十三句（O-31） | 平台工具（一）的说明和答的话（给模型看的字，登记在 `docs/ledger.md`；说明同 `skip_reply` 一份预算；「平台工具（一）」第 1、5 条） |

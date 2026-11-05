@@ -30,7 +30,7 @@ const PRECHECK: &str = "facts/precheck.txt";
 /// 时不时看一眼那一轮带的一句（设计 05，施工 I-89）在出厂目录里的位置。
 const GLANCE: &str = "facts/glance.txt";
 
-/// 说话方式提醒（施工 I-139、I-140）：卡片上写了的，群里每开一轮都带；字段 `text` 是卡片上写的那段。
+/// 会话的说话方式（施工 I-139、I-140）：卡片上写了的，群里每开一轮都带；字段 `text` 是卡片上写的那段。
 const STYLE_NOTE: &str = "facts/style-note.txt";
 
 /// [`STYLE_NOTE`] 认的字段。
@@ -114,7 +114,7 @@ pub(super) struct Facts {
     pub(super) precheck: Template,
     /// 时不时看一眼（施工 I-89）。
     pub(super) glance: Template,
-    /// 说话方式提醒（施工 I-140）。
+    /// 会话的说话方式（施工 I-140）。
     pub(super) style_note: Template,
 }
 
@@ -207,7 +207,7 @@ impl super::Venues {
         &self.factory.facts.glance
     }
 
-    /// 说话方式提醒的外壳（施工 I-140）：出厂的，跑着不再读。
+    /// 会话的说话方式的外壳（施工 I-140）：出厂的，跑着不再读。
     pub fn style_note(&self) -> &Template {
         &self.factory.facts.style_note
     }

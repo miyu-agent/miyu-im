@@ -84,8 +84,8 @@ export const FIELDS = {
     { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 16 },
   ],
   send: [
-    // 说话方式提醒（施工 I-140，原来 I-139 的开关）：写了的，群里每开一轮都带上这段；不写不带。
-    { key: 'rules.style_note', control: 'area', label: 'field/style-note', hint: 'field/style-note-hint', kinds: GROUPS, wide: true },
+    // 这个会话的说话方式（施工 I-140，I-141 改说法：写这里的人怎么说话，不写她是谁）：写了的，群里每开一轮都带上这段；不写不带。
+    { key: 'rules.style_note', control: 'area', label: 'field/style-note', hint: 'field/style-note-hint', defaultsHint: 'field/style-note-defaults', kinds: GROUPS, wide: true },
     // 去掉末尾句号、一条分多条发送、打字速度（施工 I-49，项目主人 10-27：每张卡片单独设，原来在设置页「通用」里管所有会话）。
     { key: 'rules.outbound.strip_period', control: 'switch', label: 'field/strip-period', hint: 'field/strip-period-hint' },
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },

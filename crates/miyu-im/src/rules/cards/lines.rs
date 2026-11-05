@@ -12,7 +12,7 @@ use super::{Card, GroupSet, LongText, OtherPrivateSet, PrivateSet, toml_id};
 use miyu_chat::{File, Source};
 
 /// 只收在卡上 `rules` 里的顶层键（别的顶层键各有一格，或者不归卡管：`allow`、`match`）。私聊卡没有限流、睡眠两格，写在这里
-/// （施工 I-7 中三下一，和忽略限流、忽略睡眠一起）。使用限制的三条线（设计 08，施工 I-135）每种卡都写在这里，说话方式提醒（施工
+/// （施工 I-7 中三下一，和忽略限流、忽略睡眠一起）。使用限制的三条线（设计 08，施工 I-135）每种卡都写在这里，会话的说话方式（施工
 /// I-140）也是。
 pub(crate) const TOP: [&str; 11] = [
     "discipline",
