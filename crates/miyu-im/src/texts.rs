@@ -426,6 +426,11 @@ impl Texts {
         }
     }
 
+    /// 有 `key` 这一句才说（实时日志的词，施工 I-160 上）：没有的交回空的，不记日志，由调的一方照原样写。
+    pub(crate) fn try_say(&self, key: &str) -> Option<String> {
+        self.human.say(&Said::new(format!("{KEYS}/{key}")))
+    }
+
     /// 说 `key` 那一句，换进 `fields`。换不出来的（没有这一句、少了字段：是 bug，`tests/texts.rs` 守着）不吞掉：
     /// 照实印出说法的编号和字段，再记一行运行日志。
     pub(crate) fn say(&self, key: &str, fields: &[(&str, String)]) -> String {

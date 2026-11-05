@@ -139,6 +139,7 @@ mod tuning;
 mod undelivered;
 mod venue;
 mod voicing;
+mod watch_lines;
 mod web;
 mod whitelist;
 mod whitelist_cli;

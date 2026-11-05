@@ -63,6 +63,7 @@ pub mod texts;
 pub mod toolset;
 pub mod tuning;
 pub mod venue;
+pub mod watch;
 pub mod web;
 pub mod whitelist;
 
