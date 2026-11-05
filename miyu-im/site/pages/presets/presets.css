@@ -1,0 +1,28 @@
+/* 预设页（设计 09，施工 I-147）：列表、浮窗的样子照人格页（personas.css 的 persona-*），这里只有图标和功能树。 */
+.persona-face .icon { width: 20px; height: 20px; }
+.preset-icon-now { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--surface-2); color: inherit; cursor: pointer; }
+.preset-icon-now:hover, .preset-icon-now.open { background: var(--surface-3); }
+.preset-icon-now .icon { width: 18px; height: 18px; }
+.preset-icon-now .icon:last-child { width: 14px; height: 14px; color: var(--text-soft); }
+.preset-icon-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.preset-icon-tools { display: flex; gap: 8px; width: 100%; }
+.preset-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, 36px); gap: 6px; width: 100%; }
+.preset-icon { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
+.preset-icon:hover { background: var(--surface-2); }
+.preset-icon.on { background: var(--surface-3); }
+.preset-icon .icon { width: 18px; height: 18px; }
+.preset-features { display: flex; flex-direction: column; gap: 10px; }
+.preset-tree { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.preset-tree-col { display: flex; flex-direction: column; gap: 12px; }
+.preset-block { padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+.preset-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.preset-row.head { font-weight: 600; }
+.preset-row.tool { padding-left: 16px; color: var(--text-soft); }
+.preset-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-count { color: var(--text-faint); font-size: 12px; font-weight: 400; }
+.preset-tools.off { opacity: 0.55; }
+.preset-empty { margin: 4px 0; color: var(--text-faint); font-size: 12.5px; }
+.preset-by { color: var(--text-faint); font-size: 12px; }
+.preset-back { height: 24px; padding: 0 8px; font-size: 12px; }
+.switch:disabled { opacity: 0.45; cursor: default; }
+@media (max-width: 640px) { .preset-tree { grid-template-columns: 1fr; } }

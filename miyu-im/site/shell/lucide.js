@@ -33,3 +33,8 @@ export function lucide(name, fallback) {
   });
   return svg;
 }
+
+/** 整套图标的名字（施工 I-147：预设选图标时搜）：读到以前交回的 Promise 等着，读不到的是空的。 */
+export async function iconNames() {
+  return Object.keys(await all());
+}
