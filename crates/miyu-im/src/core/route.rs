@@ -49,6 +49,7 @@ mod body;
 mod browse;
 mod called;
 mod cards;
+mod charged;
 mod command;
 mod decide;
 mod deferred;
@@ -132,10 +133,12 @@ use crate::records::Records;
 use crate::rules::{Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{recall_receipts, recall_receipts_key, whitelist, whitelist_key};
+use crate::spent::Spent;
 use aims::Aims;
 pub(crate) use ask::{SIDE as JUDGE_SIDE, Slots};
 use backlog::Backlog;
 use bindings::Bindings;
+use charged::Charging;
 use deferred::Deferred;
 pub(crate) use fetching::Fetching;
 pub(crate) use forwards::Forwarding;
@@ -162,7 +165,7 @@ type Shared = (
     Arc<Changed>,
     Arc<Recent>,
     PathBuf,
-    Arc<Records>,
+    (Arc<Records>, Arc<Spent>),
 );
 
 /// 拿着跟核心的连接的那一个。
@@ -176,6 +179,8 @@ pub(crate) struct Route {
     recent: Arc<Recent>,
     /// 聊天记录（设计 04，施工 C-1 上，`recording`）。
     records: Arc<Records>,
+    /// 每人的用量记账（设计 08，施工 I-134，`charged`）。
+    charging: Charging,
     /// 挂着的几个平台和各自连着的号（施工 I-70 上）：拼场所、平台上的人、命令编号照这件事、这个会话的平台，找号不跨平台。
     platforms: Platforms,
     /// 场所规则和出厂数据（施工 O-21）：每一条消息照它套场所（施工 O-22）。
@@ -291,7 +296,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters, cards_changed, recent, store, records): Shared,
+        (hooks, counters, cards_changed, recent, store, (records, spent)): Shared,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -314,6 +319,7 @@ impl Route {
             cards_changed,
             recent,
             records,
+            charging: Charging::new(spent),
             platforms,
             rules,
             members,

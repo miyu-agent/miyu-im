@@ -426,6 +426,13 @@ impl Route {
         let Some(group) = self.groups.get_mut(session) else {
             return Ok(());
         };
+        // 每人的用量（施工 I-134）：支线这一轮回的人。
+        let payers = group.payers(lane, event.turn.map(|turn| turn.started().get()));
+        let venue = self
+            .peers
+            .get(session)
+            .map_or("", |peer| peer.venue.as_str());
+        self.charging.group(lane, venue, &event, &payers);
         match group.lane_take(lane, &event) {
             Seen::Took { turn, msgs } => self.reactions.taken(session, lane, &msgs, turn),
             Seen::Ended(turn) => {

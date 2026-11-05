@@ -121,6 +121,7 @@ mod site_widgets;
 mod skip_ends;
 mod skipped;
 mod spawned;
+mod spent;
 mod status_file;
 mod stdio;
 mod steering;

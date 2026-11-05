@@ -237,6 +237,30 @@ fn the_running_turn_answers_its_triggers_and_whoever_joined() {
 }
 
 #[test]
+fn the_running_turn_pays_for_its_requests_and_nothing_else_does() {
+    // 设计 08、施工 I-134：这一轮的请求记到回的人头上。
+    let mut projection = Projection::new(LINE, 0);
+    take_all(
+        &mut projection,
+        vec![
+            user(1, 10001, true),
+            user(2, 20002, false),
+            started(3, 0, &[1]),
+            joined(4, 3, &[2]),
+        ],
+    );
+    assert_eq!(projection.payers(LINE, Some(3)), [qq(10001), qq(20002)]);
+    assert!(projection.payers(LINE, Some(99)).is_empty(), "别的回合");
+    assert!(projection.payers(LINE, None).is_empty(), "不在回合里的");
+    assert!(
+        projection.payers("another", Some(3)).is_empty(),
+        "不认识的线"
+    );
+    take_all(&mut projection, vec![ended(5, 3)]);
+    assert!(projection.payers(LINE, Some(3)).is_empty(), "完了的");
+}
+
+#[test]
 fn a_turn_opened_for_what_joined_answers_whoever_joined() {
     // 并进第 3 轮的那一条，第 3 轮没再请求就结束了：核心接着开第 6 轮，`trigger` 指向那条 `turn.joined`、没有 `triggers`。
     let mut projection = Projection::new(LINE, 0);

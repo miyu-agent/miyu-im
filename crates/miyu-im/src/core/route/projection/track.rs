@@ -151,6 +151,16 @@ impl Projection {
         self.prune();
     }
 
+    /// 线 `line` 回合编号是 `turn` 的那一轮回的人（设计 08、施工 I-134：这一轮的请求记到他们头上）：不是在跑的那一轮的、没有
+    /// 触发人的是空的。
+    pub(in crate::core::route) fn payers(&self, line: &str, turn: Option<u64>) -> Vec<ExternalId> {
+        self.track(line)
+            .and_then(|track| track.running.as_ref())
+            .filter(|running| Some(running.turn) == turn)
+            .map(|running| running.to.clone())
+            .unwrap_or_default()
+    }
+
     /// 线 `line` 的那一份：主线的，或者还在的那条支线的。
     pub(super) fn track(&self, line: &str) -> Option<&Track> {
         if line == self.session {

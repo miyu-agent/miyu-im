@@ -43,6 +43,14 @@ impl Route {
         let Some(group) = self.groups.get_mut(session) else {
             return Ok(());
         };
+        // 每人的用量（施工 I-134）：照这一轮回的人记。
+        let turn = event.turn.map(|turn| turn.started().get());
+        let venue = self
+            .peers
+            .get(session)
+            .map_or("", |peer| peer.venue.as_str());
+        let payers = group.payers(session, turn);
+        self.charging.group(session, venue, &event, &payers);
         let speaking = group.take(&event);
         self.reactions.seen(session, &event);
         let quiet = self.quiet.heard(session, raw);
@@ -248,6 +256,7 @@ impl Route {
     /// 同 [`Route::heard`]。
     pub(super) async fn say_privately(&mut self, session: &str, event: &Value) -> Result<(), Gone> {
         let quiet = self.quiet.heard(session, event);
+        self.charge_privately(session, event);
         // 时不时看一眼照它认这个私聊有没有一轮在跑（施工 I-89 下）。
         self.glance_heard(session, event);
         // 驱动的工具照回合数一轮调了几次（施工 O-35、T-3）：私聊没有投影，推来的事件的回合记下来。

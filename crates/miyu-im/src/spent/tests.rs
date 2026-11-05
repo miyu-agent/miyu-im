@@ -1,0 +1,120 @@
+//! 每人的用量账本：平分、去重、按人按时刻加、太早的不记、清掉过了期的。
+
+use std::path::PathBuf;
+
+use miyu_client::ids::ExternalId;
+
+use super::*;
+
+/// 一个空的临时目录。
+fn dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("im-spent-{}-{name}", std::process::id()));
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir).expect("删得掉上一回留下的");
+    }
+    dir
+}
+
+fn person(id: &str) -> ExternalId {
+    ExternalId::parse(id).expect("合写法")
+}
+
+/// 库 `dir` 里 `person` 从 `from` 起记了多少。
+fn since(dir: &std::path::Path, person: &str, from: i64) -> i64 {
+    rusqlite::Connection::open(dir.join(FILE))
+        .and_then(|db| {
+            db.query_row(
+                "SELECT COALESCE(SUM(tokens), 0) FROM spent WHERE person = ?1 AND at >= ?2",
+                rusqlite::params![person, from],
+                |row| row.get(0),
+            )
+        })
+        .unwrap_or(-1)
+}
+
+/// 此刻：随便一个够大的毫秒数。
+const NOW: i64 = 1_800_000_000_000;
+
+fn charge(seq: u64, at: i64, tokens: u64) -> Charge<'static> {
+    Charge {
+        session: "s1",
+        seq,
+        venue: "qq:group:1",
+        at,
+        tokens,
+    }
+}
+
+#[test]
+fn shares_split_evenly_and_the_rest_goes_to_the_first() {
+    assert_eq!(shares(10, 3), [4, 3, 3]);
+    assert_eq!(shares(9, 3), [3, 3, 3]);
+    assert_eq!(shares(1, 2), [1, 0]);
+    assert!(shares(10, 0).is_empty());
+}
+
+#[test]
+fn one_request_split_between_two_is_counted_once_per_person_even_when_replayed() {
+    let dir = dir("split");
+    let spent = Spent::open(&dir.join(FILE));
+    let (lin, jie) = (person("qq:1"), person("qq:2"));
+    spent.charge(
+        &charge(5, NOW - 1000, 101),
+        &[lin.clone(), jie.clone()],
+        NOW,
+    );
+    // 桥重起照日志从头补：同一条再来一次。
+    spent.charge(
+        &charge(5, NOW - 1000, 101),
+        &[lin.clone(), jie.clone()],
+        NOW,
+    );
+    spent.charge(&charge(7, NOW - 500, 40), std::slice::from_ref(&lin), NOW);
+    assert_eq!(since(&dir, "qq:1", NOW - 2000), 51 + 40);
+    assert_eq!(since(&dir, "qq:2", NOW - 2000), 50);
+    assert_eq!(since(&dir, "qq:1", NOW - 600), 40, "只算窗口里的");
+    assert_eq!(since(&dir, "qq:3", NOW - 2000), 0, "没用过的是 0");
+    drop(spent);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn nobody_to_pay_zero_tokens_and_too_old_are_not_written() {
+    let dir = dir("skipped");
+    let spent = Spent::open(&dir.join(FILE));
+    let lin = person("qq:1");
+    spent.charge(&charge(1, NOW, 100), &[], NOW);
+    spent.charge(&charge(2, NOW, 0), std::slice::from_ref(&lin), NOW);
+    spent.charge(
+        &charge(3, NOW - KEEP_MS - 1, 100),
+        std::slice::from_ref(&lin),
+        NOW,
+    );
+    assert_eq!(since(&dir, "qq:1", 0), 0);
+    drop(spent);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn old_rows_are_pruned_on_the_next_charge_an_hour_later() {
+    let dir = dir("pruned");
+    let spent = Spent::open(&dir.join(FILE));
+    let lin = person("qq:1");
+    spent.charge(&charge(1, NOW, 100), std::slice::from_ref(&lin), NOW);
+    let later = NOW + KEEP_MS + HOUR_MS;
+    spent.charge(&charge(2, later, 7), std::slice::from_ref(&lin), later);
+    assert_eq!(since(&dir, "qq:1", 0), 7, "过了期的清掉了");
+    drop(spent);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn a_ledger_that_cannot_open_records_nothing_and_does_not_fail() {
+    let dir = dir("broken");
+    std::fs::create_dir_all(dir.join(FILE)).expect("占住库的位置");
+    let spent = Spent::open(&dir.join(FILE));
+    spent.charge(&charge(1, NOW, 100), &[person("qq:1")], NOW);
+    assert!(dir.join(FILE).is_dir(), "占着的没动");
+    drop(spent);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}

@@ -56,6 +56,7 @@ mod running;
 pub mod serve;
 pub mod settings;
 mod site;
+mod spent;
 pub mod status_file;
 pub mod texts;
 pub mod toolset;

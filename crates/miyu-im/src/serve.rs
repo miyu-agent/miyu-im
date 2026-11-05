@@ -50,6 +50,7 @@ use crate::rules::{Configured, Factory, Venues};
 use crate::running::{Running, Station};
 use crate::settings::Defaults;
 use crate::site::{self, Port, Site};
+use crate::spent::Spent;
 use crate::status_file;
 use crate::tuning::Tuning;
 
@@ -276,6 +277,10 @@ pub async fn run(
     let records = Arc::new(Records::open(
         status_file::path(&serve.root).with_file_name(crate::records::FILE),
     ));
+    // 每人的用量（设计 08，施工 I-134）：路由记，进站链判额度、使用限制页读。
+    let spent = Arc::new(Spent::open(
+        &status_file::path(&serve.root).with_file_name(crate::spent::FILE),
+    ));
     let running = Arc::new(Running {
         tuning: serve.tuning.clone(),
         drivers: stations,
@@ -370,7 +375,7 @@ pub async fn run(
             Arc::clone(&cards),
             Arc::clone(&recent),
             status_file::dir(&serve.root),
-            Arc::clone(&records),
+            (Arc::clone(&records), Arc::clone(&spent)),
         ),
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();
