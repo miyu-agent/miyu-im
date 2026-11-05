@@ -140,6 +140,7 @@ mod undelivered;
 mod venue;
 mod voicing;
 mod watch_lines;
+mod watch_live;
 mod web;
 mod whitelist;
 mod whitelist_cli;

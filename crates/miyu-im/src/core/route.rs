@@ -109,6 +109,7 @@ mod titled;
 mod venue_plugins;
 mod voicing;
 mod waiting;
+mod watched;
 
 use message::{Message, reply_text};
 use std::collections::{HashMap, HashSet};
@@ -144,8 +145,8 @@ pub(crate) use forwards::Forwarding;
 use impostor::Noted;
 use judges::Judges;
 use outbound::Spoken;
-use parts::sent;
 pub(crate) use parts::{Asking, Recalling};
+use parts::{Shared, sent};
 pub(crate) use persona::Personas;
 use projection::Projection;
 use queue::Queue;
@@ -158,16 +159,6 @@ use steering::Steering;
 use titled::Titles;
 use voicing::Voicing;
 
-/// 路由和页面、写盘的任务共用的几样：挂接点、今天的数、卡片变了叫一声、最近判断、im 的状态目录、聊天记录。
-type Shared = (
-    Arc<Hooks>,
-    Arc<Counters>,
-    Arc<Changed>,
-    Arc<Recent>,
-    PathBuf,
-    (Arc<Records>, Arc<crate::spent::Spent>, (PathBuf, Duration)),
-);
-
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
@@ -177,6 +168,8 @@ pub(crate) struct Route {
     cards_changed: Arc<Changed>,
     /// 最近判断（施工 I-7 上补，`crate::recent`）。
     recent: Arc<Recent>,
+    /// 实时日志的汇总（设计 10，施工 I-160 中，`watched`）：场所会话的事件交给它。
+    watch: Arc<crate::watch::hub::Hub>,
     /// 聊天记录（设计 04，施工 C-1 上，`recording`）。
     records: Arc<Records>,
     /// 使用限制：每人的用量记账、判额度（设计 08，施工 I-134、I-135，`charged`、`quota`）。
@@ -296,7 +289,7 @@ impl Route {
             Forwarding,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
-        (hooks, counters, cards_changed, recent, store, (records, spent, people)): Shared,
+        (hooks, counters, cards_changed, (recent, watch), store, (records, spent, people)): Shared,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let Recalling {
@@ -319,6 +312,7 @@ impl Route {
             counters,
             cards_changed,
             recent,
+            watch,
             records,
             limits,
             platforms,

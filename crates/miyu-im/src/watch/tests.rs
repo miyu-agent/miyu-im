@@ -216,7 +216,9 @@ fn turns_sending_and_the_rest() {
     );
     assert_eq!(
         items(json!({"kind": "ext.im.venues.failed", "body": {"why": "expired"}})),
-        [Item::Failed("expired".into())]
+        [Item::Failed {
+            why: "expired".into()
+        }]
     );
     assert_eq!(
         items(json!({"kind": "turn.ended", "body": {"reason": "completed"}})),
@@ -224,7 +226,9 @@ fn turns_sending_and_the_rest() {
     );
     assert_eq!(
         items(json!({"kind": "turn.ended", "body": {"reason": "interrupted"}})),
-        [Item::Ended("interrupted".into())]
+        [Item::Ended {
+            reason: "interrupted".into()
+        }]
     );
     assert_eq!(
         items(json!({"kind": "context.injected", "body": {}})),

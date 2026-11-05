@@ -1,6 +1,16 @@
 //! 起 [`Route`](super::Route) 时交进来的几样数（从 `route.rs` 挪出来，施工 O-53：那一份行数到了上限）：回执怎么撤、问到的记多久。
 
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
+
+use crate::changed::Changed;
+use crate::core::hooks::Hooks;
+use crate::counters::Counters;
+use crate::recent::Recent;
+use crate::records::Records;
+use crate::spent::Spent;
+use crate::watch::hub::Hub;
 
 /// 群里的回执怎么撤（施工 O-25 上、O-47）：发出去几秒后撤，`im.recall_receipts` 的默认值（推来 `null` 的回到它）。
 pub(crate) struct Recalling {
@@ -35,3 +45,14 @@ pub(super) fn sent<T>(
         crate::serve::Failure::Crashed(error.to_string())
     })
 }
+
+/// 路由和页面、写盘的任务共用的几样：挂接点、今天的数、卡片变了叫一声、最近判断和实时日志的汇总（设计 10）、im 的状态目录、
+/// 聊天记录（从 `route.rs` 挪来，施工 I-160 中：那一份行数到了上限）。
+pub(crate) type Shared = (
+    Arc<Hooks>,
+    Arc<Counters>,
+    Arc<Changed>,
+    (Arc<Recent>, Arc<Hub>),
+    PathBuf,
+    (Arc<Records>, Arc<Spent>, (PathBuf, Duration)),
+);

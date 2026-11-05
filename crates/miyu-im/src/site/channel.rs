@@ -6,6 +6,8 @@
 //!    `methods`；`message` 是核心拒了时的原话，施工 I-6 中）。读不懂的帧记一行调试日志就丢。这一份登录登出了（`POST /logout`），下一条请求回关闭帧 4401。
 //! 3. 桥手里的状态变了（`crate::changed`，施工 I-6 上）：推一帧 `{"event": "changed"}`，页面照它再问（不轮询）。场所卡片、白名单
 //!    变了（施工 I-7 上）另推 `{"event": "cards"}`，会话页照它再问卡片。
+//! 4. 实时日志（设计 10，施工 I-160 中，`watching`）：`watch.start`、`watch.stop`、`watch.venues` 在这一头答，看着的推
+//!    `{"event": "watch", …}`。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,7 +20,7 @@ use tokio_tungstenite::tungstenite::protocol::Role;
 use tokio_tungstenite::tungstenite::protocol::frame::CloseFrame;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
-use super::{Site, methods};
+use super::{Site, methods, watching};
 use crate::TARGET;
 
 /// 第一帧最多等多久。
@@ -52,17 +54,19 @@ where
     }
     let mut changes = site.changed.watch();
     let mut cards = site.cards.watch();
+    let mut looking = None;
     loop {
-        // 桥手里的状态、卡片变了：叫页面再问一遍。叫的一头放下了（桥在停）的不再等它。
+        // 桥手里的状态、卡片变了：叫页面再问一遍。叫的一头放下了（桥在停）的不再等它。看着实时日志的照推。
         let event = tokio::select! {
             frame = text(&mut ws) => Err(frame),
-            changed = changes.changed() => Ok(changed.is_ok().then_some("changed")),
-            changed = cards.changed() => Ok(changed.is_ok().then_some("cards")),
+            changed = changes.changed() => Ok(changed.is_ok().then(|| json!({"event": "changed"}))),
+            changed = cards.changed() => Ok(changed.is_ok().then(|| json!({"event": "cards"}))),
+            pushed = watching::next(&site.watch, &mut looking) => Ok(Some(pushed)),
         };
         let frame = match event {
             Err(frame) => frame,
             Ok(Some(event)) => {
-                if send(&mut ws, &json!({"event": event})).await.is_err() {
+                if send(&mut ws, &event).await.is_err() {
                     return;
                 }
                 continue;
@@ -82,6 +86,15 @@ where
         };
         let id = request["id"].clone();
         let asked = (request["method"].as_str(), &request["params"]);
+        if let Some(result) = watching::answer(&site.watch, &mut looking, asked.0, asked.1) {
+            if send(&mut ws, &json!({"id": id, "result": result}))
+                .await
+                .is_err()
+            {
+                return;
+            }
+            continue;
+        }
         let reply = match methods::answer(&site, &login, asked).await {
             Ok(result) => json!({"id": id, "result": result}),
             Err((reason, message)) if message.is_empty() => {

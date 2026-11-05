@@ -39,6 +39,7 @@ mod store;
 mod tests;
 mod ticket;
 mod venues;
+mod watching;
 mod web_link;
 
 use std::convert::Infallible;
@@ -93,6 +94,8 @@ pub(crate) struct Site {
     changed: Arc<Changed>,
     /// 场所卡片、白名单变了：开着的通道另推一声（施工 I-7 上，会话页照它再问；每条消息都叫的 `changed` 不叫它重问）。
     cards: Arc<Changed>,
+    /// 实时日志的汇总（设计 10，施工 I-160 中）：通道开始看了照它推。
+    pub(crate) watch: Arc<crate::watch::hub::Hub>,
     /// 机器人的名字、头像（施工 I-6 中）。
     faces: Faces,
     /// 今天的几个数（施工 I-6 下）。
@@ -105,13 +108,13 @@ pub(crate) struct Site {
 
 impl Site {
     /// 数据根 `root`、页面的文件在 `files`、扩展连接上的调用口 `caller`、桥跑着的样子 `running` 和驱动 `driver`，状态变了叫
-    /// `changed`、卡片变了叫 `cards`；还没有人登录。
+    /// `changed`、卡片变了叫 `cards`，实时日志照 `watch`；还没有人登录。
     pub(crate) fn new(
         (root, files): (DataRoot, PathBuf),
         caller: Caller,
         (running, drivers): (Arc<Running>, Vec<Arc<dyn Driver>>),
         counters: Arc<Counters>,
-        (changed, cards): (Arc<Changed>, Arc<Changed>),
+        (changed, cards, watch): (Arc<Changed>, Arc<Changed>, Arc<crate::watch::hub::Hub>),
     ) -> Site {
         Site {
             root,
@@ -122,6 +125,7 @@ impl Site {
             drivers,
             changed,
             cards,
+            watch,
             faces: Faces::default(),
             counters,
             panels: panels::Panels::default(),

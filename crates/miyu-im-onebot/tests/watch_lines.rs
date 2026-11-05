@@ -60,7 +60,7 @@ fn a_turn_reads_like_what_she_did() {
         texts_of(&all),
         [
             "19:33:42 小林：@Miyu 给出 winrar 官网链接",
-            "19:33:48 判断 小林：要回 · 叫了她 · 1.33 门槛 0.90 · 判官 6.5 秒：直接@了她",
+            "19:33:48 判断 小林：要回 · 叫了 AI · 1.33 门槛 0.90 · 判官 6.5 秒：直接@了她",
             "19:33:48 ▶ 开始回复 小林",
             "19:33:53 想：给链接就行",
             "19:33:53 调用 引用 {\"msg\": \"717275606\"}",
@@ -104,9 +104,9 @@ fn the_missed_question_shows_why_it_was_only_recorded() {
     assert_eq!(
         texts_of(&all),
         [
-            "19:04:44 判断 小林：只记下 · 没叫她",
+            "19:04:44 判断 小林：只记下 · 没叫 AI",
             "19:04:30 判断 小林：只记下 · 刚说过话 · 判官等了 15.1 秒没回",
-            "16:36:33 判断 小林：只记下 · 没叫她 · 限流",
+            "16:36:33 判断 小林：只记下 · 没叫 AI · 限流",
         ]
     );
 }
@@ -219,14 +219,26 @@ fn every_line_has_words_in_all_three_languages() {
             text: String::new(),
             images: 2,
         },
-        Item::Failed("expired".into()),
-        Item::Failed("rejected".into()),
-        Item::Failed("timeout".into()),
-        Item::Failed("disconnected".into()),
-        Item::Recalled("a".into()),
+        Item::Failed {
+            why: "expired".into(),
+        },
+        Item::Failed {
+            why: "rejected".into(),
+        },
+        Item::Failed {
+            why: "timeout".into(),
+        },
+        Item::Failed {
+            why: "disconnected".into(),
+        },
+        Item::Recalled { who: "a".into() },
         Item::Compacted,
-        Item::Ended("interrupted".into()),
-        Item::Ended("error".into()),
+        Item::Ended {
+            reason: "interrupted".into(),
+        },
+        Item::Ended {
+            reason: "error".into(),
+        },
     ];
     let tool = |_: &str| None;
     for language in ["zh", "en", "ja"] {

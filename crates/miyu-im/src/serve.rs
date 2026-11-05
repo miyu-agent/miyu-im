@@ -226,6 +226,8 @@ pub async fn run(
     let changed = Arc::new(Changed::new());
     // 卡片、白名单变了（施工 I-7 上）：路由叫，页面服务推给会话页。
     let cards = Arc::new(Changed::new());
+    // 实时日志的汇总（设计 10，施工 I-160 中）：路由交事件，页面服务推给看着的。
+    let watch = Arc::new(crate::watch::hub::Hub::default());
     // 驱动一个一个起来（施工 I-3：OneBot 开端口、说听上了；被占了的桥起不来）：一个驱动一个 `Gate`（施工 I-70 中上）。
     let mut stations = Vec::new();
     let mut accepting = Vec::new();
@@ -294,7 +296,7 @@ pub async fn run(
         // 页面照选中的平台问（施工 I-85 上），没写的照第一个驱动。
         (Arc::clone(&running), serve.drivers.clone()),
         Arc::clone(&counters),
-        (Arc::clone(&changed), Arc::clone(&cards)),
+        (Arc::clone(&changed), Arc::clone(&cards), Arc::clone(&watch)),
     );
     let serving = site::start(Arc::new(site), current.site(), told, page).await;
     // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
@@ -374,7 +376,7 @@ pub async fn run(
             hooks,
             Arc::clone(&counters),
             Arc::clone(&cards),
-            Arc::clone(&recent),
+            (Arc::clone(&recent), watch),
             status_file::dir(&serve.root),
             (
                 Arc::clone(&records),

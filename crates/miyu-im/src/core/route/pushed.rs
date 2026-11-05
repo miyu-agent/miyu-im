@@ -79,6 +79,10 @@ impl Route {
         let Some(session) = params["session"].as_str() else {
             return Ok(());
         };
+        // 实时日志（设计 10，施工 I-160 中）：照原样先交一份，下面照旧分。
+        if pushed["method"] == "event" {
+            self.watched(session, &params["event"]);
+        }
         // 支线推来的走支线那条路，不当成私聊（施工 O-36，`lanes`）。
         if let Some(main) = self.main_of_lane(session) {
             let lane = session.to_string();

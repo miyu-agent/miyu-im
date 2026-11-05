@@ -3,17 +3,20 @@
 //! - 只认这几种：收到的消息（`message.user`）、判断（`ext.im.chat.decided`）、开轮（`turn.started`）、她写的思考、正文、调的工具
 //!   （`message.assistant`，写的时候是 `model.delta`）、工具的结果（`tool.result`）、发出去的（`venue.delivered`）、没发出去的
 //!   （`ext.im.venues.failed`）、撤回（`venue.recalled`）、压缩（`context.compacted`）、没正常收尾的一轮（`turn.ended`）。别的不出行。
-//! - 行是结构化的，不带说法：说成话照字表在 [`render`]（命令行、网页看到的是同一份字）。
+//! - 行是结构化的，不带说法：命令行照桥的字表在 [`render`] 说成话，网页照 `texts.js` 说，各跟各的界面语言。汇总的那一头
+//!   （[`hub`]）照原样推给看着的。
 //! - 思考、正文、调工具照块出行：同一块的编号是 `<线>:<seen>:<第几块>`，写的时候的增量和写完的那一条对得上，界面照编号接上、换掉。
 //! - 谁发的照场所的格（`venue.name`）；开轮、判断照触发的那一条的序号问 `names`（汇总的那一头记着最近的几条）。
 //! - 不碰 I/O、时钟：时刻原样带着，换成本机的钟点在 [`render`]。
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod hub;
 pub mod render;
 
 /// 一行：什么时候、这一行是什么。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Line {
     /// 事件的时刻，毫秒。
     pub at: i64,
@@ -22,7 +25,8 @@ pub struct Line {
 }
 
 /// 收到的消息里带的东西。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum Extra {
     /// 几张图。
     Images(usize),
@@ -35,7 +39,7 @@ pub enum Extra {
 }
 
 /// 判断的分数。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Score {
     /// 总分。
     pub total: f64,
@@ -44,7 +48,7 @@ pub struct Score {
 }
 
 /// 判官怎么说的。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Judged {
     /// 理由；没判成的是空的。
     pub reason: Option<String>,
@@ -55,7 +59,8 @@ pub struct Judged {
 }
 
 /// 一块：思考、正文、调工具。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "tool", rename_all = "snake_case")]
 pub enum Block {
     /// 思考。
     Thinking,
@@ -66,7 +71,8 @@ pub enum Block {
 }
 
 /// 一行是什么。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Item {
     /// 收到一条：谁、说了什么、带了什么、是不是叫了她。
     Heard {
@@ -133,14 +139,23 @@ pub enum Item {
         /// 几张图。
         images: usize,
     },
-    /// 没发出去：为什么。
-    Failed(String),
-    /// 有人撤回了一条：谁。
-    Recalled(String),
+    /// 没发出去。
+    Failed {
+        /// 为什么（`expired` 这些）。
+        why: String,
+    },
+    /// 有人撤回了一条。
+    Recalled {
+        /// 谁（平台上的身份）。
+        who: String,
+    },
     /// 压缩了上下文。
     Compacted,
-    /// 这一轮没正常收尾：原因。
-    Ended(String),
+    /// 这一轮没正常收尾。
+    Ended {
+        /// 原因（`interrupted` 这些）。
+        reason: String,
+    },
 }
 
 /// 工具结果的摘要最多几个字。
@@ -172,12 +187,18 @@ pub fn lines(event: &Value, lane: &str, names: &dyn Fn(u64) -> Option<String>) -
             text: text_of(&body["text"]),
             images: body["images"].as_array().map_or(0, Vec::len),
         }],
-        "ext.im.venues.failed" => vec![Item::Failed(text_of(&body["why"]))],
-        "venue.recalled" => vec![Item::Recalled(text_of(&body["by"]))],
+        "ext.im.venues.failed" => vec![Item::Failed {
+            why: text_of(&body["why"]),
+        }],
+        "venue.recalled" => vec![Item::Recalled {
+            who: text_of(&body["by"]),
+        }],
         "context.compacted" => vec![Item::Compacted],
         "turn.ended" => match body["reason"].as_str() {
             Some("completed") | None => Vec::new(),
-            Some(reason) => vec![Item::Ended(reason.to_string())],
+            Some(reason) => vec![Item::Ended {
+                reason: reason.to_string(),
+            }],
         },
         _ => Vec::new(),
     };

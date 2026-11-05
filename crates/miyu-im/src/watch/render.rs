@@ -1,5 +1,5 @@
-//! 实时日志的一行说成话（设计 10，施工 I-160 上）：照桥的字表（`data/human/*.json` 的 `watch/…`），语言跟核心的界面语言。
-//! 命令行、网页拿到的是同一份字，界面只管排版。
+//! 实时日志的一行说成话（设计 10，施工 I-160 上）：命令行照桥的字表（`data/human/*.json` 的 `watch/…`）说，语言跟命令行
+//! 的字表。网页照 `texts.js` 的同名说法另说一份（施工 I-161）。
 
 use serde::Serialize;
 
@@ -151,10 +151,10 @@ pub fn shown(
             ),
             (false, _) => ("delivered", say("delivered", &[("text", text.clone())])),
         },
-        Item::Failed(why) => ("failed", say("failed", &[("why", word("failed-why", why))])),
-        Item::Recalled(by) => ("recalled", say("recalled", &[("who", by.clone())])),
+        Item::Failed { why } => ("failed", say("failed", &[("why", word("failed-why", why))])),
+        Item::Recalled { who: by } => ("recalled", say("recalled", &[("who", by.clone())])),
         Item::Compacted => ("compacted", say("compacted", &[])),
-        Item::Ended(reason) => (
+        Item::Ended { reason } => (
             "ended",
             say("ended", &[("reason", word("ended-why", reason))]),
         ),
@@ -179,11 +179,7 @@ fn extra_text(extra: &Extra, say: &Say<'_>) -> String {
 }
 
 /// 判官那一段：判成了的写用时和理由，没判成的写为什么。
-fn judged(
-    judge: &Judged,
-    say: &Say<'_>,
-    word: &dyn Fn(&str, &str) -> String,
-) -> String {
+fn judged(judge: &Judged, say: &Say<'_>, word: &dyn Fn(&str, &str) -> String) -> String {
     let seconds = judge.millis.map_or_else(String::new, |millis| {
         format!("{:.1}", millis as f64 / 1000.0)
     });

@@ -147,9 +147,13 @@ impl Route {
         let found = self
             .on_session(&message.place, Some(&message.id), method, params)
             .await?;
-        if let Some((session, _)) = &found {
+        if let Some((session, reply)) = &found {
             self.peers
                 .insert(session.clone(), message.place.peer.clone());
+            // 实时日志（施工 I-160 中）：核心不把桥交的消息推回来，这里补。
+            if method == SEND {
+                self.sent_in(session, message, reply);
+            }
         }
         Ok(found)
     }
