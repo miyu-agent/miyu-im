@@ -354,6 +354,7 @@ pub async fn run(
             images: serve.tuning.message_images,
             quick: serve.tuning.call_timeout(),
             image_limit: serve.tuning.image_limit(),
+            recent: Default::default(),
         },
         Forwarding {
             per_message: serve.tuning.message_forwards,

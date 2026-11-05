@@ -24,7 +24,7 @@ use crate::chat::{Bots, Id, Platform, To, Unclaimed};
 use crate::core::Answerer;
 use crate::core::methods::{MEDIA, VENUE};
 
-mod media;
+pub(super) mod media;
 
 /// 动作名最长几个字符。
 const NAME_MAX: usize = 64;

@@ -48,7 +48,7 @@
 | `crates/miyu-im-onebot/src/tools/send_file.rs`（I-130） | `qq_send_file {path}`：只认会话工作区里的普通文件（真实位置比、链接解开再判），判过的硬链接进驱动状态目录的 `outbox/` 钉住、链接好再核一遍 inode，NapCat 从本机连进来才传，交 im 另起任务传（「传文件」） |
 | `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |
-| `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」）；`exports/media.rs`（I-39）`chat.media` 取一张图和来历 |
+| `crates/miyu-im/src/core/route/exports.rs`（O-42） | 给别的包调的方法：`chat.action` 读参数、另起任务经机器人号的连接调动作、原样交回；`chat.venue` 照场所会话的表答（「给别的包调的方法」）；`exports/media.rs`（I-39）`chat.media` 取一张图和来历，I-154 起大图带 `offset` 分段交（`media/pages.rs`：一段 512 KiB，答带 `size`、`eof`；不带 `offset` 的大图拒 `too_large`，核心收一行最多 1 MiB，整张塞一行会把 im 断开；取到的留两分钟） |
 | `crates/miyu-im/src/core/methods.rs`（O-28 上） | 后台页调的方法（O-42 起连给别的包调的两个一起登记、认出它们交给跟核心的那一头）：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态（`Running`）造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-im/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
 | `crates/miyu-im/src/core/route/private.rs`（O-36 从 `route.rs` 挪出来） | 一条私聊：拼场所、套规则、带上场所的格，交 `submit`（「怎么走」第 6 到 8 条） |

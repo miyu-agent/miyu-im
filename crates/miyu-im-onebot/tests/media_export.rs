@@ -74,3 +74,54 @@ async fn another_package_gets_a_picture_with_where_it_came_from() {
     }
     stopped(home).await;
 }
+
+/// 施工 I-154：核心收一行最多 1 MiB。2 MiB 的图带 `offset` 一段一段取，拼回来一字不差；不带的拒 `too_large`；取完 im 还连着核心（原来
+/// 整张塞进一行，核心断开 im，这一次的回应也没有）。
+#[tokio::test]
+async fn a_big_picture_comes_in_pages_and_the_bridge_stays_connected() {
+    let picture: Vec<u8> = (0..2 * 1024 * 1024 + 9)
+        .map(|at| u8::try_from(at % 247).expect("小于 256"))
+        .collect();
+    let (home, napcat) = up(&Lines::new([Line::says("嗯。")])).await;
+    let words = json!([image("big.jpg", 4096)]);
+    napcat.stock_message(602, in_group(words.clone()));
+    napcat.stock_file("big.jpg", Ok(json!({"base64": encoded(&picture)})));
+    says(&home, &napcat, (MEMBER, "member"), 602, words).await;
+    let (session, _) = venue_session(&home.root, &venue()).expect("有会话");
+    let mut head = Head::connect(&home.root).await;
+    let whole = media(&mut head, json!({"session": session, "msg": "602"})).await;
+    assert_eq!(
+        refused(&whole),
+        "too_large",
+        "不带 offset 的大图拒，不整张塞进一行"
+    );
+    let mut got = Vec::new();
+    loop {
+        let reply = media(
+            &mut head,
+            json!({"session": session, "msg": "602", "offset": got.len()}),
+        )
+        .await;
+        let page = &reply["result"];
+        assert_eq!(page["size"], picture.len(), "{reply}");
+        let data = page["data"]
+            .as_str()
+            .unwrap_or_else(|| panic!("没有 data：{reply}"));
+        assert!(data.len() < 1024 * 1024, "一段写成 base64 也在一行以内");
+        got.extend(decoded(data));
+        if page["eof"] == true {
+            break;
+        }
+    }
+    assert_eq!(got, picture, "拼回来一字不差");
+    let again = media(
+        &mut head,
+        json!({"session": session, "msg": "602", "offset": 0}),
+    )
+    .await;
+    assert_eq!(
+        again["result"]["eof"], false,
+        "取完了 im 还连着核心：{again}"
+    );
+    stopped(home).await;
+}

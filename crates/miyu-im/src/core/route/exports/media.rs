@@ -5,6 +5,7 @@
 //! - 照她的取图工具取（`get_msg` 现认段、核归属、数第几样、`get_image`）：认不得的会话拒 `unknown_session`；那个号没连着的
 //!   `not_connected`；没有这一条、不在这个场所的 `not_found`；没有第几样的 `no_item`；不是图的（视频、文件、语音、小黄脸、商城
 //!   表情）`not_image`；QQ 回了失败、等不到、拿不到手、超了图的上限的 `unfetched`。
+//! - 施工 I-154 多收一格 `offset`，答多两格 `size`、`eof`：大图分段交（`pages`），不再整张塞进一行撑断和核心的连接。
 //! - 答 `{"kind", "data", "name", "origin"}`：`kind` 是 `image` 或 `sticker`，`data` 是图的 base64，`name` 是 QQ 说的文件名（没有的
 //!   是 `null`），`origin` 是来历：平台、场所、消息编号、发的人（`id`、`name`，照 im 的聊天记录；没记下的照 QQ 回的号、名字是
 //!   `null`）、`at`（毫秒，没记下的是 `null`）。
@@ -22,6 +23,10 @@ use crate::chat::{Fetch, Link, MediaKind, Platform, To};
 use crate::core::Answerer;
 use crate::toolset::{History, Missed, kept, message, msg_id, owned, take, too_large};
 
+mod pages;
+pub(crate) use pages::Recent;
+use pages::{Taken, page};
+
 /// 读好的一次 `chat.media`。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Wanted {
@@ -31,6 +36,8 @@ pub(super) struct Wanted {
     pub(super) msg: String,
     /// 第几样，从 1 数。
     pub(super) index: usize,
+    /// 从第几个字节交（施工 I-154）；不写的整张交（大的拒）。
+    pub(super) offset: Option<u64>,
 }
 
 impl Wanted {
@@ -46,15 +53,20 @@ impl Wanted {
                 .ok()
                 .filter(|index| *index > 0)?,
         };
+        let offset = match &args["offset"] {
+            Value::Null => None,
+            offset => Some(offset.as_u64()?),
+        };
         Some(Wanted {
             session: session.to_string(),
             msg,
             index,
+            offset,
         })
     }
 }
 
-/// 取的时候要的：平台、连接、场所、对方、等多久、图最多多少字节、聊天记录。
+/// 取的时候要的：平台、连接、场所、对方、等多久、图最多多少字节、聊天记录、刚取到的几张。
 struct Taking {
     platform: Platform,
     link: Arc<dyn Link>,
@@ -63,6 +75,7 @@ struct Taking {
     wait: Duration,
     limit: usize,
     history: History,
+    recent: Recent,
 }
 
 impl Route {
@@ -96,6 +109,7 @@ impl Route {
             wait: self.fetching.quick,
             limit: self.fetching.image_limit,
             history: self.records.history(),
+            recent: self.fetching.recent.clone(),
         };
         self.chores.spawn(async move {
             match fetched(&taking, &wanted).await {
@@ -112,8 +126,27 @@ impl Route {
     }
 }
 
-/// 取那一样和它的来历：成了的交回答的内容，没成的交回拒的原因（模块的说明）。
+/// 交这一次要的那一段（`pages`）：整张先看刚取到的里有没有，没有的去取、留下。成了的交回答的内容，没成的交回拒的原因。
 async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str> {
+    let key = format!("{}\n{}\n{}", taking.venue, wanted.msg, wanted.index);
+    let taken = match taking.recent.get(&key) {
+        Some(taken) => taken,
+        None => {
+            let taken = Arc::new(whole(taking, wanted).await?);
+            taking.recent.put(key, Arc::clone(&taken));
+            taken
+        }
+    };
+    let (range, eof) = page(taken.bytes.len(), wanted.offset)?;
+    let mut answer = taken.answer.clone();
+    answer["data"] = json!(STANDARD.encode(&taken.bytes[range]));
+    answer["size"] = json!(taken.bytes.len());
+    answer["eof"] = json!(eof);
+    Ok(answer)
+}
+
+/// 取那一样整张和它的来历（模块的说明）：成了的交回字节和答的别的格，没成的交回拒的原因。
+async fn whole(taking: &Taking, wanted: &Wanted) -> Result<Taken, &'static str> {
     let link = taking.link.as_ref();
     let fetched = match message(link, &taking.to, &wanted.msg).await {
         Ok(fetched) => fetched,
@@ -170,9 +203,8 @@ async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str
     } else {
         "image"
     };
-    Ok(json!({
+    let answer = json!({
         "kind": kind,
-        "data": STANDARD.encode(&bytes),
         "name": named,
         "origin": {
             "platform": taking.platform.name(),
@@ -181,7 +213,8 @@ async fn fetched(taking: &Taking, wanted: &Wanted) -> Result<Value, &'static str
             "sender": {"id": sender, "name": name},
             "at": at,
         },
-    }))
+    });
+    Ok(Taken { bytes, answer })
 }
 
 #[cfg(test)]

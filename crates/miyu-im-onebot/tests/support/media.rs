@@ -38,6 +38,11 @@ pub fn encoded(bytes: &[u8]) -> String {
     STANDARD.encode(bytes)
 }
 
+/// base64 解回字节（施工 I-154：分段取的拼回来比）。
+pub fn decoded(text: &str) -> Vec<u8> {
+    STANDARD.decode(text).expect("是 base64")
+}
+
 /// 一段图：`file` 是 NapCat 给的编号（文件名），大小 `size`。
 pub fn image(file: &str, size: u64) -> Value {
     json!({"type": "image", "data": {"file": file, "sub_type": 0, "summary": "", "url": "https://example.invalid/x", "file_size": size.to_string()}})

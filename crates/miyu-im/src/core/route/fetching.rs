@@ -12,4 +12,6 @@ pub(crate) struct Fetching {
     pub(crate) quick: Duration,
     /// 一张图最多多少字节（`image_max_mb`，施工 I-23）：段里写了大小、超了的不下，下载读到它就停。
     pub(crate) image_limit: usize,
+    /// `chat.media` 刚取到的几张（施工 I-154）：大图分段交，每一段不重新下。
+    pub(crate) recent: super::exports::media::Recent,
 }

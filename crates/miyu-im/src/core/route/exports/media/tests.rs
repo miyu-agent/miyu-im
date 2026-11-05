@@ -12,6 +12,7 @@ fn a_request_reads_session_msg_and_index() {
             session: "s-1".to_string(),
             msg: "-523932813".to_string(),
             index: 2,
+            offset: None,
         })
     );
     let bare = Wanted::read(&json!({"session": "s-1", "msg": 601})).expect("读得出");
