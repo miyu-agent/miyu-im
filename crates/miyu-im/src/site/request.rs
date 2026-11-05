@@ -13,7 +13,7 @@
 //! - 别的方法：405。
 //!
 //! 回应都带 `Cache-Control: no-store`（头像是 `private, max-age=600`，施工 I-7 上修：页面每次重画不再重新取、不闪）、`X-Content-Type-Options: nosniff`、只许同源的 `Content-Security-Policy`（图片另收
-//! `blob:`；不许被别的页面放进框里）。
+//! `blob:`、`data:`；不许被别的页面放进框里）。
 
 use std::sync::{Mutex, PoisonError};
 
@@ -35,8 +35,9 @@ const BODY: usize = 4096;
 /// 头像的缓存：只在这个浏览器里，十分钟（头像换了，过一会儿就跟上）。
 const AVATAR_CACHE: &str = "private, max-age=600";
 
-/// 同源的内容安全策略。图片另收 `blob:`（施工 I-146：人格的头像、背景图经核心取成 base64，页面里转成 blob 地址画）。
-const POLICY: &str = "default-src 'self'; img-src 'self' blob:; frame-ancestors 'none'";
+/// 同源的内容安全策略。图片另收 `blob:`（施工 I-146：人格的头像、背景图经核心取成 base64，页面里转成 blob 地址画）和 `data:`
+/// （施工 I-149：核心给的供应商图标是 SVG 原文，页面写成 data 地址画，不插进页面）。
+const POLICY: &str = "default-src 'self'; img-src 'self' blob: data:; frame-ancestors 'none'";
 
 /// 插件面板里的文件的内容安全策略（施工 I-9 下，同 WebUI 给后台页的）：沙箱里只许脚本、表单，不许联网，只许嵌在 im 自己的页面里。
 const FRAMED: &str =

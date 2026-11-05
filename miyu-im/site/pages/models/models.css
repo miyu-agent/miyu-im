@@ -1,0 +1,51 @@
+/* 「模型」页（设计 09，施工 I-149）：左边供应商一列、右边这一家；控件不描边，平常同背景、悬停深一档、选中再深一档。 */
+.model-wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
+.model-providers { display: flex; flex-direction: column; gap: 2px; }
+.model-provider { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.model-provider:hover { background: var(--surface-2); }
+.model-provider.on { background: var(--surface-3); }
+.model-provider.add { color: var(--text-soft); }
+.model-provider-text { display: flex; flex-direction: column; min-width: 0; }
+.model-provider-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-provider-text small { color: var(--text-faint); }
+.warn { color: var(--gold); }
+small.warn, em.warn { font-style: normal; }
+.model-logo { display: inline-grid; flex: none; place-items: center; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.model-logo.initial { background: var(--surface-2); }
+.model-logo.tint { background: currentColor; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+.model-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 16px 18px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.model-head { display: flex; flex-direction: column; gap: 6px; }
+.model-head p { margin: 0; }
+.model-title { display: flex; align-items: center; gap: 12px; }
+.model-title .model-logo { width: 36px; height: 36px; }
+.model-title-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.model-title-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.model-test.good { color: var(--online); }
+.model-test.bad { color: var(--danger); }
+.model-key { display: flex; align-items: center; gap: 10px; }
+.model-key-block { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.model-key-block.missing { background: color-mix(in srgb, var(--gold) 12%, var(--surface-2)); }
+.model-key-block p { margin: 0; }
+.model-key-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.model-key-row .persona-input { flex: 1; min-width: 180px; width: auto; background: var(--surface-1); }
+.model-list { display: flex; flex-direction: column; gap: 8px; }
+.model-list-head { display: flex; align-items: center; gap: 12px; color: var(--text-soft); }
+.model-search { flex: 1; max-width: 280px; margin-left: auto; }
+.model-lines { display: flex; flex-direction: column; gap: 2px; }
+.model-line { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.model-line:hover { background: var(--surface-2); }
+.model-line-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-id { margin-left: 6px; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
+.model-row { display: flex; align-items: center; gap: 12px; min-height: 36px; }
+.model-row-name { flex: 1; color: var(--text-soft); }
+.model-row-control { display: flex; align-items: center; gap: 6px; }
+.model-row-control .input { width: 160px; }
+.model-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.model-check { border: 0; cursor: pointer; }
+.model-check.on { background: var(--surface-3); color: var(--text); }
+.model-prices { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.model-price { display: flex; flex-direction: column; gap: 4px; }
+.model-price .input { width: 100%; }
+.persona-field > .seg { align-self: flex-start; }
+@media (max-width: 760px) { .model-wrap { grid-template-columns: 1fr; } }
