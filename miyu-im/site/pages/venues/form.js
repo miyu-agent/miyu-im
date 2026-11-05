@@ -3,11 +3,16 @@
 //
 // - 没写的格显示「继承（下面几层的值）」：下拉多一项、输入框写在占位字里、开关照现在用着的画。
 // - 开关管着的几行（dep），开关关着时藏起来；「高级」的收进一个默认收起的折叠里。
-import { element, say, spaced } from '../../shell/i18n.js';
+// - 选人格、预设、模型的格旁边一个「去编辑」（设计 09，施工 I-152）：点了换到人格、预设、模型页，会话页收起时关掉这个浮窗。
+import { element, icon, say, spaced } from '../../shell/i18n.js';
+import { goTo } from '../../shell/connection.js';
 import { toast } from '../../shell/dialog.js';
 import { FIELDS, current, has, inherit, inherited, values, written } from './fields.js';
 import { cardOf, isDefaults } from './model.js';
 import { control } from './controls.js';
+
+/** 选这几种的格旁边「去编辑」跳到哪一页。 */
+const EDIT_PAGES = { persona: 'personas', preset: 'presets', model: 'models' };
 
 /** 画 `tab` 那一页：`one` 是这张卡，`context` 是 { request, personas, models, reactions, presets, expanded }（expanded 记着哪几页的「高级」展开着，
  *  重画时照旧）。交回几块元素。 */
@@ -71,6 +76,14 @@ function row(field, one, context) {
   };
   const save = (value) => saveKey(field.key, value);
   line.append(label, control(field, one, context, save, saveKey));
+  const page = EDIT_PAGES[field.control];
+  if (page) {
+    const edit = element('button', 'icon-button');
+    edit.title = say(`venue/edit-${page}`);
+    edit.append(icon('i-up-right'));
+    edit.addEventListener('click', () => goTo(page));
+    line.append(edit);
+  }
   const holder = element('div', 'field');
   holder.append(line, failed);
   return holder;
