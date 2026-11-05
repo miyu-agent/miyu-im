@@ -43,7 +43,11 @@ fn factory() -> Params {
             retries: 1,
             reason_chars: REASON_CHARS,
         },
-        outbound: outbound_support::ctx().outbound,
+        // 出厂打字速度 120（施工 I-163），别的格同测试的夹具。
+        outbound: crate::outbound::Outbound {
+            typing_speed: 120,
+            ..outbound_support::ctx().outbound
+        },
         split_chars: 3000,
         long_text: crate::LongText::Image,
         long_chars: 300,

@@ -32,6 +32,9 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (A, "阿甲", "a"), (B, "�
 const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\noutbound = { quote_after = 0, mention_after = \"0s\" }\n";
 
 /// 拆成正好两条的一句（照群聊内核挑：拆法以后调了，这里照样挑得到）和拆出来的两条。
+/// 出厂的打字速度（施工 I-163 起 120，原来 80）：拆法、停顿照它算。
+const FACTORY_SPEED: u32 = 120;
+
 fn two() -> (&'static str, Vec<miyu_chat::Bubble>) {
     let candidates = [
         "这个我也遇到过，重启一下就好了",
@@ -45,7 +48,7 @@ fn two() -> (&'static str, Vec<miyu_chat::Bubble>) {
     ];
     candidates
         .iter()
-        .map(|text| (*text, bubbles(text, 80)))
+        .map(|text| (*text, bubbles(text, FACTORY_SPEED)))
         .find(|(_, said)| said.len() == 2)
         .expect("候选里有拆成两条的")
 }
