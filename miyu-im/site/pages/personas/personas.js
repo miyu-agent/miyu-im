@@ -8,6 +8,7 @@ import { element, icon, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
 import { openPersona } from './editor.js';
+import { imageUrl, onImage } from './images.js';
 
 /** 在 `view` 里起人格页：`request` 调宿主的方法。交回 update()、event()、dispose()。 */
 export function mountPersonas(view, { request }) {
@@ -33,7 +34,9 @@ export function mountPersonas(view, { request }) {
     const cards = personas.map((one) =>
       one.problem
         ? badCard(one.persona, problemsOf(problems, one))
-        : card(one, one.persona === fallback, () => openPersona(request, one.persona, nameOf(one), hooks)),
+        : card(one, one.persona === fallback, imageUrl(request, 'avatar', one.persona, one.avatar), () =>
+            openPersona(request, one.persona, nameOf(one), hooks),
+          ),
     );
     const grid = element('div', 'persona-grid');
     grid.append(...cards);
@@ -43,11 +46,14 @@ export function mountPersonas(view, { request }) {
     );
   };
   load();
+  // 头像读到了一张新的：重画列表（卡片上画头像）。
+  const stop = onImage(() => !disposed && load());
   return {
     update() {},
     event() {},
     dispose() {
       disposed = true;
+      stop();
     },
   };
 }
@@ -70,11 +76,17 @@ function head(onNew) {
 /** 写给人看的名字：没有显示名的写编号。 */
 const nameOf = (one) => one.name || one.persona;
 
-/** 一张卡：首字、名字（默认的标「默认」）、简单描述。点了调 `open`。 */
-function card(one, isDefault, open) {
+/** 一张卡：头像（`avatar` 是读到了的地址，没有的画名字的第一个字）、名字（默认的标「默认」）、简单描述。点了调 `open`。 */
+function card(one, isDefault, avatar, open) {
   const box = element('button', 'persona-card');
   const name = nameOf(one);
-  const face = element('span', 'persona-face', [...name][0] || '');
+  const face = element('span', 'persona-face', avatar ? '' : [...name][0] || '');
+  if (avatar) {
+    const shown = element('img');
+    shown.src = avatar;
+    shown.alt = '';
+    face.append(shown);
+  }
   const text = element('span', 'persona-card-text');
   const title = element('b', null, name);
   if (isDefault) title.append(element('span', 'chip', say('personas/default')));

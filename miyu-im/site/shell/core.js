@@ -3,12 +3,13 @@
 // 通道断了）也抛 Refused，原因照通道给的。
 import { say } from './i18n.js';
 
-/** 核心或宿主拒了：`reason` 照它写给人看的字，`message` 是原话（可能空）。 */
+/** 核心或宿主拒了：`reason` 照它写给人看的字，`message` 是原话（可能空），`data` 是核心拒绝里带的（宿主转了才有）。 */
 export class Refused extends Error {
-  constructor(reason, message) {
+  constructor(reason, message, data) {
     super(message || reason);
     this.reason = reason;
     this.said = message || '';
+    this.data = data ?? null;
   }
 }
 
@@ -20,7 +21,7 @@ export async function core(request, method, params = {}) {
   } catch (reason) {
     throw new Refused(String(reason), '');
   }
-  if (answer.refused) throw new Refused(answer.refused.reason, answer.refused.message);
+  if (answer.refused) throw new Refused(answer.refused.reason, answer.refused.message, answer.refused.data);
   return answer.result;
 }
 

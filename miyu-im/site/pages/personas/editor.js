@@ -1,5 +1,5 @@
-// 人格的详情（设计 09，施工 I-145；照网页软件的 persona-editor.js）：浮窗里名字、简单描述、具体提示词、示范对话、人设提醒短语、
-// 子代理可选。改完点「保存」一起发一条 persona.set（写一半不生效），提示词带 persona.read 给的版本；「取消」关掉、丢掉没存的。
+// 人格的详情（设计 09，施工 I-145；照网页软件的 persona-editor.js）：浮窗里最上面三行外观（施工 I-146，appearance.js，换了当场存），
+// 下面名字、简单描述、具体提示词、示范对话、人设提醒短语、子代理可选。改完点「保存」一起发一条 persona.set（写一半不生效），提示词带 persona.read 给的版本；「取消」关掉、丢掉没存的。
 //
 // - 2026-10-08 项目主人（网页软件定的，这里照守）：来自哪一层、以谁为底、编号都不露；说明能清空（发空字，不发 unset）。
 // - 改了没存的点底、Esc、关闭都不关（长的字一按就丢太亏），提示先保存或取消；存好了提示一句、关掉（10-17）。
@@ -11,6 +11,7 @@ import { element, say } from '../../shell/i18n.js';
 import { confirmFirst, openDialog, toast } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
 import { area, cleanPairs, halfPair, pairsEditor } from './pairs.js';
+import { appearance } from './appearance.js';
 
 /** 开人格 `id` 的详情：`name` 是列表里写的（读完以前标题先写它），存了调 `hooks.saved()`，删了调 `hooks.removed(remains)`；
  *  `fresh` 是刚建的，读完焦点放到具体提示词。 */
@@ -18,7 +19,9 @@ export function openPersona(request, id, name, hooks, fresh = false) {
   let before = null;
   let remove = null;
   let fields = null;
-  const dialog = openDialog(name || say('personas/untitled'), null, () => {
+  // 外观当场存过：「保存」也亮着，点了提示已保存、关掉（2026-10-13 项目主人）。
+  let touched = false;
+  const dialog = openDialog(name || say('personas/untitled'), () => look.dispose(), () => {
     if (!dirty()) return true;
     note(say('personas/unsaved'));
     return false;
@@ -30,6 +33,14 @@ export function openPersona(request, id, name, hooks, fresh = false) {
     message.hidden = !text;
     message.replaceChildren(element('span', null, text), ...more);
   };
+  const look = appearance(request, id, {
+    saved: () => {
+      touched = true;
+      sync();
+      hooks.saved();
+    },
+    say: (text) => note(text),
+  });
   const save = element('button', 'btn primary', say('dialog/save'));
   const cancel = element('button', 'btn', say('dialog/cancel'));
   cancel.addEventListener('click', () => dialog.close());
@@ -46,7 +57,7 @@ export function openPersona(request, id, name, hooks, fresh = false) {
   });
   const dirty = () => before !== null && fields !== null && personaSave(before, current()) !== null;
   const sync = () => {
-    save.disabled = !dirty() || !fields.name.value.trim();
+    save.disabled = !(dirty() || touched) || !fields.name.value.trim();
   };
 
   const load = async () => {
@@ -66,6 +77,7 @@ export function openPersona(request, id, name, hooks, fresh = false) {
     }
     const [persona, reminders, examples] = texts;
     remove = got.remove || null;
+    look.set(got);
     before = {
       name: typeof got.name === 'string' ? got.name : '',
       summary: typeof got.summary === 'string' ? got.summary : '',
@@ -104,6 +116,7 @@ export function openPersona(request, id, name, hooks, fresh = false) {
     });
     for (const box of [summary, persona, reminders]) box.addEventListener('input', sync);
     dialog.body.replaceChildren(
+      ...look.rows.map(([label, box]) => field(label, box, 'div')),
       field('personas/name', name),
       field('personas/summary', summary),
       field('personas/persona', persona),
@@ -124,7 +137,14 @@ export function openPersona(request, id, name, hooks, fresh = false) {
       return;
     }
     const payload = personaSave(before, current());
-    if (!payload) return;
+    if (!payload) {
+      // 只改了外观：已经当场存了，这里说一声、关掉。
+      if (touched) {
+        toast(say('dialog/saved'));
+        dialog.close();
+      }
+      return;
+    }
     save.disabled = true;
     try {
       await core(request, 'persona.set', { persona: id, ...payload });
@@ -173,9 +193,9 @@ export function openPersona(request, id, name, hooks, fresh = false) {
   load();
 }
 
-/** 一格：上面名字、下面控件。 */
-function field(label, control) {
-  const box = element('label', 'persona-field');
+/** 一格：上面名字、下面控件（`tag` 是外层的元素：里面有好几个按钮的用 div，不用 label）。 */
+function field(label, control, tag = 'label') {
+  const box = element(tag, 'persona-field');
   box.append(element('span', 'persona-label', say(label)), control);
   return box;
 }

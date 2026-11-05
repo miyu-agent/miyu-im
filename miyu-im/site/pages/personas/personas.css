@@ -13,6 +13,7 @@
 .persona-card-text small { color: var(--text-soft); overflow-wrap: anywhere; }
 .dialog:has(> .persona-body) { width: min(680px, 100%); }
 .d-body.persona-body { display: flex; flex-direction: column; gap: 14px; }
+.d-body.persona-body > * { flex-shrink: 0; }
 .persona-field { display: flex; flex-direction: column; gap: 6px; }
 .persona-label { color: var(--text-soft); font-size: 12.5px; }
 .persona-input { width: 100%; }
@@ -27,3 +28,41 @@
 .persona-add { align-self: flex-start; margin-top: 6px; }
 .persona-note { margin: 0; color: var(--danger); }
 .persona-note .btn { margin-left: 8px; }
+/* 外观三行（施工 I-146）：图本身是按钮，悬停盖一层写「更换」，右上角小 × 移除。 */
+.persona-look-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.persona-look-col { display: flex; flex-direction: column; gap: 8px; }
+.persona-pic { position: relative; width: max-content; }
+.persona-pic-main { position: relative; display: grid; place-items: center; padding: 0; border: 0; overflow: hidden; background: var(--surface-2); color: var(--text-soft); cursor: pointer; }
+.persona-pic.is-avatar .persona-pic-main { width: 72px; height: 72px; border-radius: 50%; }
+.persona-pic.is-background .persona-pic-main { width: 240px; aspect-ratio: 16 / 9; border-radius: 12px; }
+.persona-pic-main img { width: 100%; height: 100%; object-fit: cover; }
+.persona-pic-empty { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.persona-pic-empty .icon { width: 20px; height: 20px; }
+.persona-pic-hover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: color-mix(in srgb, #000 45%, transparent); color: #fff; font-size: 12.5px; opacity: 0; transition: opacity 0.15s ease; }
+.persona-pic-main:hover .persona-pic-hover, .persona-pic-main:focus-within .persona-pic-hover { opacity: 1; }
+.persona-pic-action { height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: color-mix(in srgb, #fff 22%, transparent); color: #fff; cursor: pointer; }
+.persona-pic-action:hover { background: color-mix(in srgb, #fff 34%, transparent); }
+.persona-pic-remove { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: var(--surface-3); color: var(--text); box-shadow: var(--bubble-shadow); cursor: pointer; }
+.persona-pic-remove .icon { width: 12px; height: 12px; }
+.persona-swatch { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text-soft); font-weight: 600; cursor: pointer; }
+.persona-swatch:hover { background: var(--surface-3); }
+.persona-swatch.on:not([style]) { background: var(--surface-3); color: var(--text); }
+.persona-swatch .icon { width: 15px; height: 15px; }
+.persona-color-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+.persona-slider { display: grid; grid-template-columns: 56px minmax(0, 240px) 44px; align-items: center; gap: 10px; }
+.persona-slider-value { color: var(--text-soft); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.persona-range { width: 100%; accent-color: var(--accent); }
+/* 裁头像、选焦点的浮窗。 */
+.d-body.persona-crop { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.persona-crop-stage { position: relative; width: 280px; height: 280px; border-radius: 12px; overflow: hidden; touch-action: none; cursor: grab; }
+.persona-crop-canvas { width: 280px; height: 280px; }
+.persona-crop-ring { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px color-mix(in srgb, #000 50%, transparent); pointer-events: none; }
+.persona-crop .persona-range { width: 280px; }
+.d-body.persona-focus { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.persona-focus-picture { position: relative; border-radius: 10px; background-size: 100% 100%; touch-action: none; cursor: crosshair; }
+.persona-focus-dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #fff, var(--bubble-shadow); pointer-events: none; }
+.persona-focus-samples { display: flex; align-items: flex-end; gap: 16px; }
+.persona-focus-sample { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; color: var(--text-soft); font-size: 12px; }
+.persona-focus-frame { display: block; border-radius: 8px; background-size: cover; }
+.persona-focus-frame.narrow { width: 60px; height: 100px; }
+.persona-focus-frame.wide { width: 160px; height: 90px; }

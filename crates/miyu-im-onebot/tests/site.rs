@@ -27,7 +27,7 @@ async fn the_page_files_are_served_to_local_addresses_only() {
     assert_eq!(index.header("x-content-type-options"), Some("nosniff"));
     assert_eq!(
         index.header("content-security-policy"),
-        Some("default-src 'self'; frame-ancestors 'none'")
+        Some("default-src 'self'; img-src 'self' blob:; frame-ancestors 'none'")
     );
     assert!(
         String::from_utf8_lossy(&index.body).starts_with("<!doctype html>"),
