@@ -239,3 +239,21 @@ fn like(text: &str) -> String {
         .replace('%', "\\%")
         .replace('_', "\\_")
 }
+
+/// 这几个人最近一次说话时叫什么（使用限制页，施工 I-136）：人 → 名字；没说过话、没记名字的不在里面。
+pub(crate) fn names(
+    connection: &Connection,
+    senders: &[String],
+) -> rusqlite::Result<std::collections::HashMap<String, String>> {
+    let mut statement = connection.prepare(
+        "SELECT name FROM messages WHERE sender = ?1 AND name IS NOT NULL AND name != '' ORDER BY at DESC LIMIT 1",
+    )?;
+    let mut names = std::collections::HashMap::new();
+    for sender in senders {
+        let mut rows = statement.query([sender])?;
+        if let Some(row) = rows.next()? {
+            names.insert(sender.clone(), row.get::<_, String>(0)?);
+        }
+    }
+    Ok(names)
+}

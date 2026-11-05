@@ -1,0 +1,19 @@
+/* 使用限制页（施工 I-136）：段照设置页的面板，一段接一段；单独设的人一行三格（窄的屏上竖着排，格上面带一行小字）；用量照数据统计
+   的小表，满了的标红。 */
+.limits-section + .limits-section { margin-top: 14px; }
+.limits-caps { display: flex; gap: 8px; }
+.limits-cap { display: flex; flex-direction: column; gap: 4px; }
+.limits-cap span { display: none; color: var(--text-faint); font-size: 12px; }
+.limits-header .limits-col { width: 140px; color: var(--text-faint); font-size: 12px; }
+.limits-header { padding-bottom: 0; border-bottom: 0; }
+.limits-spacer { visibility: hidden; }
+.limits-usage { margin-top: 10px; }
+.limits-usage .full { color: var(--danger); }
+@media (max-width: 720px) {
+  .limits-caps { flex-direction: column; }
+  .limits-cap span { display: block; }
+  .limits-header { display: none; }
+  .limits-add { flex-wrap: wrap; }
+  .limits-add .label { flex-basis: 100%; }
+  .limits-add .input { flex: 1; min-width: 0; }
+}

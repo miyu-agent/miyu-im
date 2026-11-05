@@ -16,6 +16,7 @@ mod faces;
 mod files;
 mod guard;
 mod home_cards;
+mod limits_page;
 mod logins;
 mod logs;
 mod methods;

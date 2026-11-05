@@ -151,6 +151,39 @@ impl Spent {
     }
 }
 
+/// 页面读（使用限制页，施工 I-136）：库 `path` 里最近 30 天用过的人，各自最近 5 小时、7 天、30 天用了多少（此刻是 `now`，
+/// 毫秒），照 5 小时的用量从多到少排，再照 30 天的，最多 `most` 个。只读地开：还没有库的是空的，不建。
+pub(crate) fn top(path: &Path, now: i64, most: usize) -> rusqlite::Result<Vec<(String, [u64; 3])>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    let [five, week, month] = crate::limits::WINDOWS.map(|window| now - window);
+    let mut statement = connection.prepare(
+        "SELECT person,
+                SUM(CASE WHEN at >= ?1 THEN tokens ELSE 0 END),
+                SUM(CASE WHEN at >= ?2 THEN tokens ELSE 0 END),
+                SUM(tokens)
+         FROM spent WHERE at >= ?3 GROUP BY person ORDER BY 2 DESC, 4 DESC, person LIMIT ?4",
+    )?;
+    let unsigned = |sum: i64| u64::try_from(sum).unwrap_or_default();
+    let rows = statement.query_map(
+        params![five, week, month, i64::try_from(most).unwrap_or(i64::MAX)],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                [
+                    unsigned(row.get(1)?),
+                    unsigned(row.get(2)?),
+                    unsigned(row.get(3)?),
+                ],
+            ))
+        },
+    )?;
+    rows.collect()
+}
+
 /// 打开 `path`、建好表。
 fn prepared(path: &Path) -> rusqlite::Result<Connection> {
     if let Some(dir) = path.parent()

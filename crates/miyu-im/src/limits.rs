@@ -146,6 +146,99 @@ impl People {
     }
 }
 
+/// 一条线最多写多大：一万亿（同卡片上那三格）。
+const CAP: u64 = 1_000_000_000_000;
+
+/// 单独设的人最多几个：只防写错。
+const MOST_PEOPLE: usize = 1000;
+
+/// 写进设置文件开头的说明。
+const HEADER: &str = "# 使用限制（接入通讯平台的网页上改的）：最近 5 小时、7 天、30 天最多用多少 token；没写的不限。\n";
+
+impl People {
+    /// 页面交来的（`limits.set` 的 `default`、`people`，施工 I-136）：每条线是 1 到一万亿的整数或者 `null`；人照平台上的人的写法
+    /// （`qq:10002`），不重。有一处不对的整份不收。
+    pub(crate) fn from_page(
+        default: &serde_json::Value,
+        people: &serde_json::Value,
+    ) -> Option<People> {
+        let lines = |value: &serde_json::Value| -> Option<[Option<u64>; 3]> {
+            let object = match value {
+                serde_json::Value::Null => return Some([None; 3]),
+                value => value.as_object()?,
+            };
+            if object
+                .keys()
+                .any(|key| key != "id" && !KEYS.contains(&key.as_str()))
+            {
+                return None;
+            }
+            let mut caps = [None; 3];
+            for (cap, key) in caps.iter_mut().zip(KEYS) {
+                *cap = match object.get(key) {
+                    None | Some(serde_json::Value::Null) => None,
+                    Some(value) => Some(value.as_u64().filter(|cap| (1..=CAP).contains(cap))?),
+                };
+            }
+            Some(caps)
+        };
+        let default = Lines::from_caps(lines(default)?);
+        let listed = match people {
+            serde_json::Value::Null => &Vec::new(),
+            people => people.as_array()?,
+        };
+        if listed.len() > MOST_PEOPLE {
+            return None;
+        }
+        let mut person: Vec<Person> = Vec::new();
+        for one in listed {
+            let id = one["id"].as_str()?.trim();
+            let known = miyu_client::ids::ExternalId::parse(id).ok()?;
+            miyu_chat::parse_person(&known)?;
+            if person.iter().any(|seen| seen.id == id) {
+                return None;
+            }
+            let [limit_5h, limit_week, limit_month] = lines(one)?;
+            person.push(Person {
+                id: id.to_string(),
+                limit_5h,
+                limit_week,
+                limit_month,
+            });
+        }
+        Some(People { default, person })
+    }
+
+    /// 写成设置文件的样子：开头一行说明，`[default]`，一个人一段 `[[person]]`。人的号已经照写法查过，没有要转义的字。
+    pub(crate) fn to_toml(&self) -> String {
+        let mut text = String::from(HEADER);
+        let lines = |text: &mut String, caps: [Option<u64>; 3]| {
+            for (key, cap) in KEYS.iter().zip(caps) {
+                if let Some(cap) = cap {
+                    text.push_str(&format!("{key} = {cap}\n"));
+                }
+            }
+        };
+        text.push_str("\n[default]\n");
+        lines(&mut text, self.default.caps());
+        for one in &self.person {
+            text.push_str(&format!("\n[[person]]\nid = \"{}\"\n", one.id));
+            lines(&mut text, one.lines().caps());
+        }
+        text
+    }
+
+    /// 写进 `path`：先写旁边的 `.partial` 再换名，桥那头不会读到写了一半的。
+    pub(crate) fn write(&self, path: &Path) -> std::io::Result<()> {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let partial = path.with_extension("toml.partial");
+        std::fs::write(&partial, self.to_toml())?;
+        std::fs::rename(&partial, path)
+    }
+}
+
 /// 盯着设置文件的一份：隔 [`RECHECK`] 看一眼改的时刻，变了重读。
 #[derive(Debug)]
 pub(crate) struct Watched {

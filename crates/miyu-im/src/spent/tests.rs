@@ -118,3 +118,33 @@ fn a_ledger_that_cannot_open_records_nothing_and_does_not_fail() {
     drop(spent);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
+
+#[test]
+fn the_page_lists_people_by_the_last_five_hours_then_the_month() {
+    let dir = dir("top");
+    let path = dir.join(FILE);
+    assert!(top(&path, NOW, 10).expect("读得了").is_empty(), "还没有库");
+    assert!(!path.exists(), "只读地开，不建");
+    let spent = Spent::open(&path);
+    let hour = 60 * 60 * 1000;
+    spent.charge(&charge(1, NOW - hour, 10), &[person("qq:1")], NOW);
+    spent.charge(&charge(2, NOW - 6 * hour, 500), &[person("qq:1")], NOW);
+    spent.charge(&charge(3, NOW - hour, 30), &[person("qq:2")], NOW);
+    spent.charge(
+        &charge(4, NOW - 10 * 24 * hour, 900),
+        &[person("qq:3")],
+        NOW,
+    );
+    drop(spent);
+    let listed = top(&path, NOW, 10).expect("读得了");
+    assert_eq!(
+        listed,
+        [
+            ("qq:2".to_string(), [30, 30, 30]),
+            ("qq:1".to_string(), [10, 510, 510]),
+            ("qq:3".to_string(), [0, 0, 900]),
+        ]
+    );
+    assert_eq!(top(&path, NOW, 1).expect("读得了").len(), 1);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}

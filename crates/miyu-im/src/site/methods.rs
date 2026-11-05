@@ -18,6 +18,7 @@
 //! - `cards.get`、`cards.save_one`、`cards.add`、`cards.remove`：会话页的（施工 I-7 上），经人的连接转给读的一头（`venues`）。
 //! - `sessions.list`、`sessions.delete`：消息记录页列场所会话、删她的上下文（施工 I-34 上），同样转给读的一头。
 //! - `records.media`：消息记录页现取一条带的图片、文件（施工 C-1 中下补，`records_media`）。
+//! - `limits.get`、`limits.set`：使用限制页（设计 08，施工 I-136，`limits_page`）。
 //! - `records.venues`、`records.page`、`records.search`、`records.delete`：消息记录页读、搜、删 im 自己的聊天记录库（施工 C-1 中，`records_page`）。
 //! - `models`：会话浮窗选模型（施工 I-7 中一，`venues::models`）。
 //! - `reactions` → `{"reactions": [{id, name, glyph?}], "default"}`：能贴的表情（驱动给的，空的是这个平台不支持贴表情）和桥出厂
@@ -39,7 +40,7 @@ use serde_json::{Map, Value, json};
 
 use super::logins::Login;
 use super::{
-    Person, Site, connections, home_cards, logs, moderation, panels, plugin_settings,
+    Person, Site, connections, home_cards, limits_page, logs, moderation, panels, plugin_settings,
     plugin_widgets, plugins, records_media, records_page, save, scope, settings, stats, store,
     venues, web_link,
 };
@@ -81,6 +82,8 @@ pub(super) async fn answer(
         }
         Some("models") => venues::models(&login.person).await,
         Some("presets") => venues::presets(&login.person).await,
+        Some("limits.get") => limits_page::get(site).await,
+        Some("limits.set") => limits_page::set(site, params),
         Some("moderation.get") => moderation::get(site),
         Some("moderation.set") => moderation::set(site, params),
         Some("reactions") => reactions(site, params),

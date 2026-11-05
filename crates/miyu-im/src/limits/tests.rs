@@ -77,3 +77,52 @@ fn a_missing_or_broken_file_limits_nobody_and_a_change_is_picked_up() {
     assert_eq!(watched.people().default.limit_5h, Some(5));
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
+
+#[test]
+fn what_the_page_sends_is_checked_and_written_back_the_same() {
+    let default = serde_json::json!({"limit_5h": 2_000_000, "limit_week": null});
+    let people = serde_json::json!([
+        {"id": "qq:10002", "limit_month": 50_000_000},
+        {"id": "qq:10003"},
+    ]);
+    let read = People::from_page(&default, &people).expect("合写法");
+    assert_eq!(read.default.limit_5h, Some(2_000_000));
+    assert_eq!(read.person.len(), 2);
+    let again: People = toml::from_str(&read.to_toml()).expect("写出去读得回来");
+    assert_eq!(again, read);
+    let dir = dir("written");
+    read.write(&dir.join(FILE)).expect("写得了");
+    assert_eq!(People::read(&dir.join(FILE)), read);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn a_wrong_line_or_person_rejects_the_whole_page() {
+    let none = serde_json::Value::Null;
+    let bad_default = [
+        serde_json::json!({"limit_5h": 0}),
+        serde_json::json!({"limit_5h": -1}),
+        serde_json::json!({"limit_5h": "1"}),
+        serde_json::json!({"limit_5h": 1_000_000_000_001_u64}),
+        serde_json::json!({"limit_day": 1}),
+    ];
+    for default in bad_default {
+        assert_eq!(People::from_page(&default, &none), None, "{default}");
+    }
+    let bad_people = [
+        serde_json::json!([{"id": "10002"}]),
+        serde_json::json!([{"id": "qq:"}]),
+        serde_json::json!([{"id": "qq:1\"\n[x]"}]),
+        serde_json::json!([{"id": "qq:1"}, {"id": "qq:1"}]),
+        serde_json::json!([{"limit_5h": 1}]),
+        serde_json::json!({"id": "qq:1"}),
+    ];
+    for people in bad_people {
+        assert_eq!(People::from_page(&none, &people), None, "{people}");
+    }
+    assert_eq!(
+        People::from_page(&none, &none),
+        Some(People::default()),
+        "都不写的是谁都不限"
+    );
+}
