@@ -3,7 +3,7 @@
 //! im 不自己计时，接线在 `crate::core::route` 的 `glance`。
 //!
 //! - 定时的 `prompt` 是一份 JSON：哪个场所、上次看到哪一条（主线序号）、间隔几秒。到点原样交回，im 不另外记状态。
-//! - 间隔没定的照 `bridge.json` 的 `glance_seconds`（出厂 25 分钟，设计 05 第一节第 2 条）；她自己定下一次的工具随施工 I-89 下。
+//! - 间隔没定的照 `bridge.json` 的 `glance_seconds`（出厂 7 分钟，施工 I-143；原来 25 分钟，设计 05 第一节第 2 条）；她自己定下一次的工具随施工 I-89 下。
 
 use serde::{Deserialize, Serialize};
 
