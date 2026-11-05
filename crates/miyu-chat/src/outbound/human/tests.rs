@@ -193,6 +193,21 @@ fn quotes_code_and_links_are_not_cut() {
 }
 
 #[test]
+fn an_ascii_semicolon_does_not_cut_a_command() {
+    // 施工 I-142：主群 11-03 的实例，一行接着的两条命令在 `; ` 处被切成了两条发。
+    let text = "清掉旧的挂载点，跑 sudo umount /var/lib/os-prober/mount 2>/dev/null; sudo rm -rf /var/lib/os-prober/mount 再重新生成一遍";
+    for salt in 0..40 {
+        let text = format!("{text}{}", "啊".repeat(salt % 3));
+        let said = bubbles(&text, SPEED);
+        assert!(
+            said.iter()
+                .any(|bubble| bubble.text.contains("2>/dev/null; sudo rm -rf")),
+            "{said:?}"
+        );
+    }
+}
+
+#[test]
 fn pauses_follow_the_people_and_grow_with_length() {
     // 施工 I-138：中位照真人的线（PAUSE_SCALE × 字数^PAUSE_POWER），抖 0.5 到 2 倍，夹在 SHORTEST 到 LONGEST_PAUSE 之间。
     let mut ratios = Vec::new();
