@@ -25,7 +25,8 @@ import { mountModels } from '../pages/models/models.js';
 import { mountBackstage } from '../pages/backstage/backstage.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）、分在哪一组（施工 I-150，2026-11-05 项目主人：十二项太长，照用途分组加小
- *  标题；没写的是头一组，不带标题；`end` 只隔开一点、不带标题）。 */
+ *  标题；没写的是头一组，不带标题；`end` 只隔开一点、不带标题）。施工 I-153（项目主人 11-05）：「扩展」改叫「软件」，下面
+ *  照内核的叫法写已安装、软件后台、下载软件，还是只管 im 的插件；网址里的编号（plugins、backstage、store）不变。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
