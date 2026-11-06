@@ -209,13 +209,10 @@ impl Inbound {
         matches!(self.said.standing, Standing::Admin | Standing::Whitelisted)
     }
 
-    /// 场所不让叫她（`allow = false`）也照样放行的人：终端管理员在哪都豁免，白名单成员只在私聊里（施工时定的第 2 条）。
+    /// 场所不让叫她（`allow = false`）也照样放行的人：只有私聊里的白名单成员（施工时定的第 2 条）。管理员不再豁免（施工 I-171，
+    /// 项目主人 11-06：卡片关了回复就是关了，管理员叫她也只记下；命令照旧，命令在进站链以前交核心）。
     fn excused(&self) -> bool {
-        match self.said.standing {
-            Standing::Admin => true,
-            Standing::Whitelisted => self.kind == VenueKind::Private,
-            Standing::Member => false,
-        }
+        self.said.standing == Standing::Whitelisted && self.kind == VenueKind::Private
     }
 }
 

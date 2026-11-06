@@ -61,12 +61,15 @@ fn earlier_stop_hides_later_rules() {
 }
 
 #[test]
-fn admin_passes_sleep_and_allow_but_not_mute() {
+fn admin_passes_sleep_but_not_allow_or_mute() {
+    // 施工 I-171：管理员照旧不管睡眠，卡片关了回复的只记下。
     let mut all = ctx();
     all.sleep = sleep("11:00-13:00");
-    all.allow = Some(false);
     let admin = msg(Standing::Admin, VenueKind::Group);
     assert_eq!(judge(&admin, &all, at(12, 0)), pass());
+    all.allow = Some(false);
+    assert_eq!(judge(&admin, &all, at(12, 0)), record(Why::NotAllowed));
+    all.allow = None;
     all.muted = true;
     assert_eq!(judge(&admin, &all, at(12, 0)), record(Why::Muted));
 }
@@ -178,11 +181,12 @@ fn muted_records_everyone() {
 }
 
 #[test]
-fn not_allowed_excuses_admin_and_whitelisted_in_private() {
+fn not_allowed_excuses_only_the_whitelisted_in_private() {
+    // 施工 I-171（项目主人 11-06）：卡片关了回复，管理员叫她也只记下；私聊里的白名单成员照旧放行。
     let mut closed = ctx();
     closed.allow = Some(false);
     let expected = [
-        pass(),
+        record(Why::NotAllowed),
         pass(),
         record(Why::NotAllowed),
         record(Why::NotAllowed),
