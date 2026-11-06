@@ -106,6 +106,7 @@ mod strangers;
 #[cfg(test)]
 mod tests;
 mod titled;
+mod turn_texts;
 mod venue_plugins;
 mod voicing;
 mod waiting;

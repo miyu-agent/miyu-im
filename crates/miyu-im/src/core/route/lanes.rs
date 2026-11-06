@@ -19,9 +19,8 @@
 //! - 支线推来的（[`Route::lane_heard`]）：换回主线序号收进主线的投影，贴着的表情照 `(line, turn)` 记、摘，「不说话」照子会话
 //!   编号认，她的话照主线的出站链发；`session.sealed` 退订。
 
-use miyu_chat::{Dispatch, Supersede, Venue, VenueKind, dispatch};
+use miyu_chat::{Dispatch, Supersede, Venue, dispatch};
 use miyu_client::events::Event;
-use miyu_client::ids::VenueId;
 use serde_json::{Value, json};
 
 use super::decide::Decision;
@@ -34,9 +33,6 @@ use crate::core::{Gone, reason};
 
 /// 「你只回这几条」那一块事实的 `kind`（「群里怎么叫她」第 7 条「事实」，施工 I-21 改字）。
 const ANOTHER_LINE: &str = "another-line";
-
-/// 会话的说话方式那一块事实的 `kind`（施工 I-140）。
-const STYLE_NOTE: &str = "style-note";
 
 /// 拒绝码：支线封存了（`session/fork.md`「封存」）。
 const SEALED: &str = "session_sealed";
@@ -310,6 +306,10 @@ impl Route {
         if !facts.is_empty() {
             params["facts"] = json!(facts);
         }
+        // 群里每一轮请求的最末尾接一句（施工 I-172，核心 RT-1 的 `tail`）：别照历史里的话、包括她自己的长回复学说话。不进历史。
+        if let Some(tail) = self.context_style_tail(&tag.venue) {
+            params["tail"] = json!(tail);
+        }
         let reply = self.core.call_as(&id, "session.respond", params).await?;
         let (venue, number) = (&tag.venue, tag.number);
         match reason(&reply) {
@@ -326,30 +326,6 @@ impl Route {
             Some(reason) => {
                 tracing::warn!(target: TARGET, venue = %venue, message = number, reason, "respond refused");
                 Ok(Responded::Refused)
-            }
-        }
-    }
-
-    /// 会话的说话方式那一块事实（施工 I-140）：场所 `venue` 是群、卡片上写了「这个会话的说话方式」的才有，写的那段照模板转义填进去；模板
-    /// 写不出的（照说不会：起来时查过字段）记一行、不带。
-    fn style_note_fact(&mut self, venue: &str) -> Option<Value> {
-        let venue = VenueId::parse(venue)
-            .ok()
-            .and_then(|id| Venue::parse(&id))?;
-        if venue.kind() != VenueKind::Group {
-            return None;
-        }
-        let applied = self.applied(&venue);
-        let note = applied::style_note(&applied)?;
-        match self
-            .rules
-            .style_note()
-            .render(&[("text", note)].into_iter().collect())
-        {
-            Ok(text) => Some(json!({"kind": STYLE_NOTE, "text": text})),
-            Err(error) => {
-                tracing::warn!(target: TARGET, error = %error, "style note not written");
-                None
             }
         }
     }

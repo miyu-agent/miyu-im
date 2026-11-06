@@ -33,6 +33,10 @@ const GLANCE: &str = "facts/glance.txt";
 /// 会话的说话方式（施工 I-139、I-140）：卡片上写了的，群里每开一轮都带；字段 `text` 是卡片上写的那段。
 const STYLE_NOTE: &str = "facts/style-note.txt";
 
+/// 群里每开一轮接在这一轮请求最末尾的一句（施工 I-172，项目主人 11-07：她回放历史里自己的长回复会让她越说越长）：经核心
+/// `session.respond` 的 `tail`（核心 RT-1），不进历史。没有字段。
+const CONTEXT_STYLE: &str = "tail/context-style.txt";
+
 /// [`STYLE_NOTE`] 认的字段。
 const STYLE_NOTE_FIELDS: &[&str] = &["text"];
 
@@ -116,6 +120,8 @@ pub(super) struct Facts {
     pub(super) glance: Template,
     /// 会话的说话方式（施工 I-140）。
     pub(super) style_note: Template,
+    /// 接在每一轮最末尾的一句（施工 I-172）。
+    pub(super) context_style: Template,
 }
 
 /// 读出厂目录 `dir`（包文件夹的 `data/`）里的几份模板，查过交回。问题照退信、另一条线的先后记；有问题的交回空的。
@@ -133,6 +139,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let precheck = template(dir, PRECHECK, PRECHECK_FIELDS, problems);
     let glance = template(dir, GLANCE, &[], problems);
     let style_note = template(dir, STYLE_NOTE, STYLE_NOTE_FIELDS, problems);
+    let context_style = template(dir, CONTEXT_STYLE, &[], problems);
     Some(Facts {
         undelivered: undelivered?,
         another_line: another_line?,
@@ -147,6 +154,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         precheck: precheck?,
         glance: glance?,
         style_note: style_note?,
+        context_style: context_style?,
     })
 }
 
@@ -210,6 +218,11 @@ impl super::Venues {
     /// 会话的说话方式的外壳（施工 I-140）：出厂的，跑着不再读。
     pub fn style_note(&self) -> &Template {
         &self.factory.facts.style_note
+    }
+
+    /// 群里每开一轮接在最末尾的一句（施工 I-172）：出厂的，跑着不再读。
+    pub fn context_style(&self) -> &Template {
+        &self.factory.facts.context_style
     }
 
     /// 「文件没发出去」的模板（施工 O-46）：出厂的，跑着不再读。

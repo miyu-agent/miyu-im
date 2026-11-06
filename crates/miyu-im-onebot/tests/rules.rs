@@ -89,6 +89,8 @@ pub fn copied_resources() -> PathBuf {
         "packages/miyu-im/data/judge",
         "packages/miyu-im/data/facts",
         "packages/miyu-im/data/system",
+        // 每一轮末尾的那一句（施工 I-172）。
+        "packages/miyu-im/data/tail",
         "packages/miyu-im/data/tool-results",
         // 驱动交的工具的说明、答的话（施工 T-1）。
         "packages/miyu-im/data/onebot/tools",
