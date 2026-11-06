@@ -67,6 +67,11 @@ impl Glances {
             ..Glances::default()
         }
     }
+
+    /// 没定下一次时隔几分钟（施工 I-165：卡片「多久看一眼」没写时淡字写它），照她定的一分钟按几秒算，至少 1。
+    pub(super) fn default_minutes(&self) -> u64 {
+        (self.default.as_secs() / self.minute.max(1)).max(1)
+    }
 }
 
 impl Route {

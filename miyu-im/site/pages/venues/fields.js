@@ -47,17 +47,21 @@ export const FIELDS = {
     // 是否向 AI 显示号码（2026-10-20 项目主人验收：每种卡都有，原来只在群卡的触发方式页）。
     { key: 'show_ids', control: 'switch', label: 'field/show-ids' },
   ],
+  // 分组（设计 11 G1，施工 I-165）：什么时候说话、主动回复判断、权限；「高级」的照旧收进折叠。
   trigger: [
+    { group: 'field/when-to-speak' },
     { key: 'keywords', control: 'tags', label: 'field/keywords', hint: 'field/keywords-hint', kinds: GROUPS },
     // 时不时看一眼（设计 05，施工 I-89）：名单里的群卡、私聊卡（I-89 下）、会话默认值（`has` 把默认值当群卡），两张「其他」没有。
     { key: 'glance', control: 'switch', label: 'field/glance', hint: 'field/glance-hint', kinds: ['group', 'private'] },
     // 她没定下一次时多久看一眼（施工 I-114）：她用工具定了的照她的。
     { key: 'glance_minutes', control: 'number', label: 'field/glance-minutes', hint: 'field/glance-minutes-hint', unit: 'unit/minutes', kinds: ['group', 'private'], min: 1, max: 10080, dep: { key: 'glance', on: true } },
+    { group: 'field/judging' },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
     { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', hint: 'field/judge-persona-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.chatty.skip_users', control: 'tags', people: true, prefixed: true, label: 'field/skip-users', hint: 'field/skip-users-hint', kinds: GROUPS, dep: JUDGE },
+    { group: 'field/permissions' },
     { key: 'managers', control: 'tags', people: true, label: 'field/managers', kinds: GROUPS },
     { key: 'rules.chatty.base', control: 'float', label: 'field/threshold', kinds: GROUPS, dep: JUDGE, advanced: true },
     { key: 'rules.chatty.relevance', control: 'multi', keys: WEIGHTS, label: 'field/weights', kinds: GROUPS, dep: JUDGE, advanced: true },
@@ -70,7 +74,9 @@ export const FIELDS = {
     // 违规判断的门槛（施工 I-16，照旧版设置页）：违规关键词在设置页「违规判断」。
     { key: 'rules.chatty.severity_min', control: 'number', label: 'field/severity-min', hint: 'field/severity-min-hint', kinds: GROUPS, advanced: true, min: 0, max: 10 },
   ],
+  // 分组（施工 I-165）：限流和睡眠、使用限制、并发。
   pace: [
+    { group: 'field/rate-sleep' },
     // 私聊白名单里的人（施工 I-7 中三下一）：忽略限流、忽略睡眠没写的是忽略（`unset`），关了才画限流、睡眠，写在卡上的 `rules` 里。
     { key: 'rules.ignore_rate', control: 'switch', unset: true, label: 'field/ignore-rate', kinds: ['private'] },
     { key: 'rules.rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ['private'], dep: { key: 'rules.ignore_rate', on: false, unset: true } },
@@ -78,29 +84,36 @@ export const FIELDS = {
     { key: 'rules.sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ['private'], dep: { key: 'rules.ignore_sleep', on: false, unset: true } },
     { key: 'rate', control: 'rate', label: 'field/rate', hint: 'field/rate-hint', kinds: ALL_BUT_PRIVATE },
     { key: 'sleep', control: 'sleep', label: 'field/sleep', hint: 'field/sleep-hint', kinds: ALL_BUT_PRIVATE },
+    { group: 'field/limits' },
     // 使用限制（设计 08，施工 I-135）：这个会话最近 5 小时、7 天、30 天最多用多少 token，没写的不限。私聊卡照限流，关了忽略限流才画。
     ...limits(ALL_BUT_PRIVATE),
     ...limits(['private'], { key: 'rules.ignore_rate', on: false, unset: true }),
+    { group: 'field/concurrency' },
     { key: 'rules.parallel', control: 'number', label: 'field/parallel', hint: 'field/parallel-hint', unit: 'unit/people', kinds: GROUPS, min: 0, max: 16 },
   ],
+  // 分组（施工 I-165）：说话方式、怎么发、长文。
   send: [
+    { group: 'field/speaking' },
     // 这个会话的说话方式（施工 I-140，I-141 改说法：写这里的人怎么说话，不写她是谁）：写了的，群里每开一轮都带上这段；不写不带。
     { key: 'rules.style_note', control: 'area', label: 'field/style-note', hint: 'field/style-note-hint', defaultsHint: 'field/style-note-defaults', kinds: GROUPS, wide: true },
-    // 去掉末尾句号、一条分多条发送、打字速度（施工 I-49，项目主人 10-27：每张卡片单独设，原来在设置页「通用」里管所有会话）。
+    // 去掉末尾句号、一条分多条发送、打字速度（施工 I-49，项目主人 10-27：每张卡片单独设，原来在设置页「通用」里管所有会话；施工 I-165 起
+    // 句号在「说话方式」、分条和速度在「怎么发」）。
     { key: 'rules.outbound.strip_period', control: 'switch', label: 'field/strip-period', hint: 'field/strip-period-hint' },
+    // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
+    { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },
+    { key: 'rules.outbound.quote_after', control: 'number', label: 'field/quote-after', unit: 'unit/messages', advanced: true, min: 0, max: 1000, dep: { key: 'rules.outbound.quote', on: true } },
+    { key: 'rules.outbound.mention', control: 'switch', label: 'field/mention', hint: 'field/mention-hint', kinds: GROUPS },
+    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400, dep: { key: 'rules.outbound.mention', on: true } },
+    { key: 'rules.reaction', control: 'reaction', label: 'field/reaction', hint: 'field/reaction-hint', kinds: GROUPS, needs: 'reactions' },
+    { group: 'field/sending' },
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },
     { key: 'rules.outbound.typing_speed', control: 'number', label: 'field/typing-speed', hint: 'field/typing-speed-hint', unit: 'unit/chars-per-minute', min: 20, max: 600, dep: { key: 'rules.outbound.humanlike', on: true } },
     // 按顺序发送（施工 I-159，项目主人 11-05：关了全部立即发）。
     { key: 'rules.outbound.ordered', control: 'switch', label: 'field/ordered', hint: 'field/ordered-hint' },
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
+    { group: 'field/long' },
     { key: 'long_text', control: 'select', label: 'field/long-text', hint: 'field/long-text-hint', options: ['image', 'forward'], optionCaps: { forward: 'forward' }, optionText: 'long/' },
     { key: 'long_chars', control: 'number', label: 'field/long-chars', hint: 'field/long-chars-hint', unit: 'unit/chars', min: 0, max: 100000 },
-    // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
-    { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },
-    { key: 'rules.outbound.mention', control: 'switch', label: 'field/mention', hint: 'field/mention-hint', kinds: GROUPS },
-    { key: 'rules.reaction', control: 'reaction', label: 'field/reaction', hint: 'field/reaction-hint', kinds: GROUPS, needs: 'reactions' },
-    { key: 'rules.outbound.quote_after', control: 'number', label: 'field/quote-after', unit: 'unit/messages', advanced: true, min: 0, max: 1000, dep: { key: 'rules.outbound.quote', on: true } },
-    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400, dep: { key: 'rules.outbound.mention', on: true } },
   ],
 };
 

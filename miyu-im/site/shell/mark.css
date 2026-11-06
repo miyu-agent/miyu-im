@@ -1,0 +1,6 @@
+/* 「默认 / 已改」小标签（设计 11 G3，shell/mark.js）：「默认」淡底淡字；「已改」强调色，悬停换成「恢复默认」。 */
+.field-mark { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border: 0; border-radius: var(--mark-radius); background: var(--surface-2); color: var(--text-faint); font-size: 11px; font-weight: 400; line-height: 1; cursor: default; }
+.field-mark.changed { background: var(--accent-soft); color: var(--on-primary-container); cursor: pointer; }
+.field-mark.changed:hover { background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent)); }
+.field-mark-undo, .field-mark.changed:hover .field-mark-was, .field-mark.changed:focus-visible .field-mark-was { display: none; }
+.field-mark.changed:hover .field-mark-undo, .field-mark.changed:focus-visible .field-mark-undo { display: inline; }

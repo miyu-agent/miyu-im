@@ -33,6 +33,12 @@
   --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", Georgia, serif;
   --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Noto Sans Mono CJK SC", monospace;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 一组一张卡片、名字后面的小标签（设计 11，shell/sect.css、shell/mark.css）：各页照这几个量，不各写一份。 */
+  --sect-radius: 12px;
+  --sect-pad-x: 16px;
+  --sect-pad-y: 4px;
+  --sect-gap: 14px;
+  --mark-radius: 5px;
 }
 
 @media (prefers-color-scheme: dark) {

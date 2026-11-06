@@ -156,6 +156,13 @@ async fn a_card_sets_how_often_and_the_overview_shows_the_glance() {
         .page_call_with("cards.save", json!({"cards": cards}))
         .await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    // 施工 I-165：卡下面几层的默认值是桥现在用着的间隔（出厂 100 秒，一分钟按 2 秒算就是 50 分钟），页面淡字照它写。
+    let got = head.page_call("cards.get").await["result"].clone();
+    assert_eq!(
+        got["defaults"]["groups"][GROUP.to_string()]["glance_minutes"],
+        json!({"value": 50, "from": "factory"}),
+        "{got}"
+    );
     napcat.send(chat(1, "有人吗"));
     assert_eq!(
         napcat.group_reply(GROUP).await,

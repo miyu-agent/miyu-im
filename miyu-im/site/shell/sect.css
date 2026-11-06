@@ -1,0 +1,4 @@
+/* 一组一张卡片（设计 11 G1，施工 I-165，shell/sect.js）：底色比页面亮一档、浅阴影，不描边；组名淡字在第一行。 */
+.sect { flex-shrink: 0; padding: var(--sect-pad-y) var(--sect-pad-x); border-radius: var(--sect-radius); background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.sect + .sect { margin-top: var(--sect-gap); }
+.sect-name { padding: 12px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }

@@ -171,6 +171,7 @@ impl Route {
                     VenueKind::Private => card_defaults::private(&beneath),
                 };
                 found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
+                self.glance_factory(&mut found);
                 found
             }
             None => Value::Null,
@@ -182,7 +183,18 @@ impl Route {
         let beneath = self.rules.beneath(venue);
         let mut found = defaults(&beneath);
         found["rules"] = card_defaults::rules(&beneath, self.rules.factory_values());
+        self.glance_factory(&mut found);
         found
+    }
+
+    /// 卡片默认值里「多久看一眼」没有规则设到的，照桥没定下一次时的间隔写成出厂（施工 I-165：页面淡字写现在用着的值，原来是空框）。
+    /// 没有这一格的卡（「其他私聊」）不加。
+    fn glance_factory(&self, found: &mut Value) {
+        if let Some(entry) = found.get_mut("glance_minutes")
+            && entry["value"].is_null()
+        {
+            *entry = json!({"value": self.glances.default_minutes(), "from": "factory"});
+        }
     }
 
     /// `cards.save`：查过、写进盘、换上。
