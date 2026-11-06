@@ -1,11 +1,13 @@
 // 能搜、能筛、分页的列表（设计 11 G2，施工 I-166）：会话概况的最近判断、插件面板的长列表、使用限制和统计的排行共用这一份。
-// 头上一条：搜索框、几个筛选下拉；下面照它们筛，超过 `page` 条的末尾一个「再显示」。只照看得见的字和行上带的标签筛，不问宿主。
+// 头上一条：搜索框、几个筛选下拉、排序；下面照它们筛、排，超过 `page` 条的末尾一个「再显示」。只照看得见的字、行上带的标签和
+// 数筛、排，不问宿主。
 // 样子在 shell/listing.css。
 import { element, say } from './i18n.js';
 
 /**
- * `items` 是 [{ node, text, tags? }]（`text` 是搜索照着找的字，`tags` 是 {筛选的键: 这一行的值}）。`options` 是
- * { search?: 占位字, filters?: [{ key, options: [[值, 给人看的]], all?: 「全部」那一项的字 }], page?: 一次显示几条（出厂 20）,
+ * `items` 是 [{ node, text, tags?, numbers? }]（`text` 是搜索照着找的字，`tags` 是 {筛选的键: 这一行的值}，`numbers` 是 {排序的键: 数}）。
+ * `options` 是 { search?: 占位字, filters?: [{ key, options: [[值, 给人看的]], all?: 「全部」那一项的字 }],
+ *   sorts?: [[排序的键, 给人看的]]（照那个数从大到小，第一项是出厂的；不写照交来的先后）, page?: 一次显示几条（出厂 20）,
  *   state?: 记着搜了什么、筛了什么、显示到几条的对象（重画时照旧）, empty?: 一条都对不上时的字 }。交回元素。
  */
 export function listing(items, options = {}) {
@@ -32,6 +34,18 @@ export function listing(items, options = {}) {
     });
     head.append(input);
   }
+  const sorts = options.sorts || [];
+  if (sorts.length > 0) {
+    state.sort ??= sorts[0][0];
+    const pick = element('select', 'select');
+    for (const [value, text] of sorts) pick.append(new Option(text, value));
+    pick.value = state.sort;
+    pick.addEventListener('change', () => {
+      state.sort = pick.value;
+      fill();
+    });
+    head.append(pick);
+  }
   for (const filter of filters) {
     const pick = element('select', 'select');
     if (filter.all) pick.append(new Option(filter.all, ''));
@@ -50,6 +64,7 @@ export function listing(items, options = {}) {
     const wanted = items.filter((item) =>
       (!query || item.text.toLowerCase().includes(query))
       && filters.every((filter) => !state.picked[filter.key] || item.tags?.[filter.key] === state.picked[filter.key]));
+    if (state.sort) wanted.sort((a, b) => (b.numbers?.[state.sort] ?? 0) - (a.numbers?.[state.sort] ?? 0));
     const shown = wanted.slice(0, state.shown);
     body.replaceChildren(...(shown.length > 0 ? shown.map((item) => item.node) : [element('p', 'faint listing-none', options.empty || say('listing/none'))]));
     const left = wanted.length - shown.length;

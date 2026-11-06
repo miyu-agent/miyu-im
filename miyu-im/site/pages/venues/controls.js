@@ -72,7 +72,8 @@ export function control(field, one, context, save, saveKey) {
       input.inputMode = 'numeric';
       const toNumber = (value) => (field.control === 'seconds' ? seconds(value) : value);
       input.value = mine === undefined ? '' : String(toNumber(mine));
-      input.placeholder = fallback == null ? '' : String(toNumber(fallback));
+      // 没有继承的值时写这一格空着是什么意思（施工 I-168：使用限制的「不限」）。
+      input.placeholder = fallback == null ? (field.empty ? say(field.empty) : '') : String(toNumber(fallback));
       input.addEventListener('change', () => {
         const text = input.value.trim();
         if (text === '') return save(null);
@@ -108,6 +109,8 @@ function tags(field, one, context, save) {
     normalize: (typed) => (field.prefixed && /^\d+$/.test(typed) ? `${context.platform}:${typed}` : typed),
     placeholder: say(field.people ? 'field/add-person' : 'field/add-word'),
     save,
+    // 要填人的照好友提示（设计 11 G4，施工 I-168），选了当场加上。
+    suggestions: field.people ? (context.friends || []).map((friend) => ({ id: friend.id, name: friend.name })) : undefined,
   });
 }
 

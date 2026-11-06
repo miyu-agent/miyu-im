@@ -6,7 +6,9 @@
 //   的字还在、也不变成标签（「识人映射回车没用」）。
 // - 没写、正照继承的画淡的标签；在继承的列表上加、去（不是只剩新加的那一个），之后照写了的画。
 // - 一样的不重复加。
+// - 要填人的（施工 I-168）交 `suggestions`：最后一格照见过的人提示（shell/person-pick.js 的 `suggest`），选了当场加上。
 import { element, icon, say } from './i18n.js';
+import { suggest } from './person-pick.js';
 
 /**
  * 画一组标签。`options`：
@@ -16,8 +18,9 @@ import { element, icon, say } from './i18n.js';
  * - normalize(字)：填的字换成存的那一项，交回空的不加（不写的照去掉两头空白）。
  * - placeholder：最后一格的占位字。
  * - save(list)：改了的整个列表。
+ * - suggestions：最后一格提示的见过的人 [{ id: 号, name? }]（可以不写）。
  */
-export function tagInput({ items, inherited, shown = String, normalize = (text) => text, placeholder, save }) {
+export function tagInput({ items, inherited, shown = String, normalize = (text) => text, placeholder, save, suggestions }) {
   const box = element('div', 'tags');
   let own = items != null;
   let list = [...(own ? items : inherited || [])];
@@ -37,7 +40,7 @@ export function tagInput({ items, inherited, shown = String, normalize = (text) 
       return tag;
     });
     // 最后一格不拿下来再放回去：拿下来会丢了焦点，接着填的要再点一下。
-    for (const old of [...box.children]) if (old !== adding) old.remove();
+    for (const old of [...box.children]) if (old !== adding && old.tagName !== 'DATALIST') old.remove();
     if (adding.parentNode !== box) box.append(adding);
     adding.before(...tags);
   };
@@ -63,6 +66,11 @@ export function tagInput({ items, inherited, shown = String, normalize = (text) 
     commit();
   });
   adding.addEventListener('blur', commit);
+  // 从提示里选的（不是一个个字打的）：当场加上。
+  adding.addEventListener('input', (event) => {
+    if (suggestions && event.inputType === 'insertReplacementText') commit();
+  });
+  if (suggestions?.length) box.append(suggest(adding, suggestions));
   draw();
   return box;
 }

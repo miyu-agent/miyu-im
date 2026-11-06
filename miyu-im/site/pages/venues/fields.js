@@ -10,6 +10,7 @@
 // - dep：`{ key, on, unset? }`：那一格的值是 `on` 时才画（开关管着的几行关着时藏起来，设计第八节第 3 条）；那一格没写的照 `unset`，
 //   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
+// - empty：没有继承的值时输入框的占位字（施工 I-168：使用限制空着是「不限」）。
 // - needs：浮窗问到的那一样（`reactions`：平台能贴的表情；`presets`：预设）是空的、问不到的就不画（照回答里同名的那个列表）。
 // - optionCaps：下拉的哪一项要平台做得到哪一样（施工 I-85 补，连接的 `caps`）：做不到的不列，卡上已经写了它的照旧列；会话默认值
 //   那张不分平台，都列。
@@ -28,7 +29,7 @@ const ALL_BUT_PRIVATE = ['group', 'other_groups', 'other_privates'];
 function limits(kinds, dep) {
   return ['5h', 'week', 'month'].map((line, index) => ({
     key: `rules.limit_${line}`, control: 'number', label: `field/limit-${line}`, hint: index === 0 ? 'field/limit-5h-hint' : undefined,
-    unit: 'unit/tokens', kinds, dep, min: 1, max: 1000000000000,
+    unit: 'unit/tokens', empty: 'limits-page/unlimited', kinds, dep, min: 1, max: 1000000000000,
   }));
 }
 

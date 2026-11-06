@@ -1,0 +1,4 @@
+/* 选人（设计 11 G4，shell/person-pick.js）：平台、号码、加，一行，窄的屏换行。 */
+.person-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--listing-gap); }
+.person-number { width: var(--person-number-width); min-width: 0; font-family: var(--mono); }
+.person-hints { display: contents; }

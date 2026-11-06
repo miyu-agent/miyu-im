@@ -1,17 +1,20 @@
-/* 使用限制页（施工 I-136）：段照设置页的面板，一段接一段；单独设的人一行三格（窄的屏上竖着排，格上面带一行小字）；用量照数据统计
+/* 使用限制页（施工 I-136；施工 I-168 起段是共用的卡片 shell/sect.css、30 天用量是共用的列表 shell/listing.css）：一段接一段；单独设的人一行三格（窄的屏上竖着排，格上面带一行小字）；用量照数据统计
    的小表，满了的标红。 */
-.limits-section + .limits-section { margin-top: 14px; }
 .limits-caps { display: flex; gap: 8px; }
 .limits-cap { display: flex; flex-direction: column; gap: 4px; }
-.limits-cap span { display: none; color: var(--text-faint); font-size: 12px; }
+.limits-cap-label { display: none; color: var(--text-faint); font-size: 12px; }
 .limits-header .limits-col { width: 140px; color: var(--text-faint); font-size: 12px; }
 .limits-header { padding-bottom: 0; border-bottom: 0; }
 .limits-spacer { visibility: hidden; }
-.limits-usage { margin-top: 10px; }
-.limits-usage .full { color: var(--danger); }
+.limits-usage-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, var(--limits-col-width)); column-gap: 16px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.limits-usage-head { border-top: 0; padding-bottom: 4px; }
+.limits-usage-row .th { color: var(--text-faint); font-size: 12px; }
+.limits-usage-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.limits-usage-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-soft); white-space: nowrap; }
+.limits-usage-row .full { color: var(--danger); }
 @media (max-width: 720px) {
   .limits-caps { flex-direction: column; }
-  .limits-cap span { display: block; }
+  .limits-cap-label { display: block; }
   .limits-header { display: none; }
   .limits-add { flex-wrap: wrap; }
   .limits-add .label { flex-basis: 100%; }

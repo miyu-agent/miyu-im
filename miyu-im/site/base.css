@@ -41,6 +41,8 @@
   --mark-radius: 5px;
   --listing-gap: 8px;
   --lan-qr-size: 136px;
+  --person-number-width: 160px;
+  --limits-col-width: 120px;
 }
 
 @media (prefers-color-scheme: dark) {
