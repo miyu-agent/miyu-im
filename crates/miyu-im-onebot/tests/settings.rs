@@ -298,7 +298,8 @@ fn the_platform_and_page_keys_are_grouped() {
     crate::support::spawning::linked();
     let (dir, root) = temp_root();
     let shipped = ResourceRoot::at(resources());
-    let mut found = miyu_endpoint::packages::load(&shipped, &root);
+    // 系统加装那一层（核心 SD-1）测试里没有。
+    let mut found = miyu_endpoint::packages::load(&shipped, &root, Vec::new());
     let listed = miyu_core::settings::Packaged::of(&mut found).all();
     let codes = |source: &str| -> Vec<(Code, Option<String>)> {
         miyu_config::parse::parse(&listed, Layer::System, source)

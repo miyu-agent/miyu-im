@@ -190,3 +190,37 @@ pub async fn until_plugged(home: &Home, hooked: usize, plugins: usize) {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 }
+
+/// 出厂的桥声明的 `login.page` 照人批过的写进开关文件 `extensions.json` 的 `approved`（施工 I-167补，核心 LP-1：出厂的包声明了这一项
+/// 也要人批，没批的核心不拉起桥）。别的包批过的、开关照留着。
+pub fn page_login_approved(root: &DataRoot) {
+    let path = root.extensions_file();
+    let mut switches: serde_json::Value = std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_else(|| serde_json::json!({"version": 1, "on": {}}));
+    let mut names: Vec<String> = switches["approved"]["miyu-im"]
+        .as_array()
+        .map(|names| {
+            names
+                .iter()
+                .filter_map(|name| name.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    if !names.iter().any(|name| name == "login.page") {
+        names.push("login.page".to_string());
+        names.sort_unstable();
+    }
+    switches["approved"]["miyu-im"] = serde_json::json!(names);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).expect("建得了目录");
+    }
+    std::fs::write(&path, switches.to_string()).expect("写得进");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .expect("改得了权限");
+    }
+}

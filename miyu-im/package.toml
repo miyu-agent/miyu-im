@@ -29,8 +29,9 @@ start = "manual"
 # 平台上的人发话，subscribe 是读会话，events.append 记 ext.im.*、venue.* 是写事件（施工 O-23），开本机的两个端口、NapCat
 # 连进来是联网；provide 是提供工具：桥给场所会话登记 skip_reply 这些平台工具（施工 O-26，docs/blueprint/onebot.md 第一条
 # 「提供者和不说话」）；packages.call 是调别的包导出的方法：挂接点（施工 O-43 上，docs/blueprint/extending.md 第二条）；widgets 是终端、
-# 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。
-capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system", "widgets"]
+# 网页里场所卡片的两页（施工 O-58 下）。出厂的包算批过的，不用人批。login.page 是替本机打开的页面换登录票（施工 I-167补，核心 LP-1）：
+# 这一项出厂的包声明了也不算批过，要人批了核心才拉起。
+capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network", "packages.call", "context.system", "widgets", "login.page"]
 
 # 平台接入（施工 F-2，设计 30 第五节）：接入本身（开关、配置项）在头的接入页，不进预设。它登记的平台工具照后果分三个功能（施工 I-91，
 # 项目主人 10-30 定，核心 FG-1 照它在预设页分组）：聊天动作（别人看得见）、查询信息（只读）、群管理（管人）。功能写了几个，登记的

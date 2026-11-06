@@ -6,7 +6,7 @@
 //! - 核心说票不对（没有、过期、用过，`bad_ticket`）：401 `bad_ticket`。
 //! - 扩展连接断了、核心拒了别的、人的连接连不上、取不到随机数：503 `core`，记一行运行日志。
 //!
-//! 登录令牌只在这里过一下手：交给人的连接握手以后不留。
+//! 登录令牌只在这里过一下手：交给人的连接握手以后不留。本机页面免密（施工 I-167补，[`super::local`]）要来的票也在这里换。
 
 use hyper::StatusCode;
 use serde_json::{Value, json};
@@ -25,6 +25,11 @@ pub(super) async fn redeem(site: &Site, body: &[u8]) -> (StatusCode, Value) {
     let Some(ticket) = ticket else {
         return refused(StatusCode::BAD_REQUEST, "bad_params");
     };
+    redeem_ticket(site, &ticket).await
+}
+
+/// 票 `ticket` 换登录（模块的说明），本机页面免密（[`super::local`]）也走这里。票本身不进日志。
+pub(super) async fn redeem_ticket(site: &Site, ticket: &str) -> (StatusCode, Value) {
     let Ok(reply) = site
         .caller
         .call("login.redeem", json!({"ticket": ticket}))

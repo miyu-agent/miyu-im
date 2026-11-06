@@ -21,6 +21,7 @@ mod guard;
 mod home_cards;
 mod limits_page;
 mod listen;
+mod local;
 mod logins;
 mod logs;
 mod methods;
@@ -46,7 +47,7 @@ mod watching;
 mod web_link;
 
 use std::convert::Infallible;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -231,8 +232,8 @@ async fn accepting(
         };
         tokio::select! {
             (accepted, bound) = accepted => match accepted {
-                Ok((stream, _)) => {
-                    connections.spawn(accept(stream, bound, Arc::clone(&site)));
+                Ok((stream, peer)) => {
+                    connections.spawn(accept(stream, (bound, peer), Arc::clone(&site)));
                 }
                 Err(error) => {
                     tracing::warn!(target: TARGET, error = %error, "page accept failed");
@@ -338,14 +339,17 @@ fn refused(status: StatusCode, reason: &str) -> (StatusCode, Value) {
     (status, json!({"reason": reason}))
 }
 
-/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当通道跑，直到断开。`bound` 是它进来的那个监听。
-async fn accept(stream: TcpStream, bound: Bound, site: Arc<Site>) {
+/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当通道跑，直到断开。`bound` 是它进来的那个监听，`peer` 是对端（本机页面免密照它认，
+/// 施工 I-167补）。
+async fn accept(stream: TcpStream, (bound, peer): (Bound, SocketAddr), site: Arc<Site>) {
     let slot: Arc<Mutex<Option<OnUpgrade>>> = Arc::default();
     let service = {
         let (slot, site) = (Arc::clone(&slot), Arc::clone(&site));
         hyper::service::service_fn(move |incoming| {
             let (slot, site) = (Arc::clone(&slot), Arc::clone(&site));
-            async move { Ok::<_, Infallible>(request::handle(incoming, bound, &site, &slot).await) }
+            async move {
+                Ok::<_, Infallible>(request::handle(incoming, (bound, peer), &site, &slot).await)
+            }
         })
     };
     let served = hyper::server::conn::http1::Builder::new()

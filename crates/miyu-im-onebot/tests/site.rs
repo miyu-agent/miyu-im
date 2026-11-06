@@ -128,6 +128,41 @@ async fn a_ticket_logs_the_page_in_once() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_page_opened_on_this_machine_logs_in_without_a_password() {
+    // 施工 I-167补（核心 LP-1）：本机直连、带自定义头的页面不要密码，im 向核心要一张本机页面的票换登录；缺自定义头、带了反向代理头的
+    // 一律不认，回 403 not_local，不去要票。
+    let home = Home::new(&Script::new([]));
+    let bridge = bridge(&home).await;
+    let port = page_port(&bridge, 1).await;
+    let origin = format!("Origin: http://127.0.0.1:{port}");
+    let mark = "X-Miyu-Page: local";
+    let logged = post(port, "/login/local", &[&origin, mark], &json!({})).await;
+    let answer = logged.json();
+    assert_eq!(logged.status, 200, "{answer}");
+    assert_eq!(
+        answer["session"].as_str().map(str::len),
+        Some(64),
+        "交回会话号：{answer}"
+    );
+    for headers in [
+        vec![origin.as_str()],
+        vec![origin.as_str(), mark, "X-Forwarded-For: 192.168.1.9"],
+        vec![origin.as_str(), mark, "Forwarded: for=192.168.1.9"],
+        vec![mark, "Origin: http://evil.example"],
+    ] {
+        let refused = post(port, "/login/local", &headers, &json!({})).await;
+        assert!(
+            refused.status == 403 || refused.status == 421,
+            "{headers:?} {}",
+            refused.status
+        );
+    }
+    let missing = post(port, "/login/local", &[&origin], &json!({})).await;
+    assert_eq!(missing.json(), json!({"reason": "not_local"}));
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_channel_answers_a_logged_in_page_until_it_logs_out() {
     let home = Home::new(&Script::new([]));
     let bridge = bridge(&home).await;

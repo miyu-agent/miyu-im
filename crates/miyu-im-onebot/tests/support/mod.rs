@@ -199,6 +199,7 @@ impl Home {
     ) -> Home {
         let (dir, root) = temp_root();
         install(&root);
+        hooked::page_login_approved(&root);
         let file = root.config_file();
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
         std::fs::write(&file, config).expect("写得进");
@@ -214,7 +215,8 @@ impl Home {
         };
         let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
         let shipped = ResourceRoot::at(shipped);
-        let mut found = miyu_endpoint::packages::load(&shipped, &root);
+        // 系统加装那一层（核心 SD-1）测试里没有。
+        let mut found = miyu_endpoint::packages::load(&shipped, &root, Vec::new());
         let packaged = miyu_core::settings::Packaged::of(&mut found);
         let config = Config::load(&root, None, packaged.all(), Environment::of(&[]));
         let core = Arc::new(

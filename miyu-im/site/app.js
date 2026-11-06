@@ -7,7 +7,7 @@
 // 3. 没有会话号的：登录页。
 import { useLanguage } from './shell/i18n.js';
 import { applyHanded } from './shell/theme.js';
-import { showLogin, signIn, stored, store } from './shell/login.js';
+import { showLogin, signIn, signInLocal, stored, store } from './shell/login.js';
 import { openChannel } from './shell/channel.js';
 import { mountShell } from './shell/shell.js';
 import { pushWatch, reopenWatch } from './shell/watch.js';
@@ -56,7 +56,8 @@ function enter(session, fromWebUi) {
     onExpired() {
       shell?.dispose();
       store(null);
-      leave('');
+      // im 重启以后登录没了：本机打开的先试一下不要密码，不成再出密码框。
+      local();
     },
   });
 }
@@ -67,6 +68,15 @@ function leave(line) {
   app.replaceChildren();
   document.body.classList.remove('signed-in');
   showLogin(login, line, (done) => enter(done.session, fromWebUi));
+}
+
+/** 本机打开的先试一下不要密码（施工 I-167补）：成了直接进，不成（局域网来的、核心还没批）出密码框，不写原因。 */
+function local() {
+  showLogin(login, '', () => {}, true);
+  signInLocal().then((done) => {
+    if (done.session) enter(done.session, fromWebUi);
+    else leave('');
+  });
 }
 
 const given = handed();
@@ -81,5 +91,5 @@ if (typeof given?.ticket === 'string') {
 } else if (stored()) {
   enter(stored(), fromWebUi);
 } else {
-  leave('');
+  local();
 }

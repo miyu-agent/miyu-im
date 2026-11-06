@@ -2,6 +2,7 @@
 //!
 //! - `GET /channel`：WebSocket 的升级请求回 101，升级交进 `slot`（[`super::channel`] 接着跑）；不是升级请求的 400。
 //! - `POST /login/ticket`：交接票换登录（[`super::ticket`]）。`POST /login/password`：用户名、密码登录（[`super::password`]）。
+//!   `POST /login/local`：本机直连的页面不要密码（施工 I-167补，[`super::local`]）。
 //!   正文最多 [`BODY`] 字节，多了 413。
 //! - `POST /logout`：`Authorization: Bearer <会话号>` 的那份登录拿掉，在它的人的连接上作废登录令牌（`account.logout`，不成的记一行
 //!   运行日志），回 204（没有这一份也是）。
@@ -26,7 +27,7 @@ use serde_json::Value;
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use super::faces::Whose;
-use super::{Site, files, guard, panels, password, ticket};
+use super::{Site, files, guard, local, panels, password, ticket};
 use crate::TARGET;
 
 /// 登录的正文最多多少字节。
@@ -43,10 +44,10 @@ const POLICY: &str = "default-src 'self'; img-src 'self' blob: data:; frame-ance
 const FRAMED: &str =
     "sandbox allow-scripts allow-forms; connect-src 'none'; frame-ancestors 'self'";
 
-/// 一个请求的回应；升级成的把升级交进 `slot`。`bound` 是这个连接进来的那个监听。
+/// 一个请求的回应；升级成的把升级交进 `slot`。`bound` 是这个连接进来的那个监听，`peer` 是对端。
 pub(super) async fn handle(
     mut request: Request<Incoming>,
-    bound: super::Bound,
+    (bound, peer): (super::Bound, std::net::SocketAddr),
     site: &Site,
     slot: &Mutex<Option<OnUpgrade>>,
 ) -> Response<Full<Bytes>> {
@@ -78,6 +79,17 @@ pub(super) async fn handle(
             }
             None => empty(StatusCode::PAYLOAD_TOO_LARGE),
         },
+        (Method::POST, "/login/local") => {
+            // 先照请求头认（正文不用），再读掉正文（不读就关连接，macOS 回 RST）。
+            let local = local::local_page(peer, request.headers(), bound.port);
+            match body(request).await {
+                Some(_) => {
+                    let (status, answer) = local::login(site, local).await;
+                    json(status, &answer)
+                }
+                None => empty(StatusCode::PAYLOAD_TOO_LARGE),
+            }
+        }
         (Method::POST, "/login/password") => match body(request).await {
             Some(body) => {
                 let (status, answer) = password::login(site, &body).await;

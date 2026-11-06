@@ -1,4 +1,5 @@
-// 登录（施工 I-5 上、下，I-6 上从 app.js 挪出来）：交接票换登录（POST /login/ticket）、访问密码登录（POST /login/password，施工 I-65 起只有密码），
+// 登录（施工 I-5 上、下，I-6 上从 app.js 挪出来）：交接票换登录（POST /login/ticket）、本机打开不要密码（POST /login/local，施工 I-167补：
+// 带自定义头 `X-Miyu-Page: local`，宿主认过是本机直连才换）、访问密码登录（POST /login/password，施工 I-65 起只有密码），
 // 交回的会话号放进 localStorage（只有这个端口的页面读得到；cookie 同一台机器别的端口也收得到，不用）；登出（POST /logout）。
 import { element, say } from './i18n.js';
 
@@ -23,13 +24,14 @@ export function store(session) {
   }
 }
 
-/** 换登录：`path` 是 /login/ticket 或 /login/password，正文 `body`。成了的记下会话号，交回 {session}；不成的交回 {line}。 */
-export async function signIn(path, body) {
+/** 换登录：`path` 是 /login/ticket、/login/local 或 /login/password，正文 `body`，另带的请求头 `extra`。成了的记下会话号，交回
+ *  {session}；不成的交回 {line}。 */
+export async function signIn(path, body, extra = {}) {
   let answer;
   try {
     const response = await fetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...extra },
       body: JSON.stringify(body),
     });
     answer = { status: response.status, body: await response.json().catch(() => ({})) };
@@ -49,6 +51,11 @@ export async function signIn(path, body) {
     return { line: say('failed/throttled', { seconds }) };
   }
   return { line: say('failed/core') };
+}
+
+/** 本机打开的页面试一下不要密码（施工 I-167补）：成了交回 {session}，不是本机、核心没批的交回 {line}（调用方照旧出密码框）。 */
+export function signInLocal() {
+  return signIn('/login/local', {}, { 'X-Miyu-Page': 'local' });
 }
 
 /** 登出：告诉宿主作废这份登录，扔掉会话号。 */
