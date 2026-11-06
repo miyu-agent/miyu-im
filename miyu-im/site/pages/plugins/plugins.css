@@ -104,8 +104,8 @@ button.w-item:hover { background: color-mix(in srgb, var(--text) 4%, transparent
 .w-add { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .w-add .btn { display: inline-flex; align-items: center; gap: 4px; }
 .w-form .field .row { border-bottom: 1px solid var(--line); }
+.w-form .field:has(+ :not(.field)) .row { border-bottom: 0; }
 .w-form-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
-.w-form-foot .row-failed { flex: 1; }
 .w-form .inherited { opacity: 0.6; }
 .widget-page h2 { margin: 0 0 12px; font-size: 16px; }
 .plugin-panel { min-height: 120px; }

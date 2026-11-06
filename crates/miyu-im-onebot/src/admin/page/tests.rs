@@ -55,6 +55,38 @@ fn the_panel_and_a_section_pass_the_cores_widget_check() {
 }
 
 #[test]
+fn the_panel_follows_the_groups_view_in_its_own_cards() {
+    // 施工 I-166：浮窗的记录照这个群存的「看哪一种」筛，排行照「看多久」，各自的卡片里带一张只有那一格的表；heading 是卡片的名字。
+    let settings = Group {
+        view: View {
+            action: "kick".to_string(),
+            period: "month".to_string(),
+        },
+        ..Group::default()
+    };
+    let shown = localize(&panel(Id::from(31), &settings, &records(), true, NOW), "zh");
+    let blocks = shown.as_array().expect("是数组");
+    let at = |text: &str| {
+        blocks
+            .iter()
+            .position(|block| block["type"] == "heading" && block["text"] == text)
+            .expect(text)
+    };
+    let records_at = at("最近的管理记录");
+    assert_eq!(blocks[records_at + 1]["fields"][0]["key"], "action");
+    assert_eq!(blocks[records_at + 1]["fields"][0]["value"], "kick");
+    assert_eq!(
+        blocks[records_at + 2]["items"].as_array().map(Vec::len),
+        Some(1),
+        "只看踢人"
+    );
+    let ranking_at = at("排行榜");
+    assert_eq!(blocks[ranking_at + 1]["fields"][0]["key"], "period");
+    assert_eq!(blocks[ranking_at + 1]["fields"][0]["value"], "month");
+    assert_eq!(blocks[ranking_at + 1]["submit"]["call"], "admin.view");
+}
+
+#[test]
 fn mutes_say_whether_they_are_on_lifted_or_over() {
     let list = zh(&events(&records(), "mute", NOW, 10));
     let states: Vec<(&str, &str)> = list["items"]
@@ -142,8 +174,8 @@ fn a_section_follows_the_view_the_role_and_the_clear_step() {
     assert!(
         asked["blocks"]
             .as_array()
-            .is_some_and(|blocks| blocks.len() == 4),
-        "成员汇总关了没有排行榜：{asked}"
+            .is_some_and(|blocks| blocks.len() == 5),
+        "成员汇总关了没有排行榜（表、记录两段、危险操作两段）：{asked}"
     );
 }
 

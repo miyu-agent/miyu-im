@@ -81,7 +81,8 @@ export function widgetPage(plugin, id, request, { back, base = 'plugins' } = {})
   backTo.append(icon('i-left'), document.createTextNode(back?.label || named(plugin.name) || plugin.package));
   bar.append(backTo);
   if (!page) return [bar, element('p', 'faint', say('plugins-page/gone'))];
-  const box = element('div', 'panel widget-page');
+  // 整页的段照 heading 分卡片（设计 11 G1，施工 I-166），外面不再套一层面板。
+  const box = element('div', 'widget-page');
   box.append(element('h2', null, named(page.title)));
   const body = element('div');
   box.append(body);

@@ -10,16 +10,13 @@ use serde_json::{Value, json};
 
 use miyu_im::toolset::clock;
 
-use super::groups::Group;
+use super::groups::{Group, View};
 use super::records::{self, Action, By, MuteState, Record, Verdict};
 use super::summary::{self, Period};
 use super::sync::spoken;
 
-/// 列几条记录、几个人。
+/// 列几条记录、几个人（施工 I-166 起浮窗也列这么多：页面上能搜、20 条以后「再显示」）。
 pub(crate) const SHOWN: usize = 50;
-
-/// 浮窗里列几条。
-const PANEL_SHOWN: usize = 10;
 
 /// 一句话的三种语言。
 pub(crate) fn t(zh: &str, en: &str, ja: &str) -> Value {
@@ -215,7 +212,32 @@ fn ranking(records: &[Record], period: Period, now: u64, most: usize) -> Value {
     }
 }
 
-/// 会话浮窗的「群管理」页（群 `group`，设置 `settings`，记录 `records`，成员汇总开没开 `summary`，此刻 `now`）。
+/// 「看哪一种」那一格（面板、浮窗共用，存进这个群的 `view.action`）。
+fn action_field(view: &View) -> Value {
+    let option = |value: &str, label: Value| json!({"value": value, "label": label});
+    json!({"key": "action", "label": t("看哪一种", "Show", "表示"), "control": "select", "value": view.action, "options": [
+        option("all", t("全部", "All", "すべて")), option("mute", t("禁言", "Mutes", "ミュート")),
+        option("unmute", t("解禁", "Unmutes", "解除")), option("kick", t("踢人", "Removals", "退出")),
+        option("join", t("入群审批", "Join requests", "参加審査"))
+    ]})
+}
+
+/// 「排行榜看多久」那一格（存进这个群的 `view.period`）。
+fn period_field(period: Period) -> Value {
+    let option = |value: &str, label: Value| json!({"value": value, "label": label});
+    json!({"key": "period", "label": t("排行榜看多久", "Ranking period", "ランキングの期間"), "control": "select", "value": period.name(), "options": [
+        option("week", t("一周", "Week", "一週間")), option("month", t("一个月", "Month", "一か月")), option("all", t("全部", "All", "すべて"))
+    ]})
+}
+
+/// 存怎么看的一张表（编号 `id`，几格 `fields`）：存了照新的重画。
+fn view_form(id: String, fields: Vec<Value>, group: Id) -> Value {
+    json!({"type": "form", "id": id, "fields": fields,
+        "submit": {"label": t("看", "Show", "表示"), "call": "admin.view", "params": {"group": group}}})
+}
+
+/// 会话浮窗的「群管理」页（群 `group`，设置 `settings`，记录 `records`，成员汇总开没开 `summary`，此刻 `now`）。一个 heading 一张
+/// 卡片（施工 I-166）：记录、排行的卡片里各带一格怎么看（和面板上这个群的是同一份），记录照它筛，排行照它看多久。
 pub(crate) fn panel(
     group: Id,
     settings: &Group,
@@ -224,6 +246,8 @@ pub(crate) fn panel(
     now: u64,
 ) -> Value {
     let spam = settings.spam;
+    let view = &settings.view;
+    let period = Period::read(&view.period).unwrap_or(Period::Week);
     let mut blocks = vec![
         json!({"type": "heading", "text": t("刷屏处理", "Flood handling", "連投稿の処理")}),
         json!({"type": "form", "id": format!("spam-{group}"), "fields": [
@@ -236,11 +260,21 @@ pub(crate) fn panel(
             {"key": "rule", "label": t("通过条件", "Rule to pass", "承認の条件"), "hint": t("写能接受的答案，原样交给 AI 审；群设了入群问题的，问题也一起带上。空着的不审，留给人工。", "Write the answers you accept; the AI reviews requests against it as written, with the group's join question. Leave it empty to review by hand.", "受け入れる答えを書きます。AI がそのまま照らし合わせて審査します（グループの参加質問も一緒に）。空なら手動で審査します。"), "control": "textarea", "value": settings.approval.rule}
         ], "submit": {"label": t("保存", "Save", "保存"), "call": "admin.approval", "params": {"group": group}}}),
         json!({"type": "heading", "text": t("最近的管理记录", "Recent moderation", "最近の管理記録")}),
-        events(records, "all", now, PANEL_SHOWN),
+        view_form(
+            format!("records-{group}"),
+            vec![action_field(view)],
+            group.clone(),
+        ),
+        events(records, &view.action, now, SHOWN),
     ];
     if summary {
-        blocks.push(json!({"type": "heading", "text": t("本周排行", "This week's ranking", "今週のランキング")}));
-        blocks.push(ranking(records, Period::Week, now, 5));
+        blocks.push(json!({"type": "heading", "text": t("排行榜", "Ranking", "ランキング")}));
+        blocks.push(view_form(
+            format!("ranking-{group}"),
+            vec![period_field(period)],
+            group,
+        ));
+        blocks.push(ranking(records, period, now, SHOWN));
     }
     Value::Array(blocks)
 }
@@ -268,18 +302,12 @@ pub(crate) fn section(
     };
     let view = &settings.view;
     let period = Period::read(&view.period).unwrap_or(Period::Week);
-    let option = |value: &str, label: Value| json!({"value": value, "label": label});
     let mut blocks = vec![
-        json!({"type": "form", "id": format!("view-{group}"), "fields": [
-            {"key": "action", "label": t("看哪一种", "Show", "表示"), "control": "select", "value": view.action, "options": [
-                option("all", t("全部", "All", "すべて")), option("mute", t("禁言", "Mutes", "ミュート")),
-                option("unmute", t("解禁", "Unmutes", "解除")), option("kick", t("踢人", "Removals", "退出")),
-                option("join", t("入群审批", "Join requests", "参加審査"))
-            ]},
-            {"key": "period", "label": t("排行榜看多久", "Ranking period", "ランキングの期間"), "control": "select", "value": period.name(), "options": [
-                option("week", t("一周", "Week", "一週間")), option("month", t("一个月", "Month", "一か月")), option("all", t("全部", "All", "すべて"))
-            ]}
-        ], "submit": {"label": t("看", "Show", "表示"), "call": "admin.view", "params": {"group": group}}}),
+        view_form(
+            format!("view-{group}"),
+            vec![action_field(view), period_field(period)],
+            group.clone(),
+        ),
         json!({"type": "heading", "text": t("管理记录", "Moderation records", "管理記録")}),
         events(records, &view.action, now, SHOWN),
     ];
@@ -302,6 +330,8 @@ pub(crate) fn section(
             "このグループの記録を消去",
         ),
     };
+    // 清空在最底下单独一张「危险操作」卡片里（施工 I-166，同会话浮窗的「移出」）。
+    blocks.push(json!({"type": "heading", "text": t("危险操作", "Danger zone", "危険な操作")}));
     blocks.push(json!({"type": "buttons", "items": [{"label": clear, "action": {"call": "admin.clear", "params": {"group": group}}}]}));
     json!({
         "id": group.to_string(),

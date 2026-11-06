@@ -16,10 +16,11 @@ export function venueStats(request, card) {
   let shown = null;
   let asked = 0;
   let loadedAt = 0;
-  const box = element('section', 'venue-stats');
+  // 一张卡片（设计 11 G1，施工 I-166，样子照 shell/sect.css），名字和切今天、7 天、30 天在第一行。
+  const box = element('section', 'sect venue-stats');
   const seg = element('div', 'seg');
   const head = element('div', 'venue-stats-head');
-  head.append(element('div', 'group-name', say('venue/stats')), seg);
+  head.append(element('div', 'sect-name', say('venue/stats')), seg);
   const body = element('div');
   box.append(head, body);
   const drawSeg = () => {

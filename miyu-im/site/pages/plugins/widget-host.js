@@ -11,6 +11,8 @@ export function mountWidget(box, packageId, where, { request, openPage }) {
   let content = null;
   const context = {
     state: {},
+    // 浮窗的一页、整页照 heading 分卡片（设计 11 G1，施工 I-166）；首页卡片本身就是一张卡。
+    cards: where.place !== 'home',
     call: (method, params) => request('plugins.call', { package: packageId, method, ...(params === undefined ? {} : { params }) }),
     open: (id) => openPage(id),
     refresh: () => load(),

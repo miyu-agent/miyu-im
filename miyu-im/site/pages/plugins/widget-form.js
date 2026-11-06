@@ -7,7 +7,8 @@
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { tagInput } from '../../shell/tags.js';
-import { block, tone } from './widgets.js';
+import { fieldMark } from '../../shell/mark.js';
+import { block, grouped, tone } from './widgets.js';
 
 /** sections 段。 */
 export function drawSections(part, context) {
@@ -35,10 +36,7 @@ export function drawSections(part, context) {
   }
   if (part.add) side.append(adding(part.add, context));
   const chosen = items.find((item) => item.id === state.selected);
-  for (const inner of chosen?.blocks || []) {
-    const drawn = block(inner, context);
-    if (drawn) body.append(drawn);
-  }
+  body.append(...grouped(chosen?.blocks || [], context));
   box.append(side, body);
   return box;
 }
@@ -84,29 +82,35 @@ export function drawForm(part, context) {
     const failed = element('div', 'row-failed');
     failures.set(field.key, failed);
     const row = element('div', 'row');
-    const label = element('div', 'label', field.label);
+    const label = element('div', 'label');
+    const name = element('div', 'label-name', field.label);
+    label.append(name);
     if (field.hint) label.append(element('small', null, field.hint));
     const value = field.key in drafts ? drafts[field.key] : field.value;
-    // `quiet` 的（标签当场画上了）不重画整张表，只让「保存」按得下去。
+    // `quiet` 的（标签当场画上了）不重画整张表，只让「保存」露出来。
     const put = (next, quiet) => {
       drafts[field.key] = next;
-      if (quiet) save.disabled = false;
+      if (quiet) foot.hidden = false;
       else context.redraw();
     };
+    // 有默认值的格名字后面「默认 / 已改」（设计 11 G3，施工 I-166，shell/mark.js），点「已改」改回默认（存了才算）。
+    if (field.default) name.append(fieldMark(value !== null && value !== undefined, null, () => put(null)));
     const side = element('span', 'inline');
     side.append(control(field, value, put));
-    if (value !== null && value !== undefined && field.default) {
-      const reset = element('button', 'btn ghost plug-reset', say('plugins-page/reset'));
-      reset.addEventListener('click', () => put(null));
-      side.append(reset);
-    }
     row.append(label, side);
     const wrap = element('div', 'field');
     wrap.append(row, failed);
     box.append(wrap);
   }
   const bottom = element('div', 'row-failed');
-  save.disabled = Object.keys(drafts).length === 0;
+  // 「撤销」「保存」在表单右下角，没改的时候不露（设计 11 G6，施工 I-166：原来一直挂着，分不清存的是哪一组）。
+  const foot = element('div', 'w-form-foot');
+  const undo = element('button', 'btn', say('plugins-page/undo'));
+  undo.addEventListener('click', () => {
+    context.state.drafts[part.id] = {};
+    context.redraw();
+  });
+  foot.hidden = Object.keys(drafts).length === 0;
   save.addEventListener('click', async () => {
     save.disabled = true;
     bottom.textContent = '';
@@ -130,9 +134,8 @@ export function drawForm(part, context) {
     if (answer?.message) bottom.textContent = answer.message;
     save.disabled = false;
   });
-  const foot = element('div', 'w-form-foot');
-  foot.append(bottom, save);
-  box.append(foot);
+  foot.append(undo, save);
+  box.append(bottom, foot);
   return box;
 }
 

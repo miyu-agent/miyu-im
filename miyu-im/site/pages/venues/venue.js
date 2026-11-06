@@ -12,6 +12,7 @@
 // - 「实时日志」（设计 10，施工 I-161，watch.js）：名单里的群、私聊卡上有，切到这一页才开始看，离开、关浮窗就停。
 // - 「会话默认值」那张卡（2026-10-20 项目主人验收：从设置页挪到会话页墙上第一张）也开这个浮窗：没有概况、管理插件，从人格和模型起。
 import { element, say } from '../../shell/i18n.js';
+import { sect } from '../../shell/sect.js';
 import { closeButton, openLayer, toast } from '../../shell/dialog.js';
 import { faceOf } from './face.js';
 import { cardOf, isDefaults, ownCardOf, valueFor } from './model.js';
@@ -69,6 +70,8 @@ export function openVenue(one, context, onClose) {
   const counted = isDefaults(one) ? null : venueStats(context.request, () => cardOf(shown));
   const today = element('div', 'venue-today');
   let asking = 0;
+  // 最近判断的列表头搜了什么、筛了什么（施工 I-166）：浮窗开着时一直留着。
+  const recentState = {};
   // 哪几页的「高级」展开着：重画时照旧。
   const expanded = new Set();
   // 插件加的几页：编号 → 画好的那一块（只取一次）。
@@ -120,7 +123,7 @@ export function openVenue(one, context, onClose) {
     const mine = ++asking;
     try {
       const answer = await context.request('cards.overview', { card: cardOf(shown) });
-      if (mine === asking) drawOverview(today, answer, shown.type);
+      if (mine === asking) drawOverview(today, answer, shown.type, recentState);
     } catch {
       // 问不到的：照旧画上一次的。
     }
@@ -195,17 +198,20 @@ export function openVenue(one, context, onClose) {
 /** 概况那一页：`kept` 是统计和最近判断那两块。 */
 function overview(one, { request, platform }, close, kept) {
   const parts = [];
-  const reply = element('div', 'row big');
+  // 是否回复一张没名字的卡（设计 11 G1，施工 I-166），统计、看一眼、最近判断各一张，「移出」在最底下的「危险操作」卡里。
+  const top = sect(null);
+  const reply = element('div', 'row');
   const label = element('div', 'label');
   if (one.on === null) {
     const hint = venueKinds(platform).private?.listedHint() || say('venue/listed-hint');
-    label.append(element('b', null, say('venue/listed')), element('small', null, hint));
+    label.append(element('div', 'label-name', say('venue/listed')), element('small', null, hint));
     reply.append(label);
   } else {
-    label.append(element('b', null, say('venue/reply')), element('small', null, say('venue/reply-hint')));
+    label.append(element('div', 'label-name', say('venue/reply')), element('small', null, say('venue/reply-hint')));
     reply.append(label, toggle(one, request));
   }
-  parts.push(reply, ...kept);
+  top.body.append(reply);
+  parts.push(top.box, ...kept);
   if (one.id) parts.push(removal(one, request, close));
   return parts;
 }
@@ -241,9 +247,11 @@ async function save(request, one, values) {
   return false;
 }
 
-/** 「移出」：点两次才移。 */
+/** 「移出」：在「危险操作」卡片里，点两次才移。 */
 function removal(one, request, close) {
+  const danger = sect(say('venue/danger'));
   const foot = element('div', 'venue-foot');
+  danger.body.append(foot);
   const button = element('button', 'btn ghost danger', say(`venue/remove-${one.kind}`));
   let armed = false;
   button.addEventListener('click', async () => {
@@ -265,6 +273,6 @@ function removal(one, request, close) {
     }
     button.disabled = false;
   });
-  foot.append(button);
-  return foot;
+  foot.append(element('span', 'faint', say(`venue/remove-${one.kind}-hint`)), button);
+  return danger.box;
 }

@@ -1,11 +1,11 @@
 // 一组设置一张卡片（设计 11 G1，施工 I-165）：会话浮窗、插件面板、设置页、使用限制页共用这一份，照网页软件设置页的 groupBlock。
 // 组名写在卡片第一行，卡和卡之间留空；样子在 shell/sect.css，尺寸是 base.css 的变量（--sect-*）。
-import { element, say } from './i18n.js';
+import { element } from './i18n.js';
 
-/** 一张卡片：`name` 是组名的字表键（空的不写组名）。交回 { box, body }，几行放进 body。 */
-export function sect(name) {
+/** 一张卡片：`title` 是组名（照语言挑好的字，空的不写组名）。交回 { box, body }，几行放进 body。 */
+export function sect(title) {
   const box = element('section', 'sect');
-  if (name) box.append(element('div', 'sect-name', say(name)));
+  if (title) box.append(element('div', 'sect-name', title));
   const body = element('div', 'sect-body');
   box.append(body);
   return { box, body };

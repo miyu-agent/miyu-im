@@ -73,9 +73,7 @@
 .d-tab:disabled { cursor: default; color: var(--text-faint); }
 .d-tab .soon { margin-left: auto; font-size: 11px; }
 .d-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.row.big { padding: 14px 16px; margin-bottom: 6px; border: 0; border-radius: 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
-.row.big b { font-weight: 500; }
-.venue-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+.venue-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
 
 @media (max-width: 720px) {
   .view-head { flex-wrap: wrap; }
@@ -94,11 +92,18 @@
 
 /* 概况里的最近判断（施工 I-7 上补），照样板 d-im.html。 */
 /* 这个会话的统计（施工 I-101）：格子、条照数据统计（stats.css），底色照「是否回复」那一行。 */
-.venue-stats-head { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
-.venue-stats-head .group-name { margin: 0; }
+.venue-stats-head { display: flex; align-items: center; gap: 10px; padding: 10px 0 8px; }
+.venue-stats-head .sect-name { padding: 0; }
+/* 看一眼、最近判断两张卡（overview.js）装在这一格里：和上面的统计卡照样隔开。 */
+.venue-today { display: flex; flex-direction: column; gap: var(--sect-gap); }
+.venue-today:not(:empty) { margin-top: var(--sect-gap); }
 .venue-stats-head .seg { margin-left: auto; }
-.venue-stats .stat-tiles { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
-.venue-stats .stat-tile { padding: 10px 12px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
+.venue-stats { padding-bottom: 14px; }
+/* 六个数一行（施工 I-166：原来第六个掉到第二行），窄的屏三个一行；卡片里的数字块比卡片暗一档、不带影。 */
+.venue-stats .stat-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.venue-stats .stat-tile { padding: 10px 12px; background: var(--surface); box-shadow: none; }
+@media (max-width: 720px) { .venue-stats .stat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .venue-stats .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .venue-stats .stat-tile b { font-size: 20px; }
 .venue-stats .bars { height: 110px; }
 .venue-stats h3 { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; font-weight: 500; }

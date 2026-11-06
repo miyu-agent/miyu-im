@@ -1,0 +1,6 @@
+/* 能搜、能筛、分页的列表（设计 11 G2，shell/listing.js）：头上一条控件，窄的屏换行；不描边，照控件的底色。 */
+.listing-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--listing-gap); padding: 8px 0; }
+.listing-search { flex: 1 1 160px; min-width: 0; }
+.listing-none { margin: 8px 0; }
+.listing-more { align-self: flex-start; margin-top: 4px; }
+.listing { display: flex; flex-direction: column; }

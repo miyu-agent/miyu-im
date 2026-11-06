@@ -30,7 +30,7 @@ export function drawForm(tab, one, context) {
     if (!has(field, one)) continue;
     if (field.group) {
       sections.push(section);
-      section = sect(field.group);
+      section = sect(say(field.group));
       continue;
     }
     if (field.dep && (current(one, field.dep.key) ?? field.dep.unset ?? field.dep.on) !== field.dep.on) continue;

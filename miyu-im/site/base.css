@@ -39,6 +39,7 @@
   --sect-pad-y: 4px;
   --sect-gap: 14px;
   --mark-radius: 5px;
+  --listing-gap: 8px;
 }
 
 @media (prefers-color-scheme: dark) {

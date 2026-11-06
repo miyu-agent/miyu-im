@@ -4,28 +4,40 @@
 // - 最近判断（群聊的）、最近处理（私聊的，施工 I-56：私聊不判，交给 AI 的写「私聊，直接回复」，只记下的写为什么）：一条一行，回了的打勾、没回的一横；引号里是那条消息的开头，下面「谁 · 几点 · 为什么」。为什么照
 //   宿主给的原因编号写（noted.rs 的那几种，`skip_user` 是在跳过判断的人里），挂接点改了结论的后面写是哪个插件；带了判官的理由
 //   （`why.reason_text`）的再写一行小字。
+// - 一段一张卡片（设计 11 G1，施工 I-166，shell/sect.js）：看一眼、最近判断各一张；最近判断能搜、能筛回了没回（shell/listing.js），
+//   搜了什么、筛了什么记在 `state` 里，宿主推了变了重画时照旧。
 import { element, say } from '../../shell/i18n.js';
+import { listing } from '../../shell/listing.js';
+import { sect } from '../../shell/sect.js';
 
-/** 画进 `holder`：`answer` 是 cards.overview 的回答，`type` 是 group、private。 */
-export function drawOverview(holder, answer, type) {
+/** 画进 `holder`：`answer` 是 cards.overview 的回答，`type` 是 group、private，`state` 是最近判断的列表头记着的（浮窗开着时一直是同一份）。 */
+export function drawOverview(holder, answer, type, state) {
   const parts = [];
   // 看一眼（施工 I-114）：上一次几点、看到几条新消息，下一次几点、是她定的还是照间隔。
-  if (answer.glance) parts.push(...glanceLines(answer.glance));
+  if (answer.glance) parts.push(glanceCard(answer.glance));
   const titles = type === 'group' ? ['venue/recent', 'venue/recent-none'] : ['venue/handled', 'venue/handled-none'];
-  parts.push(element('div', 'group-name', say(titles[0])));
+  const card = sect(say(titles[0]));
   const recent = answer.recent || [];
-  if (recent.length === 0) parts.push(element('p', 'faint', say(titles[1])));
-  for (const note of recent) parts.push(row(note));
+  if (recent.length === 0) card.body.append(element('p', 'faint', say(titles[1])));
+  else {
+    const items = recent.map((note) => ({ node: row(note), text: [note.text, note.who, reason(note)].join(' '), tags: { outcome: note.outcome === 'record' ? 'record' : 'reply' } }));
+    card.body.append(listing(items, {
+      search: say('listing/search'),
+      filters: [{ key: 'outcome', all: say('venue/filter-all'), options: [['reply', say('venue/filter-replied')], ['record', say('venue/filter-recorded')]] }],
+      state,
+    }));
+  }
+  parts.push(card.box);
   holder.replaceChildren(...parts);
 }
 
-/** 看一眼那一段：小标题加一两行。 */
-function glanceLines(glance) {
+/** 看一眼那一张：一两行。 */
+function glanceCard(glance) {
   const time = (text) => new Date(text).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const lines = [element('div', 'group-name', say('venue/glance'))];
-  if (glance.last) lines.push(element('p', 'glance-line', say('venue/glance-last', { at: time(glance.last), count: glance.count ?? 0 })));
-  if (glance.next) lines.push(element('p', 'glance-line', say(glance.hers ? 'venue/glance-next-hers' : 'venue/glance-next', { at: time(glance.next) })));
-  return lines;
+  const card = sect(say('venue/glance'));
+  if (glance.last) card.body.append(element('p', 'glance-line', say('venue/glance-last', { at: time(glance.last), count: glance.count ?? 0 })));
+  if (glance.next) card.body.append(element('p', 'glance-line', say(glance.hers ? 'venue/glance-next-hers' : 'venue/glance-next', { at: time(glance.next) })));
+  return card.box;
 }
 
 /** 一笔判断。 */
