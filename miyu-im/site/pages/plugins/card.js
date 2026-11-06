@@ -43,7 +43,12 @@ export function pluginIcon(plugin) {
 /** 几个小标签：挂在哪几处、有面板、在宿主这个平台上能不能用（`host` 是平台的编号）。 */
 export function chips(plugin, host) {
   const box = element('div', 'chips');
-  for (const point of plugin.points || []) box.append(element('span', 'chip', say(`plugins-page/point-${point}`)));
+  for (const point of plugin.points || []) {
+    // 悬停说这个挂接点是干什么的（施工 I-170：「进站」这类说法看不懂）。
+    const chip = element('span', 'chip', say(`plugins-page/point-${point}`));
+    chip.title = say(`plugins-page/point-${point}-hint`);
+    box.append(chip);
+  }
   if (plugin.page) box.append(element('span', 'chip accent', say('plugins-page/has-panel')));
   box.append(element('span', plugin.unusable ? 'chip bad' : 'chip', usable(plugin, host)));
   return box;

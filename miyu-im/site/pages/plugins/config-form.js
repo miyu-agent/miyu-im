@@ -3,6 +3,7 @@
 // 下拉加「其他」、密钥（只说设没设，粘贴新的换上）。改了当场存（plugins.settings.set），存不成的写在那一行下面；和默认不一样的给
 // 「恢复默认」。值写成引用（{ env = … } 这类）的不在这里改。
 import { element, say } from '../../shell/i18n.js';
+import { fieldMark } from '../../shell/mark.js';
 import { secretInput } from '../../shell/secret.js';
 import { tagInput } from '../../shell/tags.js';
 
@@ -45,17 +46,18 @@ export function drawSettings(packageId, request) {
 /** 一项一行。 */
 function row(item, value, save) {
   const line = element('div', 'row');
-  const label = element('div', 'label', item.name || item.key);
+  const label = element('div', 'label');
+  const name = element('div', 'label-name', item.name || item.key);
+  label.append(name);
   if (item.description) label.append(element('small', null, item.description));
   const failed = element('div', 'row-failed');
   const put = (change) => save(item.key, change, failed);
   const side = element('span', 'inline');
   side.append(control(item, value, put));
-  const differs = item.type !== 'secret' && value !== null && JSON.stringify(value) !== JSON.stringify(item.default ?? null);
-  if (differs) {
-    const reset = element('button', 'btn ghost plug-reset', say('plugins-page/reset'));
-    reset.addEventListener('click', () => put({ unset: true }));
-    side.append(reset);
+  // 名字后面「默认 / 已改」（设计 11 G3，施工 I-170，shell/mark.js），同会话浮窗：点「已改」恢复默认。密钥不比。
+  if (item.type !== 'secret') {
+    const differs = value !== null && JSON.stringify(value) !== JSON.stringify(item.default ?? null);
+    name.append(fieldMark(differs, null, () => put({ unset: true })));
   }
   line.append(label, side);
   const wrap = element('div', 'field');

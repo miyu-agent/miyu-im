@@ -112,3 +112,5 @@
 .act-good::before { background: var(--online); }
 .act-ai::before { background: var(--accent); }
 .act-warn::before { background: var(--gold); }
+.act-link { margin-left: 8px; color: var(--accent); text-decoration: none; }
+.act-link:hover { text-decoration: underline; }

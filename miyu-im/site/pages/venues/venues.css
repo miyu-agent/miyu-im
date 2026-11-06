@@ -115,9 +115,6 @@
 .why small { color: var(--text-faint); }
 .why .why-said { margin: 4px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-/* 名字和后面的小标签（shell/mark.js）一行。 */
-.label-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-
 /* 浮窗各页的格（施工 I-7 中一），照样板 d-im.html。 */
 .field .row { border-bottom: 1px solid var(--line); }
 .field:last-child .row { border-bottom: 0; }

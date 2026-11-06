@@ -66,7 +66,9 @@ function tile(plugin, entry) {
   const top = element('div', 'top');
   const grow = element('div', 'grow');
   const name = named(plugin.name) || plugin.package;
-  grow.append(element('b', null, entry.page ? `${name} · ${named(entry.page.title) || entry.page.id}` : name));
+  // 面板名已经带着软件名的（「群管理」的「群管理面板」）只写面板名（施工 I-170：原来写成「群管理 · 群管理面板」）。
+  const title = entry.page ? named(entry.page.title) || entry.page.id : name;
+  grow.append(element('b', null, title.startsWith(name) ? title : `${name} · ${title}`));
   top.append(pluginIcon(plugin), grow, icon('i-right'));
   card.append(top);
   const summary = named(plugin.summary);

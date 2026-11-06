@@ -15,13 +15,17 @@
 /* 搜的那一行。 */
 .records-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
 .records-filter .grow { flex: 1 1 200px; min-width: 0; }
+/* 宽的屏一行放下（施工 I-170：原来「到」掉到第二行）。 */
+@media (min-width: 900px) { .records-filter { flex-wrap: nowrap; } .records-filter .input[type="date"] { width: 140px; } }
 .records-filter-date { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .records-filter .input[type="date"] { width: 150px; }
 
 /* 列表。 */
 .records-groups { display: flex; flex-direction: column; gap: 22px; }
-.records-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.records-group-title .avatar { width: 28px; height: 28px; }
+/* 一个机器人一组（施工 I-170：原来组名像一行正文）：小标题的样子，同 shell/sect.css 的组名。 */
+.records-group-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--text-faint); font-size: 12px; }
+.records-group-title strong { font-weight: 600; letter-spacing: 0.02em; }
+.records-group-title .avatar { width: 20px; height: 20px; font-size: 10px; }
 .records-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
 .records-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 0; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); color: inherit; text-align: left; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.15s var(--ease-out); }
 .records-row:hover { box-shadow: var(--card-shadow); transform: translateY(-1px); }
