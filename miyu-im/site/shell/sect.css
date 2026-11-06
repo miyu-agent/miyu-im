@@ -3,3 +3,5 @@
 .sect + .sect { margin-top: var(--sect-gap); }
 .sect-name { padding: 12px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
 .sect-hint { margin: 0 0 4px; color: var(--text-faint); font-size: 12px; }
+.sect-head { display: flex; align-items: center; gap: 10px; padding: 10px 0 2px; }
+.sect-head .sect-name { flex: 1; padding: 0; }

@@ -18,13 +18,12 @@ use serde_json::{Value, json};
 
 use super::outbound::Aimed;
 use super::projection::{QUEUED, REPLY};
-use super::queue::{DISCONNECTED, EXPIRED, Ending, ending, said};
+use super::queue::{DISCONNECTED, EXPIRED, Ending, ending, said, turn_of};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::{CallError, Cap, Lead, Outgoing, To};
 use crate::core::Gone;
-use crate::counters::Count;
 
 mod aiming;
 mod bounce;
@@ -401,8 +400,11 @@ impl Route {
             let mine = (peer.platform, venue.as_str(), &peer.bot);
             self.record_mine(mine, (msg, &item.piece.text), image);
         }
-        if said(&item.piece.what) {
-            self.counters.bump(Count::Replied, &venue.to_string());
+        // 回复按轮数（施工 I-169）：一轮拆成几条的只数头一段。
+        if said(&item.piece.what)
+            && let Some(turn) = turn_of(&item.piece.what)
+        {
+            self.counters.replied(&venue.to_string(), turn);
         }
         if !matches!(peer.to, To::Group(_)) {
             return Ok(());

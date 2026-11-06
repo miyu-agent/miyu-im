@@ -2,6 +2,7 @@
 // 花费（施工 I-105，没价钱的请求底下写一行）、缓存命中率，和前一段同样长的比；7 天、30 天的再画每天的消息、每天的 token。只算这张卡管的场所：先问 cards.overview 带
 // `venues: true` 拿到场所，再问 stats 带 `venues`（陌生群、陌生私聊是名单以外的那些并起来）。
 import { element, say } from '../../shell/i18n.js';
+import { sect } from '../../shell/sect.js';
 import { bars, delta, legend, money, short, tile, unpriced } from '../stats/stats.js';
 
 const PERIODS = ['today', '7d', '30d'];
@@ -16,13 +17,12 @@ export function venueStats(request, card) {
   let shown = null;
   let asked = 0;
   let loadedAt = 0;
-  // 一张卡片（设计 11 G1，施工 I-166，样子照 shell/sect.css），名字和切今天、7 天、30 天在第一行。
-  const box = element('section', 'sect venue-stats');
+  // 一张共用的卡片（设计 11 G1，施工 I-166，shell/sect.js），名字和切今天、7 天、30 天在第一行。
   const seg = element('div', 'seg');
-  const head = element('div', 'venue-stats-head');
-  head.append(element('div', 'sect-name', say('venue/stats')), seg);
-  const body = element('div');
-  box.append(head, body);
+  const shell = sect(say('venue/stats'), null, seg);
+  const box = shell.box;
+  box.classList.add('venue-stats');
+  const body = shell.body;
   const drawSeg = () => {
     seg.replaceChildren(
       ...PERIODS.map((one) => {

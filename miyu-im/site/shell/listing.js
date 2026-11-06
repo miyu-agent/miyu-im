@@ -8,7 +8,8 @@ import { element, say } from './i18n.js';
  * `items` 是 [{ node, text, tags?, numbers? }]（`text` 是搜索照着找的字，`tags` 是 {筛选的键: 这一行的值}，`numbers` 是 {排序的键: 数}）。
  * `options` 是 { search?: 占位字, filters?: [{ key, options: [[值, 给人看的]], all?: 「全部」那一项的字 }],
  *   sorts?: [[排序的键, 给人看的]]（照那个数从大到小，第一项是出厂的；不写照交来的先后）, page?: 一次显示几条（出厂 20）,
- *   state?: 记着搜了什么、筛了什么、显示到几条的对象（重画时照旧）, empty?: 一条都对不上时的字 }。交回元素。
+ *   state?: 记着搜了什么、筛了什么、显示到几条的对象（重画时照旧）, empty?: 一条都对不上时的字, header?: 放在控件和列表之间的一行（列名） }。
+ * 交回元素。
  */
 export function listing(items, options = {}) {
   const state = options.state || {};
@@ -76,6 +77,7 @@ export function listing(items, options = {}) {
     fill();
   });
   if (head.childElementCount > 0) box.append(head);
+  if (options.header) box.append(options.header);
   box.append(body, more);
   fill();
   return box;

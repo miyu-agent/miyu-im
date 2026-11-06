@@ -43,6 +43,7 @@
   --lan-qr-size: 136px;
   --person-number-width: 160px;
   --limits-col-width: 120px;
+  --rank-col-width: 96px;
 }
 
 @media (prefers-color-scheme: dark) {

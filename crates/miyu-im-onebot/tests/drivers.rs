@@ -451,9 +451,15 @@ async fn the_home_stats_follow_the_chosen_connection() {
     let (all, _) = received(&mut open, 3, json!({})).await;
     assert!(tg >= 1 && qq >= 1, "tg {tg}，qq {qq}");
     assert_eq!(tg + qq, all, "两个连接的加起来是全部");
-    assert_eq!(
-        tg_shown["venues"],
-        json!([{"name": "tg:30003:private:10001", "received": tg}]),
+    // 场所带收到、回复（施工 I-169）：回复按轮数，不会多过收到的。
+    let venues = &tg_shown["venues"];
+    assert_eq!(venues.as_array().map(Vec::len), Some(1), "{tg_shown}");
+    assert_eq!(venues[0]["name"], "tg:30003:private:10001", "{tg_shown}");
+    assert_eq!(venues[0]["received"], tg, "{tg_shown}");
+    assert!(
+        venues[0]["replied"]
+            .as_u64()
+            .is_some_and(|replied| replied <= tg),
         "{tg_shown}"
     );
     let wrong = browser::call(&mut open, 10, "stats", json!({"connection": "qq"})).await;

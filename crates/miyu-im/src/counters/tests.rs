@@ -185,3 +185,17 @@ fn a_venue_names_its_connection_before_the_kind() {
     assert_eq!(connection_of("qq:10001:group:777"), "qq:10001");
     assert_eq!(connection_of("odd"), "odd");
 }
+
+#[test]
+fn a_turn_split_into_pieces_counts_as_one_reply() {
+    // 施工 I-169：一轮拆成几条发出去只数一次回复（原来每一段都数，回复率能过 100%）；别的轮、别的线另数。
+    let dir = temp("turns");
+    let counters = counters(&dir);
+    for _ in 0..3 {
+        counters.replied("qq:group:1", ("line-a", 7));
+    }
+    counters.replied("qq:group:1", ("line-a", 8));
+    counters.replied("qq:group:1", ("line-b", 7));
+    let today = counters.today();
+    assert_eq!(today.replied, 3, "三轮各一次");
+}

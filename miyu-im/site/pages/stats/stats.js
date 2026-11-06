@@ -8,6 +8,9 @@
 // - 场所照首页给的名字写（cards.get 的群、好友），没有的写编号；点了去会话页打开那个场所的浮窗（#venues/<种类>/<号>，带上它的连接）。
 // - 图都是条：每天的 token 四样叠着画，构成画成一条，按小时 24 根。列表是带列名的小表（施工 I-106）。
 import { element, say } from '../../shell/i18n.js';
+import { sect } from '../../shell/sect.js';
+import { trend } from './trend.js';
+import { peopleRank, venueRank } from './rankings.js';
 import { connectionPick, platformDot } from '../../shell/connection-pick.js';
 import { chooseConnection, chosenOf, onConnection } from '../../shell/connection.js';
 import { namesOf } from '../home/activity.js';
@@ -30,6 +33,8 @@ export function mountStats(view, { request }) {
   let loadedAt = 0;
   // 上一次问的连接（「全部」是空的）。
   let scope = null;
+  // 走势切到哪一样、两张排行搜了什么怎么排（施工 I-169）：重画、换时段时照旧。
+  const kept = { trend: {}, people: {}, venues: {} };
   const seg = element('div', 'seg');
   const pickSlot = element('span', 'pf-slot');
   const head = element('div', 'view-head stats-head');
@@ -60,7 +65,14 @@ export function mountStats(view, { request }) {
     if (connections.length > 1) pickSlot.append(connectionPick(connections, picked, { every: true, onPick: chooseConnection }));
     if (!shown) return;
     const context = { names, connections, tagged: !picked && connections.length > 1 };
-    body.replaceChildren(tokens(shown.token, context), messages(shown.messages, context), running(shown.running));
+    body.replaceChildren(
+      tokens(shown.token),
+      messages(shown.messages),
+      trend(shown, kept.trend),
+      peopleRank(shown.people || [], kept.people),
+      venueRank(shown, context, kept.venues),
+      running(shown.running),
+    );
   };
   const load = async () => {
     const mine = ++asked;
@@ -116,7 +128,7 @@ function remembered() {
 
 /** 一个场所（`qq:group:777`）：名字和去浮窗的链接（带上它的连接：选中的那一个，「全部」时照平台、号找）；`tagged` 的前面画平台
  *  标志。 */
-function venueLink(id, { names, connections, tagged }) {
+export function venueLink(id, { names, connections, tagged }) {
   const { platform, type, id: number, bot } = venueParts(id);
   const link = element('a', 'stats-venue');
   if (tagged) link.append(platformDot(platform));
@@ -153,9 +165,11 @@ export function tile(label, value, compare) {
 
 /** 一段：标题和几块。 */
 function section(title, ...parts) {
-  const box = element('section', 'stats-section');
-  box.append(element('h2', null, title), ...parts);
-  return box;
+  // 一段一张共用的卡片（shell/sect.js，设计 11 G1）。
+  const card = sect(title);
+  card.body.append(...parts);
+  card.box.classList.add('stats-section');
+  return card.box;
 }
 
 /** 一张带列名的小表（施工 I-106：原来一行「名字 · 数 · 数」挤在一起读不清）：`columns` 是列名（第一列是名字，后面的数靠右），
@@ -185,8 +199,12 @@ function table(title, columns, rows) {
 /** 竖条图：`rows` 是 [标签, [每一段的值…], 悬停的字?]，段照 `classes` 上色、从下往上叠。 */
 export function bars(title, rows, classes) {
   const box = element('div', 'stats-chart');
-  box.append(element('h3', null, title));
+  if (title) box.append(element('h3', null, title));
   const max = Math.max(1, ...rows.map(([, values]) => values.reduce((sum, one) => sum + one, 0)));
+  // 纵轴的刻度（施工 I-169：原来看不出一根条是多少）：最高那条的数写在左上，一条淡线；悬停每根条照旧写数。
+  const scale = element('div', 'bars-scale');
+  scale.append(element('small', null, short(max)));
+  box.append(scale);
   // 条多的（30 天、24 小时）隔几根写一个标签，最后一根总写。
   const every = Math.ceil(rows.length / 12);
   const plot = element('div', 'bars');
@@ -218,8 +236,8 @@ export function legend(keys, classes) {
   return box;
 }
 
-/** token 那一段。 */
-function tokens(token, context) {
+/** token 那一段：几个数、构成、按用途、按模型（每天的并进走势 trend.js，按场所并进「按会话」rankings.js，施工 I-169）。 */
+function tokens(token) {
   const rate = (value) => (value == null ? '—' : `${Math.round(value * 100)}%`);
   // 金额（施工 I-104）：照核心换算成你设的币种的；没价钱的、没换成的各写一行。
   const cost = token.cost || {};
@@ -234,16 +252,6 @@ function tokens(token, context) {
   );
   const classes = ['p0', 'p1', 'p2', 'p3'];
   const keys = PARTS.map((part) => `stats/part-${part}`);
-  // 只有一天（今天）的不画每天的图，构成那一条就够了。
-  const several = (token.days || []).length > 1;
-  const days = several
-    ? bars(say('stats/daily-tokens'), token.days.map((day) => [day.day.slice(5), day.parts]), classes)
-    : document.createDocumentFragment();
-  if (several) days.append(legend(keys, classes));
-  // 每天的花费：有一天有金额才画。
-  const spent = several && token.days.some((day) => day.cost)
-    ? bars(say('stats/daily-cost'), token.days.map((day) => [day.day.slice(5), [day.cost || 0], `${day.day.slice(5)} · ${money(day.cost, cost.currency)}`]), ['p2'])
-    : document.createDocumentFragment();
   // 一个 token 都没有的不画构成、按小时（空条像坏了）。
   const total = token.parts.reduce((sum, one) => sum + one, 0);
   const make = total > 0 ? element('div', 'stats-chart') : document.createDocumentFragment();
@@ -269,17 +277,12 @@ function tokens(token, context) {
       (token.purposes || []).map((one) => [purpose(one.name), short(one.requests), short(one.tokens), costOf(one)]),
     ),
     table(
-      say('stats/by-venue'),
-      [say('stats/col-venue'), say('stats/col-tokens'), say('stats/col-cost')],
-      (token.venues || []).map((one) => [venueLink(one.name, context), short(one.tokens), costOf(one)]),
-    ),
-    table(
       say('stats/by-model'),
       [say('stats/col-model'), say('stats/col-requests'), say('stats/col-tokens'), say('stats/col-cost')],
       (token.models || []).map((one) => [one.name || '—', short(one.requests), short(one.tokens), costOf(one)]),
     ),
   );
-  return section(say('stats/token'), tiles, unpriced(cost), days, spent, make, grid);
+  return section(say('stats/token'), tiles, unpriced(cost), make, grid);
 }
 
 /** 金额照币种写：不到 1 的多留两位（$0.0832）；没有的写「—」，认不得的币种照「0.08 XYZ」写。 */
@@ -308,8 +311,8 @@ export function unpriced(cost) {
   return box.childElementCount > 0 ? box : document.createDocumentFragment();
 }
 
-/** 消息那一段。 */
-function messages(shown, context) {
+/** 消息那一段：几个数、按小时收到的（每天的并进走势，最热闹的并进「按会话」，施工 I-169）。 */
+function messages(shown) {
   const now = shown.now;
   const before = shown.prev;
   const rate = now.received ? `${Math.round((now.replied / now.received) * 100)}%` : '—';
@@ -321,32 +324,10 @@ function messages(shown, context) {
     tile(say('stats/recorded'), short(now.recorded), delta(now.recorded, before.recorded)),
     tile(say('stats/undelivered'), short(now.undelivered), delta(now.undelivered, before.undelivered)),
   );
-  const several = (shown.days || []).length > 1;
-  const daily = several
-    ? bars(
-        say('stats/daily-messages'),
-        // 整根是收到的，深色那截是回了的。
-        shown.days.map((day) => [
-          day.day.slice(5),
-          [day.replied, Math.max(0, day.received - day.replied)],
-          `${day.day.slice(5)} · ${say('stats/received')} ${day.received} · ${say('stats/replied')} ${day.replied}`,
-        ]),
-        ['p0', 'p1'],
-      )
-    : document.createDocumentFragment();
-  if (several) daily.append(legend(['stats/replied', 'stats/received'], ['p0', 'p1']));
   const hours = (shown.hours || []).some((count) => count > 0)
-    ? bars(say('stats/hours'), shown.hours.map((count, hour) => [String(hour), [count]]), ['p1'])
+    ? bars(say('stats/hours'), shown.hours.map((count, hour) => [String(hour), [count], `${hour}:00 · ${say('stats/received')} ${count}`]), ['p1'])
     : document.createDocumentFragment();
-  const grid = element('div', 'stats-grid');
-  grid.append(
-    table(
-      say('stats/busiest'),
-      [say('stats/col-venue'), say('stats/col-received')],
-      (shown.venues || []).map((one) => [venueLink(one.name, context), short(one.received)]),
-    ),
-  );
-  return section(say('stats/messages'), tiles, daily, hours, grid);
+  return section(say('stats/messages'), tiles, hours);
 }
 
 /** 运行那一段。 */

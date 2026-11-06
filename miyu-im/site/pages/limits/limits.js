@@ -206,8 +206,8 @@ function usage(list, state) {
     sorts: KEYS.map((key) => [key, say('limits-page/sort', { line: say(`limits-page/${key}`) })]),
     filters: [{ key: 'full', all: say('limits-page/everyone'), options: [['full', say('limits-page/only-full')]] }],
     state,
+    header,
   });
   table.classList.add('limits-usage');
-  table.querySelector('.listing-body').before(header);
   return section('limits-page/usage', 'limits-page/usage-hint', [table]);
 }

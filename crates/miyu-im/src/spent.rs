@@ -184,6 +184,30 @@ pub(crate) fn top(path: &Path, now: i64, most: usize) -> rusqlite::Result<Vec<(S
     rows.collect()
 }
 
+/// 页面读（数据统计页的「按人」，施工 I-169）：库 `path` 里 `from`（毫秒）以后用过的人，各用了多少，从多到少最多 `most` 个。只读地
+/// 开：还没有库的是空的，不建。
+pub(crate) fn ranking(path: &Path, from: i64, most: usize) -> rusqlite::Result<Vec<(String, u64)>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    let mut statement = connection.prepare(
+        "SELECT person, SUM(tokens) FROM spent WHERE at >= ?1 GROUP BY person ORDER BY 2 DESC, person LIMIT ?2",
+    )?;
+    let rows = statement.query_map(
+        params![from, i64::try_from(most).unwrap_or(i64::MAX)],
+        |row| {
+            let sum: i64 = row.get(1)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                u64::try_from(sum).unwrap_or_default(),
+            ))
+        },
+    )?;
+    rows.collect()
+}
+
 /// 打开 `path`、建好表。
 fn prepared(path: &Path) -> rusqlite::Result<Connection> {
     if let Some(dir) = path.parent()

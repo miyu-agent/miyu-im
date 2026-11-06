@@ -86,7 +86,8 @@ fn messages_add_up_the_days() {
     assert_eq!(shown["prev"]["received"], 1);
     assert_eq!(
         shown["venues"],
-        json!([{"name": "qq:group:777", "received": 8}])
+        json!([{"name": "qq:group:777", "received": 8, "replied": 0}]),
+        "场所带上回复数（施工 I-169）"
     );
     assert_eq!(shown["reasons"], json!({"called": 4}));
     assert_eq!(shown["hours"][9], 8);
@@ -141,7 +142,7 @@ fn a_chosen_connection_counts_only_its_venues() {
     assert_eq!(shown["now"]["replied"], 1, "{shown}");
     assert_eq!(
         shown["venues"],
-        json!([{"name": "tg:group:-100", "received": 4}])
+        json!([{"name": "tg:group:-100", "received": 4, "replied": 1}])
     );
     assert_eq!(shown["hours"][9], 4);
     assert_eq!(shown["days"][0]["received"], 4);

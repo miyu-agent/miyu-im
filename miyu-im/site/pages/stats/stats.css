@@ -1,12 +1,13 @@
 /* 数据统计（施工 I-14 起，I-85 下并进首页，I-100 拆回侧栏）：数照卡片，图都是条；颜色照主题的几样，不描边。 */
 .stats-body { display: flex; flex-direction: column; gap: 16px; }
-.stats-section { padding: 18px 20px; border-radius: 16px; background: var(--surface-1); box-shadow: var(--card-shadow); }
-.stats-section h2 { margin: 0 0 12px; font-size: 16px; }
-.stats-section h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-soft); font-weight: 500; }
-.stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+/* 施工 I-169 起一段是共用的卡片（shell/sect.css），这里只管段里的小标题。 */
+.stats-body .sect { padding-bottom: 14px; }
+.stats-body .sect + .sect { margin-top: 0; }
+.stats-body h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-soft); font-weight: 500; }
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .stats-note { margin: -6px 0 14px; font-size: 12.5px; }
 .stats-note p { margin: 2px 0; }
-.stat-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.stat-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface); }
 .stat-tile b { font-size: 22px; font-weight: 600; }
 .stat-tile small.up { color: var(--online); }
 .stat-tile small.down { color: var(--danger); }
@@ -35,3 +36,16 @@
 .stats-venue { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); text-decoration: none; }
 .stats-venue:hover { text-decoration: underline; }
 .stats-head .seg { margin-left: auto; }
+/* 纵轴刻度（施工 I-169）：最高那条的数，淡字，下面一条淡线。 */
+.bars-scale { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--text-faint); }
+.bars-scale small { font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.bars-scale::after { content: ""; flex: 1; border-top: 1px dashed var(--line); }
+/* 两张排行（rankings.js）：一行一个网格，名字一列占满、截断，数靠右。 */
+.rank-row { display: grid; column-gap: 16px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.rank-2 { grid-template-columns: minmax(0, 1fr) var(--rank-col-width); }
+.rank-5 { grid-template-columns: minmax(0, 1fr) repeat(4, var(--rank-col-width)); }
+.rank-head { border-top: 0; padding-bottom: 4px; }
+.rank-row .th { color: var(--text-faint); font-size: 12px; }
+.rank-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rank-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-soft); white-space: nowrap; }
+@media (max-width: 600px) { .rank-5 { grid-template-columns: minmax(0, 1fr) repeat(4, auto); column-gap: 10px; } }

@@ -2,10 +2,15 @@
 // 组名写在卡片第一行，卡和卡之间留空；样子在 shell/sect.css，尺寸是 base.css 的变量（--sect-*）。
 import { element } from './i18n.js';
 
-/** 一张卡片：`title` 是组名（照语言挑好的字，空的不写组名），`hint` 是组名下面一句小字（可以不写）。交回 { box, body }，几行放进 body。 */
-export function sect(title, hint) {
+/** 一张卡片：`title` 是组名（照语言挑好的字，空的不写组名），`hint` 是组名下面一句小字，`aside` 是组名那一行右边的控件（切换、
+ *  时间段，都可以不写）。交回 { box, body }，几行放进 body。 */
+export function sect(title, hint, aside) {
   const box = element('section', 'sect');
-  if (title) box.append(element('div', 'sect-name', title));
+  if (aside) {
+    const head = element('div', 'sect-head');
+    head.append(element('div', 'sect-name', title || ''), aside);
+    box.append(head);
+  } else if (title) box.append(element('div', 'sect-name', title));
   if (hint) box.append(element('p', 'sect-hint', hint));
   const body = element('div', 'sect-body');
   box.append(body);

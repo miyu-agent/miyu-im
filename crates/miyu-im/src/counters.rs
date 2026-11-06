@@ -1,5 +1,5 @@
-//! 今天的几个数（设计 01 第八节第 2 条首页「今天」，施工 I-6 下）：收到的（交进场所会话的每一条消息）、回复的（她说的每一段发
-//! 出去了）、只记录的（群里判下来只记下的）、没发出去的（她说的一段发不出去、退了信）。
+//! 今天的几个数（设计 01 第八节第 2 条首页「今天」，施工 I-6 下）：收到的（交进场所会话的每一条消息）、回复的（她的一轮发出去了
+//! 第一段，施工 I-169 起按轮数：原来每一段都数，一轮拆成几条发出去就多数几次，回复率能过 100%，[`Counters::replied`]）、只记录的（群里判下来只记下的）、没发出去的（她说的一段发不出去、退了信）。
 //!
 //! - 照本机此刻的日期分天：跨了天的从零数。
 //! - 记在 im 自己的状态目录里（`state/packages/miyu-im/stats/<日期>.json`，一份一行 JSON），桥起来时读今天那一份接着数；改了另起的
@@ -27,7 +27,7 @@ pub(crate) fn ranking(days: &[(String, Daily)], venue: &str) -> Vec<(String, u64
 #[cfg(test)]
 mod tests;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -116,7 +116,12 @@ pub(crate) struct Counters {
     changed: Arc<Changed>,
     /// 变了叫写盘的那个任务。
     dirty: Notify,
+    /// 最近数过回复的轮（线、回合编号），最多 [`TURNS_KEPT`] 个：同一轮后面几段不再数。
+    turns: Mutex<VecDeque<(String, u64)>>,
 }
+
+/// 记着最近几轮数过回复：一轮的几段隔不了这么多轮。
+const TURNS_KEPT: usize = 256;
 
 impl Counters {
     /// 照目录 `dir` 读今天那一份（没有的、读不懂的从零数），变了叫 `changed`。
@@ -131,7 +136,23 @@ impl Counters {
             held: Mutex::new((date, day)),
             changed,
             dirty: Notify::new(),
+            turns: Mutex::new(VecDeque::new()),
         }
+    }
+
+    /// 场所 `venue` 上她的一段发出去了：线 `line` 的回合 `turn` 头一段数一次回复，后面几段不数（施工 I-169）。
+    pub(crate) fn replied(&self, venue: &str, (line, turn): (&str, u64)) {
+        {
+            let mut turns = lock(&self.turns);
+            if turns.iter().any(|(seen, at)| seen == line && *at == turn) {
+                return;
+            }
+            if turns.len() == TURNS_KEPT {
+                turns.pop_front();
+            }
+            turns.push_back((line.to_string(), turn));
+        }
+        self.bump(Count::Replied, venue);
     }
 
     /// 场所 `venue` 上数一下 `count`（合计也数）。

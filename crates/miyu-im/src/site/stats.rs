@@ -1,14 +1,15 @@
 //! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页，I-100 拆回侧栏「数据统计」）：
-//! `stats {period, connection? | venues?}` → `{"token", "messages", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
+//! `stats {period, connection? | venues?}` → `{"token", "messages", "people", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
 //! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接；`venues` 是浮窗「概况」一张卡管的场所（施工
 //! I-101），按小时的不分场所、是零。
 //!
 //! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
 //!   缓存命中率（读缓存 ÷ 输入）、每次回复平均（合计 ÷ 回复的段数）、请求次数，每天的四样（读缓存、没命中、写缓存、输出），按用途、
-//!   按场所（最多 10 个）、按模型。金额（施工 I-104，`money`）：照核心换算成 `usage.currency` 的加起来，合计、和前一段比、每天的、
+//!   按场所、按模型。金额（施工 I-104，`money`）：照核心换算成 `usage.currency` 的加起来，合计、和前一段比、每天的、
 //!   按用途、场所、模型的都有；没价钱的请求有几次、没换成的照币种另给。
-//! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所（最多 10 个），判断的原因，
-//!   按小时收到的。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
+//! - **messages**：照宿主自己记的（`crate::counters`）：收到、回复、只记录、没发出去，每天的，最热闹的场所，判断的原因，
+//!   按小时收到的。最热闹的场所带收到、回复（施工 I-169），最多 [`VENUES`] 个；按场所的 token 也是。选了连接的照场所加起来，按小时照按连接记的（I-85 下以前的那几天没有，是零）；判断的原因不分场所，选了连接的不给。
+//! - **people**（施工 I-169）：这一段里每个人用了多少 token（[`people`]，im 自己的个人账本），`[{id, name, tokens}]`。
 //! - **running**：桥起来多久、进程的内存和 CPU（照 `ps`，Linux、macOS 有；别的系统是空的）、插件开着几个、出错几个。
 
 use std::collections::BTreeMap;
@@ -25,9 +26,10 @@ use miyu_client::ids::VenueId;
 use money::Money;
 
 mod money;
+mod people;
 
-/// 按场所、按会话最多列几个。
-const TOP: usize = 10;
+/// 按场所最多列几个（施工 I-169：页面上的「按会话」能搜、20 条以后「再显示」，原来 10 个）。
+const VENUES: usize = 100;
 
 /// 一段：几天。
 fn days_of(period: &str) -> i64 {
@@ -162,7 +164,7 @@ pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
         "cost": cost.shown(), "prev_cost": prev_cost.amount(),
         "days": days,
         "purposes": listed(purposes, None),
-        "venues": listed(venues, Some(TOP)),
+        "venues": listed(venues, Some(VENUES)),
         "models": listed(models, None),
     })
 }
@@ -186,7 +188,8 @@ pub(super) fn messages(
         })
     };
     let (now, prev) = (total(days), total(before));
-    let mut venues: BTreeMap<String, u64> = BTreeMap::new();
+    // 场所 → 收到、回复（施工 I-169：「按会话」也排回复）。
+    let mut venues: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
     let mut hours = [0u64; 24];
     for (_, daily) in days {
@@ -195,7 +198,9 @@ pub(super) fn messages(
             .iter()
             .filter(|(venue, _)| within(scope, venue))
         {
-            *venues.entry(venue.clone()).or_default() += day.received;
+            let sum = venues.entry(venue.clone()).or_default();
+            sum.0 += day.received;
+            sum.1 += day.replied;
         }
         if scope.is_none() {
             for (reason, count) in &daily.reasons {
@@ -206,10 +211,12 @@ pub(super) fn messages(
             *slot += count;
         }
     }
-    let mut busiest: Vec<(String, u64)> =
-        venues.into_iter().filter(|(_, count)| *count > 0).collect();
-    busiest.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-    busiest.truncate(TOP);
+    let mut busiest: Vec<(String, (u64, u64))> = venues
+        .into_iter()
+        .filter(|(_, (received, _))| *received > 0)
+        .collect();
+    busiest.sort_by(|a, b| b.1.0.cmp(&a.1.0).then(a.0.cmp(&b.0)));
+    busiest.truncate(VENUES);
     let field = |sum: [u64; 4]| json!({"received": sum[0], "replied": sum[1], "recorded": sum[2], "undelivered": sum[3]});
     json!({
         "now": field(now),
@@ -218,7 +225,7 @@ pub(super) fn messages(
             let day = day_in(daily, scope);
             json!({"day": date, "received": day.received, "replied": day.replied})
         }).collect::<Vec<_>>(),
-        "venues": busiest.into_iter().map(|(venue, count)| json!({"name": venue, "received": count})).collect::<Vec<_>>(),
+        "venues": busiest.into_iter().map(|(venue, (received, replied))| json!({"name": venue, "received": received, "replied": replied})).collect::<Vec<_>>(),
         "reasons": reasons,
         "hours": hours,
     })
@@ -246,10 +253,8 @@ pub(super) async fn stats(
     };
     let (now_days, prev_days) = (dates(0, period), dates(period, period));
     let start = |days_back: i64| -> Option<String> {
-        let date = today.checked_sub(jiff::Span::new().days(days_back)).ok()?;
-        let zoned = date.to_zoned(jiff::tz::TimeZone::system()).ok()?;
-        let millis = zoned.timestamp().as_millisecond();
-        Some(miyu_client::time::Timestamp::from_unix_millis(millis)?.to_string())
+        miyu_client::time::Timestamp::from_unix_millis(start_millis(&today, days_back)?)
+            .map(|at| at.to_string())
     };
     let (from, prev_from) = (start(period - 1), start(2 * period - 1));
     let now = miyu_client::time::Timestamp::from_unix_millis(
@@ -275,7 +280,15 @@ pub(super) async fn stats(
     let token = token(&shown, &ours(&before["rows"], scope), replied);
     let messages = messages(&counted, &counted_before, scope);
     let running = running(site, person).await;
-    Ok(json!({"token": token, "messages": messages, "running": running}))
+    let people = people::people(site, start_millis(&today, period - 1).unwrap_or(0), scope).await;
+    Ok(json!({"token": token, "messages": messages, "people": people, "running": running}))
+}
+
+/// `today` 往前 `days_back` 天那一天本机零点的毫秒。
+fn start_millis(today: &jiff::civil::Date, days_back: i64) -> Option<i64> {
+    let date = today.checked_sub(jiff::Span::new().days(days_back)).ok()?;
+    let zoned = date.to_zoned(jiff::tz::TimeZone::system()).ok()?;
+    Some(zoned.timestamp().as_millisecond())
 }
 
 /// 本机此刻的时区偏移：`+08:00` 这样。

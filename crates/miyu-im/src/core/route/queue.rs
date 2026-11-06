@@ -231,6 +231,16 @@ pub(super) fn ending(result: &Result<Option<String>, CallError>) -> Ending {
 mod tests;
 
 /// 首页「今天」数的是她说的（施工 I-6 下）：一段话、一张图、长文的第一页；回执、长文后面几页不算。
+/// 她这一段是哪一轮的（线、回合编号）：回执没有。
+pub(super) fn turn_of(what: &What) -> Option<(&str, u64)> {
+    match what {
+        What::Reply { line, turn, .. } => Some((line, *turn)),
+        What::Image(image) => Some((&image.line, image.turn)),
+        What::Page(page) => Some((&page.image.line, page.image.turn)),
+        What::Receipt { .. } => None,
+    }
+}
+
 pub(super) fn said(what: &What) -> bool {
     match what {
         What::Reply { .. } | What::Image(_) => true,
