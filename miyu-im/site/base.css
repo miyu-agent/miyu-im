@@ -40,6 +40,7 @@
   --sect-gap: 14px;
   --mark-radius: 5px;
   --listing-gap: 8px;
+  --lan-qr-size: 136px;
 }
 
 @media (prefers-color-scheme: dark) {

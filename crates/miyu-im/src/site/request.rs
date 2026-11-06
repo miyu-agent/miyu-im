@@ -1,4 +1,4 @@
-//! 页面服务的一个请求（施工 I-5 上「怎么走」第 3 到 7 条）：先看地址（[`super::guard`]），再照方法和路径分：
+//! 页面服务的一个请求（施工 I-5 上「怎么走」第 3 到 7 条）：先看地址（[`super::guard`]，向局域网开放时写 IP 的 `Host` 也收），再照方法和路径分：
 //!
 //! - `GET /channel`：WebSocket 的升级请求回 101，升级交进 `slot`（[`super::channel`] 接着跑）；不是升级请求的 400。
 //! - `POST /login/ticket`：交接票换登录（[`super::ticket`]）。`POST /login/password`：用户名、密码登录（[`super::password`]）。
@@ -43,10 +43,10 @@ const POLICY: &str = "default-src 'self'; img-src 'self' blob: data:; frame-ance
 const FRAMED: &str =
     "sandbox allow-scripts allow-forms; connect-src 'none'; frame-ancestors 'self'";
 
-/// 一个请求的回应；升级成的把升级交进 `slot`。`port` 是这个连接进来的端口。
+/// 一个请求的回应；升级成的把升级交进 `slot`。`bound` 是这个连接进来的那个监听。
 pub(super) async fn handle(
     mut request: Request<Incoming>,
-    port: u16,
+    bound: super::Bound,
     site: &Site,
     slot: &Mutex<Option<OnUpgrade>>,
 ) -> Response<Full<Bytes>> {
@@ -58,7 +58,7 @@ pub(super) async fn handle(
             .map(str::to_string)
     };
     let (host, origin) = (text(header::HOST), text(header::ORIGIN));
-    if !guard::local_host(host.as_deref(), port) {
+    if !guard::allowed_host(host.as_deref(), bound.port, bound.lan) {
         tracing::warn!(target: TARGET, host, "page request for another host");
         return refused(request, StatusCode::MISDIRECTED_REQUEST).await;
     }

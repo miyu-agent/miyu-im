@@ -1,10 +1,12 @@
-//! 页面服务（设计 01 第九节第 1、3 条，施工 I-5 上）：im 自己的页面，只听本机。
+//! 页面服务（设计 01 第九节第 1、3 条，施工 I-5 上）：im 自己的页面，出厂只听本机；设置页打开「向局域网开放」的听 `0.0.0.0`
+//! （设计 11，施工 I-167，[`listen`]）。
 //!
-//! 1. 起来：听 `127.0.0.1` 的 `im.web.port`（`crate::current` 交来的页面服务那几项）。听上了说一句（`Notice::Page`）、端口报进
+//! 1. 起来：听 `im.web.listen` 的 `im.web.port`（`crate::current` 交来的页面服务那几项）。听上了说一句（`Notice::Page`）、端口报进
 //!    状态（[`Port`]：后台页的 `status`、状态文件的 `web`）；被占了说一句（`Notice::PageInUse`）、记一行运行日志，桥照跑（页面是给人
 //!    改设置的，NapCat 收发消息不靠它）。
 //! 2. 每个 TCP 连接一个任务：当 HTTP 读（`request`），升级成 WebSocket 的接着当通道跑（`channel`）。接不了的歇一下再接。
-//! 3. 端口变了开新的，开上了换掉旧的；开不了的不换（旧的照旧；原来没听上的照旧没有）。已经接进来的连接不断。
+//! 3. 端口、地址变了开新的，开上了换掉旧的；开不了的不换（旧的照旧；原来没听上的照旧没有）。同一个端口只换地址的先放下旧的再开
+//!    （[`rebind`]）。已经接进来的连接不断。
 //!
 //! 登录（`logins`）只在内存里：交接票换来的登录令牌照它另开一条人的连接（`ticket`），用户名、密码照它握手连上的就是人的连接
 //! （`password`）；页面上要人的权限做的事以后走这条连接。登出时在这条连接上作废它的登录令牌（`account.logout`）。
@@ -18,6 +20,7 @@ mod files;
 mod guard;
 mod home_cards;
 mod limits_page;
+mod listen;
 mod logins;
 mod logs;
 mod methods;
@@ -43,6 +46,7 @@ mod watching;
 mod web_link;
 
 use std::convert::Infallible;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -157,9 +161,9 @@ impl Site {
     }
 }
 
-/// 页面服务实际听的端口：没听上的是空的。状态文件、后台页的 `status` 照它说 `web`。
+/// 页面服务实际听的端口和地址：没听上的是空的。状态文件、后台页的 `status` 照它说 `web`；设置页照地址写局域网的网址（施工 I-167）。
 pub(crate) struct Port {
-    port: Mutex<Option<u16>>,
+    port: Mutex<Option<(u16, IpAddr)>>,
     /// 变了叫一声状态文件。
     changed: Arc<Changed>,
 }
@@ -175,12 +179,17 @@ impl Port {
 
     /// 实际听的端口。
     pub(crate) fn get(&self) -> Option<u16> {
+        self.listening().map(|(port, _)| port)
+    }
+
+    /// 实际听的端口和地址。
+    pub(crate) fn listening(&self) -> Option<(u16, IpAddr)> {
         *self.port.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// 换成 `port`，叫一声状态文件。
-    fn set(&self, port: u16) {
-        *self.port.lock().unwrap_or_else(PoisonError::into_inner) = Some(port);
+    /// 换成 `ip` 上的 `port`，叫一声状态文件。
+    fn set(&self, port: u16, ip: IpAddr) {
+        *self.port.lock().unwrap_or_else(PoisonError::into_inner) = Some((port, ip));
         self.changed.notify();
     }
 }
@@ -206,8 +215,8 @@ pub(crate) async fn start(
 
 /// 接连接、端口变了换（模块的说明第 2、3 条）。
 async fn accepting(
-    mut listener: Option<(TcpListener, u16)>,
-    (mut wanted, mut config): (Option<u16>, watch::Receiver<Map<String, Value>>),
+    mut listener: Option<(TcpListener, Bound)>,
+    (mut wanted, mut config): (Wanted, watch::Receiver<Map<String, Value>>),
     site: Arc<Site>,
     (tell, port): (Arc<dyn Fn(Notice) + Send + Sync>, Arc<Port>),
 ) {
@@ -216,14 +225,14 @@ async fn accepting(
     loop {
         let accepted = async {
             match &listener {
-                Some((listener, port)) => (listener.accept().await, *port),
+                Some((listener, bound)) => (listener.accept().await, *bound),
                 None => std::future::pending().await,
             }
         };
         tokio::select! {
-            (accepted, port) = accepted => match accepted {
+            (accepted, bound) = accepted => match accepted {
                 Ok((stream, _)) => {
-                    connections.spawn(accept(stream, port, Arc::clone(&site)));
+                    connections.spawn(accept(stream, bound, Arc::clone(&site)));
                 }
                 Err(error) => {
                     tracing::warn!(target: TARGET, error = %error, "page accept failed");
@@ -240,11 +249,9 @@ async fn accepting(
                 if now == wanted {
                     continue;
                 }
-                wanted = now;
-                if let Some(now) = now
-                    && let Some(bound) = bind(now, &tell, &port).await
-                {
-                    listener = Some(bound);
+                let previous = std::mem::replace(&mut wanted, now);
+                if let Some(now) = now {
+                    listener = rebind(listener, (previous, now), &tell, &port).await;
                 }
             },
             Some(ended) = connections.join_next() => {
@@ -256,21 +263,53 @@ async fn accepting(
     }
 }
 
-/// 配置里要的端口；没有的、不是端口的是空的。
-fn wanted(config: &Map<String, Value>) -> Option<u16> {
+/// 换成 `now`（原来要的是 `previous`）：开上了换掉 `listener`，开不了的照旧。同一个端口只换地址的（开关局域网，施工 I-167）旧的
+/// 占着这个端口，先放下再开；开不了的照原来的地址开回来。
+async fn rebind(
+    listener: Option<(TcpListener, Bound)>,
+    (previous, now): (Wanted, (u16, IpAddr)),
+    tell: &Arc<dyn Fn(Notice) + Send + Sync>,
+    port: &Port,
+) -> Option<(TcpListener, Bound)> {
+    let moved = previous.filter(|&(was, ip)| was == now.0 && ip != now.1);
+    let Some(previous) = moved else {
+        return bind(now, tell, port).await.or(listener);
+    };
+    drop(listener);
+    match bind(now, tell, port).await {
+        Some(bound) => Some(bound),
+        None => bind(previous, tell, port).await,
+    }
+}
+
+/// 配置里要的端口和地址（[`listen::wanted`]）；端口没有的、不是端口的是空的。
+fn wanted(config: &Map<String, Value>) -> Wanted {
     config
         .get(PORT)
         .and_then(Value::as_u64)
         .and_then(|port| u16::try_from(port).ok())
+        .map(|port| (port, listen::wanted(config)))
 }
 
-/// 只听 `127.0.0.1` 的 `wanted`（`0` 是系统挑一个）：听上了说、报端口，交回监听和实际的端口；被占了、听不了的说一句，是空的。
+/// 配置要的端口和地址（[`wanted`]）：端口没有的是空的。
+type Wanted = Option<(u16, IpAddr)>;
+
+/// 一个监听：端口，开没开局域网（`request` 照它认 `Host`，[`guard::allowed_host`]）。
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Bound {
+    /// 实际听的端口。
+    pub(super) port: u16,
+    /// 听的不是本机（`0.0.0.0`）。
+    pub(super) lan: bool,
+}
+
+/// 听 `ip` 的 `wanted`（`0` 是系统挑一个）：听上了说、报端口，交回监听和实际的端口；被占了、听不了的说一句，是空的。
 async fn bind(
-    wanted: u16,
+    (wanted, ip): (u16, IpAddr),
     tell: &Arc<dyn Fn(Notice) + Send + Sync>,
     port: &Port,
-) -> Option<(TcpListener, u16)> {
-    let listener = match TcpListener::bind(("127.0.0.1", wanted)).await {
+) -> Option<(TcpListener, Bound)> {
+    let listener = match TcpListener::bind((ip, wanted)).await {
         Ok(listener) => listener,
         Err(error) => {
             tracing::warn!(target: TARGET, port = wanted, error = %error, "page port not opened");
@@ -282,10 +321,16 @@ async fn bind(
         tracing::warn!(target: TARGET, port = wanted, "page port unknown");
         return None;
     };
-    tracing::info!(target: TARGET, port = actual, "page listening");
+    tracing::info!(target: TARGET, port = actual, %ip, "page listening");
     tell(Notice::Page { port: actual });
-    port.set(actual);
-    Some((listener, actual))
+    port.set(actual, ip);
+    Some((
+        listener,
+        Bound {
+            port: actual,
+            lan: !ip.is_loopback(),
+        },
+    ))
 }
 
 /// 登录不成的回应：状态 `status`，正文 `{"reason"}`。
@@ -293,14 +338,14 @@ fn refused(status: StatusCode, reason: &str) -> (StatusCode, Value) {
     (status, json!({"reason": reason}))
 }
 
-/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当通道跑，直到断开。`port` 是它进来的端口。
-async fn accept(stream: TcpStream, port: u16, site: Arc<Site>) {
+/// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当通道跑，直到断开。`bound` 是它进来的那个监听。
+async fn accept(stream: TcpStream, bound: Bound, site: Arc<Site>) {
     let slot: Arc<Mutex<Option<OnUpgrade>>> = Arc::default();
     let service = {
         let (slot, site) = (Arc::clone(&slot), Arc::clone(&site));
         hyper::service::service_fn(move |incoming| {
             let (slot, site) = (Arc::clone(&slot), Arc::clone(&site));
-            async move { Ok::<_, Infallible>(request::handle(incoming, port, &site, &slot).await) }
+            async move { Ok::<_, Infallible>(request::handle(incoming, bound, &site, &slot).await) }
         })
     };
     let served = hyper::server::conn::http1::Builder::new()

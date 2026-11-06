@@ -302,7 +302,7 @@ hidden = true
 name = { en = "Sync other admins' unmutes", zh = "同步群里别的管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
 description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里别的管理员解禁了谁，也记下来、告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
 
-# 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面只听本机的这个端口。键是 im.web.port（施工 I-3 补：
+# 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面听这个端口（施工 I-167 起能向局域网开放）。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。
 [settings.web.port]
 type = "int"
@@ -312,7 +312,17 @@ default = 8302
 layers = ["system"]
 applies = "now"
 name = { en = "Web page port", zh = "网页服务端口", ja = "Web ページのポート" }
-description = { en = "The port of the Connect Messaging web page, local only.", zh = "接入通讯平台的网页开在这个端口，只给本机访问。", ja = "メッセージング接続の Web ページを開くポートです。このマシンからだけアクセスできます。" }
+description = { en = "The port of the Connect Messaging web page.", zh = "接入通讯平台的网页开在这个端口。", ja = "メッセージング接続の Web ページを開くポートです。" }
+
+# 页面服务听哪个地址（设计 11，施工 I-167）：127.0.0.1 只给本机，0.0.0.0 向局域网开放。im 的设置页「访问」里一个开关写它，
+# 别的写法照本机（im 不收）。
+[settings.web.listen]
+type = "text"
+default = "127.0.0.1"
+layers = ["system"]
+applies = "now"
+name = { en = "Web page address", zh = "网页服务地址", ja = "Web ページのアドレス" }
+description = { en = "127.0.0.1 for this machine only, 0.0.0.0 to open the page to the local network. Turn it on in Settings > Access on the Connect Messaging page.", zh = "127.0.0.1 只给本机，0.0.0.0 向局域网开放。在接入通讯平台网页的「设置 → 访问」里打开。", ja = "127.0.0.1 はこのマシンだけ、0.0.0.0 でローカルネットワークに公開します。メッセージング接続のページの「設定 → アクセス」でオンにします。" }
 
 # 白名单成员（施工 O-27，2026-10-10 项目主人定：原来的键叫 trusted，旧键不认）。
 [settings.whitelist]

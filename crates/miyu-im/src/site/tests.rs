@@ -1,5 +1,5 @@
 use super::files::{kind, name};
-use super::guard::{local_host, same_origin};
+use super::guard::{allowed_host, local_host, same_origin};
 use super::logins::{HELD, Logins};
 
 #[test]
@@ -20,6 +20,33 @@ fn only_local_hosts_on_the_listening_port_pass() {
         assert!(!local_host(Some(host), 8302), "{host}");
     }
     assert!(!local_host(None, 8302), "没带 Host 的不认");
+}
+
+#[test]
+fn a_lan_listener_also_takes_ip_hosts_but_never_names() {
+    // 施工 I-167：向局域网开放时写 IP 的 Host 也收，域名照旧只认本机的写法（挡 DNS 重绑定）；只听本机的照旧只认本机。
+    for host in [
+        "192.168.1.9:8302",
+        "10.0.0.2:8302",
+        "[fe80::1]:8302",
+        "localhost:8302",
+    ] {
+        assert!(allowed_host(Some(host), 8302, true), "{host}");
+    }
+    for host in [
+        "evil.example:8302",
+        "192.168.1.9:8303",
+        "192.168.1.9",
+        "[fe80::1]",
+        "",
+    ] {
+        assert!(!allowed_host(Some(host), 8302, true), "{host}");
+    }
+    assert!(
+        !allowed_host(Some("192.168.1.9:8302"), 8302, false),
+        "只听本机的不收 IP"
+    );
+    assert!(allowed_host(Some("127.0.0.1:8302"), 8302, false));
 }
 
 #[test]

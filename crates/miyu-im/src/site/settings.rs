@@ -2,16 +2,20 @@
 //! 卡片的「发送消息处理」，每张卡片单独设）、网页服务的端口、本人的平台 ID（核心的 `external.bindings`：键是平台身份，值不空就算
 //! 主人本人，核心 SU-3 下起，施工 I-68）。都是核心的配置，在这份登录的人的连接上读、改，页面服务只让改下面这几项。
 //!
-//! - `settings.get` → `{"recall_receipts", "port", "bindings": [身份]}`：照核心的 `config.get`，没写的照清单的默认；对应表只交值不空的
-//!   身份（值是什么不交：只有一个主人，写 `owner` 还是老的 `admin` 都一样）。
-//! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`，或者 `binding:<身份>`（`value` 是 `true` 的
+//! - `settings.get` → `{"recall_receipts", "port", "listen", "lan", "bindings": [身份]}`：照核心的 `config.get`，没写的照清单的默认；对应表只交值不空的
+//!   身份（值是什么不交：只有一个主人，写 `owner` 还是老的 `admin` 都一样）。`listen` 是 `im.web.listen`（施工 I-167，
+//!   [`super::listen`]），`lan` 是现在听着的局域网网址的地址和端口（`192.168.1.2:8302`），只听本机、问不到的是空的。
+//! - `settings.set {key, value}` → `{"saved": true}`：`key` 是 `recall_receipts`、`port`、`listen`（只收 `127.0.0.1`、`0.0.0.0`），或者 `binding:<身份>`（`value` 是 `true` 的
 //!   记成主人，写 `owner`；`null` 的去掉那一条；别的 `bad_params`）。身份得是 `<平台>:<号>`（施工 I-85 补：页面能选别的平台了），号照
 //!   宿主的规矩（施工 I-79），不是的 `bad_params`。写进系统那一层（`config.set`），核心拒了的照它的原因和原话交回；
 //!   别的键 `bad_params`。
 
 use serde_json::{Value, json};
 
+use std::net::{IpAddr, SocketAddr};
+
 use super::Person;
+use super::listen::{LISTEN, lan_address, valid};
 use crate::chat::Id;
 use crate::rules::platform_ok;
 use crate::settings::{SITE_GROUP, key};
@@ -27,12 +31,16 @@ fn config_key(name: &str) -> Option<String> {
     match name {
         "recall_receipts" => Some(format!("{}.{name}", crate::PREFIX)),
         "port" => Some(key(SITE_GROUP, "port")),
+        LISTEN => Some(key(SITE_GROUP, LISTEN)),
         _ => None,
     }
 }
 
 /// `settings.get`（模块的说明）。
-pub(super) async fn get(person: &Person) -> Result<Value, (String, String)> {
+pub(super) async fn get(
+    person: &Person,
+    listening: Option<(u16, IpAddr)>,
+) -> Result<Value, (String, String)> {
     let got = person
         .lock()
         .await
@@ -66,6 +74,8 @@ pub(super) async fn get(person: &Person) -> Result<Value, (String, String)> {
     Ok(json!({
         "recall_receipts": value("recall_receipts"),
         "port": value("port"),
+        "listen": value(LISTEN),
+        "lan": lan(listening),
         "bindings": bindings,
     }))
 }
@@ -87,6 +97,9 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
         Some(_) => return Err(bad()),
         None => {
             let key = config_key(name).ok_or_else(bad)?;
+            if name == LISTEN && !params["value"].as_str().is_some_and(valid) {
+                return Err(bad());
+            }
             match &params["value"] {
                 Value::Null => json!({"key": key, "unset": true}),
                 value => json!({"key": key, "value": value}),
@@ -105,6 +118,13 @@ pub(super) async fn set(person: &Person, params: &Value) -> Result<Value, (Strin
         .map_err(|why| (why.reason, why.message))?;
     tracing::info!(target: crate::TARGET, key = name, "setting saved from the page");
     Ok(json!({"saved": true}))
+}
+
+/// 现在听着的局域网网址的地址和端口（模块的说明）：只听本机、问不到的是空的。
+fn lan(listening: Option<(u16, IpAddr)>) -> Value {
+    listening
+        .and_then(|(port, ip)| lan_address(ip).map(|ip| SocketAddr::new(ip, port).to_string()))
+        .map_or(Value::Null, Value::String)
 }
 
 /// 身份 `identity` 写得对（施工 I-85 补）：`<平台>:<号>`，平台照卡片的规矩（拼得成场所编号），号照 [`Id`] 的规矩。

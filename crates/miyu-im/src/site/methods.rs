@@ -88,7 +88,7 @@ pub(super) async fn answer(
         Some("moderation.get") => moderation::get(site),
         Some("moderation.set") => moderation::set(site, params),
         Some("reactions") => reactions(site, params),
-        Some("settings.get") => settings::get(&login.person).await,
+        Some("settings.get") => settings::get(&login.person, site.running.page.listening()).await,
         Some("settings.set") => settings::set(&login.person, params).await,
         Some("plugins.list") => plugins::list(site, &login.person).await,
         Some("plugins.home") => home_cards::set(site, &login.person, params).await,

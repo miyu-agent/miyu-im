@@ -1,5 +1,6 @@
 // 设置页（施工 I-7 下一，设计 01 第八节第 6 条）：只放 im 自己的、各平台通用的设置。几段：本人的平台 ID（核心的 `external.bindings`，
-// 施工 I-68）、通用（回执自动撤回的命令）、外观（施工 I-110：跟随系统、浅色、深色）、网页服务（端口；登录用访问密码）。违规关键词
+// 施工 I-68）、通用（回执自动撤回的命令）、外观（施工 I-110：跟随系统、浅色、深色）、访问（施工 I-167：向局域网开放、端口、局域网
+// 网址和二维码）。每一段是一张共用的卡片（shell/sect.js，设计 11 G1）。违规关键词
 // 施工 I-113 起挪到群管理插件的设置里（plugins/moderation.js）。照样板左边一列切段、右边一次一段
 // （施工 I-7 下补）；切到哪一段重画时照旧。会话默认值（施工 I-7 下二）2026-10-20 挪到会话页墙上第一张卡（venues/）。
 //
@@ -14,6 +15,8 @@ import { platform, venueKinds } from '../home/platforms.js';
 import { chosenOf } from '../../shell/connection.js';
 import { choose, chosen, handed } from '../../shell/theme.js';
 import { openBind } from './bind.js';
+import { lanCard } from './lan-card.js';
+import { sect } from '../../shell/sect.js';
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
@@ -94,13 +97,11 @@ function head() {
   return shown;
 }
 
-/** 一段：标题、下面的几行。 */
+/** 一段：一张卡片（shell/sect.js），组名、小字、下面的几行。 */
 function section(title, hint, rows) {
-  const box = element('div', 'panel settings-section');
-  const named = element('div', 'section-title', say(title));
-  if (hint) named.append(element('small', null, say(hint)));
-  box.append(named, ...rows);
-  return box;
+  const card = sect(say(title), hint ? say(hint) : null);
+  card.body.append(...rows);
+  return card.box;
 }
 
 /** 一行：名字、小字、控件。 */
@@ -177,8 +178,13 @@ function appearance() {
   return section('settings-page/appearance', null, [row(say('settings-page/scheme'), hint, seg)]);
 }
 
-/** 网页服务：端口；登录用 Miyu 账号。 */
+/** 访问（施工 I-167）：向局域网开放（`im.web.listen` 写 `0.0.0.0`，关了写回 `127.0.0.1`）、端口；开着的再给一张局域网网址的卡
+ *  （lan-card.js），问不到地址的写一句。局域网来的用核心的访问密码登录。 */
 function site(got, save) {
+  const open = got.listen === '0.0.0.0';
+  const lan = element('button', open ? 'switch on' : 'switch');
+  lan.append(element('i'));
+  lan.addEventListener('click', () => save('listen', open ? '127.0.0.1' : '0.0.0.0'));
   const port = element('input', 'input num');
   port.inputMode = 'numeric';
   port.value = got.port ?? '';
@@ -187,5 +193,7 @@ function site(got, save) {
     if (Number.isInteger(number) && number > 0 && number < 65536) save('port', number);
     else toast(say('failed/invalid'));
   });
-  return section('settings-page/site', 'settings-page/site-hint', [row(say('settings-page/port'), say('settings-page/port-hint'), port)]);
+  const rows = [row(say('settings-page/lan'), say('settings-page/lan-hint'), lan), row(say('settings-page/port'), say('settings-page/port-hint'), port)];
+  if (open) rows.push(got.lan ? lanCard(`http://${got.lan}/`) : element('p', 'faint', say('settings-page/lan-unknown')));
+  return section('settings-page/site', 'settings-page/site-hint', rows);
 }

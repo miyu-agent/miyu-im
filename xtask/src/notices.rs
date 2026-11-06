@@ -27,11 +27,18 @@ const STANDARD: [(&str, &str); 4] = [
     ("AGPL-3.0-or-later", include_str!("../../LICENSE")),
 ];
 
-/// 随包发的第三方数据：写在段前的说明、原文在仓库里的位置。后台页的图标是 Lucide（ISC，每份副本都要带声明）。
-const DATA: [(&str, &str); 1] = [(
-    "Lucide icons (miyu-im/site/shell/lucide-all.json, lucide.js)",
-    "miyu-im/site/shell/LICENSE-lucide.txt",
-)];
+/// 随包发的第三方数据：写在段前的说明、原文在仓库里的位置。后台页的图标是 Lucide（ISC，每份副本都要带声明）；设置页的二维码是
+/// qrcode-generator（MIT，施工 I-167）。
+const DATA: [(&str, &str); 2] = [
+    (
+        "Lucide icons (miyu-im/site/shell/lucide-all.json, lucide.js)",
+        "miyu-im/site/shell/LICENSE-lucide.txt",
+    ),
+    (
+        "qrcode-generator 2.0.4 by Kazuhiko Arase (miyu-im/site/shell/qr/vendor/qrcode.mjs)",
+        "miyu-im/site/shell/qr/vendor/LICENSE",
+    ),
+];
 
 /// 文件名照大写比，以这几样开头的是许可证文件。
 const NAMES: [&str; 5] = ["LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE"];

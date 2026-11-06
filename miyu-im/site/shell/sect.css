@@ -2,3 +2,4 @@
 .sect { flex-shrink: 0; padding: var(--sect-pad-y) var(--sect-pad-x); border-radius: var(--sect-radius); background: var(--surface-1); box-shadow: var(--bubble-shadow); }
 .sect + .sect { margin-top: var(--sect-gap); }
 .sect-name { padding: 12px 0 2px; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.sect-hint { margin: 0 0 4px; color: var(--text-faint); font-size: 12px; }

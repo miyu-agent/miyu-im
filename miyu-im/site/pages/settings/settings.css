@@ -11,3 +11,11 @@
 .section-title small { display: block; margin-top: 2px; color: var(--text-faint); font-size: 12px; font-weight: 400; }
 .settings-section .row:last-child { border-bottom: 0; }
 .input.num.wide-num { width: 140px; }
+/* 访问（设计 11，施工 I-167，lan-card.js）：二维码在左、网址在右，窄的屏上下排。二维码白底，照它自己的颜色不跟主题变。 */
+.lan-card { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 12px 0; }
+.lan-qr { flex: none; width: var(--lan-qr-size); height: var(--lan-qr-size); border-radius: 8px; }
+.lan-side { display: flex; flex-direction: column; gap: 6px; flex: 1 1 220px; min-width: 0; }
+.lan-label { margin: 0; font-weight: 500; }
+.lan-address { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lan-url { min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12.5px; }
+.lan-scan { margin: 0; color: var(--text-faint); font-size: 12px; }

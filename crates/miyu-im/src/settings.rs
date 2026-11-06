@@ -35,8 +35,8 @@ const RECALL_RECEIPTS: &str = "recall_receipts";
 /// 页面服务的配置项在哪一组（施工 I-3 补：核心的设置名能带一层组以后，键是 `im.web.port`）。
 pub const SITE_GROUP: &str = "web";
 
-/// 页面服务的配置项的名字（施工 I-5 上）：端口。
-pub const SITE: &[&str] = &["port"];
+/// 页面服务的配置项的名字（施工 I-5 上）：端口；听哪个地址（施工 I-167，`site::listen`）。
+pub const SITE: &[&str] = &["port", "listen"];
 
 /// 清单 `[settings]` 里的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]

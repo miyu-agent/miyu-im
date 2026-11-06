@@ -208,6 +208,41 @@ async fn a_new_page_port_replaces_the_old_one_and_a_taken_one_keeps_it() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn opening_to_the_lan_keeps_the_port_and_takes_ip_hosts() {
+    // 施工 I-167：设置页「向局域网开放」写 im.web.listen = 0.0.0.0，同一个端口换成听所有地址（旧的先放下，不然开不上），写 IP 的
+    // Host 也收；关了照旧只认本机的写法。
+    let home = Home::new(&Script::new([]));
+    let (serve, relay) = serve_pushing(home.root.clone(), settings());
+    let bridge = start(serve).await;
+    page_port(&bridge, 1).await;
+    // 测具出厂的端口是 0（系统挑）：先定一个，换地址时才是同一个端口。
+    let port = free_port();
+    relay.config(json!({"im.web.port": port}));
+    assert_eq!(page_port(&bridge, 2).await, port);
+    let lan_host = format!("192.168.1.9:{port}");
+    let refused = request(port, ("GET", "/", &lan_host), &[], b"").await;
+    assert_eq!(refused.status, 421, "只听本机时不收写 IP 的 Host");
+    relay.config(json!({"im.web.listen": "0.0.0.0"}));
+    assert_eq!(page_port(&bridge, 3).await, port, "同一个端口");
+    assert_eq!(get(port, "/").await.status, 200, "本机照样打得开");
+    let taken = request(port, ("GET", "/", &lan_host), &[], b"").await;
+    assert_eq!(taken.status, 200, "向局域网开放后收写 IP 的 Host");
+    let named = request(
+        port,
+        ("GET", "/", &format!("evil.example:{port}")),
+        &[],
+        b"",
+    )
+    .await;
+    assert_eq!(named.status, 421, "域名照旧不收");
+    relay.config(json!({"im.web.listen": "127.0.0.1"}));
+    assert_eq!(page_port(&bridge, 4).await, port);
+    let again = request(port, ("GET", "/", &lan_host), &[], b"").await;
+    assert_eq!(again.status, 421, "关了照旧只认本机");
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_channel_lists_connections_and_says_when_they_change() {
     // 施工 I-6 上：连着的机器人（页面的连接卡），NapCat 连上、问到实现都推一帧 `changed`，页面照它再问。
     let home = Home::new(&Script::new([]));
