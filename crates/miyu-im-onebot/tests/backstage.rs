@@ -106,8 +106,8 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     );
     assert_eq!(onebot["page"], true, "{onebot}");
 
-    // 桥起来、开好监听以后才登记：等到调得到。
-    let mut status = head.until("status", |result| result.is_object()).await;
+    // 桥起来、开好监听以后才登记：等到调得到，页面服务的端口也报上来了（原来只等调得到，偶尔端口还没报上来，`web` 是空的）。
+    let mut status = head.until("status", |result| result["web"].is_u64()).await;
     // 页面服务的端口（施工 I-5 上）：测试的配置另挑的那一个。
     let web = status
         .as_object_mut()
