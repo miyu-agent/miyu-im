@@ -41,6 +41,8 @@ pub(super) struct Glances {
     default: Duration,
     /// 她定的一分钟按几秒算（`glance_minute_seconds`，施工 I-90：回放压缩时间用，出厂 60）。
     minute: u64,
+    /// 卡上没写「看一眼带几条」时那一轮最多交几条新消息（`glance_records`，施工 I-175，出厂 50）。
+    records: usize,
     /// 对过账了：起来时、卡片存了以后是假的，下一次 [`Route::sync_glances`] 照它对账。
     synced: bool,
     /// 场所编号 → 等着的定时编号。
@@ -59,11 +61,12 @@ pub(super) struct Glances {
 }
 
 impl Glances {
-    /// 没定下一次时隔 `default`，她定的一分钟按 `minute` 秒算。
-    pub(super) fn new((default, minute): (Duration, u64)) -> Glances {
+    /// 没定下一次时隔 `default`，她定的一分钟按 `minute` 秒算，那一轮最多交 `records` 条（卡上没写时）。
+    pub(super) fn new((default, minute, records): (Duration, u64, usize)) -> Glances {
         Glances {
             default,
             minute,
+            records,
             ..Glances::default()
         }
     }
@@ -71,6 +74,11 @@ impl Glances {
     /// 没定下一次时隔几分钟（施工 I-165：卡片「多久看一眼」没写时淡字写它），照她定的一分钟按几秒算，至少 1。
     pub(super) fn default_minutes(&self) -> u64 {
         (self.default.as_secs() / self.minute.max(1)).max(1)
+    }
+
+    /// 卡上没写「看一眼带几条」时那一轮最多交几条（施工 I-175：卡片淡字写它）。
+    pub(super) fn default_records(&self) -> usize {
+        self.records
     }
 }
 
@@ -292,7 +300,9 @@ impl Route {
                 .insert(session, (id.to_string(), prompt));
             return Ok(());
         }
-        let to = unanswered(group.heard(), prompt.after);
+        // 最多交几条（施工 I-175）：卡上「看一眼带几条」，没写的照桥的出厂。
+        let most = applied::glance_records(&applied).unwrap_or(self.glances.records);
+        let to = unanswered(group.heard(), prompt.after, most);
         let last = group.last();
         let later = Prompt {
             after: last,

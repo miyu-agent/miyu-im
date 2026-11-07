@@ -106,6 +106,36 @@ async fn a_glance_opens_on_new_messages_only_and_stops_when_turned_off() {
 }
 
 #[tokio::test]
+async fn a_card_caps_how_many_new_messages_a_glance_hands_over() {
+    // 施工 I-175（项目主人 11-05）：卡上「看一眼带几条」写 2，到点有 3 条没回的新消息，这一轮只交最后 2 条。
+    let script = Script::new([Play::Says("看到了")]);
+    let tuned = json!({"glance_seconds": 4});
+    let (home, mut napcat, _) = started_tuned(Arc::new(script.clone()), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let cards = json!({"groups": [{"id": GROUP, "set": {"glance": true, "glance_records": 2}}]});
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    for (message, text) in [(1, "一"), (2, "二"), (3, "三")] {
+        napcat.send(chat(message, text));
+    }
+    assert_eq!(napcat.group_reply(GROUP).await, "看到了");
+    let log = until_log(&home, "glance opened").await;
+    let opened = log
+        .lines()
+        .find(|line| line.contains("glance opened"))
+        .unwrap_or_default();
+    assert!(opened.contains("count=2"), "只交最后 2 条：{opened}");
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_glance_never_opens_where_replies_are_off() {
     // 施工 I-108（项目主人 11-02 部署上撞到：会话默认值打开看一眼，「是否回复」关着的群她也去看了、说了话）：回复关着的场所
     // 不排看一眼，到点也不开轮。

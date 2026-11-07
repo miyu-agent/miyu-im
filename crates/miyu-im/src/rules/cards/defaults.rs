@@ -47,6 +47,7 @@ pub fn group(applied: &Applied) -> Value {
         "recent",
         "glance",
         "glance_minutes",
+        "glance_records",
     ] {
         set.insert(key.into(), plain(applied, key));
     }

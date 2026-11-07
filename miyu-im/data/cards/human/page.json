@@ -99,6 +99,11 @@
     "en": "Glance every (minutes)",
     "ja": "覗く間隔（分）"
   },
+  "field.glance_records": {
+    "zh": "看一眼带几条新消息",
+    "en": "Messages per glance",
+    "ja": "覗くときのメッセージ数"
+  },
   "field.sleep": {
     "zh": "睡觉时间",
     "en": "Sleep time",

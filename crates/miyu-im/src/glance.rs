@@ -77,14 +77,14 @@ pub fn reconcile(
 }
 
 /// 到点该交的新消息：`said` 是人说的话（主线序号、当过一轮的触发没有），晚于 `after`、没当过触发的才算（当过的她已经回过或者
-/// 在回，核心也不让再当）；照先后，多了留最后 [`MOST`] 条。
+/// 在回，核心也不让再当）；照先后，多了留最后 `most` 条（卡上「看一眼带几条」，出厂 50，施工 I-175），最多 [`MOST`] 条。
 #[must_use]
-pub fn unanswered(said: impl Iterator<Item = (u64, bool)>, after: u64) -> Vec<u64> {
+pub fn unanswered(said: impl Iterator<Item = (u64, bool)>, after: u64, most: usize) -> Vec<u64> {
     let fresh: Vec<u64> = said
         .filter(|(seq, answered)| *seq > after && !answered)
         .map(|(seq, _)| seq)
         .collect();
-    let skip = fresh.len().saturating_sub(MOST);
+    let skip = fresh.len().saturating_sub(most.clamp(1, MOST));
     fresh.into_iter().skip(skip).collect()
 }
 

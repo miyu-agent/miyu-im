@@ -185,6 +185,16 @@ pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
     }
 }
 
+/// 规则的 `glance_records`（施工 I-175）：看一眼那一轮最多交几条没回的新消息。没写的是空的（照桥的出厂）。
+pub(super) fn glance_records(applied: &Applied) -> Option<usize> {
+    match entry(applied, "glance_records") {
+        Some(Value::Int(records)) => usize::try_from(*records)
+            .ok()
+            .filter(|records| *records > 0),
+        _ => None,
+    }
+}
+
 /// 会话的说话方式（施工 I-140）：规则的 `style_note`，去掉首尾空白；没写的、空的是空的。
 pub(super) fn style_note(applied: &Applied) -> Option<&str> {
     text(applied, "style_note")

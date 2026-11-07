@@ -48,11 +48,16 @@ fn reconciling_keeps_one_per_venue_and_fills_the_gaps() {
 #[test]
 fn only_messages_after_the_last_look_and_not_answered_are_new() {
     let said = [(5, false), (8, false), (9, true), (10, false)];
-    assert_eq!(unanswered(said.into_iter(), 7), [8, 10]);
-    assert_eq!(unanswered(said.into_iter(), 10), Vec::<u64>::new());
-    let many = (1..=100).map(|seq| (seq, false));
-    let kept = unanswered(many, 0);
-    assert_eq!(kept.len(), MOST);
-    assert_eq!(kept.first(), Some(&37));
+    assert_eq!(unanswered(said.into_iter(), 7, 50), [8, 10]);
+    assert_eq!(unanswered(said.into_iter(), 10, 50), Vec::<u64>::new());
+    let many = || (1..=100).map(|seq| (seq, false));
+    // 照卡上「看一眼带几条」留最后几条（施工 I-175，出厂 50）。
+    let kept = unanswered(many(), 0, 50);
+    assert_eq!(kept.len(), 50);
+    assert_eq!(kept.first(), Some(&51));
     assert_eq!(kept.last(), Some(&100));
+    assert_eq!(unanswered(many(), 0, 3), [98, 99, 100]);
+    // 写多了也只交核心收的 64 条，写 0 当 1 条。
+    assert_eq!(unanswered(many(), 0, 500).len(), MOST);
+    assert_eq!(unanswered(many(), 0, 0), [100]);
 }

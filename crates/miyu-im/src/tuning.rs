@@ -103,6 +103,8 @@ pub struct Tuning {
     pub glance_seconds: u64,
     /// 她用 `qq_glance` 定的一分钟按几秒算（施工 I-90）：出厂 60；回放旧群、把时间压短量花费时改小。至少 1。
     pub glance_minute_seconds: u64,
+    /// 看一眼那一轮最多交几条没回的新消息（施工 I-175，项目主人 11-05）：出厂 50，卡上「看一眼带几条」照它，1 到 64（核心一次最多 64）。
+    pub glance_records: usize,
     /// 一个人的头像的地址（施工 O-54，`onebot.md`「头像和群成员」）：`{id}` 换成 QQ 号。
     pub avatar_user_url: String,
     /// 一个群的头像的地址（施工 O-54）：`{id}` 换成群号。
@@ -133,8 +135,9 @@ impl Tuning {
             || tuning.connection_events == 0
             || tuning.glance_seconds == 0
             || tuning.glance_minute_seconds == 0
+            || !(1..=64).contains(&tuning.glance_records)
         {
-            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds and glance_minute_seconds must be at least 1".to_string()));
+            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds and glance_minute_seconds must be at least 1, glance_records 1 to 64".to_string()));
         }
         Ok(tuning)
     }
@@ -204,11 +207,12 @@ impl Tuning {
         Duration::from_secs(self.mute_window_seconds)
     }
 
-    /// 时不时看一眼没定下一次时隔多久（施工 I-89），她定的一分钟按几秒算（施工 I-90）。
-    pub fn glance(&self) -> (Duration, u64) {
+    /// 时不时看一眼没定下一次时隔多久（施工 I-89），她定的一分钟按几秒算（施工 I-90），那一轮最多交几条新消息（施工 I-175）。
+    pub fn glance(&self) -> (Duration, u64, usize) {
         (
             Duration::from_secs(self.glance_seconds),
             self.glance_minute_seconds,
+            self.glance_records,
         )
     }
 

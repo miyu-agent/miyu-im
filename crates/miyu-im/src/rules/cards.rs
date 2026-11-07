@@ -125,6 +125,9 @@ pub struct GroupSet {
     /// 她没定下一次时多久看一眼，分钟（施工 I-114）：拼成 `glance_minutes`，没写的照桥的出厂。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub glance_minutes: Option<u32>,
+    /// 看一眼那一轮最多交几条没回的新消息（施工 I-175）：拼成 `glance_records`，没写的照桥的出厂（50）。只有群卡、会话默认值。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance_records: Option<u32>,
     /// 插件开关（施工 I-8 上）：包的编号到开没开；没写的照兜底卡、插件声明的默认（`crate::plugins::Toggles`）。不拼进规则。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugins: Option<BTreeMap<String, bool>>,

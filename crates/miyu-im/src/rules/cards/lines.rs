@@ -179,6 +179,10 @@ pub(super) fn group_lines(set: &GroupSet, listed: bool) -> Vec<String> {
             "glance_minutes",
             set.glance_minutes.map(|minutes| minutes.to_string()),
         );
+        entries.put(
+            "glance_records",
+            set.glance_records.map(|records| records.to_string()),
+        );
     }
     if !listed && !entries.0.iter().any(|(key, _)| key == "rate") {
         entries.set("rate", quoted(OTHER_GROUPS_RATE));
@@ -194,6 +198,10 @@ pub(super) fn defaults_lines(set: &GroupSet) -> Vec<String> {
     entries.put(
         "glance_minutes",
         set.glance_minutes.map(|minutes| minutes.to_string()),
+    );
+    entries.put(
+        "glance_records",
+        set.glance_records.map(|records| records.to_string()),
     );
     entries.lines()
 }
