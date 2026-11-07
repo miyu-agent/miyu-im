@@ -3,7 +3,7 @@
 [package]
 # 版本、能装的系统（施工 I-126，进官方软件源要的）：版本两个包一样，打标签 `v<版本>` 发版；系统是三台 CI 测过的那三种，
 # 一种打一个 `.miyu`（`.github/workflows/release.yml`）。
-version = "0.1.1"
+version = "0.2.0"
 targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
 name = { en = "Sponsorships", zh = "赞助记录", ja = "スポンサー記録" }
