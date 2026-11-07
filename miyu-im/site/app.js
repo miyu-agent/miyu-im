@@ -70,9 +70,9 @@ function leave(line) {
   showLogin(login, line, (done) => enter(done.session, fromWebUi));
 }
 
-/** 本机打开的先试一下不要密码（施工 I-167补）：成了直接进，不成（局域网来的、核心还没批）出密码框，不写原因。 */
+/** 本机打开的先试一下不要密码（施工 I-167补）：成了直接进，不成（局域网来的、核心还没批）出密码框，不写原因。试的时候什么都不画
+ *  （施工 I-173：原来先画一张「正在登录」的登录卡，本机一下就进去了，那张卡一闪而过）。 */
 function local() {
-  showLogin(login, '', () => {}, true);
   signInLocal().then((done) => {
     if (done.session) enter(done.session, fromWebUi);
     else leave('');
@@ -83,7 +83,7 @@ const given = handed();
 useLanguage(given?.lang || navigator.language);
 const fromWebUi = applyHanded(given);
 if (typeof given?.ticket === 'string') {
-  showLogin(login, '', () => {}, true);
+  // 换票的时候同样什么都不画，换不成才出密码框（施工 I-173）。
   signIn('/login/ticket', { ticket: given.ticket }).then((done) => {
     if (done.session) enter(done.session, fromWebUi);
     else leave(done.line);
