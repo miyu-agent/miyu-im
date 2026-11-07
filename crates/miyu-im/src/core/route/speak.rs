@@ -12,7 +12,7 @@ use miyu_client::ids::VenueId;
 use serde_json::Value;
 
 use super::backlog::queued_reply;
-use super::outbound::{Passed, group_ctx, pass, private_ctx, why_name};
+use super::outbound::{Passed, group_ctx, kept_for_own_mention, pass, private_ctx, why_name};
 use super::projection::{Aim, Speaking};
 use super::quiet::{Held, has_calls};
 use super::sending::{Body, Piece, What};
@@ -345,7 +345,8 @@ impl Route {
 
     /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @；她这一轮在这条线上用 `mention`
     /// 指定了要 @ 的（施工 O-55，`aims`），第一段也带上、用掉；用 `quote` 指定了要引用的（施工 I-31），第一段引用那一条。她挑了
-    /// 其中哪一样，这一句都不再自动引用、自动 @（施工 I-45）。照场所参数是长文的先试着画成图（施工 O-59 上）。
+    /// 其中哪一样，这一句都不再自动引用、自动 @（施工 I-45）；只 @ 了她回的那一个人的照常自动引用、不再自动 @（施工 I-174）。
+    /// 照场所参数是长文的先试着画成图（施工 O-59 上）。
     pub(super) async fn say(
         &mut self,
         session: &str,
@@ -357,8 +358,15 @@ impl Route {
         if let What::Reply { line, turn, .. } = &what {
             let aim = self.take_aim(line, *turn);
             // 她自己挑了引用（施工 I-31）或者 @ 了人（施工 I-45）的：照她挑的，这一句不再自动引用、自动 @（自动引用的那一条
-            // 和她 @ 的人会对不上）。
-            if aim.quote.is_some() || !aim.users.is_empty() {
+            // 和她 @ 的人会对不上）。只 @ 了她回的那一个人、没挑引用的照常自动引用，不再自动 @（施工 I-174）。
+            let kept = match (&aim.quote, &aimed) {
+                (None, Some(aimed)) => kept_for_own_mention(aimed, &aim.users),
+                _ => None,
+            };
+            if let Some(kept) = kept {
+                lead.at = None;
+                aimed = Some(kept);
+            } else if aim.quote.is_some() || !aim.users.is_empty() {
                 lead.reply = aim.quote;
                 lead.at = None;
                 aimed = None;

@@ -65,6 +65,23 @@ pub(super) fn relead(
     target
 }
 
+/// 她这一句自己 @ 了人（`mention` 工具，施工 O-55）、没自己挑引用：@ 的只有她回的那一个人的，照常自动引用，不再自动 @（她已经
+/// @ 了，施工 I-174，项目主人 11-07：她自己 @ 以后智能引用全没了）。交回改过的；@ 了别人的、几个人的交回空的，这一句照 I-45
+/// 不自动引用、不自动 @（自动引用的那一条和她 @ 的人会对不上）。
+pub(super) fn kept_for_own_mention(aimed: &Aimed, users: &[String]) -> Option<Aimed> {
+    let only = match users {
+        [only] => only,
+        _ => return None,
+    };
+    (number(&aimed.aim).as_deref() == Some(only.as_str())).then(|| Aimed {
+        want: Target {
+            mention: false,
+            ..aimed.want
+        },
+        aim: aimed.aim.clone(),
+    })
+}
+
 /// 她的一句 `text` 过出站链，情形是 `ctx`：丢了的交回为什么；过了的照 `split`（一段最多 `split_chars` 个字符，`0`
 /// 不拆）拆段，实际要带的引用、@ 照她回的那一条 `aim` 填（第 9 条第 1 到 3 项）。参数开着模拟真人一条分多条发送的先照
 /// `bubbles` 拆，拆出两段以上的照它（施工 I-26）。

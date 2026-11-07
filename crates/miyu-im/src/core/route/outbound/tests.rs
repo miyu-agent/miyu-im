@@ -7,7 +7,7 @@ use miyu_client::ids::ExternalId;
 use miyu_client::time::Timestamp;
 
 use super::super::projection::{Aim, Speaking};
-use super::{Spoken, group_ctx, pass, private_ctx, why_name};
+use super::{Aimed, Spoken, group_ctx, kept_for_own_mention, pass, private_ctx, why_name};
 use crate::chat::Lead;
 
 /// 出厂参数。
@@ -184,4 +184,37 @@ fn what_was_spoken_is_kept_for_one_turn() {
     spoken.add(4, "三".to_string());
     assert_eq!(spoken.of(4), ["三"], "换了回合就清");
     assert!(spoken.of(3).is_empty());
+}
+
+#[test]
+fn her_own_mention_of_the_one_she_answers_keeps_the_quote() {
+    // 施工 I-174（项目主人 11-07）：她自己 @ 的只有她回的那一个人，照常自动引用、不再自动 @；@ 了别人、几个人的照 I-45 不自动。
+    let aimed = Aimed {
+        aim: aim(),
+        want: Target {
+            quote: true,
+            mention: true,
+        },
+    };
+    let kept = kept_for_own_mention(&aimed, &["10001".to_string()]).expect("@ 的就是她回的那个人");
+    assert_eq!(kept.aim, aimed.aim);
+    assert_eq!(
+        kept.want,
+        Target {
+            quote: true,
+            mention: false
+        },
+        "照常引用，不再自动 @"
+    );
+    assert_eq!(
+        kept_for_own_mention(&aimed, &["10002".to_string()]),
+        None,
+        "@ 了别人"
+    );
+    assert_eq!(
+        kept_for_own_mention(&aimed, &["10001".to_string(), "10002".to_string()]),
+        None,
+        "@ 了几个人"
+    );
+    assert_eq!(kept_for_own_mention(&aimed, &[]), None, "没 @ 人的不走这里");
 }
