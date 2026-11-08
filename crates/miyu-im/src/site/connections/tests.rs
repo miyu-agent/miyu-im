@@ -3,7 +3,7 @@
 
 use serde_json::{Value, json};
 
-use super::{Entry, changes, retired, table};
+use super::{Entry, changes, retired, table, waiting};
 
 /// 照 `config.get` 回答的样子包一层：键到 `{"value": …}`。
 fn got(values: Value) -> Value {
@@ -117,4 +117,19 @@ fn only_secrets_the_new_table_no_longer_names_are_retired() {
     ];
     assert_eq!(retired(&before, &after), ["im-qq-token-8302-1"]);
     assert!(retired(&after, &after).is_empty());
+}
+
+#[test]
+fn a_port_the_driver_listens_on_without_a_token_is_waiting() {
+    // 施工 I-177：配置里写了 Token 的引用、密钥却没有，驱动照没有令牌听着；这个端口新建连接时给它换上 Token，不算重。
+    let status = |token: &str| {
+        json!({"connections": [{"host": "0.0.0.0", "listen": 8301, "token": token}]})
+            .as_object()
+            .expect("对象")
+            .clone()
+    };
+    assert!(waiting(&status("none"), 8301));
+    assert!(!waiting(&status("set"), 8301));
+    assert!(!waiting(&status("none"), 8302));
+    assert!(!waiting(&serde_json::Map::new(), 8301));
 }

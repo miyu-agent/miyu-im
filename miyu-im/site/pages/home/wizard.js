@@ -3,7 +3,7 @@
 // 存设置经宿主的 connection.save（人的连接替人存）；等的时候照外壳推来的连接看，有连着的就算连上。
 // 连接表（施工 I-81 下中）：填地址那一步先给一个没用过的端口（表里设了 Token 的端口最大的加一，表里还没有的照 status 的端口；
 // 施工 I-109 起跳过这个网页自己的端口，原来会建议成它），和表里的、网页的重了不让往下走；粘贴 Token 那一步存成连接表里新的一个
-// （connection.add）；等连上照这个端口认号。施工 I-109（项目主人 11-02）：不另放一格端口，地址那一格直接能改，端口照地址里写的读。
+// （connection.add；端口上听着、还没有令牌的，宿主给它换上，施工 I-177）；等连上照这个端口认号。施工 I-109（项目主人 11-02）：不另放一格端口，地址那一格直接能改，端口照地址里写的读。
 import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
@@ -127,7 +127,7 @@ export function openWizard(request, table = { entries: [] }) {
         step(n + 1);
       } catch (reason) {
         if (reason === 'config_invalid') failed.textContent = say('failed/invalid');
-        else if (reason === 'bad_params') failed.textContent = say('failed/port-taken');
+        else if (reason === 'port_taken') failed.textContent = say('failed/port-taken');
         else failed.textContent = say('failed/save');
         next.disabled = false;
       }

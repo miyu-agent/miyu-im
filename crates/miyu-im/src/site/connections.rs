@@ -4,7 +4,8 @@
 //!
 //! - `connection.add {platform?, port, token, host?}` → `{"saved": true}`：加一个连接。端口 1024 到 65535、不能和表里的重、不能是
 //!   这个网页自己的端口（施工 I-109：原来建议的端口是表里最大的加一，撞上了网页的）；Token
-//!   必写（NapCat 那边生成的）；地址不写的照驱动的默认。
+//!   必写（NapCat 那边生成的）；地址不写的照驱动的默认。表里有、驱动却报这个端口还没有令牌的（施工 I-177：配置里写了 Token 的引用、
+//!   密钥却没有，驱动照没有令牌听着，向导建议的正是这个端口），不算重，给那一项换上这个 Token。
 //! - `connection.edit {platform?, port, values: {host?, listen?, token?}}` → `{"saved": true}`：改端口是 `port` 的那一个。`listen` 是新
 //!   端口（不能和别的重、不能是网页的）；`token` 空的不改。
 //! - `connection.remove {platform?, port}` → `{"saved": true}`：删端口是 `port` 的那一个；表里只剩它的不删（`last_connection`）。
@@ -12,9 +13,10 @@
 //! 读：`config.get` 三个列表（密钥是引用，不是值）。表还没写过的（原来只有一个连接）：原来的 `host`、`listen`、`token` 设了 Token 的
 //! 当头一个连接，没设 Token 的不算（新装还没配过，新建的就是头一个）。写：Token 先 `secret.set` 存成新名字的密钥（照键起名、带上
 //! 时刻），三个列表一起写进系统配置（一次 `config.set`），原来的三项一起去掉。核心收下推 `extension.config`，驱动当场换。
-//! 写错的（端口重了、找不到、Token 没写）：`bad_params`；核心拒了的照它的原因和原话交回。
+//! 端口重了的（和表里的、网页的）：`port_taken`（施工 I-177：原来同写错的一样回 `bad_params`，页面一律说端口被占了）。写错的（找不到、
+//! Token 没写、端口超出范围）：`bad_params`；核心拒了的照它的原因和原话交回。
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use super::plugin_settings::{now_millis, secret_name};
 use super::{Person, Site};
@@ -39,6 +41,21 @@ pub(super) struct Entry {
 /// 写错了。
 fn bad() -> (String, String) {
     ("bad_params".to_string(), String::new())
+}
+
+/// 端口重了（模块的说明）。
+fn taken() -> (String, String) {
+    ("port_taken".to_string(), String::new())
+}
+
+/// 驱动报的状态 `status` 里端口 `port` 听着、还没有令牌（模块的说明 `connection.add`）。
+pub(super) fn waiting(status: &Map<String, Value>, port: u64) -> bool {
+    status
+        .get("connections")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .any(|one| one["listen"].as_u64() == Some(port) && one["token"] == "none")
 }
 
 /// 合不合端口的写法：1024 到 65535。
@@ -209,23 +226,34 @@ pub(super) async fn add(
     let _turn = site.table.lock().await;
     let (platform, mut entries) = read(site, person, params).await?;
     let before = entries.clone();
-    if entries.iter().any(|entry| entry.port == port) || page_port(site, port) {
-        return Err(bad());
-    }
     let host = match &params["host"] {
         Value::Null => None,
         Value::String(host) if is_address(host) => Some(host.trim().to_string()),
         _ => return Err(bad()),
     };
-    let default_host = entries
-        .first()
-        .map_or_else(|| "0.0.0.0".to_string(), |entry| entry.host.clone());
+    let at = entries.iter().position(|entry| entry.port == port);
+    if page_port(site, port) || (at.is_some() && !waiting(&site.pick(params)?.0.status(), port)) {
+        return Err(taken());
+    }
     let token = stored(person, &platform, port, token).await?;
-    entries.push(Entry {
-        host: host.unwrap_or(default_host),
-        port,
-        token,
-    });
+    match at {
+        Some(at) => {
+            entries[at].token = token;
+            if let Some(host) = host {
+                entries[at].host = host;
+            }
+        }
+        None => {
+            let default_host = entries
+                .first()
+                .map_or_else(|| "0.0.0.0".to_string(), |entry| entry.host.clone());
+            entries.push(Entry {
+                host: host.unwrap_or(default_host),
+                port,
+                token,
+            });
+        }
+    }
     write(person, &platform, (&before, &entries)).await
 }
 
@@ -265,7 +293,7 @@ pub(super) async fn edit(
             .any(|(other, entry)| other != at && entry.port == listen)
             || page_port(site, listen)
         {
-            return Err(bad());
+            return Err(taken());
         }
         entries[at].port = listen;
     }

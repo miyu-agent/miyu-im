@@ -295,10 +295,27 @@ async fn the_page_adds_edits_and_removes_connections() {
         )
     );
 
-    // 写错的：端口重了、Token 没写、找不到、端口超出范围、是这个网页自己的端口（施工 I-109）、地址不是 IP（施工 I-116）。
+    // 写错的：Token 没写、找不到、端口超出范围、地址不是 IP（施工 I-116）。
+    // 端口重了的（和表里的、网页的）：port_taken（施工 I-177）。
     for (method, params) in [
         ("connection.add", json!({"port": third, "token": "x"})),
         ("connection.add", json!({"port": port, "token": "x"})),
+        (
+            "connection.edit",
+            json!({"port": third, "values": {"listen": port}}),
+        ),
+        (
+            "connection.edit",
+            json!({"port": third, "values": {"listen": 8301}}),
+        ),
+    ] {
+        let wrong = call(&mut open, 4, method, params.clone()).await;
+        assert_eq!(
+            wrong["error"]["reason"], "port_taken",
+            "{method} {params}：{wrong}"
+        );
+    }
+    for (method, params) in [
         // 施工 I-116（发布前审查 I4-2）：地址只收 IP 的写法。
         (
             "connection.add",
@@ -308,19 +325,11 @@ async fn the_page_adds_edits_and_removes_connections() {
             "connection.edit",
             json!({"port": third, "values": {"host": "localhost"}}),
         ),
-        (
-            "connection.edit",
-            json!({"port": third, "values": {"listen": port}}),
-        ),
         ("connection.add", json!({"port": 40_004, "token": "  "})),
         ("connection.add", json!({"port": 80, "token": "x"})),
         (
             "connection.edit",
             json!({"port": 40_009, "values": {"host": "127.0.0.1"}}),
-        ),
-        (
-            "connection.edit",
-            json!({"port": third, "values": {"listen": 8301}}),
         ),
         ("connection.remove", json!({"port": 40_009})),
     ] {
@@ -355,5 +364,49 @@ async fn the_page_adds_edits_and_removes_connections() {
     );
     let last = call(&mut open, 6, "connection.remove", json!({"port": third})).await;
     assert_eq!(last["error"]["reason"], "last_connection", "{last}");
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn the_first_connection_fills_a_port_listening_without_a_token() {
+    // 施工 I-177（项目主人 11-08 在新数据根上碰到）：配置里写了 Token 的引用、密钥却没有，桥照没有令牌听着；向导照驱动报的建议了这个
+    // 端口，原来 connection.add 照配置当它是表里已有的连接，回 bad_params，页面说「端口被占了」。
+    crate::support::spawning::linked();
+    let home = Home::new(&Script::new([]));
+    let bridge = start(serve(home.root.clone(), with_token(None))).await;
+    let port = page_port(&bridge, 1).await;
+    let mut open = logged_in(&home.root, port).await;
+    let mut head = Head::connect(&home.root).await;
+    let dangling = head
+        .call(
+            "config.set",
+            json!({"layer": "system", "changes": [
+                {"key": "im.qq.listen", "value": bridge.port},
+                {"key": "im.qq.token", "value": {"secret": "im-qq-token"}},
+            ]}),
+        )
+        .await;
+    assert!(dangling.get("error").is_none(), "{dangling}");
+    let added = call(
+        &mut open,
+        1,
+        "connection.add",
+        json!({"port": bridge.port, "token": "pasted-token"}),
+    )
+    .await;
+    assert_eq!(added["result"], json!({"saved": true}), "{added}");
+    let items = head.call("config.get", json!({})).await["result"]["items"].clone();
+    assert_eq!(
+        items["im.qq.ports"]["value"],
+        json!([bridge.port]),
+        "{items}"
+    );
+    let token = items["im.qq.tokens"]["value"][0]["secret"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        token.starts_with(&format!("im-qq-token-{}-", bridge.port)),
+        "换上了新的 Token：{items}"
+    );
     bridge.stop().await.expect("停得下");
 }
