@@ -21,6 +21,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 fn title() -> String {
     std::fs::read_to_string(resources().join("packages/miyu-im/data/system/group.txt"))
         .expect("读得出")
+        .replace("{platform}", "QQ")
         .replace("{name}", GROUP_NAME)
         .replace("{id}", &GROUP.to_string())
         .trim_end()
@@ -51,6 +52,11 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
         "群名那一段在 system 最后：{system}"
     );
     assert_eq!(system.matches("<venue>").count(), 1, "只一段");
+    // QQ 群写出来的字节和施工 I-188 以前一样（模板多了平台那一格，QQ 照驱动给的「QQ」填）：缓存不受影响。
+    assert_eq!(
+        title(),
+        format!("<venue>QQ group \"{GROUP_NAME}\" ({GROUP})</venue>")
+    );
     assert_eq!(requests[1].1.system, *system, "第二轮 system 逐字节一样");
     let log = run_log(&home.root);
     assert_eq!(
