@@ -220,13 +220,17 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
             &mut std::io::stdout(),
             &mut std::io::stderr(),
         )),
-        Command::Web => runtime.block_on(web(
-            &root,
-            &texts,
-            &SystemBrowser,
-            &mut std::io::stdout(),
-            &mut std::io::stderr(),
-        )),
+        Command::Web => {
+            // 核心没在跑照 `start` 那样拉起；im 没开的打开（施工 I-178）。
+            let core: CoreCommand = Arc::new(core);
+            runtime.block_on(web(
+                &root,
+                &core,
+                &texts,
+                &SystemBrowser,
+                (&mut std::io::stdout(), &mut std::io::stderr()),
+            ))
+        }
     };
     // 标准输入在阻塞线程里读（`serve` 的管道）：核心还开着它时，等那个线程会一直等下去，不等它，进程退出时一起收掉。
     runtime.shutdown_background();

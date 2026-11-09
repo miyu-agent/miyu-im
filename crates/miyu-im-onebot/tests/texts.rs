@@ -109,6 +109,7 @@ fn everything(texts: &Texts) -> Vec<String> {
         texts.bad_args("logs"),
         texts.no_log("disk full"),
         texts.web_not_running(),
+        texts.web_not_ready(),
         texts.web_failed("refused"),
         texts.web_opened("http://127.0.0.1:8302/", true),
         texts.web_opened("http://127.0.0.1:8302/", false),

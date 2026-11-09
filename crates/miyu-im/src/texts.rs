@@ -109,6 +109,14 @@ impl Texts {
         )
     }
 
+    /// `web`：开了 im、等不到它的页面服务听上（施工 I-178）：报错加一行提示。
+    pub fn web_not_ready(&self) -> String {
+        self.hinted(
+            &self.say("web/not-ready", &[]),
+            &[self.say("web/not-ready-hint", &[])],
+        )
+    }
+
     /// `web`：连不上核心、核心拒了，`reason` 是原话（施工 I-6 上）：报错。
     pub fn web_failed(&self, reason: &str) -> String {
         self.error(&self.say("web/failed", &[("reason", reason.to_string())]))
