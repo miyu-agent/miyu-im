@@ -198,7 +198,7 @@ impl Route {
                 .spoke(heard.venue.id().as_str(), heard.sender.as_str());
         }
         // 群名、附加提示词放进 system（施工 O-49、O-58 上，`titled`）：判以前放好，这一条开的轮就带上。
-        self.titled(&session, group.clone(), place.as_deref())
+        self.titled(&session, (platform, group.clone()), place.as_deref())
             .await?;
         self.noted(&session, note.as_deref()).await?;
         // 借了终端管理员、她自己的名字的记一块冒充提醒（施工 O-53，`impostor`）：判以前记好，这一条开的轮就看得到。
