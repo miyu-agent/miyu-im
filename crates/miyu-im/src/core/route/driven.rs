@@ -140,6 +140,7 @@ impl Route {
             config: self.hooks.driver_config(platform),
             store: crate::status_file::store_in(&self.store, platform),
             admin,
+            open: open(params),
             history: self.records.history(),
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
@@ -309,6 +310,13 @@ pub(super) fn counted(kept: &mut (Option<u64>, usize), turn: Option<u64>) -> usi
 /// 平台上的人 `id` 的号。
 fn number(id: &ExternalId) -> Option<Id> {
     Id::new(id.as_str().rsplit_once(':')?.1)
+}
+
+/// 这次调用放开了没有（施工 LV-4，核心 TC-1 的 `tool.call`：`owner` 是真、`permission.level` 是 `full`、`read_only` 不是真）：
+/// 纯逻辑，少了哪一格都算没放开。
+pub(super) fn open(params: &Value) -> bool {
+    let permission = &params["permission"];
+    params["owner"] == true && permission["level"] == "full" && permission["read_only"] != true
 }
 
 #[cfg(test)]

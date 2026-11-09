@@ -3,7 +3,7 @@
 use miyu_client::ids::ExternalId;
 use serde_json::json;
 
-use super::{by_of, counted};
+use super::{by_of, counted, open};
 
 #[test]
 fn the_caller_is_read_from_the_platform_identity_only() {
@@ -39,4 +39,27 @@ fn a_turn_counts_its_own_calls_and_a_new_turn_starts_over() {
     let mut idle = (None, 0);
     assert_eq!(counted(&mut idle, None), 0, "主线没在跑的也数");
     assert_eq!(counted(&mut idle, None), 1);
+}
+
+#[test]
+fn only_the_owner_in_a_fully_open_session_is_open() {
+    // 施工 LV-4（核心 TC-1）：主人本人叫的、完全放开、不是只读，三样都有才放开；少一格、旧核心不交的都算没放开。
+    let call = |owner: bool, permission: serde_json::Value| {
+        open(&json!({"owner": owner, "permission": permission}))
+    };
+    assert!(call(true, json!({"level": "full", "read_only": false})));
+    assert!(call(true, json!({"level": "full"})), "没写只读的不算只读");
+    assert!(
+        !call(false, json!({"level": "full", "read_only": false})),
+        "外人"
+    );
+    assert!(
+        !call(true, json!({"level": "full", "read_only": true})),
+        "只读"
+    );
+    assert!(
+        !call(true, json!({"level": "workspace", "read_only": false})),
+        "旧的级别"
+    );
+    assert!(!open(&json!({"owner": true})), "旧核心不交权限");
 }

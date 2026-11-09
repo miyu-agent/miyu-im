@@ -52,7 +52,7 @@ fn log(venue: &str, user: i64) -> Vec<Value> {
     let policy = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     let created = json!({"seq": 1, "at": at, "kind": "session.created", "by": {"kind": "kernel"},
         "body": {"venue": venue, "policy": policy,
-            "permission": {"level": "workspace", "read_only": false}}});
+            "permission": {"level": "full", "read_only": false}}});
     let said = json!({"seq": 2, "at": at, "kind": "message.user",
         "by": {"kind": "external", "venue": venue, "id": format!("qq:{user}")},
         "cause": format!("qq:{BOT}:2:{TIME}"),

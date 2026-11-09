@@ -10,6 +10,8 @@
 //!   `shown.rs`）。硬链接不了的（跨文件系统；不是 Unix 的系统上核不了 inode）答 `unsendable`，不退回拷一份：拷也有同样的时间差。
 //! - 对端读不到本机的文件（NapCat 不是从本机连进来的）答 `not-local`；没连着答 `unreachable`。
 //! - 认了的交给 im（`Effect::Upload`）：另起任务传，当场答 `uploading`；没传成的照 `show` 的文件记 `unshown`。
+//! - 放开的会话（施工 LV-4，`Call::open`：主人本人叫的、完全放开）发什么文件都行（项目主人 11-10 定）：她本来就读得到，不比工作区、
+//!   不再核时间差，照旧钉一份进 `outbox/`（im 传完删的是钉的那一份，不能交原文件）；硬链接不了的拷一份。
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -40,7 +42,12 @@ pub(super) fn send_file(call: &Call, upload: Duration) -> Planned {
     }
     let outbox = call.store.join(OUTBOX);
     sweep(&outbox, upload);
-    match pin(Path::new(&call.cwd), Path::new(asked), &outbox) {
+    let pinned = if call.open {
+        pin_open(Path::new(&call.cwd), Path::new(asked), &outbox)
+    } else {
+        pin(Path::new(&call.cwd), Path::new(asked), &outbox)
+    };
+    match pinned {
         Ok(Pinned { path, name, bytes }) => Planned::Host(Effect::Upload {
             path: plain(&path),
             name,
@@ -53,7 +60,6 @@ pub(super) fn send_file(call: &Call, upload: Duration) -> Planned {
 
 /// 钉住了的一份。不是 Unix 的系统上不传，造不出来。
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) struct Pinned {
     /// `outbox/` 里的那一份：交给 NapCat 的路径。
     pub(crate) path: PathBuf,
@@ -139,8 +145,38 @@ pub(crate) fn pin(workspace: &Path, asked: &Path, _outbox: &Path) -> Result<Pinn
     }
 }
 
+/// 放开的会话（施工 LV-4）：`asked`（相对的照工作区 `workspace` 算，工作区是空的只认绝对路径）的真实位置是普通文件就钉一份进
+/// `outbox`：硬链接，链不了的（跨文件系统、不是 Unix）拷一份。碰磁盘。
+///
+/// # Errors
+///
+/// 不在、不是普通文件的是 [`Refused::NoFile`]；链不了也拷不了的是 [`Refused::Unsendable`]。
+pub(crate) fn pin_open(workspace: &Path, asked: &Path, outbox: &Path) -> Result<Pinned, Refused> {
+    if workspace.as_os_str().is_empty() && asked.is_relative() {
+        return Err(Refused::NoFile);
+    }
+    let real = std::fs::canonicalize(workspace.join(asked)).map_err(|_| Refused::NoFile)?;
+    let meta = std::fs::symlink_metadata(&real).map_err(|_| Refused::NoFile)?;
+    if !meta.is_file() {
+        return Err(Refused::NoFile);
+    }
+    std::fs::create_dir_all(outbox).map_err(|_| Refused::Unsendable)?;
+    let path = outbox.join(fresh_name());
+    if std::fs::hard_link(&real, &path).is_err() {
+        std::fs::copy(&real, &path).map_err(|_| Refused::Unsendable)?;
+    }
+    let name = real
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    Ok(Pinned {
+        path,
+        name,
+        bytes: meta.len(),
+    })
+}
+
 /// `outbox/` 里一份的名字：钉住的那一刻（秒）、进程号、进程里第几份。名字带时刻，清的时候照它认老的（硬链接的修改时刻是原文件的）。
-#[cfg(unix)]
 fn fresh_name() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static NEXT: AtomicU64 = AtomicU64::new(0);

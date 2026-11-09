@@ -108,3 +108,32 @@ fn only_pins_older_than_the_wait_are_swept() {
     assert!(outbox.join(&fresh).exists(), "还在传的留着");
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }
+
+#[test]
+fn an_open_session_sends_any_real_file_from_a_pinned_copy() {
+    // 施工 LV-4（项目主人 11-10 定）：放开的会话工作区外面的也发；交出去的是钉在 `outbox/` 里的那一份，传完删它不碰原文件。
+    let (root, workspace, outbox) = setup("open");
+    let pinned = pin_open(&workspace, Path::new("../secret.txt"), &outbox).expect("外面的也认");
+    assert_eq!(pinned.name, "secret.txt");
+    assert_eq!(pinned.bytes, 3);
+    assert!(pinned.path.starts_with(&outbox), "{pinned:?}");
+    assert_eq!(std::fs::read(&pinned.path).expect("钉住了"), b"key");
+    std::fs::remove_file(&pinned.path).expect("删得掉钉住的");
+    assert_eq!(
+        std::fs::read(root.join("secret.txt")).expect("原文件还在"),
+        b"key"
+    );
+    let absolute = root.join("secret.txt");
+    assert!(
+        pin_open(Path::new(""), &absolute, &outbox).is_ok(),
+        "没有工作区的认绝对路径"
+    );
+    for refused in [
+        pin_open(&workspace, Path::new("out"), &outbox),
+        pin_open(&workspace, Path::new("missing.txt"), &outbox),
+        pin_open(Path::new(""), Path::new("secret.txt"), &outbox),
+    ] {
+        assert_eq!(refused, Err(Refused::NoFile));
+    }
+    std::fs::remove_dir_all(&root).expect("清得掉");
+}
