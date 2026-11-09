@@ -1,0 +1,27 @@
+[package]
+name = "miyu-im-telegram"
+description = "接入通讯平台的 Telegram 驱动（施工 I-183 中上，设计 07 第 3.5、4.5 节）：官方机器人接口（Bot API），长轮询收消息"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 宿主：驱动只经它的 `chat`、`driver` 碰宿主。
+miyu-im = { path = "../miyu-im" }
+# 门面：整个进程共用的一份 TLS 配置（`http::tls`，同核心的 HTTP 客户端），密钥的类型。
+miyu-client = { workspace = true }
+# HTTP 客户端：同核心用的那一版、那几样（rustls、两份证书、HTTP/2，本来就在依赖图里）；多开 `socks`（每个连接能设 socks5 代理，
+# 设计 07 第 3.5 节；这一版的 `socks` 用 hyper-util 自带的，不多带包）。连接自己的代理照它的 `Proxy`，所以不经门面的 `http::fetcher`。MIT 或 Apache-2.0。
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots", "socks"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# 单元测试里的 `#[tokio::test]`。
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }

@@ -14,6 +14,7 @@ pub mod group;
 pub mod head;
 pub mod shipped;
 pub use shipped::*;
+pub mod bot_api;
 pub mod hooked;
 pub mod judge;
 pub mod kicking;
@@ -71,6 +72,9 @@ pub const TIME: i64 = 1_759_800_000;
 
 /// 桥的访问令牌。
 pub const TOKEN: &str = "napcat-test-token";
+
+/// 测试里 Telegram 机器人的令牌（施工 I-183 中上）：密钥文件里叫 `tg`，配置照 `tg.tokens = [{ secret = "tg" }]` 引用它。
+pub const TG_TOKEN: &str = "111:telegram-test-token";
 
 /// 系统配置：终端管理员对应表；`qq:10007` 是终端管理员的小号（施工 O-31：没在群里说过话，桥照 `venue.binding` 认），照老写法写
 /// `admin`，大号照核心 SU-3 下的写法写 `owner`（值不空都算主人，施工 I-68）。

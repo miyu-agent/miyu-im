@@ -13,7 +13,7 @@ use miyu_tool::Catalog;
 use super::events::run_log;
 use super::group::WAIT;
 use super::spawning::{self, link_beside};
-use super::{CONFIG, Home, TOKEN, resources};
+use super::{CONFIG, Home, TG_TOKEN, TOKEN, resources};
 
 /// 测试程序旁边的 `miyu-im-test-hook`：头一次要的时候链上，之后留着。
 pub fn linked() -> &'static str {
@@ -136,7 +136,7 @@ impl Home {
             longest: Duration::from_millis(100),
             ..Timing::default()
         };
-        let secrets = format!("im = \"{TOKEN}\"\n");
+        let secrets = format!("im = \"{TOKEN}\"\ntg = \"{TG_TOKEN}\"\n");
         let config = format!("{CONFIG}{more}");
         Home::with_config(
             models,

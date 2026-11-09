@@ -1,0 +1,49 @@
+//! 接入通讯平台的 Telegram 驱动（施工 I-183 中上，设计 07 第 3.5、4.5 节）：官方机器人接口（Bot API），长轮询收消息（im 往外连，
+//! 不开端口），每个连接一个机器人令牌、能单独设代理。宿主 `miyu-im` 不依赖这里；程序 `miyu-im`（`miyu-im-app`）把 [`Telegram`]
+//! 和 OneBot 一起交给宿主。
+//!
+//! 这一步是骨架：连上（`getMe`）、登记进宿主、长轮询、409 和 401 和 429、断线重连、代理、状态。收发消息随 I-183 中下，工具和页面随
+//! I-183 下，图、贴表情、撤回、文件随 I-184。
+
+mod api;
+mod bot;
+mod link;
+mod running;
+pub mod settings;
+
+use std::sync::Arc;
+
+use miyu_im::chat::{Cap, Platform};
+use miyu_im::driver::{Driver, Gate, Started};
+
+pub use api::{Failure, Proxy};
+
+/// 平台：场所、人、命令编号照它的名字拼（`tg:<号>`）。
+pub const PLATFORM: Platform = Platform::new("tg");
+
+/// Telegram 的驱动。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Telegram;
+
+impl Driver for Telegram {
+    fn platform(&self) -> Platform {
+        PLATFORM
+    }
+
+    fn caps(&self) -> &'static [Cap] {
+        // 骨架还做不到哪一样：随后面几步加（设计 07 第 3.5 节的表）。
+        &[]
+    }
+
+    fn settings(&self) -> &'static [&'static str] {
+        settings::NAMES
+    }
+
+    fn secrets(&self) -> &'static [&'static str] {
+        settings::SECRETS
+    }
+
+    fn start(&self, gate: Arc<Gate>) -> Started {
+        Box::pin(running::start(gate))
+    }
+}

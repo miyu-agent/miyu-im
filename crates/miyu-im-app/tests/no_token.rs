@@ -129,7 +129,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     assert!(web.as_ref().is_some_and(Value::is_u64), "{web:?}");
     assert_eq!(
         status,
-        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": listen, "path": "/ws", "token": "none", "platform": "qq", "platforms": ["qq"], "connections": [{"host": "127.0.0.1", "listen": listen, "token": "none"}]})
+        json!({"napcat": {"connected": false}, "host": "127.0.0.1", "listen": listen, "path": "/ws", "token": "none", "platform": "qq", "platforms": ["qq", "tg"], "connections": [{"host": "127.0.0.1", "listen": listen, "token": "none"}]})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");

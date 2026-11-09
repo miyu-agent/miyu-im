@@ -23,6 +23,7 @@ path = "src/bin/miyu-im-test-hook.rs"
 miyu-im = { path = "../miyu-im" }
 # 驱动：程序带的几个平台，照先后交给宿主（第一个是后台页、`access` 照的那一个）。
 miyu-im-onebot = { path = "../miyu-im-onebot" }
+miyu-im-telegram = { path = "../miyu-im-telegram" }
 # 测试用的程序 miyu-im-test-hook 读写 JSON 行。
 serde_json = "1.0"
 
