@@ -13,6 +13,7 @@ mod link;
 mod media;
 mod menu;
 mod probe;
+mod reactions;
 mod receive;
 mod running;
 mod send;
@@ -22,7 +23,7 @@ pub mod tools;
 use std::sync::Arc;
 
 use miyu_im::chat::{Cap, Platform};
-use miyu_im::driver::{Driver, Gate, Probing, Started, TokenTable};
+use miyu_im::driver::{Driver, Gate, Probing, Reaction, Started, TokenTable};
 use miyu_im::toolset::ToolSet;
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
@@ -42,8 +43,24 @@ impl Driver for Telegram {
     }
 
     fn caps(&self) -> &'static [Cap] {
-        // 命令菜单（I-183 下上）；取带的图、引用的那一条（I-185 上，引用的照收的时候记下的答）；传文件（I-185 中）；别的随后面几步加（设计 07 第 3.5 节的表）。
-        &[Cap::Menu, Cap::Media, Cap::Message, Cap::Upload]
+        // 命令菜单（I-183 下上）；取带的图、引用的那一条（I-185 上，引用的照收的时候记下的答）；传文件（I-185 中）；撤回、贴表情（I-185 下上）；别的随后面几步加（设计 07 第 3.5 节的表）。
+        &[
+            Cap::Menu,
+            Cap::Media,
+            Cap::Message,
+            Cap::Upload,
+            Cap::Recall,
+            Cap::React,
+        ]
+    }
+
+    fn reactions(&self) -> &'static [Reaction] {
+        reactions::REACTIONS
+    }
+
+    fn reaction(&self) -> Option<&'static str> {
+        // 编号是那个字，不是 QQ 的表情编号（I-185 下上：开了贴表情以后宿主原来照 `bridge.json` 的 289 贴，Telegram 不认）。
+        Some(reactions::SEEN)
     }
 
     fn settings(&self) -> &'static [&'static str] {

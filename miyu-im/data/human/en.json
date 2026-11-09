@@ -27,7 +27,9 @@
     "tg_mention": { "name": "Mention" },
     "tg_chat_history": { "name": "Search chat history", "subject": "query" },
     "tg_activity_ranking": { "name": "View activity ranking", "subject": "days" },
-    "tg_glance": { "name": "Set next glance", "subject": "minutes" }
+    "tg_glance": { "name": "Set next glance", "subject": "minutes" },
+    "tg_recall": { "name": "Recall" },
+    "tg_react": { "name": "React", "subject": "emoji" }
   },
   "said": {
     "prefix": "miyu im",

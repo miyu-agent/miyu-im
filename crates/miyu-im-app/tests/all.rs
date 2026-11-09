@@ -136,6 +136,7 @@ mod stickers;
 mod strangers;
 mod superseded;
 mod telegram;
+mod telegram_acts;
 mod telegram_live;
 mod telegram_page;
 mod telegram_pictures;
