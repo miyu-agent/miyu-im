@@ -326,8 +326,12 @@ async fn the_channel_lists_connections_and_says_when_they_change() {
     })
     .await;
     let since = listed[0]["since"].as_u64().expect("连上的时刻");
-    // 平台做得到的几样（施工 I-85 上）：OneBot 什么都做得到。
-    let caps: Vec<&str> = miyu_im::chat::CAPS.iter().map(|cap| cap.name()).collect();
+    // 平台做得到的几样（施工 I-85 上）：OneBot 除了命令菜单（施工 I-183 下上，QQ 没有）什么都做得到。
+    let caps: Vec<&str> = miyu_im::chat::CAPS
+        .iter()
+        .filter(|cap| **cap != miyu_im::chat::Cap::Menu)
+        .map(|cap| cap.name())
+        .collect();
     assert!(u128::from(since) + 1000 >= before, "{listed}");
     assert_eq!(
         listed,

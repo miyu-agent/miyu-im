@@ -28,12 +28,23 @@ async fn started_with(api: &BotApi, script: Script) -> (Home, Channel) {
 
 /// 同 [`started_with`]，起来以前照 `cards` 写好卡片（`cards.json`）。
 async fn started_with_cards(api: &BotApi, script: Script, cards: Option<&str>) -> (Home, Channel) {
+    started_full(api, script, cards, "").await
+}
+
+/// 同 [`started_with_cards`]，主人对应表多 `bindings` 那几行（接在测试的对应表后面）。
+async fn started_full(
+    api: &BotApi,
+    script: Script,
+    cards: Option<&str>,
+    bindings: &str,
+) -> (Home, Channel) {
     let extra = format!(
         "tg.tokens = [{{ secret = \"tg\" }}]\ntg.api = \"{}\"",
         api.url
     );
     let home = on_free_port(async |listen| {
-        let home = Home::spawning(&script, &ports_config_with(listen, &extra));
+        let config = format!("{bindings}{}", ports_config_with(listen, &extra));
+        let home = Home::spawning(&script, &config);
         if let Some(cards) = cards {
             let dir = miyu_im::dirs::state(&home.root);
             std::fs::create_dir_all(&dir).expect("建得了目录");
@@ -194,5 +205,40 @@ async fn called_in_a_topic_she_answers_in_that_topic() {
             .is_some_and(|said| said.ends_with("在呢")),
         "{sent}"
     );
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
+async fn the_owner_gets_the_command_menu_in_private() {
+    // 施工 I-183 下上（项目主人 11-09）：号连上时 im 问核心有哪些命令、谁是主人，只给主人的私聊登记命令菜单。
+    let api = BotApi::start(Mode::Normal).await;
+    let owner = "\"tg:10001\" = \"owner\"\n";
+    let (home, _open) = started_full(&api, Script::new([Play::Says("在")]), None, owner).await;
+    let menu = api.until(|method, _| method == "setMyCommands").await;
+    assert_eq!(
+        menu["scope"],
+        json!({"type": "chat", "chat_id": 10001}),
+        "{menu}"
+    );
+    let commands = menu["commands"].as_array().expect("一列命令");
+    assert!(!commands.is_empty(), "{menu}");
+    for command in commands {
+        let name = command["command"].as_str().expect("有名字");
+        assert!(
+            !name.is_empty()
+                && name.len() <= 32
+                && name
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'),
+            "照 Telegram 的写法：{command}"
+        );
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let menus = api
+        .calls()
+        .iter()
+        .filter(|(method, _)| method == "setMyCommands")
+        .count();
+    assert_eq!(menus, 1, "只给主人一个人登记：{:?}", api.calls());
     home.stop_extensions().await;
 }

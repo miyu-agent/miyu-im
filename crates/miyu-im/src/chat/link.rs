@@ -157,6 +157,15 @@ pub struct GroupFile {
     pub uploader: Option<String>,
 }
 
+/// 斜杠命令菜单的一项（施工 I-183 下上，[`Link::menu`]）：核心的 `command.catalog` 交的名字（不带 `/`）、照连接的语言写的一句说明。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MenuItem {
+    /// 命令的名字，不带 `/`。
+    pub name: String,
+    /// 一句说明。
+    pub summary: String,
+}
+
 /// 对端是哪个实现（施工 O-28：后台页的 `status`、状态文件说它）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Implementation {
@@ -298,6 +307,13 @@ pub trait Link: Send + Sync + fmt::Debug {
     /// `face` 的头像在哪（施工 I-82：平台各有各的取法，QQ 照地址模板）；回了没有的是空的。
     fn avatar<'a>(&'a self, face: &'a Face) -> Reply<'a, Option<Source>> {
         let _ = face;
+        unsupported()
+    }
+
+    /// 把 Miyu 的斜杠命令登记成平台的命令菜单（施工 I-183 下上，项目主人 11-09：Telegram 私聊里打 `/` 列出命令）：只给主人们
+    /// （`owners`，这个平台上的号）看，别人看不到。号连上时宿主交一次。平台没有命令菜单的不用写。
+    fn menu<'a>(&'a self, owners: &'a [Id], items: &'a [MenuItem]) -> Reply<'a, ()> {
+        let _ = (owners, items);
         unsupported()
     }
 

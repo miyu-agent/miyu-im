@@ -9,6 +9,7 @@ mod api;
 mod bot;
 mod known;
 mod link;
+mod menu;
 mod receive;
 mod running;
 mod send;
@@ -34,8 +35,8 @@ impl Driver for Telegram {
     }
 
     fn caps(&self) -> &'static [Cap] {
-        // 骨架还做不到哪一样：随后面几步加（设计 07 第 3.5 节的表）。
-        &[]
+        // 命令菜单（I-183 下上）；别的随后面几步加（设计 07 第 3.5 节的表）。
+        &[Cap::Menu]
     }
 
     fn settings(&self) -> &'static [&'static str] {
