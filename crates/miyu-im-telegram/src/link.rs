@@ -17,7 +17,8 @@ use miyu_im::chat::{
 
 use crate::api::Api;
 use crate::known::Known;
-use crate::send::{Job, LIMIT, Queue, parts};
+use crate::media::Upload;
+use crate::send::{Body, Job, LIMIT, Queue, parts};
 
 /// 一个机器人的连接。
 #[derive(Debug)]
@@ -68,9 +69,27 @@ fn chat(to: &To) -> &Id {
 
 impl Link for Bot {
     fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, Pending> {
-        let Outgoing::Text { text, lead } = outgoing else {
-            // 图、长文画的图、合并转发、文件随 I-185：交了的答做不到。
-            return Box::pin(async { Err(CallError::Unsupported) });
+        // 字（I-183 中下）；图、长文画成的图、文件（I-185 中，`crate::media`）；合并转发 Telegram 没有，答做不到（能力表不报）。
+        let (body, reply) = match outgoing {
+            Outgoing::Text { text, lead } => (
+                Ok(Body::Text(parts(text, lead, &self.known, LIMIT))),
+                quoted(lead),
+            ),
+            Outgoing::Image { file, .. } => (upload(Upload::image(file, None)), None),
+            Outgoing::Picture { file, lead } => {
+                // @ 写进图的说明：照发字的拼法拼一段（只要 @，没有字）。
+                let caption = parts("", lead, &self.known, LIMIT)
+                    .into_iter()
+                    .next()
+                    .filter(|(text, _)| !text.trim().is_empty());
+                (upload(Upload::image(file, caption)), quoted(lead))
+            }
+            Outgoing::Upload { file, name } => (upload(Upload::document(file, name)), None),
+            Outgoing::Forward { .. } => return Box::pin(async { Err(CallError::Unsupported) }),
+        };
+        let body = match body {
+            Ok(body) => body,
+            Err(failed) => return Box::pin(async move { Err(failed) }),
         };
         if self.closed.load(Ordering::Relaxed) {
             return Box::pin(async { Err(CallError::Closed) });
@@ -78,8 +97,8 @@ impl Link for Bot {
         let (answer, answered) = oneshot::channel();
         let job = Job {
             chat: chat(&to).as_str().to_string(),
-            parts: parts(text, lead, &self.known, LIMIT),
-            reply: lead.reply.as_deref().and_then(|reply| reply.parse().ok()),
+            body,
+            reply,
             answer,
         };
         let queued = self.queue.send(job).is_ok();
@@ -178,4 +197,17 @@ impl Link for Bot {
     fn close(&self) {
         self.closed.store(true, Ordering::Relaxed);
     }
+}
+
+/// `lead` 要引用的那一条的编号。
+fn quoted(lead: &miyu_im::chat::Lead) -> Option<i64> {
+    lead.reply.as_deref().and_then(|reply| reply.parse().ok())
+}
+
+/// 读好要传的：读不出、太大的照没成答（宿主照原话记）。
+fn upload(read: Result<Upload, String>) -> Result<Body, CallError> {
+    read.map(Body::File).map_err(|detail| CallError::Failed {
+        said: detail.clone(),
+        message: detail,
+    })
 }
