@@ -149,7 +149,7 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
     let mut backoff = BACKOFF.0;
     loop {
         if registered.is_none() {
-            registered = register(&gate, (&bot, &name), &shared, (&known, &queue)).await;
+            registered = register(&gate, (&bot, &name), &shared, (&client, &known, &queue)).await;
             if registered.is_none() {
                 return;
             }
@@ -262,10 +262,15 @@ async fn register(
     gate: &Arc<Gate>,
     (bot, name): (&Id, &str),
     shared: &Shared,
-    (known, queue): (&Arc<Known>, &Queue),
+    (client, known, queue): (&Api, &Arc<Known>, &Queue),
 ) -> Option<Registered> {
-    let link: Arc<dyn Link> =
-        Arc::new(Bot::new(name.to_string(), Arc::clone(known), queue.clone()));
+    let me = (bot.clone(), name.to_string());
+    let link: Arc<dyn Link> = Arc::new(Bot::new(
+        me,
+        client.clone(),
+        Arc::clone(known),
+        queue.clone(),
+    ));
     if let Some(old) = gate.bots().insert(bot.clone(), Arc::clone(&link)) {
         old.close();
     }

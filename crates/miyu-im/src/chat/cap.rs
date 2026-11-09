@@ -28,10 +28,12 @@ pub enum Cap {
     Befriend,
     /// 原样调用平台的动作（`chat.action`）。
     Raw,
+    /// 斜杠命令菜单（施工 I-183 下上，`Link::menu`）：号连上时宿主才去问命令和主人。
+    Menu,
 }
 
 /// 每一样，照先后。
-pub const CAPS: [Cap; 12] = [
+pub const CAPS: [Cap; 13] = [
     Cap::Recall,
     Cap::Mute,
     Cap::Poke,
@@ -44,6 +46,7 @@ pub const CAPS: [Cap; 12] = [
     Cap::Upload,
     Cap::Befriend,
     Cap::Raw,
+    Cap::Menu,
 ];
 
 impl Cap {
@@ -62,6 +65,7 @@ impl Cap {
             Cap::Upload => "upload",
             Cap::Befriend => "befriend",
             Cap::Raw => "raw",
+            Cap::Menu => "menu",
         }
     }
 

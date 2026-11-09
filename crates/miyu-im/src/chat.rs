@@ -24,7 +24,7 @@ pub use forwards::Node;
 pub use id::Id;
 pub use link::{
     Face, Fetched, Friend, Group, GroupFile, GroupFiles, Implementation, Link, Located, Member,
-    Outgoing, Pending, Reply, unsupported,
+    MenuItem, Outgoing, Pending, Reply, unsupported,
 };
 pub use members::{Members, Rank};
 pub use platform::Platform;

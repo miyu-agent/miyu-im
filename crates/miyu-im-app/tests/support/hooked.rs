@@ -136,7 +136,9 @@ impl Home {
             longest: Duration::from_millis(100),
             ..Timing::default()
         };
-        let secrets = format!("im = \"{TOKEN}\"\ntg = \"{TG_TOKEN}\"\n");
+        // 真机实测（`telegram_live`，标 ignore）照环境变量换成真的机器人令牌；平时照测试的。
+        let tg = std::env::var("MIYU_IM_LIVE_TG_TOKEN").unwrap_or_else(|_| TG_TOKEN.to_string());
+        let secrets = format!("im = \"{TOKEN}\"\ntg = \"{tg}\"\n");
         let config = format!("{CONFIG}{more}");
         Home::with_config(
             models,

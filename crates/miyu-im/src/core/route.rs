@@ -67,6 +67,7 @@ mod judged;
 mod judges;
 mod lanes;
 mod long;
+mod menu;
 mod message;
 mod migrate;
 mod muted;

@@ -3,8 +3,8 @@
 //! - 私聊（`private`）交 `Event::Private`，群（`group`、`supergroup`）交 `Event::Group`；频道、别的机器人发的不收（机器人本来就看不到
 //!   别的机器人说的）。改过的消息第一版不收（长轮询只要 `message`）。
 //! - 名字照 `first_name` 加 `last_name`（AstrBot #6657 只取用户名）；名字、用户名、群名、话题记进 [`Known`]。
-//! - 正文照 `entities`（偏移是 UTF-16 的）切：`@她的用户名`、`text_mention` 是 @ 了谁；`/命令@她` 也算叫她，`/命令@别的机器人` 不算
-//!   （AstrBot #10240）；@ 了不认得用户名的人照原样留字。
+//! - 正文照 `entities`（偏移是 UTF-16 的）切：`@她的用户名`、`text_mention` 是 @ 了谁；`/命令`、`/命令@她` 照 Miyu 的斜杠命令交（I-183
+//!   下上：去掉 @，命令菜单登记的名字换回来），`/命令@别的机器人` 不是给她的（AstrBot #10240）；@ 了不认得用户名的人照原样留字。
 //! - 回复她的消息算叫她（设计 07：隐私模式开着时这是群里少数收得到的；QQ 那边引用她不算叫她，I-20，所以在这里补一个 @ 她，宿主不动）。
 //! - 话题群：话题里的消息带着话题的「建话题」那条当引用，不算引用；记下话题，回话回在那里。
 //! - 带的东西照 QQ 那边的种类给占位（图、贴纸、语音、视频、文件），第一版不取内容（取随 I-185）。
@@ -164,13 +164,15 @@ fn piece(me: &Me<'_>, entity: &Value, slice: &str, known: &Known) -> Option<Vec<
             Some(vec![Piece::At(id)])
         }
         "bot_command" => {
-            let (command, target) = slice.split_once('@')?;
-            target.eq_ignore_ascii_case(me.username).then(|| {
-                vec![
-                    Piece::Text(format!("{command} ")),
-                    Piece::At(me.bot.clone()),
-                ]
-            })
+            // `/命令@别的机器人` 不是给她的，照原样留字；`/命令`、`/命令@她` 照命令交（去掉 @，宿主照开头的 `/` 交核心），命令菜单里
+            // 登记过的名字换回 Miyu 的（`clear_memory` → `clear-memory`）。
+            let (command, target) = slice.split_once('@').unwrap_or((slice, me.username));
+            if !target.eq_ignore_ascii_case(me.username) {
+                return None;
+            }
+            let name = command.strip_prefix('/')?;
+            let name = known.command(name).unwrap_or_else(|| name.to_string());
+            Some(vec![Piece::Text(format!("/{name}"))])
         }
         _ => None,
     }

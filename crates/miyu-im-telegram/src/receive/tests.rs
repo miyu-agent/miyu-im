@@ -78,12 +78,20 @@ fn mentions_of_her_and_text_mentions_are_ats_and_other_mentions_stay_text() {
 }
 
 #[test]
-fn a_command_at_her_calls_her_and_one_at_another_bot_does_not() {
+fn commands_at_her_go_as_miyu_commands_and_ones_at_another_bot_stay_text() {
+    // 施工 I-183 下上：`/命令@她` 去掉 @ 照命令交（原来拆成「/help」加 @ 她，核心认不出是命令）；菜单登记的名字换回 Miyu 的。
     let known = Known::default();
+    known.set_commands([("clear_memory".to_string(), "clear-memory".to_string())].into());
     let ours = in_group(
         json!({"text": "/help@miyu_bot", "entities": [{"type": "bot_command", "offset": 0, "length": 14}]}),
     );
-    assert_eq!(taken(ours, &known).1.segments.at(), [bot()]);
+    let (_, posted) = taken(ours, &known);
+    assert_eq!(posted.text, "/help");
+    assert!(posted.segments.at().is_empty());
+    let mapped = in_group(
+        json!({"text": "/clear_memory 全部", "entities": [{"type": "bot_command", "offset": 0, "length": 13}]}),
+    );
+    assert_eq!(taken(mapped, &known).1.text, "/clear-memory 全部");
     let theirs = in_group(
         json!({"text": "/help@other_bot", "entities": [{"type": "bot_command", "offset": 0, "length": 15}]}),
     );

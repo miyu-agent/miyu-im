@@ -27,6 +27,8 @@ pub struct Known {
     threads: Mutex<HashMap<String, i64>>,
     people: Mutex<HashMap<String, Person>>,
     titles: Mutex<HashMap<String, String>>,
+    /// 命令菜单里登记的名字到 Miyu 的命令名（施工 I-183 下上：Telegram 不许 `-`，登记时换成 `_`，收到时换回来）。
+    commands: Mutex<HashMap<String, String>>,
 }
 
 /// 往 `map` 里记一样：满了先清掉。
@@ -78,6 +80,20 @@ impl Known {
     /// 记下群 `chat` 叫什么。
     pub fn set_title(&self, chat: &str, title: &str) {
         remember(&self.titles, chat, title.to_string());
+    }
+
+    /// 换上命令菜单的对照：登记的名字 → Miyu 的命令名。
+    pub fn set_commands(&self, commands: HashMap<String, String>) {
+        *self.commands.lock().unwrap_or_else(PoisonError::into_inner) = commands;
+    }
+
+    /// 命令菜单里登记的名字 `name` 对应的 Miyu 命令名；不是菜单里的是空的。
+    pub fn command(&self, name: &str) -> Option<String> {
+        self.commands
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(name)
+            .cloned()
     }
 
     /// 群 `chat` 叫什么；没见过的是空的。

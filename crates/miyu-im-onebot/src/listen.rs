@@ -42,11 +42,27 @@ use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 use crate::onebot::PLATFORM;
 use crate::settings::{NAMES, SECRETS};
 use miyu_im::TARGET;
-use miyu_im::chat::{CAPS, Cap, Platform};
+use miyu_im::chat::{Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Reaction, Started};
 use miyu_im::plugins::Builtin;
 use miyu_im::toolset::ToolSet;
 use miyu_im::tuning::Tuning;
+
+/// OneBot（NapCat）做得到的几样：QQ 没有斜杠命令菜单，别的都有。
+const ONEBOT_CAPS: [Cap; 12] = [
+    Cap::Recall,
+    Cap::Mute,
+    Cap::Poke,
+    Cap::React,
+    Cap::Forward,
+    Cap::Members,
+    Cap::Avatar,
+    Cap::Media,
+    Cap::Message,
+    Cap::Upload,
+    Cap::Befriend,
+    Cap::Raw,
+];
 
 /// OneBot v11 的驱动（施工 I-2 下）：NapCat 这类实现反连进来的 WebSocket，平台是 `qq`。
 #[derive(Debug, Clone, Copy, Default)]
@@ -58,8 +74,8 @@ impl Driver for OneBot {
     }
 
     fn caps(&self) -> &'static [Cap] {
-        // OneBot（NapCat）每一样都做得到。
-        &CAPS
+        // OneBot（NapCat）做得到的：命令菜单（I-183 下上）以外的每一样。
+        &ONEBOT_CAPS
     }
 
     fn settings(&self) -> &'static [&'static str] {

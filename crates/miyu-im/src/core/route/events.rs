@@ -26,8 +26,11 @@ impl Route {
                 group,
                 operator,
             } => self.muted(platform, (bot, group), None, operator).await,
-            // 号连上了：排着的照先后发（施工 O-25 中，「出站队列」第 3 条）。
-            Event::Connected { .. } => self.pump().await,
+            // 号连上了：排着的照先后发（施工 O-25 中，「出站队列」第 3 条）；命令菜单交给它（施工 I-183 下上）。
+            Event::Connected { bot } => {
+                self.tell_menu(platform, bot);
+                self.pump().await
+            }
             Event::Befriend { bot, user, flag } => self.befriend(platform, bot, user, flag).await,
             Event::Noted {
                 bot,
