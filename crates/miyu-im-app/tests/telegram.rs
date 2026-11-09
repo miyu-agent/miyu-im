@@ -1,6 +1,6 @@
 //! Telegram 驱动的骨架（施工 I-183 中上，设计 07 第 3.5 节）：真核心拉起真程序，配置写一个机器人令牌、Bot API 指本机的假服务器
 //! （`support::bot_api`）。连上了报号、名字、用户名、隐私模式；长轮询收到第几条记下，重启以后照它接着收；409 报「别处也在收」、
-//! 401 报「令牌失效」，都不算连着。
+//! 401 报「令牌失效」，都不算连着。I-183 中下：私聊她，她回的字经 `sendMessage` 发回那个聊天。
 
 use std::time::Duration;
 
@@ -18,13 +18,27 @@ use crate::support::*;
 /// 起一个核心和桥：Telegram 的连接表一个令牌，Bot API 是 `api`。交回数据根和登录好的 im 网页通道（问 Telegram 的状态用：
 /// 经核心转的 `status` 只说第一个驱动的，网页的 `status` 认 `platform`）。
 async fn started(api: &BotApi) -> (Home, Channel) {
-    let script = Script::new([Play::Says("在")]);
+    started_with(api, Script::new([Play::Says("在")])).await
+}
+
+/// 同 [`started`]，模型照 `script` 答。
+async fn started_with(api: &BotApi, script: Script) -> (Home, Channel) {
+    started_with_cards(api, script, None).await
+}
+
+/// 同 [`started_with`]，起来以前照 `cards` 写好卡片（`cards.json`）。
+async fn started_with_cards(api: &BotApi, script: Script, cards: Option<&str>) -> (Home, Channel) {
     let extra = format!(
         "tg.tokens = [{{ secret = \"tg\" }}]\ntg.api = \"{}\"",
         api.url
     );
     let home = on_free_port(async |listen| {
         let home = Home::spawning(&script, &ports_config_with(listen, &extra));
+        if let Some(cards) = cards {
+            let dir = miyu_im::dirs::state(&home.root);
+            std::fs::create_dir_all(&dir).expect("建得了目录");
+            std::fs::write(dir.join("cards.json"), cards).expect("写得进");
+        }
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
         bridge_up(&home.root, listen).await?;
@@ -127,5 +141,58 @@ async fn a_refused_token_is_reported_and_not_retried() {
     assert_eq!(api.calls().len(), 1, "401 不再试：{:?}", api.calls());
     let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("写了运行日志");
     assert!(!log.contains(TG_TOKEN), "运行日志不记令牌：{log}");
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
+async fn someone_talks_to_her_in_private_and_she_answers_there() {
+    let api = BotApi::start(Mode::Normal).await;
+    // Telegram 的「其他私聊」打开：不是主人、不在白名单里的人私聊也回。
+    let cards = r#"{"others": {"tg": {"privates": {"on": true}}}}"#;
+    let (home, mut open) =
+        started_with_cards(&api, Script::new([Play::Says("在呢")]), Some(cards)).await;
+    until_tg(&mut open, |one| one["connected"] == true).await;
+    api.push(json!({"update_id": 1, "message": {
+        "message_id": 7, "date": 1_700_000_000,
+        "chat": {"id": ADMIN, "type": "private"},
+        "from": {"id": ADMIN, "is_bot": false, "first_name": "Shorin"},
+        "text": "你好",
+    }}));
+    let sent = api.until(|method, _| method == "sendMessage").await;
+    assert_eq!(sent["chat_id"], ADMIN.to_string(), "{sent}");
+    assert_eq!(sent["text"], "在呢", "{sent}");
+    assert!(
+        sent.get("message_thread_id").is_none(),
+        "私聊没有话题：{sent}"
+    );
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
+async fn called_in_a_topic_she_answers_in_that_topic() {
+    let api = BotApi::start(Mode::Normal).await;
+    // Telegram 的「其他群」打开、每一步都发（同 QQ 那边群测试的老默认）。
+    let cards = r#"{"others": {"tg": {"groups": {"on": true, "final_only": false}}}}"#;
+    let (home, mut open) =
+        started_with_cards(&api, Script::new([Play::Says("在呢")]), Some(cards)).await;
+    until_tg(&mut open, |one| one["connected"] == true).await;
+    let text = "@miyu_test_bot 在吗";
+    api.push(json!({"update_id": 1, "message": {
+        "message_id": 50, "date": 1_700_000_000,
+        "chat": {"id": -1001, "type": "supergroup", "title": "Miyu 测试群", "is_forum": true},
+        "from": {"id": ADMIN, "is_bot": false, "first_name": "Shorin"},
+        "is_topic_message": true, "message_thread_id": 3,
+        "reply_to_message": {"message_id": 3, "from": {"id": ADMIN}},
+        "text": text, "entities": [{"type": "mention", "offset": 0, "length": 14}],
+    }}));
+    let sent = api.until(|method, _| method == "sendMessage").await;
+    assert_eq!(sent["chat_id"], "-1001", "{sent}");
+    assert_eq!(sent["message_thread_id"], 3, "回在原来的话题里：{sent}");
+    assert!(
+        sent["text"]
+            .as_str()
+            .is_some_and(|said| said.ends_with("在呢")),
+        "{sent}"
+    );
     home.stop_extensions().await;
 }

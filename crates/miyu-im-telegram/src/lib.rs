@@ -2,13 +2,16 @@
 //! 不开端口），每个连接一个机器人令牌、能单独设代理。宿主 `miyu-im` 不依赖这里；程序 `miyu-im`（`miyu-im-app`）把 [`Telegram`]
 //! 和 OneBot 一起交给宿主。
 //!
-//! 这一步是骨架：连上（`getMe`）、登记进宿主、长轮询、409 和 401 和 429、断线重连、代理、状态。收发消息随 I-183 中下，工具和页面随
-//! I-183 下，图、贴表情、撤回、文件随 I-184。
+//! 骨架（I-183 中上）：连上（`getMe`）、登记进宿主、长轮询、409 和 401 和 429、断线重连、代理、状态。I-183 中下收发字、引用、@、
+//! 话题、长文拆段。工具和页面随 I-183 下，图、贴表情、撤回、文件随 I-185。
 
 mod api;
 mod bot;
+mod known;
 mod link;
+mod receive;
 mod running;
+mod send;
 pub mod settings;
 
 use std::sync::Arc;

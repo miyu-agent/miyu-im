@@ -1,6 +1,6 @@
 //! 假的 Telegram Bot API（施工 I-183 中上）：本机回环上一个最小的 HTTP/1 服务端，认 `POST /bot<令牌>/<方法>`，照 [`Mode`] 答
 //! `getMe`、`getUpdates`，别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
-//! 401。`getUpdates` 有排着的消息就一次交完，没有的挂 100 毫秒答空的（真的挂 50 秒，测试不等那么久）。一个请求一条连接，答完就关。
+//! 401。`sendMessage` 照 Telegram 回一条消息（编号从 1000 数）。`getUpdates` 有排着的消息就一次交完，没有的挂 100 毫秒答空的（真的挂 50 秒，测试不等那么久）。一个请求一条连接，答完就关。
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -185,6 +185,18 @@ async fn reply(path: &str, params: Value, state: &Mutex<State>) -> (u16, Value) 
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
             (200, json!({"ok": true, "result": ready}))
+        }
+        // 发出去的：照 Telegram 回一条消息，编号从 1000 数。
+        "sendMessage" => {
+            let sent = state
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .calls
+                .len();
+            (
+                200,
+                json!({"ok": true, "result": {"message_id": 1000 + sent, "date": 1, "chat": {"id": 0}}}),
+            )
         }
         _ => (200, json!({"ok": true, "result": true})),
     }
