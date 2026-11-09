@@ -1,6 +1,7 @@
 //! Telegram 的工具（施工 I-183 下下，设计 07 第 3.5 节）：真核心拉起真程序，Bot API 指本机的假服务器，模型照剧本调 `tg_*`。
 //! 群里只给 `tg_*`、不给 `qq_*`；`tg_quote` 照 im 的聊天记录认这个群里有的那一条，下一句引用它；`tg_mention` 认在这个群里说过话的人，
-//! 下一句 @ 他（没用户名的挂 `text_mention`）；没说过话的、记录里没有的编号不记；`tg_chat_history` 照 im 的记录答。
+//! 下一句 @ 他（没用户名的挂 `text_mention`）；没说过话的、记录里没有的编号不记；`tg_chat_history` 照 im 的记录答。场所那一段写
+//! `Telegram group`（施工 I-188）。
 
 use serde_json::{Value, json};
 
@@ -164,6 +165,14 @@ async fn in_a_group_she_quotes_mentions_and_searches_with_the_telegram_tools() {
     assert!(
         !names.iter().any(|name| name.starts_with("qq_")),
         "{names:?}"
+    );
+    // 场所那一段照驱动给的叫法写（施工 I-188：原来写死 `QQ group`）。
+    assert!(
+        request
+            .system
+            .contains("<venue>Telegram group \"Miyu 测试群\" (-1001)</venue>"),
+        "{}",
+        request.system
     );
     home.stop_extensions().await;
 }

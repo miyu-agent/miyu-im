@@ -38,7 +38,7 @@ pub use text::text_of;
 pub use wire::Wire;
 
 /// 平台：场所、平台上的人、命令编号的头一段是 `qq`（第 7、8 条，拼法在 [`Platform`]）。
-pub const PLATFORM: Platform = Platform::new("qq");
+pub const PLATFORM: Platform = Platform::new("qq").labeled("QQ");
 
 /// NapCat 发来的一帧。
 #[derive(Debug, Clone, PartialEq)]

@@ -82,8 +82,8 @@ const IMPOSTOR_FIELDS: &[&str] = &["msg", "name"];
 /// 群名、群号那一段（施工 O-49，放在群会话的 system 尾部）在出厂目录里的位置。
 const GROUP: &str = "system/group.txt";
 
-/// 群名、群号那一段认的字段（「群名」第 2 条）。
-const GROUP_FIELDS: &[&str] = &["name", "id"];
+/// 群名、群号那一段认的字段（「群名」第 2 条）；哪个平台（施工 I-188，驱动给的叫法）。
+const GROUP_FIELDS: &[&str] = &["platform", "name", "id"];
 
 /// 场所会话 system 尾部的附加提示词（施工 O-58 上，「场所卡片」）。
 const NOTE: &str = "system/note.txt";
