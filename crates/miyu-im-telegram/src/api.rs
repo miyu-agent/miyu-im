@@ -143,6 +143,31 @@ impl Api {
 }
 
 impl Api {
+    /// 照 `multipart/form-data` 调 `method`（施工 I-185 中，发图、发文件）：`content_type` 带分隔符，正文 `body`，最多等 `wait`。
+    ///
+    /// # Errors
+    ///
+    /// 见 [`Failure`]。
+    pub async fn post_form(
+        &self,
+        method: &str,
+        (content_type, body): (&str, Vec<u8>),
+        wait: Duration,
+    ) -> Result<Value, Failure> {
+        let response = self
+            .client
+            .post(format!("{}/{method}", self.base))
+            .header(reqwest::header::CONTENT_TYPE, content_type)
+            .body(body)
+            .timeout(wait)
+            .send()
+            .await
+            .map_err(network)?;
+        let status = response.status().as_u16();
+        let bytes = response.bytes().await.map_err(network)?;
+        read(status, &bytes)
+    }
+
     /// 下 `getFile` 给的 `path`（施工 I-185 上），最多 `limit` 字节、等 `wait`：照这个连接的代理走。
     ///
     /// # Errors

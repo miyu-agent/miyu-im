@@ -51,13 +51,42 @@ pub async fn started_ruled(
     (cards, bindings): (Option<&str>, &str),
     rules: &str,
 ) -> (Home, Channel) {
+    started_cataloged(api, script, (cards, bindings), (rules, None)).await
+}
+
+/// 同 [`started_full`]，工具目录里有基础系统的 `show`（施工 I-185 中：她给人看的图、文件发进 Telegram，[`super::hooked::showing`]）。
+pub async fn started_showing(api: &BotApi, script: Script, cards: &str) -> (Home, Channel) {
+    started_cataloged(
+        api,
+        script,
+        (Some(cards), ""),
+        ("", Some(super::hooked::showing())),
+    )
+    .await
+}
+
+/// 起：场所规则 `rules`，工具目录照 `catalog`（空的照测试平常的）。
+async fn started_cataloged(
+    api: &BotApi,
+    script: Script,
+    (cards, bindings): (Option<&str>, &str),
+    (rules, catalog): (&str, Option<miyu_tool::Catalog>),
+) -> (Home, Channel) {
     let extra = format!(
         "tg.tokens = [{{ secret = \"tg\" }}]\ntg.api = \"{}\"",
         api.url
     );
     let home = on_free_port(async |listen| {
         let config = format!("{bindings}{}", ports_config_with(listen, &extra));
-        let home = Home::spawning(&script, &config);
+        let home = match catalog.clone() {
+            Some(catalog) => Home::spawning_installed(
+                std::sync::Arc::new(script.clone()),
+                &config,
+                |_| super::resources(),
+                (|_: &miyu_store::root::DataRoot| {}, catalog),
+            ),
+            None => Home::spawning(&script, &config),
+        };
         if !rules.is_empty() {
             let dir = miyu_im::dirs::config(&home.root).join("venues.d");
             std::fs::create_dir_all(&dir).expect("建得了目录");

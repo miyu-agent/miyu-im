@@ -1,5 +1,5 @@
 //! 假的 Telegram Bot API（施工 I-183 中上）：本机回环上一个最小的 HTTP/1 服务端，认 `POST /bot<令牌>/<方法>`，照 [`Mode`] 答
-//! `getMe`（能先挂着不答）、`getUpdates`、`getFile`（照 [`BotApi::file`] 排的，下载走 `GET /file/bot<令牌>/…`），别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
+//! `getMe`（能先挂着不答）、`getUpdates`、`getFile`、`sendPhoto`/`sendDocument`（`multipart/form-data`，施工 I-185 中）（照 [`BotApi::file`] 排的，下载走 `GET /file/bot<令牌>/…`），别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
 //! 401。`sendMessage` 照 Telegram 回一条消息（编号从 1000 数）。`getUpdates` 有排着的消息就一次交完，没有的挂 100 毫秒答空的（真的挂 50 秒，测试不等那么久）。一个请求一条连接，答完就关。
 
 use std::collections::{HashMap, VecDeque};
@@ -129,16 +129,18 @@ async fn answer(stream: TcpStream, state: Arc<Mutex<State>>) {
         .nth(1)
         .unwrap_or_default()
         .to_string();
-    let mut length = 0;
+    let (mut length, mut kind) = (0, String::new());
     loop {
         let mut header = String::new();
         if reader.read_line(&mut header).await.unwrap_or(0) == 0 || header == "\r\n" {
             break;
         }
-        if let Some((name, value)) = header.split_once(':')
-            && name.eq_ignore_ascii_case("content-length")
-        {
-            length = value.trim().parse().unwrap_or(0);
+        if let Some((name, value)) = header.split_once(':') {
+            if name.eq_ignore_ascii_case("content-length") {
+                length = value.trim().parse().unwrap_or(0);
+            } else if name.eq_ignore_ascii_case("content-type") {
+                kind = value.trim().to_string();
+            }
         }
     }
     let mut body = vec![0; length];
@@ -148,7 +150,10 @@ async fn answer(stream: TcpStream, state: Arc<Mutex<State>>) {
     let (status, kind, bytes) = match downloaded(&path, &state) {
         Some(found) => found,
         None => {
-            let params: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+            let params: Value = match kind.split_once("boundary=") {
+                Some((_, boundary)) => form(&body, boundary),
+                None => serde_json::from_slice(&body).unwrap_or(Value::Null),
+            };
             let (status, reply) = reply(&path, params, &state).await;
             (status, "application/json", reply.to_string().into_bytes())
         }
@@ -164,6 +169,50 @@ async fn answer(stream: TcpStream, state: Arc<Mutex<State>>) {
         // 答完就关：一个请求一条连接。
         drop(stream.shutdown().await);
     }
+}
+
+/// 读 `multipart/form-data` 的正文（施工 I-185 中，发图、发文件）：字的格照原样，带文件名的那一格写成 `{"filename", "base64"}`。
+fn form(body: &[u8], boundary: &str) -> Value {
+    use base64::Engine;
+    let mark = format!("--{boundary}");
+    let mut fields = serde_json::Map::new();
+    let mut rest = body;
+    while let Some(at) = find(rest, mark.as_bytes()) {
+        rest = &rest[at + mark.len()..];
+        let Some(head_end) = find(rest, b"\r\n\r\n") else {
+            break;
+        };
+        let head = String::from_utf8_lossy(&rest[..head_end]).to_string();
+        let content = &rest[head_end + 4..];
+        let Some(end) = find(content, format!("\r\n{mark}").as_bytes()) else {
+            break;
+        };
+        let value = &content[..end];
+        let pick = |key: &str| {
+            head.split(&format!("{key}=\""))
+                .nth(1)
+                .and_then(|tail| tail.split('"').next())
+                .map(str::to_string)
+        };
+        if let Some(name) = pick("name") {
+            let value = match pick("filename") {
+                Some(filename) => {
+                    json!({"filename": filename, "base64": base64::engine::general_purpose::STANDARD.encode(value)})
+                }
+                None => json!(String::from_utf8_lossy(value)),
+            };
+            fields.insert(name, value);
+        }
+        rest = &content[end..];
+    }
+    Value::Object(fields)
+}
+
+/// `needle` 在 `haystack` 里头一次出现的位置。
+fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 /// 取文件的路径（`/file/bot<令牌>/photos/<编号>.png`，施工 I-185 上）：HTTP 状态、内容类型、内容；不是取文件的是空的。
@@ -228,7 +277,7 @@ async fn reply(path: &str, params: Value, state: &Mutex<State>) -> (u16, Value) 
             (200, json!({"ok": true, "result": ready}))
         }
         // 发出去的：照 Telegram 回一条消息，编号从 1000 数。
-        "sendMessage" => {
+        "sendMessage" | "sendPhoto" | "sendDocument" => {
             let sent = state
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
