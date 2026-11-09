@@ -1,5 +1,5 @@
 //! 给人看的字不写「她」（施工 O-29，`onebot.md` 第一条「给人看的字」；项目主人 2026-10-10 定）：接入通讯平台 的清单（名字、说明、
-//! 配置项的字）、后台页的字、桥说给人听的字、出厂参数文件和出厂场所规则里的说明、场所卡片两页的字（施工 O-58 下），都不用「她」「彼女」「she」「her」，写「AI」或者换个说法。
+//! 配置项的字）、桥说给人听的字、出厂参数文件和出厂场所规则里的说明、场所卡片两页的字（施工 O-58 下），都不用「她」「彼女」「she」「her」，写「AI」或者换个说法。
 //! 给模型看的字（判官的模板、事实、工具说明）不在这一条里。
 
 /// 出厂的资源目录（拼成的，施工 S-6 中）。
@@ -8,9 +8,8 @@ fn resources() -> std::path::PathBuf {
 }
 
 /// 给人看的那几份，相对资源目录。
-const HUMAN_FACING: [&str; 8] = [
+const HUMAN_FACING: [&str; 7] = [
     "packages/miyu-im/package.toml",
-    "packages/miyu-im/page/texts.js",
     "packages/miyu-im/data/human/zh.json",
     "packages/miyu-im/data/human/en.json",
     "packages/miyu-im/data/human/ja.json",
