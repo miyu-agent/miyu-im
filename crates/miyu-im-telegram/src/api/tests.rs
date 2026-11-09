@@ -54,7 +54,7 @@ fn a_reply_that_is_not_json_is_a_network_failure_unless_the_status_says_more() {
 #[test]
 fn proxies_read_and_write_back_the_same() {
     for (written, proxy) in [
-        ("", Proxy::Environment),
+        ("env", Proxy::Environment),
         ("direct", Proxy::Direct),
         (
             "socks5://127.0.0.1:1080",
@@ -65,6 +65,7 @@ fn proxies_read_and_write_back_the_same() {
         assert_eq!(proxy.written(), written);
     }
     assert_eq!(Proxy::parse("  direct "), Proxy::Direct);
+    assert_eq!(Proxy::parse(""), Proxy::Environment);
 }
 
 #[test]

@@ -52,15 +52,33 @@ export const PLATFORMS = {
       { kind: 'address', label: () => say('settings/qq-address') },
     ],
   },
-  // Telegram（施工 I-103，设计 07 第 3.5 节）：先只有样子（标志、名字），连接页、会话页、统计里认得出是它。新建连接的几步、连接
-  // 设置随真驱动（机器人令牌、代理），没有几步的平台不在新建连接里列。会话的叫法照通用的。
+  // Telegram（施工 I-103 样子；I-183 下中：真驱动的新建连接、连接设置，设计 07 第 3.5 节）：没有地址可填，粘贴 BotFather 给的令牌、
+  // 选代理，宿主当场照 getMe 查令牌、连没连得上、隐私模式；隐私模式开着的照实提醒。会话的叫法照通用的。
   tg: {
     badge: 'T',
     logo: 'logo-tg',
     name: () => say('platform/tg'),
     driver: () => say('platform/tg-driver'),
-    steps: [],
-    settings: [],
+    steps: [
+      {
+        kind: 'bot',
+        title: () => say('wizard/tg-token-title'),
+        text: () => say('wizard/tg-token-text'),
+        label: () => say('wizard/tg-token'),
+        placeholder: () => say('wizard/tg-token-placeholder'),
+        next: () => say('wizard/tg-check'),
+      },
+      { kind: 'checked', title: () => say('wizard/tg-checked-title'), next: () => say('wizard/next') },
+      { kind: 'owner', title: () => say('wizard/tg-owner-title'), text: () => say('wizard/tg-owner-text'), label: () => say('wizard/tg-owner') },
+    ],
+    waiting: () => say('wizard/tg-wait-text'),
+    node: () => say('platform/tg'),
+    settings: [
+      { kind: 'bot', label: () => say('settings/tg-bot') },
+      { kind: 'secret', name: 'token', label: () => say('settings/tg-token'), hint: () => say('settings/tg-token-hint') },
+      { kind: 'proxy', name: 'proxy', label: () => say('settings/tg-proxy') },
+      { kind: 'privacy', label: () => say('settings/tg-privacy') },
+    ],
   },
 };
 

@@ -173,7 +173,14 @@ fn japanese_is_written_in_japanese() {
         .collect();
     assert_eq!(
         same,
-        ["conn/line", "platform/qq", "platform/tg", "venues/filter"],
+        [
+            "conn/line",
+            "conn/line-username",
+            "platform/qq",
+            "platform/tg",
+            "venues/filter",
+            "wizard/tg-owner"
+        ],
         "im 自己的页面的日文另写，只有拼格式的、专名一样（「ID」，施工 I-50）"
     );
 }

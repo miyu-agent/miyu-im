@@ -327,6 +327,14 @@ pub trait Link: Send + Sync + fmt::Debug {
         unsupported()
     }
 
+    /// 群 `group` 里收不收得全消息（施工 I-183 下中，设计 07 第八节：会话浮窗「概况」标题旁的小标签）：`{partial, topics}`，`partial` 是
+    /// 收不全（Telegram：隐私模式开着、又不是管理员），`topics` 是话题群。驱动收消息时记下的，没记的、平台没有这回事的是空的。同步答，
+    /// 不现去问平台。
+    fn hearing(&self, group: &Id) -> Option<Value> {
+        let _ = group;
+        None
+    }
+
     /// 对端是哪个实现：还没问到的是空的。
     fn implementation(&self) -> Option<Implementation>;
 

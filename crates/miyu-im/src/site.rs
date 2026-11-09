@@ -33,6 +33,7 @@ mod plugin_widgets;
 mod plugins;
 mod records_media;
 mod records_page;
+mod reported;
 mod request;
 mod save;
 mod scope;
@@ -42,6 +43,7 @@ mod store;
 #[cfg(test)]
 mod tests;
 mod ticket;
+mod token_table;
 mod venues;
 mod watching;
 mod web_link;

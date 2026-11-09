@@ -185,3 +185,5 @@
 .watch-empty { margin: 8px; }
 @keyframes watch-caret { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .watch-line.writing .watch-text::after { animation: none; } }
+/* 概况标题右边的小标签（Telegram，施工 I-183 下）。 */
+.venue-title-mark { margin-left: 8px; vertical-align: middle; }

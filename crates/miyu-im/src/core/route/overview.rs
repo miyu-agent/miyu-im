@@ -57,6 +57,12 @@ impl Route {
             .map(|(_, note)| json!(note))
             .collect();
         let mut answer = json!({"today": today, "recent": recent});
+        // 群里收不收得全、是不是话题群（施工 I-183 下中）：驱动记下的，没有的不写。
+        if let Card::Group(scope, id) = &card_edit::card_of(&args["card"], platform)?
+            && let Some(hearing) = self.hearing(scope, id)
+        {
+            answer["hearing"] = hearing;
+        }
         // 看一眼（施工 I-114）：上一次几点、看到几条新消息，下一次几点、是不是她定的；都没有的不写。
         let glance = self.glance_seen(&*wanted);
         if !glance.is_null() {
@@ -73,6 +79,13 @@ impl Route {
             answer["venues"] = json!(seen);
         }
         Some(answer)
+    }
+
+    /// 群卡 `scope`、`group` 的群里收不收得全（`Link::hearing`）：卡只管一个号的照那个号，管整个平台的照这个平台连着的号。
+    fn hearing(&self, scope: &Scope, group: &crate::chat::Id) -> Option<Value> {
+        let platform = self.platforms.named(&scope.platform)?;
+        let bot = self.platforms.sender(platform, scope.bot.clone())?;
+        self.platforms.link(platform, &bot)?.hearing(group)
     }
 
     /// 一张卡管的场所：交回认场所编号的那一段。场所编号解开了照（平台、机器人号、种类、号）比（施工 I-81：只管一个号的卡只认那个号

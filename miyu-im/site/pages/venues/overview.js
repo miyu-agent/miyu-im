@@ -70,3 +70,19 @@ export function reason(note) {
   } else text = say(`why/${why.reason || 'quiet'}`);
   return why.hook ? `${text}${say('why/hook', { package: why.hook })}` : text;
 }
+
+/** 概况标题右边的小标签（Telegram 的群，施工 I-183 下；项目主人 11-09：做成标签就行，不用长段解释）：宿主照驱动报的，开着隐私模式又不是
+ *  管理员、收不全消息的写「隐私模式」，话题群写「话题群」；悬停各一句短的。 */
+export function hearingMarks(hearing) {
+  const marks = [];
+  if (hearing?.partial) marks.push(mark('venue/mark-privacy', 'venue/mark-privacy-hint'));
+  if (hearing?.topics) marks.push(mark('venue/mark-topics', 'venue/mark-topics-hint'));
+  return marks;
+}
+
+/** 一个小标签（同「默认」那种，shell/mark.css）。 */
+function mark(text, hint) {
+  const tag = element('span', 'field-mark venue-title-mark', say(text));
+  tag.title = say(hint);
+  return tag;
+}

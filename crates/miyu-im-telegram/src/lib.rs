@@ -10,6 +10,7 @@ mod bot;
 mod known;
 mod link;
 mod menu;
+mod probe;
 mod receive;
 mod running;
 mod send;
@@ -18,7 +19,8 @@ pub mod settings;
 use std::sync::Arc;
 
 use miyu_im::chat::{Cap, Platform};
-use miyu_im::driver::{Driver, Gate, Started};
+use miyu_im::driver::{Driver, Gate, Probing, Started, TokenTable};
+use serde_json::{Map, Value};
 
 pub use api::{Failure, Proxy};
 
@@ -45,6 +47,18 @@ impl Driver for Telegram {
 
     fn secrets(&self) -> &'static [&'static str] {
         settings::SECRETS
+    }
+
+    fn token_table(&self) -> Option<TokenTable> {
+        // 一个连接一个机器人令牌，另带代理（I-183 下中）。
+        Some(TokenTable {
+            tokens: "tokens",
+            columns: &[("proxies", "proxy", "env")],
+        })
+    }
+
+    fn probe(&self, params: Value, config: Map<String, Value>) -> Probing {
+        Box::pin(probe::probe(params, config))
     }
 
     fn start(&self, gate: Arc<Gate>) -> Started {

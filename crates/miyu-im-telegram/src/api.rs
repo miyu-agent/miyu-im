@@ -27,10 +27,10 @@ pub enum Proxy {
 }
 
 impl Proxy {
-    /// 配置里存的写法：空的是跟随联网设置，`direct` 是直连，别的是地址（去掉首尾空白）。
+    /// 配置里存的写法：`env` 是跟随联网设置（空的也认：核心的一列字不收空字，存的是 `env`），`direct` 是直连，别的是地址（去掉首尾空白）。
     pub fn parse(written: &str) -> Proxy {
         match written.trim() {
-            "" => Proxy::Environment,
+            "" | "env" => Proxy::Environment,
             "direct" => Proxy::Direct,
             address => Proxy::Address(address.to_string()),
         }
@@ -39,7 +39,7 @@ impl Proxy {
     /// 存回配置的写法（[`Proxy::parse`] 反过来）。
     pub fn written(&self) -> &str {
         match self {
-            Proxy::Environment => "",
+            Proxy::Environment => "env",
             Proxy::Direct => "direct",
             Proxy::Address(address) => address,
         }

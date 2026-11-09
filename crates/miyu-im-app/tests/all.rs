@@ -137,6 +137,7 @@ mod strangers;
 mod superseded;
 mod telegram;
 mod telegram_live;
+mod telegram_page;
 mod text;
 mod texts;
 mod titled;
