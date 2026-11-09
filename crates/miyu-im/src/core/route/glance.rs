@@ -31,6 +31,10 @@ mod seen;
 /// 看一眼那一块事实的 `kind`。
 const GLANCE: &str = "glance";
 
+/// 看一眼开一轮的命令编号的开头（后面接定时的编号）：核心照它记那一轮 `turn.started` 的 `cause`，投影照它认出哪一轮是看一眼开的（施工
+/// I-187）。
+pub(super) const OPENED: &str = "glance/";
+
 /// 一秒的毫秒数。
 const SECOND: i64 = 1000;
 
@@ -314,7 +318,7 @@ impl Route {
         }
         let facts = self.glance_fact();
         let tag = Tag {
-            id: format!("glance/{id}"),
+            id: format!("{OPENED}{id}"),
             number: 0,
             venue: prompt.venue.clone(),
             who: String::new(),
@@ -348,7 +352,7 @@ impl Route {
         }
         let facts = self.glance_fact();
         let tag = Tag {
-            id: format!("glance/{id}"),
+            id: format!("{OPENED}{id}"),
             number: 0,
             venue: prompt.venue.clone(),
             who: String::new(),

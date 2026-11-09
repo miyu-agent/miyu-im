@@ -238,7 +238,7 @@ impl Projection {
                     .main
                     .triggers(started.triggers.clone(), started.trigger);
                 let line = self.session.clone();
-                self.started(&line, &triggers, turn, event.at);
+                self.started(&line, (&triggers, glance::opened(event)), turn, event.at);
             }
             Body::TurnJoined(joined) => {
                 let line = self.session.clone();

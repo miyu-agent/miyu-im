@@ -76,6 +76,13 @@ async fn a_glance_opens_on_new_messages_only_and_stops_when_turned_off() {
     .await;
     let opened = of_kind(&events, "turn.started");
     assert_eq!(opened.len(), 1, "{opened:#?}");
+    // 那一轮的 `cause` 是看一眼的命令编号：投影照它认出这一轮不自动引用、@（施工 I-187）。
+    assert!(
+        opened[0]["cause"]
+            .as_str()
+            .is_some_and(|cause| cause.starts_with("glance/")),
+        "{opened:#?}"
+    );
     assert!(
         events
             .iter()
