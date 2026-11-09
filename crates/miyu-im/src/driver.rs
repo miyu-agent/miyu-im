@@ -71,6 +71,12 @@ pub trait Driver: Send + Sync {
         &[]
     }
 
+    /// 出厂贴的那一个（施工 I-185 下上：判过要回的那一条上贴的）：空的照 `bridge.json` 的 `reaction_emoji`（QQ 的表情编号）。
+    /// 编号的写法各平台不一样，别的平台要自己给。
+    fn reaction(&self) -> Option<&'static str> {
+        None
+    }
+
     /// 驱动给 AI 的工具（施工 T-1，[`crate::toolset::ToolSet`]；2026-10-20 项目主人定：平台的工具在驱动里，im 不提供工具）：照
     /// `bridge.json` 的参数 `tuning` 造一套；没有的是空的。
     fn toolset(&self, tuning: &Tuning) -> Option<Arc<dyn crate::toolset::ToolSet>> {

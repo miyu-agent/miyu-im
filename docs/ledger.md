@@ -59,6 +59,7 @@
 - 施工 I-130（2026-11-04）的五份（`miyu-im/data/onebot/tools/qq_send_file.json`、`tool-results/uploading.txt`、`not-local.txt`、`no-file.txt`、`unsendable.txt`）照 opencode Console Go 的 `deepseek-v4.1-flash` 量：工具面照「带工具减不带」，驱动的二十一件一起时 `qq_send_file` 的边际 52、二十一件合计 1637；结果接在 `hi` 和一个换行后面、带行尾换行：`uploading`（`report.pdf`、`3.4 MB`）15、`not-local` 15、`no-file`（`out/report.pdf`）16、`unsendable` 14（core1 审出判完到 NapCat 读之间的时间差以后加：钉不住的不传）。为什么加：项目主人 11-04 定她往群里、私聊里发文件走平台自己的上传、不设上限，`show` 有 20 MiB 的上限、要把文件读进来，不合用。工具面预算：照文件数合计 4476 字节、超了 4312；项目主人定门禁照模型收到的紧凑 JSON 数（文件里的换行、缩进 210 字节解析以后就没了，到不了模型），合计 4266，预算不动，别的说明一个字不改。
 - 施工 I-188（2026-11-10）改的一份（`miyu-im/data/system/group.txt`：`QQ` 换成平台那一格 `{platform}`，驱动给叫法）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 O-49：QQ 的 `摸鱼群`、`123456789` 17（和以前一样，写出来的字节一个没变，QQ 群的缓存不受影响）；Telegram 的 `摸鱼群`、`-1001234567890` 20，`Miyu 测试群`、`-1001` 20。只有 Telegram 群的 system 尾部变了一次。
 - 施工 I-183 下下（2026-11-10）的二十七份（`miyu-im/data/telegram/tools/` 七件、`tool-results/` 二十句）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量：工具面照「带工具减不带」，七件一起合计 677（同一刻 QQ 的二十一件 1626，和以前的数一样）；核心照名字前缀只给那个平台的场所，Telegram 的群、私聊只见这七件，QQ 的场所一个字节没变；本机会话多一件 `tg_send`（88），只在连接表写了令牌时登记。四句改了平台名或说法的接在 `hi` 和一个换行后面量，带行尾换行；另外十六句和 `onebot/` 的字节一样，token 照那边登记的。
+- 施工 I-185 下上（2026-11-10）的五份（`miyu-im/data/telegram/tools/tg_recall.json`、`tg_react.json`，`tool-results/` 的 `recalled`、`reacted`、`no-quote`）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 I-183 下下：九件一起合计 799（多 122：`tg_recall` 55、`tg_react` 67），1746 字节；项目主人 11-10 定 Telegram 的预算和 QQ 的一样（4312 字节）。三句结果和 `onebot/` 的字节一样，token 照那边登记的。
 
 ### 登记簿
 
@@ -216,3 +217,8 @@
 | `miyu-im/data/telegram/tool-results/unanswered.txt` | 工具结果 | 等不到 Telegram 回（施工 I-183 下下） | 17 | 同 QQ 的那一句，平台写 Telegram | `a003e5d0` |
 | `miyu-im/data/telegram/tool-results/unreachable.txt` | 工具结果 | 那个机器人号没连着、连接断了（施工 I-183 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `afaef1a3` |
 | `miyu-im/data/telegram/tool-results/which-bot.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/which-bot.txt`（字节一样，施工 I-183 下下） | 15（字段空着；两个号 26，2026-10-30 经 opencode Console Go 的 `deepseek-v4.1-flash` 量） | Telegram 那套答同样的话 | `fd4b33a7` |
+| `miyu-im/data/telegram/tools/tg_recall.json` | tools 数组 | Telegram 的私聊、群（同 `qq_recall`，说明一字不差；她给的编号照 im 的记录核对）（施工 I-185 下上） | 55（九件一起的边际） | 设计 07 第一版「说话」那一块：撤回自己的 | `f6861dcd` |
+| `miyu-im/data/telegram/tools/tg_react.json` | tools 数组 | Telegram 的私聊、群（同 `qq_react`，「this group」改「this chat」：私聊也能贴）（施工 I-185 下上） | 67（九件一起的边际） | 设计 07 第一版「说话」那一块：贴表情 | `6ac71e04` |
+| `miyu-im/data/telegram/tool-results/recalled.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/recalled.txt`（字节一样，施工 I-185 下上） | 3（2026-10-10 量） | Telegram 那套答同样的话 | `5a6ee52c` |
+| `miyu-im/data/telegram/tool-results/reacted.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/reacted.txt`（字节一样，施工 I-185 下上） | 4 | Telegram 那套答同样的话 | `4940f1eb` |
+| `miyu-im/data/telegram/tool-results/no-quote.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-quote.txt`（字节一样，施工 I-185 下上） | 19（2026-10-17 量；O-31 那一句 16） | Telegram 那套答同样的话 | `5c41e58f` |

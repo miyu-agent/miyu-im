@@ -1,0 +1,4 @@
+{
+  "description": "Recall a message: the msg= one, else the one quoted by the message you are answering.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string"}}}
+}

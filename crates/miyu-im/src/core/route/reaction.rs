@@ -1,5 +1,6 @@
 //! 贴表情（施工 O-25 下，`onebot.md` 第一条「贴表情」；18 第七节那张表的「贴表情」一列，旧版的效果）：群里冲她来、续聊她的那一条，
-//! 判过要回的，先在那条消息上贴一个表情（`bridge.json` 的 `reaction_emoji`，出厂 QQ 表情 289），让人知道她看到了、在回；收了它的
+//! 判过要回的，先在那条消息上贴一个表情（`bridge.json` 的 `reaction_emoji`，出厂 QQ 表情 289；驱动另给的照驱动的，施工 I-185 下上：
+//! Telegram 的 👀），让人知道她看到了、在回；收了它的
 //! 那一轮发出去第一段、那一轮结束、贴了以后过了 `reaction_seconds`，先到哪个算哪个，摘掉。
 //!
 //! - 什么时候贴（[`Route::react`]）：`called.rs` 判下来要回、`session.respond` 成了以后（「施工时定的」第 133 条），主触发是冲她来、
@@ -23,7 +24,7 @@ use super::decide::Decision;
 use super::{Peer, Route, applied};
 use crate::TARGET;
 use crate::chat::Bots;
-use crate::chat::{CallError, Cap};
+use crate::chat::{CallError, Cap, Platform};
 
 /// 规则 `reaction` 写成它是不贴（施工 I-7 中三下二）。
 const OFF: &str = "off";
@@ -32,6 +33,8 @@ const OFF: &str = "off";
 pub(crate) struct Reactions {
     /// 贴哪个表情（`bridge.json` 的 `reaction_emoji`）。
     emoji: String,
+    /// 驱动另给的（施工 I-185 下上，`Driver::reaction`）：平台 → 贴哪个。
+    platforms: HashMap<Platform, String>,
     /// 贴了以后过多久还没摘的摘掉（`reaction_seconds`）。
     after: Duration,
     /// （会话编号，序号）→ 贴着的那一条。任务已经完了的（到时候摘了、贴不上）下一次记新的时拿掉。
@@ -62,9 +65,25 @@ impl Reactions {
     pub(crate) fn new(emoji: String, after: Duration) -> Reactions {
         Reactions {
             emoji,
+            platforms: HashMap::new(),
             after,
             held: HashMap::new(),
         }
+    }
+
+    /// 平台 `platform` 出厂贴 `emoji`（驱动给的，施工 I-185 下上）。
+    #[must_use]
+    pub(crate) fn on(mut self, platform: Platform, emoji: &str) -> Reactions {
+        self.platforms.insert(platform, emoji.to_string());
+        self
+    }
+
+    /// 平台 `platform` 出厂贴哪个：驱动给了的照它，没给的照 `bridge.json`。
+    fn emoji_for(&self, platform: Platform) -> String {
+        self.platforms
+            .get(&platform)
+            .cloned()
+            .unwrap_or_else(|| self.emoji.clone())
     }
 
     /// 记下会话 `session` 里序号是 `msg` 的那一条贴上了：交回摘的信号的那一头，交给贴它的任务。
@@ -170,7 +189,7 @@ impl Route {
         let emoji = match chosen.as_deref() {
             Some(OFF) => return,
             Some(id) => id.to_string(),
-            None => self.reactions.emoji.clone(),
+            None => self.reactions.emoji_for(peer.platform),
         };
         let target = Mark {
             peer,

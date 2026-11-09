@@ -142,7 +142,12 @@ fn reactions(site: &Arc<Site>, params: &Value) -> Result<Value, (String, String)
             shown
         })
         .collect();
-    Ok(json!({"reactions": reactions, "default": site.running.tuning.reaction_emoji}))
+    // 出厂贴的那一个：驱动给了的照驱动的（施工 I-185 下上），别的照 `bridge.json`。
+    let default = driver.reaction().map_or_else(
+        || site.running.tuning.reaction_emoji.clone(),
+        str::to_string,
+    );
+    Ok(json!({"reactions": reactions, "default": default}))
 }
 
 /// 机器人（模块的说明）：挂着的每个平台的，照驱动的先后（施工 I-85 上）。

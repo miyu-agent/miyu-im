@@ -27,7 +27,9 @@
     "tg_mention": { "name": "艾特" },
     "tg_chat_history": { "name": "查询聊天记录", "subject": "query" },
     "tg_activity_ranking": { "name": "查看发言排行", "subject": "days" },
-    "tg_glance": { "name": "定下次看一眼", "subject": "minutes" }
+    "tg_glance": { "name": "定下次看一眼", "subject": "minutes" },
+    "tg_recall": { "name": "撤回" },
+    "tg_react": { "name": "贴表情", "subject": "emoji" }
   },
   "said": {
     "prefix": "miyu im",
