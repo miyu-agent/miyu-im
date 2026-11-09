@@ -7,6 +7,7 @@
 
 mod api;
 mod bot;
+mod files;
 mod known;
 mod link;
 mod menu;
@@ -40,8 +41,8 @@ impl Driver for Telegram {
     }
 
     fn caps(&self) -> &'static [Cap] {
-        // 命令菜单（I-183 下上）；别的随后面几步加（设计 07 第 3.5 节的表）。
-        &[Cap::Menu]
+        // 命令菜单（I-183 下上）；取带的图、引用的那一条（I-185 上，引用的照收的时候记下的答）；别的随后面几步加（设计 07 第 3.5 节的表）。
+        &[Cap::Menu, Cap::Media, Cap::Message]
     }
 
     fn settings(&self) -> &'static [&'static str] {

@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use miyu_im::chat::{Event, Id, MediaKind, Piece, Posted};
+use miyu_im::chat::{Event, Fetch, Id, MediaKind, Piece, Posted};
 
 use super::{Me, event};
 use crate::known::Known;
@@ -161,5 +161,62 @@ fn private_chats_and_media_and_what_is_not_taken() {
     assert!(
         event(&me, &Value::Null, &known).is_none(),
         "不是消息的更新不收"
+    );
+}
+
+#[test]
+fn pictures_and_still_stickers_can_be_fetched_and_the_rest_cannot() {
+    // 施工 I-185 上：图、静态贴纸照图取；动的贴纸、语音、视频、文件只给占位。
+    let known = Known::default();
+    let fetch = |extra: Value| taken(in_group(extra), &known).1.segments.media[0].fetch;
+    assert_eq!(
+        fetch(json!({"photo": [{"file_id": "p"}]})),
+        Some(Fetch::Image)
+    );
+    assert_eq!(
+        fetch(
+            json!({"sticker": {"file_id": "s", "emoji": "😀", "is_animated": false, "is_video": false}})
+        ),
+        Some(Fetch::Image)
+    );
+    assert_eq!(
+        fetch(json!({"sticker": {"file_id": "s", "is_animated": true}})),
+        None
+    );
+    assert_eq!(
+        fetch(json!({"sticker": {"file_id": "s", "is_video": true}})),
+        None
+    );
+    assert_eq!(fetch(json!({"voice": {"file_id": "v"}})), None);
+    assert_eq!(fetch(json!({"video": {"file_id": "v"}})), None);
+    assert_eq!(fetch(json!({"document": {"file_id": "d"}})), None);
+}
+
+#[test]
+fn the_message_and_the_one_it_quotes_are_remembered_for_the_host() {
+    // 施工 I-185 上：宿主问引用的那一条（取它带的图）时照收的时候记下的答。
+    let known = Known::default();
+    let quoted = json!({
+        "message_id": 5, "date": 1700000000,
+        "chat": {"id": -1001, "type": "supergroup"},
+        "from": {"id": 8, "is_bot": false, "first_name": "Bea"},
+        "photo": [{"file_id": "pic"}],
+    });
+    taken(
+        in_group(json!({"text": "看这个", "reply_to_message": quoted})),
+        &known,
+    );
+    let remembered = known.message("-1001", "5").expect("记下了引用的那一条");
+    assert!(!remembered.private);
+    assert_eq!(remembered.group, Id::new("-1001"));
+    assert_eq!(remembered.user, Id::new("8"));
+    assert_eq!(remembered.segments.media[0].id, "pic");
+    assert_eq!(remembered.segments.media[0].fetch, Some(Fetch::Image));
+    let own = known.message("-1001", "9").expect("这一条也记下了");
+    assert_eq!(own.segments.reply_to.as_deref(), Some("5"));
+    assert!(known.message("-1001", "6").is_none(), "没见过的没有");
+    assert!(
+        known.message("-1002", "5").is_none(),
+        "别的聊天的同一个编号对不上"
     );
 }

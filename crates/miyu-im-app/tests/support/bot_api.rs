@@ -1,8 +1,8 @@
 //! 假的 Telegram Bot API（施工 I-183 中上）：本机回环上一个最小的 HTTP/1 服务端，认 `POST /bot<令牌>/<方法>`，照 [`Mode`] 答
-//! `getMe`（能先挂着不答）、`getUpdates`，别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
+//! `getMe`（能先挂着不答）、`getUpdates`、`getFile`（照 [`BotApi::file`] 排的，下载走 `GET /file/bot<令牌>/…`），别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
 //! 401。`sendMessage` 照 Telegram 回一条消息（编号从 1000 数）。`getUpdates` 有排着的消息就一次交完，没有的挂 100 毫秒答空的（真的挂 50 秒，测试不等那么久）。一个请求一条连接，答完就关。
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -33,6 +33,8 @@ struct State {
     calls: Vec<(String, Value)>,
     /// `getMe` 先挂着不答（[`BotApi::hold`]）。
     held: bool,
+    /// 取得到的文件：`file_id` → 内容（[`BotApi::file`]，施工 I-185 上）。
+    files: HashMap<String, Vec<u8>>,
 }
 
 /// 一个跑着的假 Bot API。
@@ -53,6 +55,7 @@ impl BotApi {
             updates: VecDeque::new(),
             calls: Vec::new(),
             held: false,
+            files: HashMap::new(),
         }));
         let serving = Arc::clone(&state);
         tokio::spawn(async move {
@@ -71,6 +74,11 @@ impl BotApi {
     /// `getMe` 挂着不答（`true`）、放开（`false`）：摆出「连接重连了、还没认出机器人」的那一阵。
     pub fn hold(&self, held: bool) {
         self.lock().held = held;
+    }
+
+    /// 编号是 `id` 的文件内容是 `bytes`（施工 I-185 上）：`getFile` 答 `photos/<编号>.png`，`GET /file/bot<令牌>/…` 交回它。
+    pub fn file(&self, id: &str, bytes: Vec<u8>) {
+        self.lock().files.insert(id.to_string(), bytes);
     }
 
     /// 到现在的调用：方法和参数。
@@ -137,18 +145,39 @@ async fn answer(stream: TcpStream, state: Arc<Mutex<State>>) {
     if reader.read_exact(&mut body).await.is_err() {
         return;
     }
-    let params: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
-    let (status, reply) = reply(&path, params, &state).await;
-    let text = reply.to_string();
-    let response = format!(
-        "HTTP/1.1 {status} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",
-        text.len()
-    );
+    let (status, kind, bytes) = match downloaded(&path, &state) {
+        Some(found) => found,
+        None => {
+            let params: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+            let (status, reply) = reply(&path, params, &state).await;
+            (status, "application/json", reply.to_string().into_bytes())
+        }
+    };
+    let mut response = format!(
+        "HTTP/1.1 {status} X\r\ncontent-type: {kind}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+        bytes.len()
+    )
+    .into_bytes();
+    response.extend_from_slice(&bytes);
     let mut stream = reader.into_inner();
-    if stream.write_all(response.as_bytes()).await.is_ok() {
+    if stream.write_all(&response).await.is_ok() {
         // 答完就关：一个请求一条连接。
         drop(stream.shutdown().await);
     }
+}
+
+/// 取文件的路径（`/file/bot<令牌>/photos/<编号>.png`，施工 I-185 上）：HTTP 状态、内容类型、内容；不是取文件的是空的。
+fn downloaded(path: &str, state: &Mutex<State>) -> Option<(u16, &'static str, Vec<u8>)> {
+    let rest = path.strip_prefix("/file/bot")?;
+    let (token, file) = rest.split_once('/')?;
+    let id = file.strip_prefix("photos/")?.strip_suffix(".png")?;
+    let mut held = state.lock().unwrap_or_else(PoisonError::into_inner);
+    held.calls
+        .push(("download".to_string(), json!({"path": file})));
+    Some(match held.files.get(id) {
+        Some(bytes) if token == TG_TOKEN => (200, "image/png", bytes.clone()),
+        _ => (404, "text/plain", b"Not Found".to_vec()),
+    })
 }
 
 /// 照路径、参数答：HTTP 状态和正文。
@@ -162,6 +191,7 @@ async fn reply(path: &str, params: Value, state: &Mutex<State>) -> (u16, Value) 
             json!({"ok": false, "error_code": 404, "description": "Not Found"}),
         );
     };
+    let file_id = params["file_id"].as_str().unwrap_or_default().to_string();
     let mode = {
         let mut held = state.lock().unwrap_or_else(PoisonError::into_inner);
         held.calls.push((method.to_string(), params));
@@ -208,6 +238,25 @@ async fn reply(path: &str, params: Value, state: &Mutex<State>) -> (u16, Value) 
                 200,
                 json!({"ok": true, "result": {"message_id": 1000 + sent, "date": 1, "chat": {"id": 0}}}),
             )
+        }
+        "getFile" => {
+            let id = file_id;
+            let size = state
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .files
+                .get(&id)
+                .map(Vec::len);
+            match size {
+                Some(size) => (
+                    200,
+                    json!({"ok": true, "result": {"file_id": id, "file_size": size, "file_path": format!("photos/{id}.png")}}),
+                ),
+                None => (
+                    400,
+                    json!({"ok": false, "error_code": 400, "description": "Bad Request: invalid file_id"}),
+                ),
+            }
         }
         _ => (200, json!({"ok": true, "result": true})),
     }

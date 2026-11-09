@@ -72,6 +72,8 @@ pub struct Api {
     client: reqwest::Client,
     /// `<地址>/bot<令牌>`：调用照它拼。
     base: String,
+    /// `<地址>/file/bot<令牌>`：取文件照它拼（施工 I-185 上，`getFile` 给的 `file_path` 接在后面）。
+    files: String,
 }
 
 impl std::fmt::Debug for Api {
@@ -104,9 +106,11 @@ impl Api {
         let client = builder
             .build()
             .map_err(|error| format!("no client: {}", error.without_url()))?;
+        let api = api.trim_end_matches('/');
         Ok(Api {
             client,
-            base: format!("{}/bot{}", api.trim_end_matches('/'), token.expose()),
+            base: format!("{api}/bot{}", token.expose()),
+            files: format!("{api}/file/bot{}", token.expose()),
         })
     }
 
@@ -135,6 +139,48 @@ impl Api {
         let status = response.status().as_u16();
         let bytes = response.bytes().await.map_err(network)?;
         read(status, &bytes)
+    }
+}
+
+impl Api {
+    /// 下 `getFile` 给的 `path`（施工 I-185 上），最多 `limit` 字节、等 `wait`：照这个连接的代理走。
+    ///
+    /// # Errors
+    ///
+    /// 连不上、超时、不是 200（[`Failure::Network`]）；比 `limit` 大（[`Failure::Failed`]，`code` 是 413）。
+    pub async fn download(
+        &self,
+        path: &str,
+        limit: usize,
+        wait: Duration,
+    ) -> Result<Vec<u8>, Failure> {
+        let mut response = self
+            .client
+            .get(format!("{}/{}", self.files, path.trim_start_matches('/')))
+            .timeout(wait)
+            .send()
+            .await
+            .map_err(network)?;
+        let status = response.status().as_u16();
+        if status != 200 {
+            return Err(Failure::Network(format!("http {status}")));
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(network)? {
+            if bytes.len() + chunk.len() > limit {
+                return Err(too_big(limit));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        Ok(bytes)
+    }
+}
+
+/// 文件比上限 `limit` 大。
+fn too_big(limit: usize) -> Failure {
+    Failure::Failed {
+        code: 413,
+        description: format!("file is larger than {} MB", limit / 1024 / 1024),
     }
 }
 

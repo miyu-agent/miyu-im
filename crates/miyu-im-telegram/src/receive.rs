@@ -7,11 +7,13 @@
 //!   下上：去掉 @，命令菜单登记的名字换回来），`/命令@别的机器人` 不是给她的（AstrBot #10240）；@ 了不认得用户名的人照原样留字。
 //! - 回复她的消息算叫她（设计 07：隐私模式开着时这是群里少数收得到的；QQ 那边引用她不算叫她，I-20，所以在这里补一个 @ 她，宿主不动）。
 //! - 话题群：话题里的消息带着话题的「建话题」那条当引用，不算引用；记下话题，回话回在那里。
-//! - 带的东西照 QQ 那边的种类给占位（图、贴纸、语音、视频、文件），第一版不取内容（取随 I-185）。
+//! - 带的东西照 QQ 那边的种类给占位（图、贴纸、语音、视频、文件）；图、静态贴纸能取（施工 I-185 上，`crate::files`），动的贴纸
+//!   （`tgs`、`webm`）、语音、视频、文件只给占位（设计 07 第 3.5 节）。
+//! - 认好的这一条、它引用的那一条（`reply_to_message` 带着整条）记进 [`Known`]（施工 I-185 上）：宿主问引用的那一条照它答。
 
 use serde_json::Value;
 
-use miyu_im::chat::{Event, Id, Media, MediaKind, Piece, Posted, Segments};
+use miyu_im::chat::{Event, Fetch, Fetched, Id, Media, MediaKind, Piece, Posted, Segments};
 
 use crate::bot::full_name;
 use crate::known::{Known, Person};
@@ -54,6 +56,11 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
     let to_topic = thread.is_some() && reply["message_id"].as_i64() == thread;
     if !reply.is_null() && !to_topic {
         segments.reply_to = reply["message_id"].as_i64().map(|id| id.to_string());
+        remember(
+            (chat_id.as_str(), reply),
+            self::segments(me, reply, known),
+            known,
+        );
         if id_of(&reply["from"]["id"]).as_ref() == Some(me.bot) && !segments.at().contains(me.bot) {
             segments.pieces.push(Piece::At(me.bot.clone()));
         }
@@ -66,6 +73,7 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
             Piece::At(_) => None,
         })
         .collect();
+    remember((chat_id.as_str(), message), segments.clone(), known);
     let posted = Posted {
         bot: me.bot.clone(),
         user,
@@ -84,6 +92,21 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
         }),
         _ => None,
     }
+}
+
+/// 聊天 `chat` 里的一条 `message`（认好的段 `segments`）记进 [`Known`]：宿主问引用的那一条时照它答（施工 I-185 上）。
+fn remember((chat, message): (&str, &Value), segments: Segments, known: &Known) {
+    let Some(id) = message["message_id"].as_i64() else {
+        return;
+    };
+    let private = message["chat"]["type"] == "private";
+    let fetched = Fetched {
+        private,
+        group: (!private).then(|| id_of(&message["chat"]["id"])).flatten(),
+        user: id_of(&message["from"]["id"]),
+        segments,
+    };
+    known.set_message(chat, id, fetched);
 }
 
 /// 号：Telegram 给的整数写成字（群号是负数）。
@@ -178,9 +201,9 @@ fn piece(me: &Me<'_>, entity: &Value, slice: &str, known: &Known) -> Option<Vec<
     }
 }
 
-/// 带的东西：照 QQ 那边的种类给占位，第一版不取（`fetch` 空的）。
+/// 带的东西：照 QQ 那边的种类给占位；图、静态贴纸照图取（施工 I-185 上），别的不取（`fetch` 空的）。
 fn media(message: &Value) -> Vec<Media> {
-    let one = |kind, id: &Value, name: Option<&str>, size: &Value| {
+    let one = |kind, fetch: Option<Fetch>, id: &Value, name: Option<&str>, size: &Value| {
         Some(Media {
             kind,
             id: id.as_str().filter(|id| !id.is_empty())?.to_string(),
@@ -189,7 +212,7 @@ fn media(message: &Value) -> Vec<Media> {
                 .filter(|name| !name.is_empty())
                 .map(str::to_string),
             size: size.as_u64(),
-            fetch: None,
+            fetch,
             url: None,
         })
     };
@@ -198,6 +221,7 @@ fn media(message: &Value) -> Vec<Media> {
         sizes.last().and_then(|photo| {
             one(
                 MediaKind::Image,
+                Some(Fetch::Image),
                 &photo["file_id"],
                 None,
                 &photo["file_size"],
@@ -205,8 +229,11 @@ fn media(message: &Value) -> Vec<Media> {
         })
     } else if message["sticker"].is_object() {
         let sticker = &message["sticker"];
+        // 动的贴纸（`tgs` 是 Lottie 动画、`webm` 是视频）看不了，只给占位。
+        let still = sticker["is_animated"] != true && sticker["is_video"] != true;
         one(
             MediaKind::Sticker,
+            still.then_some(Fetch::Image),
             &sticker["file_id"],
             sticker["emoji"].as_str(),
             &sticker["file_size"],
@@ -214,6 +241,7 @@ fn media(message: &Value) -> Vec<Media> {
     } else if message["voice"].is_object() {
         one(
             MediaKind::Voice,
+            None,
             &message["voice"]["file_id"],
             None,
             &message["voice"]["file_size"],
@@ -225,6 +253,7 @@ fn media(message: &Value) -> Vec<Media> {
     {
         one(
             MediaKind::Video,
+            None,
             &video["file_id"],
             video["file_name"].as_str(),
             &video["file_size"],
@@ -236,6 +265,7 @@ fn media(message: &Value) -> Vec<Media> {
     {
         one(
             MediaKind::File,
+            None,
             &file["file_id"],
             file["file_name"].as_str().or(file["title"].as_str()),
             &file["file_size"],

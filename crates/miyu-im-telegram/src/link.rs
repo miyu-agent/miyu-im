@@ -1,16 +1,18 @@
 //! 一个 Telegram 机器人的连接（宿主的 `Link`，施工 I-183 中上起）：经 Bot API 办宿主要做的事。I-183 中下起发得出字（排队、拆段、
-//! 引用、@、话题，[`crate::send`]），答得出群名（收消息时记下的）；图、贴表情、撤回随 I-185，别的照 `Link` 的默认答「做不到」（宿主
+//! 引用、@、话题，[`crate::send`]），答得出群名（收消息时记下的）；I-185 上起取得到图、答得出引用的那一条，发图、贴表情、撤回随 I-185 下，别的照 `Link` 的默认答「做不到」（宿主
 //! 照能力表先查）。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use tokio::sync::oneshot;
 
 use serde_json::json;
 
 use miyu_im::chat::{
-    CallError, Id, Implementation, Link, Member, MenuItem, Outgoing, Pending, Reply, To,
+    CallError, Fetch, Fetched, Id, Implementation, Link, Located, Member, MenuItem, Outgoing,
+    Pending, Reply, To,
 };
 
 use crate::api::Api;
@@ -89,6 +91,23 @@ impl Link for Bot {
                 Box::pin(async move { answered.await.map_err(|_| CallError::Closed)? });
             Ok(pending)
         })
+    }
+
+    fn message<'a>(&'a self, to: &'a To, id: &'a str) -> Reply<'a, Fetched> {
+        // Telegram 不给机器人照编号取消息：照收的时候记下的答（收到的、它引用的那一条，施工 I-185 上）；没见过的答没找到。
+        let found = self.known.message(chat(to).as_str(), id);
+        Box::pin(async move {
+            found.ok_or_else(|| CallError::Failed {
+                said: "message not seen".to_string(),
+                message: String::new(),
+            })
+        })
+    }
+
+    fn fetch<'a>(&'a self, fetch: Fetch, id: &'a str, wait: Duration) -> Reply<'a, Located> {
+        // 图、静态贴纸（施工 I-185 上）；文件同一个口子（`getFile`），取文件的工具随后面几步。
+        let _ = fetch;
+        Box::pin(crate::files::located(&self.api, id, wait))
     }
 
     fn group_name<'a>(&'a self, group: &'a Id) -> Reply<'a, Option<String>> {
