@@ -57,6 +57,7 @@ mod logs;
 mod long_text;
 mod lookup;
 mod lookups;
+mod main_program;
 mod media;
 mod media_export;
 mod members;
