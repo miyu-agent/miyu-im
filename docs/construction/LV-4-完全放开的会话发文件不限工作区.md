@@ -10,7 +10,7 @@
 
 ### 怎么改
 
-1. 换钉核心：c7dbc259e → 8f6af201e（含 LV-1、TC-1、VA-1）。
+1. 换钉核心：c7dbc259e → 53ece42d5（含 LV-1、TC-1、VA-1、LV-1 补、顾问、会话上下文上限，核心 CI 六项全绿）。
    - 核心的清单 `[export]` 换成结构（BUS-1），一条测试改读 `methods`。
    - 测试夹具里写死的 `"level": "workspace"` 改成 `full`。
 2. 宿主的一次调用多一格 `open`：`owner` 是真、`permission.level` 是 `full`、`read_only` 不是真，三样都有才放开。少一格、旧核心不交的都算没放开。
