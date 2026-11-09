@@ -37,7 +37,7 @@ jobs:
       build: |
         set -euo pipefail
         rustup toolchain install
-        cargo build --release --locked -p miyu-im-onebot --bin miyu-im
+        cargo build --release --locked -p miyu-im-app --bin miyu-im
         exe=""
         if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
         rm -rf dist/miyu-im && mkdir -p dist/miyu-im/bin

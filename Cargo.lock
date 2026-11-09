@@ -1674,14 +1674,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "miyu-im-onebot"
+name = "miyu-im-app"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
- "http-body-util",
- "hyper",
- "hyper-util",
  "jiff",
  "miyu-basesystem",
  "miyu-chat",
@@ -1691,6 +1688,7 @@ dependencies = [
  "miyu-endpoint",
  "miyu-http",
  "miyu-im",
+ "miyu-im-onebot",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
@@ -1699,6 +1697,24 @@ dependencies = [
  "miyu-store",
  "miyu-tool",
  "rusqlite",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "miyu-im-onebot"
+version = "0.0.0"
+dependencies = [
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "jiff",
+ "miyu-chat",
+ "miyu-client",
+ "miyu-im",
  "serde",
  "serde_json",
  "tokio",
