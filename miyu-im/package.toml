@@ -43,7 +43,7 @@ platform = ["qq", "tg"]
 [features.im-chat]
 name = { en = "Chat actions", zh = "聊天动作", ja = "チャット操作" }
 summary = { en = "Send messages and files, mention, quote, react, poke, recall, stay silent, change the group card, set the next glance", zh = "发消息、发文件、艾特、引用、贴表情、戳一戳、撤回、不回复、改群名片、定下次看一眼", ja = "メッセージとファイルの送信、メンション、引用、リアクション、つつく、取り消し、返信しない、グループ名の変更、次に覗く時間の設定" }
-tools = ["qq_send", "qq_send_file", "qq_mention", "qq_quote", "qq_react", "qq_poke", "qq_recall", "qq_skip_reply", "qq_set_card", "qq_glance", "tg_send", "tg_mention", "tg_quote", "tg_skip_reply", "tg_glance"]
+tools = ["qq_send", "qq_send_file", "qq_mention", "qq_quote", "qq_react", "qq_poke", "qq_recall", "qq_skip_reply", "qq_set_card", "qq_glance", "tg_send", "tg_mention", "tg_quote", "tg_skip_reply", "tg_glance", "tg_recall", "tg_react"]
 
 [features.im-lookup]
 name = { en = "Lookups", zh = "查询信息", ja = "情報の照会" }

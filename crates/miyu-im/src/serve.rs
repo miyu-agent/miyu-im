@@ -338,7 +338,14 @@ pub async fn run(
         after: serve.tuning.receipt_recall(),
         default: recall_default,
     };
-    let reactions = Reactions::new(serve.tuning.reaction_emoji.clone(), serve.tuning.reaction());
+    // 出厂贴的表情：驱动给了的照驱动的（施工 I-185 下上：编号的写法各平台不一样），别的照 `bridge.json`。
+    let reactions = serve.drivers.iter().fold(
+        Reactions::new(serve.tuning.reaction_emoji.clone(), serve.tuning.reaction()),
+        |reactions, driver| match driver.reaction() {
+            Some(emoji) => reactions.on(driver.platform(), emoji),
+            None => reactions,
+        },
+    );
     let parts = (
         slots,
         personas,

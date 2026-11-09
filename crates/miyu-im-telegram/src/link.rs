@@ -129,6 +129,29 @@ impl Link for Bot {
         Box::pin(crate::files::located(&self.api, id, wait))
     }
 
+    fn recall<'a>(&'a self, to: &'a To, message: &'a str) -> Reply<'a, ()> {
+        // 撤回（I-185 下上）：`deleteMessage`，撤得了撤不了由 Telegram 说。
+        let params = json!({"chat_id": chat(to).as_str(), "message_id": number(message)});
+        Box::pin(async move { acted(&self.api, "deleteMessage", &params).await })
+    }
+
+    fn react<'a>(
+        &'a self,
+        to: &'a To,
+        message: &'a str,
+        emoji: &'a str,
+        on: bool,
+    ) -> Reply<'a, ()> {
+        // 贴表情（I-185 下上）：`setMessageReaction`，摘掉的交空的；机器人一条消息只能贴一个。
+        let reaction = if on {
+            json!([{"type": "emoji", "emoji": emoji}])
+        } else {
+            json!([])
+        };
+        let params = json!({"chat_id": chat(to).as_str(), "message_id": number(message), "reaction": reaction});
+        Box::pin(async move { acted(&self.api, "setMessageReaction", &params).await })
+    }
+
     fn group_name<'a>(&'a self, group: &'a Id) -> Reply<'a, Option<String>> {
         let title = self.known.title(group.as_str());
         Box::pin(async move { Ok(title) })
@@ -210,4 +233,26 @@ fn upload(read: Result<Upload, String>) -> Result<Body, CallError> {
         said: detail.clone(),
         message: detail,
     })
+}
+
+/// 消息编号写成数（Telegram 的 `message_id` 是整数）；读不出的照字交，Telegram 自己回没成。
+fn number(message: &str) -> serde_json::Value {
+    message
+        .parse::<i64>()
+        .map_or_else(|_| json!(message), |id| json!(id))
+}
+
+/// 调一次做动作的方法：成了不要回什么；没成的照 Telegram 的原话。
+async fn acted(api: &Api, method: &str, params: &serde_json::Value) -> Result<(), CallError> {
+    match api.call(method, params, Duration::from_secs(30)).await {
+        Ok(_) => Ok(()),
+        Err(crate::api::Failure::Failed { code, description }) => Err(CallError::Failed {
+            said: format!("{code} {description}"),
+            message: description,
+        }),
+        Err(crate::api::Failure::Network(reason)) if reason.starts_with("timeout") => {
+            Err(CallError::Timeout)
+        }
+        Err(_) => Err(CallError::Closed),
+    }
 }
