@@ -2,42 +2,12 @@
 //! 群里只给 `tg_*`、不给 `qq_*`；`tg_quote` 照 im 的聊天记录认这个群里有的那一条，下一句引用它；`tg_mention` 认在这个群里说过话的人，
 //! 下一句 @ 他（没用户名的挂 `text_mention`）；没说过话的、记录里没有的编号不记；`tg_chat_history` 照 im 的记录答。
 
-use serde_json::{Value, json};
-
 use miyu_session::testkit::{Play, Script};
 
-use crate::support::bot_api::{BOT_ID, BotApi, Mode};
+use crate::support::bot_api::{BotApi, Mode};
 use crate::support::events::{of_kind, until_events};
-use crate::support::telegram::{started_ruled, until_tg};
+use crate::support::telegram::{ALICE, WHEN_CALLED, said, started_ruled, until_tg, venue};
 use crate::support::*;
-
-/// 测试群。
-const GROUP: i64 = -1001;
-
-/// 群里说过话的人（没有用户名）。
-const ALICE: i64 = 20001;
-
-/// 群里叫她才回（不过判官）：别人随口说的只记下。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\n";
-
-/// 测试群的场所。
-fn venue() -> String {
-    format!("tg:{BOT_ID}:group:{GROUP}")
-}
-
-/// 群里的一条：编号 `id`、谁说的、说什么；`called` 的开头 @ 她。
-fn said(update: i64, id: i64, (from, name): (i64, &str), text: &str, called: bool) -> Value {
-    let mut message = json!({
-        "message_id": id, "date": 1_700_000_000 + id,
-        "chat": {"id": GROUP, "type": "supergroup", "title": "Miyu 测试群"},
-        "from": {"id": from, "is_bot": false, "first_name": name},
-        "text": text,
-    });
-    if called {
-        message["entities"] = json!([{"type": "mention", "offset": 0, "length": 14}]);
-    }
-    json!({"update_id": update, "message": message})
-}
 
 /// 等这个群的第 `turn` 轮完：交回这时的全部工具结果的字，照先后。
 async fn results(home: &Home, turn: usize) -> Vec<String> {
@@ -86,7 +56,8 @@ async fn in_a_group_she_quotes_mentions_and_searches_with_the_telegram_tools() {
         Play::Says("查到了"),
     ]);
     let cards = r#"{"others": {"tg": {"groups": {"on": true, "final_only": false}}}}"#;
-    let (home, mut open) = started_ruled(&api, script.clone(), (Some(cards), ""), RULES).await;
+    let (home, mut open) =
+        started_ruled(&api, script.clone(), (Some(cards), ""), WHEN_CALLED).await;
     until_tg(&mut open, |one| one["connected"] == true).await;
     api.push(said(1, 50, (ALICE, "Alice"), "今晚吃火锅", false));
     until_events(&home.root, &venue(), |events| {

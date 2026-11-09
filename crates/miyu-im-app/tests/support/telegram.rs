@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use miyu_session::testkit::{Play, Script};
 
 use super::Home;
-use super::bot_api::BotApi;
+use super::bot_api::{BOT_ID, BotApi};
 use super::browser::{Channel, call, logged_in};
 use super::head::Head;
 use super::ports::on_free_port;
@@ -98,4 +98,33 @@ pub async fn until_tg(open: &mut Channel, wanted: impl Fn(&Value) -> bool) -> Va
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
+}
+
+/// 测试群。
+pub const GROUP: i64 = -1001;
+
+/// 群里说过话的人（没有用户名）。
+pub const ALICE: i64 = 20001;
+
+/// 群里叫她才回（不过判官）：别人随口说的只记下。
+pub const WHEN_CALLED: &str =
+    "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\n";
+
+/// 测试群的场所。
+pub fn venue() -> String {
+    format!("tg:{BOT_ID}:group:{GROUP}")
+}
+
+/// 群里的一条：编号 `id`、谁说的、说什么；`called` 的开头 @ 她。
+pub fn said(update: i64, id: i64, (from, name): (i64, &str), text: &str, called: bool) -> Value {
+    let mut message = json!({
+        "message_id": id, "date": 1_700_000_000 + id,
+        "chat": {"id": GROUP, "type": "supergroup", "title": "Miyu 测试群"},
+        "from": {"id": from, "is_bot": false, "first_name": name},
+        "text": text,
+    });
+    if called {
+        message["entities"] = json!([{"type": "mention", "offset": 0, "length": 14}]);
+    }
+    json!({"update_id": update, "message": message})
 }

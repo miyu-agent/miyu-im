@@ -289,6 +289,7 @@
 | I-183 下上 | Telegram 命令菜单（只给主人的私聊，照核心的 `command.catalog`）、@ 她写名字（驱动答 `member`）、`/命令@她` 照命令交核心；真机实测的测试程序 `telegram_live`；施工单 `I-183下上-Telegram命令菜单和真机实测.md` | 见 `git log --grep I-183下上` |
 | I-183 下中 | Telegram 连接在后台页上新建、改、删、重新检查（驱动报令牌表、宿主当场照 getMe 查），连接卡带 @用户名和毛病，概况标签「隐私模式」「话题群」；代理跟随联网设置存 `env`（核心的一列字不收空字）；施工单 `I-183下中-Telegram连接的页面.md` | 见 `git log --grep I-183下中` |
 | I-183 下下 | Telegram 的工具：说话、记录七件（`tg_skip_reply`、`tg_send`、`tg_quote`、`tg_mention`、`tg_chat_history`、`tg_activity_ranking`、`tg_glance`）；参数、查记录、排行、看一眼、@ 人的认法挪进宿主 `toolset::common` 两个驱动同用；引用、@ 人照 im 的记录认；没令牌不登记；清单功能表补上（漏了核心整批不收）；施工单 `I-183下下-Telegram的工具.md` | 见 `git log --grep I-183下下` |
+| I-185 上 | Telegram 收图：图、静态贴纸照 `getFile` 经连接的代理取回、交 base64；引用的那一条照收的时候记下的答（Telegram 不给取消息），不再记 `picture not fetched`；能力表多 `media`、`message`；施工单 `I-185上-Telegram收图和引用的那一条.md` | 见 `git log --grep I-185上` |
 | I-171 | 会话卡片关了回复，管理员叫她也只记下（原来管理员在哪都豁免，项目主人 11-06 定关了谁都不回）；命令照旧；施工单 `I-171-关了回复管理员也不回.md` | 见 `git log --grep I-171` |
 | S-1 上a | 叫她的那一条交给插件（设计 03 2026-10-24 补定）：`chat.venue` 多 `origin`（谁发的、引用了谁、@ 了谁，带号和名字），赞助记录插件照它认「记谁」；设计 03 补定认赞助人、场所开关（核心 O-60「不开就不出现」）、认管理员；施工单 `S-1上a-叫她的那一条交给插件.md` | 见 `git log --grep S-1` |
 | S-1 上b | 赞助记录插件（设计 03）：新包 `miyu-im-sponsor`，工具 `sponsor`（记一笔只给管理员叫的那一轮、认号或引用、唯一 @ 的人、只有昵称的也收；别的币种照 open.er-api.com 的汇率换成默认币种冻结，查不到标未换算；查一个人、排行榜谁都能查），账本一份 JSON；发包多打一个；施工单 `S-1上b-赞助记录插件.md` | 见 `git log --grep S-1` |
