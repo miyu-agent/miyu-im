@@ -359,17 +359,33 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// 拉起核心：自己真实位置旁边的主程序 `miyu` 加 `core`（照网页软件）。`start` 这几样连核心时用。
+/// 拉起核心：主程序 `miyu`（[`main_program`]）加 `core`（照网页软件）。`start` 这几样连核心时用。
 fn core() -> std::process::Command {
-    let mut core = std::process::Command::new(beside("miyu"));
+    let mut core = std::process::Command::new(main_program());
     core.arg("core");
     core
 }
 
-/// 自己真实位置旁边叫 `name` 的程序（[`sibling`]）；找不到自己的照名字找。
-fn beside(name: &str) -> PathBuf {
+/// 核心转交子命令、拉起扩展时交的主程序的真实位置（核心 G-15）。
+const MAIN_PROGRAM: &str = "MIYU_PROGRAM";
+
+/// 主程序 `miyu` 在哪（施工 I-186，core1 做便携版时撞见）：im 装在数据根的 `opt/miyu-im/bin/` 下，旁边从来没有主程序，核心没在跑
+/// 时 `start` 拉不起核心。照 [`locate`] 找。
+fn main_program() -> PathBuf {
     let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
-    sibling(&myself, name)
+    locate(std::env::var_os(MAIN_PROGRAM).map(PathBuf::from), &myself)
+}
+
+/// 先照交来的 `given`（`MIYU_PROGRAM`）；没交、那个文件不在了的照 `myself` 真实位置旁边的；旁边也没有的照名字从 `PATH` 找。
+fn locate(given: Option<PathBuf>, myself: &Path) -> PathBuf {
+    if let Some(given) = given.filter(|path| path.is_file()) {
+        return given;
+    }
+    let beside = sibling(myself, "miyu");
+    if beside.is_file() {
+        return beside;
+    }
+    PathBuf::from(format!("miyu{}", std::env::consts::EXE_SUFFIX))
 }
 
 /// `program` 真实位置旁边叫 `name` 的程序（Windows 上加 `.exe`）。
@@ -401,3 +417,6 @@ async fn stopped() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
