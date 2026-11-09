@@ -1,0 +1,79 @@
+[package]
+name = "miyu-im-app"
+description = "程序 miyu-im（施工 I-183 上，设计 07 第 4.3 节）：把各个平台的驱动交给宿主 miyu-im；起真程序的集成测试也在这里"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[bin]]
+name = "miyu-im"
+path = "src/main.rs"
+
+# 测试用的别的包的程序（施工 O-43 上，`extending.md` 第二条）：集成测试当成另一个扩展包让核心拉起，导出挂接点、照参数答。只用
+# 门面以外已有的依赖；发版只打 `miyu-im`，不带它（`.github/workflows/release.yml`）。
+[[bin]]
+name = "miyu-im-test-hook"
+path = "src/bin/miyu-im-test-hook.rs"
+
+[dependencies]
+# 宿主：程序的入口在它那里（`miyu_im::program::main`，施工 I-84）。
+miyu-im = { path = "../miyu-im" }
+# 驱动：程序带的几个平台，照先后交给宿主（第一个是后台页、`access` 照的那一个）。
+miyu-im-onebot = { path = "../miyu-im-onebot" }
+# 测试用的程序 miyu-im-test-hook 读写 JSON 行。
+serde_json = "1.0"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# 下面是起真程序的集成测试用的（施工 I-183 上从 miyu-im-onebot 挪来，测试还当驱动的测试读它的公开接口）。
+# 测试里假的第二个平台用宿主的假连接（`miyu_im::chat::fake`，施工 I-70 中上）。
+miyu-im = { path = "../miyu-im", features = ["fake"] }
+# 测试里读 im 的聊天记录库（设计 04，施工 C-1 上）：和 im 用的同一版、同一份。
+rusqlite = { version = "0.40", features = ["bundled"] }
+# 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
+miyu-ipc = { workspace = true }
+# 测试照钉住的那份核心检出拼出厂的资源目录（`WORKSPACE_ROOT`，施工 S-6 中：核心的资源目录以后没有 `packages/im/`，
+# 把这个仓库的 `im/` 放进去，`tests/support/assembled.rs`）。
+miyu-client = { workspace = true, features = ["testkit"] }
+# 测试里造编号、读会话日志、装记日志的订阅者、拼请求这些门面上没有的（施工 S-6 上以前是正式依赖）。
+miyu-store = { workspace = true }
+miyu-log = { workspace = true }
+miyu-kernel = { workspace = true }
+miyu-tool = { workspace = true }
+miyu-config = { workspace = true }
+# 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
+# （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
+miyu-core = { workspace = true }
+# 测试里的核心只装基础系统的 `show` 一件（施工 O-46：她给人看文件，桥发进 QQ），别的测试照旧不装工具。
+miyu-basesystem = { workspace = true }
+miyu-endpoint = { workspace = true }
+miyu-session = { workspace = true, features = ["testkit"] }
+# 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。
+miyu-http = { workspace = true, features = ["testkit"] }
+miyu-models = { workspace = true }
+# 测试里拼图、文件的 base64（同宿主用的那一份）。
+base64 = "0.22"
+# 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+# `process`：测试当核心跑真的 `serve`、`logs -f`（施工 O-18）。
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal", "test-util", "process"] }
+# 测试里等异步的流、拼场所、读日子和时刻、装日志（原来借 miyu-im-onebot 的正式依赖，施工 I-183 上挪过来时补上，同一版本）。
+miyu-chat = { workspace = true }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+jiff = "0.2"
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+# 陌生人的私聊只记一行运行日志（施工时定的第 49 条）：装着日志订阅者。
+[[test]]
+name = "stranger_log"
+path = "tests/stranger_log.rs"

@@ -15,10 +15,16 @@ const CORE: [&str; 2] = ["miyu-core", "miyu-endpoint"];
 
 #[test]
 fn the_bridge_does_not_depend_on_the_core_crates() {
-    for package in ["miyu-im", "miyu-im-onebot"] {
+    for package in ["miyu-im", "miyu-im-onebot", "miyu-im-app"] {
         let used = used(package);
+        // 程序（施工 I-183 上）不直接用门面，读到依赖照它有宿主认。
+        let through = if package == "miyu-im-app" {
+            "miyu-im"
+        } else {
+            "miyu-client"
+        };
         assert!(
-            used.contains(&"miyu-client".to_string()),
+            used.contains(&through.to_string()),
             "{package} 读到了依赖：{used:?}"
         );
         for core in CORE {
@@ -37,6 +43,11 @@ fn the_bridge_does_not_depend_on_the_core_crates() {
         ours(&used("miyu-im-onebot")),
         ["miyu-chat", "miyu-client", "miyu-im"],
         "驱动经宿主接核心"
+    );
+    assert_eq!(
+        ours(&used("miyu-im-app")),
+        ["miyu-im", "miyu-im-onebot"],
+        "程序只把驱动交给宿主（施工 I-183 上）"
     );
 }
 
