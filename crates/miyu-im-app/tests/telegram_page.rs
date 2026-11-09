@@ -1,6 +1,6 @@
 //! Telegram 的连接在页面上新建、改、删（施工 I-183 下中，设计 07 第八节）：真核心拉起真程序，Bot API 指本机的假服务器，经 im 网页的通道
 //! 走一遍：令牌不对的说 `bad_token`；对的查到机器人、存成密钥、连接表多一项，驱动照它连上，连接卡带用户名；重新检查交隐私模式；改代理；
-//! 删了连接表空了。
+//! 重连还没认出机器人时照号删，删了连接表空了。
 
 use std::time::Duration;
 
@@ -106,7 +106,8 @@ async fn a_telegram_connection_is_added_checked_changed_and_removed_from_the_pag
     )
     .await;
     assert_eq!(checked["result"]["privacy"], true, "{checked}");
-    // 改代理：连接表里的那一格换上，驱动换一个连接再连上。
+    // 改代理：连接表里的那一格换上，驱动换一个连接再连上。新连接的 getMe 先挂着：重连还没认出机器人的这一阵。
+    api.hold(true);
     let edited = call(
         &mut open,
         52,
@@ -128,7 +129,8 @@ async fn a_telegram_connection_is_added_checked_changed_and_removed_from_the_pag
         asked += 1;
         proxy = call(&mut open, asked, "status", json!({"platform": "tg"})).await["result"]["connections"][0]["proxy"].clone();
     }
-    // 删掉：连接表空了，卡没了。
+    // 重连的这一阵照号删得掉（只换了代理的连接照旧报着认出过的机器人；原来报的没有号，删答 `bad_params`，Windows CI 撞上过）：
+    // 连接表空了，卡没了。
     let removed = call(
         &mut open,
         200,
@@ -137,6 +139,7 @@ async fn a_telegram_connection_is_added_checked_changed_and_removed_from_the_pag
     )
     .await;
     assert_eq!(removed["result"], json!({"saved": true}), "{removed}");
+    api.hold(false);
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
     let mut asked = 300;
     loop {

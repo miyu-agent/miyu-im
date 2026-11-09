@@ -80,11 +80,26 @@ fn apply(
             kept.push(Live { connection, ..live });
             continue;
         }
+        // 同一个令牌只换了代理的：认出过的机器人照旧报着，重连的这一阵后台页照号找得到它（改完马上删、再改）。
+        let (bot, privacy) = old
+            .iter()
+            .find(|live| connection.token.is_some() && live.connection.token == connection.token)
+            .map(|live| {
+                let state = live
+                    .shared
+                    .state
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
+                (state.bot.clone(), state.privacy)
+            })
+            .unwrap_or_default();
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 index: connection.index,
                 token: connection.token.is_some(),
                 proxy: connection.proxy.written().to_string(),
+                bot,
+                privacy,
                 ..State::default()
             }),
             changed: {

@@ -1,5 +1,5 @@
 //! 假的 Telegram Bot API（施工 I-183 中上）：本机回环上一个最小的 HTTP/1 服务端，认 `POST /bot<令牌>/<方法>`，照 [`Mode`] 答
-//! `getMe`、`getUpdates`，别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
+//! `getMe`（能先挂着不答）、`getUpdates`，别的方法答 `{"ok": true, "result": true}`。每次调用记下方法和参数（[`BotApi::calls`]）；令牌不对的答
 //! 401。`sendMessage` 照 Telegram 回一条消息（编号从 1000 数）。`getUpdates` 有排着的消息就一次交完，没有的挂 100 毫秒答空的（真的挂 50 秒，测试不等那么久）。一个请求一条连接，答完就关。
 
 use std::collections::VecDeque;
@@ -31,6 +31,8 @@ struct State {
     mode: Mode,
     updates: VecDeque<Value>,
     calls: Vec<(String, Value)>,
+    /// `getMe` 先挂着不答（[`BotApi::hold`]）。
+    held: bool,
 }
 
 /// 一个跑着的假 Bot API。
@@ -50,6 +52,7 @@ impl BotApi {
             mode,
             updates: VecDeque::new(),
             calls: Vec::new(),
+            held: false,
         }));
         let serving = Arc::clone(&state);
         tokio::spawn(async move {
@@ -63,6 +66,11 @@ impl BotApi {
     /// 排一条更新，下一次 `getUpdates` 交出去。
     pub fn push(&self, update: Value) {
         self.lock().updates.push_back(update);
+    }
+
+    /// `getMe` 挂着不答（`true`）、放开（`false`）：摆出「连接重连了、还没认出机器人」的那一阵。
+    pub fn hold(&self, held: bool) {
+        self.lock().held = held;
     }
 
     /// 到现在的调用：方法和参数。
@@ -164,6 +172,9 @@ async fn reply(path: &str, params: Value, state: &Mutex<State>) -> (u16, Value) 
             401,
             json!({"ok": false, "error_code": 401, "description": "Unauthorized"}),
         );
+    }
+    while method == "getMe" && state.lock().unwrap_or_else(PoisonError::into_inner).held {
+        tokio::time::sleep(Duration::from_millis(20)).await;
     }
     match method {
         "getMe" => (
