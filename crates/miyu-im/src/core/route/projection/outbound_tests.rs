@@ -252,3 +252,36 @@ fn her_replies_to_others_count_as_messages_in_between() {
         "之前她说的不算，后来别人那一句算"
     );
 }
+
+/// 看一眼开的一轮（施工 I-187）：`turn.started` 的 `cause` 是看一眼的命令编号。
+fn glance_started(seq: u64, seconds: i64, triggers: &[u64]) -> miyu_client::events::Event {
+    let line = json!({
+        "seq": seq, "at": at(seconds), "kind": "turn.started", "turn": seq, "by": {"kind": "kernel"},
+        "cause": "glance/t7/respond", "body": {"trigger": triggers.last(), "triggers": triggers},
+    });
+    serde_json::from_value(line).expect("读得成事件")
+}
+
+#[test]
+fn a_glance_turn_aims_at_nobody_until_someone_joins_it() {
+    // 看一眼交的是没回过的几条，她自己挑着回：不照最后一条自动引用、@（项目主人 11-09：回复目标串到 Kishou 那条上）。
+    let mut projection = Projection::new(LINE, 0);
+    let spoken = take_all(
+        &mut projection,
+        vec![
+            said_at(1, 1, 20002),
+            said_at(2, 2, 20003),
+            glance_started(3, 3, &[1, 2]),
+            assistant(4, 3),
+            said_at(5, 5, 20004),
+            joined(6, 3, &[5]),
+            assistant(7, 3),
+        ],
+    );
+    assert_eq!(spoken[0].aim, None, "看一眼的一轮不自动指向谁");
+    assert_eq!(
+        spoken[1].aim.as_ref().and_then(|aim| aim.msg.clone()),
+        Some("5".to_string()),
+        "这一轮里有人叫她、并进来的照并进来的那条"
+    );
+}

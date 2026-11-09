@@ -95,7 +95,7 @@ impl Projection {
     pub(super) fn started(
         &mut self,
         line: &str,
-        triggers: &[Seq],
+        (triggers, glance): (&[Seq], bool),
         turn: Option<u64>,
         at: Timestamp,
     ) {
@@ -107,7 +107,9 @@ impl Projection {
         let running = turn.map(|turn| Running {
             turn,
             to,
-            aim: triggers.last().map(|seq| seq.get()),
+            // 看一眼开的一轮（施工 I-187）：交的是没回过的几条、她自己挑着回，不照最后一条自动引用、@（要回哪条她用引用、@ 工具点名；
+            // 这一轮里有人叫她、并进来的照并进来的那条）。
+            aim: triggers.last().map(|seq| seq.get()).filter(|_| !glance),
             msgs: triggers.iter().map(|seq| seq.get()).collect(),
         });
         if let Some(track) = self.track_mut(line) {

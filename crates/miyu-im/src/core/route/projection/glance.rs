@@ -1,5 +1,6 @@
 //! 时不时看一眼要的几样（施工 I-89，`crate::glance`）：这个群这时有没有一轮在跑、人说的话当过一轮的触发没有。
 
+use miyu_client::events::Event;
 use miyu_client::ids::Seq;
 
 use super::Projection;
@@ -25,4 +26,12 @@ impl Projection {
             }
         }
     }
+}
+
+/// 这一轮是不是看一眼开的（施工 I-187）：`turn.started` 的 `cause` 是看一眼的命令编号。
+pub(super) fn opened(event: &Event) -> bool {
+    event
+        .cause
+        .as_ref()
+        .is_some_and(|cause| cause.as_str().starts_with(super::super::glance::OPENED))
 }

@@ -157,7 +157,7 @@ impl Projection {
                     .track
                     .triggers(one.main_seqs(&started.triggers), started.trigger);
                 self.lanes[index].started = true;
-                self.started(lane, &triggers, turn, event.at);
+                self.started(lane, (&triggers, false), turn, event.at);
                 took(turn, &triggers)
             }
             Body::TurnJoined(joined) => {
