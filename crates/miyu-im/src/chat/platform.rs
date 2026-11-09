@@ -8,19 +8,44 @@ use miyu_client::ids::{ExternalId, VenueId};
 
 use super::{Id, To};
 
-/// 一个平台：名字是驱动给的。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Platform(&'static str);
+/// 一个平台：名字是驱动给的；给模型看的叫法也是（施工 I-188，[`Platform::labeled`]），认平台只认名字。
+#[derive(Debug, Clone, Copy)]
+pub struct Platform(&'static str, &'static str);
+
+impl PartialEq for Platform {
+    fn eq(&self, other: &Platform) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for Platform {}
+
+impl std::hash::Hash for Platform {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl Platform {
-    /// 名字是 `name` 的平台。
+    /// 名字是 `name` 的平台：给模型看的叫法也照名字，驱动另给的照 [`Platform::labeled`]。
     pub const fn new(name: &'static str) -> Platform {
-        Platform(name)
+        Platform(name, name)
+    }
+
+    /// 给模型看的叫法换成 `label`（施工 I-188：群会话 system 尾部的场所那一段写「QQ group」「Telegram group」）。
+    #[must_use]
+    pub const fn labeled(self, label: &'static str) -> Platform {
+        Platform(self.0, label)
     }
 
     /// 平台的名字。
     pub fn name(self) -> &'static str {
         self.0
+    }
+
+    /// 给模型看的叫法（施工 I-188）。
+    pub fn label(self) -> &'static str {
+        self.1
     }
 
     /// 机器人号 `bot` 和号 `user` 的私聊这个场所：`<平台>:<机器人号>:private:<号>`。

@@ -30,7 +30,7 @@ use serde_json::{Map, Value};
 pub use api::{Failure, Proxy};
 
 /// 平台：场所、人、命令编号照它的名字拼（`tg:<号>`）。
-pub const PLATFORM: Platform = Platform::new("tg");
+pub const PLATFORM: Platform = Platform::new("tg").labeled("Telegram");
 
 /// Telegram 的驱动。
 #[derive(Debug, Clone, Copy, Default)]

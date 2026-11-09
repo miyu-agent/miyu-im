@@ -1,1 +1,1 @@
-<venue>QQ group "{name}" ({id})</venue>
+<venue>{platform} group "{name}" ({id})</venue>

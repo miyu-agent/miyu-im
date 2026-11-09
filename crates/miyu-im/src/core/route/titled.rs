@@ -115,7 +115,7 @@ impl Route {
         self.titles.names.get(&(platform, group)).cloned()
     }
 
-    /// 群号是 `group` 的群会话 `session`，群叫 `name`（[`Route::place`] 问到的，没有的不放）：照模板写一段放进它的 system 尾部，
+    /// 平台 `platform` 上群号是 `group` 的群会话 `session`，群叫 `name`（[`Route::place`] 问到的，没有的不放）：照模板写一段放进它的 system 尾部，
     /// 和上一次放的一样的不交。
     ///
     /// # Errors
@@ -124,18 +124,23 @@ impl Route {
     pub(super) async fn titled(
         &mut self,
         session: &str,
-        group: Id,
+        (platform, group): (Platform, Id),
         name: Option<&str>,
     ) -> Result<(), Gone> {
         let Some(name) = name else {
             return Ok(());
         };
         let id = group.to_string();
-        let fields = BTreeMap::from([("name", name), ("id", id.as_str())]);
+        // 哪个平台的群照驱动给的叫法写（施工 I-188：原来写死 `QQ group`，Telegram 的群也这么写）。
+        let fields = BTreeMap::from([
+            ("platform", platform.label()),
+            ("name", name),
+            ("id", id.as_str()),
+        ]);
         let content = match self.rules.group_title().render(&fields) {
             Ok(content) => content,
             Err(error) => {
-                // 照说不会：起来时查过模板只要这两个字段（`rules/facts.rs`）。
+                // 照说不会：起来时查过模板只要这三个字段（`rules/facts.rs`）。
                 tracing::warn!(target: TARGET, group = %group, error = %error, "group title not written");
                 return Ok(());
             }
