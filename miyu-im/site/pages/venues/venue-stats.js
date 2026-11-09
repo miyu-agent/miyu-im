@@ -3,7 +3,7 @@
 // `venues: true` 拿到场所，再问 stats 带 `venues`（陌生群、陌生私聊是名单以外的那些并起来）。
 import { element, say } from '../../shell/i18n.js';
 import { sect } from '../../shell/sect.js';
-import { bars, delta, legend, money, short, tile, unpriced } from '../stats/stats.js';
+import { bars, delta, legend, short, spent, tile, unpriced } from '../stats/stats.js';
 
 const PERIODS = ['today', '7d', '30d'];
 const REMEMBER = 'miyu-im-venue-stats-period';
@@ -52,7 +52,7 @@ export function venueStats(request, card) {
       tile(say('stats/replied'), short(now?.replied), now && delta(now.replied, before.replied)),
       tile(say('stats/recorded'), short(now?.recorded), now && delta(now.recorded, before.recorded)),
       tile(say('stats/tokens'), short(token?.total), token && delta(token.total, token.prev_total)),
-      tile(say('stats/cost'), money(token?.cost?.amount, token?.cost?.currency), token && delta(token.cost?.amount, token.prev_cost)),
+      tile(say('stats/cost'), spent(token?.cost), token && delta(token.cost?.amount, token.prev_cost)),
       tile(say('stats/hit-rate'), rate, null),
     );
     const parts = [tiles, unpriced(token?.cost || {})];

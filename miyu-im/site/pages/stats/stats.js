@@ -239,13 +239,13 @@ export function legend(keys, classes) {
 /** token 那一段：几个数、构成、按用途、按模型（每天的并进走势 trend.js，按场所并进「按会话」rankings.js，施工 I-169）。 */
 function tokens(token) {
   const rate = (value) => (value == null ? '—' : `${Math.round(value * 100)}%`);
-  // 金额（施工 I-104）：照核心换算成你设的币种的；没价钱的、没换成的各写一行。
+  // 金额（施工 I-104）：照核心换算成你设的币种的，没换成的接在后面（施工 I-181）；没价钱的写一行。
   const cost = token.cost || {};
   const costOf = (one) => (one.cost == null ? '—' : money(one.cost, cost.currency));
   const tiles = element('div', 'stat-tiles');
   tiles.append(
     tile(say('stats/tokens'), short(token.total), delta(token.total, token.prev_total)),
-    tile(say('stats/cost'), money(cost.amount, cost.currency), delta(cost.amount, token.prev_cost)),
+    tile(say('stats/cost'), spent(cost), delta(cost.amount, token.prev_cost)),
     tile(say('stats/hit-rate'), rate(token.hit_rate), null),
     tile(say('stats/per-reply'), short(token.per_reply), null),
     tile(say('stats/requests'), short(token.requests), delta(token.requests, token.prev_requests)),
@@ -302,12 +302,19 @@ export function money(amount, currency) {
   }
 }
 
-/** 金额底下的小字：另有几次请求没记录金额，另有多少没换成你设的币种。都没有的是空的。 */
+/** 花费那一格（施工 I-181，项目主人 11-09：没换成你设的币种的不另写一行，用加号接在后面）：换成了的那一笔，再照各自的币种接上没换成的，
+ *  例如「$7.32 + ¥0.42」。全没换成的不写「$0.00 +」；什么都没有的写「—」。 */
+export function spent(cost) {
+  const rest = (cost?.unconverted || []).map((one) => money(one.amount, one.currency));
+  const converted = cost?.amount != null && cost.currency && !(cost.amount === 0 && rest.length > 0);
+  const parts = converted ? [money(cost.amount, cost.currency), ...rest] : rest;
+  return parts.length > 0 ? parts.join(' + ') : '—';
+}
+
+/** 金额底下的小字：另有几次请求没记录金额。没有的是空的。 */
 export function unpriced(cost) {
   const box = element('div', 'stats-note');
   if (cost.unpriced > 0) box.append(element('p', 'faint', say('stats/unpriced', { count: cost.unpriced.toLocaleString() })));
-  const rest = (cost.unconverted || []).map((one) => money(one.amount, one.currency));
-  if (rest.length > 0) box.append(element('p', 'faint', say('stats/unconverted', { amounts: rest.join(say('plugins-page/separator')), currency: cost.currency || '' })));
   return box.childElementCount > 0 ? box : document.createDocumentFragment();
 }
 

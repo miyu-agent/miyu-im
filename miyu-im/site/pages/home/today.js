@@ -2,7 +2,7 @@
 // 缓存命中率，前四个和昨天比；没价钱的请求底下写一行（同数据统计）。跟着首页选中的连接（「全部」是合计）；整块点了去数据统计（#stats），那一页算的是全部。
 import { element, icon, say } from '../../shell/i18n.js';
 import { goTo } from '../../shell/connection.js';
-import { delta, money, short, tile, unpriced } from '../stats/stats.js';
+import { delta, short, spent, tile, unpriced } from '../stats/stats.js';
 
 // 同一个连接隔多久才再问（毫秒）。
 const AGAIN = 30000;
@@ -30,7 +30,7 @@ export function todayPanel(request) {
     const tiles = element('div', 'stat-tiles');
     tiles.append(
       tile(say('stats/tokens'), short(token?.total), token && delta(token.total, token.prev_total)),
-      tile(say('stats/cost'), money(token?.cost?.amount, token?.cost?.currency), token && delta(token.cost?.amount, token.prev_cost)),
+      tile(say('stats/cost'), spent(token?.cost), token && delta(token.cost?.amount, token.prev_cost)),
       tile(say('stats/received'), short(now?.received), now && delta(now.received, before.received)),
       tile(say('stats/replied'), short(now?.replied), now && delta(now.replied, before.replied)),
       tile(say('stats/hit-rate'), rate, null),
