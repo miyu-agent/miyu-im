@@ -8,6 +8,7 @@ import { element, icon, say } from '../../shell/i18n.js';
 import { copy, openDialog } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
 import { PLATFORMS, mark, platform } from './platforms.js';
+import { validId } from '../settings/bind.js';
 
 /** 开新建连接的浮窗：`request` 调宿主的方法，`table` 是首页读到的连接表。交回 update(connections)（外壳推来的连接，等连上用）。 */
 export function openWizard(request, table = { entries: [] }) {
@@ -112,6 +113,10 @@ export function openWizard(request, table = { entries: [] }) {
       check();
       return;
     }
+    if (shown.kind === 'owner') {
+      owner(n, shown, text, back);
+      return;
+    }
     // 粘贴一个密钥，存了就连。
     const fill = element('div', 'fill');
     // 密钥默认圆点遮着、眼睛按钮看原文（施工 I-47）。
@@ -133,6 +138,43 @@ export function openWizard(request, table = { entries: [] }) {
       }
     }, shown.next(), false);
     input.addEventListener('input', () => { next.disabled = input.value.trim() === ''; });
+    input.focus();
+  };
+
+  // 你的平台号（施工 I-182，项目主人 11-09）：连接存好以后填自己在这个平台上的号，写进「本人的平台 ID」（同设置页那一格，照平台的规矩
+  // 查）；不填按钮是「跳过」。
+  const owner = (n, shown, text, back) => {
+    const failed = element('p', 'failed');
+    const fill = element('div', 'fill');
+    const input = element('input', 'input mono');
+    if (chosen === 'qq') input.inputMode = 'numeric';
+    input.spellcheck = false;
+    fill.append(element('span', 'soft', shown.label()), input, element('span'));
+    show(n, text, fill, failed);
+    const next = buttons(back, async () => {
+      const id = input.value.trim();
+      if (!id) {
+        step(n + 1);
+        return;
+      }
+      if (!validId(chosen, id)) {
+        failed.textContent = say(chosen === 'qq' ? 'settings-page/bind-bad' : 'settings-page/bind-bad-text');
+        return;
+      }
+      next.disabled = true;
+      try {
+        const saved = (await request('settings.set', { key: `binding:${chosen}:${id}`, value: true })).saved;
+        if (!saved) throw new Error('not saved');
+        step(n + 1);
+      } catch {
+        failed.textContent = say('failed/save');
+        next.disabled = false;
+      }
+    }, say('wizard/owner-skip'));
+    input.addEventListener('input', () => {
+      failed.textContent = '';
+      next.textContent = input.value.trim() ? say('wizard/next') : say('wizard/owner-skip');
+    });
     input.focus();
   };
 
@@ -174,19 +216,18 @@ export function openWizard(request, table = { entries: [] }) {
 
   const done = (up) => {
     shownUp = up;
-    const shown = platform(chosen);
     dialog.setTitle(say('wizard/done-title'));
     const mark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     mark.setAttribute('class', 'done-mark');
     mark.setAttribute('viewBox', '0 0 64 64');
     mark.innerHTML = '<circle cx="32" cy="32" r="30"/><path d="M20 33l8 8 16-17"/>';
     const box = element('div', 'center');
+    // 项目主人 11-09（施工 I-182）：那一句只写「连接成功」，机器人是谁（名字、号）写在下面一行。
+    const bot = up.name ? `${up.name} · ${up.bot}` : up.bot;
     const detail = up.implementation
-      ? say('wizard/done-detail', { bot: up.bot, implementation: up.implementation, version: up.version })
-      : say('wizard/done-bot', { bot: up.bot });
-    const line = up.name
-      ? say('wizard/done', { name: up.name, platform: shown.name() })
-      : say('wizard/done-unnamed', { platform: shown.name() });
+      ? say('wizard/done-detail', { bot, implementation: up.implementation, version: up.version })
+      : say('wizard/done-bot', { bot });
+    const line = say('wizard/done-ok');
     box.append(mark, element('p', 'done-line', line), element('p', 'soft', detail));
     show(steps().length + 2, box);
     const finish = element('button', 'btn primary', say('wizard/finish'));

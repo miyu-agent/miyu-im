@@ -6,6 +6,8 @@
 // - 一格空着是不限；填的是 1 到一万亿的整数，别的提示一句不存。格后面写单位 token（施工 I-168）。
 // - 一段一张共用的卡片（shell/sect.js，设计 11 G1）；加人先选平台再填号码，照用过的人提示（shell/person-pick.js，设计 11 G4）；
 //   30 天用量能搜、能照三条线的用量排、能只看到了上限的（shell/listing.js，设计 11 G2）。
+// - 挂着不止一个平台时（施工 I-182，项目主人 11-09）：单独设的人的平台下拉在组名那一行右边，30 天用量的平台筛选和搜索、排序一排。额度
+//   照旧按人算、不分连接，所以标题旁不放连接下拉（放了会让人以为每个连接各有一份）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
 import { listing } from '../../shell/listing.js';
@@ -13,6 +15,7 @@ import { personPick } from '../../shell/person-pick.js';
 import { sect } from '../../shell/sect.js';
 import { chosenOf } from '../../shell/connection.js';
 import { short } from '../stats/stats.js';
+import { platform } from '../home/platforms.js';
 
 /** 三条线的键，照 5 小时、7 天、30 天。 */
 const KEYS = ['limit_5h', 'limit_week', 'limit_month'];
@@ -26,6 +29,7 @@ export function mountLimits(view, { request }) {
   // 外壳问到的连接（加人时选平台），30 天用量的列表头搜了什么、怎么排（重画时照旧）。
   let connections = [];
   const usageState = {};
+  const peopleState = {};
   const load = async () => {
     try {
       got = await request('limits.get');
@@ -50,7 +54,7 @@ export function mountLimits(view, { request }) {
     const names = new Map((got.usage || []).map((one) => [one.id, one.name]));
     const platforms = [...new Set(connections.map((one) => one.platform))];
     const chosen = chosenOf(connections)?.platform;
-    view.replaceChildren(head(), defaults(got, save), people(got, { names, platforms, chosen }, save), usage(got.usage || [], usageState));
+    view.replaceChildren(head(), defaults(got, save), people(got, { names, platforms, chosen, state: peopleState }, save), usage(got.usage || [], usageState, platforms));
   };
   load();
   return {
@@ -135,7 +139,7 @@ function defaults(got, save) {
 
 /** 单独设的人：一人一行（名字或号、三格、去掉），最后一行加一个：先选平台再填号码（`platforms` 是挂着的平台，`chosen` 是首页选中的
  *  连接的），照用过的人提示。 */
-function people(got, { names, platforms, chosen }, save) {
+function people(got, { names, platforms, chosen, state }, save) {
   got.people = got.people || [];
   const rows = got.people.map((one, at) => {
     const remove = element('button', 'icon-button');
@@ -148,7 +152,7 @@ function people(got, { names, platforms, chosen }, save) {
     const caps = element('div', 'limits-caps');
     caps.append(...KEYS.map((key) => labeled(key, cap(one, key, save, false))));
     const name = names.get(one.id);
-    return row(name || one.id, name ? one.id : null, caps, remove);
+    return { node: row(name || one.id, name ? one.id : null, caps, remove), platform: platformOf(one.id) };
   });
   const pick = personPick({
     platforms,
@@ -166,7 +170,6 @@ function people(got, { names, platforms, chosen }, save) {
   });
   const adding = row(say('limits-page/add-label'), say('limits-page/add-hint'), pick);
   adding.classList.add('limits-add');
-  rows.push(adding);
   // 列名对着下面的三格；最后垫一个看不见的按钮，和「去掉」一样宽。
   const columns = element('div', 'limits-caps');
   columns.append(...KEYS.map((key) => element('span', 'limits-col', say(`limits-page/${key}`))));
@@ -175,12 +178,19 @@ function people(got, { names, platforms, chosen }, save) {
   spacer.tabIndex = -1;
   const header = row('', null, columns, spacer);
   header.classList.add('limits-header');
-  return section('limits-page/people', 'limits-page/people-hint', got.people.length ? [header, ...rows] : rows);
+  // 平台筛选放在组名那一行右边（施工 I-182）：只筛单独设的那几个人，加人那一行一直在。
+  const card = sect(say('limits-page/people'), say('limits-page/people-hint'), platforms.length > 1 && rows.length > 0 ? platformPick(platforms, state, () => fill()) : null);
+  const fill = () => {
+    const shown = rows.filter((one) => !state.platform || one.platform === state.platform).map((one) => one.node);
+    card.body.replaceChildren(...(shown.length ? [header, ...shown] : []), adding);
+  };
+  fill();
+  return card.box;
 }
 
 /** 最近 30 天用过的人：名字、三条线各用了多少（有线的写「用了 / 上限」），满了的标红。能搜、能照三条线的用量排、能只看到了上限的；
  *  `state` 记着搜了什么、怎么排。 */
-function usage(list, state) {
+function usage(list, state, platforms) {
   if (list.length === 0) {
     return section('limits-page/usage', 'limits-page/usage-hint', [element('p', 'faint', say('limits-page/nobody'))]);
   }
@@ -199,15 +209,39 @@ function usage(list, state) {
       line.append(element('span', reached ? 'num full' : 'num', text));
     });
     const numbers = Object.fromEntries(KEYS.map((key, at) => [key, one.used[at] ?? 0]));
-    return { node: line, text: who.textContent, tags: { full: one.full ? 'full' : 'under' }, numbers };
+    return { node: line, text: who.textContent, tags: { full: one.full ? 'full' : 'under', platform: platformOf(one.id) }, numbers };
   });
   const table = listing(items, {
     search: say('listing/search'),
     sorts: KEYS.map((key) => [key, say('limits-page/sort', { line: say(`limits-page/${key}`) })]),
-    filters: [{ key: 'full', all: say('limits-page/everyone'), options: [['full', say('limits-page/only-full')]] }],
+    filters: [...platformFilter(platforms), { key: 'full', all: say('limits-page/everyone'), options: [['full', say('limits-page/only-full')]] }],
     state,
     header,
   });
   table.classList.add('limits-usage');
   return section('limits-page/usage', 'limits-page/usage-hint', [table]);
+}
+
+/** 人的身份 `id`（`<平台>:<号>`）是哪个平台的。 */
+function platformOf(id) {
+  return String(id).split(':')[0];
+}
+
+/** 平台筛选（施工 I-182）：挂着不止一个平台才有，「全部平台」加每个平台。 */
+function platformFilter(platforms) {
+  if (platforms.length < 2) return [];
+  return [{ key: 'platform', all: say('limits-page/all-platforms'), options: platforms.map((id) => [id, platform(id).name()]) }];
+}
+
+/** 组名那一行右边的平台下拉（施工 I-182）：选了记进 `state.platform`，调 `changed`。 */
+function platformPick(platforms, state, changed) {
+  const pick = element('select', 'select');
+  pick.append(new Option(say('limits-page/all-platforms'), ''));
+  for (const id of platforms) pick.append(new Option(platform(id).name(), id));
+  pick.value = state.platform || '';
+  pick.addEventListener('change', () => {
+    state.platform = pick.value;
+    changed();
+  });
+  return pick;
 }
