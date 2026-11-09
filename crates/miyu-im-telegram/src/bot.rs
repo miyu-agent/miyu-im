@@ -5,7 +5,7 @@
 //!    `can_read_all_group_messages` 为假是开着）。401 报「令牌失效」，不再试（换了令牌配置变了才重来）；连不上的退避着再试。
 //! 3. 认出来了把连接登记进宿主的 `Bots`，告诉宿主这个号连上了（排着的照先后发）。
 //! 4. 长轮询 `getUpdates`：Telegram 挂着不回，有消息才回，最多挂 [`POLL`]；收到第几条记进状态目录（`<号>.offset`），重启接着收，不重收。
-//!    这一步收到的消息先不交宿主（I-183 中下）。
+//!    收到的消息认成宿主的事交过去（[`crate::receive`]，I-183 中下）。
 //! 5. 没成的：409（别处也在收）报「别处也在收消息」、拿掉登记，过 [`ELSEWHERE`] 再试，不抢；429 照它说的等；401 同第 2 条；连不上、
 //!    等不到的（挂着超过 [`POLL`] 加 [`GRACE`] 还没回，当断了，AstrBot #8314 的「跑一阵就收不到了」）报「连不上」、拿掉登记，退避着
 //!    再试，好了重新登记。
@@ -23,7 +23,10 @@ use miyu_im::chat::{Event, Id, Link};
 use miyu_im::driver::Gate;
 
 use crate::api::{Api, Failure};
+use crate::known::Known;
 use crate::link::Bot;
+use crate::receive::{self, Me};
+use crate::send::{self, Queue};
 use crate::settings::Connection;
 
 /// 长轮询让 Telegram 最多挂多久（`getUpdates` 的 `timeout`）。
@@ -129,8 +132,16 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
             return;
         }
     };
-    let Some((bot, name)) = whoami(&client, &shared).await else {
+    let Some((bot, name, username)) = whoami(&client, &shared).await else {
         return;
+    };
+    // 收的时候记下话题、名字、群名，发的时候照它们（施工 I-183 中下）；发的那条队整个连接一条，重连不换。
+    let known = Arc::new(Known::default());
+    let (queue, writer) = send::queue(client.clone(), Arc::clone(&known));
+    tokio::spawn(writer);
+    let me = Me {
+        bot: &bot,
+        username: &username,
     };
     let offset_file = gate.store().join(format!("{bot}.offset"));
     let mut offset = read_offset(&offset_file).await;
@@ -138,7 +149,7 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
     let mut backoff = BACKOFF.0;
     loop {
         if registered.is_none() {
-            registered = register(&gate, &bot, &name, &shared).await;
+            registered = register(&gate, (&bot, &name), &shared, (&known, &queue)).await;
             if registered.is_none() {
                 return;
             }
@@ -149,6 +160,14 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
             Ok(updates) => {
                 backoff = BACKOFF.0;
                 shared.update(|state| state.trouble = None);
+                // 先交给宿主，再记收到了第几条：交到一半停了的，重启再收一遍（宿主照编号去重）。
+                for update in updates.as_array().into_iter().flatten() {
+                    if let Some(event) = receive::event(&me, &update["message"], &known)
+                        && !gate.inbound(event).await
+                    {
+                        return;
+                    }
+                }
                 let next = updates
                     .as_array()
                     .into_iter()
@@ -187,8 +206,8 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
     }
 }
 
-/// `getMe`：认出号和名字，报进状态。401 的报「令牌失效」交回空的；连不上的退避着一直试。
-async fn whoami(client: &Api, shared: &Shared) -> Option<(Id, String)> {
+/// `getMe`：认出号、名字、用户名，报进状态。401 的报「令牌失效」交回空的；连不上的退避着一直试。
+async fn whoami(client: &Api, shared: &Shared) -> Option<(Id, String, String)> {
     let mut backoff = BACKOFF.0;
     loop {
         match client.call("getMe", &json!({}), CALL).await {
@@ -205,11 +224,11 @@ async fn whoami(client: &Api, shared: &Shared) -> Option<(Id, String)> {
                 let privacy = me["can_read_all_group_messages"] != true;
                 tracing::info!(target: TARGET, bot = %bot, privacy, "telegram bot known");
                 shared.update(|state| {
-                    state.bot = Some((bot.clone(), username, name.clone()));
+                    state.bot = Some((bot.clone(), username.clone(), name.clone()));
                     state.privacy = Some(privacy);
                     state.trouble = None;
                 });
-                return Some((bot, name));
+                return Some((bot, name, username));
             }
             Err(Failure::Unauthorized) => {
                 tracing::warn!(target: TARGET, "telegram token refused");
@@ -239,8 +258,14 @@ pub fn full_name(user: &Value) -> String {
 }
 
 /// 把号 `bot` 登记进宿主的 `Bots`，告诉宿主连上了。宿主不收了（桥在停）交回空的。
-async fn register(gate: &Arc<Gate>, bot: &Id, name: &str, shared: &Shared) -> Option<Registered> {
-    let link: Arc<dyn Link> = Arc::new(Bot::new(name.to_string()));
+async fn register(
+    gate: &Arc<Gate>,
+    (bot, name): (&Id, &str),
+    shared: &Shared,
+    (known, queue): (&Arc<Known>, &Queue),
+) -> Option<Registered> {
+    let link: Arc<dyn Link> =
+        Arc::new(Bot::new(name.to_string(), Arc::clone(known), queue.clone()));
     if let Some(old) = gate.bots().insert(bot.clone(), Arc::clone(&link)) {
         old.close();
     }
