@@ -1,5 +1,4 @@
-//! 后台页的文件（施工 O-28 上，`onebot.md` 第一条「后台页」第 3、4 条，「施工时定的」第 159、162 条）和 im 自己的页面的文件
-//! （`site/`，施工 I-5 上，写法同后台页）：页面没有构建工具、没有测试框架，守住最容易坏的几样。每一份 `.js` 照模块过 `node --check`（机器上没有 `node` 的跳过）；`texts.js` 里
+//! im 自己的页面的文件（`site/`，施工 I-5 上；施工 I-179 起它也是后台页，O-28 那份静态的 `page/` 删了）：页面没有构建工具、没有测试框架，守住最容易坏的几样。每一份 `.js` 照模块过 `node --check`（机器上没有 `node` 的跳过）；`texts.js` 里
 //! `export const TEXTS = ` 后面是一段 JSON，三种语言的键一样；脚本里 `say('…')` 用到的编号都写了；入口照模块载 `app.js`。
 
 use std::collections::BTreeSet;
@@ -11,15 +10,9 @@ use serde_json::{Map, Value};
 
 use crate::support::resources;
 
-/// 出厂的两个页面目录：后台页、im 自己的页面（施工 I-5 上）。
-fn page_dirs() -> [PathBuf; 2] {
-    let im = resources().join("packages/miyu-im");
-    [im.join("page"), im.join("site")]
-}
-
-/// 出厂的后台页目录。
-fn page_dir() -> PathBuf {
-    page_dirs()[0].clone()
+/// 出厂的页面目录。
+fn site_dir() -> PathBuf {
+    resources().join("packages/miyu-im/site")
 }
 
 /// 页面目录 `dir` 里（连子目录，施工 I-6 上：外壳、一页一个文件夹）每一份 `.js`：（相对 `dir` 的路径，内容）。
@@ -49,11 +42,6 @@ fn collect(dir: &Path, at: &Path, found: &mut Vec<(String, String)>) {
     }
 }
 
-/// 后台页的 `texts.js` 里的字（[`texts_in`]）。
-fn texts() -> Map<String, Value> {
-    texts_in(&page_dir())
-}
-
 /// 页面目录 `dir` 的 `texts.js` 里的字：`export const TEXTS = ` 后面到最后的 `;` 是一段 JSON。交回语言 → 那一份。
 fn texts_in(dir: &Path) -> Map<String, Value> {
     let source = std::fs::read_to_string(dir.join("texts.js")).expect("读得了");
@@ -78,11 +66,10 @@ fn keys(texts: &Map<String, Value>, language: &str) -> BTreeSet<String> {
 
 #[test]
 fn every_script_parses_as_a_module() {
-    let scripts: Vec<(String, String)> =
-        page_dirs().iter().flat_map(|dir| scripts_in(dir)).collect();
+    let scripts = scripts_in(&site_dir());
     assert_eq!(
         scripts.iter().filter(|(name, _)| name == "app.js").count(),
-        2,
+        1,
         "{scripts:?}"
     );
     for (name, source) in scripts {
@@ -117,9 +104,7 @@ fn every_script_parses_as_a_module() {
 
 #[test]
 fn the_three_languages_have_the_same_texts() {
-    for dir in page_dirs() {
-        same_texts(&texts_in(&dir));
-    }
+    same_texts(&texts_in(&site_dir()));
 }
 
 /// 三种语言的键一样，每一句都写了。
@@ -144,9 +129,7 @@ fn same_texts(texts: &Map<String, Value>) {
 
 #[test]
 fn every_text_the_scripts_say_is_written() {
-    for (dir, least) in page_dirs().iter().zip([10, 20]) {
-        said_is_written(dir, least);
-    }
+    said_is_written(&site_dir(), 20);
 }
 
 /// 页面目录 `dir` 的脚本里 `say('…')` 用到的编号都写了；用到的不少于 `least` 个（认得出 `say('`）。
@@ -170,29 +153,16 @@ fn said_is_written(dir: &Path, least: usize) {
 
 #[test]
 fn the_entry_loads_the_app_as_a_module() {
-    for dir in page_dirs() {
-        let index = std::fs::read_to_string(dir.join("index.html")).expect("读得了");
-        assert!(
-            index.contains(r#"<script type="module" src="app.js"></script>"#),
-            "{index}"
-        );
-    }
+    let index = std::fs::read_to_string(site_dir().join("index.html")).expect("读得了");
+    assert!(
+        index.contains(r#"<script type="module" src="app.js"></script>"#),
+        "{index}"
+    );
 }
 
 #[test]
 fn japanese_is_written_in_japanese() {
-    // 施工 O-45：`ja` 另写一份（原来照英文写）。和英文一样的只有专名、地址的样子。
-    let texts = texts();
-    let (ja, en) = (&texts["ja"], &texts["en"]);
-    let same: BTreeSet<&str> = ja
-        .as_object()
-        .expect("是对象")
-        .iter()
-        .filter(|(key, value)| en[key.as_str()] == **value)
-        .map(|(key, _)| key.as_str())
-        .collect();
-    assert_eq!(same, BTreeSet::from(["fill/url", "napcat"]));
-    let site = texts_in(&page_dirs()[1]);
+    let site = texts_in(&site_dir());
     let (ja, en) = (&site["ja"], &site["en"]);
     let same: Vec<&String> = ja
         .as_object()

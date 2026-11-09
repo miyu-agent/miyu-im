@@ -44,8 +44,8 @@ jobs:
         cp -R miyu-im/. dist/miyu-im/
         cp "target/release/miyu-im$exe" dist/miyu-im/bin/
         cp LICENSE THIRD-PARTY-LICENSES.txt dist/miyu-im/
-        # 结构不对就不打：清单、后台页、数据、程序、许可证都要在。
-        for need in package.toml page/index.html data/bridge.json "bin/miyu-im$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
+        # 结构不对就不打：清单、im 自己的页面、数据、程序、许可证都要在。
+        for need in package.toml site/index.html data/bridge.json "bin/miyu-im$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
           [ -f "dist/miyu-im/$need" ] || { echo "包里少了 miyu-im/$need"; exit 1; }
         done
 

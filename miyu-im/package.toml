@@ -72,8 +72,8 @@ summary = { en = "Checks a request to join a group against its rule", zh = "照�
 [export]
 methods = ["chat.action", "chat.venue", "chat.media", "chat.send", "chat.note"]
 
-# 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/im/ 下的 page/，入口 index.html；网页把它
-# 放在隔离的框里，它读写这个包的设置项、调桥登记的方法（status、connection.token）。
+# 后台页（施工 I-179，核心 BP-1）：由 im 自己的网页服务提供（`site/`，status 回应里的 web 端口），不装网页软件也打得开；网页、托盘、
+# `miyu pkg page` 照它直接跳过去。O-28 时期包里那份静态的 page/ 删了。
 # 场所卡片的两页（施工 O-58 下，docs/blueprint/onebot.md「场所卡片的两页」）：终端、网页里的整页，内容由桥经 widget.set 推，
 # 改了经 package.call 调 cards.save_one、cards.add、cards.remove。
 [[widget]]
@@ -89,7 +89,7 @@ title = { en = "QQ private chats", zh = "QQ 私聊", ja = "QQ 個人チャット
 command = "qq-friends"
 
 [page]
-dir = "page"
+server = true
 
 # 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
 # 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。NapCat 的两项在

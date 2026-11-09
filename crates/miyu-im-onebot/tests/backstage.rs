@@ -1,9 +1,9 @@
 //! 后台页（施工 O-28 上，`onebot.md` 第一条「后台页」，`package-pages.md`）：真核心照开关拉起真桥，头照网页给后台页转的样子经
 //! 核心走一遍：`package.list` 里接入通讯平台 带图标和后台页；`package.call` 调桥登记的 `status`、`connection.token`，答的是桥手里
-//! 最新的（NapCat 连上、令牌去掉都跟着变），没登记的核心不转；`package.file` 读得到页面目录里的每一份文件，字节和出厂的一样。
+//! 最新的（NapCat 连上、令牌去掉都跟着变），没登记的核心不转。施工 I-179（核心 BP-1）：后台页由 im 自己的网页服务给，列表带
+//! `page_server`，`package.file` 没有目录可读、回 `no_page`。
 //! 运行日志记登记成了、取过令牌，不记令牌的值。桥认不出的方法（核心不会转，测试当核心直接发）回 -32601。
 
-use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -14,67 +14,6 @@ use crate::support::head::Head;
 use crate::support::ports::on_free_port;
 use crate::support::spawning::{bridge_up, cli, ports_config, served_up, text};
 use crate::support::*;
-
-/// 出厂的后台页目录。
-fn page_dir() -> PathBuf {
-    resources().join("packages/miyu-im/page")
-}
-
-impl Head {
-    /// 经 `package.file` 读后台页里的 `path`，一块块读到头：交回整份字节。
-    async fn file(&mut self, path: &str) -> Vec<u8> {
-        let mut all = Vec::new();
-        loop {
-            let reply = self
-                .call(
-                    "package.file",
-                    json!({"package": "miyu-im", "path": path, "offset": all.len()}),
-                )
-                .await;
-            let data = reply["result"]["data"]
-                .as_str()
-                .unwrap_or_else(|| panic!("{path}：{reply}"));
-            all.extend(base64(data));
-            if reply["result"]["eof"] == true {
-                assert_eq!(reply["result"]["size"], all.len(), "{path}");
-                return all;
-            }
-        }
-    }
-}
-
-/// 标准的 base64 解出字节（`package.file` 的 `data`；测试不为它加依赖）。
-fn base64(text: &str) -> Vec<u8> {
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut bytes = Vec::new();
-    let (mut bits, mut held) = (0u32, 0u32);
-    for c in text.bytes().filter(|c| *c != b'=') {
-        let value = ALPHABET
-            .iter()
-            .position(|known| *known == c)
-            .unwrap_or_else(|| panic!("不是 base64：{c}"));
-        bits = (bits << 6) | u32::try_from(value).expect("小于 64");
-        held += 6;
-        if held >= 8 {
-            held -= 8;
-            bytes.push(u8::try_from((bits >> held) & 0xff).expect("一个字节"));
-        }
-    }
-    bytes
-}
-
-/// 目录 `dir` 里每一份文件相对它的路径（`/` 隔开）。
-fn files(dir: &Path, prefix: &str, found: &mut Vec<String>) {
-    for entry in std::fs::read_dir(dir).expect("列得出") {
-        let entry = entry.expect("读得了");
-        let name = format!("{prefix}{}", entry.file_name().to_string_lossy());
-        if entry.file_type().expect("看得出种类").is_dir() {
-            files(&entry.path(), &format!("{name}/"), found);
-        } else {
-            found.push(name);
-        }
-    }
-}
 
 #[tokio::test]
 async fn the_page_reaches_the_bridge_through_the_core() {
@@ -105,6 +44,14 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         "{onebot}"
     );
     assert_eq!(onebot["page"], true, "{onebot}");
+    assert_eq!(
+        onebot["page_server"], true,
+        "后台页由 im 自己的网页服务给：{onebot}"
+    );
+    let file = head
+        .call("package.file", json!({"package": "miyu-im", "path": ""}))
+        .await;
+    assert_eq!(file["error"]["data"]["reason"], "no_page", "{file}");
 
     // 桥起来、开好监听以后才登记：等到调得到，页面服务的端口也报上来了（原来只等调得到，偶尔端口还没报上来，`web` 是空的）。
     let mut status = head.until("status", |result| result["web"].is_u64()).await;
@@ -163,20 +110,6 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     assert_eq!(
         head.page_call("connection.token").await["result"],
         json!({"token": null})
-    );
-
-    let mut found = Vec::new();
-    files(&page_dir(), "", &mut found);
-    assert!(found.contains(&"index.html".to_string()), "{found:?}");
-    assert!(found.contains(&"texts.js".to_string()), "{found:?}");
-    for path in &found {
-        let shipped = std::fs::read(page_dir().join(path)).expect("读得了");
-        assert_eq!(head.file(path).await, shipped, "{path}");
-    }
-    assert_eq!(
-        head.file("").await,
-        std::fs::read(page_dir().join("index.html")).expect("读得了"),
-        "空的路径是入口"
     );
 
     let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("桥写了运行日志");
