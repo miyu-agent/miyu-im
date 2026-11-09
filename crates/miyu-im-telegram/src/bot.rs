@@ -162,6 +162,7 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
                 shared.update(|state| state.trouble = None);
                 // 先交给宿主，再记收到了第几条：交到一半停了的，重启再收一遍（宿主照编号去重）。
                 for update in updates.as_array().into_iter().flatten() {
+                    seen_group(&client, &known, &bot, &update["message"]["chat"]);
                     if let Some(event) = receive::event(&me, &update["message"], &known)
                         && !gate.inbound(event).await
                     {
@@ -246,6 +247,35 @@ async fn whoami(client: &Api, shared: &Shared) -> Option<(Id, String, String)> {
     }
 }
 
+/// 收到群 `chat` 的一条（施工 I-183 下中）：记下是不是话题群；头一回见的在旁边问一次机器人在这个群里是不是管理员（`getChatMember`），
+/// 会话浮窗照它画「隐私模式」标签。问不成的不记（标签不出）。
+fn seen_group(client: &Api, known: &Arc<Known>, bot: &Id, chat: &Value) {
+    if !matches!(chat["type"].as_str(), Some("group" | "supergroup")) {
+        return;
+    }
+    let Some(id) = chat["id"].as_i64() else {
+        return;
+    };
+    let chat_id = id.to_string();
+    if !known.seen_group(&chat_id, chat["is_forum"] == true) {
+        return;
+    }
+    let (client, known, bot) = (client.clone(), Arc::clone(known), bot.clone());
+    tokio::spawn(async move {
+        let params =
+            json!({"chat_id": id, "user_id": bot.as_str().parse::<i64>().unwrap_or_default()});
+        match client.call("getChatMember", &params, CALL).await {
+            Ok(member) => {
+                let admin = matches!(member["status"].as_str(), Some("administrator" | "creator"));
+                known.set_admin(&chat_id, admin);
+            }
+            Err(failure) => {
+                tracing::debug!(target: TARGET, chat = %chat_id, failure = ?failure, "telegram admin unknown")
+            }
+        }
+    });
+}
+
 /// 名字：`first_name` 加 `last_name`（设计 07：AstrBot 只取用户名，没用户名的人都叫「Unknown」）。
 pub fn full_name(user: &Value) -> String {
     let first = user["first_name"].as_str().unwrap_or_default().trim();
@@ -264,7 +294,13 @@ async fn register(
     shared: &Shared,
     (client, known, queue): (&Api, &Arc<Known>, &Queue),
 ) -> Option<Registered> {
-    let me = (bot.clone(), name.to_string());
+    let privacy = shared
+        .state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .privacy
+        .unwrap_or(false);
+    let me = (bot.clone(), name.to_string(), privacy);
     let link: Arc<dyn Link> = Arc::new(Bot::new(
         me,
         client.clone(),

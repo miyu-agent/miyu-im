@@ -9,6 +9,7 @@ import { copy, openDialog } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
 import { PLATFORMS, mark, platform } from './platforms.js';
 import { validId } from '../settings/bind.js';
+import { checkRows, proxyControl } from './telegram.js';
 
 /** 开新建连接的浮窗：`request` 调宿主的方法，`table` 是首页读到的连接表。交回 update(connections)（外壳推来的连接，等连上用）。 */
 export function openWizard(request, table = { entries: [] }) {
@@ -22,6 +23,8 @@ export function openWizard(request, table = { entries: [] }) {
   let latest = [];
   // 连上了画着的那一个：名字后到的（页面问了宿主才去问平台），到了再画一遍。
   let shownUp = null;
+  // Telegram（施工 I-183 下中）：存连接时宿主请驱动照 getMe 查回来的机器人（号、名字、用户名、隐私模式开没开），连上以后照号认。
+  let probe = null;
   const dialog = openDialog(say('wizard/pick'), () => { waiting = false; });
   const steps = () => (chosen ? platform(chosen).steps : []);
   const total = () => 1 + steps().length + 1;
@@ -75,7 +78,7 @@ export function openWizard(request, table = { entries: [] }) {
     const shown = steps()[n - 1];
     dialog.setTitle(shown.title());
     dialog.setSteps(n + 1, total());
-    const text = element('p', 'soft lead', shown.text());
+    const text = element('p', 'soft lead', shown.text ? shown.text() : '');
     const back = () => (n === 1 ? pick() : step(n - 1));
     if (shown.kind === 'address') {
       const fill = element('div', 'fill');
@@ -117,6 +120,10 @@ export function openWizard(request, table = { entries: [] }) {
       owner(n, shown, text, back);
       return;
     }
+    if (shown.kind === 'bot' || shown.kind === 'checked') {
+      telegram(n, shown, text, back);
+      return;
+    }
     // 粘贴一个密钥，存了就连。
     const fill = element('div', 'fill');
     // 密钥默认圆点遮着、眼睛按钮看原文（施工 I-47）。
@@ -139,6 +146,51 @@ export function openWizard(request, table = { entries: [] }) {
     }, shown.next(), false);
     input.addEventListener('input', () => { next.disabled = input.value.trim() === ''; });
     input.focus();
+  };
+
+  // Telegram 的两步（施工 I-183 下中，设计 07 第八节）：粘贴令牌、选代理，存的时候宿主请驱动照 getMe 查（`connection.add` 交回查到的）；
+  // 查的结果（隐私模式开着的照实提醒、能再查一次 `connection.check`）。
+  const telegram = (n, shown, text, back) => {
+    const failed = element('p', 'failed');
+    if (shown.kind === 'bot') {
+      const fill = element('div', 'fill');
+      const { box, input } = secretInput('input mono');
+      input.placeholder = shown.placeholder();
+      const proxy = proxyControl(probe?.proxy ?? '');
+      fill.append(element('span', 'soft', shown.label()), box, element('span'));
+      fill.append(element('span', 'soft', say('settings/tg-proxy')), proxy.box, element('span'));
+      show(n, text, fill, failed);
+      const next = buttons(back, async () => {
+        next.disabled = true;
+        try {
+          const added = await request('connection.add', { platform: chosen, token: input.value.trim(), proxy: proxy.value() });
+          probe = { ...added, proxy: proxy.value() };
+          step(n + 1);
+        } catch (reason) {
+          failed.textContent = say(reason === 'bad_token' ? 'failed/tg-token' : reason === 'unreachable' ? 'failed/tg-unreachable' : reason === 'bot_taken' ? 'failed/tg-taken' : 'failed/save');
+          next.disabled = false;
+        }
+      }, shown.next(), false);
+      input.addEventListener('input', () => { next.disabled = input.value.trim() === ''; });
+      input.focus();
+      return;
+    }
+    show(n, checkRows(probe), failed);
+    buttons(back, () => step(n + 1), shown.next());
+    if (probe.privacy) {
+      const again = element('button', 'btn', say('tg/check-again'));
+      again.addEventListener('click', async () => {
+        again.disabled = true;
+        try {
+          probe = { ...probe, ...(await request('connection.check', { platform: chosen, bot: probe.bot })) };
+          step(n);
+        } catch {
+          failed.textContent = say('failed/tg-unreachable');
+          again.disabled = false;
+        }
+      });
+      dialog.foot.insertBefore(again, dialog.foot.querySelector('.grow'));
+    }
   };
 
   // 你的平台号（施工 I-182，项目主人 11-09）：连接存好以后填自己在这个平台上的号，写进「本人的平台 ID」（同设置页那一格，照平台的规矩
@@ -208,7 +260,7 @@ export function openWizard(request, table = { entries: [] }) {
       if (named) done(named);
       return;
     }
-    const up = latest.find((one) => one.connected && one.platform === chosen && (port === null || one.listen === port));
+    const up = latest.find((one) => one.connected && one.platform === chosen && (probe ? one.bot === probe.bot : port === null || one.listen === port));
     if (!waiting || !up) return;
     waiting = false;
     done(up);
@@ -226,7 +278,9 @@ export function openWizard(request, table = { entries: [] }) {
     const bot = up.name ? `${up.name} · ${up.bot}` : up.bot;
     const detail = up.implementation
       ? say('wizard/done-detail', { bot, implementation: up.implementation, version: up.version })
-      : say('wizard/done-bot', { bot });
+      : up.username
+        ? say('wizard/done-username', { bot: up.bot, username: up.username, name: up.name || up.username })
+        : say('wizard/done-bot', { bot });
     const line = say('wizard/done-ok');
     box.append(mark, element('p', 'done-line', line), element('p', 'soft', detail));
     show(steps().length + 2, box);

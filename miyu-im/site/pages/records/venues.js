@@ -102,8 +102,10 @@ export function mountVenues(view, { request }) {
     if (key) {
       // 机器人的名字问到了写名字、号写在后面；没问到的只写号。
       const { platform: on, bot } = list[0];
-      const name = connections.find((one) => one.platform === on && String(one.bot) === String(bot))?.name || bots.get(String(bot));
-      const id = `${idWord('private', on)} ${bot}`;
+      const found = connections.find((one) => one.platform === on && String(one.bot) === String(bot));
+      const name = found?.name || bots.get(String(bot));
+      // 有用户名的机器人（Telegram，施工 I-183 下中）写 @用户名，不写「用户 ID 号」。
+      const id = found?.username ? `@${found.username}` : `${idWord('private', on)} ${bot}`;
       title.append(tagged ? platformDot(on) : face('private', bot, name || bot), element('strong', null, name || id));
       if (name) title.append(element('span', 'muted', id));
     } else {

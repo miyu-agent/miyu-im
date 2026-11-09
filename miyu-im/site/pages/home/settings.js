@@ -7,6 +7,7 @@ import { element, say } from '../../shell/i18n.js';
 import { copy, openDialog, toast } from '../../shell/dialog.js';
 import { secretInput } from '../../shell/secret.js';
 import { platform } from './platforms.js';
+import { privacyNotice, proxyControl } from './telegram.js';
 
 /** 给连接 `one`（机器人，还没连上的是空的）开连接设置：`request` 调宿主的方法；`entry` 是它在连接表里的那一项，`count` 是表里
  *  几个连接。 */
@@ -21,7 +22,11 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
   }
   const shown = platform(one?.platform || status.platform);
   // 格里照连接表的那一项填（施工 I-81 下中），没有的照 status 顶上那几格（头一个连接）。
-  if (entry) status = { ...status, host: entry.host, listen: entry.listen, token: entry.token };
+  // Telegram（施工 I-183 下中）：连接表照机器人号认，不照端口。
+  if (!entry && one && shown.settings.some((field) => field.kind === 'bot')) {
+    entry = (status.connections || []).find((item) => (one.bot && item.bot === one.bot) || (!one.bot && item.index === one.index)) || null;
+  }
+  if (entry) status = { ...status, ...entry };
   const rows = [];
   if (one?.implementation) {
     rows.push(element('p', 'faint lead', say('settings/driver', { implementation: one.implementation, version: one.version })));
@@ -29,6 +34,8 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
   const inputs = new Map();
   // 密钥那几格的名字。
   const secrets = new Set();
+  // 代理那几格（Telegram）：名字 → proxyControl。
+  const proxies = new Map();
   const addressShown = element('span', 'mono soft');
   const address = () => {
     const port = inputs.get('listen')?.value || status.listen;
@@ -39,6 +46,22 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
     const label = element('div', 'label', field.label());
     if (field.hint) label.append(element('small', null, field.hint()));
     row.append(label);
+    if (field.kind === 'bot') {
+      row.append(element('span', 'mono soft', one?.username ? `@${one.username} · ${one.bot}` : one?.bot || ''));
+      rows.push(row);
+      continue;
+    }
+    if (field.kind === 'proxy') {
+      const proxy = proxyControl(status.proxy ?? '');
+      proxies.set(field.name, proxy);
+      row.append(proxy.box);
+      rows.push(row);
+      continue;
+    }
+    if (field.kind === 'privacy') {
+      rows.push(...privacyRows(row, status, { request, one }));
+      continue;
+    }
     if (field.kind === 'address') {
       const copier = element('button', 'btn', say('dialog/copy'));
       copier.addEventListener('click', () => copy(address()));
@@ -63,7 +86,7 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
     }
     rows.push(row);
   }
-  addressShown.textContent = address();
+  if (shown.address) addressShown.textContent = address();
   const failed = element('p', 'failed');
   dialog.body.replaceChildren(...rows, failed);
   const cancel = element('button', 'btn ghost', say('dialog/cancel'));
@@ -78,13 +101,16 @@ export async function openSettings(request, one, { entry = null, count = 0 } = {
       const changed = secrets.has(name) ? input.value.trim() !== '' : input.value !== String(status[name]);
       if (changed) values[name] = input.value;
     }
+    for (const [name, proxy] of proxies) {
+      if (proxy.value() !== (status[name] ?? '')) values[name] = proxy.value();
+    }
     if (Object.keys(values).length === 0) {
       dialog.close();
       return;
     }
     save.disabled = true;
     try {
-      if (entry) await request('connection.edit', { port: entry.listen, values });
+      if (entry) await request('connection.edit', { ...where(entry), values });
       else await request('connection.save', { values });
       toast(say('dialog/saved'));
       dialog.close();
@@ -116,7 +142,7 @@ function removal(request, entry, dialog, failed) {
     }
     button.disabled = true;
     try {
-      await request('connection.remove', { port: entry.listen });
+      await request('connection.remove', where(entry));
       toast(say('dialog/saved'));
       dialog.close();
     } catch {
@@ -125,4 +151,34 @@ function removal(request, entry, dialog, failed) {
     }
   });
   return button;
+}
+
+/** 连接表里的一项照什么认：Telegram 的照机器人号，OneBot 的照端口。 */
+function where(entry) {
+  if (entry.bot) return { bot: entry.bot };
+  // 还没认出号的令牌表连接（令牌一开始就失效这类）照第几个。
+  return entry.index !== undefined ? { index: entry.index } : { port: entry.listen };
+}
+
+/** 隐私模式那一行（Telegram）：开着、关着，能再查一次；开着的下面照做的几步。 */
+function privacyRows(row, status, { request, one }) {
+  const state = element('span', 'tg-privacy-state');
+  const notice = privacyNotice();
+  const draw = (on) => {
+    state.replaceChildren(element('span', on ? 'dot warn' : 'dot on'), document.createTextNode(` ${say(on ? 'tg/privacy-on-short' : 'tg/privacy-off-short')}`));
+    notice.hidden = !on;
+  };
+  const again = element('button', 'btn', say('tg/check-again'));
+  again.addEventListener('click', async () => {
+    again.disabled = true;
+    try {
+      draw((await request('connection.check', one?.bot ? { bot: one.bot } : { index: one?.index })).privacy);
+    } catch {
+      // 查不成的照旧。
+    }
+    again.disabled = false;
+  });
+  draw(Boolean(status.privacy));
+  row.append(state, again);
+  return [row, notice];
 }

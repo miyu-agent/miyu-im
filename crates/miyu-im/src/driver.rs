@@ -25,6 +25,20 @@ pub type Running = Pin<Box<dyn Future<Output = ()> + Send>>;
 /// 起来的结局（[`Driver::start`]）。
 pub type Started = Pin<Box<dyn Future<Output = Result<Running, Failure>> + Send>>;
 
+/// 查一个令牌的结局（[`Driver::probe`]）：查到的机器人（`bot`、`name`，有的带 `username`、`privacy`），或者原因码。
+pub type Probing = Pin<Box<dyn Future<Output = Result<Value, String>> + Send>>;
+
+/// 令牌表（施工 I-183 下中，设计 07 第八节）：一个连接一个令牌（密钥），连接照令牌查出的机器人号认、不开端口（Telegram）。没有令牌表的
+/// 驱动照端口表（OneBot：`hosts`、`ports`、`tokens`，`site/connections.rs`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TokenTable {
+    /// 令牌那一列的配置项名字（一列密钥的引用）。
+    pub tokens: &'static str,
+    /// 另外几列：（配置项名字，页面交的参数名，没交时写的值），例如（`proxies`，`proxy`，`env`）。值是字；核心的一列字不收空字，没交的写
+    /// 第三格。
+    pub columns: &'static [(&'static str, &'static str, &'static str)],
+}
+
 /// 能贴的一个表情（施工 I-7 中三下二：会话浮窗「确认主动回复后贴表情」旁边选哪个，列表由驱动给）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reaction {
@@ -67,6 +81,18 @@ pub trait Driver: Send + Sync {
     /// 驱动自己带的 im 插件（施工 I-10 上，[`Builtin`]）：照样是插件（声明、场所开关、插件页），卸不掉；OneBot 带识人术。
     fn builtins(&self) -> Vec<Arc<dyn Builtin>> {
         Vec::new()
+    }
+
+    /// 令牌表（施工 I-183 下中）：有的照它新建、改、删连接；没有的（默认）照端口表。
+    fn token_table(&self) -> Option<TokenTable> {
+        None
+    }
+
+    /// 查一个令牌（施工 I-183 下中：新建连接、连接设置里「重新检查」）：`params` 是页面交的（新的令牌和另外几列，照
+    /// [`TokenTable::columns`] 的参数名），或者连接表里第几个（`index`，照驱动最新的配置 `config` 取那一个的令牌）。没有令牌表的不用写。
+    fn probe(&self, params: Value, config: Map<String, Value>) -> Probing {
+        let _ = (params, config);
+        Box::pin(async { Err("unsupported".to_string()) })
     }
 
     /// 照 [`Gate::config`] 起来（OneBot：开好端口、说听上了），交回跑着的那一段。起不来的（端口被占、听不了、配置里缺必须的

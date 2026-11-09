@@ -114,3 +114,18 @@
 .act-warn::before { background: var(--gold); }
 .act-link { margin-left: 8px; color: var(--accent); text-decoration: none; }
 .act-link:hover { text-decoration: underline; }
+/* Telegram（施工 I-183 下中）：连接卡上的提醒、新建连接查的结果、代理那一格、隐私模式的几步。 */
+.conn-warn { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: var(--gold); font-size: 12.5px; }
+.conn-warn .icon { width: 14px; height: 14px; flex: none; }
+.tg-checks { display: flex; flex-direction: column; gap: 10px; }
+.tg-check { display: flex; align-items: flex-start; gap: 10px; }
+.tg-check > .icon { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.tg-check.ok > .icon { color: var(--online); }
+.tg-check.warn > .icon { color: var(--gold); }
+.tg-check .grow { display: flex; flex-direction: column; gap: 2px; }
+.tg-proxy { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tg-proxy .input { flex: 1; min-width: 180px; }
+.tg-privacy p { margin: 0; }
+.tg-privacy ol { margin: 6px 0; padding-left: 20px; }
+.tg-privacy li { margin: 2px 0; }
+.tg-privacy-state { display: inline-flex; align-items: center; gap: 4px; }

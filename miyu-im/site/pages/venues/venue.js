@@ -18,7 +18,7 @@ import { faceOf } from './face.js';
 import { cardOf, isDefaults, ownCardOf, valueFor } from './model.js';
 import { venueKinds } from '../home/platforms.js';
 import { idLine, idWord as idWordOf, titleOf } from './names.js';
-import { drawOverview } from './overview.js';
+import { drawOverview, hearingMarks } from './overview.js';
 import { venueStats } from './venue-stats.js';
 import { FIELDS, has } from './fields.js';
 import { drawForm } from './form.js';
@@ -69,6 +69,8 @@ export function openVenue(one, context, onClose) {
   // 统计和最近判断：重画浮窗时留着这两块，问到了再换。
   const counted = isDefaults(one) ? null : venueStats(context.request, () => cardOf(shown));
   const today = element('div', 'venue-today');
+  // 概况标题右边的小标签（Telegram 的群开着隐私模式收不全、话题群，施工 I-183 下）：问 cards.overview 时记下，画标题时照它。
+  let hearing = null;
   let asking = 0;
   // 最近判断的列表头搜了什么、筛了什么（施工 I-166）：浮窗开着时一直留着。
   const recentState = {};
@@ -123,7 +125,11 @@ export function openVenue(one, context, onClose) {
     const mine = ++asking;
     try {
       const answer = await context.request('cards.overview', { card: cardOf(shown) });
-      if (mine === asking) drawOverview(today, answer, shown.type, recentState);
+      if (mine === asking) {
+        hearing = answer.hearing || null;
+        if (tab === 'overview') title.replaceChildren(say('venue/tab-overview'), ...hearingMarks(hearing));
+        drawOverview(today, answer, shown.type, recentState);
+      }
     } catch {
       // 问不到的：照旧画上一次的。
     }
@@ -169,6 +175,7 @@ export function openVenue(one, context, onClose) {
     }
     if (tab !== 'watch') unwatch();
     title.textContent = plugin ? pick(plugin.name) || plugin.package : say(`venue/tab-${tab}`);
+    if (!plugin && tab === 'overview') title.append(...hearingMarks(hearing));
     if (plugin) body.replaceChildren(panelOf(plugin));
     else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, [counted.box, today]));
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));

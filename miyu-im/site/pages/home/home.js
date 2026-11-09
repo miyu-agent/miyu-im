@@ -252,12 +252,22 @@ function tile(one, context, picking) {
   badge.append(mark(shown));
   bot.append(face, badge);
   const grow = element('div', 'grow');
-  const line = one.implementation
-    ? say('conn/line', { platform: shown.name(), implementation: one.implementation, version: one.version })
-    : shown.name();
+  let line = shown.name();
+  if (one.implementation) line = say('conn/line', { platform: shown.name(), implementation: one.implementation, version: one.version });
+  else if (one.username) line = say('conn/line-username', { platform: shown.name(), username: one.username });
   const state = element('div', 'faint');
-  state.append(element('span', one.connected ? 'dot on' : 'dot off'), document.createTextNode(` ${since(one)}`));
-  grow.append(element('b', null, one.name || one.bot), element('div', 'soft', line), state);
+  // 驱动报的毛病（Telegram，施工 I-181）：别处也在收（409）、令牌失效（401）写在状态那一行；隐私模式开着的另起一行提醒。
+  // 没连上过的（令牌一开始就失效、代理不对、连不上）没有号、没有连上的时刻，照毛病说。
+  const said = ['elsewhere', 'token', 'network', 'proxy', 'no_token'];
+  const trouble = said.includes(one.trouble) && (one.trouble !== 'network' || !one.since) ? one.trouble : null;
+  const stateText = trouble ? say(`conn/${trouble}`, { bot: one.bot || '—' }) : since(one);
+  state.append(element('span', one.connected && !trouble ? 'dot on' : 'dot off'), document.createTextNode(` ${stateText}`));
+  grow.append(element('b', null, one.name || one.bot || say('conn/unnamed')), element('div', 'soft', line), state);
+  if (one.trouble === 'privacy') {
+    const warn = element('div', 'conn-warn');
+    warn.append(icon('i-eye-off'), document.createTextNode(say('conn/privacy')));
+    grow.append(warn);
+  }
   const gear = element('button', 'icon-button');
   gear.title = say('settings/open');
   gear.append(icon('i-gear'));

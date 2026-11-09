@@ -42,8 +42,8 @@ use serde_json::{Map, Value, json};
 use super::logins::Login;
 use super::{
     Person, Site, connections, core_call, home_cards, limits_page, logs, moderation, panels,
-    plugin_settings, plugin_widgets, plugins, records_media, records_page, save, scope, settings,
-    stats, store, venues, web_link,
+    plugin_settings, plugin_widgets, plugins, records_media, records_page, reported, save, scope,
+    settings, stats, store, token_table, venues, web_link,
 };
 use crate::core::methods::short_path;
 use crate::running::Station;
@@ -63,9 +63,20 @@ pub(super) async fn answer(
             Ok(Value::Object(status))
         }
         Some("connection.save") => save::save(site, &login.person, params).await,
-        Some("connection.add") => connections::add(site, &login.person, params).await,
-        Some("connection.edit") => connections::edit(site, &login.person, params).await,
-        Some("connection.remove") => connections::remove(site, &login.person, params).await,
+        // 令牌表（施工 I-183 下中，Telegram）、端口表（施工 I-81 下中，OneBot）：照驱动报的哪一种。
+        Some("connection.add") => match site.pick(params)?.1.token_table() {
+            Some(table) => token_table::add(site, &login.person, params, table).await,
+            None => connections::add(site, &login.person, params).await,
+        },
+        Some("connection.edit") => match site.pick(params)?.1.token_table() {
+            Some(table) => token_table::edit(site, &login.person, params, table).await,
+            None => connections::edit(site, &login.person, params).await,
+        },
+        Some("connection.remove") => match site.pick(params)?.1.token_table() {
+            Some(table) => token_table::remove(site, &login.person, params, table).await,
+            None => connections::remove(site, &login.person, params).await,
+        },
+        Some("connection.check") => token_table::check(site, params).await,
         Some("today") => {
             let day = site.counters.today();
             Ok(
@@ -188,6 +199,8 @@ fn on_platform(site: &Arc<Site>, station: &Station, avatars: bool) -> Vec<Value>
         }
         Value::Object(one)
     }));
+    // 令牌表的驱动报的用户名、隐私模式、毛病，没连上过的连接（施工 I-183 下中）。
+    reported::merge(&mut all, &station.status(), (platform, &caps));
     all
 }
 

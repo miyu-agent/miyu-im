@@ -24,6 +24,8 @@ pub struct Bot {
     me: Id,
     /// 机器人的名字：`getMe` 的 `first_name`（加 `last_name`）。
     name: String,
+    /// 隐私模式开着（`getMe` 的 `can_read_all_group_messages` 为假）。
+    privacy: bool,
     /// 调用口：登记命令菜单这类不排队的调用（I-183 下上）。
     api: Api,
     /// 收消息时记下的（话题、名字、群名）。
@@ -36,10 +38,16 @@ pub struct Bot {
 
 impl Bot {
     /// 照 `getMe` 回的号和名字、调用口、记着的、发的那条队造一个。
-    pub(crate) fn new((me, name): (Id, String), api: Api, known: Arc<Known>, queue: Queue) -> Bot {
+    pub(crate) fn new(
+        (me, name, privacy): (Id, String, bool),
+        api: Api,
+        known: Arc<Known>,
+        queue: Queue,
+    ) -> Bot {
         Bot {
             me,
             name,
+            privacy,
             api,
             known,
             queue,
@@ -134,6 +142,13 @@ impl Link for Bot {
     fn nickname(&self) -> Reply<'_, Option<String>> {
         let name = (!self.name.is_empty()).then(|| self.name.clone());
         Box::pin(async move { Ok(name) })
+    }
+
+    fn hearing(&self, group: &Id) -> Option<serde_json::Value> {
+        // 隐私模式开着、又不是管理员的群收不全（问到了是不是管理员才说）；话题群照消息里的 `is_forum`（I-183 下中）。
+        let seen = self.known.group(group.as_str())?;
+        let partial = self.privacy && seen.admin == Some(false);
+        Some(json!({"partial": partial, "topics": seen.forum}))
     }
 
     fn implementation(&self) -> Option<Implementation> {

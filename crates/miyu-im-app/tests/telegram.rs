@@ -89,7 +89,7 @@ async fn a_bot_connects_and_resumes_where_it_stopped_after_a_restart() {
     let connected = until_tg(&mut open, |one| one["connected"] == true).await;
     assert_eq!(
         connected,
-        json!({"index": 0, "token": "set", "proxy": "", "connected": true, "bot": BOT_ID.to_string(), "username": "miyu_test_bot", "name": "Miyu Bot", "privacy": true})
+        json!({"index": 0, "token": "set", "proxy": "env", "connected": true, "bot": BOT_ID.to_string(), "username": "miyu_test_bot", "name": "Miyu Bot", "privacy": true})
     );
     // 长轮询：Telegram 挂 50 秒（`timeout`），只要消息。
     let first = api.until(|method, _| method == "getUpdates").await;
@@ -146,7 +146,7 @@ async fn a_refused_token_is_reported_and_not_retried() {
     let refused = until_tg(&mut open, |one| one["trouble"] == "token").await;
     assert_eq!(
         refused,
-        json!({"index": 0, "token": "set", "proxy": "", "connected": false, "trouble": "token"})
+        json!({"index": 0, "token": "set", "proxy": "env", "connected": false, "trouble": "token"})
     );
     tokio::time::sleep(Duration::from_millis(500)).await;
     assert_eq!(api.calls().len(), 1, "401 不再试：{:?}", api.calls());

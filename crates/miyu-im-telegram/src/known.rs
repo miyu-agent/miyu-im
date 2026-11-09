@@ -29,6 +29,19 @@ pub struct Known {
     titles: Mutex<HashMap<String, String>>,
     /// 命令菜单里登记的名字到 Miyu 的命令名（施工 I-183 下上：Telegram 不许 `-`，登记时换成 `_`，收到时换回来）。
     commands: Mutex<HashMap<String, String>>,
+    /// 群：是不是话题群、机器人是不是管理员（没问到的不在里面；施工 I-183 下中，会话浮窗的「隐私模式」「话题群」标签）。
+    groups: Mutex<HashMap<String, Group>>,
+}
+
+/// 一个群记下的（[`Known::group`]）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Group {
+    /// 话题群（消息里 `chat.is_forum`）。
+    pub forum: bool,
+    /// 机器人是管理员；还没问到的是空的。
+    pub admin: Option<bool>,
+    /// 问过了（问着的、问到的、问不成的）：不再问。
+    asked: bool,
 }
 
 /// 往 `map` 里记一样：满了先清掉。
@@ -94,6 +107,40 @@ impl Known {
             .unwrap_or_else(PoisonError::into_inner)
             .get(name)
             .cloned()
+    }
+
+    /// 收到群 `chat` 的一条：记下是不是话题群；交回这个群的机器人是不是管理员还没问过（要问一次）。
+    pub fn seen_group(&self, chat: &str, forum: bool) -> bool {
+        let mut held = self.groups.lock().unwrap_or_else(PoisonError::into_inner);
+        if held.len() >= LIMIT && !held.contains_key(chat) {
+            held.clear();
+        }
+        let group = held.entry(chat.to_string()).or_default();
+        group.forum = forum;
+        let ask = !group.asked;
+        group.asked = true;
+        ask
+    }
+
+    /// 记下群 `chat` 里机器人是不是管理员。
+    pub fn set_admin(&self, chat: &str, admin: bool) {
+        if let Some(group) = self
+            .groups
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get_mut(chat)
+        {
+            group.admin = Some(admin);
+        }
+    }
+
+    /// 群 `chat` 记下的；没收到过消息的是空的。
+    pub fn group(&self, chat: &str) -> Option<Group> {
+        self.groups
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(chat)
+            .copied()
     }
 
     /// 群 `chat` 叫什么；没见过的是空的。
