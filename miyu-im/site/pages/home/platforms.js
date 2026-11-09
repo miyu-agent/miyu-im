@@ -39,6 +39,8 @@ export const PLATFORMS = {
         placeholder: () => say('wizard/token-placeholder'),
         next: () => say('wizard/save-connect'),
       },
+      // 你的 QQ 号（施工 I-182，项目主人 11-09，设计 07 第 3.7 节）：写进「本人的平台 ID」，能跳过。
+      { kind: 'owner', title: () => say('wizard/qq-owner-title'), text: () => say('wizard/qq-owner-text'), label: () => say('platform/qq-user-id') },
     ],
     waiting: () => say('wizard/qq-wait-text'),
     node: () => say('wizard/qq-node'),

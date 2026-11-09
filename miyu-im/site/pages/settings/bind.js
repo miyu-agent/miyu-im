@@ -53,8 +53,7 @@ export function openBind(platforms, preferred, bind) {
     });
     done.addEventListener('click', async () => {
       const typed = input.value.trim();
-      const fine = digits ? /^\d+$/.test(typed) : /^[^\s:"]{1,48}$/.test(typed);
-      if (!fine) {
+      if (!validId(chosen, typed)) {
         failed.textContent = say(digits ? 'settings-page/bind-bad' : 'settings-page/bind-bad-text');
         return;
       }
@@ -66,4 +65,10 @@ export function openBind(platforms, preferred, bind) {
     input.focus();
   };
   pick();
+}
+
+/** 平台 `on` 上的号 `typed` 写得对不对（宿主的规矩，施工 I-79）：QQ 号只有数字，别的平台不带空白、冒号、引号，48 个字以内。新建连接的
+ *  「你的平台号」那一步也照它查（施工 I-182）。 */
+export function validId(on, typed) {
+  return on === 'qq' ? /^\d+$/.test(typed) : /^[^\s:"]{1,48}$/.test(typed);
 }

@@ -934,11 +934,9 @@ export const TEXTS = {
     "why/unjudged-reply": "{trigger}, judgement failed, replied anyway",
     "wizard/address": "Address",
     "wizard/back": "Back",
-    "wizard/done": "{name} is on {platform}",
     "wizard/done-bot": "Bot {bot}",
     "wizard/done-detail": "Bot {bot} · connected through {implementation} {version}",
     "wizard/done-title": "Connected",
-    "wizard/done-unnamed": "On {platform} now",
     "wizard/filled": "Done, next",
     "wizard/finish": "Done",
     "wizard/next": "Next",
@@ -952,7 +950,12 @@ export const TEXTS = {
     "wizard/save-connect": "Save and connect",
     "wizard/token": "Token",
     "wizard/token-placeholder": "Paste the token",
-    "wizard/wait-title": "Waiting for it to connect"
+    "wizard/wait-title": "Waiting for it to connect",
+    "wizard/done-ok": "Connected",
+    "wizard/qq-owner-title": "Your QQ number",
+    "wizard/qq-owner-text": "With it the AI recognizes you in private chats and groups. You can also add it later under Your platform IDs in Settings.",
+    "wizard/owner-skip": "Skip",
+    "limits-page/all-platforms": "All platforms"
   },
   "ja": {
     "activity/a-message": "[{where}] メッセージ",
@@ -1884,11 +1887,9 @@ export const TEXTS = {
     "why/unjudged-reply": "{trigger}、判定に失敗したので返信",
     "wizard/address": "アドレス",
     "wizard/back": "戻る",
-    "wizard/done": "{name} が {platform} に入りました",
     "wizard/done-bot": "ボット {bot}",
     "wizard/done-detail": "ボット {bot} · 接続先は {implementation} {version}",
     "wizard/done-title": "つながりました",
-    "wizard/done-unnamed": "{platform} に入りました",
     "wizard/filled": "入力しました",
     "wizard/finish": "完了",
     "wizard/next": "次へ",
@@ -1902,7 +1903,12 @@ export const TEXTS = {
     "wizard/save-connect": "保存して接続",
     "wizard/token": "トークン",
     "wizard/token-placeholder": "トークンを貼り付け",
-    "wizard/wait-title": "接続を待っています"
+    "wizard/wait-title": "接続を待っています",
+    "wizard/done-ok": "接続しました",
+    "wizard/qq-owner-title": "あなたの QQ 番号",
+    "wizard/qq-owner-text": "入れておくと、個人チャットでもグループでも AI があなたを見分けます。あとから設定の「本人のプラットフォーム ID」でも入れられます。",
+    "wizard/owner-skip": "スキップ",
+    "limits-page/all-platforms": "すべてのプラットフォーム"
   },
   "zh": {
     "activity/a-message": "[{where}] 一条消息",
@@ -2834,11 +2840,9 @@ export const TEXTS = {
     "why/unjudged-reply": "{trigger}，没判成，照回",
     "wizard/address": "地址",
     "wizard/back": "上一步",
-    "wizard/done": "{name}在 {platform} 上了",
     "wizard/done-bot": "机器人 {bot}",
     "wizard/done-detail": "机器人 {bot} · 连上的是 {implementation} {version}",
     "wizard/done-title": "连上了",
-    "wizard/done-unnamed": "在 {platform} 上了",
     "wizard/filled": "我已填写",
     "wizard/finish": "完成",
     "wizard/next": "下一步",
@@ -2852,6 +2856,11 @@ export const TEXTS = {
     "wizard/save-connect": "保存并连接",
     "wizard/token": "Token",
     "wizard/token-placeholder": "粘贴 Token",
-    "wizard/wait-title": "等它连上"
+    "wizard/wait-title": "等它连上",
+    "wizard/done-ok": "连接成功",
+    "wizard/qq-owner-title": "你的 QQ 号",
+    "wizard/qq-owner-text": "填了以后，AI 认得出私聊和群里的你。以后也能在设置页的「本人的平台 ID」里填。",
+    "wizard/owner-skip": "跳过",
+    "limits-page/all-platforms": "全部平台"
   }
 };
