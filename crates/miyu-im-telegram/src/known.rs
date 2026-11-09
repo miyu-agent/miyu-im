@@ -3,11 +3,15 @@
 //! - 每个聊天最近一条消息在哪个话题（`message_thread_id`）：话题群整个群一个场所，回话回在原来那个话题里（设计 07 第 3.5 节）。
 //! - 人的名字和用户名：@ 一个人时，有用户名的写 `@用户名`（Telegram 自己认），没有的写名字、挂一个 `text_mention`。
 //! - 群名：宿主问群名（`Link::group_name`）时照它答。
+//! - 最近的消息（施工 I-185 上）：收到的、它引用的那一条（`reply_to_message` 带着整条），宿主问引用的那一条（`Link::message`，取它带
+//!   的图）时照它答；Telegram 不给机器人照编号取消息。
 //!
 //! 只在内存里，重启从头记；最多记 [`LIMIT`] 个，满了清掉重记（只是少几个名字，不会错）。
 
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
+
+use miyu_im::chat::Fetched;
 
 /// 每一样最多记多少个。
 const LIMIT: usize = 4096;
@@ -31,6 +35,8 @@ pub struct Known {
     commands: Mutex<HashMap<String, String>>,
     /// 群：是不是话题群、机器人是不是管理员（没问到的不在里面；施工 I-183 下中，会话浮窗的「隐私模式」「话题群」标签）。
     groups: Mutex<HashMap<String, Group>>,
+    /// 最近的消息：`<聊天>:<编号>` → 认好的那一条（施工 I-185 上）。
+    messages: Mutex<HashMap<String, Fetched>>,
 }
 
 /// 一个群记下的（[`Known::group`]）。
@@ -151,7 +157,15 @@ impl Known {
             .get(chat)
             .cloned()
     }
-}
 
-#[cfg(test)]
-mod tests;
+    /// 聊天 `chat` 里编号是 `id` 的那一条认成了 `fetched`（施工 I-185 上）。
+    pub fn set_message(&self, chat: &str, id: i64, fetched: Fetched) {
+        remember(&self.messages, &format!("{chat}:{id}"), fetched);
+    }
+
+    /// 聊天 `chat` 里编号是 `id` 的那一条；没见过的是空的。
+    pub fn message(&self, chat: &str, id: &str) -> Option<Fetched> {
+        let held = self.messages.lock().unwrap_or_else(PoisonError::into_inner);
+        held.get(&format!("{chat}:{id}")).cloned()
+    }
+}
