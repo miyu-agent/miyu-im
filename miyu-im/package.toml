@@ -37,7 +37,8 @@ capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "e
 # 项目主人 10-30 定，核心 FG-1 照它在预设页分组）：聊天动作（别人看得见）、查询信息（只读）、群管理（管人）。功能写了几个，登记的
 # 工具就都得列在某一个里，不然核心整批不收（核心 T-2）；功能编号带 `im-`，免得和别的包的撞。
 [connection]
-platform = "qq"
+# 接几个平台（核心 IM-3，施工 I-183 中上）：OneBot 是 qq，Telegram 是 tg；平台专用的工具照名字前缀只给那个平台的群和私聊。
+platform = ["qq", "tg"]
 
 [features.im-chat]
 name = { en = "Chat actions", zh = "聊天动作", ja = "チャット操作" }
@@ -155,6 +156,38 @@ applies = "now"
 hidden = true
 name = { en = "Tokens", zh = "令牌（每个连接）", ja = "トークン（接続ごと）" }
 description = { en = "One per connection, in the same order as the ports: the token that connection's NapCat shows. Set on the Connect Messaging page.", zh = "一个连接一项，和端口一一对应：那个连接的 NapCat 出示的 Token。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、ポートと同じ順：その接続の NapCat が示すトークンです。メッセージング接続のページで変更します。" }
+
+# Telegram 驱动的配置（施工 I-183 中上，设计 07 第 3.5 节）：在 im.tg 那一组。连接表两个藏起来的列表，第几项是第几个连接，只有 im 的
+# 后台页写；api 是 Bot API 的地址，自建 Bot API 服务、测试才改。
+
+[settings.tg.tokens]
+type = "list"
+element = "secret"
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Telegram bot tokens", zh = "Telegram 机器人令牌（每个连接）", ja = "Telegram ボットのトークン（接続ごと）" }
+description = { en = "One per connection: the token BotFather gave. Set on the Connect Messaging page.", zh = "一个连接一项：BotFather 给的令牌。在接入通讯平台的页面上改。", ja = "接続ごとに一つ：BotFather が発行したトークンです。メッセージング接続のページで変更します。" }
+
+[settings.tg.proxies]
+type = "list"
+element = "text"
+max = 300
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Telegram proxies", zh = "Telegram 代理（每个连接）", ja = "Telegram プロキシ（接続ごと）" }
+description = { en = "One per connection, in the same order as the tokens: empty follows Miyu's network settings, direct connects without a proxy, anything else is a proxy address (http, https or socks5). Set on the Connect Messaging page.", zh = "一个连接一项，和令牌一一对应：空的跟随 Miyu 的联网设置，direct 是直连，别的是代理地址（http、https、socks5）。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、トークンと同じ順：空は Miyu のネットワーク設定に従い、direct は直接接続、それ以外はプロキシのアドレス（http、https、socks5）です。メッセージング接続のページで変更します。" }
+
+[settings.tg.api]
+type = "text"
+max = 300
+default = "https://api.telegram.org"
+layers = ["system"]
+applies = "now"
+hidden = true
+name = { en = "Telegram Bot API address", zh = "Telegram Bot API 地址", ja = "Telegram Bot API のアドレス" }
+description = { en = "Where to reach the Bot API. Change it only for a self-hosted Bot API server.", zh = "Bot API 在哪。自建 Bot API 服务时才改。", ja = "Bot API の場所です。Bot API サーバーを自分で立てたときだけ変えます。" }
 
 # 识人术（施工 I-10 上，设计 01 第一节第 22 条）：OneBot 驱动带的插件，设置是驱动的配置项，藏起来，只在 im 页面的插件页「识人术」的
 # 「设置」里改；总开关是插件页上的开关。

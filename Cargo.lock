@@ -1694,6 +1694,7 @@ dependencies = [
  "miyu-http",
  "miyu-im",
  "miyu-im-onebot",
+ "miyu-im-telegram",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
@@ -1738,6 +1739,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "miyu-im-telegram"
+version = "0.0.0"
+dependencies = [
+ "miyu-client",
+ "miyu-im",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

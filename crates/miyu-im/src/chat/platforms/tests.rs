@@ -70,6 +70,38 @@ fn args_name_their_platform_or_fall_to_the_only_one() {
 }
 
 #[test]
+fn a_platform_never_connected_does_not_count_for_a_missing_platform() {
+    // 施工 I-183 中上：程序里编着 Telegram，只用 QQ 的人没写平台的照旧算 QQ。
+    let qq_only = Platforms::new(vec![
+        (QQ, connected(&[10]), &CAPS[..]),
+        (TG, connected(&[]), &CAPS[..]),
+    ]);
+    assert_eq!(qq_only.used(), [QQ]);
+    assert_eq!(qq_only.ours(&json!({})), Ok(QQ));
+    // 只用 Telegram 的算 Telegram。
+    let tg_only = Platforms::new(vec![
+        (QQ, connected(&[]), &CAPS[..]),
+        (TG, connected(&[5]), &CAPS[..]),
+    ]);
+    assert_eq!(tg_only.ours(&json!({})), Ok(TG));
+    // 一个号都还没连上过的照第一个驱动的。
+    let none = Platforms::new(vec![
+        (QQ, connected(&[]), &CAPS[..]),
+        (TG, connected(&[]), &CAPS[..]),
+    ]);
+    assert_eq!(none.ours(&json!({})), Ok(QQ));
+    // 断开了还在重连的照旧算用着。
+    let gone = connected(&[5]);
+    let link = gone.get(&Id::from(5)).expect("连着");
+    gone.remove(&Id::from(5), &link);
+    let both = Platforms::new(vec![
+        (QQ, connected(&[10]), &CAPS[..]),
+        (TG, gone, &CAPS[..]),
+    ]);
+    assert_eq!(both.ours(&json!({})), Err(Unclaimed::Missing));
+}
+
+#[test]
 fn a_missing_bot_falls_back_within_its_own_platform() {
     let platforms = two();
     assert_eq!(

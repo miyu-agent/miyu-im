@@ -20,7 +20,7 @@ pub struct Platforms(Vec<(Platform, Arc<Bots>, &'static [Cap])>);
 pub enum Unclaimed {
     /// 写了别的平台（不是挂着的）。
     Other,
-    /// 没写 `platform`、挂着的又不止一个平台：调的一方答 `bad_params`，说缺 `platform`。
+    /// 没写 `platform`、用着的又不止一个平台：调的一方答 `bad_params`，说缺 `platform`。
     Missing,
 }
 
@@ -55,6 +55,15 @@ impl Platforms {
         self.named(venue.platform())
     }
 
+    /// 用着的平台（[`Platforms::ours`]）：这一回起来以后连上过号的（连着的、断开了的都算），照先后。
+    pub fn used(&self) -> Vec<Platform> {
+        self.0
+            .iter()
+            .filter(|(_, bots, _)| !bots.all().is_empty() || !bots.gone().is_empty())
+            .map(|(platform, _, _)| *platform)
+            .collect()
+    }
+
     /// 第一个驱动的平台：一个都没挂的是空的。
     pub fn first(&self) -> Option<Platform> {
         self.iter().next()
@@ -87,15 +96,19 @@ impl Platforms {
     }
 
     /// 给别的包调的方法、工具的参数 `args` 是冲哪个平台来的（施工 I-1、I-70 上「定了的」第 1 条）：写了 `platform` 的照写的，不是
-    /// 挂着的不收；没写、写 `null` 的，只挂了一个平台时算它，挂了几个时不收。
+    /// 挂着的不收；没写、写 `null` 的，只用着一个平台时算它，用着几个时不收。
+    ///
+    /// 「用着」是这一回起来以后连上过号的平台（连着的、断开了还在重连的，[`Platforms::used`]；施工 I-183 中上）：程序里编着
+    /// Telegram 的驱动，只用 QQ 的人没写 `platform` 的老插件照旧算 QQ。一个号都还没连上过的照第一个驱动的平台，同只挂一个平台时。
     ///
     /// # Errors
     ///
-    /// 写了别的平台的交 [`Unclaimed::Other`]；没写、挂着的又不止一个平台的交 [`Unclaimed::Missing`]。
+    /// 写了别的平台的交 [`Unclaimed::Other`]；没写、用着的又不止一个平台的交 [`Unclaimed::Missing`]。
     pub fn ours(&self, args: &Value) -> Result<Platform, Unclaimed> {
         match args.get("platform") {
-            None | Some(Value::Null) => match self.0.as_slice() {
-                [(only, _, _)] => Ok(*only),
+            None | Some(Value::Null) => match self.used().as_slice() {
+                [only] => Ok(*only),
+                [] => self.first().ok_or(Unclaimed::Missing),
                 _ => Err(Unclaimed::Missing),
             },
             Some(name) => name

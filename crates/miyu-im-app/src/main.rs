@@ -2,5 +2,8 @@
 //! OneBot 的 crate 挪出来）。接新平台：这里多列一个驱动。
 
 fn main() -> std::process::ExitCode {
-    miyu_im::program::main(vec![std::sync::Arc::new(miyu_im_onebot::OneBot)])
+    miyu_im::program::main(vec![
+        std::sync::Arc::new(miyu_im_onebot::OneBot),
+        std::sync::Arc::new(miyu_im_telegram::Telegram),
+    ])
 }
