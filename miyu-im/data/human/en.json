@@ -20,7 +20,14 @@
     "qq_set_card": { "name": "Set group card" },
     "qq_notices": { "name": "View announcements" },
     "qq_chat_history": { "name": "Search chat history", "subject": "query" },
-    "qq_send": { "name": "Send message", "subject": "text" }
+    "qq_send": { "name": "Send message", "subject": "text" },
+    "tg_skip_reply": { "name": "Skip reply", "subject": "reason" },
+    "tg_send": { "name": "Send message", "subject": "text" },
+    "tg_quote": { "name": "Quote" },
+    "tg_mention": { "name": "Mention" },
+    "tg_chat_history": { "name": "Search chat history", "subject": "query" },
+    "tg_activity_ranking": { "name": "View activity ranking", "subject": "days" },
+    "tg_glance": { "name": "Set next glance", "subject": "minutes" }
   },
   "said": {
     "prefix": "miyu im",

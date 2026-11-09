@@ -1,17 +1,17 @@
-//! 查聊天记录（施工 C-1 下，设计 04 第一节第 4 条）：`qq_chat_history {query?, user?, from?, to?, all_chats?}`，私聊、群都给，
-//! 只读。照 im 的聊天记录库搜（`Call::history`）：关键词、人（号或名字）、时间段（本机时区的 `2026-10-20` 或 `2026-10-20 14:03`，只写
+//! 查聊天记录（施工 C-1 下，设计 04 第一节第 4 条；施工 I-183 下下从 OneBot 驱动挪来，`qq_chat_history`、`tg_chat_history` 同用）：
+//! `<平台>_chat_history {query?, user?, from?, to?, all_chats?}`，私聊、群都给，只读。照 im 的聊天记录库搜（`Call::history`）：关键词、人（号或名字）、时间段（本机时区的 `2026-10-20` 或 `2026-10-20 14:03`，只写
 //! 日子的「到」算到那天结束）；没写 `all_chats` 的只查这个场所，写了的要这一轮是终端管理员叫的（项目主人 10-23 定），别的答
 //! `history-admin-only`。回复判断不在库的这一头，她查不到。
 //!
-//! 搜到的取最新的 [`SHOWN`] 条（工具面预算紧，不给 `limit`；要更早的照时间段再查），照先后从旧到新一行一条：时刻、（跨场所的）哪个场所、谁（她自己写
-//! `you`）、`msg=` 编号（拿去引用、取图）、正文（洗掉控制字符、换行写成空格、最多 [`TEXT`] 个字）、带的东西的占位、引用了哪条、撤回了的
+//! 搜到的取最新的 30 条（`SHOWN`）（工具面预算紧，不给 `limit`；要更早的照时间段再查），照先后从旧到新一行一条：时刻、（跨场所的）哪个场所、谁（她自己写
+//! `you`）、`msg=` 编号（拿去引用、取图）、正文（洗掉控制字符、换行写成空格、最多 300 个字（`TEXT`））、带的东西的占位、引用了哪条、撤回了的
 //! 标上。头一行照模板，一行一条接在后面（同查管理记录）。
 
 use jiff::civil::{Date, DateTime};
 use jiff::tz::TimeZone;
 use serde_json::{Value, json};
 
-use miyu_im::toolset::{Call, HistoryQuery, NAME, Planned, clean, clock};
+use crate::toolset::{Call, HistoryQuery, NAME, Planned, clean, clock};
 
 use super::args::{Bad, bad_args, optional_text};
 
@@ -31,8 +31,8 @@ struct Asked {
     everywhere: bool,
 }
 
-/// 读参数 `args`，时刻照时区 `zone`（纯逻辑）：写错的交回哪个参数、期望什么。
-fn read(args: &Value, zone: &TimeZone) -> Result<Asked, Bad> {
+/// 读参数 `args`，时刻照时区 `zone`（纯逻辑）：写错的交回哪个参数、期望什么；`user` 写错的照 `bad_user`（各平台说自己的号叫什么）。
+fn read(args: &Value, zone: &TimeZone, bad_user: Bad) -> Result<Asked, Bad> {
     let text = optional_text(args, "query", "query must be text")?
         .unwrap_or_default()
         .trim()
@@ -41,7 +41,7 @@ fn read(args: &Value, zone: &TimeZone) -> Result<Asked, Bad> {
         Value::Null => None,
         Value::Number(number) => Some(number.to_string()),
         Value::String(user) => Some(user.trim().to_string()).filter(|user| !user.is_empty()),
-        _ => return Err("user must be a QQ number or a name"),
+        _ => return Err(bad_user),
     };
     let bad_time = "from and to must be YYYY-MM-DD or YYYY-MM-DD HH:MM";
     let from = match optional_text(args, "from", bad_time)? {
@@ -86,9 +86,9 @@ fn moment(text: &str, zone: &TimeZone, end: bool) -> Option<i64> {
     Some(zoned.timestamp().as_millisecond())
 }
 
-/// `qq_chat_history` 的一次调用（模块的说明）。
-pub(super) fn history(call: Call) -> Planned {
-    let asked = match read(&call.args, &TimeZone::system()) {
+/// 一次调用（模块的说明）；`user` 写错的答 `bad_user`（例如 `user must be a QQ number or a name`）。
+pub fn history(call: Call, bad_user: Bad) -> Planned {
+    let asked = match read(&call.args, &TimeZone::system(), bad_user) {
         Ok(asked) => asked,
         Err(bad) => return bad_args(&call, bad),
     };

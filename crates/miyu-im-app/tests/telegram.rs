@@ -4,83 +4,14 @@
 
 use std::time::Duration;
 
-use serde_json::{Value, json};
+use serde_json::json;
 
 use miyu_session::testkit::{Play, Script};
 
 use crate::support::bot_api::{BOT_ID, BotApi, Mode};
-use crate::support::browser::{Channel, call, logged_in};
-use crate::support::head::Head;
-use crate::support::ports::on_free_port;
-use crate::support::spawning::{bridge_up, cli, ports_config_with, text};
+use crate::support::spawning::{cli, text};
+use crate::support::telegram::{started, started_full, started_with_cards, until_tg};
 use crate::support::*;
-
-/// 起一个核心和桥：Telegram 的连接表一个令牌，Bot API 是 `api`。交回数据根和登录好的 im 网页通道（问 Telegram 的状态用：
-/// 经核心转的 `status` 只说第一个驱动的，网页的 `status` 认 `platform`）。
-async fn started(api: &BotApi) -> (Home, Channel) {
-    started_with(api, Script::new([Play::Says("在")])).await
-}
-
-/// 同 [`started`]，模型照 `script` 答。
-async fn started_with(api: &BotApi, script: Script) -> (Home, Channel) {
-    started_with_cards(api, script, None).await
-}
-
-/// 同 [`started_with`]，起来以前照 `cards` 写好卡片（`cards.json`）。
-async fn started_with_cards(api: &BotApi, script: Script, cards: Option<&str>) -> (Home, Channel) {
-    started_full(api, script, cards, "").await
-}
-
-/// 同 [`started_with_cards`]，主人对应表多 `bindings` 那几行（接在测试的对应表后面）。
-async fn started_full(
-    api: &BotApi,
-    script: Script,
-    cards: Option<&str>,
-    bindings: &str,
-) -> (Home, Channel) {
-    let extra = format!(
-        "tg.tokens = [{{ secret = \"tg\" }}]\ntg.api = \"{}\"",
-        api.url
-    );
-    let home = on_free_port(async |listen| {
-        let config = format!("{bindings}{}", ports_config_with(listen, &extra));
-        let home = Home::spawning(&script, &config);
-        if let Some(cards) = cards {
-            let dir = miyu_im::dirs::state(&home.root);
-            std::fs::create_dir_all(&dir).expect("建得了目录");
-            std::fs::write(dir.join("cards.json"), cards).expect("写得进");
-        }
-        let started = cli(&home.root, &["start"]).await;
-        assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen).await?;
-        Ok(home)
-    })
-    .await;
-    let mut head = Head::connect(&home.root).await;
-    let status = head.until("status", |result| result["web"].is_u64()).await;
-    let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
-    let open = logged_in(&home.root, web).await;
-    (home, open)
-}
-
-/// 问 Telegram 那个驱动的状态，直到头一个连接合 `wanted`：交回那一个连接。
-async fn until_tg(open: &mut Channel, wanted: impl Fn(&Value) -> bool) -> Value {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    let mut id = 100;
-    loop {
-        id += 1;
-        let reply = call(open, id, "status", json!({"platform": "tg"})).await;
-        let first = &reply["result"]["connections"][0];
-        if wanted(first) {
-            return first.clone();
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "等不到 Telegram 的状态：{reply}"
-        );
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
 
 #[tokio::test]
 async fn a_bot_connects_and_resumes_where_it_stopped_after_a_restart() {

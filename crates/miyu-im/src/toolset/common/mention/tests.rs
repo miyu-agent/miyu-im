@@ -1,7 +1,7 @@
 //! `mention` 的参数（施工 O-55）：正整数、写成字的也认，去重照先后，1 到 32 个（施工 I-17）；别的不收。认成员照缓存、成员表，一个
 //! 不是成员不连累别的。
 
-use miyu_im::chat::Id;
+use crate::chat::Id;
 use std::collections::HashMap;
 
 use serde_json::json;

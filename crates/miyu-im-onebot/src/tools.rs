@@ -9,6 +9,7 @@
 use std::time::Duration;
 
 use miyu_client::tooltext::Access;
+use miyu_im::toolset::common::{glance, history, ranking};
 use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
@@ -18,16 +19,13 @@ mod args;
 mod card;
 mod contacts;
 mod fetch;
-mod glance;
 mod group_files;
-mod history;
 mod log;
 mod lookup;
 mod mention;
 mod moderate;
 mod notices;
 mod quote;
-mod ranking;
 mod react;
 mod send_file;
 mod target;
@@ -406,7 +404,7 @@ impl ToolSet for QqTools {
             QUOTE => quote::quote(call),
             SET_CARD => card::set_card(call),
             NOTICES => notices::notices_of(call),
-            CHAT_HISTORY => history::history(call),
+            CHAT_HISTORY => history::history(call, "user must be a QQ number or a name"),
             SEND_FILE => send_file::send_file(&call, self.upload),
             CHAT_SEND => match send_request(&call.args) {
                 Some((to, text)) => Planned::Host(Effect::Send { to, text }),

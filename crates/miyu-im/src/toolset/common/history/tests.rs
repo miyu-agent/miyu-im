@@ -9,6 +9,9 @@ fn east8() -> TimeZone {
     TimeZone::fixed(jiff::tz::offset(8))
 }
 
+/// `user` 写错时答的（QQ 的那一句）。
+const BAD_USER: &str = "user must be a QQ number or a name";
+
 /// 一天的毫秒数。
 const DAY: i64 = 86_400_000;
 
@@ -27,9 +30,13 @@ fn asked() -> Asked {
 
 #[test]
 fn the_words_the_person_the_span_and_the_scope_are_read() {
-    assert_eq!(read(&json!({}), &east8()), Ok(asked()));
+    assert_eq!(read(&json!({}), &east8(), BAD_USER), Ok(asked()));
     assert_eq!(
-        read(&json!({"query": " 团本 ", "user": 40001}), &east8()),
+        read(
+            &json!({"query": " 团本 ", "user": 40001}),
+            &east8(),
+            BAD_USER
+        ),
         Ok(Asked {
             text: "团本".to_string(),
             user: Some("40001".to_string()),
@@ -37,7 +44,11 @@ fn the_words_the_person_the_span_and_the_scope_are_read() {
         })
     );
     assert_eq!(
-        read(&json!({"user": "小明", "all_chats": true}), &east8()),
+        read(
+            &json!({"user": "小明", "all_chats": true}),
+            &east8(),
+            BAD_USER
+        ),
         Ok(Asked {
             user: Some("小明".to_string()),
             everywhere: true,
@@ -45,7 +56,11 @@ fn the_words_the_person_the_span_and_the_scope_are_read() {
         })
     );
     assert_eq!(
-        read(&json!({"from": "2026-10-20", "to": "2026-10-20"}), &east8()),
+        read(
+            &json!({"from": "2026-10-20", "to": "2026-10-20"}),
+            &east8(),
+            BAD_USER
+        ),
         Ok(Asked {
             from: Some(OCT20),
             to: Some(OCT20 + DAY),
@@ -54,7 +69,7 @@ fn the_words_the_person_the_span_and_the_scope_are_read() {
         "只写日子的「到」算到那天结束"
     );
     assert_eq!(
-        read(&json!({"from": "2026-10-20 14:03"}), &east8()),
+        read(&json!({"from": "2026-10-20 14:03"}), &east8(), BAD_USER),
         Ok(Asked {
             from: Some(OCT20 + (14 * 60 + 3) * 60_000),
             ..asked()
@@ -66,22 +81,29 @@ fn the_words_the_person_the_span_and_the_scope_are_read() {
 fn wrong_arguments_say_which_one() {
     let zone = east8();
     assert_eq!(
-        read(&json!({"from": "昨天"}), &zone),
+        read(&json!({"from": "昨天"}), &zone, BAD_USER),
         Err("from and to must be YYYY-MM-DD or YYYY-MM-DD HH:MM")
     );
     assert_eq!(
-        read(&json!({"from": "2026-10-21", "to": "2026-10-20"}), &zone),
+        read(
+            &json!({"from": "2026-10-21", "to": "2026-10-20"}),
+            &zone,
+            BAD_USER
+        ),
         Err("from must be before to")
     );
     assert_eq!(
-        read(&json!({"all_chats": "yes"}), &zone),
+        read(&json!({"all_chats": "yes"}), &zone, BAD_USER),
         Err("all_chats must be true or false")
     );
     assert_eq!(
-        read(&json!({"user": [1]}), &zone),
+        read(&json!({"user": [1]}), &zone, BAD_USER),
         Err("user must be a QQ number or a name")
     );
-    assert_eq!(read(&json!({"query": 3}), &zone), Err("query must be text"));
+    assert_eq!(
+        read(&json!({"query": 3}), &zone, BAD_USER),
+        Err("query must be text")
+    );
 }
 
 #[test]

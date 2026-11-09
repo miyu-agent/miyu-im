@@ -138,6 +138,7 @@ mod superseded;
 mod telegram;
 mod telegram_live;
 mod telegram_page;
+mod telegram_tools;
 mod text;
 mod texts;
 mod titled;

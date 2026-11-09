@@ -1,0 +1,1 @@
+Not done: several bots are connected; give bot, one of {bots}.

@@ -1,0 +1,4 @@
+{
+  "description": "Search this chat's messages.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string"},"user":{"type":"string"},"from":{"type":"string"},"to":{"type":"string"},"all_chats":{"type":"boolean"}}}
+}

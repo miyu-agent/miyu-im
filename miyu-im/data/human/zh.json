@@ -20,7 +20,14 @@
     "qq_set_card": { "name": "改群名片" },
     "qq_notices": { "name": "查看群公告" },
     "qq_chat_history": { "name": "查询聊天记录", "subject": "query" },
-    "qq_send": { "name": "主动发消息", "subject": "text" }
+    "qq_send": { "name": "主动发消息", "subject": "text" },
+    "tg_skip_reply": { "name": "不回复", "subject": "reason" },
+    "tg_send": { "name": "主动发消息", "subject": "text" },
+    "tg_quote": { "name": "引用" },
+    "tg_mention": { "name": "艾特" },
+    "tg_chat_history": { "name": "查询聊天记录", "subject": "query" },
+    "tg_activity_ranking": { "name": "查看发言排行", "subject": "days" },
+    "tg_glance": { "name": "定下次看一眼", "subject": "minutes" }
   },
   "said": {
     "prefix": "miyu im",
