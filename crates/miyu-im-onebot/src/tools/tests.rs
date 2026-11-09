@@ -1,10 +1,11 @@
 //! 驱动交的工具和出厂清单的功能表对得上（施工 I-91）：清单写了几个功能，登记的工具哪个功能都没列的，核心整批不收（核心 T-2）。
+//! 清单里也列着 Telegram 的（施工 I-183 下下）：这里只核对 `qq_` 开头的。
 
 use std::collections::BTreeMap;
 
 use super::{LOOKUPS, TOOLS};
 
-/// 出厂清单 `[features]` 里每个功能列的工具。
+/// 出厂清单 `[features]` 里每个功能列的 QQ 的工具。
 fn features() -> BTreeMap<String, Vec<String>> {
     let manifest: toml::Table =
         toml::from_str(include_str!("../../../../miyu-im/package.toml")).expect("清单是 TOML");
@@ -18,6 +19,7 @@ fn features() -> BTreeMap<String, Vec<String>> {
                 .expect("功能列了工具")
                 .iter()
                 .map(|tool| tool.as_str().expect("工具名是字").to_string())
+                .filter(|tool| tool.starts_with("qq_"))
                 .collect();
             (id.clone(), tools)
         })

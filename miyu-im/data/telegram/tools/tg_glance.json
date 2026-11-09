@@ -1,0 +1,4 @@
+{
+  "description": "Minutes until you next check this chat yourself.",
+  "parameters": {"type":"object","properties":{"minutes":{"type":"integer"}}}
+}

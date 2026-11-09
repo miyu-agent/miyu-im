@@ -23,5 +23,7 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 workspace = true
 
 [dev-dependencies]
+# 单元测试里读出厂清单的功能表，核对驱动交的每件工具都归一个功能（同 OneBot 的，施工 I-183 下下）：和宿主用的同一版。
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 # 单元测试里的 `#[tokio::test]`。
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }

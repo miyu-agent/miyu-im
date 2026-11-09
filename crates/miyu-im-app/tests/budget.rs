@@ -20,11 +20,29 @@
 //!
 //! 施工 I-130 加 `qq_send_file`（2026-11-04，二十一件一起，边际 52，经 opencode Console Go 量）：照文件数合计 4476 字节、超了；项目主人
 //! 定门禁照模型收到的紧凑 JSON 数（文件里的换行、缩进 210 字节到不了模型），合计 4266，预算不动，别的说明不改。
+//!
+//! Telegram 的工具另算一份预算（施工 I-183 下下）：核心照名字前缀只给那个平台的群和私聊，一个场所会话的工具面上只有一套。2026-11-10 经
+//! magpie 网关的 `opencode-go/deepseek-v4.1-flash` 照同一个办法量，七件合计 677 个 token、1384 字节（同一刻 QQ 的二十一件 1626）；预算
+//! 是实测加一成，745 个 token，合 [`TG_BUDGET`] 字节。
 
 use std::path::Path;
 
 /// 预算：字节，照模型收到的紧凑 JSON 数（施工 I-130 起；原来数文件，回车不算）。
 const BUDGET: usize = 4312;
+
+/// Telegram 的工具的预算：字节，同 [`BUDGET`] 的数法。
+const TG_BUDGET: usize = 1522;
+
+/// Telegram 的工具：一件一份说明。
+const TG_TOOLS: [&str; 7] = [
+    "tg_activity_ranking",
+    "tg_chat_history",
+    "tg_glance",
+    "tg_mention",
+    "tg_quote",
+    "tg_send",
+    "tg_skip_reply",
+];
 
 /// 桥的工具：一件一份说明。
 const TOOLS: [&str; 21] = [
@@ -54,13 +72,27 @@ const TOOLS: [&str; 21] = [
 #[test]
 fn the_bridge_tool_face_stays_within_its_budget() {
     // 施工 T-1 到 T-4 起都是驱动交的（`onebot/tools/`）：工具面是桥交的整套。
+    let (total, names) = face("onebot/tools");
+    assert_eq!(names, TOOLS, "一件工具一份说明");
+    assert!(total <= BUDGET, "说明合计 {total} 字节，超过预算 {BUDGET}");
+}
+
+#[test]
+fn the_telegram_tool_face_stays_within_its_budget() {
+    let (total, names) = face("telegram/tools");
+    assert_eq!(names, TG_TOOLS, "一件工具一份说明");
+    assert!(
+        total <= TG_BUDGET,
+        "说明合计 {total} 字节，超过预算 {TG_BUDGET}"
+    );
+}
+
+/// 包文件夹 `data/` 下 `dir` 里的说明：合计多少字节（照模型收到的数），有哪几件（排好）。
+fn face(dir: &str) -> (usize, Vec<String>) {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../miyu-im/data");
     let mut total = 0;
     let mut names = Vec::new();
-    let entries = ["onebot/tools"]
-        .into_iter()
-        .flat_map(|dir| std::fs::read_dir(data.join(dir)).expect("读得了工具说明的目录"));
-    for entry in entries {
+    for entry in std::fs::read_dir(data.join(dir)).expect("读得了工具说明的目录") {
         let path = entry.expect("读得了目录项").path();
         // 照模型收到的数（施工 I-130，2026-11-04 项目主人定）：im 读说明时解析 JSON 再交核心，文件里的换行、缩进到不了模型，
         // 紧凑地写出来再数。
@@ -75,6 +107,5 @@ fn the_bridge_tool_face_stays_within_its_budget() {
         );
     }
     names.sort();
-    assert_eq!(names, TOOLS, "一件工具一份说明");
-    assert!(total <= BUDGET, "说明合计 {total} 字节，超过预算 {BUDGET}");
+    (total, names)
 }

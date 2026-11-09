@@ -6,21 +6,12 @@
 
 use std::collections::HashMap;
 
-use serde_json::Value;
-
 use miyu_im::chat::{Id, To};
-use miyu_im::toolset::{Call, Done, Effect, NAME, Planned, clean};
+use miyu_im::toolset::common::mention::{named, users};
+use miyu_im::toolset::{Call, Done, Effect, Planned};
 
-use super::args::{bad_args, group_only, qq_numbers};
+use super::args::{bad_args, group_only};
 use super::lookup::{said, undone};
-
-/// 一次最多 @ 几个人（施工 I-17，同旧版 `MAX_TOOL_MENTIONS`）。
-const MOST: usize = 32;
-
-/// 读 `mention` 的参数 `args` 里的号（纯逻辑）：`users` 是正整数（写成字的也认）的列表，去重、照先后，1 到 [`MOST`] 个；别的是空的。
-pub(crate) fn users(args: &Value) -> Option<Vec<Id>> {
-    qq_numbers(&args["users"], MOST)
-}
 
 /// `mention` 的一次调用（模块的说明）。
 pub(super) fn mention(call: Call) -> Planned {
@@ -66,29 +57,3 @@ async fn listed(
         .map(|member| (member.user, member.name))
         .collect())
 }
-
-/// 照缓存着的名字 `cached`、成员表 `listed` 认 `users`（纯逻辑）：交回（成员的名字，照先后；不是成员的号）。名字洗过，洗完空了的
-/// 写号。
-pub(crate) fn named(
-    users: &[Id],
-    cached: &HashMap<Id, String>,
-    listed: &HashMap<Id, Option<String>>,
-) -> (Vec<String>, Vec<String>) {
-    let mut names = Vec::new();
-    let mut strangers = Vec::new();
-    for user in users {
-        let name = match (cached.get(user), listed.get(user)) {
-            (Some(name), _) => Some(Some(name.clone())),
-            (None, Some(name)) => Some(name.as_deref().and_then(|name| clean(name, NAME))),
-            (None, None) => None,
-        };
-        match name {
-            Some(name) => names.push(name.unwrap_or_else(|| user.to_string())),
-            None => strangers.push(user.to_string()),
-        }
-    }
-    (names, strangers)
-}
-
-#[cfg(test)]
-mod tests;

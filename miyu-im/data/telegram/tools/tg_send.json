@@ -1,0 +1,4 @@
+{
+  "description": "Message a person (user) or a group you are in. For this chat, just reply.",
+  "parameters": {"type":"object","properties":{"user":{"type":"integer"},"group":{"type":"integer"},"text":{"type":"string"},"bot":{"type":"integer"}},"required":["text"]}
+}

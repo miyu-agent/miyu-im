@@ -6,8 +6,8 @@ use super::*;
 
 #[test]
 fn a_number_written_as_text_is_read() {
-    assert_eq!(qq_number(&json!(12345)), Some(12345));
-    assert_eq!(qq_number(&json!(" 12345 ")), Some(12345));
+    assert_eq!(number(&json!(12345)), Some(12345));
+    assert_eq!(number(&json!(" 12345 ")), Some(12345));
     for bad in [
         json!(0),
         json!(-3),
@@ -16,7 +16,7 @@ fn a_number_written_as_text_is_read() {
         json!(true),
         json!(null),
     ] {
-        assert_eq!(qq_number(&bad), None, "{bad}");
+        assert_eq!(number(&bad), None, "{bad}");
     }
     let args = json!({"user": "40001", "group": "群"});
     assert_eq!(optional_number(&args, "user", "u"), Ok(Some(40001)));
@@ -30,23 +30,19 @@ fn a_number_written_as_text_is_read() {
 #[test]
 fn a_list_is_deduplicated_and_kept_within_bounds() {
     assert_eq!(
-        qq_numbers(&json!([40001, "40002", 40001]), 32),
+        numbers(&json!([40001, "40002", 40001]), 32),
         Some(vec![Id::from(40001), Id::from(40002)])
     );
     assert_eq!(
-        qq_numbers(&json!("[40001, 40002]"), 32),
+        numbers(&json!("[40001, 40002]"), 32),
         Some(vec![Id::from(40001), Id::from(40002)]),
         "写成字的数组"
     );
-    assert_eq!(qq_numbers(&json!([]), 32), None);
-    assert_eq!(
-        qq_numbers(&json!([40001, "x"]), 32),
-        None,
-        "有写错的整个不收"
-    );
-    assert_eq!(qq_numbers(&json!(40001), 32), None);
+    assert_eq!(numbers(&json!([]), 32), None);
+    assert_eq!(numbers(&json!([40001, "x"]), 32), None, "有写错的整个不收");
+    assert_eq!(numbers(&json!(40001), 32), None);
     let many: Vec<i64> = (1..=33).collect();
-    assert_eq!(qq_numbers(&json!(many), 32), None);
+    assert_eq!(numbers(&json!(many), 32), None);
 }
 
 #[test]

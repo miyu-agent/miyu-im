@@ -97,6 +97,9 @@ pub fn copied_resources() -> PathBuf {
         "packages/miyu-im/data/onebot/tool-results",
         "packages/miyu-im/data/onebot/facts",
         "packages/miyu-im/data/onebot/prompts",
+        // Telegram 的工具（施工 I-183 下下）。
+        "packages/miyu-im/data/telegram/tools",
+        "packages/miyu-im/data/telegram/tool-results",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");

@@ -28,6 +28,7 @@ pub mod roots;
 pub mod second;
 pub mod spawning;
 pub mod speaking;
+pub mod telegram;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};

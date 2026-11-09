@@ -3,7 +3,7 @@
 //! 和 OneBot 一起交给宿主。
 //!
 //! 骨架（I-183 中上）：连上（`getMe`）、登记进宿主、长轮询、409 和 401 和 429、断线重连、代理、状态。I-183 中下收发字、引用、@、
-//! 话题、长文拆段。工具和页面随 I-183 下，图、贴表情、撤回、文件随 I-185。
+//! 话题、长文拆段。I-183 下上命令菜单，下中页面，下下工具（[`tools`]）；图、贴表情、撤回、文件随 I-185。
 
 mod api;
 mod bot;
@@ -15,11 +15,14 @@ mod receive;
 mod running;
 mod send;
 pub mod settings;
+pub mod tools;
 
 use std::sync::Arc;
 
 use miyu_im::chat::{Cap, Platform};
 use miyu_im::driver::{Driver, Gate, Probing, Started, TokenTable};
+use miyu_im::toolset::ToolSet;
+use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
 
 pub use api::{Failure, Proxy};
@@ -59,6 +62,12 @@ impl Driver for Telegram {
 
     fn probe(&self, params: Value, config: Map<String, Value>) -> Probing {
         Box::pin(probe::probe(params, config))
+    }
+
+    fn toolset(&self, tuning: &Tuning) -> Option<Arc<dyn ToolSet>> {
+        // 说话、记录的七件（I-183 下下）：不用 `bridge.json` 的参数。
+        let _ = tuning;
+        Some(Arc::new(tools::TgTools))
     }
 
     fn start(&self, gate: Arc<Gate>) -> Started {
