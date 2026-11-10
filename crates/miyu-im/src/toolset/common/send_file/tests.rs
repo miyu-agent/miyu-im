@@ -211,18 +211,20 @@ fn a_folder_swapped_for_a_link_is_not_walked_through() {
 
 #[test]
 fn only_plain_names_below_the_workspace_are_walked() {
-    let workspace = Path::new("/srv/ws");
-    let base = Path::new("/real/ws");
+    // 绝对路径照系统的写法拼（Windows 上 `/srv/ws` 不算绝对路径）。
+    let root = std::env::temp_dir();
+    let (workspace, base) = (root.join("srv-ws"), root.join("real-ws"));
+    let (workspace, base) = (workspace.as_path(), base.as_path());
     assert_eq!(
         below(workspace, base, Path::new("out/./a.pdf")),
         Some(parts("out/a.pdf"))
     );
     assert_eq!(
-        below(workspace, base, Path::new("/srv/ws/out/a.pdf")),
+        below(workspace, base, &workspace.join("out").join("a.pdf")),
         Some(parts("out/a.pdf"))
     );
     assert_eq!(
-        below(workspace, base, Path::new("/real/ws/a.pdf")),
+        below(workspace, base, &base.join("a.pdf")),
         Some(parts("a.pdf"))
     );
     for bad in ["../a.pdf", "out/../../a.pdf", "/etc/passwd", ".", ""] {
