@@ -214,3 +214,33 @@ fn amounts_are_split_kept_by_day_and_currency_and_old_rows_count_as_unpriced() {
     assert_eq!(found["qq:2"][2].unpriced, 0);
     assert_eq!(found["qq:9"], <[Costs; 3]>::default(), "没用过的是空的");
 }
+
+#[test]
+fn a_ledger_left_with_only_one_of_the_two_amount_columns_gets_the_other() {
+    // 施工 I-205（core1 审出来的）：两列是分两句加的，加了 `amount` 就断了的库，下回打开得把 `currency` 补上，
+    // 不然往后每一笔都写不进（没有这一列）。
+    let dir = dir("half-migrated");
+    std::fs::create_dir_all(&dir).expect("建得了");
+    let half = rusqlite::Connection::open(dir.join(FILE)).expect("开得了");
+    half.execute_batch(
+        "CREATE TABLE spent (session TEXT NOT NULL, seq INTEGER NOT NULL, person TEXT NOT NULL,
+            venue TEXT NOT NULL, at INTEGER NOT NULL, tokens INTEGER NOT NULL, amount REAL,
+            PRIMARY KEY (session, seq, person));",
+    )
+    .expect("建得了");
+    drop(half);
+    let spent = Spent::open(&dir.join(FILE));
+    let lin = person("qq:1");
+    let cost = Some((0.5, "USD"));
+    spent.charge(
+        &Charge {
+            cost,
+            ..charge(1, NOW - 1000, 100)
+        },
+        std::slice::from_ref(&lin),
+        NOW,
+    );
+    assert_eq!(since(&dir, "qq:1", 0), 100, "写得进");
+    let found = costs(&dir.join(FILE), &["qq:1".to_string()], NOW).expect("读得出");
+    assert_eq!(found["qq:1"][0].parts, [(day(NOW), "USD".to_string(), 0.5)]);
+}

@@ -230,13 +230,14 @@ fn prepared(path: &Path) -> rusqlite::Result<Connection> {
     connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.execute_batch(SCHEMA)?;
     // 施工 I-205 以前建的库没有金额的两列：补上（老的行是空的，照「没记录金额」读）。
-    let has_amount = connection
-        .prepare("SELECT 1 FROM pragma_table_info('spent') WHERE name = 'amount'")?
-        .exists([])?;
-    if !has_amount {
-        connection.execute_batch(
-            "ALTER TABLE spent ADD COLUMN amount REAL; ALTER TABLE spent ADD COLUMN currency TEXT;",
-        )?;
+    // 一列一列看、缺哪一列补哪一列：两列不是一起加的（加了一列就断了的库，下回还得补上另一列）。
+    for (column, kind) in [("amount", "REAL"), ("currency", "TEXT")] {
+        let has = connection
+            .prepare("SELECT 1 FROM pragma_table_info('spent') WHERE name = ?1")?
+            .exists([column])?;
+        if !has {
+            connection.execute_batch(&format!("ALTER TABLE spent ADD COLUMN {column} {kind};"))?;
+        }
     }
     Ok(connection)
 }
