@@ -135,6 +135,8 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
     };
     // 堆照核心那一套调（施工 I-98）：还没起别的线程时调一次，大块不再碎在堆里。
     miyu_client::heap::tune();
+    // 打开文件数的软上限照核心那一套调高（施工 YC-10，压测报告 F1）：也要在起别的线程以前；调不上去的等运行日志装好再记。
+    let raised = matches!(command, Command::Serve).then(miyu_client::open_files::raise);
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(runtime) => runtime,
         Err(error) => return fail(&texts, error.to_string()),
@@ -147,7 +149,10 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         return fail(&texts, error.to_string());
     }
     let code = match command {
-        Command::Serve => runtime.block_on(serve(root, &env, locale, (&mut texts, drivers))),
+        Command::Serve => {
+            let limit = raised.and_then(Result::err);
+            runtime.block_on(serve(root, (&env, locale, limit), (&mut texts, drivers)))
+        },
         Command::Control(which) => {
             let core: CoreCommand = Arc::new(core);
             runtime.block_on(control(
@@ -241,8 +246,7 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
 /// 交回退出码。
 async fn serve(
     root: DataRoot,
-    env: &Env,
-    locale: Option<String>,
+    (env, locale, limit): (&Env, Option<String>, Option<std::io::Error>),
     (texts, drivers): (&mut Texts, Vec<Arc<dyn Driver>>),
 ) -> u8 {
     let log = miyu_client::log::install(
@@ -251,6 +255,9 @@ async fn serve(
         miyu_client::log::LevelFilter::INFO,
         env.home.as_deref(),
     );
+    if let Some(error) = limit {
+        tracing::warn!(target: TARGET, error = %error, "open files not raised");
+    }
     // 运行日志装不上的那一句先欠着：握手回了语言照它说；握手以前就起不来的，说起不来的原因以前先说（「施工时定的」第 42 条）。
     let owed = Arc::new(Mutex::new(log.err().map(|error| error.to_string())));
     let package = texts.package().clone();
