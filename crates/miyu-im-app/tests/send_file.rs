@@ -102,11 +102,14 @@ async fn two_results(home: &Home) -> Vec<String> {
         .collect()
 }
 
-/// im 钉文件的目录（真实位置）。
+/// im 钉文件的目录（真实位置）：Windows 上去掉 `canonicalize` 给的 `\\?\` 前缀，同 im 交给 NapCat 的写法。
 fn outbox(home: &Home) -> PathBuf {
-    std::fs::canonicalize(miyu_im::dirs::state(&home.root))
+    let real = std::fs::canonicalize(miyu_im::dirs::state(&home.root))
         .expect("有状态目录")
-        .join("qq/outbox")
+        .join("qq")
+        .join("outbox");
+    let text = real.to_string_lossy();
+    PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text))
 }
 
 #[tokio::test]
