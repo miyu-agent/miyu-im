@@ -1,5 +1,6 @@
 // 使用限制页（设计 08 第二节第 6 条，施工 I-136）：每个人最近 5 小时、7 天、30 天最多用多少 token，一个人在所有群和私聊里合起来算。
-// 三段：默认的三条线（对所有人）、单独设的人（整组替换默认的，三格都空是不限）、最近 30 天用过的人（照 5 小时的用量排，满了的标红）。
+// 三段：默认的三条线（对所有人）、单独设的人（整组替换默认的，三格都空是不限）、最近 30 天用过的人（照 5 小时的用量排，满了的标红；
+// 每一格用量下面写这一段时间已花的钱，施工 I-205：只是看，上限照旧按 token）。
 // 会话自己的上限在会话卡片「节奏」页，不在这里。
 //
 // - 读写经宿主的 limits.get、limits.set（整份替换 im 配置目录里的 limits.toml）；改了当场存，存不成的提示一句、重读一遍。
@@ -15,7 +16,7 @@ import { listing } from '../../shell/listing.js';
 import { personPick } from '../../shell/person-pick.js';
 import { sect } from '../../shell/sect.js';
 import { chosenOf } from '../../shell/connection.js';
-import { short } from '../stats/stats.js';
+import { short, spent } from '../stats/stats.js';
 import { platform } from '../home/platforms.js';
 
 /** 三条线的键，照 5 小时、7 天、30 天。 */
@@ -200,17 +201,25 @@ function usage(list, state, platforms) {
   for (const key of KEYS) header.append(element('span', 'th num', say(`limits-page/${key}`)));
   const items = list.map((one) => {
     const line = element('div', 'limits-usage-row');
-    const who = element('span', one.full ? 'name full' : 'name', one.name ? `${one.name} · ${one.id}` : one.id);
-    who.title = who.textContent;
+    const label = one.name ? `${one.name} · ${one.id}` : one.id;
+    const who = element('span', one.full ? 'name full' : 'name', label);
+    who.title = label;
+    // 没记录金额的请求（施工 I-205）：照 30 天的数，写在名字下面一行小字。
+    const unpriced = one.costs?.[2]?.unpriced || 0;
+    if (unpriced > 0) who.append(element('small', 'limits-cost', say('stats/unpriced', { count: unpriced.toLocaleString() })));
     line.append(who);
     one.used.forEach((used, at) => {
       const limit = one.caps[at];
       const reached = limit != null && used >= limit;
       const text = limit == null ? short(used) : `${short(used)} / ${short(limit)}`;
-      line.append(element('span', reached ? 'num full' : 'num', text));
+      const cell = element('span', reached ? 'num full' : 'num', text);
+      // 已花的钱（施工 I-205，项目主人 11-10）：这一段时间花了多少，写在用量下面；一笔都没有的不写。
+      const cost = one.costs?.[at];
+      if (cost && (cost.amount != null || (cost.unconverted || []).length > 0)) cell.append(element('small', 'limits-cost', spent(cost)));
+      line.append(cell);
     });
     const numbers = Object.fromEntries(KEYS.map((key, at) => [key, one.used[at] ?? 0]));
-    return { node: line, text: who.textContent, tags: { full: one.full ? 'full' : 'under', platform: platformOf(one.id) }, numbers };
+    return { node: line, text: label, tags: { full: one.full ? 'full' : 'under', platform: platformOf(one.id) }, numbers };
   });
   const table = listing(items, {
     search: say('listing/search'),
