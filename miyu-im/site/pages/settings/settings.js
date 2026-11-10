@@ -179,7 +179,8 @@ function appearance() {
 }
 
 /** 访问（施工 I-167）：向局域网开放（`im.web.listen` 写 `0.0.0.0`，关了写回 `127.0.0.1`）、端口；开着的再给一张局域网网址的卡
- *  （lan-card.js），问不到地址的写一句。局域网来的用核心的访问密码登录。 */
+ *  （lan-card.js），问不到地址的写一句。局域网来的用核心的访问密码登录。施工 I-193（照网页软件 W-1135）：每块网卡的地址都列，卡照
+ *  第一个画、网址后面暗字写网卡名，别的写在卡下面「其他网卡：网址（网卡名）、…」；im 跑在 macOS 上的多一句去哪放行防火墙。 */
 function site(got, save) {
   const open = got.listen === '0.0.0.0';
   const lan = element('button', open ? 'switch on' : 'switch');
@@ -194,6 +195,21 @@ function site(got, save) {
     else toast(say('failed/invalid'));
   });
   const rows = [row(say('settings-page/lan'), say('settings-page/lan-hint'), lan), row(say('settings-page/port'), say('settings-page/port-hint'), port)];
-  if (open) rows.push(got.lan ? lanCard(`http://${got.lan}/`) : element('p', 'faint', say('settings-page/lan-unknown')));
+  if (open) rows.push(...lanRows(got));
   return section('settings-page/site', 'settings-page/site-hint', rows);
+}
+
+/** 开着局域网时卡片下面的几行（施工 I-193）：`got.lans` 是 `[{address, card}]`，`got.lan` 是第一个的地址。 */
+function lanRows(got) {
+  if (!got.lan) return [element('p', 'faint', say('settings-page/lan-unknown'))];
+  const all = Array.isArray(got.lans) ? got.lans.filter((one) => typeof one?.address === 'string') : [];
+  const url = (address) => `http://${address}/`;
+  const mine = all.find((one) => one.address === got.lan)?.card ?? null;
+  const others = all
+    .filter((one) => one.address !== got.lan)
+    .map((one) => (one.card ? `${url(one.address)}（${one.card}）` : url(one.address)));
+  const rows = [lanCard(url(got.lan), mine)];
+  if (others.length) rows.push(element('p', 'faint', say('settings-page/lan-others').replace('{urls}', others.join('、'))));
+  if (got.macos) rows.push(element('p', 'faint', say('settings-page/lan-mac-firewall')));
+  return rows;
 }

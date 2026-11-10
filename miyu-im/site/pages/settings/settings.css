@@ -16,6 +16,7 @@
 .lan-qr { flex: none; width: var(--lan-qr-size); height: var(--lan-qr-size); border-radius: 8px; }
 .lan-side { display: flex; flex-direction: column; gap: 6px; flex: 1 1 220px; min-width: 0; }
 .lan-label { margin: 0; font-weight: 500; }
-.lan-address { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lan-address { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .lan-url { min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12.5px; }
+.lan-nic { color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
 .lan-scan { margin: 0; color: var(--text-faint); font-size: 12px; }

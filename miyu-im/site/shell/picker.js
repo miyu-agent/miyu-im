@@ -111,10 +111,11 @@ export function pickButton(text, open) {
 /**
  * 模糊匹配（施工 I-50，项目主人 10-27：选模型的搜索要模糊）：`query` 照空白拆成几个词，每个词都要在 `text` 里找得到（不分大小写，
  * 先后不论）：整个出现的算 2 分，字照先后零散出现的（「g38f」配「gemini-3.8-flash」）算 1 分；有一个词找不到的是 -1。空的都配。
+ * 比的时候只看小写的字母数字（施工 I-191，同 QQ 里的 `/model search`）：`opus5.5` 对得上 `claude-opus-5-5`；只有标点的词不算。
  */
 export function fuzzy(query, text) {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hay = text.toLowerCase();
+  const words = query.split(/\s+/).map(squashed).filter(Boolean);
+  const hay = squashed(text);
   let score = 0;
   for (const word of words) {
     if (hay.includes(word)) {
@@ -130,4 +131,9 @@ export function fuzzy(query, text) {
     score += 1;
   }
   return score;
+}
+
+/** 比的时候只看的字：小写的字母数字（`claude-opus-5-5` 是 `claudeopus55`）。 */
+function squashed(text) {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 }

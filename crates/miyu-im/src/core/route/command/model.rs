@@ -2,18 +2,20 @@
 //! `unknown_command`，照普通的话交给她，她多半不理）：桥自己办，不交核心。只给终端管理员和场所规则 `managers` 里的人（听得到被拒的
 //! 那一句的那几个，`hears_refusals`），别人打了照原来交核心。
 //!
-//! 项目主人 10-27 又定（施工 I-57）：模型太多，不一口气全列；搜和换分开，换只认确切的名字，免得模糊找错了就换掉。
+//! 项目主人 10-27 又定（施工 I-57）：搜和换分开，换只认确切的名字，免得模糊找错了就换掉。11-10 又定（施工 I-191：名字太长抄不了，
+//! 只列 10 个看不全）：全列、带编号，照编号换。
 //!
 //! - `/model`：说这个会话现在用哪个模型（卡片上选了的写它，没选的写「跟随默认（…）」），再说一行怎么用。
-//! - `/model search <关键词>`：照核心 `model.list` 列的池（`@<池>`）和模型（`<供应商>/<模型>`）模糊找，列出前 [`SHOWN`] 个，多的说
-//!   还有几个；正在用的那个标出来。模糊：照空白拆词，每个词都要有，先后不论，字照先后零散出现也算（同后台选模型，I-50）。没写
-//!   关键词的照先后列（池在前）。
-//! - `/model <名字>`：确切的名字（不分大小写）写进这个会话的卡片 `model`（同后台卡片上选，`cards.save_one`；项目主人 10-27 定：
-//!   改卡片，不只管这一段对话）。只写了模型那一段（最后一个 `/` 后面）、又只有一个对得上的也算。对不上的说没有，提示去搜。
+//! - `/model search [<关键词>]`：照核心 `model.list` 列的池（`@<池>`）和模型（`<供应商>/<模型>`）编号（池在前，从 1 起），没写
+//!   关键词的全列，写了的列对得上的，编号照全部里的那个；正在用的那个标出来。模糊：照空白拆词，每个词都要有，先后不论，字照先后
+//!   零散出现也算（同后台选模型，I-50）；比的时候不分大小写、只看字母数字（`opus5.5` 对得上 `opus-5-5`）。
+//! - `/model <编号>` 或 `/model <名字>`：写进这个会话的卡片 `model`（同后台卡片上选，`cards.save_one`；项目主人 10-27 定：改卡片，
+//!   不只管这一段对话）。名字要确切（不分大小写），只写了模型那一段（最后一个 `/` 后面）、又只有一个对得上的也算。对不上的说
+//!   没有，提示去搜。
 //! - `/model 默认`（`default` 同）：卡片上的模型去掉，跟随默认。
 //!
-//! 这个会话没有自己的卡片（陌生群、陌生私聊）的不改兜底卡（会改到所有陌生的会话），说先在后台给它加一张卡片。回的那一句照回执
-//! 发（不撤回）。字照连接的语言，在出厂的 `cards/human/page.json`（`model-*`）。
+//! 这个会话还没有自己的卡片的（陌生群、陌生私聊）先给它建一张、只写模型（施工 I-191，同后台「加卡片」），不改兜底卡（会改到
+//! 所有陌生的会话）。回的那一句照回执发（不撤回）。字照连接的语言，在出厂的 `cards/human/page.json`（`model-*`）。
 
 use miyu_chat::Venue;
 use serde_json::{Value, json};
@@ -22,9 +24,6 @@ use super::super::{Message, Route};
 use crate::TARGET;
 use crate::chat::To;
 use crate::core::Gone;
-
-/// 找到几个时最多列几个。
-const SHOWN: usize = 10;
 
 /// 去掉卡片上的模型的说法。
 const DEFAULTS: [&str; 3] = ["默认", "default", "既定"];
@@ -72,8 +71,12 @@ pub(super) fn model_query(text: &str) -> Option<&str> {
     }
 }
 
-/// 确切的名字 `query` 在 `names` 里是哪个（见模块开头）：整个一样的（不分大小写），没有的看模型那一段，只有一个对得上才算。
+/// `query` 说的是 `names` 里哪个（见模块开头）：编号（从 1 起）；整个一样的名字（不分大小写），没有的看模型那一段，只有一个
+/// 对得上才算。
 pub(super) fn exact(query: &str, names: &[String]) -> Option<String> {
+    if let Ok(number) = query.parse::<usize>() {
+        return number.checked_sub(1).and_then(|at| names.get(at)).cloned();
+    }
     if let Some(name) = names.iter().find(|name| name.eq_ignore_ascii_case(query)) {
         return Some(name.clone());
     }
@@ -87,30 +90,40 @@ pub(super) fn exact(query: &str, names: &[String]) -> Option<String> {
     }
 }
 
-/// 照关键词 `query` 在 `names` 里搜（见模块开头）：交回照像不像排的前 [`SHOWN`] 个和还有几个没列；关键词是空的照原来的先后。
-pub(super) fn search(query: &str, names: &[String]) -> (Vec<String>, usize) {
-    let mut scored: Vec<(u32, &String)> = names
+/// 照关键词 `query` 在 `names` 里搜（见模块开头）：交回对得上的全部，带它在 `names` 里的编号（从 1 起），照像不像排；关键词是
+/// 空的全列、照原来的先后。
+pub(super) fn search(query: &str, names: &[String]) -> Vec<(usize, String)> {
+    let mut scored: Vec<(u32, usize, &String)> = names
         .iter()
-        .filter_map(|name| fuzzy(query, name).map(|score| (score, name)))
+        .enumerate()
+        .filter_map(|(at, name)| fuzzy(query, name).map(|score| (score, at + 1, name)))
         .collect();
     if !query.trim().is_empty() {
-        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     }
-    let more = scored.len().saturating_sub(SHOWN);
-    let shown = scored
+    scored
         .into_iter()
-        .take(SHOWN)
-        .map(|(_, name)| name.clone())
-        .collect();
-    (shown, more)
+        .map(|(_, number, name)| (number, name.clone()))
+        .collect()
 }
 
-/// 模糊匹配的分（见模块开头）：整个出现的词 2 分，字照先后零散出现的 1 分；有一个词找不到的是空的。
+/// 比的时候只看的字：小写的字母数字（`claude-opus-5-5` 是 `claudeopus55`）。
+fn squashed(text: &str) -> String {
+    text.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// 模糊匹配的分（见模块开头）：整个出现的词 2 分，字照先后零散出现的 1 分；有一个词找不到的是空的。只有标点的词不算。
 fn fuzzy(query: &str, text: &str) -> Option<u32> {
-    let hay = text.to_lowercase();
+    let hay = squashed(text);
     let mut score = 0;
-    for word in query.to_lowercase().split_whitespace() {
-        if hay.contains(word) {
+    for word in query.split_whitespace().map(squashed) {
+        if word.is_empty() {
+            continue;
+        }
+        if hay.contains(&word) {
             score += 2;
             continue;
         }
@@ -174,7 +187,7 @@ impl Route {
                 None => words.get("model-none", &lang).replace("{query}", name),
             },
             Asked::Search(keywords) => {
-                let (names, more) = search(keywords, &choices(listed));
+                let names = search(keywords, &choices(listed));
                 if names.is_empty() {
                     words
                         .get("model-search-none", &lang)
@@ -182,20 +195,11 @@ impl Route {
                 } else {
                     let using = self.using(message, listed);
                     let mut said = words.get("model-found", &lang);
-                    for name in names {
-                        said.push('\n');
-                        said.push_str(&name);
+                    for (number, name) in names {
+                        said.push_str(&format!("\n{number}. {name}"));
                         if using.as_deref() == Some(name.as_str()) {
                             said.push_str(&words.get("model-using-mark", &lang));
                         }
-                    }
-                    if more > 0 {
-                        said.push('\n');
-                        said.push_str(
-                            &words
-                                .get("model-more", &lang)
-                                .replace("{count}", &more.to_string()),
-                        );
                     }
                     said
                 }
@@ -291,7 +295,7 @@ impl Route {
             To::Group(group) => json!({"kind": "group", "platform": platform, "id": group}),
             To::Private(user) => json!({"kind": "private", "platform": platform, "id": user}),
         };
-        let saved = self.save_one(&json!({"card": card, "values": {"model": model}}));
+        let saved = self.save_one(&json!({"card": card, "values": {"model": model}}), true);
         match saved {
             Some(answer) if answer["saved"] == true => match model {
                 Some(model) => words.get("model-set", lang).replace("{model}", model),
