@@ -3,6 +3,11 @@
 
 use super::*;
 
+/// 照 `/` 拆成几段（测试写路径用）。
+fn parts(path: &str) -> Vec<std::ffi::OsString> {
+    path.split('/').map(std::ffi::OsString::from).collect()
+}
+
 /// 一个临时的场地（`name` 是测试自己的名字）：工作区 `ws/` 里一份 `out/report.pdf`，外面一份 `secret.txt`，`outbox/` 放钉住的。
 fn setup(name: &str) -> (PathBuf, PathBuf, PathBuf) {
     let root = std::env::temp_dir().join(format!("im-send-file-{}-{name}", std::process::id()));
@@ -182,7 +187,11 @@ fn a_file_swapped_for_a_link_after_the_check_is_not_copied_through_it() {
     let at = workspace.join("out/report.pdf");
     std::fs::remove_file(&at).expect("删得掉");
     std::os::unix::fs::symlink(root.join("secret.txt"), &at).expect("建得了链接");
-    assert_eq!(taken(&at, &outbox), Err(Refused::Link));
+    let base = std::fs::canonicalize(&workspace).expect("有工作区");
+    assert_eq!(
+        taken(&base, &parts("out/report.pdf"), &outbox),
+        Err(Refused::Link)
+    );
     let leaked = std::fs::read_dir(&outbox)
         .into_iter()
         .flatten()
@@ -190,4 +199,54 @@ fn a_file_swapped_for_a_link_after_the_check_is_not_copied_through_it() {
         .any(|entry| std::fs::read(entry.path()).is_ok_and(|bytes| bytes == b"key"));
     assert!(!leaked, "外面那份的内容没拷进 outbox");
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_folder_swapped_for_a_link_is_not_walked_through() {
+    // core1 11-10 审出来的第二处：判完到开之间把工作区里的子目录换成指向外面目录（`~/.ssh` 这类）的链接，只管最后一段的
+    // `O_NOFOLLOW` 拦不住中间那一段。一级一级往下开、每一级都不跟链接：中间那一段是链接的照样不开，`outbox/` 里没有外面的内容。
+    let (root, workspace, outbox) = setup("folder");
+    let outer = root.join("outer");
+    std::fs::create_dir_all(&outer).expect("建得了");
+    std::fs::write(outer.join("id_rsa"), b"private").expect("写得进");
+    std::fs::remove_dir_all(workspace.join("out")).expect("删得掉");
+    std::os::unix::fs::symlink(&outer, workspace.join("out")).expect("建得了链接");
+    let base = std::fs::canonicalize(&workspace).expect("有工作区");
+    assert_eq!(
+        taken(&base, &parts("out/id_rsa"), &outbox),
+        Err(Refused::Link)
+    );
+    assert_eq!(
+        pin(&workspace, Path::new("out/id_rsa"), &outbox),
+        Err(Refused::Link)
+    );
+    let leaked = std::fs::read_dir(&outbox)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| std::fs::read(entry.path()).is_ok_and(|bytes| bytes == b"private"));
+    assert!(!leaked, "外面那份的内容没拷进 outbox");
+    std::fs::remove_dir_all(root).expect("删得掉临时目录");
+}
+
+#[test]
+fn only_plain_names_below_the_workspace_are_walked() {
+    let workspace = Path::new("/srv/ws");
+    let base = Path::new("/real/ws");
+    assert_eq!(
+        below(workspace, base, Path::new("out/./a.pdf")),
+        Some(parts("out/a.pdf"))
+    );
+    assert_eq!(
+        below(workspace, base, Path::new("/srv/ws/out/a.pdf")),
+        Some(parts("out/a.pdf"))
+    );
+    assert_eq!(
+        below(workspace, base, Path::new("/real/ws/a.pdf")),
+        Some(parts("a.pdf"))
+    );
+    for bad in ["../a.pdf", "out/../../a.pdf", "/etc/passwd", ".", ""] {
+        assert_eq!(below(workspace, base, Path::new(bad)), None, "{bad}");
+    }
 }
