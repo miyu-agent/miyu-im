@@ -192,6 +192,11 @@ fn blank() -> Params {
             severity_min: 0,
             judge_called: false,
             skip_users: Vec::new(),
+            sample: crate::chatty::Sample {
+                on: false,
+                rate: 0,
+                skip_media: false,
+            },
         },
         repeat_window: 0,
         supersede_window: 0,

@@ -20,7 +20,7 @@ fn every_item_lands_in_its_own_field() {
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
          person_restraint = false\nperson_half_life = \"34s\"\nperson_start = 3.1\nperson_full = 3.2\nperson_cap = 3.3\n\
          group_restraint = false\ngroup_half_life = \"35s\"\ngroup_start = 3.4\ngroup_full = 3.5\ngroup_cap = 3.6\n\
-         severity_min = 9\njudge_called = false\nskip_users = [\"qq:1\"]\n\
+         severity_min = 9\njudge_called = false\nskip_users = [\"qq:1\"]\nsample = true\nsample_rate = 51\nsample_skip_media = false\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nattempt_timeout = \"15s\"\nretries = 2\nreason_chars = 29\n\
@@ -73,6 +73,11 @@ fn every_item_lands_in_its_own_field() {
             severity_min: 9,
             judge_called: false,
             skip_users: vec!["qq:1".to_string()],
+            sample: crate::chatty::Sample {
+                on: true,
+                rate: 51,
+                skip_media: false,
+            },
         },
         repeat_window: 33_000,
         supersede_window: 24_000,

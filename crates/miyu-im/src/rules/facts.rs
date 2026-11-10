@@ -27,6 +27,9 @@ const ANOTHER_LINE_FIELDS: &[&str] = &["msgs"];
 /// 违规预检的结论（施工 I-16，照旧版 `<qq-moderation-precheck>`）在出厂目录里的位置。
 const PRECHECK: &str = "facts/precheck.txt";
 
+/// 概率触发抽中、没过判官直接开的那一轮带的一句（设计 12，施工 I-197）在出厂目录里的位置。
+const SAMPLED: &str = "facts/sampled.txt";
+
 /// 时不时看一眼那一轮带的一句（设计 05，施工 I-89）在出厂目录里的位置。
 const GLANCE: &str = "facts/glance.txt";
 
@@ -116,6 +119,8 @@ pub(super) struct Facts {
     pub(super) reached: Template,
     /// 违规预检（施工 I-16）。
     pub(super) precheck: Template,
+    /// 概率触发（施工 I-197）。
+    pub(super) sampled: Template,
     /// 时不时看一眼（施工 I-89）。
     pub(super) glance: Template,
     /// 会话的说话方式（施工 I-140）。
@@ -137,6 +142,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let plugin_note = template(dir, PLUGIN_NOTE, PLUGIN_NOTE_FIELDS, problems);
     let reached = template(dir, REACHED, REACHED_FIELDS, problems);
     let precheck = template(dir, PRECHECK, PRECHECK_FIELDS, problems);
+    let sampled = template(dir, SAMPLED, &[], problems);
     let glance = template(dir, GLANCE, &[], problems);
     let style_note = template(dir, STYLE_NOTE, STYLE_NOTE_FIELDS, problems);
     let context_style = template(dir, CONTEXT_STYLE, &[], problems);
@@ -152,6 +158,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         plugin_note: plugin_note?,
         reached: reached?,
         precheck: precheck?,
+        sampled: sampled?,
         glance: glance?,
         style_note: style_note?,
         context_style: context_style?,
@@ -208,6 +215,11 @@ impl super::Venues {
     /// 违规预检的结论（施工 I-16）：出厂的，跑着不再读。
     pub fn precheck(&self) -> &Template {
         &self.factory.facts.precheck
+    }
+
+    /// 概率触发抽中直接开的那一轮带的一句（施工 I-197）：出厂的，跑着不再读。
+    pub fn sampled(&self) -> &Template {
+        &self.factory.facts.sampled
     }
 
     /// 时不时看一眼那一轮带的一句（施工 I-89）：出厂的，跑着不再读。

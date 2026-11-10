@@ -73,6 +73,11 @@ pub(crate) fn chatty() -> Chatty {
         severity_min: 7,
         judge_called: true,
         skip_users: Vec::new(),
+        sample: crate::chatty::Sample {
+            on: false,
+            rate: 50,
+            skip_media: true,
+        },
     }
 }
 
