@@ -28,6 +28,30 @@ impl Projection {
         })
     }
 
+    /// 线 `line` 这一轮是不是管理的人直接叫她开的（施工 I-204，core1 审出来的：照「她这时看到的最新一条是谁发的」认，看一眼、概率
+    /// 抽中、并进来的一轮里普通群友的话能借管理的人后说的一句放行）。要三样都对：开这一轮的那一条是冲她来的（@、引用她、触发词；
+    /// 看一眼、定时任务开的没有那一条，概率抽中的不算冲她来）；这一轮在回的每一条（连并进来的）都是管理的人发的；`manages` 认一个
+    /// 人算不算管理的人（终端管理员照投影记的另算）。
+    pub(in crate::core::route) fn commanded(
+        &self,
+        line: &str,
+        manages: impl Fn(&ExternalId) -> bool,
+    ) -> bool {
+        let Some(running) = self.track(line).and_then(|track| track.running.as_ref()) else {
+            return false;
+        };
+        let direct = running
+            .opened
+            .and_then(|seq| self.said.get(&seq))
+            .is_some_and(|opener| opener.direct);
+        direct
+            && running.msgs.iter().all(|seq| {
+                self.said
+                    .get(seq)
+                    .is_some_and(|speaker| speaker.admin || manages(&speaker.id))
+            })
+    }
+
     /// 线 `line`（主线或者支线，O-36）这一轮的回合编号（施工 O-33：`fetch_media` 一轮取几次照它数）；那条线不在跑的是空的。
     pub(in crate::core::route) fn turn(&self, line: &str) -> Option<u64> {
         self.track(line)?
