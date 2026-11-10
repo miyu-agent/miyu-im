@@ -84,14 +84,12 @@ fn swapping_the_file_for_a_link_after_the_check_does_not_change_what_is_sent() {
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }
 
-#[cfg(not(unix))]
 #[test]
-fn without_inodes_a_file_is_not_sent() {
-    let (root, workspace, outbox) = setup("no-inodes");
-    assert_eq!(
-        pin(&workspace, Path::new("out/report.pdf"), &outbox),
-        Err(Refused::Unsendable)
-    );
+fn a_file_in_the_workspace_is_sent_on_every_system() {
+    // 施工 I-185 下下（项目主人 11-10：文件应该让发，别管什么身份）：原来不是 Unix 的系统一律不传，现在钉一份照传。
+    let (root, workspace, outbox) = setup("every-system");
+    let pinned = pin(&workspace, Path::new("out/report.pdf"), &outbox).expect("认");
+    assert_eq!(std::fs::read(&pinned.path).expect("钉住了"), b"%PDF-1.7");
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }
 
