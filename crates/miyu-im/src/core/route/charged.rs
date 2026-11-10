@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use super::Route;
 use crate::chat::To;
-use crate::spent::{Charge, Spent, personal};
+use crate::spent::{Charge, Spent, personal, priced};
 
 /// 私聊里记着最近几条人说的话的序号：排着队接着开的一轮，触发是排着的最后一条，不会隔太远。
 const SAID: usize = 64;
@@ -102,12 +102,17 @@ impl Charging {
 
     /// 记一笔。
     fn charge(&self, line: &str, venue: &str, event: &Event, tokens: u64, payers: &[ExternalId]) {
+        // 核心算好的这一次的金额（施工 I-205）：跟着用量一起记。
+        let cost = priced(event);
         let charge = Charge {
             session: line,
             seq: event.seq.get(),
             venue,
             at: event.at.unix_millis(),
             tokens,
+            cost: cost
+                .as_ref()
+                .map(|(amount, currency)| (*amount, currency.as_str())),
         };
         self.spent.charge(&charge, payers, now());
     }

@@ -94,7 +94,7 @@ pub(super) async fn answer(
         }
         Some("models") => venues::models(&login.person).await,
         Some("presets") => venues::presets(&login.person).await,
-        Some("limits.get") => limits_page::get(site).await,
+        Some("limits.get") => limits_page::get(site, &login.person).await,
         Some("limits.set") => limits_page::set(site, params),
         Some("moderation.get") => moderation::get(site),
         Some("moderation.set") => moderation::set(site, params),
