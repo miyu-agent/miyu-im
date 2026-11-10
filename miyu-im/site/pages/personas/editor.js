@@ -6,12 +6,13 @@
 // - 别处改过了（persona_conflict）写一句、给「重新读」；别的拒绝写核心的原话。
 // - 删除照核心给的 remove：改过的出厂「恢复出厂」、自己建的「删除」，先弹窗问（10-20）。出厂人格删了是连包卸掉，删前删后各读一次
 //   包表，多卸掉的那个写进提示。
-// - 网页软件这里还有「记忆 N 条 · 查看」：im 网页没有记忆页，不放。
+// - 「记忆 · 查看」（施工 I-207，memory.js）：只看这个人格记了什么，要改、要删去主网页。
 import { element, say } from '../../shell/i18n.js';
 import { confirmFirst, openDialog, toast } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
 import { area, cleanPairs, halfPair, pairsEditor } from './pairs.js';
 import { appearance } from './appearance.js';
+import { openMemory } from './memory.js';
 
 /** 开人格 `id` 的详情：`name` 是列表里写的（读完以前标题先写它），存了调 `hooks.saved()`，删了调 `hooks.removed(remains)`；
  *  `fresh` 是刚建的，读完焦点放到具体提示词。 */
@@ -91,6 +92,13 @@ export function openPersona(request, id, name, hooks, fresh = false) {
     if (fresh) fields.persona.focus();
   };
 
+  // 「记忆」那一行右边的「查看」（施工 I-207）：另开一个浮窗，只看。
+  const memoryButton = () => {
+    const button = element('button', 'btn ghost', say('memory/view'));
+    button.addEventListener('click', () => openMemory(request, id, before.name || say('personas/untitled')));
+    return button;
+  };
+
   const draw = () => {
     dialog.setTitle(before.name || say('personas/untitled'));
     const name = element('input', 'input persona-input');
@@ -123,6 +131,7 @@ export function openPersona(request, id, name, hooks, fresh = false) {
       field('personas/examples', pairs.el),
       field('personas/reminders', reminders),
       switchRow('personas/subagent', subagent),
+      switchRow('memory/row', memoryButton()),
       message,
     );
     dialog.foot.replaceChildren(...(remove ? [removeButton()] : []), element('span', 'grow'), cancel, save);

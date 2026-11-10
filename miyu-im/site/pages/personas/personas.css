@@ -66,3 +66,9 @@
 .persona-focus-frame { display: block; border-radius: 8px; background-size: cover; }
 .persona-focus-frame.narrow { width: 60px; height: 100px; }
 .persona-focus-frame.wide { width: 160px; height: 90px; }
+
+/* 看人格的记忆（施工 I-207，memory.js）：一条一行，下面一行小字；不画描边。 */
+.memory-body { display: flex; flex-direction: column; gap: 12px; min-width: min(560px, 80vw); }
+.memory-row { padding: 8px 0; }
+.memory-row small { color: var(--text-soft); }
+.memory-text { white-space: pre-wrap; overflow-wrap: anywhere; }

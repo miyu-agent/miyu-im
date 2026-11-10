@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 use super::Person;
 
 /// 页面能经转发口调的核心方法。
-pub(super) const ALLOWED: [&str; 25] = [
+pub(super) const ALLOWED: [&str; 26] = [
     "persona.list",
     "persona.get",
     "persona.read",
@@ -40,6 +40,8 @@ pub(super) const ALLOWED: [&str; 25] = [
     "blob.close",
     "package.list",
     "memory.list",
+    // 看人格的记忆（施工 I-207）：认识的人的卡。只有读的，改、删不放。
+    "memory.cards",
 ];
 
 /// 下一个命令编号的序号。
