@@ -22,6 +22,11 @@ Telegram 里 AI 给人看的图、文件（`show`）I-185 中起发得出去，�
    - 登记簿五行。
    - Telegram 的工具面十件 851 个 token、1902 字节，在预算（4312）以内。
 
+### 坑
+
+- 第一趟 CI 只红在 Windows：传文件原来（施工 I-130）只在 Unix 上做，别的系统核不了 inode 一律不传，`send_file` 的集成测试也只在 Unix 上跑；新加的 Telegram 那条没照着关。
+- 项目主人 11-10 定「文件应该让发，别管什么身份」：链好以后照 inode 再核一遍那一手去掉，链不了的（跨文件系统、Windows）拷一份，哪个系统都传。QQ、Telegram 两条集成测试都不再只在 Unix 上跑，「没 inode 不传」那条单元测试换成「哪个系统都传」。
+
 ### 验收
 
 - 集成测试 `telegram_send_file`（真核心、本机假 Bot API）：
