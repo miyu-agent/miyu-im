@@ -29,6 +29,7 @@ mod commands;
 mod contacts;
 mod control;
 mod core;
+mod core_refusals;
 mod defaults_moved;
 mod dependencies;
 mod disciplines;

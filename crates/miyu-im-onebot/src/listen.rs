@@ -14,7 +14,7 @@
 //!
 //! 外人连进来（施工 I-94，发布前审查 I2-1：端口出厂听 `0.0.0.0`）：一条连接只收一个请求，回了别的（401、404、400）就关，不留着
 //! 等下一个；`handshake_seconds` 以内读不完请求头的关掉；还没升级的连接同时最多 `pending_connections` 条，一个来源地址最多
-//! `pending_per_source` 条（施工 I-107，发布前审查 I4-1，`pending`），升级了才让出名额。同一个来源猜错令牌够了的，这一段
+//! `pending_per_source` 条（施工 I-107，发布前审查 I4-1，`pending`），升级了才让出名额，满了再连进来的回 503（施工 YC-10，`refusing`）。同一个来源猜错令牌够了的，这一段
 //! 一律 429（施工 I-117，发布前审查 I4-3，`guesses`）。
 
 mod accepting;
@@ -22,6 +22,7 @@ mod connection;
 mod guesses;
 mod handing;
 mod pending;
+mod refusing;
 #[cfg(test)]
 mod tests;
 

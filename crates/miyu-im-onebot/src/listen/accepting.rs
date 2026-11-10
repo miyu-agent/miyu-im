@@ -28,6 +28,7 @@ use miyu_im::serve::{Failure, Notice};
 
 use super::guesses::Guesses;
 use super::pending::{Full, Pending};
+use super::refusing::Refusing;
 use crate::settings::Settings;
 
 /// 每个听着的端口（实际的）现在的令牌：连进来的那一下照它比（`super::admitted`）。
@@ -136,9 +137,10 @@ async fn accepting(
 ) {
     let mut connections = JoinSet::new();
     let mut watching = true;
-    // 还没升级的连接的名额（施工 I-94；I-107 起按来源地址分，`super::pending`）：满了的当场关掉，记一行。
+    // 还没升级的连接的名额（施工 I-94；I-107 起按来源地址分，`super::pending`）：满了的回 `503`（施工 YC-10，`super::refusing`），记一行。
     let tuning = gate.tuning();
     let pending = Pending::new(tuning.pending_connections, tuning.pending_per_source);
+    let refusing = Refusing::new(tuning.pending_connections, tuning.handshake());
     // 令牌猜错的限次（施工 I-117，`super::guesses`）：所有端口共用一份，照来源地址数。
     let guesses = Arc::new(Guesses::default());
     loop {
@@ -150,8 +152,8 @@ async fn accepting(
                     Ok(permit) => permit,
                     Err(full) => {
                         let from = if full == Full::Source { "source" } else { "total" };
-                        tracing::warn!(target: TARGET, port, %source, full = from, "too many pending connections");
-                        drop(stream);
+                        let answered = refusing.refuse(stream, &mut connections);
+                        tracing::warn!(target: TARGET, port, %source, full = from, answered, "too many pending connections");
                         continue;
                     }
                 };
