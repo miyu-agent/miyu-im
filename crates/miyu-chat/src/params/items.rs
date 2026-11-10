@@ -279,6 +279,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.humanlike", Kind::Bool, |p, v| {
         p.outbound.humanlike = flag(v)
     }),
+    // 分出来的几条之间停顿（施工 I-195）。
+    item("outbound.pause", Kind::Bool, |p, v| {
+        p.outbound.pause = flag(v)
+    }),
     // 分条发送的打字速度（施工 I-49）。
     item("outbound.typing_speed", TYPING, |p, v| {
         p.outbound.typing_speed = count(v)
