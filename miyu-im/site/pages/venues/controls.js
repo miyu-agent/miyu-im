@@ -3,6 +3,7 @@
 // 输入框写在占位字里、开关照现在用着的画。选模型、贴表情点开小窗选（pickers.js），限流、睡眠在 spans.js，标签是 shell/tags.js。
 import { element, say } from '../../shell/i18n.js';
 import { tagInput } from '../../shell/tags.js';
+import { tokensOf } from '../../shell/amount.js';
 import { current, inherit, inherited, written } from './fields.js';
 import { modelControl, reactionControl } from './pickers.js';
 import { rate, seconds, sleep } from './spans.js';
@@ -79,7 +80,8 @@ export function control(field, one, context, save, saveKey) {
       input.addEventListener('change', () => {
         const text = input.value.trim();
         if (text === '') return save(null);
-        const number = Math.round(Number(text) * scale * 1e6) / 1e6;
+        // 填 token 数的格认 k、m 的写法（施工 I-202）：上下文窗口、使用限制的三格。
+        const number = field.unit === 'unit/tokens' ? tokensOf(text) : Math.round(Number(text) * scale * 1e6) / 1e6;
         if (!Number.isInteger(number)) return save(text);
         return save(field.control === 'seconds' ? `${number}s` : number);
       });
