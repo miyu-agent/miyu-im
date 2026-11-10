@@ -93,8 +93,9 @@ async fn a_connection_that_never_finishes_its_header_is_closed() {
 }
 
 #[tokio::test]
-async fn connections_past_the_pending_limit_are_closed_at_once() {
-    // 施工 I-94：还没升级的连接满了，再连进来的当场关掉；NapCat 等前面的让出名额就进得来。I-107 起一个来源地址最多
+async fn connections_past_the_pending_limit_are_answered_503_and_closed() {
+    // 施工 I-94：还没升级的连接满了，再连进来的不收；NapCat 等前面的让出名额就进得来。施工 YC-10（压测报告 O24）起先回 503
+    // 再关：原来什么都不回，NapCat 那头看不出是被限流。I-107 起一个来源地址最多
     // `pending_per_source` 条：这里都从本机来，满的是这一份。别的来源照样进得来见 `audit4.rs`。
     let home = Home::new(&Script::new([]));
     let bridge = bridge(&home).await;
@@ -110,9 +111,11 @@ async fn connections_past_the_pending_limit_are_closed_at_once() {
     let mut extra = TcpStream::connect(("127.0.0.1", bridge.port))
         .await
         .expect("连得上");
+    let line = refused_once(&mut extra, "/onebot/v11/ws", TOKEN).await;
+    assert!(line.contains("503"), "名额满了，多的回 503：{line}");
     assert!(
         closed_within(&mut extra, CLOSE).await,
-        "名额满了，多的当场关"
+        "名额满了，多的回完就关"
     );
     drop(held);
     let _napcat = crate::support::napcat::admitted(
