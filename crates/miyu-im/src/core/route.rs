@@ -104,6 +104,7 @@ mod speak;
 mod steering;
 mod stickers;
 mod strangers;
+mod tasks;
 #[cfg(test)]
 mod tests;
 mod titled;

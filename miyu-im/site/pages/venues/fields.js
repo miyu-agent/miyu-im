@@ -66,9 +66,15 @@ export const FIELDS = {
     { key: 'glance', control: 'switch', label: 'field/glance', hint: 'field/glance-hint', kinds: ['group', 'private'] },
     // 她没定下一次时多久看一眼（施工 I-114）：她用工具定了的照她的。
     { key: 'glance_minutes', control: 'number', label: 'field/glance-minutes', hint: 'field/glance-minutes-hint', unit: 'unit/minutes', kinds: ['group', 'private'], min: 1, max: 10080, dep: { key: 'glance', on: true } },
+    // 看一眼时的额外提示词（施工 I-196，设计 12 第 2 条）：这一轮要做的事，和人格页的额外提示词（改人格的）分开。
+    { key: 'rules.glance_note', control: 'area', label: 'field/glance-note', hint: 'field/glance-note-hint', kinds: ['group', 'private'], wide: true, dep: { key: 'glance', on: true } },
     // 看一眼那一轮最多交几条没回的新消息（施工 I-175，项目主人 11-05）：只有群，私聊到点不看新消息。没写的照桥的出厂（50）。
     { key: 'glance_records', control: 'number', label: 'field/glance-records', hint: 'field/glance-records-hint', unit: 'unit/messages', kinds: ['group'], min: 1, max: 64, dep: { key: 'glance', on: true } },
     { group: 'field/judging' },
+    // 概率触发主动回复（施工 I-197，设计 12 第一节第 1 条）：和主动回复判断是两个开关，都开着的抽中的再过判断。
+    { key: 'rules.chatty.sample', control: 'switch', label: 'field/sample', hint: 'field/sample-hint', kinds: GROUPS },
+    { key: 'rules.chatty.sample_rate', control: 'number', scale: 10, label: 'field/sample-rate', unit: 'unit/percent', kinds: GROUPS, min: 0, max: 1000, dep: { key: 'rules.chatty.sample', on: true } },
+    { key: 'rules.chatty.sample_skip_media', control: 'switch', label: 'field/sample-skip-media', hint: 'field/sample-skip-media-hint', kinds: GROUPS, dep: { key: 'rules.chatty.sample', on: true } },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },

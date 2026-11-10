@@ -199,7 +199,7 @@ impl Route {
 
     /// 对方的场所会话（平台 `platform` 上的 `target`，发到 `to`，经机器人号 `bot`）：群的照群消息的办法找（没有的造）；私聊的只找终端管理员、白名单
     /// 成员的，陌生人的不接、是空的。
-    async fn target_session(
+    pub(super) async fn target_session(
         &mut self,
         (platform, target): (Platform, &Venue),
         to: To,

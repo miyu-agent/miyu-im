@@ -187,3 +187,16 @@
 @media (prefers-reduced-motion: reduce) { .watch-line.writing .watch-text::after { animation: none; } }
 /* 概况标题右边的小标签（Telegram，施工 I-183 下）。 */
 .venue-title-mark { margin-left: 8px; vertical-align: middle; }
+
+/* 会话浮窗的「定时任务」页（施工 I-198，tasks.js）：一行一个任务，右边几个按钮；停着的淡一些。不画描边。 */
+.tasks-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0 2px; }
+.task { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.task.off .task-main { opacity: 0.55; }
+.task-main { flex: 1; min-width: 0; }
+.task-main small { color: var(--text-soft); }
+.task-text { white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.task-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+@media (max-width: 720px) {
+  .task { flex-direction: column; align-items: stretch; }
+  .task-buttons { justify-content: flex-end; }
+}

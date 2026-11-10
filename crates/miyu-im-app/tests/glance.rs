@@ -143,6 +143,42 @@ async fn a_card_caps_how_many_new_messages_a_glance_hands_over() {
 }
 
 #[tokio::test]
+async fn a_glance_carries_the_task_written_on_the_card_and_other_turns_do_not() {
+    // 施工 I-196（设计 12 第 2 条，项目主人 11-10）：卡片「看一眼时的额外提示词」写了的，看一眼那一轮带 `<glance-task>` 包着的
+    // 那段（照模板转义）；被叫到的那一轮不带。
+    use crate::support::speaking::{Line, Lines};
+    let lines = Lines::new([Line::says("看到了"), Line::says("在")]);
+    let tuned = json!({"glance_seconds": 2});
+    let (home, mut napcat, _) = started_tuned(Arc::new(lines.clone()), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let set = json!({"glance": true, "rules": {"glance_note": "留意有没有人发\"好图\""}});
+    let cards = json!({"groups": [{"id": GROUP, "set": set}]});
+    let saved = head
+        .page_call_with("cards.save", json!({"cards": cards}))
+        .await;
+    assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
+    napcat.send(chat(1, "随口一句"));
+    assert_eq!(napcat.group_reply(GROUP).await, "看到了");
+    let words = json!([at(BOT), plain(" 在吗")]);
+    napcat.send(group_frame(GROUP, LIN, 2, words, ("小林", "lin")));
+    assert_eq!(napcat.group_reply(GROUP).await, "在");
+    let requests = lines.requests();
+    let last = |at: usize| {
+        serde_json::to_string(requests[at].messages.last().expect("有消息")).expect("写得成")
+    };
+    let task = "<glance-task>留意有没有人发\\\\u0022好图\\\\u0022</glance-task>";
+    assert!(last(0).contains(task), "看一眼那一轮带：{}", last(0));
+    let called = last(requests.len() - 1);
+    assert!(!called.contains("glance-task"), "被叫到的不带：{called}");
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn a_glance_never_opens_where_replies_are_off() {
     // 施工 I-108（项目主人 11-02 部署上撞到：会话默认值打开看一眼，「是否回复」关着的群她也去看了、说了话）：回复关着的场所
     // 不排看一眼，到点也不开轮。

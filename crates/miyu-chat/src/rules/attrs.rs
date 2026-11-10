@@ -76,6 +76,8 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("glance_records", Form::Kind(Kind::Int { min: 1, max: 64 })),
     // 会话的说话方式（施工 I-140，原来 I-139 的开关 `brief`）：写了的，群里每开一轮都带一块事实；没写的不带（桥照它管）。
     ("style_note", Form::Kind(Kind::Lines { max: 500 })),
+    // 看一眼时的额外提示词（施工 I-196，设计 12 第 2 条）。
+    ("glance_note", Form::Kind(Kind::Lines { max: 500 })),
     // 使用限制（im 设计 08，施工 I-135）：这个会话最近 5 小时、7 天、30 天最多用多少 token；没写的不限。
     ("limit_5h", Form::Kind(LIMIT)),
     ("limit_week", Form::Kind(LIMIT)),

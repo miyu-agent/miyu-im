@@ -59,6 +59,7 @@ pub mod settings;
 mod site;
 mod spent;
 pub mod status_file;
+mod tasks;
 pub mod texts;
 pub mod toolset;
 pub mod tuning;

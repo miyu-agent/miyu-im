@@ -206,7 +206,11 @@ impl Route {
         }
         // 开轮带上为什么叫她（施工 I-16，`primer`）：排着的（禁言时）也带。
         let tag = &Tag {
-            facts: primer(decision, judged.as_ref(), self.rules.precheck()),
+            facts: primer(
+                decision,
+                judged.as_ref(),
+                (self.rules.precheck(), self.rules.sampled()),
+            ),
             ..tag.clone()
         };
         match finale {

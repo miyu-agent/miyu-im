@@ -45,7 +45,7 @@ mod rules;
 
 pub use chatty::{
     Bonus, BonusCtx, Chatty, Conditions, Dispatch, Facts, Followup, Hit, Judgement, Kind, Lift,
-    LiftCtx, Line, Lines, Pending, PersonRestraint, Reply, Restraint, Route, Score, Status,
+    LiftCtx, Line, Lines, Pending, PersonRestraint, Reply, Restraint, Route, Sample, Score, Status,
     Supersede, Window, conditions, dispatch, nudged, person_pressure, pressure, route, score,
     supersede,
 };

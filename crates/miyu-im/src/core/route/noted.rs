@@ -70,6 +70,7 @@ fn reason(body: &Value) -> Value {
             let reason = match trigger {
                 Some("continuation") => "continued",
                 Some("after_speaking") => "after_speaking",
+                Some("sampled") => "sampled",
                 _ => "called",
             };
             json!({"reason": reason})
