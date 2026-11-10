@@ -65,7 +65,8 @@ pub const MEMBERS: &[Member] = &[
 pub const RANKS: &[Rank] = &[(OWNER, "owner"), (BOT, "admin")];
 
 /// 照 NapCat 回、桥调的平台动作。
-pub const PLATFORM: [&str; 7] = [
+pub const PLATFORM: [&str; 8] = [
+    "delete_group_file",
     "delete_msg",
     "set_group_card",
     "set_group_ban",

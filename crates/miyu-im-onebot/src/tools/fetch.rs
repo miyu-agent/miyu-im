@@ -146,6 +146,13 @@ async fn fetch(
                 None => take(link.as_ref(), how, &item.id, (wait, limit)).await,
             }
         }
+        // 私聊里的文件（施工 I-203，项目主人 11-11：私聊发的 mp4 取不下来）也一样：照私聊文件的下载地址取，取不到的再照 `get_file` 试。
+        (None, Fetch::File, To::Private(user)) => {
+            match private_file(link.as_ref(), user, &item.id, wait).await {
+                Some(bytes) => Ok((bytes, None)),
+                None => take(link.as_ref(), how, &item.id, (wait, limit)).await,
+            }
+        }
         _ => take(link.as_ref(), how, &item.id, (wait, limit)).await,
     };
     let (bytes, named) = match taken {
@@ -214,6 +221,14 @@ fn undone(missed: Missed) -> Undone {
 /// 交给她的原话最多 [`DETAIL`] 个字符（同平台工具（一）的 `failed`）。
 fn cut(detail: &str) -> String {
     detail.chars().take(DETAIL).collect()
+}
+
+/// 和 `user` 的私聊里编号是 `id` 的文件的字节（施工 I-203）；拿不到下载地址、下不下来的是空的。
+async fn private_file(link: &dyn Link, user: Id, id: &str, wait: Duration) -> Option<Vec<u8>> {
+    let url = link.private_file_url(&user, id).await.ok()?;
+    miyu_im::toolset::bytes(&[Source::Url(url)], wait, UNLIMITED)
+        .await
+        .ok()
 }
 
 #[cfg(test)]

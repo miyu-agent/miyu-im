@@ -1,0 +1,1 @@
+Last {hours}h this chat used {tokens} tokens in {requests} requests, {cost}. Top callers: {list}

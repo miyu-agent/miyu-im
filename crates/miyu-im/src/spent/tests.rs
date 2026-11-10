@@ -42,6 +42,7 @@ fn charge(seq: u64, at: i64, tokens: u64) -> Charge<'static> {
         venue: "qq:group:1",
         at,
         tokens,
+        cost: None,
     }
 }
 
@@ -147,4 +148,69 @@ fn the_page_lists_people_by_the_last_five_hours_then_the_month() {
     );
     assert_eq!(top(&path, NOW, 1).expect("读得了").len(), 1);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
+
+#[test]
+fn amounts_are_split_kept_by_day_and_currency_and_old_rows_count_as_unpriced() {
+    // 施工 I-205：金额跟着用量平分、连币种记；照「日子、币种」加好交出去，没有金额的请求数出来。
+    let dir = dir("costs");
+    // I-205 以前建的库：没有金额的两列，里头有一行老的。打开时补上列，老的行照「没记录金额」读。
+    std::fs::create_dir_all(&dir).expect("建得了");
+    let old = rusqlite::Connection::open(dir.join(FILE)).expect("开得了");
+    old.execute_batch(
+        "CREATE TABLE spent (session TEXT NOT NULL, seq INTEGER NOT NULL, person TEXT NOT NULL,
+            venue TEXT NOT NULL, at INTEGER NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY (session, seq, person));",
+    )
+    .expect("建得了");
+    old.execute(
+        "INSERT INTO spent VALUES ('s0', 1, 'qq:1', 'qq:group:1', ?1, 10)",
+        [NOW - 1000],
+    )
+    .expect("写得进");
+    drop(old);
+    let spent = Spent::open(&dir.join(FILE));
+    let (lin, jie) = (person("qq:1"), person("qq:2"));
+    let priced = |seq, at, cost| Charge {
+        cost,
+        ..charge(seq, at, 100)
+    };
+    let day_ms = 24 * 60 * 60 * 1000;
+    spent.charge(
+        &priced(5, NOW - 1000, Some((0.5, "USD"))),
+        &[lin.clone(), jie.clone()],
+        NOW,
+    );
+    spent.charge(
+        &priced(6, NOW - 900, Some((0.25, "USD"))),
+        std::slice::from_ref(&lin),
+        NOW,
+    );
+    spent.charge(
+        &priced(7, NOW - 2 * day_ms, Some((3.0, "CNY"))),
+        std::slice::from_ref(&lin),
+        NOW,
+    );
+    // 核心算不出价的一次。
+    spent.charge(&priced(8, NOW - 800, None), std::slice::from_ref(&lin), NOW);
+    let people = ["qq:1".to_string(), "qq:2".to_string(), "qq:9".to_string()];
+    let found = costs(&dir.join(FILE), &people, NOW).expect("读得出");
+    let today = day(NOW);
+    let lin = &found["qq:1"];
+    assert_eq!(
+        lin[0].parts,
+        [(today.clone(), "USD".to_string(), 0.5)],
+        "5 小时：平分来的 0.25 加自己的 0.25"
+    );
+    assert_eq!(lin[0].unpriced, 2, "老的一行、算不出价的一次");
+    assert_eq!(
+        lin[1].parts,
+        [
+            (day(NOW - 2 * day_ms), "CNY".to_string(), 3.0),
+            (today.clone(), "USD".to_string(), 0.5)
+        ],
+        "7 天：两天前的那一笔照它的日子、币种另放"
+    );
+    assert_eq!(found["qq:2"][2].parts, [(today, "USD".to_string(), 0.25)]);
+    assert_eq!(found["qq:2"][2].unpriced, 0);
+    assert_eq!(found["qq:9"], <[Costs; 3]>::default(), "没用过的是空的");
 }

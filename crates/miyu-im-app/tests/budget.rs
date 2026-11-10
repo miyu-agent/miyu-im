@@ -25,17 +25,20 @@
 //! magpie 网关的 `opencode-go/deepseek-v4.1-flash` 照同一个办法量，七件合计 677 个 token、1384 字节（同一刻 QQ 的二十一件 1626）；预算
 //! 是实测加一成，745 个 token，合 1522 字节。施工 I-185 下上加 `tg_recall`、`tg_react`（边际 55、67，九件合计 799 个 token、1746
 //! 字节）：项目主人 11-10 定 Telegram 的预算和 QQ 的一样（[`TG_BUDGET`] 就是 [`BUDGET`]）：一个场所会话只看得到一个平台的那一套。
+//!
+//! 施工 I-206 加 `qq_token_usage`、`tg_token_usage`（项目主人 2026-11-11 定：这是点名要的新能力，预算照这一件的实测加上，别的不动）：
+//! 说明 200 字节（经 opencode Console Go 的 `deepseek-v4.1-flash` 量，QQ 的二十二件一起时边际 67 个 token），预算从 4312 加到 4512。
 
 use std::path::Path;
 
 /// 预算：字节，照模型收到的紧凑 JSON 数（施工 I-130 起；原来数文件，回车不算）。
-const BUDGET: usize = 4312;
+const BUDGET: usize = 4512;
 
 /// Telegram 的工具的预算：字节，同 [`BUDGET`] 的数法，数也一样（施工 I-185 下上，项目主人 11-10 定）。
 const TG_BUDGET: usize = BUDGET;
 
 /// Telegram 的工具：一件一份说明。
-const TG_TOOLS: [&str; 10] = [
+const TG_TOOLS: [&str; 11] = [
     "tg_activity_ranking",
     "tg_chat_history",
     "tg_glance",
@@ -46,10 +49,11 @@ const TG_TOOLS: [&str; 10] = [
     "tg_send",
     "tg_send_file",
     "tg_skip_reply",
+    "tg_token_usage",
 ];
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 21] = [
+const TOOLS: [&str; 22] = [
     "qq_activity_ranking",
     "qq_avatar",
     "qq_chat_history",
@@ -71,6 +75,7 @@ const TOOLS: [&str; 21] = [
     "qq_send_file",
     "qq_set_card",
     "qq_skip_reply",
+    "qq_token_usage",
 ];
 
 #[test]

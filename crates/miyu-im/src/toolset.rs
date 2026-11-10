@@ -25,6 +25,8 @@ use crate::core::blobs::{Unstored, put};
 
 /// 她查聊天记录（施工 C-1 下）：只读的口子和搜的条件。
 pub use crate::records::history::{History, HistoryQuery};
+pub use crate::spent::{Costs, Spender};
+pub use usage::Usage;
 
 /// 驱动的工具常用的几样，im 自己也用：照来源拿字节、存进工作区的 `qq-files/`、照字节认扩展名、照编号取回一条消息（施工 T-2：撤回
 /// 先核对）。
@@ -332,11 +334,15 @@ pub struct Call {
     pub store: PathBuf,
     /// 这一轮是不是终端管理员叫的（施工 C-1 下：私聊里核心认出了人，群里他说的话带着账号）。
     pub admin: bool,
+    /// 这一轮是不是场所规则 `managers` 里的人叫的（施工 I-204：删群文件只听管理的人）。
+    pub manager: bool,
     /// 放开（施工 LV-4，核心 TC-1）：核心认是主人本人叫的（`owner`），这一刻的权限是完全放开（`permission.level` 是 `full`、
     /// `read_only` 不开）。放开的能碰工作区外面（例如发任意文件，项目主人 11-10 定）；外人照旧只碰自己的工作区。
     pub open: bool,
     /// im 的聊天记录，只读（施工 C-1 下）。
     pub history: History,
+    /// 每人的用量账本和核心的用量账本，只读（施工 I-206，查用量的工具）。
+    pub usage: Usage,
 }
 
 /// 驱动交的一套工具。
@@ -458,6 +464,7 @@ impl Answers {
 }
 
 pub mod common;
+mod usage;
 
 #[cfg(test)]
 mod tests;

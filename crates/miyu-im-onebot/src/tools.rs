@@ -9,7 +9,7 @@
 use std::time::Duration;
 
 use miyu_client::tooltext::Access;
-use miyu_im::toolset::common::{glance, history, ranking, send_file};
+use miyu_im::toolset::common::{glance, history, ranking, send_file, usage};
 use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
@@ -76,6 +76,9 @@ pub const REACT: &str = "qq_react";
 /// 发言排行（施工 I-20）：只给群。
 pub const ACTIVITY_RANKING: &str = "qq_activity_ranking";
 
+/// 查用量（施工 I-206）：只给群，这个群、某个人一段时间里用了多少 token、花了多少。
+pub const TOKEN_USAGE: &str = "qq_token_usage";
+
 /// 查聊天记录（施工 C-1 下）：私聊、群都给，只读；跨场所要终端管理员叫的那一轮。
 pub const CHAT_HISTORY: &str = "qq_chat_history";
 
@@ -95,7 +98,7 @@ pub const AVATAR: &str = "qq_avatar";
 pub const MEMBERS: &str = "qq_members";
 
 /// 查询信息插件管的八件（施工 I-44、I-91）：只读，插件关着的场所没有它们。
-pub const LOOKUPS: [&str; 8] = [
+pub const LOOKUPS: [&str; 9] = [
     CHAT_HISTORY,
     FETCH_MEDIA,
     AVATAR,
@@ -104,6 +107,7 @@ pub const LOOKUPS: [&str; 8] = [
     GROUP_FILES,
     CONTACTS,
     ACTIVITY_RANKING,
+    TOKEN_USAGE,
 ];
 
 /// 私聊、群都给。
@@ -114,7 +118,7 @@ const EVERYWHERE: &[&str] = &["local", "private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
 /// （`venue`）；`members` 只读。
-const TOOLS: [Decl; 21] = [
+const TOOLS: [Decl; 22] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -206,6 +210,11 @@ const TOOLS: [Decl; 21] = [
         venues: &["group"],
     },
     Decl {
+        name: TOKEN_USAGE,
+        access: Access::Read,
+        venues: &["group"],
+    },
+    Decl {
         name: CHAT_HISTORY,
         access: Access::Read,
         venues: VENUES,
@@ -223,7 +232,7 @@ const TOOLS: [Decl; 21] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 59] = [
+const ANSWERS: [(&str, &[&str]); 65] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
@@ -234,6 +243,10 @@ const ANSWERS: [(&str, &[&str]); 59] = [
     ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
+    ("usage", &["hours", "tokens", "requests", "cost", "list"]),
+    ("usage-user", &["hours", "who", "tokens", "cost"]),
+    ("no-usage", &["hours"]),
+    ("no-usage-user", &["hours", "who"]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
     ("quoted", &[]),
@@ -244,6 +257,8 @@ const ANSWERS: [(&str, &[&str]); 59] = [
     ("history", &["count"]),
     ("no-history", &[]),
     ("history-admin-only", &[]),
+    ("managers-only", &[]),
+    ("group-file-deleted", &[]),
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),
@@ -399,6 +414,7 @@ impl ToolSet for QqTools {
             GROUP_FILES => group_files::group_files(self, call),
             REACT => react::react(call),
             ACTIVITY_RANKING => ranking::ranking(&call),
+            TOKEN_USAGE => usage::usage(call, "user must be a QQ number or a name"),
             GLANCE => glance::glance(&call),
             FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, (self.wait, self.image_limit)),
             MENTION => mention::mention(call),
