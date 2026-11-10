@@ -252,6 +252,11 @@ impl Home {
     }
 
     /// 请核心拉起的扩展都退出，等它们退出（施工 O-18）。
+    /// 停下全部会话（像核心重启过：下一次用到再照日志载入）。
+    pub async fn stop_sessions(&self) {
+        self.core.stop_sessions().await;
+    }
+
     pub async fn stop_extensions(&self) {
         self.core.stop_extensions().await;
     }

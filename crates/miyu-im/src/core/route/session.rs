@@ -37,6 +37,21 @@ pub(super) struct Peer {
     pub(super) venue: VenueId,
 }
 
+/// 会话这一刻读不了（`session_unavailable`）的隔多久再调一次：调完这几次还不行的照被拒办。等的时候别的场所也等着，所以短。
+const UNAVAILABLE: [std::time::Duration; 2] = [
+    std::time::Duration::from_millis(250),
+    std::time::Duration::from_secs(1),
+];
+
+/// 会话的日志中间坏了、只能看：说话、订阅都被拒这个（核心 YC-6）。
+const READ_ONLY: &str = "session_read_only";
+
+/// 会话这一刻读不了：日志没坏，过一会儿再试（核心 YC-2）。
+const UNREADABLE: &str = "session_unavailable";
+
+/// 命令编号被拒 `id_reused` 以后再调的那一次接在后面的。
+const AGAIN: &str = ":again";
+
 /// 发消息的方法：只有它带场所的格（`command.run` 不收这一格）。
 pub(super) const SEND: &str = "session.send";
 
@@ -158,9 +173,14 @@ impl Route {
         Ok(found)
     }
 
-    /// 在场所 `place` 的会话上调 `method`：`params` 补上 `session`，命令编号是 `id`（空的自己编）。会话不在了
-    /// （`session_not_found`、`session_stopped`）忘掉、再找、再调，只重来一次（「施工时定的」第 8 条）。交回会话编号和最后
-    /// 一次的回应；不接的、找不到会话的是空的。
+    /// 在场所 `place` 的会话上调 `method`：`params` 补上 `session`，命令编号是 `id`（空的自己编）。交回会话编号和最后一次的
+    /// 回应；不接的、找不到会话的是空的。被拒了这几种的再来（施工 YC-10，各只一次，等的照 [`UNAVAILABLE`]）：
+    ///
+    /// - 会话不在了（`session_not_found`、`session_stopped`）：忘掉、再找、再调（「施工时定的」第 8 条）。
+    /// - 会话的日志中间坏了、只能看（`session_read_only`，核心 YC-6）：忘掉再找，找的时候另开一个新的接着用（[`Route::find`]，
+    ///   项目主人 2026-11-10 定），旧的留着能看。
+    /// - 会话这一刻读不了（`session_unavailable`，核心 YC-2：打开文件数用光、磁盘出错）：等一会儿再调，这条消息留着。
+    /// - 同一个命令编号参数变了（`id_reused`，核心 YC-7）：这是另一条，换一个编号再调，不当成重发丢掉。
     pub(super) async fn on_session(
         &mut self,
         place: &Place,
@@ -169,7 +189,10 @@ impl Route {
         params: Value,
     ) -> Result<Option<(String, Value)>, Gone> {
         let venue = place.peer.venue.as_str();
-        for retried in [false, true] {
+        let mut id = id.map(str::to_string);
+        let (mut refound, mut reopened, mut renamed) = (false, false, false);
+        let mut waits = UNAVAILABLE.iter();
+        loop {
             let session = match self.venues.get(venue) {
                 Some(session) => session.clone(),
                 None => match self.find(place).await? {
@@ -179,23 +202,35 @@ impl Route {
             };
             let mut params = params.clone();
             params["session"] = json!(session);
-            let reply = match id {
+            let reply = match &id {
                 Some(id) => self.core.call_as(id, method, params).await?,
                 None => self.core.call(method, params).await?,
             };
-            if !retried
-                && matches!(
-                    reason(&reply),
-                    Some("session_not_found" | "session_stopped")
-                )
-            {
-                self.venues.remove(venue);
-                self.groups.remove(&session);
-                continue;
+            match reason(&reply) {
+                Some("session_not_found" | "session_stopped") if !refound => refound = true,
+                Some(READ_ONLY) if !reopened => {
+                    tracing::warn!(target: TARGET, venue, session, "venue session read only, opening another");
+                    reopened = true;
+                }
+                Some(UNREADABLE) => match waits.next() {
+                    Some(wait) => {
+                        tracing::warn!(target: TARGET, venue, session, method, "venue session unavailable, trying again");
+                        tokio::time::sleep(*wait).await;
+                        continue;
+                    }
+                    None => return Ok(Some((session, reply))),
+                },
+                Some("id_reused") if !renamed && id.is_some() => {
+                    tracing::info!(target: TARGET, venue, method, "command id reused with other params, sent under another");
+                    renamed = true;
+                    id = id.map(|id| format!("{id}{AGAIN}"));
+                    continue;
+                }
+                _ => return Ok(Some((session, reply))),
             }
-            return Ok(Some((session, reply)));
+            self.venues.remove(venue);
+            self.groups.remove(&session);
         }
-        Ok(None)
     }
 
     /// 场所 `place` 的会话找得到（施工 O-33：取图以前先看接不接）：记着的是，没记着的照 [`Route::find`] 找。
@@ -236,37 +271,62 @@ impl Route {
             self.not_taken(venue);
             return Ok(None);
         }
-        let reply = self
-            .core
-            .call("venue.session", place.opening.clone())
-            .await?;
-        match reason(&reply) {
-            None => {}
-            Some(reason @ ("unknown_persona" | "unknown_preset" | "preset_invalid")) => {
-                if self.refused.insert(venue.to_string()) {
-                    tracing::warn!(target: TARGET, venue = %venue, reason, "group not recorded, fix the venue rules");
+        // 找回的那个日志中间坏了、只能看的（`session_read_only`，订阅时才知道）：照同样的参数加 `fresh` 另开一个（施工 YC-10，
+        // 核心 YC-6补），只开一次。
+        // 这一刻读不了的（`session_unavailable`）等一会儿再找，同 [`Route::on_session`]。
+        let mut fresh = false;
+        let mut waits = UNAVAILABLE.iter();
+        let session = loop {
+            let mut opening = place.opening.clone();
+            if fresh {
+                opening["fresh"] = json!(true);
+            }
+            let reply = self.core.call("venue.session", opening).await?;
+            match reason(&reply) {
+                None => {}
+                Some(reason @ ("unknown_persona" | "unknown_preset" | "preset_invalid")) => {
+                    if self.refused.insert(venue.to_string()) {
+                        tracing::warn!(target: TARGET, venue = %venue, reason, "group not recorded, fix the venue rules");
+                    }
+                    return Ok(None);
                 }
-                return Ok(None);
+                Some(READ_ONLY) if !fresh => {
+                    fresh = true;
+                    continue;
+                }
+                Some(other) => {
+                    if let Some(wait) = waits.next().filter(|_| other == UNREADABLE) {
+                        tokio::time::sleep(*wait).await;
+                        continue;
+                    }
+                    tracing::warn!(target: TARGET, venue = %venue, reason = other, "venue session not found");
+                    return Ok(None);
+                }
             }
-            Some(other) => {
-                tracing::warn!(target: TARGET, venue = %venue, reason = other, "venue session not found");
+            let Some(session) = reply["result"]["session"].as_str().map(str::to_string) else {
+                tracing::warn!(target: TARGET, venue = %venue, "venue session without an id");
                 return Ok(None);
+            };
+            let refused = if place.private_chat() {
+                self.subscribed(&session, None).await?
+            } else {
+                // 补来的有她正在说的话的（订阅时有一轮在跑），照这里发回群里。
+                self.peers.insert(session.clone(), place.peer.clone());
+                self.followed(&session, 0).await?
+            };
+            match refused.as_deref() {
+                None => break session,
+                Some(READ_ONLY) if !fresh => {
+                    tracing::warn!(target: TARGET, venue = %venue, session, "venue session read only, opening a fresh one");
+                    self.peers.remove(&session);
+                    fresh = true;
+                }
+                Some(other) => match waits.next().filter(|_| other == UNREADABLE) {
+                    Some(wait) => tokio::time::sleep(*wait).await,
+                    None => return Ok(None),
+                },
             }
-        }
-        let Some(session) = reply["result"]["session"].as_str().map(str::to_string) else {
-            tracing::warn!(target: TARGET, venue = %venue, "venue session without an id");
-            return Ok(None);
         };
-        let subscribed = if place.private_chat() {
-            self.subscribe(&session, None).await?
-        } else {
-            // 补来的有她正在说的话的（订阅时有一轮在跑），照这里发回群里。
-            self.peers.insert(session.clone(), place.peer.clone());
-            self.follow(&session, 0).await?
-        };
-        if !subscribed {
-            return Ok(None);
-        }
         // 这个场所开着的插件先告诉核心，第一轮的工具表就照它（施工 S-1 上c）。
         self.tell_plugins(
             place.peer.venue.as_str(),
@@ -291,13 +351,18 @@ impl Route {
     /// 会话和投影都忘掉：下一条照第 7 条再找、从头订阅（掉了队再订阅不上的，投影不再跟着日志走，留着会判错）。订阅上了的，
     /// 回应的 `persona`（这个群会话用的人格，没有的是无人格）交给判官那边记下（施工 O-23 补）。
     pub(super) async fn follow(&mut self, session: &str, after: u64) -> Result<bool, Gone> {
+        Ok(self.followed(session, after).await?.is_none())
+    }
+
+    /// 同 [`Route::follow`]，订阅不上的交回核心拒的原因。
+    async fn followed(&mut self, session: &str, after: u64) -> Result<Option<String>, Gone> {
         let params = json!({"session": session, "stream": "events", "after": after});
         let reply = self.core.call("subscribe", params).await?;
         if let Some(reason) = reason(&reply) {
             tracing::warn!(target: TARGET, session, reason, "not subscribed");
             self.groups.remove(session);
             self.venues.retain(|_, found| found != session);
-            return Ok(false);
+            return Ok(Some(reason.to_string()));
         }
         let upto = reply["result"]["upto"].as_u64().unwrap_or(after);
         self.judges
@@ -307,7 +372,7 @@ impl Route {
             .or_insert_with(|| Projection::new(session, upto))
             .caught_up(upto);
         self.replay(session, upto).await?;
-        Ok(true)
+        Ok(None)
     }
 
     /// 订阅私聊会话 `session` 的事件流（第 9 条）：`after` 是空的不写，只要以后的新事件；桥起来时从头补一次（`Some(0)`，施工
@@ -317,6 +382,15 @@ impl Route {
         session: &str,
         after: Option<u64>,
     ) -> Result<bool, Gone> {
+        Ok(self.subscribed(session, after).await?.is_none())
+    }
+
+    /// 同 [`Route::subscribe`]，订阅不上的交回核心拒的原因。
+    async fn subscribed(
+        &mut self,
+        session: &str,
+        after: Option<u64>,
+    ) -> Result<Option<String>, Gone> {
         let mut params = json!({"session": session, "stream": "events"});
         if let Some(after) = after {
             params["after"] = json!(after);
@@ -324,12 +398,12 @@ impl Route {
         let reply = self.core.call("subscribe", params).await?;
         if let Some(reason) = reason(&reply) {
             tracing::warn!(target: TARGET, session, reason, "not subscribed");
-            return Ok(false);
+            return Ok(Some(reason.to_string()));
         }
         if let Some(upto) = after.and(reply["result"]["upto"].as_u64()) {
             self.replay(session, upto).await?;
         }
-        Ok(true)
+        Ok(None)
     }
 }
 
