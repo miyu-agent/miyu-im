@@ -44,6 +44,8 @@ mod forwards;
 mod frames;
 mod glance;
 mod group;
+mod group_file_delete;
+mod group_file_delete_guard;
 mod group_settings;
 mod history;
 mod hooks;

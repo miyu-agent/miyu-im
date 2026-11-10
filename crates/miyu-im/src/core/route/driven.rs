@@ -115,6 +115,21 @@ impl Route {
                     .get(&session)
                     .is_some_and(|group| group.is_admin(by))
             });
+        // 这一轮是不是管理的人直接叫她开的（施工 I-204，删群文件这种收不回来的事照它）：群里照投影认（`Projection::commanded`：开
+        // 这一轮的那一条冲她来，在回的每一条都是终端管理员、卡片上 `managers` 里的人发的）；私聊里就是终端管理员叫的。
+        let commanded = match &peer.to {
+            To::Private(_) => admin,
+            To::Group(_) => {
+                let rules = miyu_chat::Venue::parse(&peer.venue).map(|venue| self.applied(&venue));
+                self.groups.get(&session).is_some_and(|group| {
+                    group.commanded(&line, |who| {
+                        rules
+                            .as_ref()
+                            .is_some_and(|rules| super::applied::role(rules, who) == "manager")
+                    })
+                })
+            }
+        };
         let call = Call {
             tool: tool.to_string(),
             args: params["args"].clone(),
@@ -140,6 +155,7 @@ impl Route {
             config: self.hooks.driver_config(platform),
             store: crate::status_file::store_in(&self.store, platform),
             admin,
+            commanded,
             open: open(params),
             history: self.records.history(),
         };
