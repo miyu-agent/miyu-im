@@ -152,7 +152,7 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         Command::Serve => {
             let limit = raised.and_then(Result::err);
             runtime.block_on(serve(root, (&env, locale, limit), (&mut texts, drivers)))
-        },
+        }
         Command::Control(which) => {
             let core: CoreCommand = Arc::new(core);
             runtime.block_on(control(

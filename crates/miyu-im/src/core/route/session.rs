@@ -180,7 +180,8 @@ impl Route {
     /// - 会话的日志中间坏了、只能看（`session_read_only`，核心 YC-6）：忘掉再找，找的时候另开一个新的接着用（[`Route::find`]，
     ///   项目主人 2026-11-10 定），旧的留着能看。
     /// - 会话这一刻读不了（`session_unavailable`，核心 YC-2：打开文件数用光、磁盘出错）：等一会儿再调，这条消息留着。
-    /// - 同一个命令编号参数变了（`id_reused`，核心 YC-7）：这是另一条，换一个编号再调，不当成重发丢掉。
+    /// - 同一个命令编号参数变了（`id_reused`，核心 YC-7）：这是另一条，换一个编号再调，不当成重发丢掉。补记的不算：它撞上的
+    ///   是当时已经说进去的同一条。
     pub(super) async fn on_session(
         &mut self,
         place: &Place,
@@ -192,6 +193,7 @@ impl Route {
         let mut id = id.map(str::to_string);
         let (mut refound, mut reopened, mut renamed) = (false, false, false);
         let mut waits = UNAVAILABLE.iter();
+        let backfilled = params["venue"]["backfill"] == true;
         loop {
             let session = match self.venues.get(venue) {
                 Some(session) => session.clone(),
@@ -220,7 +222,8 @@ impl Route {
                     }
                     None => return Ok(Some((session, reply))),
                 },
-                Some("id_reused") if !renamed && id.is_some() => {
+                // 补记的（断着的时候群里说的，`venue.backfill`）撞了编号的是已经说进去的那一条，不再说一遍。
+                Some("id_reused") if !renamed && id.is_some() && !backfilled => {
                     tracing::info!(target: TARGET, venue, method, "command id reused with other params, sent under another");
                     renamed = true;
                     id = id.map(|id| format!("{id}{AGAIN}"));
