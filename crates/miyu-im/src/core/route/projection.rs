@@ -35,6 +35,7 @@ use super::body::kind_of;
 use echo::words;
 pub(super) use lanes::{Carry, Seen};
 use lanes::{Kept, Lane};
+use speaker::Speaker;
 use track::Track;
 
 /// 提示记成的事件（「群里怎么叫她」第 7 条）：出站队列的入队（`chat.md` 第七条第 2 条）。
@@ -54,31 +55,6 @@ pub(super) const UNMUTED: &str = "ext.im.venues.unmuted";
 
 /// 记着最近几轮她在主线最后说话的位置（I-74）：回执晚到一两轮也认得出是哪一轮的。
 const SPOKE_TURNS: usize = 8;
-
-/// 说过话的一个人。
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Speaker {
-    /// 平台上的身份（`by.id`）。
-    id: ExternalId,
-    /// 是不是终端管理员：核心照对应表认出来、记在 `by.owner` 上的（`chat.md` 第七条第 4 条）。
-    admin: bool,
-    /// 这一条记下的时刻（`message.user` 的 `at`）。
-    at: Timestamp,
-    /// 这一条的平台编号（`venue.msg`，O-25 上：引用它）；没有的（照说不会）是空的。
-    msg: Option<String>,
-    /// 这一条引用的平台编号（`venue.reply_to`，O-31：撤回、禁言的目标）；没引用的是空的。
-    reply_to: Option<String>,
-    /// 这一条 @ 了谁（`venue.mentions`，不含她，O-31）。
-    mentions: Vec<ExternalId>,
-    /// 发的人这一条时叫什么（`venue.name`，O-53：冒充提醒照终端管理员用过的名字比）；没写的是空的。
-    name: Option<String>,
-    /// 正文的指纹（群聊内核的 `echo`，I-28：复读照它比）；没有字的是空的。
-    echo: Option<u64>,
-    /// 判过了没有（I-28）：记下的判断里进站链放行了它（`ext.im.chat.decided` 的 `inbound` 是 `pass`）。
-    passed: bool,
-    /// 当过一轮的触发没有（施工 I-89）：主线、支线开轮、并进一轮的 `triggers` 里有它。看一眼只交没当过的。
-    answered: bool,
-}
 
 /// 判过要回、她还没回完的一笔（O-23 下）。
 #[derive(Debug, Clone)]
@@ -227,6 +203,7 @@ impl Projection {
                         echo: miyu_chat::echo(&text),
                         passed: false,
                         answered: false,
+                        direct: false,
                     };
                     self.said.insert(seq, speaker);
                     self.remember(seq, &text);
@@ -485,6 +462,7 @@ mod echo;
 mod glance;
 mod lanes;
 mod origin;
+mod speaker;
 mod track;
 
 #[cfg(test)]

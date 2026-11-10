@@ -122,3 +122,66 @@ fn the_terminal_admin_is_known_by_what_he_said_here() {
     assert!(!projection.is_admin(&qq(20002)));
     assert!(!projection.is_admin(&qq(30003)), "没说过话的认不出");
 }
+
+/// 一笔放行了的判断：判的是 `msgs`，条件是 `kinds`。
+fn judged(seq: u64, msgs: &[u64], kinds: &[&str]) -> miyu_client::events::Event {
+    let hits: Vec<serde_json::Value> = kinds
+        .iter()
+        .map(|kind| json!({"kind": kind, "bonus": 0.0}))
+        .collect();
+    let body = json!({"msgs": msgs, "inbound": "pass", "conditions": hits, "outcome": "reply"});
+    event(
+        seq,
+        0,
+        "ext.im.chat.decided",
+        None,
+        json!({"kind": "module", "id": "im"}),
+        body,
+    )
+}
+
+#[test]
+fn only_a_turn_a_manager_called_her_into_counts_as_commanded() {
+    // 施工 I-204（core1 审出来的）：删群文件这种收不回来的事，只认管理的人直接叫她开的那一轮。
+    let manager = |who: &miyu_client::ids::ExternalId| *who == qq(20009);
+    let mut projection = Projection::new(LINE, 0);
+    take_all(
+        &mut projection,
+        vec![
+            quoting(1, 20002, None, &[], false),
+            judged(2, &[1], &["direct"]),
+            quoting(3, 20009, None, &[], false),
+            judged(4, &[3], &["direct"]),
+            quoting(5, 20009, None, &[], false),
+            judged(6, &[5], &["sampled"]),
+            quoting(7, 10001, None, &[], true),
+            judged(8, &[7], &["direct"]),
+        ],
+    );
+    assert!(!projection.commanded(LINE, manager), "没在跑的不算");
+    // 管理的人直接叫她。
+    take_all(&mut projection, vec![started(9, 0, &[3])]);
+    assert!(projection.commanded(LINE, manager));
+    // 普通群友的一条并进来：这一轮在回的有他的话，不算了。
+    take_all(&mut projection, vec![joined(10, 9, &[1])]);
+    assert!(!projection.commanded(LINE, manager), "并进来群友的话");
+    take_all(&mut projection, vec![ended(11, 9)]);
+    // 群友叫起来的一轮，管理的人并进来：照开这一轮的那一条，也不算。
+    take_all(
+        &mut projection,
+        vec![started(12, 0, &[1]), joined(13, 12, &[3])],
+    );
+    assert!(!projection.commanded(LINE, manager), "群友开的一轮");
+    take_all(&mut projection, vec![ended(14, 12)]);
+    // 概率抽中的是管理的人的话，可他没叫她。
+    take_all(&mut projection, vec![started(15, 0, &[5])]);
+    assert!(!projection.commanded(LINE, manager), "抽中的不是叫她");
+    take_all(&mut projection, vec![ended(16, 15)]);
+    // 没有触发的一轮（看一眼、定时任务）。
+    take_all(&mut projection, vec![started(17, 0, &[])]);
+    assert!(!projection.commanded(LINE, manager), "没人叫的一轮");
+    take_all(&mut projection, vec![ended(18, 17)]);
+    // 终端管理员直接叫她（照他说的话带的 owner 认，不靠名单）。
+    take_all(&mut projection, vec![started(19, 0, &[7])]);
+    assert!(projection.commanded(LINE, |_| false));
+}

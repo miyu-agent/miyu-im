@@ -4,7 +4,9 @@
 //! 下下来存进这个会话工作区的 `qq-files/`，回路径（同头像、取文件）。
 //!
 //! 施工 I-204（项目主人 11-10：群文件永久空间满了传不上去，要能让她清）：`delete` 写一个文件编号的删掉那个文件。只听管理的人：
-//! 这一轮是终端管理员、卡片上「允许使用管理员命令的用户」叫的才删，别人叫的答 `managers-only`、不动（程序拦，不靠她自觉）。QQ
+//! 这一轮是终端管理员、卡片上「允许使用管理员命令的用户」直接叫她开的才删（`Call::commanded`：@、引用她、触发词叫起来的，这一轮
+//! 在回的每一条都是管理的人发的；看一眼、概率抽中、定时任务开的，普通群友的话并进来的都不算），别的答 `managers-only`、不动
+//! （程序拦，不靠她自觉）。QQ
 //! 那头她得是群主、管理员，或者文件是她传的，不然 QQ 拒，照它说的答。
 
 use serde_json::Value;
@@ -124,7 +126,7 @@ pub(super) fn group_files(tools: &QqTools, call: Call) -> Planned {
     };
     let (delete, file) = (text("delete"), text("file"));
     // 删只听管理的人（施工 I-204）：当场挡下，不问 QQ。
-    if delete.is_some() && !call.admin && !call.manager {
+    if delete.is_some() && !call.commanded {
         return Planned::Now(call.answers.say("managers-only", &[], true));
     }
     Planned::later(async move {

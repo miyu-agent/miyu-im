@@ -33,6 +33,8 @@ pub(super) struct Running {
     pub(super) aim: Option<u64>,
     /// 这一轮在回的几条的主线序号，照先后、不重（O-36：开轮时给别的线带「另一条线正在回」照它）。
     pub(super) msgs: Vec<u64>,
+    /// 开这一轮的那一条的主线序号（施工 I-204）：`triggers` 的头一条，并进来的不换；看一眼、定时任务开的没有。
+    pub(super) opened: Option<u64>,
 }
 
 /// 一轮发出去的（O-25 上）：去重只看这一回合。
@@ -111,6 +113,7 @@ impl Projection {
             // 这一轮里有人叫她、并进来的照并进来的那条）。
             aim: triggers.last().map(|seq| seq.get()).filter(|_| !glance),
             msgs: triggers.iter().map(|seq| seq.get()).collect(),
+            opened: triggers.first().map(|seq| seq.get()).filter(|_| !glance),
         });
         if let Some(track) = self.track_mut(line) {
             track.running = running;
