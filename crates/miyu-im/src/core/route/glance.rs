@@ -31,6 +31,9 @@ mod seen;
 /// 看一眼那一块事实的 `kind`。
 const GLANCE: &str = "glance";
 
+/// 看一眼时的额外提示词那一块事实的 `kind`（施工 I-196）。
+const GLANCE_TASK: &str = "glance-task";
+
 /// 看一眼开一轮的命令编号的开头（后面接定时的编号）：核心照它记那一轮 `turn.started` 的 `cause`，投影照它认出哪一轮是看一眼开的（施工
 /// I-187）。
 pub(super) const OPENED: &str = "glance/";
@@ -136,6 +139,11 @@ impl Route {
             .into_iter()
             .flatten()
             .filter(|one| one["target"]["package"].is_object())
+            // 会话的定时任务（施工 I-198）也是这样建的：不是看一眼的，不对它的账。
+            .filter(|one| {
+                let task = one["prompt"].as_str().and_then(crate::tasks::Task::read);
+                task.is_none()
+            })
             .filter_map(|one| {
                 let id = one["id"].as_str()?.to_string();
                 Some((id, one["prompt"].as_str().and_then(Prompt::read)))
@@ -316,7 +324,7 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %prompt.venue, "glance quiet");
             return self.arm_glance(later, None).await;
         }
-        let facts = self.glance_fact();
+        let facts = self.glance_fact(&prompt.venue);
         let tag = Tag {
             id: format!("{OPENED}{id}"),
             number: 0,
@@ -350,7 +358,7 @@ impl Route {
                 .insert(session, (id.to_string(), prompt));
             return Ok(());
         }
-        let facts = self.glance_fact();
+        let facts = self.glance_fact(&prompt.venue);
         let tag = Tag {
             id: format!("{OPENED}{id}"),
             number: 0,
@@ -423,20 +431,31 @@ impl Route {
             .map_or(0, super::projection::Projection::last)
     }
 
-    /// 看一眼那一块事实：渲染不出（照说不会：起来时查过）的记一行，不带。
-    fn glance_fact(&self) -> Vec<Value> {
-        let fields: [(&str, &str); 0] = [];
-        match self
-            .rules
-            .glance()
-            .render(&fields.iter().copied().collect())
-        {
-            Ok(text) => vec![json!({"kind": GLANCE, "text": text})],
+    /// 看一眼那一轮带的事实：那一块 `glance`；场所 `venue` 的卡片上写了「看一眼时的额外提示词」的再带一块 `glance-task`（施工
+    /// I-196，设计 12 第 2 条：这一轮要做的事，写的那段照模板转义）。渲染不出（照说不会：起来时查过）的记一行，不带。
+    fn glance_fact(&mut self, venue: &str) -> Vec<Value> {
+        let none: [(&str, &str); 0] = [];
+        let mut facts = Vec::new();
+        match self.rules.glance().render(&none.iter().copied().collect()) {
+            Ok(text) => facts.push(json!({"kind": GLANCE, "text": text})),
             Err(error) => {
                 tracing::warn!(target: TARGET, error = %error, "glance fact not written");
-                Vec::new()
             }
         }
+        let applied = parse(venue).map(|venue| self.applied(&venue));
+        if let Some(note) = applied.as_ref().and_then(applied::glance_note) {
+            match self
+                .rules
+                .glance_note()
+                .render(&[("text", note)].into_iter().collect())
+            {
+                Ok(text) => facts.push(json!({"kind": GLANCE_TASK, "text": text})),
+                Err(error) => {
+                    tracing::warn!(target: TARGET, error = %error, "glance note not written");
+                }
+            }
+        }
+        facts
     }
 }
 

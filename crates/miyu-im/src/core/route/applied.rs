@@ -203,6 +203,13 @@ pub(super) fn glance_records(applied: &Applied) -> Option<usize> {
     }
 }
 
+/// 看一眼时的额外提示词（施工 I-196）：规则的 `glance_note`，去掉首尾空白；没写的、空的是空的。
+pub(super) fn glance_note(applied: &Applied) -> Option<&str> {
+    text(applied, "glance_note")
+        .map(str::trim)
+        .filter(|note| !note.is_empty())
+}
+
 /// 会话的说话方式（施工 I-140）：规则的 `style_note`，去掉首尾空白；没写的、空的是空的。
 pub(super) fn style_note(applied: &Applied) -> Option<&str> {
     text(applied, "style_note")

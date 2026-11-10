@@ -20,7 +20,11 @@ impl Route {
         let params = &pushed["params"];
         // 时不时看一眼的定时到点了（施工 I-89）：不带会话，下面照会话分的走不到。
         if pushed["method"] == "schedule.fired" {
-            return self.glance_fired(params).await;
+            // 会话的定时任务（施工 I-198）照 `prompt` 认；别的是看一眼的。
+            return match params["prompt"].as_str().and_then(crate::tasks::Task::read) {
+                Some(task) => self.task_fired(params, task).await,
+                None => self.glance_fired(params).await,
+            };
         }
         if pushed["method"] == "extension.config" {
             let Some(keys) = params["keys"].as_object() else {
@@ -70,6 +74,7 @@ impl Route {
                 || self.overview_called(&pushed)
                 || self.browse_called(&pushed)
                 || self.page_called(&pushed).await?
+                || self.tasks_called(&pushed).await?
             {
                 return Ok(());
             }
