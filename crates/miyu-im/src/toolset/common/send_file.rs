@@ -8,6 +8,9 @@
 //! - 判过的文件钉一份进 im 自己的 `outbox/`（驱动的状态目录下，名字 im 起）交出去：硬链接，链不了的（跨文件系统、Windows）拷
 //!   一份。传完、没传成都删钉的那一份（im 那一头，`shown.rs`），原文件不碰。原来（施工 I-130）链好了还照 inode 再核一遍、链不了的
 //!   答 `unsendable`、不是 Unix 的系统一律不传；项目主人 11-10 定「文件应该让发，别管什么身份」（施工 I-185 下下），不再核。
+//! - 外人的会话（没放开的）钉文件不跟链接（项目主人 11-10 定「别跟过去，是快捷方式就照快捷方式发」，core1 审出来：判完到钉之间
+//!   换成指向 `~/.ssh` 的链接就拷走了私钥）：最后一段照不跟链接打开，从同一个句柄判、拷；是链接的答 `link`，不发（交不了链接本身）。
+//!   放开的会话照旧什么都能发（跟链接）。
 //! - 对端读不到本机的文件（NapCat 不是从本机连进来的）答 `not-local`；没连着答 `unreachable`。
 //! - 认了的交给 im（`Effect::Upload`）：另起任务传，当场答 `uploading`；没传成的照 `show` 的文件记 `unshown`。
 //! - 放开的会话（施工 LV-4，`Call::open`：主人本人叫的、完全放开）发什么文件都行（项目主人 11-10 定）：她本来就读得到，不比工作区、
@@ -54,6 +57,7 @@ pub fn send_file(call: &Call, upload: Duration) -> Planned {
         }),
         Err(Refused::NoFile) => Planned::Now(call.answers.say("no-file", &[("path", asked)], true)),
         Err(Refused::Unsendable) => Planned::Now(call.answers.say("unsendable", &[], true)),
+        Err(Refused::Link) => Planned::Now(call.answers.say("link", &[("path", asked)], true)),
     }
 }
 
@@ -75,30 +79,92 @@ pub(crate) enum Refused {
     NoFile,
     /// 钉不住：链不了也拷不了（`outbox/` 建不了、写不进）。
     Unsendable,
+    /// 最后一段是链接（快捷方式）：外人的会话不跟过去，也交不了链接本身，不发（施工 I-185 下下，项目主人 11-10）。
+    Link,
 }
 
-/// `asked`（相对的照工作区 `workspace` 算）的真实位置在工作区的真实位置里、是普通文件：交回真实位置和它的元数据。碰磁盘。
-fn checked(workspace: &Path, asked: &Path) -> Option<(PathBuf, std::fs::Metadata)> {
-    if workspace.as_os_str().is_empty() {
-        return None;
-    }
-    let base = std::fs::canonicalize(workspace).ok()?;
-    let real = std::fs::canonicalize(workspace.join(asked)).ok()?;
-    if !real.starts_with(&base) {
-        return None;
-    }
-    let meta = std::fs::symlink_metadata(&real).ok()?;
-    meta.is_file().then_some((real, meta))
-}
-
-/// 判 `asked`，判过的钉进 `outbox`（模块的说明）。碰磁盘。
+/// 外人的会话（没放开的）：判 `asked`，判过的钉进 `outbox`（模块的说明）。上级目录解开链接、照真实位置比在不在工作区里；最后一段
+/// 不跟链接：照 [`taken`] 打开、判、拷，是链接的不发（项目主人 11-10：别跟过去，是快捷方式就照快捷方式发；交不了链接本身就不发）。
+/// 碰磁盘。
 ///
 /// # Errors
 ///
-/// 没有这个文件、不是工作区里的普通文件的是 [`Refused::NoFile`]；链不了也拷不了的是 [`Refused::Unsendable`]。
+/// 没有这个文件、不是工作区里的普通文件的是 [`Refused::NoFile`]；最后一段是链接的是 [`Refused::Link`]；拷不进 `outbox` 的是
+/// [`Refused::Unsendable`]。
 pub(crate) fn pin(workspace: &Path, asked: &Path, outbox: &Path) -> Result<Pinned, Refused> {
-    let (real, meta) = checked(workspace, asked).ok_or(Refused::NoFile)?;
-    pinned(&real, meta.len(), outbox)
+    if workspace.as_os_str().is_empty() {
+        return Err(Refused::NoFile);
+    }
+    let base = std::fs::canonicalize(workspace).map_err(|_| Refused::NoFile)?;
+    let joined = workspace.join(asked);
+    let (Some(name), Some(parent)) = (joined.file_name(), joined.parent()) else {
+        return Err(Refused::NoFile);
+    };
+    let dir = std::fs::canonicalize(parent).map_err(|_| Refused::NoFile)?;
+    if !dir.starts_with(&base) {
+        return Err(Refused::NoFile);
+    }
+    taken(&dir.join(name), outbox)
+}
+
+/// 照 `at` 打开（最后一段不跟链接：Unix 上 `O_NOFOLLOW`，Windows 上打开链接本身），从打开的句柄判是普通文件，再从这个句柄拷一份进
+/// `outbox`：判的那一份和拷的那一份是同一个，判完以后再把它换成链接也拷不到外面去（core1 11-10 审出来的时间差）。
+fn taken(at: &Path, outbox: &Path) -> Result<Pinned, Refused> {
+    let mut file = match open_here(at) {
+        Ok(file) => file,
+        Err(_) if std::fs::symlink_metadata(at).is_ok_and(|meta| meta.file_type().is_symlink()) => {
+            return Err(Refused::Link);
+        }
+        Err(_) => return Err(Refused::NoFile),
+    };
+    let meta = file.metadata().map_err(|_| Refused::NoFile)?;
+    if meta.file_type().is_symlink() {
+        return Err(Refused::Link);
+    }
+    if !meta.is_file() {
+        return Err(Refused::NoFile);
+    }
+    std::fs::create_dir_all(outbox).map_err(|_| Refused::Unsendable)?;
+    let path = outbox.join(fresh_name());
+    let copied = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .and_then(|mut out| std::io::copy(&mut file, &mut out));
+    if copied.is_err() {
+        if std::fs::remove_file(&path).is_err() {
+            tracing::debug!(target: TARGET, path = %path.display(), "pinned file not removed");
+        }
+        return Err(Refused::Unsendable);
+    }
+    let name = at
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    Ok(Pinned {
+        path,
+        name,
+        bytes: meta.len(),
+    })
+}
+
+/// 打开 `at`，最后一段是链接的不跟过去：Unix 上照 `O_NOFOLLOW` 打开失败，Windows 上打开的是链接本身。
+fn open_here(at: &Path) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        /// `FILE_FLAG_OPEN_REPARSE_POINT`：打开链接本身，不跟过去。
+        const OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(OPEN_REPARSE_POINT);
+    }
+    options.open(at)
 }
 
 /// 把真实位置 `real`（`bytes` 大）钉一份进 `outbox`：硬链接，链不了的拷一份。

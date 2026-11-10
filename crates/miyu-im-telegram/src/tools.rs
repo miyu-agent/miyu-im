@@ -112,7 +112,7 @@ const TOOLS: [Decl; 10] = [
 ];
 
 /// 答的话：名字和认的字段。宿主替这一套答的（发成了没有、排行、看一眼、够不着）也在这里。
-const ANSWERS: [(&str, &[&str]); 27] = [
+const ANSWERS: [(&str, &[&str]); 28] = [
     ("skipped", &[]),
     ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
@@ -140,6 +140,7 @@ const ANSWERS: [(&str, &[&str]); 27] = [
     // 传文件（施工 I-185 下下，宿主的 `common::send_file`）。
     ("uploading", &["name", "size"]),
     ("no-file", &["path"]),
+    ("link", &["path"]),
     ("not-local", &[]),
     ("unsendable", &[]),
 ];

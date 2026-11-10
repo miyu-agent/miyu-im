@@ -65,7 +65,7 @@ fn a_link_pointing_out_of_the_workspace_is_refused() {
         .expect("建得了链接");
     assert_eq!(
         pin(&workspace, Path::new("looks-fine.txt"), &outbox),
-        Err(Refused::NoFile)
+        Err(Refused::Link)
     );
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }
@@ -134,4 +134,39 @@ fn an_open_session_sends_any_real_file_from_a_pinned_copy() {
         assert_eq!(refused, Err(Refused::NoFile));
     }
     std::fs::remove_dir_all(&root).expect("清得掉");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_shortcut_is_not_followed_even_inside_the_workspace() {
+    // 施工 I-185 下下（项目主人 11-10：别跟过去，是快捷方式就照快捷方式发）：外人的会话里链接一律不发，指向工作区里面的也一样；
+    // `outbox/` 里什么都没留下。
+    let (root, workspace, outbox) = setup("shortcut");
+    std::os::unix::fs::symlink(workspace.join("out/report.pdf"), workspace.join("same.pdf"))
+        .expect("建得了链接");
+    assert_eq!(
+        pin(&workspace, Path::new("same.pdf"), &outbox),
+        Err(Refused::Link)
+    );
+    assert!(std::fs::read_dir(&outbox).map_or(true, |mut left| left.next().is_none()));
+    std::fs::remove_dir_all(root).expect("删得掉临时目录");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_file_swapped_for_a_link_after_the_check_is_not_copied_through_it() {
+    // core1 11-10 审出来的时间差：判的时候是普通文件，钉的时候换成了指向 `~/.ssh/id_rsa` 这类的链接。钉的那一步（`taken`）不跟
+    // 链接：拿到的已经是判过的位置，换成链接的照样不拷，`outbox/` 里没有外面那份的内容。
+    let (root, workspace, outbox) = setup("swapped");
+    let at = workspace.join("out/report.pdf");
+    std::fs::remove_file(&at).expect("删得掉");
+    std::os::unix::fs::symlink(root.join("secret.txt"), &at).expect("建得了链接");
+    assert_eq!(taken(&at, &outbox), Err(Refused::Link));
+    let leaked = std::fs::read_dir(&outbox)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| std::fs::read(entry.path()).is_ok_and(|bytes| bytes == b"key"));
+    assert!(!leaked, "外面那份的内容没拷进 outbox");
+    std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }

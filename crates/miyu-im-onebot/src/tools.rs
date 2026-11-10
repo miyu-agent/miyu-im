@@ -223,10 +223,11 @@ const TOOLS: [Decl; 21] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 57] = [
+const ANSWERS: [(&str, &[&str]); 58] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
+    ("link", &["path"]),
     ("unsendable", &[]),
     ("skipped", &[]),
     ("glance-set", &["minutes"]),
