@@ -4,13 +4,14 @@
 // 会话自己的上限在会话卡片「节奏」页，不在这里。
 //
 // - 读写经宿主的 limits.get、limits.set（整份替换 im 配置目录里的 limits.toml）；改了当场存，存不成的提示一句、重读一遍。
-// - 一格空着是不限；填的是 1 到一万亿的整数，别的提示一句不存。格后面写单位 token（施工 I-168）。
+// - 一格空着是不限；填的是 1 到一万亿的整数（认 200k、1.5m 这样的写法，施工 I-202），别的提示一句不存。格后面写单位 token（施工 I-168）。
 // - 一段一张共用的卡片（shell/sect.js，设计 11 G1）；加人先选平台再填号码，照用过的人提示（shell/person-pick.js，设计 11 G4）；
 //   30 天用量能搜、能照三条线的用量排、能只看到了上限的（shell/listing.js，设计 11 G2）。
 // - 挂着不止一个平台时（施工 I-182，项目主人 11-09）：单独设的人的平台下拉在组名那一行右边，30 天用量的平台筛选和搜索、排序一排。额度
 //   照旧按人算、不分连接，所以标题旁不放连接下拉（放了会让人以为每个连接各有一份）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { toast } from '../../shell/dialog.js';
+import { tokensOf } from '../../shell/amount.js';
 import { listing } from '../../shell/listing.js';
 import { personPick } from '../../shell/person-pick.js';
 import { sect } from '../../shell/sect.js';
@@ -98,13 +99,13 @@ function cap(lines, key, save, unit = true) {
   input.placeholder = say('limits-page/unlimited');
   input.value = grouped(lines[key]);
   input.addEventListener('change', () => {
-    const typed = input.value.trim().replace(/[,_\s]/g, '');
-    if (typed === '') {
+    if (input.value.trim() === '') {
       lines[key] = null;
       save();
       return;
     }
-    const number = Number(typed);
+    // 认 k、m 的写法（施工 I-202，shell/amount.js）：200k、1.5m。
+    const number = tokensOf(input.value);
     if (!Number.isInteger(number) || number < 1 || number > CAP) {
       toast(say('failed/invalid'));
       input.value = grouped(lines[key]);
