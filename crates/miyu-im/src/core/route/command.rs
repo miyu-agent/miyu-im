@@ -26,7 +26,8 @@ const MANAGER: &str = "manager";
 /// 打断以后再跑的那一次的命令编号：这条消息的加上它（同一个编号核心只算一次，施工 I-55）。
 const FORCED: &str = ":forced";
 
-mod model;
+mod pick;
+mod picking;
 
 impl Route {
     /// 把 `message` 当斜杠命令交给核心（「斜杠命令」第 1 到 5 条）。办完了（成了、被拒、不接、找不到会话）交回真；核心认不
@@ -36,9 +37,9 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn command(&mut self, message: &Message) -> Result<bool, Gone> {
-        // `/model` 桥自己办（施工 I-53）；不归它管的人打的照原来交核心。
-        if let Some(query) = model::model_query(&message.text)
-            && self.model_command(message, query).await?
+        // `/model`、`/persona`、`/preset` 桥自己办（施工 I-53、I-194）；不归它管的人打的照原来交核心。
+        if let Some((kind, query)) = pick::picked(&message.text)
+            && self.pick_command(message, kind, query).await?
         {
             return Ok(true);
         }

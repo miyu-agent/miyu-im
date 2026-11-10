@@ -265,19 +265,24 @@
     "ja": "ホワイトリスト外の人"
   },
   "model-now": {
-    "zh": "现在用的是 {model}",
-    "en": "Using {model}",
-    "ja": "今は {model} を使っています"
+    "zh": "现在用的是 {name}",
+    "en": "Using {name}",
+    "ja": "今は {name} を使っています"
   },
   "model-follows": {
-    "zh": "现在跟随默认（{model}）",
-    "en": "Following the default ({model})",
-    "ja": "既定に従っています（{model}）"
+    "zh": "现在跟随默认（{name}）",
+    "en": "Following the default ({name})",
+    "ja": "既定に従っています（{name}）"
+  },
+  "model-follows-plain": {
+    "zh": "现在跟随默认",
+    "en": "Following the default",
+    "ja": "既定に従っています"
   },
   "model-set": {
-    "zh": "换成 {model} 了",
-    "en": "Switched to {model}",
-    "ja": "{model} に切り替えました"
+    "zh": "换成 {name} 了",
+    "en": "Switched to {name}",
+    "ja": "{name} に切り替えました"
   },
   "model-cleared": {
     "zh": "改回跟随默认了",
@@ -285,9 +290,9 @@
     "ja": "既定に戻しました"
   },
   "model-usage": {
-    "zh": "/model search 列出全部模型（带编号），/model search <关键词> 搜，/model <编号> 切换，/model 默认 改回跟随默认",
-    "en": "/model search lists every model with a number, /model search <keywords> narrows it, /model <number> switches, /model default follows the default",
-    "ja": "/model search で全部のモデルを番号つきで一覧、/model search <キーワード> で絞り込み、/model <番号> で切り替え、/model 既定 で既定に戻す"
+    "zh": "/model search：列出全部模型（带编号）\n/model search <关键词>：搜\n/model <编号>：切换\n/model 默认：改回跟随默认",
+    "en": "/model search: list every model with a number\n/model search <keywords>: narrow the list\n/model <number>: switch\n/model default: follow the default",
+    "ja": "/model search：全部のモデルを番号つきで一覧\n/model search <キーワード>：絞り込み\n/model <番号>：切り替え\n/model 既定：既定に戻す"
   },
   "model-found": {
     "zh": "用 /model <编号> 切换：",
@@ -310,11 +315,131 @@
     "ja": "「{query}」という番号やモデルはありません。/model search で番号を確認してください"
   },
   "model-no-card": {
-    "zh": "这个会话没有自己的卡片，先在后台给它加一张",
-    "en": "This chat has no card of its own, add one in the backstage first",
-    "ja": "この会話には専用のカードがありません。先に管理画面で追加してください"
+    "zh": "卡片没存上，看运行日志",
+    "en": "The card was not saved, see the log",
+    "ja": "カードを保存できませんでした。ログを確認してください"
   },
   "model-refused": {
+    "zh": "没换成：{detail}",
+    "en": "Not switched: {detail}",
+    "ja": "切り替えられませんでした：{detail}"
+  },
+  "persona-now": {
+    "zh": "现在用的是 {name}",
+    "en": "Using {name}",
+    "ja": "今は {name} を使っています"
+  },
+  "persona-follows": {
+    "zh": "现在跟随默认（{name}）",
+    "en": "Following the default ({name})",
+    "ja": "既定に従っています（{name}）"
+  },
+  "persona-follows-plain": {
+    "zh": "现在跟随默认",
+    "en": "Following the default",
+    "ja": "既定に従っています"
+  },
+  "persona-set": {
+    "zh": "换成 {name} 了",
+    "en": "Switched to {name}",
+    "ja": "{name} に切り替えました"
+  },
+  "persona-cleared": {
+    "zh": "改回跟随默认了",
+    "en": "Back to the default",
+    "ja": "既定に戻しました"
+  },
+  "persona-usage": {
+    "zh": "/persona search：列出全部人格（带编号）\n/persona search <关键词>：搜\n/persona <编号>：切换\n/persona 默认：改回跟随默认",
+    "en": "/persona search: list every persona with a number\n/persona search <keywords>: narrow the list\n/persona <number>: switch\n/persona default: follow the default",
+    "ja": "/persona search：全部のペルソナを番号つきで一覧\n/persona search <キーワード>：絞り込み\n/persona <番号>：切り替え\n/persona 既定：既定に戻す"
+  },
+  "persona-found": {
+    "zh": "用 /persona <编号> 切换：",
+    "en": "Switch with /persona <number>:",
+    "ja": "/persona <番号> で切り替え："
+  },
+  "persona-using-mark": {
+    "zh": "（正在用）",
+    "en": " (in use)",
+    "ja": "（使用中）"
+  },
+  "persona-search-none": {
+    "zh": "没找到和「{query}」对得上的",
+    "en": "Nothing matches \"{query}\"",
+    "ja": "「{query}」に当てはまるものはありません"
+  },
+  "persona-none": {
+    "zh": "没有「{query}」这个编号或人格，用 /persona search 看编号",
+    "en": "No persona numbered or named \"{query}\", see the numbers with /persona search",
+    "ja": "「{query}」という番号やペルソナはありません。/persona search で番号を確認してください"
+  },
+  "persona-no-card": {
+    "zh": "卡片没存上，看运行日志",
+    "en": "The card was not saved, see the log",
+    "ja": "カードを保存できませんでした。ログを確認してください"
+  },
+  "persona-refused": {
+    "zh": "没换成：{detail}",
+    "en": "Not switched: {detail}",
+    "ja": "切り替えられませんでした：{detail}"
+  },
+  "preset-now": {
+    "zh": "现在用的是 {name}",
+    "en": "Using {name}",
+    "ja": "今は {name} を使っています"
+  },
+  "preset-follows": {
+    "zh": "现在跟随默认（{name}）",
+    "en": "Following the default ({name})",
+    "ja": "既定に従っています（{name}）"
+  },
+  "preset-follows-plain": {
+    "zh": "现在跟随默认",
+    "en": "Following the default",
+    "ja": "既定に従っています"
+  },
+  "preset-set": {
+    "zh": "换成 {name} 了",
+    "en": "Switched to {name}",
+    "ja": "{name} に切り替えました"
+  },
+  "preset-cleared": {
+    "zh": "改回跟随默认了",
+    "en": "Back to the default",
+    "ja": "既定に戻しました"
+  },
+  "preset-usage": {
+    "zh": "/preset search：列出全部预设（带编号）\n/preset search <关键词>：搜\n/preset <编号>：切换\n/preset 默认：改回跟随默认",
+    "en": "/preset search: list every preset with a number\n/preset search <keywords>: narrow the list\n/preset <number>: switch\n/preset default: follow the default",
+    "ja": "/preset search：全部のプリセットを番号つきで一覧\n/preset search <キーワード>：絞り込み\n/preset <番号>：切り替え\n/preset 既定：既定に戻す"
+  },
+  "preset-found": {
+    "zh": "用 /preset <编号> 切换：",
+    "en": "Switch with /preset <number>:",
+    "ja": "/preset <番号> で切り替え："
+  },
+  "preset-using-mark": {
+    "zh": "（正在用）",
+    "en": " (in use)",
+    "ja": "（使用中）"
+  },
+  "preset-search-none": {
+    "zh": "没找到和「{query}」对得上的",
+    "en": "Nothing matches \"{query}\"",
+    "ja": "「{query}」に当てはまるものはありません"
+  },
+  "preset-none": {
+    "zh": "没有「{query}」这个编号或预设，用 /preset search 看编号",
+    "en": "No preset numbered or named \"{query}\", see the numbers with /preset search",
+    "ja": "「{query}」という番号やプリセットはありません。/preset search で番号を確認してください"
+  },
+  "preset-no-card": {
+    "zh": "卡片没存上，看运行日志",
+    "en": "The card was not saved, see the log",
+    "ja": "カードを保存できませんでした。ログを確認してください"
+  },
+  "preset-refused": {
     "zh": "没换成：{detail}",
     "en": "Not switched: {detail}",
     "ja": "切り替えられませんでした：{detail}"
