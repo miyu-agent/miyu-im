@@ -247,6 +247,12 @@ pub trait Link: Send + Sync + fmt::Debug {
         unsupported()
     }
 
+    /// 删掉群 `group` 里编号是 `file` 的群文件（施工 I-204）：她得是群主、管理员，或者文件是她传的。
+    fn delete_group_file<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, ()> {
+        let _ = (group, file);
+        unsupported()
+    }
+
     /// 群 `group` 里编号是 `file` 的群文件的下载地址（施工 I-12）。
     fn group_file_url<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, String> {
         let _ = (group, file);

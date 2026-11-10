@@ -53,9 +53,14 @@ impl Projection {
         if body["inbound"] != "pass" {
             return;
         }
+        // 冲她来的（施工 I-204）：这一笔的条件里有 `direct`。
+        let direct = body["conditions"]
+            .as_array()
+            .is_some_and(|hits| hits.iter().any(|hit| hit["kind"] == "direct"));
         for seq in body["msgs"].as_array().into_iter().flatten() {
             if let Some(speaker) = seq.as_u64().and_then(|seq| self.said.get_mut(&seq)) {
                 speaker.passed = true;
+                speaker.direct |= direct;
             }
         }
     }

@@ -219,6 +219,14 @@ impl Link for Wire {
         self.read(action, replies::group_files)
     }
 
+    fn delete_group_file<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, ()> {
+        // NapCat 的 `delete_group_file {group_id, file_id}`（施工 I-204）。
+        self.done((
+            "delete_group_file",
+            json!({"group_id": group, "file_id": file}),
+        ))
+    }
+
     fn group_file_url<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, String> {
         let wanted = (FILE_URL, json!({"group_id": group, "file_id": file}));
         Box::pin(async move {
