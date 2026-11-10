@@ -134,7 +134,7 @@ async fn a_member_gets_only_the_file_in_her_workspace_sent() {
     assert!(
         results
             .iter()
-            .any(|text| text.contains("../outside.txt is not a file in your workspace")),
+            .any(|text| text.contains("../outside.txt is outside your workspace")),
         "群友叫的：外面的不传。{results:?}"
     );
     // 传完删掉钉住的那一份：发出去了才写「file shown」。

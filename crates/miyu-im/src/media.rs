@@ -269,7 +269,7 @@ pub fn save(cwd: &str, home: Option<&Path>, name: &str, bytes: &[u8]) -> Result<
 
 /// 工作区的路径：`~`、`~/…`（Windows 上 `~\…` 也认）换成家目录；别的照原样（`~别人` 也是，之后当相对路径拒掉）。家目录读不出
 /// 的说清楚。
-fn expand(cwd: &str, home: Option<&Path>) -> Result<PathBuf, String> {
+pub(crate) fn expand(cwd: &str, home: Option<&Path>) -> Result<PathBuf, String> {
     let rest = match cwd.strip_prefix('~') {
         None => return Ok(PathBuf::from(cwd)),
         Some("") => "",

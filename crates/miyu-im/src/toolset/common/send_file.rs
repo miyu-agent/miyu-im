@@ -4,7 +4,10 @@
 //! 内存、不设大小上限；Telegram 由驱动读了照 `sendDocument` 传（最大 50 MB）。收不了的照平台回的原话告诉她。
 //!
 //! - 只认她这个会话工作区（`cwd`）里的普通文件：相对的照工作区算；照真实位置比，链接解开了再判，指出工作区的不认（场所会话是
-//!   关起来的，她本来就只碰得到自己的工作区；core1 11-04）。不认的答 `no-file`。
+//!   关起来的，她本来就只碰得到自己的工作区；core1 11-04）。没有这个文件、不是普通文件的答 `no-file`，在工作区外面的答 `outside`
+//!   （施工 I-190：原来一律答「不是工作区里的文件」，她照它当成了白名单）。
+//! - 工作区、她写的路径开头的 `~` 换成家目录（施工 I-190，`media::expand`）：从旧版导进来的会话工作区记的是 `~`，核心原样交过来，
+//!   她写路径也爱写 `~/…`；原来都没换，照工作区里叫 `~` 的目录找，什么都找不到。
 //! - 判过的文件钉一份进 im 自己的 `outbox/`（驱动的状态目录下，名字 im 起）交出去：硬链接，链不了的（跨文件系统、Windows）拷
 //!   一份。传完、没传成都删钉的那一份（im 那一头，`shown.rs`），原文件不碰。原来（施工 I-130）链好了还照 inode 再核一遍、链不了的
 //!   答 `unsendable`、不是 Unix 的系统一律不传；项目主人 11-10 定「文件应该让发，别管什么身份」（施工 I-185 下下），不再核。
@@ -44,10 +47,11 @@ pub fn send_file(call: &Call, upload: Duration) -> Planned {
     }
     let outbox = call.store.join(OUTBOX);
     sweep(&outbox, upload);
+    let (workspace, wanted) = paths(&call.cwd, asked, std::env::home_dir().as_deref());
     let pinned = if call.open {
-        pin_open(Path::new(&call.cwd), Path::new(asked), &outbox)
+        pin_open(&workspace, &wanted, &outbox)
     } else {
-        pin(Path::new(&call.cwd), Path::new(asked), &outbox)
+        pin(&workspace, &wanted, &outbox)
     };
     match pinned {
         Ok(Pinned { path, name, bytes }) => Planned::Host(Effect::Upload {
@@ -56,6 +60,9 @@ pub fn send_file(call: &Call, upload: Duration) -> Planned {
             size: size(bytes),
         }),
         Err(Refused::NoFile) => Planned::Now(call.answers.say("no-file", &[("path", asked)], true)),
+        Err(Refused::Outside) => {
+            Planned::Now(call.answers.say("outside", &[("path", asked)], true))
+        }
         Err(Refused::Unsendable) => Planned::Now(call.answers.say("unsendable", &[], true)),
         Err(Refused::Link) => Planned::Now(call.answers.say("link", &[("path", asked)], true)),
     }
@@ -75,12 +82,21 @@ pub(crate) struct Pinned {
 /// 为什么不传。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Refused {
-    /// 不是她工作区里的普通文件（不在、是目录、指出去了、判的时候被换了）。
+    /// 没有这个文件、不是普通文件、判的时候被换了。
     NoFile,
+    /// 在工作区外面（指出去的链接也算）：只给没放开的会话（施工 I-190 从 [`Refused::NoFile`] 分出来）。
+    Outside,
     /// 钉不住：链不了也拷不了（`outbox/` 建不了、写不进）。
     Unsendable,
     /// 最后一段是链接（快捷方式）：外人的会话不跟过去，也交不了链接本身，不发（施工 I-185 下下，项目主人 11-10）。
     Link,
+}
+
+/// 工作区 `cwd`、她写的路径 `asked`，开头的 `~` 换成家目录 `home`（纯逻辑，施工 I-190）；家目录读不出的照原样。
+pub(crate) fn paths(cwd: &str, asked: &str, home: Option<&Path>) -> (PathBuf, PathBuf) {
+    let expand =
+        |text: &str| crate::media::expand(text, home).unwrap_or_else(|_| PathBuf::from(text));
+    (expand(cwd), expand(asked))
 }
 
 /// 外人的会话（没放开的）：判 `asked`，判过的钉进 `outbox`（模块的说明）。从工作区的真实位置一级一级往下开，每一级都不跟链接
@@ -89,14 +105,14 @@ pub(crate) enum Refused {
 ///
 /// # Errors
 ///
-/// 没有这个文件、不是工作区里的普通文件（带 `..`、跑出工作区的也是）的是 [`Refused::NoFile`]；路上哪一段是链接的是
-/// [`Refused::Link`]；拷不进 `outbox` 的是 [`Refused::Unsendable`]。
+/// 没有这个文件、不是普通文件的是 [`Refused::NoFile`]；带 `..`、跑出工作区的是 [`Refused::Outside`]（施工 I-190）；路上哪一段是
+/// 链接的是 [`Refused::Link`]；拷不进 `outbox` 的是 [`Refused::Unsendable`]。
 pub(crate) fn pin(workspace: &Path, asked: &Path, outbox: &Path) -> Result<Pinned, Refused> {
     if workspace.as_os_str().is_empty() {
         return Err(Refused::NoFile);
     }
     let base = std::fs::canonicalize(workspace).map_err(|_| Refused::NoFile)?;
-    let rest = below(workspace, &base, asked).ok_or(Refused::NoFile)?;
+    let rest = below(workspace, &base, asked).ok_or(Refused::Outside)?;
     taken(&base, &rest, outbox)
 }
 

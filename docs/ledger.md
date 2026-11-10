@@ -61,6 +61,7 @@
 - 施工 I-183 下下（2026-11-10）的二十七份（`miyu-im/data/telegram/tools/` 七件、`tool-results/` 二十句）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量：工具面照「带工具减不带」，七件一起合计 677（同一刻 QQ 的二十一件 1626，和以前的数一样）；核心照名字前缀只给那个平台的场所，Telegram 的群、私聊只见这七件，QQ 的场所一个字节没变；本机会话多一件 `tg_send`（88），只在连接表写了令牌时登记。四句改了平台名或说法的接在 `hi` 和一个换行后面量，带行尾换行；另外十六句和 `onebot/` 的字节一样，token 照那边登记的。
 - 施工 I-185 下上（2026-11-10）的五份（`miyu-im/data/telegram/tools/tg_recall.json`、`tg_react.json`，`tool-results/` 的 `recalled`、`reacted`、`no-quote`）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 I-183 下下：九件一起合计 799（多 122：`tg_recall` 55、`tg_react` 67），1746 字节；项目主人 11-10 定 Telegram 的预算和 QQ 的一样（4312 字节）。三句结果和 `onebot/` 的字节一样，token 照那边登记的。
 - 施工 I-185 下下（2026-11-10）的五份（`miyu-im/data/telegram/tools/tg_send_file.json`，`tool-results/` 的 `uploading`、`no-file`、`not-local`、`unsendable`）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 I-183 下下：十件一起合计 851（多 52），1902 字节，在预算（4312）以内；`not-local`、`unsendable` 平台写 Telegram，接在 `hi` 和一个换行后面量 12、14；另两句和 `onebot/` 的字节一样。另加 `link.txt`（`onebot/`、`telegram/` 各一，外人的会话里那份是链接、不跟过去），接在 `hi` 和一个换行后面量 18（`report.pdf`）。
+- 施工 I-190（2026-11-10）改一份、加一份（`no-file.txt` 改句子、`outside.txt` 新加，`onebot/`、`telegram/` 各一）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，接在 `hi` 和一个换行后面、带行尾换行：`no-file`（`out/report.pdf`）16 → 12，`outside`（`../secret.txt`）12。为什么改：11-10 主人私聊里她写 `~/…` 发文件，im 没换 `~`，答「不是工作区里的文件」，她当成了白名单反复说「只认工作区」。
 
 ### 登记簿
 
@@ -144,7 +145,7 @@
 | `miyu-im/data/onebot/tool-results/glance-set.txt` | 工具结果 | `qq_glance` 换好了定时（施工 I-89 下） | 8（字段填 `60`） | 告诉她下一次在几分钟以后 | `d9da9776` |
 | `miyu-im/data/onebot/tool-results/uploading.txt` | 工具结果 | `qq_send_file` 交出去了，在传（施工 I-130） | 15（字段填 `report.pdf`、`3.4 MB`） | 告诉她在传了、多大；没传成的另记一块 `unshown` | `0b6c206c` |
 | `miyu-im/data/onebot/tool-results/not-local.txt` | 工具结果 | `qq_send_file`：NapCat 不是从本机连进来的，读不到她的文件（施工 I-130） | 15 | 别再换路径重试 | `cd89405a` |
-| `miyu-im/data/onebot/tool-results/no-file.txt` | 工具结果 | `qq_send_file`：路径不是她工作区里的文件（不在、是目录、指出工作区、判的时候被换了，施工 I-130） | 16（字段填 `out/report.pdf`） | 告诉她只认工作区里的文件 | `56dec745` |
+| `miyu-im/data/onebot/tool-results/no-file.txt` | 工具结果 | `qq_send_file`：没有这个文件、不是普通文件、判的时候被换了（施工 I-130；I-190 把工作区外面的分出去答 `outside`） | 12（字段填 `out/report.pdf`；原来那句 16） | 说清是找不到这个文件：原来一律说「不是工作区里的文件」，她当成了白名单（11-10 主人私聊里实测） | `8d3a8b16` |
 | `miyu-im/data/onebot/tool-results/unsendable.txt` | 工具结果 | `qq_send_file`：钉不住（跨文件系统硬链接不了；不是 Unix 的系统上核不了 inode），不传（施工 I-130） | 14 | 别再换路径重试；不退回拷一份，拷也有同样的时间差 | `426c28ee` |
 | `miyu-im/data/onebot/tool-results/no-activity.txt` | 工具结果 | `qq_activity_ranking`：那几天一条都没数到（施工 I-20） | 13 | 照实说没数到，免得她编一个排行 | `92b94717` |
 | `miyu-im/data/onebot/tool-results/many-targets.txt` | 工具结果 | 禁言、戳一戳：引用的和 @ 的合起来不止一个人（施工 T-2 起挪进驱动的目录） | 17 | 一次只动一个人，不猜是哪一个 | `1feae897` |
@@ -225,8 +226,10 @@
 | `miyu-im/data/telegram/tool-results/no-quote.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-quote.txt`（字节一样，施工 I-185 下上） | 19（2026-10-17 量；O-31 那一句 16） | Telegram 那套答同样的话 | `5c41e58f` |
 | `miyu-im/data/telegram/tools/tg_send_file.json` | tools 数组 | Telegram 的私聊、群（同 `qq_send_file`，说明一字不差，宿主同一份代码 `common::send_file`）（施工 I-185 下下） | 52（十件一起的边际） | 项目主人 11-09 定 Telegram 也要能发文件 | `0339882d` |
 | `miyu-im/data/telegram/tool-results/uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/uploading.txt`（字节一样，施工 I-185 下下） | 15（字段填 `report.pdf`、`3.4 MB`） | Telegram 那套答同样的话 | `0b6c206c` |
-| `miyu-im/data/telegram/tool-results/no-file.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-file.txt`（字节一样，施工 I-185 下下） | 16（字段填 `out/report.pdf`） | Telegram 那套答同样的话 | `56dec745` |
+| `miyu-im/data/telegram/tool-results/no-file.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-file.txt`（字节一样，施工 I-185 下下、I-190） | 12（字段填 `out/report.pdf`） | Telegram 那套答同样的话 | `8d3a8b16` |
 | `miyu-im/data/telegram/tool-results/not-local.txt` | 工具结果 | `tg_send_file` 对端读不到本机的文件（Telegram 驱动和 im 在同一个进程，照说不会；施工 I-185 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `e149a81c` |
 | `miyu-im/data/telegram/tool-results/unsendable.txt` | 工具结果 | `tg_send_file` 钉不住那份文件（施工 I-185 下下） | 14 | 同 QQ 的那一句，平台写 Telegram | `75d07729` |
+| `miyu-im/data/onebot/tool-results/outside.txt` | 工具结果 | `qq_send_file`：那份文件在她工作区外面（指出去的链接也算），只给没放开的会话（施工 I-190） | 12（字段填 `../secret.txt`） | 说清是在工作区外面，和找不到分开 | `5b52beb2` |
+| `miyu-im/data/telegram/tool-results/outside.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/outside.txt`（字节一样，施工 I-190） | 12（字段填 `../secret.txt`） | Telegram 那套答同样的话 | `5b52beb2` |
 | `miyu-im/data/onebot/tool-results/link.txt` | 工具结果 | `qq_send_file`：外人的会话里那份是链接（快捷方式），不跟过去、不发（施工 I-185 下下） | 18（字段填 `report.pdf`） | 项目主人 11-10 定「别跟过去，是快捷方式就照快捷方式发」，交不了链接本身就不发；说清是快捷方式，她不会当成找不到 | `32b6daac` |
 | `miyu-im/data/telegram/tool-results/link.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/link.txt`（字节一样，施工 I-185 下下） | 18（字段填 `report.pdf`） | Telegram 那套答同样的话 | `32b6daac` |

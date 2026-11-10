@@ -1,1 +1,1 @@
-Not sent: {path} is not a file in your workspace.
+Not sent: no file at {path}.

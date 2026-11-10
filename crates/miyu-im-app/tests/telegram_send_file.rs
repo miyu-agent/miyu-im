@@ -91,7 +91,7 @@ async fn a_file_in_her_workspace_goes_to_telegram_as_a_document() {
     assert!(
         results
             .iter()
-            .any(|text| text.contains("../outside.txt is not a file in your workspace")),
+            .any(|text| text.contains("../outside.txt is outside your workspace")),
         "不是主人本人的私聊：外面的不传。{results:?}"
     );
     let calls = api.calls();
