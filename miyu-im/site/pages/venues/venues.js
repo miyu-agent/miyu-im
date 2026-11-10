@@ -233,7 +233,9 @@ export function mountVenues(view, { request, path }) {
     const fallbacks = fallbacksOf(all);
     // 连接做得到的几样（施工 I-85 补）：卡上平台做不到的选项不列。
     const caps = picked?.caps;
-    const context = { request: scoped, platform: chosen, bots: names(), personas, friends, plugins, fallbacks, caps };
+    // 上下文上限设不上的（施工 I-189）：那一格下面写最少多少。
+    const contextMin = answer?.context_min;
+    const context = { request: scoped, platform: chosen, bots: names(), personas, friends, plugins, fallbacks, caps, contextMin };
     opened.dialog = openVenue(one, context, () => {
       if (open === opened) open = null;
     });

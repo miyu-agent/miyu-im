@@ -21,6 +21,7 @@ mod budget;
 mod called;
 mod called_limits;
 mod calls;
+mod card_context;
 mod card_model;
 mod cards;
 mod cli_texts;

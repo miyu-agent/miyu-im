@@ -8,6 +8,7 @@ fn wanted(model: Option<&str>, persona: Option<&str>, preset: Option<&str>) -> W
         model: model.map(str::to_string),
         persona: persona.map(str::to_string),
         preset: preset.map(str::to_string),
+        context: None,
     }
 }
 
@@ -69,4 +70,36 @@ fn the_rules_give_the_three() {
         Wanted::default(),
         "没设的是空的"
     );
+}
+
+#[test]
+fn the_context_limit_goes_on_its_own_and_a_cleared_one_is_null() {
+    // 施工 I-189：上下文上限另发（核心一格不收就什么都不换），不在 `first`、`since` 里。
+    let with = |context: Option<u64>| Wanted {
+        context,
+        ..wanted(Some("a/m"), None, None)
+    };
+    assert_eq!(with(Some(128_000)).context(None), Some(json!(128_000)));
+    assert_eq!(with(None).context(None), None, "没设的不发");
+    assert_eq!(
+        sent(with(Some(128_000)).first()),
+        json!({"model": "a/m"}),
+        "和模型分开发"
+    );
+    let before = with(Some(128_000));
+    assert_eq!(
+        with(Some(64_000)).context(Some(&before)),
+        Some(json!(64_000))
+    );
+    assert_eq!(
+        with(None).context(Some(&before)),
+        Some(Value::Null),
+        "清掉的回到照模型"
+    );
+    assert_eq!(
+        with(Some(128_000)).context(Some(&before)),
+        None,
+        "没变的不发"
+    );
+    assert_eq!(sent(with(Some(64_000)).since(&before)), Value::Null);
 }

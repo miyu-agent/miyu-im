@@ -11,6 +11,7 @@
 //   不写 `unset` 的当是 `on`。switch 也认 `unset`：没写、也没继承到的照它画。
 // - advanced：收进「高级」里（默认收起）。
 // - empty：没有继承的值时输入框的占位字（施工 I-168：使用限制空着是「不限」）。
+// - warn：`(one, context) => 字`，这一格下面先写的一句（施工 I-189：上下文上限设不上时的「最少 x」）；空的不写。
 // - needs：浮窗问到的那一样（`reactions`：平台能贴的表情；`presets`：预设）是空的、问不到的就不画（照回答里同名的那个列表）。
 // - optionCaps：下拉的哪一项要平台做得到哪一样（施工 I-85 补，连接的 `caps`）：做不到的不列，卡上已经写了它的照旧列；会话默认值
 //   那张不分平台，都列。
@@ -33,6 +34,13 @@ function limits(kinds, dep) {
   }));
 }
 
+/** 上下文上限设不上的（施工 I-189）：宿主问卡片时交的 `context_min` 里有这张卡的（群卡、私聊卡照号），写最少多少。 */
+function contextWarn(one, context) {
+  const kind = one.kind === 'group' || one.kind === 'private' ? one.kind : null;
+  const min = kind ? context.contextMin?.[kind]?.[String(one.id)] : undefined;
+  return min ? say('field/context-limit-min', { min: Number(min).toLocaleString() }) : '';
+}
+
 /** 各页的格，照页的编号。 */
 export const FIELDS = {
   persona: [
@@ -41,6 +49,8 @@ export const FIELDS = {
     { key: 'extra_prompt', control: 'area', label: 'field/extra-prompt', hint: 'field/extra-prompt-hint', defaultsHint: 'field/extra-prompt-hint-defaults', wide: true },
     { group: 'field/models' },
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
+    // 会话的上下文上限（施工 I-189，核心 CTX-1）：token 数，空着照模型的窗口；设得太小的核心不收，下面写最少多少。
+    { key: 'rules.context', control: 'number', label: 'field/context-limit', hint: 'field/context-limit-hint', unit: 'unit/tokens', empty: 'field/context-limit-empty', min: 1, warn: contextWarn },
     // 判官没配模型的走旁路请求 `judge`（施工 I-42）：落到池的写池，池空了的照这张卡的模型（`orKey`），再照核心的对话模型。
     { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'judge', orKey: 'model', kinds: GROUPS, dep: JUDGE },
     { group: 'field/context' },

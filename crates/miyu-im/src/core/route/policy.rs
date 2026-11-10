@@ -9,6 +9,7 @@
 //!   不等。
 //! - 有回合在跑（`turn_running`）：隔 [`RETRY`] 再发，最多 [`TRIES`] 次。核心拒了别的（`unknown_model`、`unknown_persona` 这类）
 //!   记一行运行日志，会话照原来的。
+//! - 上下文上限（施工 I-189，`context`）另发一次，见 [`context`]。
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -23,6 +24,7 @@ use crate::TARGET;
 use crate::core::{Caller, reason};
 use crate::rules::Applied;
 
+pub(super) mod context;
 #[cfg(test)]
 mod tests;
 
@@ -38,6 +40,8 @@ pub(super) struct Wanted {
     model: Option<String>,
     persona: Option<String>,
     preset: Option<String>,
+    /// 上下文上限（施工 I-189）：另发，不在 [`Wanted::first`]、[`Wanted::since`] 里。
+    context: Option<u64>,
 }
 
 impl Wanted {
@@ -47,6 +51,15 @@ impl Wanted {
             model: applied::model(applied).map(str::to_string),
             persona: applied::text_of(applied, "persona").map(str::to_string),
             preset: applied::text_of(applied, "preset").map(str::to_string),
+            context: applied::context(applied),
+        }
+    }
+
+    /// 上下文上限：第一次找到会话时设了的发（`context`）；换卡以后从 `before` 变了的发，清掉的是 `null`。没有要发的是空的。
+    fn context(&self, before: Option<&Wanted>) -> Option<Value> {
+        match before {
+            None => self.context.map(|tokens| json!(tokens)),
+            Some(before) => (self.context != before.context).then(|| json!(self.context)),
         }
     }
 
@@ -106,7 +119,18 @@ impl Route {
     /// 卡片换了以后（`before` 是换以前 [`Route::wanted`] 的样子）：变了的发，另起小任务，不等。换了人格的先记给判官那边。
     pub(super) fn repin(&mut self, before: &HashMap<String, Wanted>) {
         for (session, now) in self.wanted() {
-            let Some(fields) = now.since(&before.get(&session).cloned().unwrap_or_default()) else {
+            let was = before.get(&session).cloned().unwrap_or_default();
+            if let Some(tokens) = now.context(Some(&was)) {
+                let (caller, refused, session) = (
+                    self.core.caller(),
+                    self.context_refused.clone(),
+                    session.clone(),
+                );
+                self.chores.spawn(async move {
+                    context::pin(&caller, &session, tokens, &refused).await;
+                });
+            }
+            let Some(fields) = now.since(&was) else {
                 continue;
             };
             if let Some(persona) = fields.get("persona").and_then(Value::as_str) {
@@ -121,6 +145,9 @@ impl Route {
 
     /// 第一次找到会话 `session`：规则设了的几样 `wanted` 发一次，等它回了。有回合在跑的另起小任务接着试。
     pub(super) async fn pin_found(&mut self, session: &str, wanted: &Wanted) {
+        if let Some(tokens) = wanted.context(None) {
+            context::pin(&self.core.caller(), session, tokens, &self.context_refused).await;
+        }
         let Some(fields) = wanted.first() else {
             return;
         };
