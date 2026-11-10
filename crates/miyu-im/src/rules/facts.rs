@@ -30,6 +30,9 @@ const PRECHECK: &str = "facts/precheck.txt";
 /// 时不时看一眼那一轮带的一句（设计 05，施工 I-89）在出厂目录里的位置。
 const GLANCE: &str = "facts/glance.txt";
 
+/// 看一眼时的额外提示词（施工 I-196，设计 12 第 2 条）的外壳：卡片上写了的，看一眼那一轮带；字段 `text` 是写的那段。
+const GLANCE_NOTE: &str = "facts/glance-note.txt";
+
 /// 会话的说话方式（施工 I-139、I-140）：卡片上写了的，群里每开一轮都带；字段 `text` 是卡片上写的那段。
 const STYLE_NOTE: &str = "facts/style-note.txt";
 
@@ -118,6 +121,8 @@ pub(super) struct Facts {
     pub(super) precheck: Template,
     /// 时不时看一眼（施工 I-89）。
     pub(super) glance: Template,
+    /// 看一眼时的额外提示词（施工 I-196）。
+    pub(super) glance_note: Template,
     /// 会话的说话方式（施工 I-140）。
     pub(super) style_note: Template,
     /// 接在每一轮最末尾的一句（施工 I-172）。
@@ -138,6 +143,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let reached = template(dir, REACHED, REACHED_FIELDS, problems);
     let precheck = template(dir, PRECHECK, PRECHECK_FIELDS, problems);
     let glance = template(dir, GLANCE, &[], problems);
+    let glance_note = template(dir, GLANCE_NOTE, STYLE_NOTE_FIELDS, problems);
     let style_note = template(dir, STYLE_NOTE, STYLE_NOTE_FIELDS, problems);
     let context_style = template(dir, CONTEXT_STYLE, &[], problems);
     Some(Facts {
@@ -153,6 +159,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         reached: reached?,
         precheck: precheck?,
         glance: glance?,
+        glance_note: glance_note?,
         style_note: style_note?,
         context_style: context_style?,
     })
@@ -213,6 +220,11 @@ impl super::Venues {
     /// 时不时看一眼那一轮带的一句（施工 I-89）：出厂的，跑着不再读。
     pub fn glance(&self) -> &Template {
         &self.factory.facts.glance
+    }
+
+    /// 看一眼时的额外提示词的外壳（施工 I-196）：出厂的，跑着不再读。
+    pub fn glance_note(&self) -> &Template {
+        &self.factory.facts.glance_note
     }
 
     /// 会话的说话方式的外壳（施工 I-140）：出厂的，跑着不再读。
