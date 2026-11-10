@@ -73,6 +73,7 @@ export const FIELDS = {
     { group: 'field/judging' },
     // 概率触发主动回复（施工 I-197，设计 12 第一节第 1 条）：和主动回复判断是两个开关，都开着的抽中的再过判断。
     { key: 'rules.chatty.sample', control: 'switch', label: 'field/sample', hint: 'field/sample-hint', kinds: GROUPS },
+    // `min`、`max` 是存的千分之几的范围（页面不照它拦，超出的群聊内核拒、把那一句显示出来）。
     { key: 'rules.chatty.sample_rate', control: 'number', scale: 10, label: 'field/sample-rate', unit: 'unit/percent', kinds: GROUPS, min: 0, max: 1000, dep: { key: 'rules.chatty.sample', on: true } },
     { key: 'rules.chatty.sample_skip_media', control: 'switch', label: 'field/sample-skip-media', hint: 'field/sample-skip-media-hint', kinds: GROUPS, dep: { key: 'rules.chatty.sample', on: true } },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },

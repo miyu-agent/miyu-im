@@ -79,6 +79,7 @@ mod plugins;
 mod private;
 mod private_gated;
 mod private_media;
+mod private_merged;
 mod profiled;
 mod pronoun;
 mod provider;

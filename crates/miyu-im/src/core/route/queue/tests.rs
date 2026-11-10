@@ -177,6 +177,42 @@ fn a_paused_piece_waits_and_holds_the_ones_behind() {
 }
 
 #[test]
+fn pauses_never_pile_up_past_the_deadline() {
+    // 施工 I-199（压测报告 F2：私聊里对方连着发，她一条条回得快，每条照打字速度停十秒，排着排着过了 60 秒，1311 条回复
+    // 生成了却作废）：一秒入队一段、每段停十秒，三十段一段都不过期，先后不乱。
+    let mut queue = Queue::new(EXPIRE);
+    let names: Vec<String> = (0..30).map(|n| n.to_string()).collect();
+    for (second, name) in (0i64..).zip(&names) {
+        let pause = Duration::from_secs(10);
+        queue.push("s", (at(second * 1000), pause, true), name.as_str());
+    }
+    let (mut handed, mut expired) = (Vec::new(), 0);
+    for tick in 0..400 {
+        let taken = queue.take("s", at(tick * 500), true);
+        expired += taken.expired.len();
+        if !taken.ready.is_empty() {
+            handed.extend(taken.ready);
+            queue.answered("s");
+        }
+    }
+    assert_eq!(expired, 0, "没有一段排到过期");
+    let wanted: Vec<&str> = names.iter().map(String::as_str).collect();
+    assert_eq!(handed, wanted, "照入队的先后都交出去了");
+    // 平常不受影响：一句拆出来的几段，停顿加起来没到期限的四分之三的，照原来的时刻交。
+    let mut usual = Queue::new(EXPIRE);
+    usual.push("s", (at(0), Duration::ZERO, true), "一");
+    usual.push("s", (at(0), Duration::from_secs(20), true), "二");
+    usual.push("s", (at(0), Duration::from_secs(20), true), "三");
+    assert_eq!(usual.take("s", at(0), true).ready, ["一"]);
+    usual.answered("s");
+    assert!(usual.take("s", at(19_999), true).ready.is_empty());
+    assert_eq!(usual.take("s", at(20_000), true).ready, ["二"]);
+    usual.answered("s");
+    assert!(usual.take("s", at(39_999), true).ready.is_empty());
+    assert_eq!(usual.take("s", at(40_000), true).ready, ["三"]);
+}
+
+#[test]
 fn unordered_pieces_go_at_once_without_waiting() {
     // 施工 I-159：关了按顺序发送的，带着停顿的、前一段还没回的，都当场交，也不挡后面的。
     let mut queue = Queue::new(EXPIRE);
