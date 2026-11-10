@@ -35,7 +35,7 @@ const BUDGET: usize = 4312;
 const TG_BUDGET: usize = BUDGET;
 
 /// Telegram 的工具：一件一份说明。
-const TG_TOOLS: [&str; 9] = [
+const TG_TOOLS: [&str; 10] = [
     "tg_activity_ranking",
     "tg_chat_history",
     "tg_glance",
@@ -44,6 +44,7 @@ const TG_TOOLS: [&str; 9] = [
     "tg_react",
     "tg_recall",
     "tg_send",
+    "tg_send_file",
     "tg_skip_reply",
 ];
 

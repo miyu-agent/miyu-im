@@ -12,18 +12,8 @@ use super::QqTools;
 use super::args::{bad_args, group_only, optional_text};
 use super::lookup::{Undone, fetched, said, undone};
 
-/// 一个大小，照人的单位：`512 B`、`1.2 KB`、`3.4 MB`、`1.0 GB`。
-pub(crate) fn size(bytes: u64) -> String {
-    let units = [("GB", 1u64 << 30), ("MB", 1 << 20), ("KB", 1 << 10)];
-    for (unit, scale) in units {
-        if bytes >= scale {
-            #[allow(clippy::cast_precision_loss)]
-            let value = bytes as f64 / scale as f64;
-            return format!("{value:.1} {unit}");
-        }
-    }
-    format!("{bytes} B")
-}
+/// 一个大小，照人的单位（施工 I-185 下下挪进宿主，传文件同用）。
+pub(crate) use miyu_im::toolset::common::send_file::size;
 
 /// 一层群文件列成一段（纯逻辑）：交回（列的几样、一共几样、那一段）。名字洗过，最多 `shown` 样，文件夹在前。
 pub(crate) fn listed(files: &GroupFiles, shown: usize) -> (usize, usize, String) {

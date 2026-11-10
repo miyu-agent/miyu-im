@@ -29,7 +29,8 @@
     "tg_activity_ranking": { "name": "View activity ranking", "subject": "days" },
     "tg_glance": { "name": "Set next glance", "subject": "minutes" },
     "tg_recall": { "name": "Recall" },
-    "tg_react": { "name": "React", "subject": "emoji" }
+    "tg_react": { "name": "React", "subject": "emoji" },
+    "tg_send_file": { "name": "Send a file", "subject": "path" }
   },
   "said": {
     "prefix": "miyu im",

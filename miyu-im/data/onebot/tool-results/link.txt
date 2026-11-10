@@ -1,0 +1,1 @@
+Not sent: {path} is a shortcut (symlink); it was not followed.

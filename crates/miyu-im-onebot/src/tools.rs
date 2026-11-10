@@ -9,7 +9,7 @@
 use std::time::Duration;
 
 use miyu_client::tooltext::Access;
-use miyu_im::toolset::common::{glance, history, ranking};
+use miyu_im::toolset::common::{glance, history, ranking, send_file};
 use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
@@ -27,7 +27,6 @@ mod moderate;
 mod notices;
 mod quote;
 mod react;
-mod send_file;
 mod target;
 #[cfg(test)]
 mod tests;
@@ -224,10 +223,11 @@ const TOOLS: [Decl; 21] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 57] = [
+const ANSWERS: [(&str, &[&str]); 58] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
+    ("link", &["path"]),
     ("unsendable", &[]),
     ("skipped", &[]),
     ("glance-set", &["minutes"]),

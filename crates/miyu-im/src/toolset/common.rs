@@ -7,3 +7,4 @@ pub mod glance;
 pub mod history;
 pub mod mention;
 pub mod ranking;
+pub mod send_file;

@@ -105,8 +105,6 @@ mod revived;
 mod rules;
 mod scoring;
 mod segments;
-// 传文件只在 Unix 上传（施工 I-130：别的系统核不了 inode）。
-#[cfg(unix)]
 mod send_file;
 mod settings;
 mod shown;
@@ -141,6 +139,7 @@ mod telegram_acts;
 mod telegram_live;
 mod telegram_page;
 mod telegram_pictures;
+mod telegram_send_file;
 mod telegram_shown;
 mod telegram_tools;
 mod text;

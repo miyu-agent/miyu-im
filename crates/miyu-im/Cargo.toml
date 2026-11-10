@@ -48,6 +48,11 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 # （`miyu-log` 用它）。Unlicense 或 MIT。
 jiff = "0.2"
 
+[target.'cfg(unix)'.dependencies]
+# 传文件给外人的会话钉文件时从工作区一级一级往下开、每一级都不跟链接（施工 I-185 下下，`openat` + `O_NOFOLLOW`）：安全 API，不用
+# unsafe。核心本来就带它（同一版）。Apache-2.0 WITH LLVM-exception、Apache-2.0 或 MIT。
+rustix = { version = "1", default-features = false, features = ["std", "fs"] }
+
 [features]
 # 测试用的假连接（`chat::fake`，施工 I-70 中上）：驱动的集成测试里挂一个假的第二个平台用。只开一个模块，不多依赖什么。
 fake = []
