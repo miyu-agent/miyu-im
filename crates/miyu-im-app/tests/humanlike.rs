@@ -109,6 +109,33 @@ async fn a_reply_goes_out_in_two_messages_with_a_pause() {
 }
 
 #[tokio::test]
+async fn with_the_pause_off_the_messages_follow_at_once() {
+    // 施工 I-195（设计 12 第 4 条，项目主人 11-10）：分条和停顿是两个开关。停顿关着照样分成两条，第二条不等。
+    let (text, said) = two();
+    assert!(
+        said[1].pause >= Duration::from_secs(1),
+        "这一句开着停顿时至少停一秒：{:?}",
+        said[1].pause
+    );
+    let rules = RULES.replace("outbound = { ", "outbound = { pause = false, ");
+    let script = Script::new([Play::Says(text)]);
+    let (home, mut napcat, _) = started(&script, &rules, "", MEMBERS).await;
+    calls(&napcat, 1);
+    let first = napcat.group_message(GROUP).await;
+    let shown = Instant::now();
+    let second = napcat.group_message(GROUP).await;
+    let waited = shown.elapsed();
+    assert_eq!(words(&first), said[0].text, "{first:?}");
+    assert_eq!(words(&second), said[1].text, "照样分成两条：{second:?}");
+    assert!(
+        waited < Duration::from_millis(700),
+        "不停顿：等了 {waited:?}（开着的话停 {:?}）",
+        said[1].pause
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn turned_off_it_is_one_message() {
     let (text, said) = two();
     let script = Script::new([Play::Says(text)]);

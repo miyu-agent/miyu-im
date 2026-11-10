@@ -108,9 +108,17 @@ pub(super) fn pass(
         true => bubbles(&outgoing.text, ctx.outbound.typing_speed()),
         false => Vec::new(),
     };
-    let typed = said.first().map_or(Duration::ZERO, |one| one.typed);
+    // 消息间停顿关着的（施工 I-195，设计 12 第 4 条）：照样分条，一条接一条马上发，第一条也不照打字的工夫等。
+    let pausing = ctx.outbound.pause();
+    let typed = said
+        .first()
+        .filter(|_| pausing)
+        .map_or(Duration::ZERO, |one| one.typed);
     let (pieces, pauses) = match said.len() > 1 {
-        true => said.into_iter().map(|one| (one.text, one.pause)).unzip(),
+        true => said
+            .into_iter()
+            .map(|one| (one.text, if pausing { one.pause } else { Duration::ZERO }))
+            .unzip(),
         false => (split(&outgoing.text, split_chars), Vec::new()),
     };
     let want = ctx.target;

@@ -33,7 +33,9 @@ export function drawForm(tab, one, context) {
       section = sect(say(field.group));
       continue;
     }
-    if (field.dep && (current(one, field.dep.key) ?? field.dep.unset ?? field.dep.on) !== field.dep.on) continue;
+    // 一格可以靠几个开关（施工 I-195：打字速度要「分多条发送」「消息间停顿」都开着）：有一个不合的就不出现。
+    const deps = [field.dep || []].flat();
+    if (deps.some((dep) => (current(one, dep.key) ?? dep.unset ?? dep.on) !== dep.on)) continue;
     if (field.needs && !context[field.needs]?.[field.needs]?.length) continue;
     if (field.advanced) advanced.push(row(field, one, context));
     else section.body.append(row(field, one, context));
