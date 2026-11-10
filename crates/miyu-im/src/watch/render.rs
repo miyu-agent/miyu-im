@@ -154,6 +154,13 @@ pub fn shown(
         Item::Failed { why } => ("failed", say("failed", &[("why", word("failed-why", why))])),
         Item::Recalled { who: by } => ("recalled", say("recalled", &[("who", by.clone())])),
         Item::Compacted => ("compacted", say("compacted", &[])),
+        Item::Errored { model, message } => (
+            "ended",
+            say(
+                "errored",
+                &[("model", model.clone()), ("message", message.clone())],
+            ),
+        ),
         Item::Ended { reason } => (
             "ended",
             say("ended", &[("reason", word("ended-why", reason))]),

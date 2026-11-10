@@ -152,6 +152,13 @@ pub enum Item {
     },
     /// 压缩了上下文。
     Compacted,
+    /// 一次模型请求出错了（施工 I-200）：哪个模型、端点说的原话。这一轮多半跟着停（[`Item::Ended`]），重试成了的接着走。
+    Errored {
+        /// 模型。
+        model: String,
+        /// 原话，最多 [`ERROR_CHARS`] 个字。
+        message: String,
+    },
     /// 这一轮没正常收尾。
     Ended {
         /// 原因（`interrupted` 这些）。
@@ -195,6 +202,11 @@ pub fn lines(event: &Value, lane: &str, names: &dyn Fn(u64) -> Option<String>) -
             who: text_of(&body["by"]),
         }],
         "context.compacted" => vec![Item::Compacted],
+        // 模型请求出错的原因（施工 I-200，项目主人 11-10：出错了只看到「这一轮停了：出错」）。
+        "model.called" if body["result"] == "error" => vec![Item::Errored {
+            model: text_of(&body["model"]),
+            message: cut(&text_of(&body["error"]["message"]), ERROR_CHARS),
+        }],
         "turn.ended" => match body["reason"].as_str() {
             Some("completed") | None => Vec::new(),
             Some(reason) => vec![Item::Ended {
