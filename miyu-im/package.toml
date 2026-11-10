@@ -48,7 +48,7 @@ tools = ["qq_send", "qq_send_file", "qq_mention", "qq_quote", "qq_react", "qq_po
 [features.im-lookup]
 name = { en = "Lookups", zh = "查询信息", ja = "情報の照会" }
 summary = { en = "Read-only: chat history, images and files, avatars, members, announcements, group files, contacts, activity ranking", zh = "只读：聊天记录、图片和文件、头像、群成员、群公告、群文件、通讯录、发言排行", ja = "読むだけ：チャット履歴、画像とファイル、アイコン、メンバー、お知らせ、グループのファイル、連絡先、発言ランキング" }
-tools = ["qq_chat_history", "qq_fetch_media", "qq_avatar", "qq_members", "qq_notices", "qq_group_files", "qq_contacts", "qq_activity_ranking", "tg_chat_history", "tg_activity_ranking"]
+tools = ["qq_chat_history", "qq_fetch_media", "qq_avatar", "qq_members", "qq_notices", "qq_group_files", "qq_contacts", "qq_activity_ranking", "qq_token_usage", "tg_chat_history", "tg_activity_ranking", "tg_token_usage"]
 
 [features.im-admin]
 name = { en = "Group admin", zh = "群管理", ja = "グループ管理" }
