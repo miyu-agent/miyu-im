@@ -342,6 +342,36 @@ async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
 }
 
 #[tokio::test]
+async fn slash_model_switches_by_number_and_adds_a_card_when_there_is_none() {
+    // 施工 I-191（项目主人 11-10：搜出来的名字太长没法抄，没卡片的私聊换不了）：/model search 全列、带编号，/model <编号> 换；
+    // 这个会话还没有卡片的先给它建一张，只写模型。
+    let home = Home::new(&Script::new([]));
+    let dir = miyu_im::dirs::state(&home.root);
+    let bridge = bridge(&home).await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "/model @lite").await;
+    assert_eq!(napcat.reply().await, "换成 @lite 了", "没卡片的先建一张");
+    napcat.admin_says(2, "/model 默认").await;
+    assert_eq!(napcat.reply().await, "改回跟随默认了");
+    napcat.admin_says(3, "/model search").await;
+    let found = napcat.reply().await;
+    assert!(found.starts_with("用 /model <编号> 切换："), "{found}");
+    assert!(found.lines().any(|line| line == "2. @lite"), "{found}");
+    napcat.admin_says(4, "/model 2").await;
+    assert_eq!(napcat.reply().await, "换成 @lite 了");
+    let text = std::fs::read_to_string(dir.join("cards.json")).expect("建了卡片");
+    let cards: Value = serde_json::from_str(&text).expect("是 JSON");
+    let card = cards["privates"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|card| card["id"] == 10001)
+        .unwrap_or_else(|| panic!("这个私聊有了卡片：{cards}"));
+    assert_eq!(card["set"]["model"], "@lite", "{cards}");
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
 async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     // 施工 I-53（项目主人 10-27：QQ 里打 /model 没反应）：桥自己办 /model，换了写进这个会话的卡片，「默认」去掉卡片上的模型。
     // 施工 I-57（项目主人 10-27：模型太多不全列）：搜是 /model search，换只认确切的名字，模糊的不换。终端管理员的私聊先在后台加了卡片。
@@ -360,30 +390,24 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     napcat.admin_says(1, "/model").await;
     let said = napcat.reply().await;
     assert!(said.starts_with("现在跟随默认"), "{said}");
-    assert!(
-        said.contains("/model search <关键词> 找模型"),
-        "带一行怎么用：{said}"
-    );
+    assert!(said.contains("/model <编号> 切换"), "带一行怎么用：{said}");
     napcat.admin_says(2, "/model lite").await;
     assert_eq!(
         napcat.reply().await,
-        "没有叫「lite」的模型，用 /model search lite 找"
+        "没有「lite」这个编号或模型，用 /model search 看编号"
     );
     assert_eq!(model(), Value::Null, "模糊的不换");
     napcat.admin_says(3, "/model search lite").await;
     let found = napcat.reply().await;
-    assert!(
-        found.starts_with("找到这些，用 /model <名字> 切换："),
-        "{found}"
-    );
-    assert!(found.lines().any(|line| line == "@lite"), "{found}");
+    assert!(found.starts_with("用 /model <编号> 切换："), "{found}");
+    assert!(found.lines().any(|line| line == "2. @lite"), "{found}");
     napcat.admin_says(4, "/model @lite").await;
     assert_eq!(napcat.reply().await, "换成 @lite 了");
     assert_eq!(model(), "@lite", "写进了这个会话的卡片");
     napcat.admin_says(5, "/model search lite").await;
     let found = napcat.reply().await;
     assert!(
-        found.lines().any(|line| line == "@lite（正在用）"),
+        found.lines().any(|line| line == "2. @lite（正在用）"),
         "正在用的标出来：{found}"
     );
     napcat.admin_says(6, "/model").await;

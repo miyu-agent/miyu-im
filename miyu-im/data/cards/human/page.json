@@ -285,14 +285,14 @@
     "ja": "既定に戻しました"
   },
   "model-usage": {
-    "zh": "/model search <关键词> 找模型，/model <名字> 切换，/model 默认 改回跟随默认",
-    "en": "/model search <keywords> to find a model, /model <name> to switch, /model default to follow the default",
-    "ja": "/model search <キーワード> で探す、/model <名前> で切り替え、/model 既定 で既定に戻す"
+    "zh": "/model search 列出全部模型（带编号），/model search <关键词> 搜，/model <编号> 切换，/model 默认 改回跟随默认",
+    "en": "/model search lists every model with a number, /model search <keywords> narrows it, /model <number> switches, /model default follows the default",
+    "ja": "/model search で全部のモデルを番号つきで一覧、/model search <キーワード> で絞り込み、/model <番号> で切り替え、/model 既定 で既定に戻す"
   },
   "model-found": {
-    "zh": "找到这些，用 /model <名字> 切换：",
-    "en": "Found these, switch with /model <name>:",
-    "ja": "見つかりました。/model <名前> で切り替え："
+    "zh": "用 /model <编号> 切换：",
+    "en": "Switch with /model <number>:",
+    "ja": "/model <番号> で切り替え："
   },
   "model-using-mark": {
     "zh": "（正在用）",
@@ -304,15 +304,10 @@
     "en": "Nothing matches \"{query}\"",
     "ja": "「{query}」に当てはまるものはありません"
   },
-  "model-more": {
-    "zh": "还有 {count} 个没列",
-    "en": "{count} more not listed",
-    "ja": "ほかに {count} 個"
-  },
   "model-none": {
-    "zh": "没有叫「{query}」的模型，用 /model search {query} 找",
-    "en": "No model is called \"{query}\", find one with /model search {query}",
-    "ja": "「{query}」というモデルはありません。/model search {query} で探してください"
+    "zh": "没有「{query}」这个编号或模型，用 /model search 看编号",
+    "en": "No model numbered or named \"{query}\", see the numbers with /model search",
+    "ja": "「{query}」という番号やモデルはありません。/model search で番号を確認してください"
   },
   "model-no-card": {
     "zh": "这个会话没有自己的卡片，先在后台给它加一张",

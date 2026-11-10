@@ -82,3 +82,12 @@ fn a_platform_without_forwards_splits_instead() {
     assert_eq!(long_text(false, &image, &text), Some(LongText::Image));
     assert_eq!(long_text(false, &forward, "短"), None);
 }
+
+#[test]
+fn receipts_are_drawn_as_written() {
+    // 施工 I-191：`<编号>` 不当网页标签吞掉，`1.` 开头的不当编号列表，换行照旧。
+    assert_eq!(
+        literal("用 /model <编号> 切换：\n5. a/b-c\n$x"),
+        "用 \\/model \\<编号\\> 切换：\n5\\. a\\/b\\-c\n\\$x"
+    );
+}

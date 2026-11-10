@@ -68,22 +68,54 @@ fn only_an_exact_name_switches() {
 }
 
 #[test]
-fn search_lists_the_closest_first_and_counts_the_rest() {
+fn search_lists_every_match_with_its_number_in_the_whole_list() {
     let names = names();
-    let (found, more) = search("zen flash", &names);
+    let found = search("zen flash", &names);
     assert_eq!(
         found,
-        ["dev/opencode-zen/gemini-3.8-flash"],
-        "几个词先后不论"
+        [(5, "dev/opencode-zen/gemini-3.8-flash".to_string())],
+        "几个词先后不论，编号是它在全部里的第几个"
     );
-    assert_eq!(more, 0);
-    let (found, _) = search("gemini flash", &names);
-    assert_eq!(found.len(), 3, "{found:?}");
-    let (found, more) = search("", &names);
-    assert_eq!(found, names, "没写关键词的照原来的先后");
-    assert_eq!(more, 0);
-    assert!(search("claude", &names).0.is_empty());
-    let many: Vec<String> = (0..13).map(|n| format!("p/m{n}")).collect();
-    let (found, more) = search("m", &many);
-    assert_eq!((found.len(), more), (10, 3), "最多列 10 个，多的说还有几个");
+    assert_eq!(search("gemini flash", &names).len(), 3);
+    let all = search("", &names);
+    let numbered: Vec<(usize, String)> = names
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(at, name)| (at + 1, name))
+        .collect();
+    assert_eq!(all, numbered, "没写关键词的照原来的先后全列、从 1 编号");
+    assert!(search("claude", &names).is_empty());
+    let many: Vec<String> = (0..60).map(|n| format!("p/m{n}")).collect();
+    assert_eq!(search("m", &many).len(), 60, "不再只列 10 个");
+}
+
+#[test]
+fn search_ignores_dots_dashes_and_case() {
+    let names = [
+        "magpie/anthropic/claude-opus-4-5",
+        "magpie/anthropic/claude-opus-5-5",
+    ]
+    .map(str::to_string)
+    .to_vec();
+    for query in ["opus5.5", "OPUS 5-5", "opus55", "claude_opus_5_5"] {
+        let found = search(query, &names);
+        assert_eq!(
+            found.first().map(|(number, _)| *number),
+            Some(2),
+            "{query}: {found:?}"
+        );
+    }
+}
+
+#[test]
+fn a_number_from_the_list_switches_too() {
+    let names = names();
+    assert_eq!(exact("1", &names).as_deref(), Some("@lite"));
+    assert_eq!(
+        exact("4", &names).as_deref(),
+        Some("dev/clinepass/cline-pass/deepseek-v4.1-flash")
+    );
+    assert_eq!(exact("0", &names), None, "从 1 编号");
+    assert_eq!(exact("6", &names), None, "超出的不换");
 }

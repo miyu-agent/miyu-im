@@ -69,6 +69,19 @@ pub(super) fn nodes(params: &Params, text: &str) -> Vec<String> {
     split(text, params.split_chars)
 }
 
+/// 照原样画的字（施工 I-191：命令回执里的 `<编号>` 被渲染包当成网页标签吞掉了，`1.` 开头的几行被当成编号列表重排）：每个
+/// ASCII 标点前面加反斜杠，CommonMark 照字面显示它；换行照旧。
+pub(super) fn literal(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + text.len() / 8);
+    for c in text.chars() {
+        if c.is_ascii_punctuation() {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// 在场所 `venue` 把 `text` 画成几页、读好：不成的记一行、交回空的。`wait` 是最多等多久（正式跑是 [`WAIT`]）。
 pub(super) async fn draw(
     caller: &Caller,
