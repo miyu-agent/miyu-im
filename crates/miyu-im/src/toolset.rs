@@ -332,6 +332,8 @@ pub struct Call {
     pub store: PathBuf,
     /// 这一轮是不是终端管理员叫的（施工 C-1 下：私聊里核心认出了人，群里他说的话带着账号）。
     pub admin: bool,
+    /// 这一轮是不是场所规则 `managers` 里的人叫的（施工 I-204：删群文件只听管理的人）。
+    pub manager: bool,
     /// 放开（施工 LV-4，核心 TC-1）：核心认是主人本人叫的（`owner`），这一刻的权限是完全放开（`permission.level` 是 `full`、
     /// `read_only` 不开）。放开的能碰工作区外面（例如发任意文件，项目主人 11-10 定）；外人照旧只碰自己的工作区。
     pub open: bool,

@@ -52,16 +52,6 @@ pub fn unrecallable() -> String {
     format!("  {}  ", "Recall failed".repeat(20))
 }
 
-/// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
-const PLATFORM: [&str; 6] = [
-    "set_group_card",
-    "set_group_ban",
-    "group_poke",
-    "friend_poke",
-    "set_group_kick",
-    "set_group_add_request",
-];
-
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
 const FETCHING: [&str; 8] = [
     "get_msg",
@@ -188,7 +178,8 @@ impl NapCat {
                         };
                         let recall = kind == "delete_msg";
                         let reaction = kind == "set_msg_emoji_like";
-                        let platform = PLATFORM.contains(&kind);
+                        // 平台动作照 `platform::PLATFORM`（撤回上面另认了）：不占发出去的编号（施工 O-31）。
+                        let platform = super::platform::PLATFORM.contains(&kind);
                         let sending = !recall
                             && !reaction
                             && !platform
@@ -317,6 +308,7 @@ fn answer(
             | "set_friend_add_request"
             | "set_group_ban"
             | "set_group_kick"
+            | "delete_group_file"
             | "set_group_add_request"
             | "group_poke"
             | "friend_poke",
