@@ -244,11 +244,11 @@ fn prepared(path: &Path) -> rusqlite::Result<Connection> {
 
 /// 一段时间里的金额（施工 I-205）：照「日子（UTC，`2026-11-10`）、币种」加好的几笔，和没记录金额的请求有几次。
 #[derive(Debug, Clone, Default, PartialEq)]
-pub(crate) struct Costs {
+pub struct Costs {
     /// （日子、币种、金额），照日子、币种排。
-    pub(crate) parts: Vec<(String, String, f64)>,
+    pub parts: Vec<(String, String, f64)>,
     /// 有用量、没有金额的请求（核心算不出价的、I-205 以前记的）。
-    pub(crate) unpriced: u64,
+    pub unpriced: u64,
 }
 
 /// 页面读（使用限制页的金额，施工 I-205）：库 `path` 里 `people` 这几个人各自最近 5 小时、7 天、30 天的金额（此刻是 `now`，
@@ -308,6 +308,78 @@ pub(crate) fn costs(
         found.insert(person.clone(), three);
     }
     Ok(found)
+}
+
+/// 一个人在一个场所一段时间里用的（施工 I-206，查用量的工具）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Spender {
+    /// 平台上的人的编号（`qq:1`）。
+    pub person: String,
+    /// 四项合计。
+    pub tokens: u64,
+    /// 记了金额的那几笔照「日子、币种」加好的，和没记录金额的请求数。
+    pub costs: Costs,
+}
+
+/// 工具读（施工 I-206）：库 `path` 里场所 `venue` 从 `from`（毫秒，含）起，每个人用了多少，从多到少；`person` 写了的只要那一个人。
+/// 只读地开：还没有库的是空的。
+pub(crate) fn spenders(
+    path: &Path,
+    venue: &str,
+    from: i64,
+    person: Option<&str>,
+) -> rusqlite::Result<Vec<Spender>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    let mut statement = connection.prepare(
+        "SELECT person, at, tokens, amount, currency FROM spent
+         WHERE venue = ?1 AND at >= ?2 AND (?3 IS NULL OR person = ?3)",
+    )?;
+    type Sums = std::collections::BTreeMap<(String, String), f64>;
+    let mut found: std::collections::HashMap<String, (u64, Sums, u64)> = Default::default();
+    let rows = statement.query_map(params![venue, from, person], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+            row.get::<_, Option<f64>>(3)?,
+            row.get::<_, Option<String>>(4)?,
+        ))
+    })?;
+    for row in rows {
+        let (person, at, tokens, amount, currency) = row?;
+        let one = found.entry(person).or_default();
+        one.0 += u64::try_from(tokens).unwrap_or_default();
+        match (amount, currency) {
+            (Some(amount), Some(currency)) => {
+                *one.1.entry((day(at), currency)).or_default() += amount
+            }
+            _ => one.2 += 1,
+        }
+    }
+    let mut all: Vec<Spender> = found
+        .into_iter()
+        .map(|(person, (tokens, sums, unpriced))| Spender {
+            person,
+            tokens,
+            costs: Costs {
+                parts: sums
+                    .into_iter()
+                    .map(|((day, currency), amount)| (day, currency, amount))
+                    .collect(),
+                unpriced,
+            },
+        })
+        .collect();
+    all.sort_by(|a, b| {
+        b.tokens
+            .cmp(&a.tokens)
+            .then_with(|| a.person.cmp(&b.person))
+    });
+    Ok(all)
 }
 
 /// 时刻 `at`（毫秒）是 UTC 的哪一天：`2026-11-10`（核心换汇率照 UTC 的日子）。
