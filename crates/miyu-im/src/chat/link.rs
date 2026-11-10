@@ -253,6 +253,12 @@ pub trait Link: Send + Sync + fmt::Debug {
         unsupported()
     }
 
+    /// 和 `user` 的私聊里编号是 `file` 的文件的下载地址（施工 I-203：私聊里发来的文件原来取不下来）。
+    fn private_file_url<'a>(&'a self, user: &'a Id, file: &'a str) -> Reply<'a, String> {
+        let _ = (user, file);
+        unsupported()
+    }
+
     /// 取 `to` 那里平台编号是 `id` 的那一条消息（施工 O-33；I-82 带上聊天）。
     fn message<'a>(&'a self, to: &'a To, id: &'a str) -> Reply<'a, Fetched> {
         let _ = (to, id);

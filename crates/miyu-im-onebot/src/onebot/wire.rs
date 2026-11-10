@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 use super::media::{get_media, get_msg};
 use super::replies::{
     self, FILE_URL, FOLDER_FILES, FRIEND_LIST, GROUP_INFO, GROUP_LIST, LOGIN_INFO, MEMBER_LIST,
-    ROOT_FILES,
+    PRIVATE_FILE_URL, ROOT_FILES,
 };
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
@@ -221,6 +221,18 @@ impl Link for Wire {
 
     fn group_file_url<'a>(&'a self, group: &'a Id, file: &'a str) -> Reply<'a, String> {
         let wanted = (FILE_URL, json!({"group_id": group, "file_id": file}));
+        Box::pin(async move {
+            self.read(wanted, replies::file_url)
+                .await?
+                .ok_or_else(|| CallError::Failed {
+                    said: "no url".to_string(),
+                    message: String::new(),
+                })
+        })
+    }
+
+    fn private_file_url<'a>(&'a self, user: &'a Id, file: &'a str) -> Reply<'a, String> {
+        let wanted = (PRIVATE_FILE_URL, json!({"user_id": user, "file_id": file}));
         Box::pin(async move {
             self.read(wanted, replies::file_url)
                 .await?

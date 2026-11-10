@@ -222,6 +222,40 @@ async fn a_private_message_with_only_media_is_sent_with_its_marks() {
     stopped(home).await;
 }
 
+/// 施工 I-203（项目主人 11-11：私聊里发的 mp4 她说取不下来）：私聊里的文件 `get_file` 不认（它只认缓存的图片、语音），照私聊文件的
+/// 下载地址（`get_private_file_url`）取。
+#[tokio::test]
+async fn a_file_sent_in_private_is_fetched_through_its_download_address() {
+    use miyu_http::testkit::{Piece, Reply, Server};
+    let server = Server::start(vec![Reply {
+        status: 200,
+        headers: vec![("Content-Type".to_string(), "video/mp4".to_string())],
+        body: vec![Piece::Bytes(b"mp4 bytes".to_vec())],
+    }])
+    .await;
+    let lines = Lines::new([
+        Line::uses("", "qq_fetch_media", r#"{"msg":"831"}"#),
+        Line::says("好。"),
+    ]);
+    let (home, napcat) = up(&lines).await;
+    let words = json!([file("骑车.mp4", "u-831", 9)]);
+    napcat.stock_message(831, in_private(ADMIN, words.clone()));
+    napcat.stock_file("u-831", Err("file_id not found in the image/voice cache"));
+    napcat.stock_file(
+        "private:u-831",
+        Ok(json!({"url": format!("{}/d?fname=x.mp4", server.base_url)})),
+    );
+    napcat.send(private_frame(ADMIN, 831, words));
+    let results = private_results(&home, 1).await;
+    let saved = sentence("saved", &[("path", "qq-files/831-1-骑车.mp4")]);
+    assert_eq!(answered(&results), [(saved, "ok".to_string())]);
+    assert_eq!(
+        std::fs::read(qq_files(&home).join("831-1-骑车.mp4")).expect("存进了他的工作区"),
+        b"mp4 bytes"
+    );
+    stopped(home).await;
+}
+
 /// 群里同样核对：人打的 `[msg=…]` 指到一条私聊，回 `not-found`、不取。
 #[tokio::test]
 async fn in_a_group_a_private_message_is_not_found() {
