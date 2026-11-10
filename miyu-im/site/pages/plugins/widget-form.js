@@ -81,7 +81,9 @@ export function drawForm(part, context) {
   for (const field of part.fields || []) {
     const failed = element('div', 'row-failed');
     failures.set(field.key, failed);
-    const row = element('div', 'row');
+    // 没写名字的（施工 I-192：群管理的两个筛选）不画名字那一栏，下拉靠左。
+    const bare = !field.label && !field.hint;
+    const row = element('div', bare ? 'row bare' : 'row');
     const label = element('div', 'label');
     const name = element('div', 'label-name', field.label);
     label.append(name);
@@ -94,10 +96,11 @@ export function drawForm(part, context) {
       else context.redraw();
     };
     // 有默认值的格名字后面「默认 / 已改」（设计 11 G3，施工 I-166，shell/mark.js），点「已改」改回默认（存了才算）。
-    if (field.default) name.append(fieldMark(value !== null && value !== undefined, null, () => put(null)));
+    if (field.default && !bare) name.append(fieldMark(value !== null && value !== undefined, null, () => put(null)));
     const side = element('span', 'inline');
     side.append(control(field, value, put));
-    row.append(label, side);
+    if (bare) row.append(side);
+    else row.append(label, side);
     const wrap = element('div', 'field');
     wrap.append(row, failed);
     box.append(wrap);

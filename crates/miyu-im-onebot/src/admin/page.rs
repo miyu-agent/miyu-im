@@ -212,20 +212,21 @@ fn ranking(records: &[Record], period: Period, now: u64, most: usize) -> Value {
     }
 }
 
-/// 「看哪一种」那一格（面板、浮窗共用，存进这个群的 `view.action`）。
+/// 筛哪一种动作的那一格（面板、浮窗共用，存进这个群的 `view.action`）。不写名字（施工 I-192，项目主人 11-10：名字删掉、下拉靠左），
+/// 选项自己说清楚了。
 fn action_field(view: &View) -> Value {
     let option = |value: &str, label: Value| json!({"value": value, "label": label});
-    json!({"key": "action", "label": t("看哪一种", "Show", "表示"), "control": "select", "value": view.action, "options": [
+    json!({"key": "action", "label": "", "control": "select", "value": view.action, "options": [
         option("all", t("全部", "All", "すべて")), option("mute", t("禁言", "Mutes", "ミュート")),
         option("unmute", t("解禁", "Unmutes", "解除")), option("kick", t("踢人", "Removals", "退出")),
         option("join", t("入群审批", "Join requests", "参加審査"))
     ]})
 }
 
-/// 「排行榜看多久」那一格（存进这个群的 `view.period`）。
+/// 排行榜看多久的那一格（存进这个群的 `view.period`）。同上不写名字（施工 I-192）。
 fn period_field(period: Period) -> Value {
     let option = |value: &str, label: Value| json!({"value": value, "label": label});
-    json!({"key": "period", "label": t("排行榜看多久", "Ranking period", "ランキングの期間"), "control": "select", "value": period.name(), "options": [
+    json!({"key": "period", "label": "", "control": "select", "value": period.name(), "options": [
         option("week", t("一周", "Week", "一週間")), option("month", t("一个月", "Month", "一か月")), option("all", t("全部", "All", "すべて"))
     ]})
 }

@@ -72,7 +72,7 @@ export const FIELDS = {
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
-    { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', hint: 'field/judge-persona-hint', kinds: GROUPS, dep: JUDGE },
+    { key: 'rules.judge.persona', control: 'switch', label: 'field/judge-persona', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.chatty.skip_users', control: 'tags', people: true, prefixed: true, label: 'field/skip-users', hint: 'field/skip-users-hint', kinds: GROUPS, dep: JUDGE },
     { group: 'field/permissions' },
     { key: 'managers', control: 'tags', people: true, label: 'field/managers', kinds: GROUPS },
