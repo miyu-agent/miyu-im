@@ -80,6 +80,8 @@ function row(field, one, context) {
   const hint = (isDefaults(one) && field.defaultsHint) || field.hint;
   if (hint) label.append(element('small', null, say(hint)));
   const failed = element('div', 'row-failed');
+  // 先写的一句（施工 I-189：上下文上限设不上时的「最少 x」），存了以后照存的结果换。
+  failed.textContent = field.warn?.(one, context) || '';
   // 存 `key` 那一格（几项一行的照项各存各的）；和默认一样的交 null。
   const saveKey = async (key, value) => {
     failed.textContent = '';

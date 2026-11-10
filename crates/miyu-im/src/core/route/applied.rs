@@ -185,6 +185,14 @@ pub(super) fn glance_minutes(applied: &Applied) -> Option<u64> {
     }
 }
 
+/// 规则的 `context`（施工 I-189）：会话的上下文上限，token 数。没写的是空的（照模型的窗口）。
+pub(super) fn context(applied: &Applied) -> Option<u64> {
+    match entry(applied, "context") {
+        Some(Value::Int(tokens)) => u64::try_from(*tokens).ok().filter(|tokens| *tokens > 0),
+        _ => None,
+    }
+}
+
 /// 规则的 `glance_records`（施工 I-175）：看一眼那一轮最多交几条没回的新消息。没写的是空的（照桥的出厂）。
 pub(super) fn glance_records(applied: &Applied) -> Option<usize> {
     match entry(applied, "glance_records") {

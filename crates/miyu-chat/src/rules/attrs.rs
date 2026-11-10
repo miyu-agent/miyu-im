@@ -52,6 +52,15 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
     ("extra_prompt", Form::Kind(Kind::Lines { max: 2000 })),
     ("recent", Form::Kind(Kind::Int { min: 1, max: 1000 })),
     ("model", Form::Kind(Kind::Reference)),
+    // 会话的上下文上限，token 数（施工 I-189，核心 CTX-1）：桥照它经 `session.configure` 设到这个场所的会话上；没写的照模型的窗口。
+    // 够不够由核心照会话这时的模型判（太小的回 `data.min`）。
+    (
+        "context",
+        Form::Kind(Kind::Int {
+            min: 1,
+            max: 100_000_000,
+        }),
+    ),
     // 白名单成员的私聊忽略限流、忽略睡眠（施工 I-7 中三下一）：桥照它们管；没写的是忽略。
     ("ignore_rate", Form::Kind(Kind::Bool)),
     ("ignore_sleep", Form::Kind(Kind::Bool)),

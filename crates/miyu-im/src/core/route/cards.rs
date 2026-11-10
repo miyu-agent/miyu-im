@@ -103,6 +103,8 @@ impl Route {
         if let Some(bot) = &scope.bot {
             known["bot"] = json!(bot);
         }
+        // 上下文上限设不上的（施工 I-189）：那一格下面写最少多少。
+        known["context_min"] = self.context_min(platform);
         let bots = self.card_bots(&scope);
         let (caller, answerer) = (self.core.caller(), self.core.answerer());
         self.chores.spawn(listed(id, known, bots, caller, answerer));

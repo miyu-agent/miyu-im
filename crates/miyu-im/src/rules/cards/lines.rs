@@ -13,8 +13,8 @@ use miyu_chat::{File, Source};
 
 /// 只收在卡上 `rules` 里的顶层键（别的顶层键各有一格，或者不归卡管：`allow`、`match`）。私聊卡没有限流、睡眠两格，写在这里
 /// （施工 I-7 中三下一，和忽略限流、忽略睡眠一起）。使用限制的三条线（设计 08，施工 I-135）每种卡都写在这里，会话的说话方式（施工
-/// I-140）也是。
-pub(crate) const TOP: [&str; 11] = [
+/// I-140）也是，会话的上下文上限（施工 I-189）也是。
+pub(crate) const TOP: [&str; 12] = [
     "discipline",
     "parallel",
     "rate",
@@ -26,6 +26,7 @@ pub(crate) const TOP: [&str; 11] = [
     "limit_week",
     "limit_month",
     "style_note",
+    "context",
 ];
 
 /// 一张卡匹配哪些场所。

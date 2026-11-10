@@ -294,6 +294,7 @@
 | I-185 中 | Telegram 发图、发文件：`show` 的图照 `sendPhoto`、文件照 `sendDocument`、长文画成的图带 @ 和引用，自己拼 `multipart/form-data`；图超 10 MB 改照文件发、超 50 MB 不发；能力表多 `upload`；施工单 `I-185中-Telegram发图和文件.md` | 见 `git log --grep I-185中` |
 | I-185 下上 | Telegram 撤回、贴表情：`tg_recall`、`tg_react`（编号照 im 的记录核对，`deleteMessage`、`setMessageReaction`）；判过要回的那一条上贴的表情按平台给（Telegram 👀，原来照 QQ 的 289 贴）；Telegram 工具预算和 QQ 的一样；施工单 `I-185下上-Telegram撤回和贴表情.md` | 见 `git log --grep I-185下上` |
 | LV-4 | 换钉核心 53ece42d5（LV-1 两级权限、TC-1 `tool.call` 带权限）；主人本人叫的、完全放开的会话发文件不限工作区（照旧钉一份进 `outbox/`，传完删的不是原文件），外人照旧；施工单 `LV-4-完全放开的会话发文件不限工作区.md` | 见 `git log --grep LV-4` |
+| I-189 | 会话卡片的上下文上限（核心 CTX-1）：规则键 `context`、卡片 `rules.context`；单独发 `session.configure {context}`，清掉交 `null`；太小的照会话记下最少多少，`cards.get` 交 `context_min`，格下写「最少 x」；施工单 `I-189-会话卡片的上下文上限.md` | 见 `git log --grep I-189` |
 | I-171 | 会话卡片关了回复，管理员叫她也只记下（原来管理员在哪都豁免，项目主人 11-06 定关了谁都不回）；命令照旧；施工单 `I-171-关了回复管理员也不回.md` | 见 `git log --grep I-171` |
 | S-1 上a | 叫她的那一条交给插件（设计 03 2026-10-24 补定）：`chat.venue` 多 `origin`（谁发的、引用了谁、@ 了谁，带号和名字），赞助记录插件照它认「记谁」；设计 03 补定认赞助人、场所开关（核心 O-60「不开就不出现」）、认管理员；施工单 `S-1上a-叫她的那一条交给插件.md` | 见 `git log --grep S-1` |
 | S-1 上b | 赞助记录插件（设计 03）：新包 `miyu-im-sponsor`，工具 `sponsor`（记一笔只给管理员叫的那一轮、认号或引用、唯一 @ 的人、只有昵称的也收；别的币种照 open.er-api.com 的汇率换成默认币种冻结，查不到标未换算；查一个人、排行榜谁都能查），账本一份 JSON；发包多打一个；施工单 `S-1上b-赞助记录插件.md` | 见 `git log --grep S-1` |
