@@ -1,0 +1,4 @@
+{
+  "description": "Upload a file from your workspace to this chat.",
+  "parameters": {"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}
+}

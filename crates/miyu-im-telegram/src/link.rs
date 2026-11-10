@@ -212,6 +212,11 @@ impl Link for Bot {
         Some(json!({"partial": partial, "topics": seen.forum}))
     }
 
+    fn local_files(&self) -> bool {
+        // 传文件（I-185 下下）：驱动和 im 在同一个进程里，照本机的路径自己读了传。
+        true
+    }
+
     fn implementation(&self) -> Option<Implementation> {
         // 对端就是 Telegram，没有「哪个实现」这回事（页面照用户名画，不照实现）。
         None

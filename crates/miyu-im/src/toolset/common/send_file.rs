@@ -1,6 +1,7 @@
-//! 传文件（施工 I-130，2026-11-04 项目主人定）：`qq_send_file {path}`，私聊、群都给。往 QQ 里传文件是平台的功能，不走核心的
-//! `show`（那是给人看的，有 20 MiB 的上限）：路径交给 NapCat 的 `upload_group_file`、`upload_private_file`，它自己读、自己传，
-//! im 不读进内存，不设大小上限，QQ 收不了的照 NapCat 回的原话告诉她。
+//! 传文件（施工 I-130，2026-11-04 项目主人定；施工 I-185 下下从 OneBot 驱动挪来，`qq_send_file`、`tg_send_file` 同用）：
+//! `<平台>_send_file {path}`，私聊、群都给。往平台里传文件是平台的功能，不走核心的 `show`（那是给人看的，有 20 MiB 的上限）：
+//! 钉好的路径交给连接（`Effect::Upload`）。QQ 交 NapCat 的 `upload_group_file`、`upload_private_file`，它自己读、自己传，im 不读进
+//! 内存、不设大小上限；Telegram 由驱动读了照 `sendDocument` 传（最大 50 MB）。收不了的照平台回的原话告诉她。
 //!
 //! - 只认她这个会话工作区（`cwd`）里的普通文件：相对的照工作区算；照真实位置比，链接解开了再判，指出工作区的不认（场所会话是
 //!   关起来的，她本来就只碰得到自己的工作区；core1 11-04）。不认的答 `no-file`。
@@ -16,17 +17,16 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use miyu_im::TARGET;
-use miyu_im::toolset::{Call, Effect, Planned};
+use crate::TARGET;
+use crate::toolset::{Call, Effect, Planned};
 
 use super::args::bad_args;
-use super::group_files::size;
 
 /// 钉住的文件放在驱动状态目录下的哪里。
 const OUTBOX: &str = "outbox";
 
 /// `qq_send_file` 的一次调用（模块的说明）：`upload` 是传文件最多等多久，`outbox/` 里比它还老的是没删掉的，顺手清。
-pub(super) fn send_file(call: &Call, upload: Duration) -> Planned {
+pub fn send_file(call: &Call, upload: Duration) -> Planned {
     let Some(asked) = call.args["path"]
         .as_str()
         .map(str::trim)
@@ -217,6 +217,20 @@ fn sweep(outbox: &Path, upload: Duration) {
 fn plain(path: &Path) -> String {
     let text = path.to_string_lossy();
     text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
+}
+
+/// 一个大小，照人的单位：`512 B`、`1.2 KB`、`3.4 MB`、`1.0 GB`（QQ 的群文件列表也照它写）。
+#[must_use]
+pub fn size(bytes: u64) -> String {
+    let units = [("GB", 1u64 << 30), ("MB", 1 << 20), ("KB", 1 << 10)];
+    for (unit, scale) in units {
+        if bytes >= scale {
+            #[allow(clippy::cast_precision_loss)]
+            let value = bytes as f64 / scale as f64;
+            return format!("{value:.1} {unit}");
+        }
+    }
+    format!("{bytes} B")
 }
 
 #[cfg(test)]

@@ -84,9 +84,8 @@ impl Driver for Telegram {
     }
 
     fn toolset(&self, tuning: &Tuning) -> Option<Arc<dyn ToolSet>> {
-        // 说话、记录的七件（I-183 下下）：不用 `bridge.json` 的参数。
-        let _ = tuning;
-        Some(Arc::new(tools::TgTools))
+        // 说话、记录（I-183 下下），撤回、贴表情（I-185 下上），传文件（I-185 下下，照 `bridge.json` 的 `upload_seconds` 清 `outbox/`）。
+        Some(Arc::new(tools::TgTools::new(tuning.upload())))
     }
 
     fn start(&self, gate: Arc<Gate>) -> Started {

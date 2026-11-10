@@ -60,6 +60,7 @@
 - 施工 I-188（2026-11-10）改的一份（`miyu-im/data/system/group.txt`：`QQ` 换成平台那一格 `{platform}`，驱动给叫法）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 O-49：QQ 的 `摸鱼群`、`123456789` 17（和以前一样，写出来的字节一个没变，QQ 群的缓存不受影响）；Telegram 的 `摸鱼群`、`-1001234567890` 20，`Miyu 测试群`、`-1001` 20。只有 Telegram 群的 system 尾部变了一次。
 - 施工 I-183 下下（2026-11-10）的二十七份（`miyu-im/data/telegram/tools/` 七件、`tool-results/` 二十句）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量：工具面照「带工具减不带」，七件一起合计 677（同一刻 QQ 的二十一件 1626，和以前的数一样）；核心照名字前缀只给那个平台的场所，Telegram 的群、私聊只见这七件，QQ 的场所一个字节没变；本机会话多一件 `tg_send`（88），只在连接表写了令牌时登记。四句改了平台名或说法的接在 `hi` 和一个换行后面量，带行尾换行；另外十六句和 `onebot/` 的字节一样，token 照那边登记的。
 - 施工 I-185 下上（2026-11-10）的五份（`miyu-im/data/telegram/tools/tg_recall.json`、`tg_react.json`，`tool-results/` 的 `recalled`、`reacted`、`no-quote`）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 I-183 下下：九件一起合计 799（多 122：`tg_recall` 55、`tg_react` 67），1746 字节；项目主人 11-10 定 Telegram 的预算和 QQ 的一样（4312 字节）。三句结果和 `onebot/` 的字节一样，token 照那边登记的。
+- 施工 I-185 下下（2026-11-10）的五份（`miyu-im/data/telegram/tools/tg_send_file.json`，`tool-results/` 的 `uploading`、`no-file`、`not-local`、`unsendable`）照 magpie 网关的 `opencode-go/deepseek-v4.1-flash` 量，量法同 I-183 下下：十件一起合计 851（多 52），1902 字节，在预算（4312）以内；`not-local`、`unsendable` 平台写 Telegram，接在 `hi` 和一个换行后面量 12、14；另两句和 `onebot/` 的字节一样。
 
 ### 登记簿
 
@@ -222,3 +223,8 @@
 | `miyu-im/data/telegram/tool-results/recalled.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/recalled.txt`（字节一样，施工 I-185 下上） | 3（2026-10-10 量） | Telegram 那套答同样的话 | `5a6ee52c` |
 | `miyu-im/data/telegram/tool-results/reacted.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/reacted.txt`（字节一样，施工 I-185 下上） | 4 | Telegram 那套答同样的话 | `4940f1eb` |
 | `miyu-im/data/telegram/tool-results/no-quote.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-quote.txt`（字节一样，施工 I-185 下上） | 19（2026-10-17 量；O-31 那一句 16） | Telegram 那套答同样的话 | `5c41e58f` |
+| `miyu-im/data/telegram/tools/tg_send_file.json` | tools 数组 | Telegram 的私聊、群（同 `qq_send_file`，说明一字不差，宿主同一份代码 `common::send_file`）（施工 I-185 下下） | 52（十件一起的边际） | 项目主人 11-09 定 Telegram 也要能发文件 | `0339882d` |
+| `miyu-im/data/telegram/tool-results/uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/uploading.txt`（字节一样，施工 I-185 下下） | 15（字段填 `report.pdf`、`3.4 MB`） | Telegram 那套答同样的话 | `0b6c206c` |
+| `miyu-im/data/telegram/tool-results/no-file.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-file.txt`（字节一样，施工 I-185 下下） | 16（字段填 `out/report.pdf`） | Telegram 那套答同样的话 | `56dec745` |
+| `miyu-im/data/telegram/tool-results/not-local.txt` | 工具结果 | `tg_send_file` 对端读不到本机的文件（Telegram 驱动和 im 在同一个进程，照说不会；施工 I-185 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `e149a81c` |
+| `miyu-im/data/telegram/tool-results/unsendable.txt` | 工具结果 | `tg_send_file` 钉不住那份文件（施工 I-185 下下） | 14 | 同 QQ 的那一句，平台写 Telegram | `75d07729` |

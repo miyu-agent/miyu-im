@@ -29,7 +29,8 @@
     "tg_activity_ranking": { "name": "発言ランキング", "subject": "days" },
     "tg_glance": { "name": "次に覗く時間を決める", "subject": "minutes" },
     "tg_recall": { "name": "取り消し" },
-    "tg_react": { "name": "リアクション", "subject": "emoji" }
+    "tg_react": { "name": "リアクション", "subject": "emoji" },
+    "tg_send_file": { "name": "ファイルを送信", "subject": "path" }
   },
   "said": {
     "prefix": "miyu im",

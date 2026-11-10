@@ -141,6 +141,7 @@ mod telegram_acts;
 mod telegram_live;
 mod telegram_page;
 mod telegram_pictures;
+mod telegram_send_file;
 mod telegram_shown;
 mod telegram_tools;
 mod text;
