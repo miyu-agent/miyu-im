@@ -208,6 +208,7 @@
     "watch/failed-why-disconnected": "connection lost",
     "watch/recalled": "{who} recalled a message",
     "watch/compacted": "context compacted",
+    "watch/errored": "model request failed ({model}): {message}",
     "watch/ended": "turn stopped: {reason}",
     "watch/ended-why-interrupted": "interrupted",
     "watch/ended-why-error": "error",

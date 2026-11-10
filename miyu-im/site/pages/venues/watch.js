@@ -73,6 +73,8 @@ export function spoken(item) {
       return { kind: 'recalled', text: say('watch/recalled', { who: item.who }) };
     case 'compacted':
       return { kind: 'compacted', text: say('watch/compacted') };
+    case 'errored':
+      return { kind: 'ended', text: say('watch/errored', { model: item.model, message: item.message }) };
     case 'ended':
       return { kind: 'ended', text: say('watch/ended', { reason: word('ended-why', item.reason) }) };
     default:
