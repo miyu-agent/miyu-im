@@ -83,40 +83,54 @@ pub(crate) enum Refused {
     Link,
 }
 
-/// 外人的会话（没放开的）：判 `asked`，判过的钉进 `outbox`（模块的说明）。上级目录解开链接、照真实位置比在不在工作区里；最后一段
-/// 不跟链接：照 [`taken`] 打开、判、拷，是链接的不发（项目主人 11-10：别跟过去，是快捷方式就照快捷方式发；交不了链接本身就不发）。
-/// 碰磁盘。
+/// 外人的会话（没放开的）：判 `asked`，判过的钉进 `outbox`（模块的说明）。从工作区的真实位置一级一级往下开，每一级都不跟链接
+/// （[`opened`]），从打开的句柄判是普通文件、拷（[`taken`]）；是链接的不发（项目主人 11-10：别跟过去，交不了链接本身就不发，
+/// 给 AI 报错）。碰磁盘。
 ///
 /// # Errors
 ///
-/// 没有这个文件、不是工作区里的普通文件的是 [`Refused::NoFile`]；最后一段是链接的是 [`Refused::Link`]；拷不进 `outbox` 的是
-/// [`Refused::Unsendable`]。
+/// 没有这个文件、不是工作区里的普通文件（带 `..`、跑出工作区的也是）的是 [`Refused::NoFile`]；路上哪一段是链接的是
+/// [`Refused::Link`]；拷不进 `outbox` 的是 [`Refused::Unsendable`]。
 pub(crate) fn pin(workspace: &Path, asked: &Path, outbox: &Path) -> Result<Pinned, Refused> {
     if workspace.as_os_str().is_empty() {
         return Err(Refused::NoFile);
     }
     let base = std::fs::canonicalize(workspace).map_err(|_| Refused::NoFile)?;
-    let joined = workspace.join(asked);
-    let (Some(name), Some(parent)) = (joined.file_name(), joined.parent()) else {
-        return Err(Refused::NoFile);
-    };
-    let dir = std::fs::canonicalize(parent).map_err(|_| Refused::NoFile)?;
-    if !dir.starts_with(&base) {
-        return Err(Refused::NoFile);
-    }
-    taken(&dir.join(name), outbox)
+    let rest = below(workspace, &base, asked).ok_or(Refused::NoFile)?;
+    taken(&base, &rest, outbox)
 }
 
-/// 照 `at` 打开（最后一段不跟链接：Unix 上 `O_NOFOLLOW`，Windows 上打开链接本身），从打开的句柄判是普通文件，再从这个句柄拷一份进
-/// `outbox`：判的那一份和拷的那一份是同一个，判完以后再把它换成链接也拷不到外面去（core1 11-10 审出来的时间差）。
-fn taken(at: &Path, outbox: &Path) -> Result<Pinned, Refused> {
-    let mut file = match open_here(at) {
-        Ok(file) => file,
-        Err(_) if std::fs::symlink_metadata(at).is_ok_and(|meta| meta.file_type().is_symlink()) => {
-            return Err(Refused::Link);
-        }
-        Err(_) => return Err(Refused::NoFile),
+/// `asked` 在工作区里的那几段（纯逻辑）：相对的照工作区算，绝对的去掉工作区（照写的、照真实位置的都认）。带 `..`、跑出工作区的、
+/// 一段都没有的是空的。
+pub(crate) fn below(
+    workspace: &Path,
+    base: &Path,
+    asked: &Path,
+) -> Option<Vec<std::ffi::OsString>> {
+    use std::path::Component;
+    let relative = if asked.is_absolute() {
+        asked
+            .strip_prefix(base)
+            .or_else(|_| asked.strip_prefix(workspace))
+            .ok()?
+    } else {
+        asked
     };
+    let mut parts = Vec::new();
+    for part in relative.components() {
+        match part {
+            Component::Normal(name) => parts.push(name.to_os_string()),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
+    }
+    (!parts.is_empty()).then_some(parts)
+}
+
+/// 工作区的真实位置 `base` 下 `rest` 那几段：打开（[`opened`]）、从打开的句柄判是普通文件，再从这个句柄拷一份进 `outbox`：判的那一份
+/// 和拷的那一份是同一个，判完以后再把哪一段换成链接也拷不到外面去（core1 11-10 审出来的时间差）。
+fn taken(base: &Path, rest: &[std::ffi::OsString], outbox: &Path) -> Result<Pinned, Refused> {
+    let mut file = opened(base, rest)?;
     let meta = file.metadata().map_err(|_| Refused::NoFile)?;
     if meta.file_type().is_symlink() {
         return Err(Refused::Link);
@@ -137,8 +151,8 @@ fn taken(at: &Path, outbox: &Path) -> Result<Pinned, Refused> {
         }
         return Err(Refused::Unsendable);
     }
-    let name = at
-        .file_name()
+    let name = rest
+        .last()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
     Ok(Pinned {
@@ -148,15 +162,43 @@ fn taken(at: &Path, outbox: &Path) -> Result<Pinned, Refused> {
     })
 }
 
-/// 打开 `at`，最后一段是链接的不跟过去：Unix 上照 `O_NOFOLLOW` 打开失败，Windows 上打开的是链接本身。
-fn open_here(at: &Path) -> std::io::Result<std::fs::File> {
+/// Unix：从 `base` 一级一级往下开 `rest`，每一级都照相对已经打开的那一级目录开（`openat`）、不跟链接（`O_NOFOLLOW`），目录带
+/// `O_DIRECTORY`；哪一段是链接的答 [`Refused::Link`]，别的打不开的答 [`Refused::NoFile`]。
+#[cfg(unix)]
+fn opened(base: &Path, rest: &[std::ffi::OsString]) -> Result<std::fs::File, Refused> {
+    use rustix::fs::{AtFlags, CWD, FileType, Mode, OFlags, openat, statat};
+    let folder = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let refused = |dir: &dyn std::os::fd::AsFd, name: &std::ffi::OsStr| {
+        let link = statat(dir, name, AtFlags::SYMLINK_NOFOLLOW)
+            .is_ok_and(|stat| FileType::from_raw_mode(stat.st_mode) == FileType::Symlink);
+        if link { Refused::Link } else { Refused::NoFile }
+    };
+    let (last, middle) = rest.split_last().ok_or(Refused::NoFile)?;
+    let mut dir = openat(CWD, base, folder, Mode::empty()).map_err(|_| Refused::NoFile)?;
+    for name in middle {
+        dir = openat(&dir, name.as_os_str(), folder, Mode::empty())
+            .map_err(|_| refused(&dir, name))?;
+    }
+    let file = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let fd =
+        openat(&dir, last.as_os_str(), file, Mode::empty()).map_err(|_| refused(&dir, last))?;
+    Ok(std::fs::File::from(fd))
+}
+
+/// 别的系统：上级目录照真实位置比在不在工作区里，最后一段打开链接本身（Windows 的 `FILE_FLAG_OPEN_REPARSE_POINT`）。中间几段不
+/// 一级一级开：外人会话的沙盒在 Windows 上暂缓（设计 62），AI 本来就能用命令拷文件，这里不另加。
+#[cfg(not(unix))]
+fn opened(base: &Path, rest: &[std::ffi::OsString]) -> Result<std::fs::File, Refused> {
+    let at: PathBuf = rest
+        .iter()
+        .fold(base.to_path_buf(), |at, name| at.join(name));
+    let parent = at.parent().ok_or(Refused::NoFile)?;
+    let dir = std::fs::canonicalize(parent).map_err(|_| Refused::NoFile)?;
+    if !dir.starts_with(base) {
+        return Err(Refused::NoFile);
+    }
     let mut options = std::fs::OpenOptions::new();
     options.read(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(libc::O_NOFOLLOW);
-    }
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
@@ -164,7 +206,15 @@ fn open_here(at: &Path) -> std::io::Result<std::fs::File> {
         const OPEN_REPARSE_POINT: u32 = 0x0020_0000;
         options.custom_flags(OPEN_REPARSE_POINT);
     }
-    options.open(at)
+    match options.open(&at) {
+        Ok(file) => Ok(file),
+        Err(_)
+            if std::fs::symlink_metadata(&at).is_ok_and(|meta| meta.file_type().is_symlink()) =>
+        {
+            Err(Refused::Link)
+        }
+        Err(_) => Err(Refused::NoFile),
+    }
 }
 
 /// 把真实位置 `real`（`bytes` 大）钉一份进 `outbox`：硬链接，链不了的拷一份。
