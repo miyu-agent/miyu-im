@@ -74,6 +74,7 @@ pub fn shipped_tools() -> Value {
         lookup(entry("qq_group_files", "venue", group)),
         entry("qq_react", "venue", group),
         lookup(entry("qq_activity_ranking", "read", group)),
+        lookup(entry("qq_token_usage", "read", group)),
         lookup(entry("qq_chat_history", "read", both)),
         // 定下一次看一眼（施工 I-89 下）：只在开着时不时看一眼的场所里有。
         plugin("miyu-im-glance", entry("qq_glance", "read", both)),

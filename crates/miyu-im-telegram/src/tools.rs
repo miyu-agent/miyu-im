@@ -8,7 +8,7 @@
 use miyu_client::tooltext::Access;
 use std::time::Duration;
 
-use miyu_im::toolset::common::{glance, history, ranking, send_file};
+use miyu_im::toolset::common::{glance, history, ranking, send_file, usage};
 use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
 use serde_json::{Map, Value};
 
@@ -36,6 +36,9 @@ pub const CHAT_HISTORY: &str = "tg_chat_history";
 /// 发言排行：只给群。
 pub const ACTIVITY_RANKING: &str = "tg_activity_ranking";
 
+/// 查用量（施工 I-206）：只给群。
+pub const TOKEN_USAGE: &str = "tg_token_usage";
+
 /// 定下一次什么时候看一眼：只在开着时不时看一眼的场所里有（`GLANCE_PLUGIN`）。
 pub const GLANCE: &str = "tg_glance";
 
@@ -58,7 +61,7 @@ const VENUES: &[&str] = &["private", "group"];
 const EVERYWHERE: &[&str] = &["local", "private", "group"];
 
 /// 有哪几件，照登记的先后。
-const TOOLS: [Decl; 10] = [
+const TOOLS: [Decl; 11] = [
     Decl {
         name: SKIP_REPLY,
         access: Access::Read,
@@ -90,6 +93,11 @@ const TOOLS: [Decl; 10] = [
         venues: &["group"],
     },
     Decl {
+        name: TOKEN_USAGE,
+        access: Access::Read,
+        venues: &["group"],
+    },
+    Decl {
         name: GLANCE,
         access: Access::Read,
         venues: VENUES,
@@ -112,11 +120,15 @@ const TOOLS: [Decl; 10] = [
 ];
 
 /// 答的话：名字和认的字段。宿主替这一套答的（发成了没有、排行、看一眼、够不着）也在这里。
-const ANSWERS: [(&str, &[&str]); 29] = [
+const ANSWERS: [(&str, &[&str]); 33] = [
     ("skipped", &[]),
     ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
     ("no-activity", &["days"]),
+    ("usage", &["hours", "tokens", "requests", "cost", "list"]),
+    ("usage-user", &["hours", "who", "tokens", "cost"]),
+    ("no-usage", &["hours"]),
+    ("no-usage-user", &["hours", "who"]),
     ("mentioned", &["who"]),
     ("not-members", &["who"]),
     ("quoted", &[]),
@@ -199,6 +211,7 @@ impl ToolSet for TgTools {
             MENTION => mention::mention(call),
             CHAT_HISTORY => history::history(call, BAD_USER),
             ACTIVITY_RANKING => ranking::ranking(&call),
+            TOKEN_USAGE => usage::usage(call, BAD_USER),
             GLANCE => glance::glance(&call),
             RECALL => acts::recall(call),
             REACT => acts::react(call),

@@ -127,6 +127,7 @@ async fn in_a_group_she_quotes_mentions_and_searches_with_the_telegram_tools() {
         "tg_mention",
         "tg_chat_history",
         "tg_activity_ranking",
+        "tg_token_usage",
     ] {
         assert!(
             names.iter().any(|name| name == wanted),

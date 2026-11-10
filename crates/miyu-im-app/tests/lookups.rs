@@ -11,8 +11,8 @@ use crate::support::platform::*;
 use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
-/// 查询信息的八件，照名字排。
-const LOOKUPS: [&str; 8] = [
+/// 查询信息的九件，照名字排。
+const LOOKUPS: [&str; 9] = [
     "qq_activity_ranking",
     "qq_avatar",
     "qq_chat_history",
@@ -21,6 +21,7 @@ const LOOKUPS: [&str; 8] = [
     "qq_group_files",
     "qq_members",
     "qq_notices",
+    "qq_token_usage",
 ];
 
 /// 第 `index` 次请求的工具表里，`wanted` 里的那几件（照名字排）。

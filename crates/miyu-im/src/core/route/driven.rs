@@ -158,6 +158,10 @@ impl Route {
             commanded,
             open: open(params),
             history: self.records.history(),
+            usage: crate::toolset::Usage {
+                path: self.store.join(crate::spent::FILE),
+                caller: self.core.caller(),
+            },
         };
         let (venue, tool) = (call.venue.clone(), call.tool.clone());
         let answers = Arc::clone(&call.answers);
