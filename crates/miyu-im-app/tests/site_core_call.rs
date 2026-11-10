@@ -30,6 +30,33 @@ async fn the_page_calls_listed_core_methods_and_gets_refusals_with_their_data() 
     .await;
     assert_eq!(refused["error"]["reason"], "not_allowed", "{refused}");
 
+    // 看人格的记忆（施工 I-207）：读的放行（核心接了、没装记忆的照核心的拒绝交回，都不是 im 自己拒的）；改的、删的不放。
+    let cards = call(
+        &mut open,
+        4,
+        "core.call",
+        json!({"method": "memory.cards", "params": {}}),
+    )
+    .await;
+    assert!(cards["error"].is_null(), "读认识的人的卡放行：{cards}");
+    for (id, method) in [
+        (5, "memory.forget"),
+        (6, "memory.card_update"),
+        (7, "memory.update"),
+    ] {
+        let refused = call(
+            &mut open,
+            id,
+            "core.call",
+            json!({"method": method, "params": {}}),
+        )
+        .await;
+        assert_eq!(
+            refused["error"]["reason"], "not_allowed",
+            "{method}：{refused}"
+        );
+    }
+
     // 写了对不上的 expect：核心回 config_conflict，data.current 是这一项现在的样子（没写过的是 {}）。
     let change = json!({"key": "ui.language", "value": "en", "expect": {"value": "zz"}});
     let params = json!({"layer": "system", "changes": [change]});
