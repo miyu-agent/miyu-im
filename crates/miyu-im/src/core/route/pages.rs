@@ -135,7 +135,7 @@ impl Route {
         let id = pushed["id"].clone();
         let args = &pushed["params"]["params"];
         let answer = match pushed["params"]["method"].as_str() {
-            Some(card_page::SAVE_ONE) => self.save_one(args),
+            Some(card_page::SAVE_ONE) => self.save_one(args, false),
             Some(card_page::ADD) => self.add_card(args).await?,
             Some(card_page::REMOVE) => self.remove_card(args).await?,
             _ => return Ok(false),
@@ -147,12 +147,16 @@ impl Route {
         Ok(true)
     }
 
-    /// `cards.save_one {card, values}`：部分更新那一张卡。白名单成员还没有卡的先建一张。参数写错的交回空的（拒 `bad_params`）。
-    pub(in crate::core::route) fn save_one(&mut self, args: &Value) -> Option<Value> {
+    /// `cards.save_one {card, values}`：部分更新那一张卡。白名单成员还没有卡的先建一张；`add` 是真的（`/model`，施工 I-191）
+    /// 哪个群、私聊没有卡的都先建一张。参数写错的交回空的（拒 `bad_params`）。
+    pub(in crate::core::route) fn save_one(&mut self, args: &Value, add: bool) -> Option<Value> {
         let card = card_edit::card_of(&args["card"], self.method_platform(args))?;
         let platform = card.platform().unwrap_or(self.page_platform());
         let values = card_page::from_page(args["values"].as_object()?, platform);
         let mut cards = self.rules.cards().clone();
+        if add && !has_card(&cards, &card) {
+            cards = card_edit::add(&cards, card.clone());
+        }
         // 白名单成员还没有卡的（这个号的、整个平台的都没有）先建一张；整个平台的有的，改的时候照它抄一张给这个号（`card_edit::update`）。
         if let Card::Private(scope, id) = &card
             && self.whitelist_numbers(&scope.platform).contains(id)
@@ -381,5 +385,20 @@ async fn push(job: Job, bots: Arc<Bots>, caller: Caller) {
     {
         let detail = &reply["error"]["data"];
         tracing::warn!(target: TARGET, widget = job.widget, why, detail = %detail, "page not pushed");
+    }
+}
+
+/// `cards` 里有没有这个群、私聊的卡（哪个号的都算）；默认值、「其他群」「其他私聊」本来就有。
+fn has_card(cards: &Cards, card: &Card) -> bool {
+    match card {
+        Card::Group(scope, id) => cards
+            .groups
+            .iter()
+            .any(|one| one.platform == scope.platform && one.id == *id),
+        Card::Private(scope, id) => cards
+            .privates
+            .iter()
+            .any(|one| one.platform == scope.platform && one.id == *id),
+        _ => true,
     }
 }

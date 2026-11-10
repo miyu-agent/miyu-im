@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use miyu_chat::{LongText, Venue};
 
-use super::long::{WAIT, draw, nodes};
+use super::long::{WAIT, draw, literal, nodes};
 use super::sending::{Body, Piece, What};
 use super::{Peer, Route};
 use crate::TARGET;
@@ -54,7 +54,9 @@ impl Route {
         if let (Some(peer), Some(params)) = (peer, params) {
             match self.long_text(peer.platform, &params, said) {
                 Some(LongText::Image) => {
-                    if let Some(drawn) = draw(&self.core.caller(), &peer.venue, said, WAIT).await {
+                    if let Some(drawn) =
+                        draw(&self.core.caller(), &peer.venue, &literal(said), WAIT).await
+                    {
                         for page in drawn {
                             self.enqueue(
                                 session,
