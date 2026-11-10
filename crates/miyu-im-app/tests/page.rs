@@ -178,6 +178,7 @@ fn japanese_is_written_in_japanese() {
             "conn/line-username",
             "platform/qq",
             "platform/tg",
+            "unit/percent",
             "venues/filter",
             "wizard/tg-owner"
         ],

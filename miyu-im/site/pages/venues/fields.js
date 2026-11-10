@@ -71,6 +71,10 @@ export const FIELDS = {
     // 看一眼那一轮最多交几条没回的新消息（施工 I-175，项目主人 11-05）：只有群，私聊到点不看新消息。没写的照桥的出厂（50）。
     { key: 'glance_records', control: 'number', label: 'field/glance-records', hint: 'field/glance-records-hint', unit: 'unit/messages', kinds: ['group'], min: 1, max: 64, dep: { key: 'glance', on: true } },
     { group: 'field/judging' },
+    // 概率触发主动回复（施工 I-197，设计 12 第一节第 1 条）：和主动回复判断是两个开关，都开着的抽中的再过判断。
+    { key: 'rules.chatty.sample', control: 'switch', label: 'field/sample', hint: 'field/sample-hint', kinds: GROUPS },
+    { key: 'rules.chatty.sample_rate', control: 'number', scale: 10, label: 'field/sample-rate', unit: 'unit/percent', kinds: GROUPS, min: 0, max: 1000, dep: { key: 'rules.chatty.sample', on: true } },
+    { key: 'rules.chatty.sample_skip_media', control: 'switch', label: 'field/sample-skip-media', hint: 'field/sample-skip-media-hint', kinds: GROUPS, dep: { key: 'rules.chatty.sample', on: true } },
     { key: 'rules.discipline', control: 'switch', values: ['chatty', 'when-called'], label: 'field/judge', hint: 'field/judge-hint', kinds: GROUPS },
     { key: 'rules.chatty.judge_called', control: 'switch', label: 'field/judge-called', hint: 'field/judge-called-hint', kinds: GROUPS, dep: JUDGE },
     { key: 'rules.judge.records', control: 'number', label: 'field/judge-records', unit: 'unit/messages', kinds: GROUPS, dep: JUDGE, min: 1, max: 100 },
