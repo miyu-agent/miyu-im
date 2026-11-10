@@ -85,12 +85,26 @@ pub fn short(tokens: u64) -> String {
     }
 }
 
+/// 金额的数（纯逻辑，施工 I-209）：照网页用量页的写法，不到 1 的多留两位（`0.0832`，后面多出来的 0 不写），免得不到一分钱的
+/// 写成 `0.00` 让人读成没花钱；小到四位都是 0 的写 `<0.0001`。
+fn digits(amount: f64) -> String {
+    if amount.abs() >= 1.0 {
+        return format!("{amount:.2}");
+    }
+    let written = format!("{amount:.4}");
+    if amount != 0.0 && written.trim_start_matches('-') == "0.0000" {
+        return "<0.0001".to_string();
+    }
+    let kept = written.trim_end_matches('0').len().max(written.len() - 2);
+    written[..kept].to_string()
+}
+
 /// 核心换好的一项 `converted`（`{currency, amount, rest?}`，没换成的是 `null`）写成一句（纯逻辑）：`1.23 CNY + 0.10 USD`；
 /// 什么都没有的是空的。
 pub fn money(converted: &Value) -> Option<String> {
     let one = |amount: &Value, currency: &Value| {
         let (amount, currency) = (amount.as_f64()?, currency.as_str()?);
-        Some(format!("{amount:.2} {currency}"))
+        Some(format!("{} {currency}", digits(amount)))
     };
     let mut parts: Vec<String> = one(&converted["amount"], &converted["currency"])
         .into_iter()

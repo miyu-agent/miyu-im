@@ -35,6 +35,14 @@ fn numbers_and_money_read_like_a_person_wrote_them() {
     let converted =
         json!({"currency": "CNY", "amount": 1.234, "rest": [{"currency": "USD", "amount": 0.1}]});
     assert_eq!(money(&converted).as_deref(), Some("1.23 CNY + 0.10 USD"));
+    // 不到 1 的多留两位、多出来的 0 不写（施工 I-209）：不到一分钱的不写成 0.00。
+    let small = |amount: f64| money(&json!({"currency": "USD", "amount": amount})).expect("有");
+    assert_eq!(small(0.0832), "0.0832 USD");
+    assert_eq!(small(0.004), "0.004 USD");
+    assert_eq!(small(0.5), "0.50 USD");
+    assert_eq!(small(0.00001), "<0.0001 USD");
+    assert_eq!(small(0.0), "0.00 USD");
+    assert_eq!(small(12.3456), "12.35 USD");
     assert_eq!(money(&json!(null)), None);
     assert_eq!(money(&json!({"rest": []})), None);
     assert_eq!(priced(Some("1.23 CNY".into()), 0), "1.23 CNY");
