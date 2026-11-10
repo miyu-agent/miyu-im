@@ -36,15 +36,16 @@ fn a_file_in_the_workspace_is_pinned_by_relative_or_absolute_path() {
 #[test]
 fn anything_outside_the_workspace_or_not_a_file_is_refused() {
     let (root, workspace, outbox) = setup("outside");
-    for asked in [
-        Path::new("../secret.txt"),
-        &root.join("secret.txt"),
-        Path::new("out"),
-        Path::new("missing.pdf"),
+    // 工作区外面的答 `outside`，没有的、不是文件的答 `no-file`（施工 I-190 分开：原来一律 `no-file`，她当成了白名单）。
+    for (asked, why) in [
+        (Path::new("../secret.txt"), Refused::Outside),
+        (&root.join("secret.txt"), Refused::Outside),
+        (Path::new("out"), Refused::NoFile),
+        (Path::new("missing.pdf"), Refused::NoFile),
     ] {
         assert_eq!(
             pin(&workspace, asked, &outbox),
-            Err(Refused::NoFile),
+            Err(why),
             "{}",
             asked.display()
         );
@@ -65,7 +66,7 @@ fn a_link_pointing_out_of_the_workspace_is_refused() {
         .expect("建得了链接");
     assert_eq!(
         pin(&workspace, Path::new("looks-fine.txt"), &outbox),
-        Err(Refused::NoFile)
+        Err(Refused::Outside)
     );
     std::fs::remove_dir_all(root).expect("删得掉临时目录");
 }
@@ -136,4 +137,24 @@ fn an_open_session_sends_any_real_file_from_a_pinned_copy() {
         assert_eq!(refused, Err(Refused::NoFile));
     }
     std::fs::remove_dir_all(&root).expect("清得掉");
+}
+
+#[test]
+fn a_leading_tilde_means_the_home_folder() {
+    // 施工 I-190：从旧版导进来的会话工作区记的是 `~`，她写路径也爱写 `~/…`；两样都换成家目录。
+    let home = Path::new("/home/someone");
+    assert_eq!(
+        paths("~", "~/Documents/a.md", Some(home)),
+        (home.to_path_buf(), home.join("Documents/a.md"))
+    );
+    assert_eq!(
+        paths("/srv/ws", "out/a.md", Some(home)),
+        (PathBuf::from("/srv/ws"), PathBuf::from("out/a.md")),
+        "别的照原样"
+    );
+    assert_eq!(
+        paths("~", "~/a.md", None),
+        (PathBuf::from("~"), PathBuf::from("~/a.md")),
+        "家目录读不出的照原样"
+    );
 }
