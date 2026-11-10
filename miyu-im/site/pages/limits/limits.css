@@ -20,3 +20,6 @@
   .limits-add .label { flex-basis: 100%; }
   .limits-add .input { flex: 1; min-width: 0; }
 }
+
+/* 最近 30 天用过的人：用量下面那一行已花的钱、名字下面「另有几次请求没记录金额」（施工 I-205）。 */
+.limits-cost { display: block; font-size: 12px; font-weight: 400; color: var(--text-soft); }

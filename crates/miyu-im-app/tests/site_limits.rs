@@ -101,6 +101,10 @@ async fn the_page_sets_lines_and_shows_who_used_how_much() {
         "单独设的整组替换默认的；7 天那条到了：{got}"
     );
 
+    // 金额（施工 I-205）：三个时间段各一格。测试的模型没有价钱，核心算不出：那一次算成没记录金额的请求，钱是空的。
+    let nothing = json!({"currency": null, "amount": null, "unconverted": [], "unpriced": 1});
+    assert_eq!(mine["costs"], json!([nothing, nothing, nothing]), "{got}");
+
     let bad = call(
         &mut open,
         3,
