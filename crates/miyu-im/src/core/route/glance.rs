@@ -136,6 +136,11 @@ impl Route {
             .into_iter()
             .flatten()
             .filter(|one| one["target"]["package"].is_object())
+            // 会话的定时任务（施工 I-198）也是这样建的：不是看一眼的，不对它的账。
+            .filter(|one| {
+                let task = one["prompt"].as_str().and_then(crate::tasks::Task::read);
+                task.is_none()
+            })
             .filter_map(|one| {
                 let id = one["id"].as_str()?.to_string();
                 Some((id, one["prompt"].as_str().and_then(Prompt::read)))
