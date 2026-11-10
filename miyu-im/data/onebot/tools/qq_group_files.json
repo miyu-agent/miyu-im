@@ -1,4 +1,4 @@
 {
-  "description": "List this group's shared files, or save one.",
-  "parameters": {"type":"object","properties":{"folder":{"type":"string"},"file":{"type":"string"}}}
+  "description": "List this group's shared files, save one, or delete one.",
+  "parameters": {"type":"object","properties":{"folder":{"type":"string"},"file":{"type":"string"},"delete":{"type":"string"}}}
 }

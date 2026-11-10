@@ -2,6 +2,10 @@
 //! 最外一层，或者 `folder` 那个文件夹（编号照列出来的）；文件夹写 `[folder] <名字> (id=<编号>, <几个> files)`，文件写
 //! `<名字> (id=<编号>, <多大>, by <谁传的>)`，`; ` 隔开，最多列 `members_shown` 样。写了 `file` 的（编号照列出来的）问 QQ 要下载地址、
 //! 下下来存进这个会话工作区的 `qq-files/`，回路径（同头像、取文件）。
+//!
+//! 施工 I-204（项目主人 11-10：群文件永久空间满了传不上去，要能让她清）：`delete` 写一个文件编号的删掉那个文件。只听管理的人：
+//! 这一轮是终端管理员、卡片上「允许使用管理员命令的用户」叫的才删，别人叫的答 `managers-only`、不动（程序拦，不靠她自觉）。QQ
+//! 那头她得是群主、管理员，或者文件是她传的，不然 QQ 拒，照它说的答。
 
 use serde_json::Value;
 
@@ -103,9 +107,10 @@ pub(super) fn group_files(tools: &QqTools, call: Call) -> Planned {
         return group_only(&call);
     };
     // 施工 I-17：写错的说哪个参数。
-    for key in ["folder", "file"] {
+    for key in ["folder", "file", "delete"] {
         let bad = match key {
             "folder" => "folder must be a folder id",
+            "delete" => "delete must be a file id",
             _ => "file must be a file id",
         };
         if let Err(bad) = optional_text(&call.args, key, bad) {
@@ -113,10 +118,20 @@ pub(super) fn group_files(tools: &QqTools, call: Call) -> Planned {
         }
     }
     let (shown, wait) = (tools.members, tools.wait);
+    let text = |key: &str| {
+        let written = call.args[key].as_str().filter(|text| !text.is_empty());
+        written.map(str::to_string)
+    };
+    let (delete, file) = (text("delete"), text("file"));
+    // 删只听管理的人（施工 I-204）：当场挡下，不问 QQ。
+    if delete.is_some() && !call.admin && !call.manager {
+        return Planned::Now(call.answers.say("managers-only", &[], true));
+    }
     Planned::later(async move {
-        let done = match call.args["file"].as_str().filter(|file| !file.is_empty()) {
-            Some(file) => download(&call, group, file, wait).await,
-            None => listing(&call, group, shown).await,
+        let done = match (delete, file) {
+            (Some(file), _) => deleting(&call, group, &file).await,
+            (None, Some(file)) => download(&call, group, &file, wait).await,
+            (None, None) => listing(&call, group, shown).await,
         };
         done.unwrap_or_else(|undone| said(&call, undone))
     })
@@ -141,6 +156,16 @@ async fn listing(call: &Call, group: Id, shown: usize) -> Result<Value, Undone> 
         &[("shown", &count), ("total", &total), ("list", &list)],
         false,
     ))
+}
+
+/// 删一个文件（施工 I-204）：QQ 说不行的照它说的答。
+async fn deleting(call: &Call, group: Id, file: &str) -> Result<Value, Undone> {
+    let Some(link) = &call.link else {
+        return Err(("unreachable", None));
+    };
+    link.delete_group_file(&group, file).await.map_err(undone)?;
+    tracing::info!(target: miyu_im::TARGET, venue = %call.venue, file, "group file deleted");
+    Ok(call.answers.say("group-file-deleted", &[], false))
 }
 
 /// 下一个文件存进工作区。
