@@ -232,7 +232,7 @@ const TOOLS: [Decl; 22] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 63] = [
+const ANSWERS: [(&str, &[&str]); 65] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
@@ -257,6 +257,8 @@ const ANSWERS: [(&str, &[&str]); 63] = [
     ("history", &["count"]),
     ("no-history", &[]),
     ("history-admin-only", &[]),
+    ("managers-only", &[]),
+    ("group-file-deleted", &[]),
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),

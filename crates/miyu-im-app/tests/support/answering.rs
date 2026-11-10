@@ -52,18 +52,8 @@ pub fn unrecallable() -> String {
     format!("  {}  ", "Recall failed".repeat(20))
 }
 
-/// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
-const PLATFORM: [&str; 6] = [
-    "set_group_card",
-    "set_group_ban",
-    "group_poke",
-    "friend_poke",
-    "set_group_kick",
-    "set_group_add_request",
-];
-
 /// 取东西的动作（施工 O-33；`get_forward_msg` 施工 O-34）：照放进去的回，不占编号、不交给 [`Answering::action`]。
-const FETCHING: [&str; 8] = [
+const FETCHING: [&str; 9] = [
     "get_msg",
     "get_image",
     "get_file",
@@ -71,6 +61,7 @@ const FETCHING: [&str; 8] = [
     "get_group_root_files",
     "get_group_files_by_folder",
     "get_group_file_url",
+    "get_private_file_url",
     // 补拉消息（施工 I-15）：重连、重启时桥问，一律回没有。
     "get_group_msg_history",
 ];
@@ -188,7 +179,8 @@ impl NapCat {
                         };
                         let recall = kind == "delete_msg";
                         let reaction = kind == "set_msg_emoji_like";
-                        let platform = PLATFORM.contains(&kind);
+                        // 平台动作照 `platform::PLATFORM`（撤回上面另认了）：不占发出去的编号（施工 O-31）。
+                        let platform = super::platform::PLATFORM.contains(&kind);
                         let sending = !recall
                             && !reaction
                             && !platform
@@ -251,17 +243,16 @@ impl NapCat {
 fn fetched(action: &Value, stock: &Mutex<Stock>) -> Value {
     let kind = action["action"].as_str().unwrap_or_default().to_string();
     let params = &action["params"];
+    let text = |key: &str| params[key].as_str().unwrap_or_default().to_string();
     let key = match kind.as_str() {
-        "get_msg" => params["message_id"]
-            .to_string()
-            .trim_matches('"')
-            .to_string(),
-        "get_forward_msg" => params["id"].as_str().unwrap_or_default().to_string(),
-        // 群文件（施工 I-12）：最外一层放在 `root`，文件夹照编号，下载地址照文件编号。
+        "get_msg" => params["message_id"].to_string().replace('"', ""),
+        "get_forward_msg" => text("id"),
+        // 群文件（施工 I-12）：最外一层放在 `root`，文件夹照编号，下载地址照文件编号；私聊文件的下载地址（施工 I-203）放在 `private:<编号>`。
         "get_group_root_files" => "root".to_string(),
-        "get_group_files_by_folder" => params["folder_id"].as_str().unwrap_or_default().to_string(),
-        "get_group_file_url" => params["file_id"].as_str().unwrap_or_default().to_string(),
-        _ => params["file"].as_str().unwrap_or_default().to_string(),
+        "get_group_files_by_folder" => text("folder_id"),
+        "get_group_file_url" => text("file_id"),
+        "get_private_file_url" => format!("private:{}", text("file_id")),
+        _ => text("file"),
     };
     let mut stock = stock.lock().expect("没 panic");
     stock.asked.push((kind.clone(), key.clone()));
@@ -317,6 +308,7 @@ fn answer(
             | "set_friend_add_request"
             | "set_group_ban"
             | "set_group_kick"
+            | "delete_group_file"
             | "set_group_add_request"
             | "group_poke"
             | "friend_poke",

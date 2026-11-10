@@ -115,6 +115,11 @@ impl Route {
                     .get(&session)
                     .is_some_and(|group| group.is_admin(by))
             });
+        // 这一轮是不是卡片上「允许使用管理员命令的用户」叫的（施工 I-204）：照这个场所的规则的 `managers`。
+        let manager = by.as_ref().is_some_and(|by| {
+            miyu_chat::Venue::parse(&peer.venue)
+                .is_some_and(|venue| super::applied::role(&self.applied(&venue), by) == "manager")
+        });
         let call = Call {
             tool: tool.to_string(),
             args: params["args"].clone(),
@@ -140,6 +145,7 @@ impl Route {
             config: self.hooks.driver_config(platform),
             store: crate::status_file::store_in(&self.store, platform),
             admin,
+            manager,
             open: open(params),
             history: self.records.history(),
             usage: crate::toolset::Usage {
