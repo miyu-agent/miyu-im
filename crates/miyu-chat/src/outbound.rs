@@ -92,8 +92,10 @@ pub struct Outbound {
     pub(crate) leak_close: Vec<String>,
     /// 去掉一条话末尾的一个 `。`（出厂开，照旧版；施工 O-47）。
     pub(crate) strip_period: bool,
-    /// 模拟真人一条分多条发送（出厂开；施工 I-26，[`bubbles()`]）。
+    /// 分多条发送（出厂开；施工 I-26，[`bubbles()`]）。
     pub(crate) humanlike: bool,
+    /// 分出来的几条之间照打字速度停顿（出厂开；施工 I-195，设计 12 第 4 条）：关了一条接一条马上发。不分条的不看它。
+    pub(crate) pause: bool,
     /// 分条发送照多快的打字速度停顿，字/分钟（出厂 80；施工 I-49，[`bubbles()`]）。
     pub(crate) typing_speed: u32,
     /// 按顺序发送（出厂开；施工 I-159）：一段等前一段 QQ 回了、停够了才交。关了的全部立即发，不停顿、不等，先后可能乱。
@@ -180,6 +182,12 @@ impl Outbound {
     #[must_use]
     pub fn humanlike(&self) -> bool {
         self.humanlike
+    }
+
+    /// 分出来的几条之间停不停（施工 I-195）。
+    #[must_use]
+    pub fn pause(&self) -> bool {
+        self.pause
     }
 
     /// 按不按顺序发送（施工 I-159）：关了的全部立即发。
