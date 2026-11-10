@@ -124,7 +124,9 @@ export const FIELDS = {
     { key: 'rules.reaction', control: 'reaction', label: 'field/reaction', hint: 'field/reaction-hint', kinds: GROUPS, needs: 'reactions' },
     { group: 'field/sending' },
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },
-    { key: 'rules.outbound.typing_speed', control: 'number', label: 'field/typing-speed', hint: 'field/typing-speed-hint', unit: 'unit/chars-per-minute', min: 20, max: 600, dep: { key: 'rules.outbound.humanlike', on: true } },
+    // 分条和停顿是两个开关（施工 I-195，设计 12 第 4 条）：不分条的时候停顿、打字速度都不出现；不停顿的时候打字速度不出现。
+    { key: 'rules.outbound.pause', control: 'switch', label: 'field/pause', hint: 'field/pause-hint', dep: { key: 'rules.outbound.humanlike', on: true } },
+    { key: 'rules.outbound.typing_speed', control: 'number', label: 'field/typing-speed', hint: 'field/typing-speed-hint', unit: 'unit/chars-per-minute', min: 20, max: 600, dep: [{ key: 'rules.outbound.humanlike', on: true }, { key: 'rules.outbound.pause', on: true }] },
     // 按顺序发送（施工 I-159，项目主人 11-05：关了全部立即发）。
     { key: 'rules.outbound.ordered', control: 'switch', label: 'field/ordered', hint: 'field/ordered-hint' },
     { key: 'final_only', control: 'switch', label: 'field/final-only', hint: 'field/final-only-hint' },
