@@ -108,6 +108,9 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
     napcat.send(group_ban(GROUP, BOT, "lift_ban", None));
     admin_calls(&napcat, 2);
     assert_eq!(next_words(&mut napcat).await, "嗯", "过了期的那一句不发");
+    // 等桥收到 NapCat 对这一句的回应再往下（施工 I-208）：下面马上断开，机器快的时候回应还没到桥连接就没了，这个场所那一段
+    // 一直算「在外面」，重连以后的那一句被它挡到过期（macOS 的 CI 上偶发，三天里撞了三次）。
+    until_count(&home, "venue.delivered", 1).await;
     // 没连着排过了期限：同样记 `expired`，连上以后不发。
     admin_calls(&napcat, 3);
     until_count(&home, "turn.started", 3).await;
