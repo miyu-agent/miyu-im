@@ -125,6 +125,14 @@ async fn fetched(
                 .map_err(Missed::Unfetched),
             Err(_) => take(link, how, &item.id, (wait, LIMIT)).await,
         },
+        // 私聊里的文件照私聊文件的下载地址取（施工 I-203）。
+        (Fetch::File, To::Private(user)) => match link.private_file_url(user, &item.id).await {
+            Ok(url) => bytes(&[Source::Url(url)], wait, LIMIT)
+                .await
+                .map(|bytes| (bytes, None))
+                .map_err(Missed::Unfetched),
+            Err(_) => take(link, how, &item.id, (wait, LIMIT)).await,
+        },
         _ => take(link, how, &item.id, (wait, LIMIT)).await,
     };
     let (data, named) = taken.map_err(|missed| match missed {

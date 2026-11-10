@@ -21,6 +21,8 @@ pub const ROOT_FILES: &str = "get_group_root_files";
 pub const FOLDER_FILES: &str = "get_group_files_by_folder";
 /// 同 [`ROOT_FILES`]。
 pub const FILE_URL: &str = "get_group_file_url";
+/// 私聊里的文件的下载地址（NapCat 的扩展动作，施工 I-203）：`get_file` 只认缓存的图片、语音，私聊里发来的文件要照它取。
+pub const PRIVATE_FILE_URL: &str = "get_private_file_url";
 /// 同 [`GROUP_LIST`]：机器人自己的号和昵称（施工 I-6 中）。
 pub const LOGIN_INFO: &str = "get_login_info";
 
