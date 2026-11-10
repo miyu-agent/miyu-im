@@ -179,7 +179,7 @@ fn taken(base: &Path, rest: &[std::ffi::OsString], outbox: &Path) -> Result<Pinn
 }
 
 /// Unix：从 `base` 一级一级往下开 `rest`，每一级都照相对已经打开的那一级目录开（`openat`）、不跟链接（`O_NOFOLLOW`），目录带
-/// `O_DIRECTORY`；哪一段是链接的答 [`Refused::Link`]，别的打不开的答 [`Refused::NoFile`]。
+/// `O_DIRECTORY`，最后一段不阻塞（`O_NONBLOCK`，管道打开不等）；哪一段是链接的答 [`Refused::Link`]，别的打不开的答 [`Refused::NoFile`]。
 #[cfg(unix)]
 fn opened(base: &Path, rest: &[std::ffi::OsString]) -> Result<std::fs::File, Refused> {
     use rustix::fs::{AtFlags, CWD, FileType, Mode, OFlags, openat, statat};
@@ -195,7 +195,9 @@ fn opened(base: &Path, rest: &[std::ffi::OsString]) -> Result<std::fs::File, Ref
         dir = openat(&dir, name.as_os_str(), folder, Mode::empty())
             .map_err(|_| refused(&dir, name))?;
     }
-    let file = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    // 最后一段带 `O_NONBLOCK`（core1 11-10）：工作区里 `mkfifo` 一个具名管道再叫发它，阻塞地打开会一直等写的那头，卡死 im 处理
+    // 工具的那条线；不阻塞打开立刻回，下面照「不是普通文件」拒掉。普通文件不受影响。
+    let file = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC;
     let fd =
         openat(&dir, last.as_os_str(), file, Mode::empty()).map_err(|_| refused(&dir, last))?;
     Ok(std::fs::File::from(fd))

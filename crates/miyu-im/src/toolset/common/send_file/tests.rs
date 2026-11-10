@@ -252,3 +252,29 @@ fn only_plain_names_below_the_workspace_are_walked() {
         assert_eq!(below(workspace, base, Path::new(bad)), None, "{bad}");
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn a_named_pipe_is_refused_at_once() {
+    // core1 11-10：工作区里 `mkfifo` 一个具名管道再叫发它，阻塞地打开会一直等写的那头、卡死处理工具的那条线。最后一段不阻塞
+    // 打开，一秒内答不是文件。
+    let (root, workspace, outbox) = setup("fifo");
+    let made = std::process::Command::new("mkfifo")
+        .arg(workspace.join("pipe"))
+        .status()
+        .expect("跑得了 mkfifo");
+    assert!(made.success(), "建得了管道");
+    let (answer, answered) = std::sync::mpsc::channel();
+    let (asked_in, asked_out) = (workspace.clone(), outbox.clone());
+    std::thread::spawn(move || {
+        let refused = pin(&asked_in, Path::new("pipe"), &asked_out);
+        if answer.send(refused).is_err() {
+            // 等的一头超时走了：不要紧。
+        }
+    });
+    let refused = answered
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .expect("一秒内答了，没卡住");
+    assert_eq!(refused, Err(Refused::NoFile));
+    std::fs::remove_dir_all(root).expect("删得掉临时目录");
+}
