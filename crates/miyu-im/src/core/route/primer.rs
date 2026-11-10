@@ -2,6 +2,7 @@
 //! 第五条第 6 条）：判下来要回的一轮，`session.respond` 的事实里多带一两块，模板是出厂数据（`rules::facts`），给模型的字登记在
 //! `docs/ledger.md`。
 //!
+//! - 概率触发抽中、主动回复判断关着直接开的一轮（施工 I-197，设计 12）：带 `sampled`，说这一条没叫她、接不接话她定。
 //! - 因为违规才回的（只查违规那一次判了违规；或者打分没过门槛、严重程度过了）：带 `moderation-precheck`，写判官说的严重程度和理由。
 //!
 //! 纯逻辑，模板由外面交进来；渲染不出的（照说不会：起来时查过字段）记一行，不带。
@@ -14,19 +15,26 @@ use super::body::Judged;
 use super::decide::Decision;
 use crate::TARGET;
 
+/// 概率触发那一块的 `kind`。
+const SAMPLED: &str = "sampled";
+
 /// 违规预检那一块的 `kind`。
 const PRECHECK: &str = "moderation-precheck";
 
-/// 这一轮要带的几块事实：`precheck` 是模板。
+/// 这一轮要带的几块事实：`precheck`、`sampled` 是模板。
 pub(super) fn primer(
     decision: &Decision,
     judged: Option<&Judged<'_>>,
-    precheck: &Template,
+    (precheck, sampled): (&Template, &Template),
 ) -> Vec<Value> {
     let mut facts = Vec::new();
     let Some(passed) = &decision.passed else {
         return facts;
     };
+    // 概率触发抽中、没过判官直接开的一轮（施工 I-197）：告诉她这一条没叫她，接不接话她定。过了判官的不带：判官判了该回。
+    if passed.route == Path::Commit && passed.conditions.sampled() {
+        facts.extend(render(sampled, &[], SAMPLED));
+    }
     let judgement = judged.and_then(|judged| judged.answer.result.as_ref().ok());
     let score = judged.and_then(|judged| judged.score);
     let violated = match passed.route {

@@ -48,6 +48,11 @@ pub(crate) const CARDS_SAVE: &str = "cards.save";
 /// 会话浮窗的「概况」：一张卡今天的数、最近判断（施工 I-7 上补）。
 pub(crate) const CARDS_OVERVIEW: &str = "cards.overview";
 
+/// 会话浮窗「定时任务」页的三个方法（施工 I-198，`route/tasks.rs`）：列、存（建、改、停）、删。
+pub(crate) const TASKS_LIST: &str = "tasks.list";
+pub(crate) const TASKS_SAVE: &str = "tasks.save";
+pub(crate) const TASKS_REMOVE: &str = "tasks.remove";
+
 /// 后台「消息记录」页（施工 I-34 上，`route/browse.rs`；C-1 中下起记录改读 im 自己的库）：列场所会话、删一个会话。
 pub(crate) const SESSIONS_LIST: &str = "sessions.list";
 pub(crate) const SESSIONS_DELETE: &str = "sessions.delete";
@@ -75,6 +80,9 @@ pub(super) fn exported(method: &str) -> bool {
             | CARDS_OVERVIEW
             | SESSIONS_LIST
             | SESSIONS_DELETE
+            | TASKS_LIST
+            | TASKS_SAVE
+            | TASKS_REMOVE
     )
 }
 
@@ -171,6 +179,9 @@ fn registered() -> Value {
         {"name": CARDS_OVERVIEW},
         {"name": SESSIONS_LIST},
         {"name": SESSIONS_DELETE},
+        {"name": TASKS_LIST},
+        {"name": TASKS_SAVE},
+        {"name": TASKS_REMOVE},
     ]})
 }
 

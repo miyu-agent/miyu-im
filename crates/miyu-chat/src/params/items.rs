@@ -226,6 +226,16 @@ pub(crate) const ITEMS: &[Item] = &[
     item("chatty.skip_users", PEOPLE, |p, v| {
         p.chatty.skip_users = texts(v)
     }),
+    // 概率触发（施工 I-197，设计 12 第一节第 1 条）：开没开、千分之几、没有字的抽不抽。
+    item("chatty.sample", Kind::Bool, |p, v| {
+        p.chatty.sample.on = flag(v)
+    }),
+    item("chatty.sample_rate", PER_MILLE, |p, v| {
+        p.chatty.sample.rate = count(v)
+    }),
+    item("chatty.sample_skip_media", Kind::Bool, |p, v| {
+        p.chatty.sample.skip_media = flag(v)
+    }),
     item("dispatch.supersede_window", WINDOW, |p, v| {
         p.supersede_window = millis(v)
     }),

@@ -19,6 +19,7 @@ mod group;
 mod moderation;
 mod person;
 mod restraint;
+mod sampled;
 mod score;
 mod supersede;
 
@@ -124,6 +125,19 @@ pub struct Chatty {
     pub(crate) judge_called: bool,
     /// 这几个人（平台上的人的编号）冲她来直接回，没冲她来的只记下、不交判官（施工 I-7 中三，[`route`]）。
     pub(crate) skip_users: Vec<String>,
+    /// 概率触发（施工 I-197，[`sampled`]）。
+    pub(crate) sample: Sample,
+}
+
+/// 概率触发的三格（设计 12 第一节第 1 条）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Sample {
+    /// 开没开（出厂关）。
+    pub(crate) on: bool,
+    /// 千分之几（出厂 50）。
+    pub(crate) rate: u32,
+    /// 没有字的消息不抽（出厂是）。
+    pub(crate) skip_media: bool,
 }
 
 /// 一个带窗口的加值项的参数：[`Chatty`] 的一格，格只在 crate 里可见（施工 O-15）。
@@ -171,6 +185,8 @@ pub enum Kind {
     AfterSpeaking,
     /// 违规旗：进站链插的旗，只让判官认真查一眼。
     Moderation,
+    /// 概率触发抽中了（施工 I-197）：别的都不成立时才有，不加分。
+    Sampled,
 }
 
 /// 一个成立了的条件：哪一种、加多少分。
@@ -200,6 +216,7 @@ impl Conditions {
             Kind::FollowUp,
             Kind::AfterSpeaking,
             Kind::Moderation,
+            Kind::Sampled,
         ]
         .into_iter()
         .find(|&kind| self.has(kind))
@@ -211,6 +228,12 @@ impl Conditions {
     }
 
     /// 只有违规旗：判官只查违规，不打分。
+    /// 是概率触发抽中的（别的都不成立）：冷静那几项不抬它的门槛（设计 12：概率到了就触发）。
+    #[must_use]
+    pub fn sampled(&self) -> bool {
+        self.has(Kind::Sampled)
+    }
+
     fn only_moderation(&self) -> bool {
         !self.hits.is_empty() && self.hits.iter().all(|hit| hit.kind == Kind::Moderation)
     }
@@ -285,13 +308,14 @@ pub trait Lift {
 }
 
 /// 自带的加值项，照这个先后：冲她来、续聊、跟进、刚说过话、违规旗（「怎么走」第 1 条）。
-fn bonuses() -> [&'static dyn Bonus; 5] {
+fn bonuses() -> [&'static dyn Bonus; 6] {
     [
         &direct::Item,
         &continuation::Item,
         &followup::Item,
         &after_speaking::Item,
         &moderation::Item,
+        &sampled::Item,
     ]
 }
 

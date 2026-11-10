@@ -70,14 +70,16 @@ export function control(field, one, context, save, saveKey) {
       const box = element('span', 'inline');
       const input = element('input', 'input num');
       input.inputMode = 'numeric';
-      const toNumber = (value) => (field.control === 'seconds' ? seconds(value) : value);
+      // 存的和显示的差一个倍数的（施工 I-197：概率存千分之几、显示百分之几）：`scale` 是存的除以显示的。
+      const scale = field.scale || 1;
+      const toNumber = (value) => (field.control === 'seconds' ? seconds(value) : value / scale);
       input.value = mine === undefined ? '' : String(toNumber(mine));
       // 没有继承的值时写这一格空着是什么意思（施工 I-168：使用限制的「不限」）。
       input.placeholder = fallback == null ? (field.empty ? say(field.empty) : '') : String(toNumber(fallback));
       input.addEventListener('change', () => {
         const text = input.value.trim();
         if (text === '') return save(null);
-        const number = Number(text);
+        const number = Math.round(Number(text) * scale * 1e6) / 1e6;
         if (!Number.isInteger(number)) return save(text);
         return save(field.control === 'seconds' ? `${number}s` : number);
       });

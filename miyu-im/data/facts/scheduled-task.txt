@@ -1,0 +1,2 @@
+<scheduled-task>A task scheduled for this chat is due now. Nobody is waiting on a reply to a message. Do it and post here what it calls for.
+{text}</scheduled-task>

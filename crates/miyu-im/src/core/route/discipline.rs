@@ -4,7 +4,7 @@
 //! | 线路规程 | 算数的条件 | 顶替 | 走哪条路 |
 //! |---|---|---|---|
 //! | `chatty` | 全部（含跟进，施工 I-21） | 看 | 群聊内核的 `route` |
-//! | `when-called` | 冲她来、违规旗（施工 I-16 照旧版：关了主动回复判断只有被叫才回，续聊不算） | 看 | 只有违规旗的判官只查违规，别的有条件的开一轮 |
+//! | `when-called` | 冲她来、违规旗（施工 I-16 照旧版：关了主动回复判断只有被叫才回，续聊不算）、概率触发抽中的（施工 I-197） | 看 | 只有违规旗的判官只查违规，别的有条件的开一轮 |
 //! | `wake` | 冲她来、续聊、违规旗 | 不看 | 同 `when-called` |
 //! | `every-message` | 全部（违规旗只记进判断） | 不看 | 有字的开一轮 |
 //!
@@ -58,10 +58,14 @@ impl Discipline {
     pub(super) fn keep(self, found: Conditions) -> Conditions {
         let kept = |kind: Kind| match self {
             Discipline::Chatty | Discipline::EveryMessage => true,
-            Discipline::WhenCalled => matches!(kind, Kind::Direct | Kind::Moderation),
-            Discipline::Wake => {
-                matches!(kind, Kind::Direct | Kind::Continuation | Kind::Moderation)
+            // 概率触发抽中的（施工 I-197，设计 12）哪种规程都算：判断关着的照它直接开一轮。
+            Discipline::WhenCalled => {
+                matches!(kind, Kind::Direct | Kind::Moderation | Kind::Sampled)
             }
+            Discipline::Wake => matches!(
+                kind,
+                Kind::Direct | Kind::Continuation | Kind::Moderation | Kind::Sampled
+            ),
         };
         Conditions {
             hits: found

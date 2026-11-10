@@ -31,7 +31,9 @@ pub(super) struct Item;
 impl Lift for Item {
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64 {
         let restraint = ctx.chatty.restraint;
-        let exempt = ctx.conditions.has(Kind::Direct) || ctx.judgement.to_bot;
+        // 概率触发抽中的不抬（施工 I-197，设计 12：概率到了就触发）。
+        let exempt =
+            ctx.conditions.has(Kind::Direct) || ctx.conditions.sampled() || ctx.judgement.to_bot;
         if !restraint.on || exempt {
             return 0.0;
         }
