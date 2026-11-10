@@ -208,6 +208,7 @@
     "watch/failed-why-disconnected": "连接断了",
     "watch/recalled": "{who} 撤回了一条",
     "watch/compacted": "压缩了上下文",
+    "watch/errored": "模型请求出错（{model}）：{message}",
     "watch/ended": "这一轮停了：{reason}",
     "watch/ended-why-interrupted": "被打断",
     "watch/ended-why-error": "出错",

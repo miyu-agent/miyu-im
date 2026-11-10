@@ -173,7 +173,8 @@ async fn send(job: Job) {
     match delivered {
         Ok(()) => tracing::info!(target: TARGET, venue, kind, "file shown"),
         Err((why, detail)) => {
-            tracing::warn!(target: TARGET, venue, kind, why, "file not shown");
+            // 平台说的原话也记（施工 I-200：群文件空间满了只有她看得到，运行日志里只有 `failed`）。
+            tracing::warn!(target: TARGET, venue, kind, why, detail = %detail, "file not shown");
             note(&job, why, &detail).await;
         }
     }

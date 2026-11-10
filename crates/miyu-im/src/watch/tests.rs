@@ -220,6 +220,24 @@ fn turns_sending_and_the_rest() {
             why: "expired".into()
         }]
     );
+    // 施工 I-200：模型请求出错的写出模型和端点的原话（太长的截断）；成了的、作废重来的不出行。
+    let failed = json!({"kind": "model.called", "body": {"result": "error", "model": "p/m",
+        "error": {"class": "other", "message": "HTTP 404: no such model"}}});
+    assert_eq!(
+        items(failed),
+        [Item::Errored {
+            model: "p/m".into(),
+            message: "HTTP 404: no such model".into()
+        }]
+    );
+    assert_eq!(
+        items(json!({"kind": "model.called", "body": {"result": "superseded", "model": "p/m"}})),
+        []
+    );
+    assert_eq!(
+        items(json!({"kind": "model.called", "body": {"model": "p/m", "input": 1}})),
+        []
+    );
     assert_eq!(
         items(json!({"kind": "turn.ended", "body": {"reason": "completed"}})),
         []

@@ -208,6 +208,7 @@
     "watch/failed-why-disconnected": "接続が切れた",
     "watch/recalled": "{who} がメッセージを取り消した",
     "watch/compacted": "コンテキストを圧縮",
+    "watch/errored": "モデルへのリクエストが失敗（{model}）：{message}",
     "watch/ended": "このターンは停止：{reason}",
     "watch/ended-why-interrupted": "中断",
     "watch/ended-why-error": "エラー",
