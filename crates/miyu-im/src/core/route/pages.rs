@@ -388,17 +388,19 @@ async fn push(job: Job, bots: Arc<Bots>, caller: Caller) {
     }
 }
 
-/// `cards` 里有没有这个群、私聊的卡（哪个号的都算）；默认值、「其他群」「其他私聊」本来就有。
+/// `cards` 里有没有这个群、私聊的卡（写的那个号的、整个平台的都算，别的号的不算）；默认值、「其他群」「其他私聊」本来就有。
 fn has_card(cards: &Cards, card: &Card) -> bool {
     match card {
-        Card::Group(scope, id) => cards
-            .groups
-            .iter()
-            .any(|one| one.platform == scope.platform && one.id == *id),
-        Card::Private(scope, id) => cards
-            .privates
-            .iter()
-            .any(|one| one.platform == scope.platform && one.id == *id),
+        Card::Group(scope, id) => cards.groups.iter().any(|one| {
+            one.platform == scope.platform
+                && one.id == *id
+                && (one.bot.is_none() || one.bot == scope.bot)
+        }),
+        Card::Private(scope, id) => cards.privates.iter().any(|one| {
+            one.platform == scope.platform
+                && one.id == *id
+                && (one.bot.is_none() || one.bot == scope.bot)
+        }),
         _ => true,
     }
 }

@@ -390,7 +390,10 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     napcat.admin_says(1, "/model").await;
     let said = napcat.reply().await;
     assert!(said.starts_with("现在跟随默认"), "{said}");
-    assert!(said.contains("/model <编号> 切换"), "带一行怎么用：{said}");
+    assert!(
+        said.lines().any(|line| line == "/model <编号>：切换"),
+        "怎么用一行一条：{said}"
+    );
     napcat.admin_says(2, "/model lite").await;
     assert_eq!(
         napcat.reply().await,

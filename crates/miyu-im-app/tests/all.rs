@@ -72,6 +72,7 @@ mod outbound;
 mod outreach;
 mod page;
 mod pages;
+mod picks;
 mod pipe;
 mod platform;
 mod plugins;
