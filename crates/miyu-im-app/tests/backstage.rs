@@ -113,7 +113,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
     );
 
     let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).expect("桥写了运行日志");
-    assert!(log.contains("methods registered count=15"), "{log}");
+    assert!(log.contains("methods registered count=18"), "{log}");
     assert_eq!(log.matches("page token read").count(), 2, "{log}");
     assert!(!log.contains(TOKEN), "运行日志不记令牌的值：{log}");
     napcat.close().await;
@@ -161,6 +161,9 @@ async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
             {"name": "cards.overview"},
             {"name": "sessions.list"},
             {"name": "sessions.delete"},
+            {"name": "tasks.list"},
+            {"name": "tasks.save"},
+            {"name": "tasks.remove"},
         ]})
     );
     for (id, method) in [

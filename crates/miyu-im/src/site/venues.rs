@@ -13,11 +13,13 @@ use serde_json::{Value, json};
 use super::Person;
 use crate::PACKAGE;
 use crate::core::JUDGE_SIDE;
-use crate::core::methods::{CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST};
+use crate::core::methods::{
+    CARDS_GET, CARDS_OVERVIEW, SESSIONS_DELETE, SESSIONS_LIST, TASKS_LIST, TASKS_REMOVE, TASKS_SAVE,
+};
 use crate::rules::card_page::{ADD, REMOVE, SAVE_ONE};
 
 /// 转给读的一头的几个方法：会话页的，消息记录页的两个（施工 I-34 上，在 `crate::core::route` 的 `browse`）。
-pub(super) const FORWARDED: [&str; 7] = [
+pub(super) const FORWARDED: [&str; 10] = [
     CARDS_GET,
     SAVE_ONE,
     ADD,
@@ -25,6 +27,10 @@ pub(super) const FORWARDED: [&str; 7] = [
     CARDS_OVERVIEW,
     SESSIONS_LIST,
     SESSIONS_DELETE,
+    // 会话浮窗「定时任务」页的三个（施工 I-198，在 `crate::core::route` 的 `tasks`）。
+    TASKS_LIST,
+    TASKS_SAVE,
+    TASKS_REMOVE,
 ];
 
 /// 在 `person` 的连接上调 im 自己的 `method`：交回答的，拒了的交回（原因、原话）。

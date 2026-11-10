@@ -6,9 +6,9 @@ use serde_json::json;
 use super::{Methods, exported, registered};
 
 #[test]
-fn fifteen_methods_are_registered_without_a_timeout() {
+fn eighteen_methods_are_registered_without_a_timeout() {
     // 后台页的两个、给别的包调的五个（施工 O-42；O-56 多 `chat.send`，I-8 上多插件用的 `chat.note`，I-39 多 `chat.media`）、场所卡片的两个（施工 O-58 上）、两页的三个（施工 O-58 下）、
-    // 会话浮窗的概况（施工 I-7 上补）、平台会话页的三个（施工 I-34 上）。
+    // 会话浮窗的概况（施工 I-7 上补）、平台会话页的三个（施工 I-34 上）、会话浮窗定时任务页的三个（施工 I-198）。
     assert_eq!(
         registered(),
         json!({"methods": [
@@ -27,6 +27,9 @@ fn fifteen_methods_are_registered_without_a_timeout() {
             {"name": "cards.overview"},
             {"name": "sessions.list"},
             {"name": "sessions.delete"},
+            {"name": "tasks.list"},
+            {"name": "tasks.save"},
+            {"name": "tasks.remove"},
         ]})
     );
 }

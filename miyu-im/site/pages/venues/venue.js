@@ -9,6 +9,7 @@
 //   群聊名单、私聊白名单里的卡底下有「移出」：点一次换成「再点一次移出」，再点才移（cards.remove，私聊的还移出白名单），移了关浮窗。
 // - 「插件加的」（施工 I-8 下，设计 01 第四节第 5 条）：声明了浮窗一页、在这个会话开着的插件（2026-10-20 项目主人定：开着才出现）
 //   一个一页，兜底卡上没有；内容经插件登记的 chat.panel 取（plugins/widget-host.js），这一个浮窗开着时只取一次，点了动作、存了表单再取。
+// - 「定时任务」（设计 12，施工 I-198，tasks.js）：名单里的群、私聊卡上有，排在「触发方式」下一行。
 // - 「实时日志」（设计 10，施工 I-161，watch.js）：名单里的群、私聊卡上有，切到这一页才开始看，离开、关浮窗就停。
 // - 「会话默认值」那张卡（2026-10-20 项目主人验收：从设置页挪到会话页墙上第一张）也开这个浮窗：没有概况、管理插件，从人格和模型起。
 import { element, say } from '../../shell/i18n.js';
@@ -26,6 +27,7 @@ import { drawPlugins, fits, isOn, named as pick } from './plugins.js';
 import { mountWidget } from '../plugins/widget-host.js';
 import { goTo } from '../../shell/connection.js';
 import { watchVenue } from './watch.js';
+import { taskPage } from './tasks.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
@@ -33,6 +35,8 @@ const TABS = [
   { id: 'persona', ready: true },
   // 私聊卡也有「触发方式」（施工 I-111，项目主人 11-02：私聊白名单的卡上找不到「时不时看一眼」）：只有看一眼那一格。
   { id: 'trigger', kinds: ['group', 'other_groups', 'private', 'defaults', 'private_defaults'], ready: true },
+  // 定时任务（设计 12，施工 I-198）：排在「触发方式」下一行；名单里一个群、一个私聊的卡上才有，任务是给一个具体的会话的。
+  { id: 'tasks', kinds: ['group', 'private'], ready: true },
   { id: 'pace', ready: true },
   { id: 'send', ready: true },
   { id: 'plugins', kinds: ['group', 'other_groups', 'private', 'other_privates'], ready: true },
@@ -74,6 +78,8 @@ export function openVenue(one, context, onClose) {
   let asking = 0;
   // 最近判断的列表头搜了什么、筛了什么（施工 I-166）：浮窗开着时一直留着。
   const recentState = {};
+  // 定时任务那一页（施工 I-198）：头一回切过去才问宿主，跨重画留着（正在填的不丢）。
+  let tasking = null;
   // 哪几页的「高级」展开着：重画时照旧。
   const expanded = new Set();
   // 插件加的几页：编号 → 画好的那一块（只取一次）。
@@ -179,7 +185,10 @@ export function openVenue(one, context, onClose) {
     if (plugin) body.replaceChildren(panelOf(plugin));
     else if (tab === 'overview') body.replaceChildren(...overview(shown, context, close, [counted.box, today]));
     else if (tab === 'plugins') body.replaceChildren(...drawPlugins(shown, context));
-    else if (tab === 'watch') {
+    else if (tab === 'tasks') {
+      tasking ??= taskPage(() => cardOf(shown), context.request);
+      body.replaceChildren(tasking.box);
+    } else if (tab === 'watch') {
       watching ??= watchVenue(`${context.platform}:${shown.type}:${shown.id}`, context.request);
       body.replaceChildren(watching.box);
     } else {

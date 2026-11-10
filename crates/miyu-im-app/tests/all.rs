@@ -101,6 +101,7 @@ mod replayed;
 mod replies;
 mod replies_held;
 mod style_note;
+mod tasks;
 // 发布前第四轮审查的防御性测试（2026-11-02）
 mod audit4;
 mod revived;
