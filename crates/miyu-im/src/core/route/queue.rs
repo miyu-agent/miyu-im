@@ -81,7 +81,7 @@ impl<T> Queue<T> {
         now.unix_millis().saturating_sub(self.expire)
     }
 
-    /// 场所 `line` 在 `at` 入队了一段 `item`，离前一段停 `pause`：排在这个场所的最后。前一段还排着的从它最早交的时刻
+    /// 场所 `line` 在 `at` 入队了一段 `item`，离前一段停 `pause`（攒起来最晚到入队以后期限的四分之三，施工 I-199）：排在这个场所的最后。前一段还排着的从它最早交的时刻
     /// 算起；排空了的从这个场所上一次交出去的时刻算起（施工 I-58：早就交了的不用等），没交过的不等。不按顺序的（`ordered`
     /// 是假，施工 I-159）入队就能交。
     pub(super) fn push(
@@ -96,8 +96,11 @@ impl<T> Queue<T> {
             .back()
             .map_or(sent, |last| last.ready.max(at.unix_millis()));
         let pause = i64::try_from(pause.as_millis()).unwrap_or(i64::MAX);
+        // 停顿攒不过期限（施工 I-199，压测报告 F2）：前面排得多了，照停顿一段段接下去会排到期限以后、话生成了却作废。最晚在
+        // 入队以后期限的四分之三交，剩下的四分之一留给等前一段平台回；先后照旧（排在前面的没交出去，它也不交）。
+        let latest = at.unix_millis().saturating_add(self.expire / 4 * 3);
         let ready = match ordered {
-            true => after.saturating_add(pause),
+            true => after.saturating_add(pause).min(latest),
             false => at.unix_millis(),
         };
         line.push_back(Waiting {
