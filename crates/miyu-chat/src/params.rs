@@ -218,6 +218,7 @@ fn blank() -> Params {
             leak_close: Vec::new(),
             strip_period: false,
             humanlike: false,
+            pause: false,
             typing_speed: 0,
             ordered: false,
         },
