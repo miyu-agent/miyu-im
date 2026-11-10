@@ -334,7 +334,7 @@ fn the_manifest_exports_only_the_methods_for_other_packages() {
         .expect("读得了");
     let manifest = miyu_client::manifest::read(&text).expect("读得出");
     assert_eq!(
-        manifest.export,
+        manifest.export.methods,
         [
             "chat.action",
             "chat.venue",
