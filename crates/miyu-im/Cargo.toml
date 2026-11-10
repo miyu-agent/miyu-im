@@ -47,6 +47,8 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 # 本机此刻的时区偏移：群里的睡觉时间照它换成当地时间（施工 O-22，和核心造会话时钉下时区的办法一样）。本来就在依赖图里
 # （`miyu-log` 用它）。Unlicense 或 MIT。
 jiff = "0.2"
+# 局域网网址照网卡全列（施工 I-193，同网页软件 W-1135）：列这台电脑的网卡和地址。MIT OR BSD-3-Clause。
+if-addrs = "0.13"
 
 [target.'cfg(unix)'.dependencies]
 # 传文件给外人的会话钉文件时从工作区一级一级往下开、每一级都不跟链接（施工 I-185 下下，`openat` + `O_NOFOLLOW`）：安全 API，不用

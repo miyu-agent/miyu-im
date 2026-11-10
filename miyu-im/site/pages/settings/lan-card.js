@@ -7,15 +7,17 @@ import { qrMatrix, qrPath } from '../../shell/qr/index.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** 一张卡：`url` 是局域网里打开这个页面的网址。 */
-export function lanCard(url) {
+/** 一张卡：`url` 是局域网里打开这个页面的网址，`nic` 是它在哪块网卡上（施工 I-193；不知道的不写）。 */
+export function lanCard(url, nic = null) {
   const card = element('div', 'lan-card');
   const side = element('div', 'lan-side');
   const address = element('div', 'lan-address');
   const button = element('button', 'btn', say('dialog/copy'));
   button.type = 'button';
   button.addEventListener('click', () => copy(url));
-  address.append(element('code', 'lan-url', url), button);
+  address.append(element('code', 'lan-url', url));
+  if (nic) address.append(element('span', 'lan-nic', nic));
+  address.append(button);
   side.append(element('p', 'lan-label', say('settings-page/lan-open')), address, element('p', 'lan-scan', say('settings-page/lan-scan')));
   card.append(qrImage(url), side);
   return card;
