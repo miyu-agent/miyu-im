@@ -378,7 +378,7 @@ const MAIN_PROGRAM: &str = "MIYU_PROGRAM";
 
 /// 主程序 `miyu` 在哪（施工 I-186，core1 做便携版时撞见）：im 装在数据根的 `opt/miyu-im/bin/` 下，旁边从来没有主程序，核心没在跑
 /// 时 `start` 拉不起核心。照 [`locate`] 找。
-fn main_program() -> PathBuf {
+pub(crate) fn main_program() -> PathBuf {
     let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
     locate(std::env::var_os(MAIN_PROGRAM).map(PathBuf::from), &myself)
 }
