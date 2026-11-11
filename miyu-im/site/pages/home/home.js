@@ -1,7 +1,9 @@
 // 首页（设计 01 第八节第 2 条，施工 I-6 上起）：一个连接都没有的正中一个「新建连接」；有连接的「连接」一栏，一个机器人一张卡：
 // 头像（页面服务转的，取不到的写平台的字母）、平台的角标、名字（没问到的写号）、平台和实现、号和连了多久；断开了的卡留着，写断开
 // 多久、在重连（施工 I-6 中）。齿轮打开连接设置，「新建连接」打开引导。下面是「今天」四个数（I-100：统计拆回侧栏「数据统计」，首页只留这几个，today.js）、插件的首页
-// 卡片（施工 I-8 下，plugin-cards.js）和最近的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。连了多久
+// 卡片（施工 I-8 下，plugin-cards.js）和最近的运行日志（只读，能按级别筛），宿主推了变了跟着连接一起再问（施工 I-6 下）。「今天」下面一块
+// 「会话设置」（施工 I-222，todolist 第 35 条：有人一开始找不到在哪设会话）：名单里几个群、几个私聊，点了去会话设置页；名单是空的写「还没有
+// 会话」、去添加。连了多久
 // 每分钟照本机的钟重画一次（不问宿主）。
 // 连接不止一个时连接那一排就是切换器（施工 I-85 中，设计 07 第二节第 2 条）：前面一张「全部」，点一张选中它（shell/connection.js），
 // 选中的底色深一档；齿轮照旧开那个连接的设置（问、存都带它的平台）。「今天」、日志跟着选中的连接问（施工 I-85 下）。
@@ -14,8 +16,9 @@ import { openSettings } from './settings.js';
 import { pluginCards } from './plugin-cards.js';
 import { activityRows, namesOf } from './activity.js';
 import { todayPanel } from './today.js';
-import { chooseConnection, chosenOf, EVERY, onConnection } from '../../shell/connection.js';
+import { chooseConnection, chosenOf, EVERY, goTo, onConnection } from '../../shell/connection.js';
 import { openWizard } from './wizard.js';
+import { entries } from '../venues/model.js';
 
 /** 在 `view` 里起首页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountHome(view, { request }) {
@@ -26,6 +29,8 @@ export function mountHome(view, { request }) {
   let logs = [];
   let level = 'all';
   let names = new Map();
+  // 名单里的群、私聊各几个（施工 I-222）；还没问到的是空的，不画那一块。
+  let listed = null;
   // 日志看活动还是原始的（施工 I-19）：记在这台浏览器上。
   let mode = 'activity';
   try {
@@ -49,6 +54,14 @@ export function mountHome(view, { request }) {
       ]);
       if (status) table = { entries: status.connections || [], platform: status.platform, path: status.path || '/ws' };
       names = namesOf(cards);
+      if (cards) {
+        // 照会话页同一个算法数（`venues/model.js`）：群聊名单里的群、私聊白名单里的人。
+        const all = entries(cards);
+        listed = {
+          groups: all.filter((one) => one.kind === 'group').length,
+          privates: all.filter((one) => one.kind === 'private').length,
+        };
+      }
     } catch {
       return;
     }
@@ -109,7 +122,9 @@ export function mountHome(view, { request }) {
       refresh();
     };
     const tagged = !picked && picking;
-    view.replaceChildren(head, section, grid, today.head, today.body, plugins.box, logPanel(logs, { level, mode, names, tagged }, choose));
+    const parts = [head, section, grid, today.head, today.body];
+    if (listed) parts.push(venuesPanel(listed));
+    view.replaceChildren(...parts, plugins.box, logPanel(logs, { level, mode, names, tagged }, choose));
   };
   const timer = setInterval(draw, 60000);
   const unlisten = onConnection(() => {
@@ -130,6 +145,19 @@ export function mountHome(view, { request }) {
       today.dispose();
     },
   };
+}
+
+/** 「会话设置」那一块（施工 I-222）：名单里有的写几个群、几个私聊，「去设置」；空的写「还没有会话」，「添加会话」。都跳会话设置页。 */
+function venuesPanel({ groups, privates }) {
+  const panel = element('div', 'panel home-venues');
+  const none = groups + privates === 0;
+  const words = element('div', 'grow');
+  words.append(element('b', null, say(none ? 'home/venues-none' : 'nav/venues')));
+  if (!none) words.append(element('span', 'faint', say('home/venues-count', { groups, privates })));
+  const go = element('button', none ? 'btn primary' : 'btn', say(none ? 'home/venues-add' : 'home/venues-go'));
+  go.addEventListener('click', () => goTo('venues'));
+  panel.append(words, go);
+  return panel;
 }
 
 /** 最近的运行日志：头上切「活动」「原始日志」（施工 I-19）；原始的再按级别筛（全部、提醒、出错），一行一条，新的在前。 */
