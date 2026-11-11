@@ -1,4 +1,4 @@
 {
   "description": "Tokens and cost this group used lately, or one member's.",
-  "parameters": {"type":"object","properties":{"hours":{"type":"integer","description":"Default 24."},"user":{"type":"string"}}}
+  "parameters": {"type":"object","properties":{"hours":{"type":"integer","description":"Default 24."},"user":{"type":"string"},"group":{"type":"integer"}}}
 }

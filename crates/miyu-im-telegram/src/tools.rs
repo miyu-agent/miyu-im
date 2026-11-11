@@ -85,17 +85,17 @@ const TOOLS: [Decl; 11] = [
     Decl {
         name: CHAT_HISTORY,
         access: Access::Read,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: ACTIVITY_RANKING,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: TOKEN_USAGE,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: GLANCE,
@@ -115,12 +115,12 @@ const TOOLS: [Decl; 11] = [
     Decl {
         name: SEND_FILE,
         access: Access::Venue,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
 ];
 
 /// 答的话：名字和认的字段。宿主替这一套答的（发成了没有、排行、看一眼、够不着）也在这里。
-const ANSWERS: [(&str, &[&str]); 33] = [
+const ANSWERS: [(&str, &[&str]); 39] = [
     ("skipped", &[]),
     ("glance-set", &["minutes"]),
     ("activity", &["count", "days", "list"]),
@@ -140,6 +140,13 @@ const ANSWERS: [(&str, &[&str]); 33] = [
     ("no-target", &[]),
     ("no-recipient", &[]),
     ("which-bot", &["bots"]),
+    // 终端里用场所工具（设计 13，施工 I-220）：同 OneBot 那六句。
+    ("chat-in-group", &["group"]),
+    ("chat-in-private", &["user"]),
+    ("chat-needed", &[]),
+    ("chat-bad", &[]),
+    ("chat-off", &[]),
+    ("only-here", &[]),
     ("failed", &["detail"]),
     ("unanswered", &[]),
     ("unreachable", &[]),
@@ -193,6 +200,8 @@ impl ToolSet for TgTools {
         // 发一句的 `group`、`user` 就是发到哪，自己认（施工 I-40），不当成去别的场所（设计 13）。
         match tool {
             CHAT_SEND => Reach::Anywhere,
+            // 查聊天记录不写场所是查全部（设计 13，施工 I-220，同 OneBot）。
+            CHAT_HISTORY => Reach::Either,
             _ => Reach::Chat,
         }
     }
