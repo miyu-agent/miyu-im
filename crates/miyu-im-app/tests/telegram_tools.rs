@@ -148,3 +148,54 @@ async fn in_a_group_she_quotes_mentions_and_searches_with_the_telegram_tools() {
     );
     home.stop_extensions().await;
 }
+
+#[tokio::test]
+async fn from_the_terminal_she_searches_a_telegram_group() {
+    // 设计 13 施工 I-220：终端里也给 `tg_chat_history`，写 `group`（Telegram 的群号是负的）查那个群，结果前头写是哪个群。
+    use crate::support::telegram::GROUP;
+    let api = BotApi::start(Mode::Normal).await;
+    let args: &'static str = format!(r#"{{"group":{GROUP},"query":"火锅"}}"#).leak();
+    let script = Script::new([
+        Play::calls(&[("tg_chat_history", args)]),
+        Play::Says("查到了"),
+    ]);
+    let cards = r#"{"others": {"tg": {"groups": {"on": true, "final_only": false}}}}"#;
+    let (home, mut open) =
+        started_ruled(&api, script.clone(), (Some(cards), ""), WHEN_CALLED).await;
+    until_tg(&mut open, |one| one["connected"] == true).await;
+    api.push(said(1, 50, (ALICE, "Alice"), "今晚吃火锅", false));
+    until_events(&home.root, &venue(), |events| {
+        !of_kind(events, "message.user").is_empty()
+    })
+    .await;
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    let cwd = home.root.path().to_string_lossy().into_owned();
+    let made = core
+        .call("local-1", "session.create", serde_json::json!({"cwd": cwd}))
+        .await
+        .expect("造得出");
+    let session = made["session"].clone();
+    let full = serde_json::json!({"session": session, "level": "full"});
+    core.call("local-2", "session.set_permission_level", full)
+        .await
+        .expect("切得了");
+    let asked = serde_json::json!({"session": session, "text": "查查那个群说没说火锅"});
+    core.call("local-3", "session.send", asked)
+        .await
+        .expect("发得进");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    while script.requests().len() < 2 {
+        assert!(tokio::time::Instant::now() < deadline, "等不到她拿到结果");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let (_, request) = script.requests().into_iter().nth(1).expect("第二次请求");
+    let seen = format!("{:?}", request.messages.last());
+    let head = tg_sentence("chat-in-group", &[("group", &GROUP.to_string())]);
+    assert!(
+        seen.contains(&head) && seen.contains("今晚吃火锅"),
+        "{seen}"
+    );
+    crate::support::group::stopped(home).await;
+}
