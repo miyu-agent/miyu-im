@@ -85,10 +85,10 @@ function described(line, names, tagged) {
     case 'glance armed':
       return { head: say(fields.by === 'her' ? 'activity/glance-hers' : 'activity/glance-every', { where, at: clock(fields.at) }) };
     case 'long text not drawn': {
-      // 原因写成人话（施工 I-170：原来露出 `unknown_package` 这种编号）；没装渲染包的给一个「去下载」。
+      // 原因写成人话（施工 I-170：原来露出 `unknown_package` 这种编号）；没装渲染包的给一个「去下载」（施工 I-213 起原因是 `no_provider`：没有包提供总线上的 `render`；老日志里的 `unknown_package` 照认）。
       const known = say(`activity/not-drawn-${fields.why}`);
       const why = known === `activity/not-drawn-${fields.why}` ? fields.why || '' : known;
-      const link = fields.why === 'unknown_package' ? { href: '#store', text: say('activity/go-download') } : null;
+      const link = fields.why === 'no_provider' || fields.why === 'unknown_package' ? { href: '#store', text: say('activity/go-download') } : null;
       return { head: say('activity/not-drawn', { where, why }), tone: 'warn', link };
     }
     // NapCat 那边有人连着猜错口令（施工 I-170：原来是英文原话）：写成中文、提醒色。
