@@ -91,6 +91,10 @@ pub(super) fn pass(
     aim: Option<&Aim>,
     split_chars: usize,
 ) -> Result<Passed, OutWhy> {
+    // 模型多吐出来的下一轮（施工 I-214）：出站链的清理会去掉，这里记一行，好知道哪个模型又犯了。
+    if let Some(kept) = miyu_chat::next_turn(text, ctx.outbound.turn_marks()) {
+        tracing::warn!(target: crate::TARGET, kept, cut = text.len() - kept, "next turn cut");
+    }
     let outgoing = Outgoing {
         text: text.to_string(),
         images: Vec::new(),

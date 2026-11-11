@@ -16,6 +16,28 @@ pub(crate) const INVISIBLE: [char; 15] = [
     '\u{2063}', '\u{2064}', '\u{FEFF}', '\u{00AD}', '\u{180E}', '\u{2028}', '\u{2029}',
 ];
 
+/// 「下一轮从哪开始」的标记（施工 I-214），同出厂的那一份（`miyu-im/data/defaults.toml` 的 `turn_marks`）。
+pub(crate) const TURN_MARKS: [&str; 18] = [
+    "<style-note>",
+    "<another-line>",
+    "<context-style-note>",
+    "<persona-reminder>",
+    "<env time=\"",
+    "<glance>",
+    "<glance-task>",
+    "<sampled>",
+    "<scheduled-task>",
+    "<moderation-precheck>",
+    "<reached>",
+    "<impostor ",
+    "<muted ",
+    "<unmuted ",
+    "<undelivered ",
+    "<unshown ",
+    "<venue>",
+    "<venue_note>",
+];
+
 /// 出厂的漏进正文的工具调用：开头和收尾。
 pub(crate) const LEAKS: [(&str, &str); 2] = [
     ("<tool_call>", "</tool_call>"),
@@ -63,6 +85,7 @@ pub(crate) fn ctx() -> OutCtx {
             invisible: INVISIBLE.to_vec(),
             leak_open: LEAKS.iter().map(|(open, _)| open.to_string()).collect(),
             leak_close: LEAKS.iter().map(|(_, close)| close.to_string()).collect(),
+            turn_marks: TURN_MARKS.iter().map(|mark| (*mark).to_string()).collect(),
             strip_period: true,
             humanlike: true,
             pause: true,

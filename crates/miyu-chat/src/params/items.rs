@@ -327,6 +327,10 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.leak_close", MARKERS, |p, v| {
         p.outbound.leak_close = texts(v)
     }),
+    // 模型多吐出来的下一轮从哪开始（施工 I-214）。
+    item("outbound.turn_marks", MARKERS, |p, v| {
+        p.outbound.turn_marks = texts(v)
+    }),
 ];
 
 impl Item {

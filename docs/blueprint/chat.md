@@ -408,7 +408,7 @@ Rust 这一边：
 | `Sent { texts, images }` | 这一回合已经发出去的：正文、图的哈希（`ContentHash`；去重只看这一回合） |
 | `Target { quote, mention }` | 引用、@ 那个人：这一条要不要。她回的那一条后来有别人跟着复读了的（第二条第 13 条的 `echoed`），外面交进来两样都是假：回的是一串复读，不是哪一个人（I-28，2026-10-23 项目主人定） |
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
-| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, strip_period, humanlike, typing_speed, ordered }` | 参数：隔几条别人的消息才引用（出厂 2，施工 I-137 以前是 4）、隔多少毫秒才 @（出厂 20 秒，施工 I-137 以前是 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）；按不按顺序发送（出厂开，施工 I-159）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
+| `Outbound { quote_after, mention_after, min_bigrams, similar, invisible, leak_open, leak_close, turn_marks, strip_period, humanlike, typing_speed, ordered }` | 参数：隔几条别人的消息才引用（出厂 2，施工 I-137 以前是 4）、隔多少毫秒才 @（出厂 20 秒，施工 I-137 以前是 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66）；清理的两份名单：不可见字符（一个字一项）、漏进来的工具调用从哪开始和到哪结束（两份照位置一一对上，施工 O-15 下）；去不去末尾的句号（出厂开，施工 O-47）；照不照真人的样子一句分几条发（出厂开，施工 I-26）；按不按顺序发送（出厂开，施工 I-159）。从第八条的 `Params::outbound` 拿：格只在 crate 里可见，外面造不出（施工 O-15） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
 | `OutboundRule` | 出站链的插槽：一条规则，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
 | `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的四条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
@@ -419,6 +419,7 @@ Rust 这一边：
 
 1. **先后**：清理、去末尾句号、去重、引用和 @。哪一条丢了就停。去句号在去重前面：去重比的是发出去的样子。
 2. **清理**：
+   - 去掉模型多吐出来的下一轮（施工 I-214，线上 2026-11-11 取的证：她的话说完了模型没停，吐一个角色词 `user`，再照给模型看的样子编出下一条用户消息，编号和那句话都是编的）。两种开头取最早的一处，从那里到末尾整段去掉（`next_turn`）：`Outbound::turn_marks` 里的一项（给模型看的块的开头，她自己不会写；出厂十八个，第八条）；一行照场所消息给模型看的样子写的（去掉行首的空白和紧贴着的一个角色词以后，`[时:分] ` 开头、后面有 `[msg=`）。开头前面挂着的角色词（`user`、`assistant`、`system`、`human`、`tool`，不分大小写，可以带冒号；单独一行或者紧贴着开头）一起去掉。这一步在去工具调用前面；去了以后什么都不剩的照 `Drop(Leaked)`。
    - 去掉漏进正文的工具调用：`Outbound` 的 `leak_open`、`leak_close` 照位置一一对上，每一对是一种（出厂两种：`<tool_call>` 到 `</tool_call>`、`<function=` 到 `</function>`，第八条）。几种里取最早出现的开头，从它到它后面的第一个收尾（收尾从开头的后面找起），整段去掉；找不到收尾的去到末尾；一段一段去，直到没有。
    - 去完以后正文只剩空白（`char::is_whitespace`）和 `Outbound::invisible` 里的字，而且没有图：`Drop(Blank)`；去之前就是这样的也一样。整条被工具调用占满的：`Drop(Leaked)`。出厂的不可见字符（第八条）：零宽空格、零宽连接符这一带 U+200B 到 U+200F、U+2060 到 U+2064、BOM U+FEFF、软连字号 U+00AD、U+180E、U+2028、U+2029。
    - 正文首尾的空白去掉以后，整条是一对中文括号括起来的旁白（`（…）`，里面可以再套括号，括号外没有别的字），而且没有图：`Drop(Aside)`。
@@ -664,6 +665,7 @@ restraint_half_life = "3m"
 | `outbound.invisible` | 文字的列表，每项正好一个字符，可以是空的列表 | U+200B 到 U+200F、U+2060 到 U+2064、U+FEFF、U+00AD、U+180E、U+2028、U+2029，十五个，一个一项（O-15 下） | `Outbound::invisible`：清理判空时和空白一样算 |
 | `outbound.leak_open` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | `<tool_call>`、`<function=`（O-15 下） | `Outbound::leak_open`：漏进来的工具调用从哪开始 |
 | `outbound.leak_close` | 同 `leak_open`，和它一样长（「怎么走」第 7 条） | `</tool_call>`、`</function>`（O-15 下） | `Outbound::leak_close`：照位置和 `leak_open` 一一对上 |
+| `outbound.turn_marks` | 文字的列表，每项 1 到 64 个字符，可以是空的列表 | 十八个给模型看的块的开头：`<style-note>`、`<another-line>`、`<context-style-note>`、`<persona-reminder>`、`<env time="`、`<glance>`、`<glance-task>`、`<sampled>`、`<scheduled-task>`、`<moderation-precheck>`、`<reached>`、`<impostor `、`<muted `、`<unmuted `、`<undelivered `、`<unshown `、`<venue>`、`<venue_note>`（I-214） | `Outbound::turn_marks`：模型多吐出来的下一轮从哪开始 |
 
 出厂的值是旧版的默认值（18 第七节「旧版的默认值」、判官超时那一段，第十节「引用和 @」；base64 的三个数照旧版 `real_context.rs`；拆段照旧版 QQ 的 `max_reply_chars`；清理的两份名单照 O-10 写在代码里的，第五条施工时定的第 2 条）。续聊的窗口除外：旧版 15 秒，2026-10-11 拿旧版日志回放，她回了一个人以后 15 到 30 秒他接着说的，旧版判官放行了八成四到八成九，项目主人定改成 30 秒（18 Q4「2026-10-11 回放」，O-37）。类型照配置清单的写法（`config.md`「类型」）：时长写成 `"15s"`、`"3m"`，小数也收整数；列表写成 `["<tool_call>", "<function="]`，看不见的字写成 TOML 的转义 `"\u200B"`。
 

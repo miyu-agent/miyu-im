@@ -106,3 +106,11 @@ invisible = [
 # 两份照位置一一对上，要一样长。
 leak_open = ["<tool_call>", "<function="]
 leak_close = ["</tool_call>", "</function>"]
+# 模型多吐出来的「下一轮」从哪开始（施工 I-214）：AI 的话说完了模型没停，接着照给模型看的样子编出下一条用户消息。这些是给
+# 模型看的块的开头，AI 自己不会写；正文里出现了，从最早的一处起到末尾整段不发（前面挂着的角色词 user 也去掉）。一行照
+# 场所消息的样子写的（`[时:分] 某某 … [msg=…]`）不用列在这里，程序自己认。可以是空的列表。
+turn_marks = [
+    "<style-note>", "<another-line>", "<context-style-note>", "<persona-reminder>", "<env time=\"",
+    "<glance>", "<glance-task>", "<sampled>", "<scheduled-task>", "<moderation-precheck>", "<reached>",
+    "<impostor ", "<muted ", "<unmuted ", "<undelivered ", "<unshown ", "<venue>", "<venue_note>",
+]
