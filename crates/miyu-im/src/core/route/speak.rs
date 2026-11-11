@@ -235,11 +235,20 @@ impl Route {
             return Ok(());
         };
         let params = self.applied(&venue).params;
+        // 这个群里别的线刚说过的话也算进去重（施工 I-217）：两个人前后脚叫她、主线支线各回各的，不发两句一样的。
+        let mut speaking = speaking;
+        let line = speaking.line.clone();
+        if let Some(group) = self.groups.get(session) {
+            speaking.sent.extend(group.nearby(clock.now, &line));
+        }
         let ctx = group_ctx(&speaking, clock.now, params.outbound);
         let aim = speaking.aim.as_ref();
         let Some(passed) = passed(&peer.venue, text, &ctx, aim, params.split_chars) else {
             return Ok(());
         };
+        if let Some(group) = self.groups.get_mut(session) {
+            group.said_nearby(clock.now, &line, &passed.text);
+        }
         let what = What::Reply {
             line: speaking.line,
             turn: speaking.turn,
