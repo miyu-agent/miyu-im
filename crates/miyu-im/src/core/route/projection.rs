@@ -143,6 +143,8 @@ pub(super) struct Projection {
     own_sent: std::collections::BTreeSet<u64>,
     /// 她最近一次把一段交给 NapCat 时，收到的最后一条人话的序号（施工 I-64，`aimed.rs`）；没交过的是空的。
     handed: Option<u64>,
+    /// 她在这个群里刚说过的几句（施工 I-217，`nearby.rs`）：别的轮照它去重。
+    nearby: nearby::Nearby,
     /// 她在主线每一轮最后说的一段：回合编号 → `message.assistant` 的序号，留最近 [`SPOKE_TURNS`] 轮。主线的回执照回合认它
     /// （支线的不认，O-36）；上一轮的回执晚到、下一轮她已经说了话的也认得出（I-74）。
     spoke: BTreeMap<u64, u64>,
@@ -461,6 +463,7 @@ mod aimed;
 mod echo;
 mod glance;
 mod lanes;
+mod nearby;
 mod origin;
 mod speaker;
 mod track;
@@ -469,6 +472,8 @@ mod track;
 mod lanes_tests;
 #[cfg(test)]
 mod muted_tests;
+#[cfg(test)]
+mod nearby_tests;
 #[cfg(test)]
 mod origin_tests;
 #[cfg(test)]

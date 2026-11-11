@@ -55,6 +55,7 @@ mod impostor;
 mod judged;
 mod judged_persona;
 mod lanes;
+mod lanes_same_words;
 mod lanes_waiting;
 mod linking;
 mod listen;
