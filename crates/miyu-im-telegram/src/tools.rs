@@ -9,7 +9,7 @@ use miyu_client::tooltext::Access;
 use std::time::Duration;
 
 use miyu_im::toolset::common::{glance, history, ranking, send_file, usage};
-use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
+use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, Reach, ToolSet, send_request};
 use serde_json::{Map, Value};
 
 mod acts;
@@ -187,6 +187,14 @@ impl ToolSet for TgTools {
 
     fn silence(&self) -> Option<&'static str> {
         Some(SKIP_REPLY)
+    }
+
+    fn reach(&self, tool: &str) -> Reach {
+        // 发一句的 `group`、`user` 就是发到哪，自己认（施工 I-40），不当成去别的场所（设计 13）。
+        match tool {
+            CHAT_SEND => Reach::Anywhere,
+            _ => Reach::Chat,
+        }
     }
 
     fn offers(&self, tool: &str, config: &Map<String, Value>) -> bool {

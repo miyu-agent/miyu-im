@@ -28,11 +28,14 @@
 //!
 //! 施工 I-206 加 `qq_token_usage`、`tg_token_usage`（项目主人 2026-11-11 定：这是点名要的新能力，预算照这一件的实测加上，别的不动）：
 //! 说明 200 字节（经 opencode Console Go 的 `deepseek-v4.1-flash` 量，QQ 的二十二件一起时边际 67 个 token），预算从 4312 加到 4512。
+//!
+//! 设计 13（项目主人 2026-11-11 定：终端里用的 im 工具多一组「发到哪」，预算照量出来的加）：施工 I-218 给查看那四件加 `group`、`private`，
+//! 合计 4670 字节，预算从 4512 加到 4680。后面几步（I-219、I-220）照同样的办法再加。
 
 use std::path::Path;
 
 /// 预算：字节，照模型收到的紧凑 JSON 数（施工 I-130 起；原来数文件，回车不算）。
-const BUDGET: usize = 4512;
+const BUDGET: usize = 4680;
 
 /// Telegram 的工具的预算：字节，同 [`BUDGET`] 的数法，数也一样（施工 I-185 下上，项目主人 11-10 定）。
 const TG_BUDGET: usize = BUDGET;
