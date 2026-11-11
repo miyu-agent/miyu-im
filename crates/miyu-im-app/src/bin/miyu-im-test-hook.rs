@@ -14,7 +14,7 @@
 //!   （场所照问的那一条的），把回应记进 `record:` 的文件（`{"noted": <回应>, "venue"}`），再照写的答。要清单里批过
 //!   `packages.call`。
 //! - `note-at:<场所>`：`note:` 不记在问的那一条的场所，记在这几个（写几个记几次，照先后）。
-//! - `render:<路径>`：扮渲染包（施工 O-59 上）：把这个图经 `blob.put` 传上去，`markdown` 答两页、都是它。清单要导出 `markdown`。
+//! - `render:<路径>`：扮渲染包（施工 O-59 上）：把这个图经 `blob.put` 传上去，`render.markdown` 答两页、都是它。清单要声明提供 `render`、导出 `render.markdown`（施工 I-213）。
 //!
 //! 起来先握手（不带凭据，核心亲手给的管道），再经 `package.methods` 登记写到的方法（有 `sticker:` 的另经 `provide` 登记那件
 //! 工具），然后一直读标准输入，读到头退出。
@@ -73,12 +73,12 @@ fn main() {
     let mut input = stdin.lock();
     let hello = json!({"protocol": [1, 1], "head": {"kind": "test-hook", "version": "0"}});
     ask(&mut input, "hello", hello);
-    // 扮渲染包（施工 O-59 上）：图先传上去，`markdown` 照它答两页。
+    // 扮渲染包（施工 O-59 上）：图先传上去，`render.markdown` 照它答两页。
     if let Some(path) = render {
         let put = ask(&mut input, "blob.put", json!({"path": path}));
         let page = json!({"blob": put["result"]["blob"], "width": 1, "height": 1});
         answers.insert(
-            "markdown".to_string(),
+            "render.markdown".to_string(),
             Answer::With(json!({"pages": [page, page]})),
         );
     }

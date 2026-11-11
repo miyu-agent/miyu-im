@@ -1,6 +1,6 @@
 //! 长文转成图（施工 O-59 上，`onebot.md`「场所卡片」的「长文」、「出站队列」）：她的一句话过了出站链以后，照这个场所的参数
-//! `long_text` 是 `image`、`long_chars` 不是 0、全文超过 `long_chars` 个字的，经核心的 `package.call` 调渲染包
-//! `miyu-render.markdown` 画成几页，每一页经 `blob.get` 读成 `base64://…`（不写会话：渲染包传的 blob 在管理员名下）。
+//! `long_text` 是 `image`、`long_chars` 不是 0、全文超过 `long_chars` 个字的，经核心的总线调提供 `render` 的包
+//! （`bus.call`，名字 `render`、方法 `markdown`，施工 I-213；官方的是 `miyu-render`）画成几页，每一页经 `blob.get` 读成 `base64://…`（不写会话：渲染包传的 blob 在管理员名下）。
 //!
 //! 桥这一头等着画完（同发表情包读图）：长图要和她前后的话守先后。等至多 [`WAIT`]；哪一步不成（没装、没开、拒了、超时、读不出）
 //! 交回空的、记一行 `long text not drawn`，调的一方照拆段发。
@@ -23,8 +23,8 @@ use crate::TARGET;
 use crate::chat::{Cap, Id, Lead, Platform, To};
 use crate::core::{Caller, Gone, reason};
 
-/// 渲染包的编号、方法。
-const RENDER: (&str, &str) = ("miyu-render", "markdown");
+/// 总线上的名字、名字底下的方法（核心设计 67，施工 I-213）：谁提供 `render` 就叫谁画，不写渲染包的编号。
+const RENDER: (&str, &str) = ("render", "markdown");
 
 /// 画加读最多等多久（渲染包自己限 30 秒，平常一页零点几秒）：超了照拆段发，不卡住别的群太久。
 pub(super) const WAIT: Duration = Duration::from_secs(15);
@@ -106,13 +106,13 @@ pub(super) async fn draw(
     }
 }
 
-/// 调渲染包、读每一页。不成的交回原因：核心的原因码（`unknown_package`、`program_not_running`、`method_failed`……）、
+/// 调渲染包、读每一页。不成的交回原因：核心的原因码（`no_provider`：没有包提供 `render`、`program_not_running`、`method_failed`……）、
 /// `gone`（核心断开）、`no_pages`、`bad_reply`，读图的照 `shown::read`。
 async fn pages(caller: &Caller, text: &str) -> Result<Vec<Drawn>, String> {
-    let (package, method) = RENDER;
-    let params = json!({"package": package, "method": method, "params": {"markdown": text}});
+    let (name, method) = RENDER;
+    let params = json!({"name": name, "method": method, "params": {"markdown": text}});
     let reply = caller
-        .call("package.call", params)
+        .call("bus.call", params)
         .await
         .map_err(|_| "gone".to_string())?;
     if let Some(why) = reason(&reply) {

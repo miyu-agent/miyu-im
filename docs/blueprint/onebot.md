@@ -1440,7 +1440,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 **长文**（O-59 上，2026-10-18 项目主人定：场所卡片里「长文」拆成几条、转成图、合并转发，出厂转成图；阈值每张卡能改，出厂 300 个字；转成图调渲染包，核心仓库设计 36 第八节）：`core/route/long.rs`。不占编号的几段同「提供者和不说话」。
 
 1. **判**：她的一句话过了出站链（「群里怎么叫她」第 9 条、「怎么走」第 10 条）以后，照这个场所的参数（`chat.md` 第八条 `outbound.long_text`、`outbound.long_chars`）：`image`、阈值不是 0、清理过的全文超过阈值个字的算长文；别的照旧拆段。补发（`revive`）的照剩下没发的那几段判。
-2. **画**：经核心的 `package.call {"package": "miyu-render", "method": "markdown", "params": {"markdown": 全文}}`（清单早有 `packages.call`），回来的每一页经 `blob.get`（不写 `session`：渲染包传的在管理员名下）读成 `base64://…`。画加读等至多 15 秒，桥这一头等着（长图要和她前后的话守先后，同发表情包读图）。哪一步不成（没装、没开、拒了、超时、读不出）整句照拆段发，运行日志 `WARN long text not drawn venue=… chars=… why=…`；成了 `INFO long text drawn venue=… chars=… pages=…`。
+2. **画**：经核心的总线 `bus.call {"name": "render", "method": "markdown", "params": {"markdown": 全文}}`（施工 I-213，核心设计 67：谁提供 `render` 就叫谁画，官方的是 `miyu-render`；清单早有 `packages.call`），回来的每一页经 `blob.get`（不写 `session`：渲染包传的在管理员名下）读成 `base64://…`。画加读等至多 15 秒，桥这一头等着（长图要和她前后的话守先后，同发表情包读图）。哪一步不成（没装、没开、拒了、超时、读不出）整句照拆段发，运行日志 `WARN long text not drawn venue=… chars=… why=…`；成了 `INFO long text drawn venue=… chars=… pages=…`。
 3. **入队**（「出站队列」）：一页一段照先后。第一页正文是全文：入队记 `reply`（另带 `blob`），算进这一回合发出去的（群里进投影、私聊进 `Spoken`），带引用和 @（拼在图片段前面，同一条消息）；后面几页入队记 `image`。群里发成了的记 `venue.delivered`：第一页 `text` 是全文、`to` 是回的人，后面几页 `text`、`to` 空；`images` 都是那一页的 blob。没发出去的：第一页照她的话退信，后面几页照发图记 `unshown`（名字 `long-text-<第几页>.png`）。
 4. **配色**照渲染包自己的配置（出厂纸色）。
 5. **入队的一段多一格「正文是什么」**（O-59 下，`sending.rs` 的 `Body`）：字（原来的）、图（`base64://…`，回执的长图）、合并转发（几段字、节点上的名字）。交 NapCat 时照它拼动作；她发出去的图、长文画成的一页照旧在「是什么」里带着图。

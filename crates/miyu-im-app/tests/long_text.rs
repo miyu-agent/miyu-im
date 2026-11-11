@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 use miyu_session::testkit::{Play, Script};
 
 use crate::support::group::*;
-use crate::support::hooked::{install, install_with};
+use crate::support::hooked::install_with;
 use crate::support::*;
 
 /// 群号。
@@ -63,13 +63,16 @@ fn renderer(record: &std::path::Path) -> impl Fn(&miyu_store::root::DataRoot) + 
     }
 }
 
-/// 测试包的清单导出 `markdown`（`install_with` 不导出方法）。
+/// 测试包的清单声明提供总线上的名字 `render`、导出 `render.markdown`（施工 I-213；`install_with` 不导出方法）。
 fn export_markdown(root: &miyu_store::root::DataRoot) {
     let manifest = root.packages().join("miyu-render/package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     std::fs::write(
         &manifest,
-        text.replace("methods = []", "methods = [\"markdown\"]"),
+        text.replace(
+            "methods = []",
+            "provides = [\"render\"]\nmethods = [\"render.markdown\"]",
+        ),
     )
     .expect("写得进");
 }
@@ -143,7 +146,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
     );
     let calls = std::fs::read_to_string(&record).expect("记了");
     let call: Value = serde_json::from_str(calls.lines().next().expect("一次")).expect("JSON");
-    assert_eq!(call["method"], "markdown");
+    assert_eq!(call["method"], "render.markdown");
     assert_eq!(
         call["params"]["markdown"],
         cleaned(),
@@ -199,9 +202,11 @@ async fn a_group_set_to_split_gets_words() {
 #[tokio::test]
 async fn a_renderer_that_draws_no_pages_does_not_swallow_the_reply() {
     let script = Script::new([Play::Says(long())]);
-    let args = vec![r#"answer:markdown:{"pages":[]}"#.to_string()];
-    let install =
-        move |root: &miyu_store::root::DataRoot| install(root, "miyu-render", &args, &["markdown"]);
+    let args = vec![r#"answer:render.markdown:{"pages":[]}"#.to_string()];
+    let install = move |root: &miyu_store::root::DataRoot| {
+        install_with(root, "miyu-render", &args, &[]);
+        export_markdown(root);
+    };
     let (home, mut napcat, _) = started_installed(&script, "", MEMBERS, install).await;
     call_her(&napcat);
     assert_eq!(napcat.group_reply(GROUP).await, cleaned(), "零页的照拆段");
