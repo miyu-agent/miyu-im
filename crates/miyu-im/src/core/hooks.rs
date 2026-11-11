@@ -1,7 +1,7 @@
-//! 挂接点（施工 O-43 上，`onebot.md` 第一条「挂接点」，`extending.md` 第二条）：别的包导出约定名字的方法，桥在那一处经核心的
-//! `package.call` 调它。别的包不用另外登记：桥订阅核心的软件包列表（`subscribe {"stream": "packages"}`、推来的
-//! `package.changed`），照每一项的 `export.methods` 记下谁导出了哪一处，在跑的才算（`status` 是 `running`；缺了依赖的核心不拉起，
-//! 是 `depends_missing`）。先后照包的编号。
+//! 挂接点（施工 O-43 上，`onebot.md` 第一条「挂接点」，`extending.md` 第二条）：别的包接进总线上的名字 [`HOOK`]（清单
+//! `plugs = ["chat.hook"]`，核心设计 67，施工 I-212），登记名字底下约定的方法，桥在那一处经核心的 `bus.call` 调它。别的包不用另外
+//! 登记：桥订阅核心的 `bus` 流（`subscribe {"stream": "bus"}`、推来的 `bus.changed`，都是整份名字），照每一行的 `methods`（那个包
+//! 在这个名字底下已经登记上的方法）记下谁挂在哪一处；程序没在跑的没有登记着的方法，不算。先后照包的编号。
 //!
 //! - [`EVENT`]（施工 O-43 上）：NapCat 推来的通知、请求原样交出去，不等回应、不看回答（[`Hooks::event`]）。
 //! - [`INBOUND`]（施工 O-43 中）：群里一条人说的话记下以后、判以前，并着问挂在这里的每一个包，每个最多等 `hook_millis`；回
@@ -30,16 +30,16 @@ use answers::{Edit, heaviest, summed};
 use follow::Followed;
 
 /// QQ 事件：NapCat 推来的 `notice`、`request` 原样交 `{"bot", "event"}`，不等回应。
-pub(crate) const EVENT: &str = "chat.event";
+pub(crate) const EVENT: &str = "chat.hook.event";
 
 /// 进站：群里一条人说的话判以前问，回 `{"route": "pass" | "record" | "reply"}`。
-pub(crate) const INBOUND: &str = "chat.inbound";
+pub(crate) const INBOUND: &str = "chat.hook.inbound";
 
 /// 出站：她的一段话发出去以前问，回 `{"text": <换成的>}`、`{"drop": true}` 或 `{}`。
-pub(crate) const OUTBOUND: &str = "chat.outbound";
+pub(crate) const OUTBOUND: &str = "chat.hook.outbound";
 
 /// 判断打分：判官答了、算分以前问，回 `{"bonus": <-1 到 1 的数>}`。
-pub(crate) const SCORE: &str = "chat.score";
+pub(crate) const SCORE: &str = "chat.hook.score";
 
 /// 交给挂接点的参数 `params`（一个对象）带上平台（施工 I-1）：插件照它知道是哪个平台的。不是对象的照原样。
 fn with_platform(params: &Value, platform: Platform) -> Value {
@@ -50,8 +50,24 @@ fn with_platform(params: &Value, platform: Platform) -> Value {
     params
 }
 
-/// 桥认的挂接点：别的包导出了这里面的名字才算挂上。
+/// 总线上的名字（核心设计 67，施工 I-212）：im 的插件声明 `plugs = ["chat.hook"]` 接进来，可以多家并存，im 照 `bus.list` 找。
+pub(crate) const HOOK: &str = "chat.hook";
+
+/// 桥认的挂接点：别的包在 [`HOOK`] 底下登记了这里面的名字才算挂上。
 pub(crate) const POINTS: [&str; 4] = [EVENT, INBOUND, OUTBOUND, SCORE];
+
+/// 挂接点 `point` 在 [`HOOK`] 底下的短名（`chat.hook.event` 的 `event`）：`bus.call` 的 `method`、`bus.list` 的 `methods` 写的是它。
+fn short(point: &str) -> &str {
+    point
+        .strip_prefix(HOOK)
+        .and_then(|rest| rest.strip_prefix('.'))
+        .unwrap_or(point)
+}
+
+/// 调包 `package` 的挂接点 `point` 的 `bus.call` 参数（`plugs` 的名字要写挑哪一家）。
+fn asking(package: &str, point: &str, params: Value) -> Value {
+    json!({"name": HOOK, "package": package, "method": short(point), "params": params})
+}
 
 /// 问过判断打分挂接点的结果（施工 O-43 末）。
 #[derive(Debug, Clone, PartialEq)]
@@ -135,9 +151,9 @@ pub(crate) struct Mounted {
     pub(crate) config: watch::Receiver<Map<String, Value>>,
 }
 
-/// 谁挂在哪：包的编号到它导出的挂接点。
+/// 谁挂在哪：包的编号到它登记的挂接点。
 pub(crate) struct Hooks {
-    /// 经它发 `package.call`：并着发，不等跟核心的那一头手上的事。
+    /// 经它发 `bus.call`：并着发，不等跟核心的那一头手上的事。
     caller: Caller,
     /// 问进站挂接点的包每一次最多等多久（`bridge.json` 的 `hook_millis`，施工 O-43 中）。
     wait: Duration,
@@ -148,7 +164,7 @@ pub(crate) struct Hooks {
     plugins: Mutex<Plugins>,
     /// 场所开关（施工 I-8 上）：只问在那个场所开着的。
     toggles: Mutex<Toggles>,
-    /// 在跑、导出了挂接点的包，照编号排；跟着软件包列表走的先后（[`follow`]）。
+    /// 登记了挂接点的包，照编号排；跟着总线上的名字走的先后（[`follow`]）。
     hooked: Mutex<Followed>,
     /// 交给 [`EVENT`] 的通知、请求同时最多几件在等核心（施工 I-96，审查 I2-5）：满了的这一件不交、记一行。
     events: Arc<Semaphore>,
@@ -158,7 +174,7 @@ pub(crate) struct Hooks {
 const EVENTS_IN_FLIGHT: usize = 64;
 
 impl Hooks {
-    /// 还没看过软件包列表的一份：哪一处都没挂，只认得挂着的驱动 `drivers` 带的插件；问进站挂接点每个最多等 `wait`。
+    /// 还没看过总线上的名字的一份：哪一处都没挂，只认得挂着的驱动 `drivers` 带的插件；问进站挂接点每个最多等 `wait`。
     pub(crate) fn new(caller: Caller, wait: Duration, drivers: Vec<Mounted>) -> Hooks {
         let plugins = Plugins::default().with_builtins(&builtins_of(&drivers));
         Hooks {
@@ -172,27 +188,27 @@ impl Hooks {
         }
     }
 
-    /// 一次订阅软件包列表要发出去了：领它的号，回应到了交给 [`Self::learn`]（[`follow`]）。
+    /// 一次订阅 `bus` 流要发出去了：领它的号，回应到了交给 [`Self::learn`]（[`follow`]）。
     pub(crate) fn subscribing(&self) -> u64 {
         self.lock().subscribing()
     }
 
-    /// 第 `ticket` 次订阅的回应 `packages`：整份换上，这次订阅以后推来的照办；比换上的旧的不要（[`follow`]）。
-    pub(crate) fn learn(&self, ticket: u64, packages: &Value) {
+    /// 第 `ticket` 次订阅的回应 `names`（总线上整份的名字）：整份换上；这次订阅以后推来过的照推来的；比换上的旧的不要
+    /// （[`follow`]）。
+    pub(crate) fn learn(&self, ticket: u64, names: &Value) {
         let mut followed = self.lock();
-        if followed.learn(ticket, packages) {
+        if followed.learn(ticket, names) {
             tracing::info!(target: TARGET, count = followed.hooked.len(), "hooks learned");
         }
     }
 
-    /// 推来的一项（`package.changed` 的 `package`、`entry`）：照它换那一个包（[`change`]）。挂的变了记一行 `INFO hooks changed`
-    /// （包、现在挂了几个）。
-    pub(crate) fn changed(&self, package: &str, entry: &Value) {
+    /// 推来的一份（`bus.changed` 的 `names`，整份）：照它换。挂的变了记一行 `INFO hooks changed`（现在挂了几个）。
+    pub(crate) fn changed(&self, names: &Value) {
         let mut followed = self.lock();
-        let before = followed.hooked.get(package).cloned();
-        followed.changed(package, entry);
-        if followed.hooked.get(package) != before.as_ref() {
-            tracing::info!(target: TARGET, package, count = followed.hooked.len(), "hooks changed");
+        let before = followed.hooked.clone();
+        followed.changed(names);
+        if followed.hooked != before {
+            tracing::info!(target: TARGET, count = followed.hooked.len(), "hooks changed");
         }
     }
 
@@ -222,7 +238,7 @@ impl Hooks {
         *self.toggles.lock().unwrap_or_else(PoisonError::into_inner) = toggles;
     }
 
-    /// 平台 `platform` 上机器人号 `bot` 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：在跑、导出了它（软件包列表），是 im 的
+    /// 平台 `platform` 上机器人号 `bot` 发到 `to` 的那个场所里挂在 `point` 的包，照编号排：登记了它（总线上的名字），是 im 的
     /// 插件、在这个平台上能用、在这个场所开着（施工 I-8 上；I-81 中：卡片照号分，`bot` 不知道的照整个平台的卡）。场所认不出的
     /// （`to` 是 `None`）照插件声明的默认。
     pub(crate) fn at(
@@ -286,10 +302,14 @@ impl Hooks {
                 continue;
             };
             let (caller, wait) = (self.caller.clone(), self.wait);
-            let params = json!({"package": package, "method": EVENT, "params": {"platform": platform.name(), "bot": bot, "event": event}});
+            let params = asking(
+                &package,
+                EVENT,
+                json!({"platform": platform.name(), "bot": bot, "event": event}),
+            );
             tokio::spawn(async move {
                 let _permit = permit;
-                match tokio::time::timeout(wait, caller.call("package.call", params)).await {
+                match tokio::time::timeout(wait, caller.call("bus.call", params)).await {
                     Ok(Ok(reply)) => {
                         if let Some(why) = reason(&reply) {
                             tracing::warn!(target: TARGET, package, point = EVENT, why, "hook failed");
@@ -306,7 +326,7 @@ impl Hooks {
     }
 
     /// 问挂在 [`INBOUND`] 的包 `packages`（照编号排）平台 `platform` 上的这一条 `params`：并着问，每个最多等 `hook_millis`；等不到的、核心拒了的、答错的
-    /// 照照常算，记一行 `WARN hook failed package=… point=chat.inbound why=…`（`timeout`、核心的原因、`bad_answer`）。交回最重的意见
+    /// 照照常算，记一行 `WARN hook failed package=… point=chat.hook.inbound why=…`（`timeout`、核心的原因、`bad_answer`）。交回最重的意见
     /// 和给出它的头一个包。
     pub(crate) async fn inbound(
         &self,
@@ -317,9 +337,9 @@ impl Hooks {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": INBOUND, "params": with_platform(&params, platform)});
+            let call = asking(&package, INBOUND, with_platform(&params, platform));
             async move {
-                let steer = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
+                let steer = match tokio::time::timeout(wait, caller.call("bus.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
                     // 核心断开：跟核心的那一头会读到头、桥停下；这一条照常。
                     Ok(Err(_)) => Ok(Steer::Pass),
@@ -341,7 +361,7 @@ impl Hooks {
 
     /// 问挂在 [`OUTBOUND`] 的包 `packages`（照编号排）她在平台 `platform` 的场所 `venue`（机器人号 `bot`）的一段话 `text`：一个接一个问，前一个
     /// 换了的交给后一个，每个最多等 `hook_millis`；有一个说不发的就停、交回它。等不到的、核心拒了的、答错的（`text` 不是不空的
-    /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=chat.outbound why=…`。
+    /// 字、`drop` 不是 `true`）照原样，记一行 `WARN hook failed package=… point=chat.hook.outbound why=…`。
     pub(crate) async fn outbound(
         &self,
         packages: Vec<String>,
@@ -350,10 +370,13 @@ impl Hooks {
     ) -> Voiced {
         let mut text = text;
         for package in packages {
-            let call = json!({"package": package, "method": OUTBOUND, "params": {"platform": platform.name(), "venue": venue, "bot": bot, "text": text}});
+            let call = asking(
+                &package,
+                OUTBOUND,
+                json!({"platform": platform.name(), "venue": venue, "bot": bot, "text": text}),
+            );
             let answered =
-                match tokio::time::timeout(self.wait, self.caller.call("package.call", call)).await
-                {
+                match tokio::time::timeout(self.wait, self.caller.call("bus.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
                     // 核心断开：跟核心的那一头会读到头、桥停下；照原样。
                     Ok(Err(_)) => Ok(Value::Null),
@@ -376,7 +399,7 @@ impl Hooks {
 
     /// 问挂在 [`SCORE`] 的包 `packages`（照编号排）平台 `platform` 上的这一条 `params`：并着问，每个最多等 `hook_millis`；回 `{"bonus": <数>}`，每个
     /// 夹到 -1 到 1，加起来再夹一次。等不到的、核心拒了的、答错的（`bonus` 不是有限的数）照 0 算，记一行 `WARN hook failed
-    /// package=… point=chat.score why=…`。
+    /// package=… point=chat.hook.score why=…`。
     pub(crate) async fn score(
         &self,
         platform: Platform,
@@ -386,9 +409,9 @@ impl Hooks {
         let wait = self.wait;
         let asks = packages.into_iter().map(|package| {
             let caller = self.caller.clone();
-            let call = json!({"package": package, "method": SCORE, "params": with_platform(&params, platform)});
+            let call = asking(&package, SCORE, with_platform(&params, platform));
             async move {
-                let bonus = match tokio::time::timeout(wait, caller.call("package.call", call)).await {
+                let bonus = match tokio::time::timeout(wait, caller.call("bus.call", call)).await {
                     Err(_) => Err("timeout".to_string()),
                     // 核心断开：跟核心的那一头会读到头、桥停下；照 0 算。
                     Ok(Err(_)) => Ok(0.0),
@@ -416,25 +439,16 @@ impl Hooks {
     }
 }
 
-/// 软件包列表 `packages` 里挂了的：包的编号到它挂的几处；没挂的、没有编号的不在里面。
-fn table(packages: &Value) -> BTreeMap<String, Vec<&'static str>> {
-    packages
+/// 总线上整份的名字 `names`（`bus.list` 的回应、`bus.changed` 推的）里挂了的：包的编号到它挂的几处；没挂的、没有编号的不在
+/// 里面。
+fn table(names: &Value) -> BTreeMap<String, Vec<&'static str>> {
+    names
         .as_array()
         .into_iter()
         .flatten()
-        .filter_map(|entry| Some((entry["package"].as_str()?.to_string(), points(entry))))
+        .filter_map(|row| Some((row["package"].as_str()?.to_string(), points(row))))
         .filter(|(_, points)| !points.is_empty())
         .collect()
-}
-
-/// 表 `hooked` 照推来的一项换包 `package`：挂了的换上它挂的几处；`entry` 是 `null` 的（卸掉了）、不在跑了、不导出了的拿掉。
-fn change(hooked: &mut BTreeMap<String, Vec<&'static str>>, package: &str, entry: &Value) {
-    let points = points(entry);
-    if points.is_empty() {
-        hooked.remove(package);
-    } else {
-        hooked.insert(package.to_string(), points);
-    }
 }
 
 /// 表 `hooked` 里挂在 `point` 的包，照编号排。
@@ -446,12 +460,13 @@ fn hooked_at(hooked: &BTreeMap<String, Vec<&'static str>>, point: &str) -> Vec<S
         .collect()
 }
 
-/// 软件包列表的一项挂在哪几处：在跑的，`export.methods` 里桥认的名字，照 [`POINTS`] 的先后；不在跑的、没导出的、`null` 是空的。
-fn points(entry: &Value) -> Vec<&'static str> {
-    if entry["status"] != "running" {
+/// 总线上的一行挂在哪几处：接进 [`HOOK`] 的（`plugs`），`methods`（它在这个名字底下已经登记上的方法的短名）里桥认的，照
+/// [`POINTS`] 的先后；别的名字的、没登记的（程序没在跑）、`null` 是空的。
+fn points(row: &Value) -> Vec<&'static str> {
+    if row["name"] != HOOK || row["kind"] != "plugs" {
         return Vec::new();
     }
-    let exported: Vec<&str> = entry["export"]["methods"]
+    let registered: Vec<&str> = row["methods"]
         .as_array()
         .into_iter()
         .flatten()
@@ -459,7 +474,7 @@ fn points(entry: &Value) -> Vec<&'static str> {
         .collect();
     POINTS
         .into_iter()
-        .filter(|point| exported.contains(point))
+        .filter(|point| registered.contains(&short(point)))
         .collect()
 }
 

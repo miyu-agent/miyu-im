@@ -4,10 +4,14 @@ use serde_json::{Value, json};
 
 use super::*;
 
-/// 包 `package` 的一项：在跑的导出 `chat.event`，不在跑的什么都不挂。
-fn entry(package: &str, running: bool) -> Value {
-    let status = if running { "running" } else { "disabled" };
-    json!({"package": package, "status": status, "export": {"methods": ["chat.event"]}})
+/// 总线上的一行：包 `package` 接进 `chat.hook`、登记了 `event`。
+fn row(package: &str) -> Value {
+    json!({"name": "chat.hook", "kind": "plugs", "package": package, "ready": true, "methods": ["event"]})
+}
+
+/// 整份名字：这几个包各一行。
+fn names(packages: &[&str]) -> Value {
+    Value::Array(packages.iter().map(|package| row(package)).collect())
 }
 
 fn hooked(followed: &Followed) -> Vec<&str> {
@@ -16,17 +20,24 @@ fn hooked(followed: &Followed) -> Vec<&str> {
 
 #[test]
 fn a_push_handled_before_the_answer_is_not_overwritten_by_it() {
-    // 订阅那一刻 late 关着；打开推来得早，回应后到：late 照样挂着。
+    // 订阅那一刻 late 还没登记；登记了推来得早，回应后到：late 照样挂着。
     let mut followed = Followed::default();
     let ticket = followed.subscribing();
-    followed.changed("late", &entry("late", true));
-    let snapshot = json!([entry("early", true), entry("late", false)]);
-    assert!(followed.learn(ticket, &snapshot));
+    followed.changed(&names(&["early", "late"]));
+    assert!(followed.learn(ticket, &names(&["early"])));
     assert_eq!(hooked(&followed), ["early", "late"]);
     // 对上了以后推来的不再记。
-    followed.changed("late", &entry("late", false));
-    assert!(followed.pushed.is_empty());
+    followed.changed(&names(&["early"]));
+    assert!(followed.pushed.is_none());
     assert_eq!(hooked(&followed), ["early"]);
+}
+
+#[test]
+fn an_answer_with_no_push_since_is_taken_whole() {
+    let mut followed = Followed::default();
+    let ticket = followed.subscribing();
+    assert!(followed.learn(ticket, &names(&["a", "b"])));
+    assert_eq!(hooked(&followed), ["a", "b"]);
 }
 
 #[test]
@@ -34,28 +45,26 @@ fn an_older_answer_never_replaces_a_newer_one() {
     // 掉队重新订阅：第二次的回应先到，第一次的后到也不要。
     let mut followed = Followed::default();
     let first = followed.subscribing();
-    followed.changed("a", &entry("a", true));
+    followed.changed(&names(&["a"]));
     let second = followed.subscribing();
-    followed.changed("b", &entry("b", true));
-    assert!(followed.learn(second, &json!([entry("a", true)])));
+    followed.changed(&names(&["a", "b"]));
+    assert!(followed.learn(second, &names(&["a"])));
     assert_eq!(hooked(&followed), ["a", "b"]);
-    assert!(!followed.learn(first, &json!([])));
+    assert!(!followed.learn(first, &names(&[])));
     assert_eq!(hooked(&followed), ["a", "b"]);
-    assert!(followed.pushed.is_empty());
+    assert!(followed.pushed.is_none());
 }
 
 #[test]
-fn pushes_before_a_later_subscription_are_kept_only_for_it_when_needed() {
-    // 第一次的回应先到：第二次订阅以后推来的留着，等第二次的回应再办一遍。
+fn a_push_before_a_later_subscription_does_not_outlive_its_answer() {
+    // 第一次订阅以后推来一份，再发第二次订阅（没有再推）：第一次的回应到了照推来的；第二次的回应是更晚那一刻的整份，照它。
     let mut followed = Followed::default();
     let first = followed.subscribing();
-    followed.changed("a", &entry("a", true));
+    followed.changed(&names(&["a"]));
     let second = followed.subscribing();
-    followed.changed("b", &entry("b", true));
-    assert!(followed.learn(first, &json!([])));
-    assert_eq!(hooked(&followed), ["a", "b"]);
-    assert_eq!(followed.pushed.len(), 1);
-    assert!(followed.learn(second, &json!([])));
+    assert!(followed.learn(first, &names(&[])));
+    assert_eq!(hooked(&followed), ["a"]);
+    assert!(followed.pushed.is_none());
+    assert!(followed.learn(second, &names(&["b"])));
     assert_eq!(hooked(&followed), ["b"]);
-    assert!(followed.pushed.is_empty());
 }

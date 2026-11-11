@@ -20,12 +20,14 @@ const README: &str = "# 骰子\n\n掷骰命令 `.r 1d100`。\n";
 
 /// 装两个插件：`dice` 一起来就拉起、声明写全、带 README；`lazy` 要开关打开才拉起、只写名字。
 fn plugins(root: &DataRoot) {
-    install(root, "dice", &[], &["chat.inbound"]);
+    // 程序真登记了 `chat.hook.inbound` 才算挂上（施工 I-212：照总线上登记着的认，不照清单写的）。
+    let args = [r#"answer:chat.hook.inbound:{"route":"pass"}"#.to_string()];
+    install(root, "dice", &args, &["chat.hook.inbound"]);
     let dir = root.packages().join("dice/im");
     let declared = "[plugin]\nname = { zh = \"骰子\", en = \"Dice\" }\nsummary = { zh = \"掷骰\" }\nicon = \"dice-5\"\nhomepage = \"https://dice.invalid\"\nreadme = \"README.md\"\n";
     std::fs::write(dir.join("plugin.toml"), declared).expect("写得进");
     std::fs::write(dir.join("README.md"), README).expect("写得进");
-    install_starting(root, "lazy", &[], &["chat.event"], "manual");
+    install_starting(root, "lazy", &[], &["chat.hook.event"], "manual");
 }
 
 /// 插件页列出来的 `package` 那一个。
@@ -43,7 +45,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
-    // 桥从软件包列表的订阅里读到两个插件要一会儿（Windows 上撞上过：列出来只有驱动带的）：先等挂上一个、读到两个。
+    // 桥从总线的订阅里读到两个插件要一会儿（Windows 上撞上过：列出来只有驱动带的）：先等挂上一个、读到两个。
     until_plugged(&home, 1, 2).await;
 
     let listed = call(&mut open, 1, "plugins.list", json!({})).await;
@@ -52,7 +54,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     assert_eq!(dice["icon"], "dice-5", "{dice}");
     assert_eq!(dice["links"]["readme"], "README.md", "{dice}");
     assert_eq!(dice["enabled"], true, "{dice}");
-    assert_eq!(dice["points"], json!(["chat.inbound"]), "{dice}");
+    assert_eq!(dice["points"], json!(["chat.hook.inbound"]), "{dice}");
     assert_eq!(dice["from"], "local", "{dice}");
     let lazy = one(&listed, "lazy");
     assert_eq!(lazy["enabled"], false, "{lazy}");

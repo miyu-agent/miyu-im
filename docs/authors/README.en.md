@@ -91,7 +91,7 @@ Groups have many people and many strangers. A tool that changes anything must ch
 
 ### 7. Working with the QQ bridge
 
-Your extension can call the bridge, and the bridge can call you. You call it by its bus name `chat`: `bus.call {"name": "chat", "method": "venue", "params"}` (`method` is the part after `chat.`; never its package id). It calls you through the core's `package.call` for now (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)). The manifest must declare `packages.call` and a person must approve it.
+Your extension can call the bridge, and the bridge can call you. You call it by its bus name `chat`: `bus.call {"name": "chat", "method": "venue", "params"}` (`method` is the part after `chat.`; never its package id). It calls you over the bus too, through the name `chat.hook` you plug into (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)). The manifest must declare `packages.call` and a person must approve it.
 
 **You call the bridge** (details in [`extending.md` section 1](../blueprint/extending.md)):
 
@@ -102,7 +102,7 @@ Your extension can call the bridge, and the bridge can call you. You call it by 
 
 **The bridge calls you**:
 
-- **Hook points** (details in [`extending.md` section 2](../blueprint/extending.md)): export methods with the agreed names and they are hooked up once your package is installed and running. `chat.event` (QQ notices and requests, passed on as is), `chat.inbound` (asked before a group message is decided: pass, record only, reply), `chat.outbound` (asked before her words go out: replace, drop, keep), `chat.score` (asked after the judge has scored: add or subtract). `chat.event` does not wait for your answer. The other three wait at most 1.5 seconds and treat no answer as no opinion.
+- **Hook points** (details in [`extending.md` section 2](../blueprint/extending.md)): declare `plugs = ["chat.hook"]` in the manifest, export and register the agreed methods under that name, and they are hooked up once your package is installed and running. `chat.hook.event` (QQ notices and requests, passed on as is), `chat.hook.inbound` (asked before a group message is decided: pass, record only, reply), `chat.hook.outbound` (asked before her words go out: replace, drop, keep), `chat.hook.score` (asked after the judge has scored: add or subtract). `chat.hook.event` does not wait for your answer. The other three wait at most 1.5 seconds and treat no answer as no opinion.
 - **Known services**: package ids and method names the bridge knows and uses when installed. There is one now: `miyu-render`'s `markdown {markdown}` → `{pages: [{blob, width, height}]}`. The bridge hands long replies over the threshold to it and sends them as pictures (the "long text" field on each venue card). A package with the same id and method replaces how it is drawn. When the call fails or takes longer than 15 seconds, the bridge splits the text into messages instead.
 
 ### 8. Trying it in QQ
@@ -138,5 +138,6 @@ capabilities = ["tools", "context.inject", "packages.call"]   # only what you us
 packages = ["im"]
 
 [export]
-methods = ["chat.inbound"]
+plugs = ["chat.hook"]
+methods = ["chat.hook.inbound"]
 ```

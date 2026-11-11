@@ -20,9 +20,9 @@ const INDEX: &str = "<!doctype html><script type=module src=app.js></script>";
 
 /// 装三个插件：`dice`、`board` 带后台页（`page/index.html`、`page/js/app.js`），`plain` 不带。
 fn plugins(root: &DataRoot) {
-    install(root, "plain", &[], &["chat.inbound"]);
+    install(root, "plain", &[], &["chat.hook.inbound"]);
     for id in ["dice", "board"] {
-        install(root, id, &[], &["chat.inbound"]);
+        install(root, id, &[], &["chat.hook.inbound"]);
         let dir = root.packages().join(id);
         std::fs::create_dir_all(dir.join("page/js")).expect("建得了目录");
         std::fs::write(dir.join("page/index.html"), INDEX).expect("写得进");
@@ -37,7 +37,8 @@ fn plugins(root: &DataRoot) {
 async fn a_plugin_panel_is_served_in_a_sandbox_by_ticket() {
     let (home, _napcat, _) = started_installed(&Script::new([]), "", MEMBERS, plugins).await;
     // 桥读到三个插件以后才认得它们（I-24：CI 的 Windows 上没等，`dice` 还不认得，回的是错）。
-    until_plugged(&home, 3, 3).await;
+    // 这三个只在清单里写了挂接、程序没登记：照总线上登记着的认（施工 I-212），一个都不算挂上；这里只等读到插件。
+    until_plugged(&home, 0, 3).await;
     let mut head = Head::connect(&home.root).await;
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");

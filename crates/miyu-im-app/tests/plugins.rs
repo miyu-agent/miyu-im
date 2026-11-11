@@ -1,4 +1,4 @@
-//! im 的插件（施工 I-8 上，设计 01 第四节第 1 到 5 条）：真核心照开关拉起真桥，管理员家目录里装几个都导出 `chat.inbound` 的
+//! im 的插件（施工 I-8 上，设计 01 第四节第 1 到 5 条）：真核心照开关拉起真桥，管理员家目录里装几个都导出 `chat.hook.inbound` 的
 //! 测试包。挂接点只问 im 的插件（带了 `plugin.toml`），在这个平台上能用的（`platforms`、`needs`），在这个场所开着的（场所卡片、
 //! 兜底卡、声明的 `default`）。插件经 im 导出的 `chat.note` 往场所会话里记一句给 AI 的事实（第 6 条）。
 
@@ -32,8 +32,8 @@ fn log_of(root: &DataRoot, id: &str) -> std::path::PathBuf {
 /// 装测试包 `id`：进站挂接点答 `pass`；`declared` 是它带给 im 的 `plugin.toml`，`None` 的不带（不是插件）。
 fn plugin(root: &DataRoot, id: &str, declared: Option<&str>) {
     let record = format!("record:{}", log_of(root, id).display());
-    let how = r#"answer:chat.inbound:{"route":"pass"}"#.to_string();
-    install(root, id, &[record, how], &["chat.inbound"]);
+    let how = r#"answer:chat.hook.inbound:{"route":"pass"}"#.to_string();
+    install(root, id, &[record, how], &["chat.hook.inbound"]);
     let dir = root.packages().join(id);
     match declared {
         Some(declared) => {
@@ -178,8 +178,8 @@ async fn a_plugin_notes_a_fact_into_the_venue_session() {
     let (home, napcat, _) = started_installed(&Script::new([]), RULES, MEMBERS, |root| {
         let record = format!("record:{}", log_of(root, "admin").display());
         let note = "note:moderated:小周 was muted by 阿杰 for 10 minutes.".to_string();
-        let how = r#"answer:chat.inbound:{"route":"pass"}"#.to_string();
-        install(root, "admin", &[record, note, how], &["chat.inbound"]);
+        let how = r#"answer:chat.hook.inbound:{"route":"pass"}"#.to_string();
+        install(root, "admin", &[record, note, how], &["chat.hook.inbound"]);
         approve(root, "admin", &["packages.call"]);
     })
     .await;
@@ -232,9 +232,9 @@ async fn a_note_where_the_plugin_is_off_or_there_is_no_session_is_refused() {
             "note-at:qq:30003:group:888".to_string(),
             "note-at:qq:30003:group:999".to_string(),
             "note-at:qq:nowhere".to_string(),
-            r#"answer:chat.inbound:{"route":"pass"}"#.to_string(),
+            r#"answer:chat.hook.inbound:{"route":"pass"}"#.to_string(),
         ];
-        install(root, "admin", &args, &["chat.inbound"]);
+        install(root, "admin", &args, &["chat.hook.inbound"]);
         approve(root, "admin", &["packages.call"]);
     })
     .await;
@@ -297,8 +297,8 @@ async fn a_platform_event_goes_only_to_plugins_on_in_its_venue() {
         install(
             root,
             "watcher",
-            &[record, "answer:chat.event:{}".to_string()],
-            &["chat.event"],
+            &[record, "answer:chat.hook.event:{}".to_string()],
+            &["chat.hook.event"],
         );
     })
     .await;

@@ -90,8 +90,13 @@ pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&
             .collect::<Vec<_>>()
             .join(", ")
     };
+    // 导出了挂接点的接进总线上的名字 `chat.hook`（施工 I-212，核心设计 67）：im 照 `bus.list` 找接进来的。
+    let plugs = match exports.iter().any(|name| name.starts_with("chat.hook.")) {
+        true => "plugs = [\"chat.hook\"]\n",
+        false => "",
+    };
     let manifest = format!(
-        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Hook {id}\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"H\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\n\n[export]\nmethods = [{}]\n",
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Hook {id}\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"H\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\n\n[export]\n{plugs}methods = [{}]\n",
         quote(&mut args.iter().cloned()),
         quote(&mut exports.iter().map(|name| (*name).to_string())),
     );
@@ -167,7 +172,7 @@ pub async fn until_hooked(home: &Home, count: usize) {
     until_plugged(home, count, count).await;
 }
 
-/// 等到挂了 `hooked` 个包（导出了挂接点、在跑的）、读到了 `plugins` 个插件：桥运行日志里最后一行说挂了几个的（订阅的回应
+/// 等到挂了 `hooked` 个包（接进 `chat.hook`、登记了挂接点的）、读到了 `plugins` 个插件：桥运行日志里最后一行说挂了几个的（订阅的回应
 /// `hooks learned`、推来的变化 `hooks changed`）、最后一行说读到几个插件的（`plugins loaded`）。
 pub async fn until_plugged(home: &Home, hooked: usize, plugins: usize) {
     let said = |log: &str, marks: &[&str], count: usize| {

@@ -2,6 +2,7 @@
 
 v0.2.0（打在 im 2d140d1，含到 I-176）以后的改动。发版时照这里写 Release 的说明，发完清空。新的一条插在这一节最前面。
 
+- 改动（给写插件的人，不兼容）：挂进 im 的插件要在清单 `[export]` 里声明 `plugs = ["chat.hook"]`，四个挂接方法改名 `chat.hook.event`、`chat.hook.inbound`、`chat.hook.outbound`、`chat.hook.score`（原来是 `chat.event` 等）；老名字不再认。官方的表情包同一版跟着改。（I-212）
 - 改动：长消息转图改成照总线上的名字 `render` 找渲染包（要和声明了 `provides = ["render"]` 的新版渲染包一起装；旧版渲染包配新版 im 时长消息照拆段发）。（I-213）
 - 改动（给写扩展的人）：别的包调 im 改成照总线上的名字 `chat`（`bus.call {"name": "chat", "method": "venue"}`），不再写 im 的包编号；赞助记录的导入导出方法改叫 `sponsor.import`、`sponsor.export`。（I-211）
 - 修复：群聊里 AI 查 token 用量时，不到一分钱的金额不再写成 0.00（现在是 `0.004 USD` 这样）。（I-209）

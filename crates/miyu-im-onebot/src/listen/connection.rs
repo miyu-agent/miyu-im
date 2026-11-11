@@ -139,7 +139,7 @@ async fn frame_in(
         tracing::warn!(target: TARGET, bot = %known, said = %said, "frame for another bot dropped");
         return true;
     }
-    // 通知、请求原样交给挂在 `chat.event` 的包（施工 O-43 上）：桥认不认它、怎么办都不影响。
+    // 通知、请求原样交给挂在 `chat.hook.event` 的包（施工 O-43 上）：桥认不认它、怎么办都不影响。
     if matches!(frame["post_type"].as_str(), Some("notice" | "request"))
         && let Some(id) = onebot::self_id(&frame)
     {

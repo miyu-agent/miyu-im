@@ -91,7 +91,7 @@
 
 ### 七、和接入通讯平台 打交道
 
-你的扩展能调接入通讯平台，接入通讯平台 也能调你。你调它照总线上的名字 `chat`：`bus.call {"name": "chat", "method": "venue", "params"}`（`method` 写 `chat.` 后面的那一段，不写它的包编号）；它调你现在还经核心的 `package.call`（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），清单声明 `packages.call`，人批过才行。
+你的扩展能调接入通讯平台，接入通讯平台 也能调你。你调它照总线上的名字 `chat`：`bus.call {"name": "chat", "method": "venue", "params"}`（`method` 写 `chat.` 后面的那一段，不写它的包编号）；它调你也走总线，照你接进的名字 `chat.hook`（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），清单声明 `packages.call`，人批过才行。
 
 **你调接入通讯平台**（细节在 [`extending.md` 第一条](../blueprint/extending.md#一调接入qq-的方法)）：
 
@@ -102,7 +102,7 @@
 
 **接入通讯平台 调你**：
 
-- **挂接点**（细节在 [`extending.md` 第二条](../blueprint/extending.md#二插进接入qq-里面)）：导出约定名字的方法，装上就挂上。`chat.event`（QQ 的通知、请求原样交你）、`chat.inbound`（群消息判以前问你：照常、只记下、直接回）、`chat.outbound`（她的话发出去以前问你：换掉、不发、照原样）、`chat.score`（判官打完分问你加减分）。`chat.event` 不等你的回答，别的三处最多等 1.5 秒，等不到的照没意见算。
+- **挂接点**（细节在 [`extending.md` 第二条](../blueprint/extending.md#二插进接入qq-里面)）：清单声明 `plugs = ["chat.hook"]`，导出、登记名字底下约定的方法，装上、跑起来就挂上。`chat.hook.event`（QQ 的通知、请求原样交你）、`chat.hook.inbound`（群消息判以前问你：照常、只记下、直接回）、`chat.hook.outbound`（她的话发出去以前问你：换掉、不发、照原样）、`chat.hook.score`（判官打完分问你加减分）。`chat.hook.event` 不等你的回答，别的三处最多等 1.5 秒，等不到的照没意见算。
 - **约定的服务**：接入通讯平台 认得的包编号、方法名，装上就用。现在有一个：`miyu-render` 的 `markdown {markdown}` → `{pages: [{blob, width, height}]}`，接入通讯平台 把超过阈值的长回话交给它画成图（每张场所卡片的「长文」一格）。你写一个同编号、同方法的包就能换掉画法；调不通、超时（15 秒）的接入通讯平台 照拆段发。
 
 ### 八、在 QQ 里试
@@ -138,5 +138,6 @@ capabilities = ["tools", "context.inject", "packages.call"]   # 用到哪几样�
 packages = ["im"]
 
 [export]
-methods = ["chat.inbound"]
+plugs = ["chat.hook"]
+methods = ["chat.hook.inbound"]
 ```

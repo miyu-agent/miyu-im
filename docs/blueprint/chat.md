@@ -276,7 +276,7 @@ Rust 这一边：
 | `Lift` | 门槛修正的插槽：`lift` 给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, (&replies, &sender), clock, &chatty) -> Score`（`sender` 施工 I-29 加：按人冷静照它数） | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
-| `nudged(&score, extra, &judgement, &conditions, &chatty) -> Score` | 在算好的分上再加扩展给的加分（O-43 末，接入通讯平台 的判断打分挂接点 `chat.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（不低于门槛，或者违规够重）；门槛、修正、`raw`、`adjust` 不动；只查违规的、`extra` 是 0 的原样交回 |
+| `nudged(&score, extra, &judgement, &conditions, &chatty) -> Score` | 在算好的分上再加扩展给的加分（O-43 末，接入通讯平台 的判断打分挂接点 `chat.hook.score`）：加进 `bonus`，重算 `total`（不低于 0）和 `reply`（不低于门槛，或者违规够重）；门槛、修正、`raw`、`adjust` 不动；只查违规的、`extra` 是 0 的原样交回 |
 
 **怎么走**
 

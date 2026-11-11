@@ -1,4 +1,4 @@
-//! 核心推来的一条怎么分（从 `route.rs` 挪出来，施工 O-43 下：那一份行数到了上限）：配置变了、平台工具的调用、软件包列表、给别的
+//! 核心推来的一条怎么分（从 `route.rs` 挪出来，施工 O-43 下：那一份行数到了上限）：配置变了、平台工具的调用、总线上的名字、给别的
 //! 包调的方法、群会话和私聊会话的事件、掉了队的再订阅。
 
 use serde_json::Value;
@@ -56,7 +56,7 @@ impl Route {
         if self.page_pushed(&pushed) {
             return Ok(());
         }
-        // 软件包列表变了、订阅掉了队（施工 O-43 上，`packages`）。
+        // 总线上的名字变了、订阅掉了队（施工 O-43 上，`packages`）。
         if self.package_pushed(&pushed).await? {
             return Ok(());
         }

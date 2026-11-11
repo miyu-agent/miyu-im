@@ -210,7 +210,7 @@ pub async fn run(
     let following = follow(core.caller(), Arc::clone(&tools), current.drivers(), first);
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
     let told = Arc::clone(&tell);
-    // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅软件包列表、记谁挂在哪。
+    // 挂接点（施工 O-43 上）：读 NapCat 的那一头交通知、请求，跟核心的那一头订阅总线上的名字、记谁挂在哪。
     let mounted = serve
         .drivers
         .iter()

@@ -9,7 +9,7 @@ fn a_plugin_takes_what_the_core_says_about_its_package() {
     let packages = json!([
         {"package": "other", "version": "9", "page": null},
         {"package": "admin", "version": "0.3.1", "author": "x", "from": "local", "enabled": true, "status": "running",
-         "page": {"path": "page"}, "upstream": null, "export": {"methods": ["chat.outbound", "chat.event", "else"]}},
+         "page": {"path": "page"}, "upstream": null, "export": {"methods": ["chat.hook.outbound", "chat.hook.event", "else"]}},
     ]);
     let extensions = json!([{"package": "admin", "state": "running", "reason": null,
         "capabilities": [{"id": "packages.call", "name": "调别的软件", "summary": "…"}], "unapproved": []}]);
@@ -18,7 +18,7 @@ fn a_plugin_takes_what_the_core_says_about_its_package() {
         merged(plugin, &packages, &extensions),
         json!({
             "package": "admin", "name": {"zh": "群管"}, "version": "0.3.1", "author": "x", "from": "local",
-            "enabled": true, "status": "running", "page": true, "points": ["chat.event", "chat.outbound"],
+            "enabled": true, "status": "running", "page": true, "points": ["chat.hook.event", "chat.hook.outbound"],
             "state": "running", "capabilities": [{"id": "packages.call", "name": "调别的软件", "summary": "…"}],
             "unapproved": [],
         })
@@ -43,7 +43,7 @@ fn a_builtin_plugin_takes_its_switch_and_im_s_version() {
         builtin(plugin.clone(), &off, &own),
         json!({
             "package": "miyu-im-identity", "builtin": true, "settings": "im.qq.identity_", "version": "0.8.0",
-            "author": "miyu-agent", "enabled": false, "from": "builtin", "points": ["chat.inbound"], "status": "stopped",
+            "author": "miyu-agent", "enabled": false, "from": "builtin", "points": ["chat.hook.inbound"], "status": "stopped",
         })
     );
     let unset = builtin(plugin, &json!({"items": {}}), &json!(null));

@@ -1,6 +1,6 @@
 //! 挂接点（施工 O-43 上，`onebot.md` 第一条「挂接点」，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里另装一个
-//! 导出 `chat.event` 的测试包（`miyu-im-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "im"`），消息不交；
-//! 只导出别的方法的包不收。桥起来以后才打开的包，照推来的 `package.changed` 挂上。
+//! 导出 `chat.hook.event` 的测试包（`miyu-im-test-hook`）。NapCat 推来的通知、请求原样交到它那里（带 `from: "im"`），消息不交；
+//! 只导出别的方法的包不收。桥起来以后才打开的包，照推来的 `bus.changed` 挂上。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -58,8 +58,8 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
                 install(
                     root,
                     "hooky",
-                    &[hooky, "answer:chat.event:{}".to_string()],
-                    &["chat.event"],
+                    &[hooky, "answer:chat.hook.event:{}".to_string()],
+                    &["chat.hook.event"],
                 );
                 let other = format!("record:{}", log_of(root, "other").display());
                 install(
@@ -78,7 +78,7 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
     .await;
     let mut napcat = admin_napcat(listen).await;
     napcat.version().await;
-    // 测试包可能比桥晚一点跑起来：照推来的 `package.changed` 补上。一直发，直到它收到第一条。
+    // 测试包可能比桥晚一点跑起来：照推来的 `bus.changed` 补上。一直发，直到它收到第一条。
     let hooky = log_of(&home.root, "hooky");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     while calls(&hooky).is_empty() {
@@ -87,7 +87,7 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     let first = &calls(&hooky)[0];
-    assert_eq!(first["method"], "chat.event");
+    assert_eq!(first["method"], "chat.hook.event");
     assert_eq!(first["from"], "miyu-im");
     assert_eq!(
         first["params"],
@@ -138,8 +138,8 @@ async fn a_package_switched_on_after_the_bridge_is_hooked_from_the_pushed_change
             &ports_config(listen),
             |root| {
                 let late = format!("record:{}", log_of(root, "late").display());
-                let args = [late, "answer:chat.event:{}".to_string()];
-                install_starting(root, "late", &args, &["chat.event"], "manual");
+                let args = [late, "answer:chat.hook.event:{}".to_string()];
+                install_starting(root, "late", &args, &["chat.hook.event"], "manual");
             },
         );
         let started = cli(&home.root, &["start"]).await;
@@ -150,7 +150,7 @@ async fn a_package_switched_on_after_the_bridge_is_hooked_from_the_pushed_change
     .await;
     let mut napcat = admin_napcat(listen).await;
     napcat.version().await;
-    // 桥订阅时它还关着：不算挂上。打开它，核心推 `package.changed`（`status` 变成 `running`），桥照它挂上。
+    // 桥订阅时它还关着：不算挂上。打开它，它登记了方法核心推 `bus.changed`，桥照它挂上。
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
@@ -173,7 +173,7 @@ async fn a_package_switched_on_after_the_bridge_is_hooked_from_the_pushed_change
 
 #[tokio::test]
 async fn event_hooks_that_never_answer_are_capped_and_let_go() {
-    // 施工 I-96（审查 I2-5）：挂在 `chat.event` 的包收了不答，桥交给它的同时最多 64 件、多的不交；每件最多等 `hook_millis`，
+    // 施工 I-96（审查 I2-5）：挂在 `chat.hook.event` 的包收了不答，桥交给它的同时最多 64 件、多的不交；每件最多等 `hook_millis`，
     // 到点让出名额，后来的照样交得到。
     let (home, listen) = on_free_port(async |listen| {
         let home = Home::spawning_with_installed(
@@ -184,8 +184,8 @@ async fn event_hooks_that_never_answer_are_capped_and_let_go() {
                 install(
                     root,
                     "hung",
-                    &[hung, "slow:chat.event".to_string()],
-                    &["chat.event"],
+                    &[hung, "slow:chat.hook.event".to_string()],
+                    &["chat.hook.event"],
                 );
             },
         );

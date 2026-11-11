@@ -52,7 +52,7 @@ fn the_ones_for_other_packages_and_the_cards_go_to_the_route() {
         "cards.overview",
         "sessions.list",
         "sessions.delete",
-        "chat.inbound",
+        "chat.hook.inbound",
         "",
     ]
     .into_iter()
