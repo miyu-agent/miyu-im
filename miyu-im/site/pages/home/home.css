@@ -129,3 +129,8 @@
 .tg-privacy ol { margin: 6px 0; padding-left: 20px; }
 .tg-privacy li { margin: 2px 0; }
 .tg-privacy-state { display: inline-flex; align-items: center; gap: 4px; }
+
+/* 「会话设置」那一块（施工 I-222）：一行，左边名字和几个群、几个私聊，右边一个按钮。 */
+.home-venues { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.home-venues .grow { display: flex; align-items: baseline; gap: 10px; flex: 1; min-width: 0; }
+.home-venues .faint { font-size: 12.5px; }
