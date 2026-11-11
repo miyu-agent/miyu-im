@@ -164,6 +164,11 @@ pub(super) fn model(applied: &Applied) -> Option<&str> {
     text(applied, "model")
 }
 
+/// 看图的模型（施工 I-224）：规则的 `vision`，没设的是空的（跟着 `models.vision`）。
+pub(super) fn vision(applied: &Applied) -> Option<&str> {
+    text(applied, "vision")
+}
+
 /// 群聊近况带多少条（施工 O-62）：规则的 `recent`，没设的是空的（核心只照字节预算）。
 pub(super) fn recent(applied: &Applied) -> Option<i64> {
     match entry(applied, "recent") {

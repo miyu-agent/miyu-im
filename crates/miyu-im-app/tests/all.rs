@@ -23,6 +23,7 @@ mod called_limits;
 mod calls;
 mod card_context;
 mod card_model;
+mod card_vision;
 mod cards;
 mod cli_texts;
 mod commands;
