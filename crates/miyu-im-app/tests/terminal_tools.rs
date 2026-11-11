@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::support::group::*;
 use crate::support::head::Head;
 use crate::support::platform::*;
-use crate::support::speaking::Lines;
+use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
 /// 别的群：假 NapCat 问谁的群成员都照 [`MEMBERS`] 回。
@@ -15,6 +15,11 @@ const ELSEWHERE: i64 = 999;
 
 /// 造一个本机的会话（终端、网页那种），切成完全放开，叫她做 `text`（同 `outreach.rs`）。
 async fn local_session(home: &Home, text: &str) {
+    local_session_then(home, text, |_| {}).await;
+}
+
+/// 同 [`local_session`]，叫她以前先照这个会话的工作目录做 `before`（比如放一个要传的文件）。
+async fn local_session_then(home: &Home, text: &str, before: impl FnOnce(&std::path::Path)) {
     let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
@@ -24,6 +29,18 @@ async fn local_session(home: &Home, text: &str) {
         .await
         .expect("造得出");
     let session = made["session"].clone();
+    let id = session.as_str().expect("有编号").to_string();
+    let log = home.root.path().join("root/sessions").join(&id);
+    let created = std::fs::read_dir(&log)
+        .expect("有会话日志")
+        .filter_map(Result::ok)
+        .find_map(|entry| std::fs::read_to_string(entry.path()).ok())
+        .expect("读得出");
+    let first: serde_json::Value =
+        serde_json::from_str(created.lines().next().expect("有一行")).expect("是 JSON");
+    before(std::path::Path::new(
+        first["body"]["cwd"].as_str().expect("有工作目录"),
+    ));
     let full = json!({"session": session, "level": "full"});
     core.call("local-2", "session.set_permission_level", full)
         .await
@@ -140,5 +157,49 @@ async fn in_a_group_only_the_owner_asking_directly_reaches_another_group() {
     let head = sentence("chat-in-group", &[("group", &ELSEWHERE.to_string())]);
     assert!(said.starts_with(&head), "{said}");
     assert!(said.contains("小明"), "{said}");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn from_the_terminal_she_lists_a_group_s_files_and_sends_one() {
+    // 施工 I-219：群文件、发文件也给终端。列的是那个群的根目录，结果前头写是哪个群；发的文件照那个群传（`upload_group_file`）。
+    // 一轮里接连调两件：列群文件、传文件，再说一句。
+    let lines = Lines::new([
+        Line::uses("", "qq_group_files", "{\"group\":31}"),
+        Line::uses("", "qq_send_file", "{\"group\":31,\"path\":\"report.txt\"}"),
+        Line::says("好。"),
+    ]);
+    let (home, mut napcat) = up(&lines).await;
+    napcat.stock_file(
+        "root",
+        Ok(json!({"folders": [], "files": [{"file_id": "/f1", "file_name": "排班.pdf", "size": 2048, "uploader_name": "小明", "busid": 102}]})),
+    );
+    local_session_then(
+        &home,
+        "看看 31 群的群文件，再把 report.txt 传上去",
+        |cwd| {
+            std::fs::write(cwd.join("report.txt"), b"hello").expect("写得进");
+        },
+    )
+    .await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    while lines.requests().len() < 3 {
+        assert!(tokio::time::Instant::now() < deadline, "等不到两次结果");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let listed = format!("{:?}", lines.requests()[1]);
+    let head = sentence("chat-in-group", &[("group", &GROUP.to_string())]);
+    assert!(
+        listed.contains(&head) && listed.contains("排班.pdf"),
+        "{listed}"
+    );
+    let upload = loop {
+        let action = napcat.action().await;
+        if action["action"] == "upload_group_file" {
+            break action;
+        }
+    };
+    assert_eq!(upload["params"]["group_id"], GROUP, "{upload}");
+    assert_eq!(upload["params"]["name"], "report.txt", "{upload}");
     stopped(home).await;
 }
