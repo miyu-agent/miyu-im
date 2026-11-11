@@ -70,7 +70,9 @@ summary = { en = "Checks a request to join a group against its rule", zh = "照�
 
 # 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：别的包经核心的 package.call 只调得到这里列的（核心 X-18）；后台页的
 # status、connection.token 不列，只有人调得到。
+# 总线（核心设计 67，施工 I-211）：im 提供名字 `chat`，别的包照名字调（`bus.call {"name": "chat", "method": "venue"}`），不写 im 的包编号。
 [export]
+provides = ["chat"]
 methods = ["chat.action", "chat.venue", "chat.media", "chat.send", "chat.note"]
 
 # 后台页（施工 I-179，核心 BP-1）：由 im 自己的网页服务提供（`site/`，status 回应里的 web 端口），不装网页软件也打得开；网页、托盘、

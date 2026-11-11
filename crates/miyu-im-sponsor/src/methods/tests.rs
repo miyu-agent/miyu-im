@@ -255,6 +255,23 @@ fn what_is_exported_imports_back_into_an_empty_book() {
     assert_eq!(imported, json!({"added": 1, "skipped": 0}));
     let back = call_one(&other, "export", json!({})).expect("导得出");
     assert_eq!(back, exported, "搬过去一模一样（编号、汇率、时刻都在）");
+    // 总线上名字 `sponsor` 底下的两个（施工 I-211）是同一件事。
+    let by_name = call_one(&other, "sponsor.export", json!({})).expect("导得出");
+    assert_eq!(by_name, exported);
+    let again = call_one(
+        &other,
+        "sponsor.import",
+        json!({"entries": exported["entries"]}),
+    )
+    .expect("导得进");
+    assert_eq!(again, json!({"added": 0, "skipped": 1}));
+    assert!(
+        register()["methods"]
+            .as_array()
+            .expect("是数组")
+            .iter()
+            .any(|one| one["name"] == "sponsor.import")
+    );
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
     std::fs::remove_dir_all(other_dir).expect("删得掉临时目录");
 }

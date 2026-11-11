@@ -10,7 +10,7 @@
 //! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
 //!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
 //! - `sticker-end`：`sticker` 的回答带 `end_turn`（施工 O-57：她最后一步带着工具调用、这一轮到此结束，表情包包的 `meme_send` 那样）。
-//! - `note:<种类>:<字>`：扮 im 的插件记一句（施工 I-8 上）：收到 `chat.inbound` 先经核心的 `package.call` 调 im 的 `chat.note`
+//! - `note:<种类>:<字>`：扮 im 的插件记一句（施工 I-8 上）：收到 `chat.inbound` 先经核心的总线（`bus.call`，名字 `chat`）调 `chat.note`
 //!   （场所照问的那一条的），把回应记进 `record:` 的文件（`{"noted": <回应>, "venue"}`），再照写的答。要清单里批过
 //!   `packages.call`。
 //! - `note-at:<场所>`：`note:` 不记在问的那一条的场所，记在这几个（写几个记几次，照先后）。
@@ -135,8 +135,8 @@ fn noting(
     };
     for venue in venues {
         let params = json!({"venue": venue, "kind": kind, "text": text});
-        let call = json!({"package": "miyu-im", "method": "chat.note", "params": params});
-        let reply = ask(input, "package.call", call);
+        let call = json!({"name": "chat", "method": "note", "params": params});
+        let reply = ask(input, "bus.call", call);
         if let Some(file) = record {
             writeln!(file, "{}", json!({"noted": reply, "venue": venue})).expect("写得进");
             file.flush().expect("写得出");

@@ -91,7 +91,7 @@
 
 ### 七、和接入通讯平台 打交道
 
-你的扩展能调接入通讯平台，接入通讯平台 也能调你。都经核心的 `package.call`（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），清单声明 `packages.call`，人批过才行。
+你的扩展能调接入通讯平台，接入通讯平台 也能调你。你调它照总线上的名字 `chat`：`bus.call {"name": "chat", "method": "venue", "params"}`（`method` 写 `chat.` 后面的那一段，不写它的包编号）；它调你现在还经核心的 `package.call`（核心作者说明[「写扩展」的更多本事](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.md#更多本事)），清单声明 `packages.call`，人批过才行。
 
 **你调接入通讯平台**（细节在 [`extending.md` 第一条](../blueprint/extending.md#一调接入qq-的方法)）：
 
