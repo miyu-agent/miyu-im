@@ -51,8 +51,11 @@ export const FIELDS = {
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
     // 会话的上下文上限（施工 I-189，核心 CTX-1）：token 数，空着照模型的窗口；设得太小的核心不收，下面写最少多少。
     { key: 'rules.context', control: 'number', label: 'field/context-limit', hint: 'field/context-limit-hint', unit: 'unit/tokens', empty: 'field/context-limit-empty', min: 1, warn: contextWarn },
-    // 判官没配模型的走旁路请求 `judge`（施工 I-42）：落到池的写池，池空了的照这张卡的模型（`orKey`），再照核心的对话模型。
-    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', use: 'judge', orKey: 'model', kinds: GROUPS, dep: JUDGE },
+    // 看图的模型（施工 I-224，todolist 第 34 条，核心 VM-1）：空着跟着设置里的多模态模型（`models.vision`）。
+    { key: 'rules.vision', control: 'model', label: 'field/vision-model', use: 'vision' },
+    // 判官没配模型的走旁路请求 `judge`（施工 I-42）：落到池的写池，池空了的照这张卡的模型（`orKey`），再照核心的对话模型。说明照它写
+    // （施工 I-224，项目主人 11-11）。
+    { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', hint: 'field/judge-model-hint', use: 'judge', orKey: 'model', kinds: GROUPS, dep: JUDGE },
     { group: 'field/context' },
     { key: 'recent', control: 'number', label: 'field/recent', unit: 'unit/messages', kinds: GROUPS, min: 1, max: 1000 },
     // 是否向 AI 显示号码（2026-10-20 项目主人验收：每种卡都有，原来只在群卡的触发方式页）。

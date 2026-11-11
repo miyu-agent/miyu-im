@@ -6,6 +6,7 @@ use crate::core::route::applied::tests::applied;
 fn wanted(model: Option<&str>, persona: Option<&str>, preset: Option<&str>) -> Wanted {
     Wanted {
         model: model.map(str::to_string),
+        vision: None,
         persona: persona.map(str::to_string),
         preset: preset.map(str::to_string),
         context: None,
@@ -102,4 +103,16 @@ fn the_context_limit_goes_on_its_own_and_a_cleared_one_is_null() {
         "没变的不发"
     );
     assert_eq!(sent(with(Some(64_000)).since(&before)), Value::Null);
+}
+
+#[test]
+fn the_vision_model_goes_like_the_model_and_a_cleared_one_is_null() {
+    // 施工 I-224（核心 VM-1）：看图的模型同对话模型：设了的第一次发，换了的发，清掉的交 `null`。
+    let set = applied("vision = \"@vision\"\n");
+    let now = Wanted::of(&set);
+    assert_eq!(sent(now.first()), json!({"vision": "@vision"}));
+    let none = wanted(None, None, None);
+    assert_eq!(sent(now.since(&none)), json!({"vision": "@vision"}));
+    assert_eq!(sent(none.since(&now)), json!({"vision": null}));
+    assert_eq!(sent(now.since(&now)), Value::Null);
 }
