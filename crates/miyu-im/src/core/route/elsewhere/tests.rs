@@ -64,6 +64,11 @@ fn a_chat_named_by_group_or_private_is_read_and_both_or_junk_is_bad() {
         aimed(&Set, "members", &json!({"group": 130515298})),
         group(130515298)
     );
+    // Telegram 的群号是负的（施工 I-220）。
+    assert_eq!(
+        aimed(&Set, "members", &json!({"group": -1001234567890_i64})),
+        group(-1001234567890)
+    );
     assert_eq!(
         aimed(&Set, "members", &json!({"group": "130515298"})),
         group(130515298)
@@ -75,7 +80,6 @@ fn a_chat_named_by_group_or_private_is_read_and_both_or_junk_is_bad() {
     for bad in [
         json!({"group": 1, "private": 2}),
         json!({"group": 0}),
-        json!({"group": -5}),
         json!({"group": "abc"}),
         json!({"group": true}),
     ] {

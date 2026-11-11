@@ -1,0 +1,1 @@
+Not done: only the owner asking you directly can reach another chat.

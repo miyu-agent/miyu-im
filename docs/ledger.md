@@ -217,8 +217,8 @@
 | `miyu-im/data/telegram/tools/tg_send.json` | tools 数组 | Telegram 的私聊、群和本机会话的工具面里有（连接表写了令牌才登记）；同 `qq_send`，「friend」改成「person」：机器人没有好友（施工 I-183 下下） | 88（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `9cfcdd40` |
 | `miyu-im/data/telegram/tools/tg_quote.json` | tools 数组 | Telegram 的私聊、群（同 `qq_quote`，说明一字不差；照 im 的记录核对那一条）（施工 I-183 下下） | 49（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `d490d788` |
 | `miyu-im/data/telegram/tools/tg_mention.json` | tools 数组 | Telegram 的群（同 `qq_mention`，说明一字不差；认在群里说过话的人）（施工 I-183 下下） | 60（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `d72aba03` |
-| `miyu-im/data/telegram/tools/tg_chat_history.json` | tools 数组 | Telegram 的私聊、群（同 `qq_chat_history`，说明一字不差，宿主同一份代码）（施工 I-183 下下） | 80（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `018f6e2c` |
-| `miyu-im/data/telegram/tools/tg_activity_ranking.json` | tools 数组 | Telegram 的群（同 `qq_activity_ranking`，说明一字不差，宿主同一份代码）（施工 I-183 下下） | 75（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `927a256d` |
+| `miyu-im/data/telegram/tools/tg_chat_history.json` | tools 数组 | Telegram 的私聊、群（同 `qq_chat_history`，说明一字不差，宿主同一份代码）（施工 I-183 下下） | 98（设计 13 施工 I-220 多 `group`、`private`，终端里说是哪个场所；Telegram 那一套一起时的边际，2026-11-11 经 opencode Console Go 的 `deepseek-v4.1-flash` 量；原来 80（七件一起的边际）） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `4e416aec` |
+| `miyu-im/data/telegram/tools/tg_activity_ranking.json` | tools 数组 | Telegram 的群（同 `qq_activity_ranking`，说明一字不差，宿主同一份代码）（施工 I-183 下下） | 85（设计 13 施工 I-220 多 `group`，终端里说是哪个场所；Telegram 那一套一起时的边际，2026-11-11 经 opencode Console Go 的 `deepseek-v4.1-flash` 量；原来 75（七件一起的边际）） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `6034fc88` |
 | `miyu-im/data/telegram/tools/tg_glance.json` | tools 数组 | Telegram 开着时不时看一眼的场所（同 `qq_glance`，说明一字不差）（施工 I-183 下下） | 45（七件一起的边际） | 项目主人 11-10 定 Telegram 第一版做说话、记录这一套 | `3adde016` |
 | `miyu-im/data/telegram/tool-results/activity.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/activity.txt`（字节一样，施工 I-183 下下） | 19（字段不填） | Telegram 那套答同样的话 | `62254293` |
 | `miyu-im/data/telegram/tool-results/bad-args.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/bad-args.txt`（字节一样，施工 I-183 下下） | 7（`detail` 不填） | Telegram 那套答同样的话 | `585ae752` |
@@ -226,7 +226,7 @@
 | `miyu-im/data/telegram/tool-results/glance-set.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/glance-set.txt`（字节一样，施工 I-183 下下） | 8（字段填 `60`） | Telegram 那套答同样的话 | `d9da9776` |
 | `miyu-im/data/telegram/tool-results/group-only.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/group-only.txt`（字节一样，施工 I-183 下下） | 9 | Telegram 那套答同样的话 | `600925fb` |
 | `miyu-im/data/telegram/tool-results/history-admin-only.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/history-admin-only.txt`（字节一样，施工 I-183 下下） | 12 | Telegram 那套答同样的话 | `24413362` |
-| `miyu-im/data/telegram/tools/tg_token_usage.json` | tools 数组 | Telegram 的群会话的工具面里有 `tg_token_usage`（施工 I-206；字节同 `qq_token_usage.json`） | 67 | 同 `qq_token_usage` | `c2811101` |
+| `miyu-im/data/telegram/tools/tg_token_usage.json` | tools 数组 | Telegram 的群会话的工具面里有 `tg_token_usage`（施工 I-206；字节同 `qq_token_usage.json`） | 75（设计 13 施工 I-220 多 `group`，终端里说是哪个场所；Telegram 那一套一起时的边际，2026-11-11 经 opencode Console Go 的 `deepseek-v4.1-flash` 量；原来 67） | 同 `qq_token_usage` | `b073eee6` |
 | `miyu-im/data/telegram/tool-results/usage.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/usage.txt`（字节一样，施工 I-206） | 57 | Telegram 那套答同样的话 | `463f2108` |
 | `miyu-im/data/telegram/tool-results/usage-user.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/usage-user.txt`（字节一样，施工 I-206） | 22 | Telegram 那套答同样的话 | `6acb4618` |
 | `miyu-im/data/telegram/tool-results/no-usage.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-usage.txt`（字节一样，施工 I-206） | 12 | Telegram 那套答同样的话 | `eda788df` |
@@ -245,12 +245,18 @@
 | `miyu-im/data/telegram/tool-results/unanswered.txt` | 工具结果 | 等不到 Telegram 回（施工 I-183 下下） | 17 | 同 QQ 的那一句，平台写 Telegram | `a003e5d0` |
 | `miyu-im/data/telegram/tool-results/unreachable.txt` | 工具结果 | 那个机器人号没连着、连接断了（施工 I-183 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `afaef1a3` |
 | `miyu-im/data/telegram/tool-results/which-bot.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/which-bot.txt`（字节一样，施工 I-183 下下） | 15（字段空着；两个号 26，2026-10-30 经 opencode Console Go 的 `deepseek-v4.1-flash` 量） | Telegram 那套答同样的话 | `fd4b33a7` |
+| `miyu-im/data/telegram/tool-results/chat-in-group.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 6（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `d2e8023f` |
+| `miyu-im/data/telegram/tool-results/chat-in-private.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 8（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `32b0bca3` |
+| `miyu-im/data/telegram/tool-results/chat-needed.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 13（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `2cc27c24` |
+| `miyu-im/data/telegram/tool-results/chat-bad.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 12（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `d504898c` |
+| `miyu-im/data/telegram/tool-results/chat-off.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 12（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `eff0a294` |
+| `miyu-im/data/telegram/tool-results/only-here.txt` | 工具结果 | Telegram 的同 OneBot 那一句（设计 13，施工 I-220） | 15（同 OneBot 的，一字不差） | 终端里用 Telegram 的工具，同 QQ 的规矩 | `21fe8333` |
 | `miyu-im/data/telegram/tools/tg_recall.json` | tools 数组 | Telegram 的私聊、群（同 `qq_recall`，说明一字不差；她给的编号照 im 的记录核对）（施工 I-185 下上） | 55（九件一起的边际） | 设计 07 第一版「说话」那一块：撤回自己的 | `f6861dcd` |
 | `miyu-im/data/telegram/tools/tg_react.json` | tools 数组 | Telegram 的私聊、群（同 `qq_react`，「this group」改「this chat」：私聊也能贴）（施工 I-185 下上） | 67（九件一起的边际） | 设计 07 第一版「说话」那一块：贴表情 | `6ac71e04` |
 | `miyu-im/data/telegram/tool-results/recalled.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/recalled.txt`（字节一样，施工 I-185 下上） | 3（2026-10-10 量） | Telegram 那套答同样的话 | `5a6ee52c` |
 | `miyu-im/data/telegram/tool-results/reacted.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/reacted.txt`（字节一样，施工 I-185 下上） | 4 | Telegram 那套答同样的话 | `4940f1eb` |
 | `miyu-im/data/telegram/tool-results/no-quote.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-quote.txt`（字节一样，施工 I-185 下上） | 19（2026-10-17 量；O-31 那一句 16） | Telegram 那套答同样的话 | `5c41e58f` |
-| `miyu-im/data/telegram/tools/tg_send_file.json` | tools 数组 | Telegram 的私聊、群（同 `qq_send_file`，说明一字不差，宿主同一份代码 `common::send_file`）（施工 I-185 下下） | 52（十件一起的边际） | 项目主人 11-09 定 Telegram 也要能发文件 | `0339882d` |
+| `miyu-im/data/telegram/tools/tg_send_file.json` | tools 数组 | Telegram 的私聊、群（同 `qq_send_file`，说明一字不差，宿主同一份代码 `common::send_file`）（施工 I-185 下下） | 70（设计 13 施工 I-220 多 `group`、`private`，终端里说是哪个场所；Telegram 那一套一起时的边际，2026-11-11 经 opencode Console Go 的 `deepseek-v4.1-flash` 量；原来 52（十件一起的边际）） | 项目主人 11-09 定 Telegram 也要能发文件 | `3954bfa5` |
 | `miyu-im/data/telegram/tool-results/uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/uploading.txt`（字节一样，施工 I-185 下下） | 15（字段填 `report.pdf`、`3.4 MB`） | Telegram 那套答同样的话 | `0b6c206c` |
 | `miyu-im/data/telegram/tool-results/no-file.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-file.txt`（字节一样，施工 I-185 下下、I-190） | 12（字段填 `out/report.pdf`） | Telegram 那套答同样的话 | `8d3a8b16` |
 | `miyu-im/data/telegram/tool-results/not-local.txt` | 工具结果 | `tg_send_file` 对端读不到本机的文件（Telegram 驱动和 im 在同一个进程，照说不会；施工 I-185 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `e149a81c` |

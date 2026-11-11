@@ -40,7 +40,7 @@ pub(super) enum Aimed {
 }
 
 /// 这一次 `args` 写了哪个场所（纯逻辑）：只认终端里能用、要说场所的那几件（`venues` 带 `local`、`reach` 不是 `Anywhere`），参数
-/// `group`、`private` 至多一个，号照整数或者数字的字。别的工具（自己的 `group` 另有意思的，如头像、发消息）是 `Here`。
+/// `group`、`private` 至多一个，号照整数或者数字的字（Telegram 的群号是负的，施工 I-220）。别的工具（自己的 `group` 另有意思的，如头像、发消息）是 `Here`。
 pub(super) fn aimed(set: &dyn ToolSet, tool: &str, args: &Value) -> Aimed {
     let local = set
         .tools()
@@ -54,11 +54,11 @@ pub(super) fn aimed(set: &dyn ToolSet, tool: &str, args: &Value) -> Aimed {
             Value::Null => Ok(None),
             Value::Number(number) => number
                 .as_i64()
-                .filter(|n| *n > 0)
+                .filter(|n| *n != 0)
                 .map(|n| Some(Id::from(n)))
                 .ok_or(()),
             Value::String(text) => Id::new(text.trim())
-                .filter(|id| id.number().is_some_and(|n| n > 0))
+                .filter(|id| id.number().is_some_and(|n| n != 0))
                 .map(Some)
                 .ok_or(()),
             _ => Err(()),
