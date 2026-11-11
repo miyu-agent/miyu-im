@@ -235,7 +235,7 @@ async fn the_rate_limit_counts_when_deferred_calls_are_answered() {
             .iter()
             .filter_map(|segment| segment["data"]["text"].as_str())
             .collect();
-        heard.push(words);
+        heard.push(words.trim().to_string());
     }
     heard.sort();
     assert_eq!(heard, ["小林好", "老板好"]);

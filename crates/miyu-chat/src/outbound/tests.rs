@@ -382,16 +382,18 @@ fn quote_after_zero_always_quotes() {
 }
 
 #[test]
-fn mention_needs_time_and_a_quote() {
+fn a_quote_brings_the_mention_along_whatever_the_time() {
+    // 施工 I-216：引用了就一起 @，不看隔了多久（原来要隔够 `mention_after`，她几秒就回的时候引用了也不 @）。
     assert!(target(2, MENTION_AFTER, false).mention);
-    assert!(!target(2, MENTION_AFTER - 1, false).mention);
+    assert!(target(2, MENTION_AFTER - 1, false).mention);
+    assert!(target(2, 0, false).mention);
+    assert!(target(5, -1, false).mention);
     assert!(
         !target(1, MENTION_AFTER * 10, false).mention,
         "不引用的不 @"
     );
-    assert!(!target(5, -1, false).mention);
-    // 施工 I-137：@ 跟着引用走。她连着说、靠引用分清的，隔够了时候也带；紧挨着、不引用的不 @。
-    assert!(target(0, MENTION_AFTER * 10, true).mention);
+    // 施工 I-137：@ 跟着引用走。她连着说、靠引用分清的也带；紧挨着、不引用的不 @。
+    assert!(target(0, 0, true).mention);
     assert!(!target(0, MENTION_AFTER * 10, false).mention);
 }
 
@@ -410,12 +412,17 @@ fn mention_does_not_come_without_a_quote() {
         panic!("dropped");
     };
     assert_eq!(target, Target::default());
-    // 智能引用关了的照原来：别人说过话、隔够了时候就 @。
+    // 智能引用关了的照原来：别人说过话、隔够了时候就 @；没隔够的不 @（`mention_after` 只管这一种，施工 I-216）。
     ctx.outbound.quote = false;
     let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
         panic!("dropped");
     };
     assert!(target.mention && !target.quote);
+    ctx.since.elapsed = MENTION_AFTER - 1;
+    let Out::Send { target, .. } = judge(text("好的"), &ctx) else {
+        panic!("dropped");
+    };
+    assert_eq!(target, Target::default());
 }
 
 #[test]
