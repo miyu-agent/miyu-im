@@ -111,10 +111,10 @@ fn only_the_first_piece_carries_what_the_chain_left() {
         quoted.lead,
         Lead {
             reply: Some("21".to_string()),
-            at: None,
+            at: Some("10001".to_string()),
             more: Vec::new(),
         },
-        "隔了 4 条引用，没到 20 秒不 @"
+        "隔了 4 条引用，引用了就一起 @，不看过了几秒（施工 I-216）"
     );
     let mentioned = pass(
         "嗯",

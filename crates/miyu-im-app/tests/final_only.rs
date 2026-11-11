@@ -100,8 +100,13 @@ async fn words_with_a_tool_that_ends_the_turn_go_out_when_it_ends() {
             .as_array()
             .cloned()
             .unwrap_or_default();
-        if let Some(text) = message.iter().find(|segment| segment["type"] == "text") {
-            break text["data"]["text"].clone();
+        let text: String = message
+            .iter()
+            .filter(|segment| segment["type"] == "text")
+            .filter_map(|segment| segment["data"]["text"].as_str())
+            .collect();
+        if !text.trim().is_empty() {
+            break text.trim().to_string();
         }
     };
     assert_eq!(words, "给你看");

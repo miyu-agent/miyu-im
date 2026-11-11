@@ -117,8 +117,8 @@ async fn saying_the_same_twice_in_a_turn_sends_it_once() {
     let quote = json!({"type": "reply", "data": {"id": "1"}});
     assert_eq!(
         napcat.group_message(PLAIN).await,
-        [quote, words("看完了")],
-        "她连着说，群里最后一条是她自己的：引用分清在回谁"
+        [quote, at(ADMIN.to_string()), words(" "), words("看完了")],
+        "她连着说，群里最后一条是她自己的：引用分清在回谁，引用了就一起 @（施工 I-216）"
     );
     let events = until_count(&home, PLAIN, "venue.delivered", 2).await;
     let texts: Vec<Value> = of_kind(&events, "venue.delivered")
@@ -149,8 +149,8 @@ async fn four_others_later_only_the_first_piece_quotes() {
     let quote = json!({"type": "reply", "data": {"id": "21"}});
     assert_eq!(
         napcat.group_message(QUOTED).await,
-        [quote, words("看到大家")],
-        "第一段引用终端管理员那一条，@ 要隔一个小时"
+        [quote, at(ADMIN.to_string()), words(" "), words("看到大家")],
+        "第一段引用终端管理员那一条，引用了就一起 @，不看 `mention_after`（施工 I-216）"
     );
     assert_eq!(
         napcat.group_message(QUOTED).await,

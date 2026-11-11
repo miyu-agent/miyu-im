@@ -139,7 +139,9 @@ fn said_words(message: Vec<Value>) -> String {
         .iter()
         .filter(|segment| segment["type"] == "text")
         .filter_map(|segment| segment["data"]["text"].as_str())
-        .collect()
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// 小林在群 `group` 里 @ 她：第 `message` 条（施工 I-33：禁言以前开一轮）。
