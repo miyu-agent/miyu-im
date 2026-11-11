@@ -367,6 +367,13 @@ pub trait ToolSet: Send + Sync {
         None
     }
 
+    /// 终端、网页里调这一件时（设计 13，`venues` 带 `local` 的那几件）要不要说是哪个群、哪个私聊（参数 `group`、`private`）：要的照
+    /// 那个场所的开关、在那个场所里办；不要的（通讯录、头像）不找场所；可写可不写的（查聊天记录）不写是查全部。都要的不用写。
+    fn reach(&self, tool: &str) -> Reach {
+        let _ = tool;
+        Reach::Chat
+    }
+
     /// 驱动带的插件给场所会话记一句时用的模板（施工 Q-3）：名字（`facts/<名字>.txt`）和认的字段。经 `Gate::note` 换好交给 im 记。
     fn facts(&self) -> &'static [(&'static str, &'static [&'static str])] {
         &[]
@@ -396,6 +403,17 @@ pub trait ToolSet: Send + Sync {
     fn silence(&self) -> Option<&'static str> {
         None
     }
+}
+
+/// 终端、网页里调一件场所工具要不要说是哪个场所（设计 13，[`ToolSet::reach`]）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reach {
+    /// 要说：照那个场所的开关、在那个场所里办。
+    Chat,
+    /// 可写可不写：不写的是全部场所（查聊天记录）。
+    Either,
+    /// 不用说（通讯录、头像）：不找场所。
+    Anywhere,
 }
 
 /// 读好、查过的答的话。

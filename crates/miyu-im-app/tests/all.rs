@@ -150,6 +150,7 @@ mod telegram_pictures;
 mod telegram_send_file;
 mod telegram_shown;
 mod telegram_tools;
+mod terminal_tools;
 mod text;
 mod texts;
 mod titled;

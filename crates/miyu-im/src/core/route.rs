@@ -36,7 +36,6 @@
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了另起一个任务换（`running::rebind`）
 //!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `im.whitelist` 这里记一份（施工 O-23）；换了的，私聊找过的
 //!   会话都忘掉，下一条照新的白名单再找（施工 O-27）。
-
 mod acting;
 mod aims;
 mod applied;
@@ -55,6 +54,7 @@ mod decide;
 mod deferred;
 mod discipline;
 mod driven;
+mod elsewhere;
 mod events;
 mod exports;
 mod fetching;

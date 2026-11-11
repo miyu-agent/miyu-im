@@ -45,7 +45,7 @@ pub fn shipped_tools() -> Value {
     };
     let both: &[&str] = &["private", "group"];
     let group: &[&str] = &["group"];
-    // 主动发消息本机的会话也给（施工 I-40）。
+    // 主动发消息本机的会话也给（施工 I-40）；设计 13 起查看那六件也给（施工 I-218）。
     let everywhere: &[&str] = &["local", "private", "group"];
     // 群管理的三件是场所插件的工具（施工 S-1 上c，核心 O-60）：带 `plugin`。
     let plugin = |id: &str, mut tool: Value| {
@@ -62,20 +62,20 @@ pub fn shipped_tools() -> Value {
         admin(entry("qq_kick", "venue", group)),
         admin(entry("qq_moderation_log", "read", group)),
         entry("qq_poke", "venue", both),
-        lookup(entry("qq_fetch_media", "venue", both)),
-        lookup(entry("qq_avatar", "venue", both)),
-        lookup(entry("qq_members", "read", group)),
+        lookup(entry("qq_fetch_media", "venue", everywhere)),
+        lookup(entry("qq_avatar", "venue", everywhere)),
+        lookup(entry("qq_members", "read", everywhere)),
         entry("qq_mention", "venue", group),
-        lookup(entry("qq_notices", "read", group)),
+        lookup(entry("qq_notices", "read", everywhere)),
         entry("qq_set_card", "venue", group),
         entry("qq_quote", "venue", both),
         entry("qq_send", "venue", everywhere),
-        lookup(entry("qq_contacts", "read", both)),
+        lookup(entry("qq_contacts", "read", everywhere)),
         lookup(entry("qq_group_files", "venue", group)),
         entry("qq_react", "venue", group),
         lookup(entry("qq_activity_ranking", "read", group)),
         lookup(entry("qq_token_usage", "read", group)),
-        lookup(entry("qq_chat_history", "read", both)),
+        lookup(entry("qq_chat_history", "read", everywhere)),
         // 定下一次看一眼（施工 I-89 下）：只在开着时不时看一眼的场所里有。
         plugin("miyu-im-glance", entry("qq_glance", "read", both)),
         // 传文件（施工 I-130）。

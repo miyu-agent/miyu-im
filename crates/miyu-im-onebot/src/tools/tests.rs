@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use super::{LOOKUPS, TOOLS};
+use super::TOOLS;
 
 /// 出厂清单 `[features]` 里每个功能列的 QQ 的工具。
 fn features() -> BTreeMap<String, Vec<String>> {
@@ -42,11 +42,36 @@ fn every_tool_belongs_to_exactly_one_feature() {
 }
 
 #[test]
-fn the_lookup_feature_is_the_lookup_plugin() {
-    // 预设里的「查询信息」和场所插件「查询信息」管的是同一批（施工 I-91）。
-    let mut feature = features().remove("im-lookup").expect("有查询信息");
-    let mut plugin: Vec<String> = LOOKUPS.iter().map(|tool| (*tool).to_string()).collect();
-    feature.sort();
-    plugin.sort();
-    assert_eq!(feature, plugin);
+fn features_offered_to_the_terminal_hold_its_tools_and_the_others_hold_none() {
+    // 设计 13：只在群、私聊里用的两个功能一件带 `local` 的都没有（核心 PS-2 起预设菜单不列）；带 `local` 的都在给终端的那几个功能里。
+    let features = features();
+    let local: Vec<&str> = TOOLS
+        .iter()
+        .filter(|decl| decl.venues.contains(&"local"))
+        .map(|decl| decl.name)
+        .collect();
+    for id in ["im-chat", "im-admin"] {
+        let tools = &features[id];
+        assert!(
+            tools.iter().all(|tool| !local.contains(&tool.as_str())),
+            "{id}: {tools:?}"
+        );
+    }
+    for tool in &local {
+        let owner = features
+            .iter()
+            .find(|(_, tools)| tools.iter().any(|one| one == tool))
+            .map(|(id, _)| id.as_str());
+        assert!(
+            matches!(
+                owner,
+                Some("im-send" | "im-view" | "im-files" | "im-modlog" | "im-usage")
+            ),
+            "{tool} 归 {owner:?}"
+        );
+    }
+    // 查看聊天那一组都给终端了（设计 13 第一节第 2 条）。
+    for tool in &features["im-view"] {
+        assert!(local.contains(&tool.as_str()), "{tool}");
+    }
 }
