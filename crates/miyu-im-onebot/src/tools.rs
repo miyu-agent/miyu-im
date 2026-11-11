@@ -114,7 +114,7 @@ pub const LOOKUPS: [&str; 9] = [
 const VENUES: &[&str] = &["private", "group"];
 
 /// 本机的会话也给（施工 I-40，项目主人 10-26：终端、网页里叫她去 QQ 上给人发一句；设计 13 起查看那几件也给，终端里照参数
-/// `group`、`private` 找那个场所）：核心照对外发消息问人。
+/// `group`、`private` 找那个场所；施工 I-219 起发文件、群文件、管理记录、用量和排行也给）：核心照对外发消息问人。
 const EVERYWHERE: &[&str] = &["local", "private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
@@ -143,7 +143,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: MODERATION_LOG,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: POKE,
@@ -198,7 +198,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: GROUP_FILES,
         access: Access::Venue,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: REACT,
@@ -208,12 +208,12 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: ACTIVITY_RANKING,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: TOKEN_USAGE,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: CHAT_HISTORY,
@@ -228,7 +228,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: SEND_FILE,
         access: Access::Venue,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
 ];
 
