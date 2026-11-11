@@ -1,4 +1,4 @@
 {
   "description": "Read group announcements.",
-  "parameters": {"type":"object","properties":{}}
+  "parameters": {"type":"object","properties":{"group":{"type":"integer"}}}
 }

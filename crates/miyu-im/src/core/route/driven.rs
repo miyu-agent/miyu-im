@@ -13,7 +13,9 @@ use miyu_client::ids::ExternalId;
 use serde_json::Value;
 
 use super::Route;
+use super::elsewhere::{Aimed, Asked};
 use super::outreach::Answer;
+use super::session::Peer;
 use crate::TARGET;
 use crate::chat::{Id, To};
 use crate::core::Answerer;
@@ -30,64 +32,130 @@ impl Route {
     pub(super) async fn driven_called(
         &mut self,
         pushed: &Value,
-        (platform, set, answers): Toolset,
+        toolset: Toolset,
     ) -> Result<(), Gone> {
         let params = &pushed["params"];
-        let (id, tool) = (
-            pushed["id"].clone(),
-            params["tool"].as_str().unwrap_or_default(),
-        );
-        let line = params["session"].as_str().unwrap_or_default().to_string();
-        let session = self.main_of(&line);
-        let answerer = self.core.answerer();
+        let asked = Asked {
+            id: pushed["id"].clone(),
+            tool: params["tool"].as_str().unwrap_or_default().to_string(),
+            line: params["session"].as_str().unwrap_or_default().to_string(),
+            answerer: self.core.answerer(),
+        };
+        let session = self.main_of(&asked.line);
         self.gather(&session).await?;
         let Some(peer) = self.peers.get(&session).cloned() else {
-            // 不是场所会话（施工 I-40）：本机的会话里登记了 `local` 的那几件照驱动说的办（主动发消息经参数 `bot` 写的号，没写的
-            // 这个平台只连着一个号时经它，施工 I-81 下下）。没有场所，平台照这件工具是哪个驱动的（施工 I-70 中上）。
-            match set.local(tool, &params["args"], &answers) {
-                Some(Planned::Host(Effect::Send { to, text })) => {
-                    let bot = match self.local_sender(platform, &params["args"]["bot"]) {
-                        Ok(bot) => bot,
-                        Err(bots) => {
-                            tracing::info!(target: TARGET, session, why = "which-bot", "platform tool failed");
-                            answerer
-                                .answer(&id, answers.say("which-bot", &[("bots", &bots)], true));
-                            return Ok(());
-                        }
-                    };
-                    let answer = Answer::Tool(id, answers, answerer);
-                    return self.reach((platform, bot), (to, text), answer).await;
-                }
-                Some(Planned::Now(answer)) => answerer.answer(&id, answer),
-                _ => {
-                    tracing::warn!(target: TARGET, session, tool, why = "unreachable", "platform tool failed");
-                    answerer.answer(&id, answers.say("unreachable", &[], true));
-                }
-            }
-            return Ok(());
+            // 不是场所会话（施工 I-40）：本机的会话（`elsewhere.rs`）。
+            return self.local_called(params, asked, toolset).await;
         };
-        if peer.platform != platform {
+        let (platform, set, answers) = &toolset;
+        if peer.platform != *platform {
             // 别的平台的工具（施工 I-70 中上）：核心照名字的前缀只给那个平台的场所（IM-3），到了这里是对不上的，不叫驱动做。
-            tracing::warn!(target: TARGET, session, tool, why = "another_platform", "platform tool failed");
-            answerer.answer(&id, answers.say("unreachable", &[], true));
+            tracing::warn!(target: TARGET, session, tool = asked.tool, why = "another_platform", "platform tool failed");
+            asked
+                .answerer
+                .answer(&asked.id, answers.say("unreachable", &[], true));
             return Ok(());
         }
+        // 写了别的场所的（设计 13）：只有终端管理员直接叫她的那一轮去那个场所办（同 I-204 的认法），别人叫的拒。
+        match super::elsewhere::aimed(set.as_ref(), &asked.tool, &params["args"]) {
+            Aimed::Bad => {
+                asked
+                    .answerer
+                    .answer(&asked.id, answers.say("chat-bad", &[], true));
+                return Ok(());
+            }
+            Aimed::At(to) if to != peer.to => {
+                let (admin, commanded) = self.standing(&session, &asked.line, &peer, params);
+                if admin && commanded {
+                    let bot = Some(peer.bot.clone());
+                    return self
+                        .elsewhere(params, asked, toolset, (Some(to), bot))
+                        .await;
+                }
+                asked
+                    .answerer
+                    .answer(&asked.id, answers.say("only-here", &[], true));
+                return Ok(());
+            }
+            _ => {}
+        }
+        self.venue_called(params, asked, (session, peer), toolset, None)
+            .await
+    }
+
+    /// 这一轮是不是终端管理员叫的、是不是管理的人直接叫她开的：交回 `(admin, commanded)`。
+    fn standing(&mut self, session: &str, line: &str, peer: &Peer, params: &Value) -> (bool, bool) {
         let by = by_of(params);
+        // 这一轮是不是终端管理员叫的（施工 C-1 下）：私聊里核心认出了人（`by` 是 `person`），群里照投影里他说的话带的 `owner`。
+        let admin = params["by"]["kind"] == "person"
+            || by.as_ref().is_some_and(|by| {
+                self.groups
+                    .get(session)
+                    .is_some_and(|group| group.is_admin(by))
+            });
+        // 这一轮是不是管理的人直接叫她开的（施工 I-204，删群文件这种收不回来的事照它）：群里照投影认（`Projection::commanded`：开
+        // 这一轮的那一条冲她来，在回的每一条都是终端管理员、卡片上 `managers` 里的人发的）；私聊里就是终端管理员叫的。
+        let commanded = match &peer.to {
+            To::Private(_) => admin,
+            To::Group(_) => {
+                let rules = miyu_chat::Venue::parse(&peer.venue).map(|venue| self.applied(&venue));
+                self.groups.get(session).is_some_and(|group| {
+                    group.commanded(line, |who| {
+                        rules
+                            .as_ref()
+                            .is_some_and(|rules| super::applied::role(rules, who) == "manager")
+                    })
+                })
+            }
+        };
+        (admin, commanded)
+    }
+
+    /// 在场所 `peer`（会话 `session`）里办这一次调用 `asked`。`owner` 是终端里、或者终端管理员叫她去别的场所办的（设计 13）：照
+    /// 终端管理员算，答的话前头写上它（是哪个场所；不找场所的是空的字）。
+    pub(super) async fn venue_called(
+        &mut self,
+        params: &Value,
+        asked: Asked,
+        (session, peer): (String, Peer),
+        (platform, set, answers): Toolset,
+        owner: Option<String>,
+    ) -> Result<(), Gone> {
+        let Asked {
+            id,
+            tool,
+            line,
+            answerer,
+        } = asked;
+        let tool = tool.as_str();
+        let by = owner.is_none().then(|| by_of(params)).flatten();
         let (caller, other, origin, names) = match peer.to.clone() {
             To::Private(user) => {
                 // 私聊：叫她做的那条是最近一条人说的话（对方的），引用照记下的（「怎么走」第 9 条）。
                 let other = peer.platform.person(&user).ok();
                 let quote = self.quotes.get(&session).cloned().flatten();
-                let origin = other.clone().map(|sender| Origin {
-                    sender,
-                    quote: quote.map(|msg| Quote { msg, sender: None }),
-                    mentions: Vec::new(),
-                });
-                (Some(user), other, origin, HashMap::new())
+                let origin = other
+                    .clone()
+                    .filter(|_| owner.is_none())
+                    .map(|sender| Origin {
+                        sender,
+                        quote: quote.map(|msg| Quote { msg, sender: None }),
+                        mentions: Vec::new(),
+                    });
+                (
+                    owner.is_none().then_some(user),
+                    other,
+                    origin,
+                    HashMap::new(),
+                )
             }
             To::Group(group) => {
-                // 群：投影里调用所在那条线（主线或者支线，施工 O-36）这一轮她回的那一条。
-                let origin = self.groups.get(&session).and_then(|one| one.origin(&line));
+                // 群：投影里调用所在那条线（主线或者支线，施工 O-36）这一轮她回的那一条。终端里的没有。
+                let origin = self
+                    .groups
+                    .get(&session)
+                    .filter(|_| owner.is_none())
+                    .and_then(|one| one.origin(&line));
                 let names = self
                     .members
                     .names_in(peer.platform, &group, Instant::now())
@@ -98,7 +166,7 @@ impl Route {
             }
         };
         // 这一轮这件工具以前调过几次（施工 T-3）：群照投影里调用所在那条线这一轮，私聊照推来的事件的回合；换了回合从头数。
-        let turn = match self.groups.get(&session) {
+        let turn = match self.groups.get(&session).filter(|_| owner.is_none()) {
             Some(group) => group.turn(&line),
             None => self.turns.get(&line).copied().flatten(),
         };
@@ -108,27 +176,9 @@ impl Route {
                 .or_insert((turn, 0)),
             turn,
         );
-        // 这一轮是不是终端管理员叫的（施工 C-1 下）：私聊里核心认出了人（`by` 是 `person`），群里照投影里他说的话带的 `owner`。
-        let admin = params["by"]["kind"] == "person"
-            || by.as_ref().is_some_and(|by| {
-                self.groups
-                    .get(&session)
-                    .is_some_and(|group| group.is_admin(by))
-            });
-        // 这一轮是不是管理的人直接叫她开的（施工 I-204，删群文件这种收不回来的事照它）：群里照投影认（`Projection::commanded`：开
-        // 这一轮的那一条冲她来，在回的每一条都是终端管理员、卡片上 `managers` 里的人发的）；私聊里就是终端管理员叫的。
-        let commanded = match &peer.to {
-            To::Private(_) => admin,
-            To::Group(_) => {
-                let rules = miyu_chat::Venue::parse(&peer.venue).map(|venue| self.applied(&venue));
-                self.groups.get(&session).is_some_and(|group| {
-                    group.commanded(&line, |who| {
-                        rules
-                            .as_ref()
-                            .is_some_and(|rules| super::applied::role(rules, who) == "manager")
-                    })
-                })
-            }
+        let (admin, commanded) = match owner.as_ref() {
+            Some(_) => (true, true),
+            None => self.standing(&session, &line, &peer, params),
         };
         let call = Call {
             tool: tool.to_string(),
@@ -167,6 +217,7 @@ impl Route {
         let answers = Arc::clone(&call.answers);
         match set.plan(call) {
             Planned::Now(answer) => {
+                let answer = labelled(answer, owner.as_deref());
                 logged(&venue, &tool, &answer);
                 answerer.answer(&id, answer);
             }
@@ -181,6 +232,7 @@ impl Route {
                         line,
                         turn,
                         done,
+                        label: owner,
                     }
                 });
             }
@@ -231,7 +283,7 @@ impl Route {
                         false,
                     )
                 };
-                answerer.answer(&id, answer);
+                answerer.answer(&id, labelled(answer, owner.as_deref()));
             }
             // 定下一次看一眼（施工 I-89 下）：删掉等着的定时、照它建新的。
             Planned::Host(Effect::Glance { minutes }) => {
@@ -267,14 +319,16 @@ impl Route {
             line,
             turn,
             done,
+            label,
         } = finished;
         match (done.effect, turn) {
             (Some(Effect::Mention(users)), Some(turn)) => self.mention(line, turn, &users),
             (Some(Effect::Quote(msg)), Some(turn)) => self.quote(line, turn, msg),
             _ => {}
         }
-        logged(&venue, &tool, &done.answer);
-        answerer.answer(&id, done.answer);
+        let answer = labelled(done.answer, label.as_deref());
+        logged(&venue, &tool, &answer);
+        answerer.answer(&id, answer);
     }
 }
 
@@ -287,6 +341,18 @@ pub(crate) struct Finished {
     line: String,
     turn: Option<u64>,
     done: Done,
+    /// 终端里、去别的场所办的（设计 13）：答的话前头写上的那一句（是哪个场所）；别的是空的。
+    label: Option<String>,
+}
+
+/// 答的话 `answer` 第一段前头写上 `label`（设计 13：终端里看不到「这个场所」，结果写明是哪个）；没有的、空的原样。
+fn labelled(mut answer: Value, label: Option<&str>) -> Value {
+    if let Some(label) = label.filter(|label| !label.is_empty())
+        && let Some(text) = answer["blocks"][0]["text"].as_str()
+    {
+        answer["blocks"][0]["text"] = Value::from(format!("{label}\n{text}"));
+    }
+    answer
 }
 
 /// 记一行运行日志：出错的 `WARN platform tool failed`，成了的 `INFO platform tool done`；`said` 是答她的那句的开头（施工 I-16：

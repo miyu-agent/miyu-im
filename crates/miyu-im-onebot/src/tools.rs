@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use miyu_client::tooltext::Access;
 use miyu_im::toolset::common::{glance, history, ranking, send_file, usage};
-use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, ToolSet, send_request};
+use miyu_im::toolset::{Answers, Call, Decl, Effect, Planned, Reach, ToolSet, send_request};
 use miyu_im::tuning::Tuning;
 use serde_json::{Map, Value};
 
@@ -113,7 +113,8 @@ pub const LOOKUPS: [&str; 9] = [
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
 
-/// 本机的会话也给（施工 I-40，项目主人 10-26：终端、网页里叫她去 QQ 上给人发一句）：核心照对外发消息问人。
+/// 本机的会话也给（施工 I-40，项目主人 10-26：终端、网页里叫她去 QQ 上给人发一句；设计 13 起查看那几件也给，终端里照参数
+/// `group`、`private` 找那个场所）：核心照对外发消息问人。
 const EVERYWHERE: &[&str] = &["local", "private", "group"];
 
 /// 有哪几件，照登记的先后。撤回、禁言、戳一戳在平台上留下后果，`avatar` 在平台上取东西、写进这个会话的工作区，都是在场所里做的事
@@ -152,17 +153,17 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: FETCH_MEDIA,
         access: Access::Venue,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: AVATAR,
         access: Access::Venue,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: MEMBERS,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: MENTION,
@@ -172,7 +173,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: NOTICES,
         access: Access::Read,
-        venues: &["group"],
+        venues: EVERYWHERE,
     },
     Decl {
         name: SET_CARD,
@@ -192,7 +193,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: CONTACTS,
         access: Access::Read,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: GROUP_FILES,
@@ -217,7 +218,7 @@ const TOOLS: [Decl; 22] = [
     Decl {
         name: CHAT_HISTORY,
         access: Access::Read,
-        venues: VENUES,
+        venues: EVERYWHERE,
     },
     Decl {
         name: GLANCE,
@@ -232,7 +233,7 @@ const TOOLS: [Decl; 22] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 65] = [
+const ANSWERS: [(&str, &[&str]); 71] = [
     ("uploading", &["name", "size"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
@@ -295,6 +296,13 @@ const ANSWERS: [(&str, &[&str]); 65] = [
     ("unreachable", &[]),
     // 施工 I-81 下下：本机的会话里主动发消息，同一个平台连着几个号又没写、写的没连着的，说有哪几个号。
     ("which-bot", &["bots"]),
+    // 终端里用场所工具（设计 13）：结果前头写是哪个场所；没说、说错、那个场所关着、别人叫的想去别的场所。
+    ("chat-in-group", &["group"]),
+    ("chat-in-private", &["user"]),
+    ("chat-needed", &[]),
+    ("chat-bad", &[]),
+    ("chat-off", &[]),
+    ("only-here", &[]),
     // 施工 I-17：参数写错的说哪个、私聊里调到只给群的、群友叫的踢人要确认、不踢群主管理员、一次几个人的头一行。
     ("bad-args", &["detail"]),
     ("group-only", &[]),
@@ -375,6 +383,16 @@ impl ToolSet for QqTools {
 
     fn silence(&self) -> Option<&'static str> {
         Some(SKIP_REPLY)
+    }
+
+    fn reach(&self, tool: &str) -> Reach {
+        // 终端里用（设计 13）：通讯录、头像不找场所；查聊天记录不写是查全部；别的要说是哪个群、哪个私聊。
+        match tool {
+            // 发一句的 `group`、`user` 就是发到哪，自己认（施工 I-40），不当成去别的场所。
+            CONTACTS | AVATAR | CHAT_SEND => Reach::Anywhere,
+            CHAT_HISTORY => Reach::Either,
+            _ => Reach::Chat,
+        }
     }
 
     fn plugin(&self, tool: &str) -> Option<&'static str> {
