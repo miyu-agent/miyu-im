@@ -165,24 +165,28 @@ impl<T> Queue<T> {
     }
 
     /// 下一次该看一遍的时刻（第 8 条）：排着的里最早的过期时刻；会话被禁言着的（`muted` 交回禁言到期的时刻，没禁言着的是空的）
-    /// 禁言到期的时刻也算；每个会话排在最前的那一段还没到最早交的时刻（此刻是 `now`）的，那个时刻也算（到了的不算：门关着时
-    /// 算它会一直醒）。没有排着的是空的：不用醒。
+    /// 禁言到期的时刻也算；每个会话排在最前的那一段还没到最早交的时刻（此刻是 `now`）的，那个时刻也算。已经到了点的，门开着
+    /// （`open` 照排在最前的那一段看）、没有一段在外面的算此刻，马上醒来交（施工 I-225：别的事刚好在到点那一刻进来、重算醒的时刻，
+    /// 原来到了的一律不算，那一段要等到期限作废）；门关着的不算（算了会一直醒），在外面的也不算（回了 [`Queue::answered`] 以后会再
+    /// 看一遍）。没有排着的是空的：不用醒。
     pub(super) fn wake(
         &self,
         now: Timestamp,
         muted: impl Fn(&str) -> Option<Timestamp>,
+        open: impl Fn(&T) -> bool,
     ) -> Option<Timestamp> {
         let deadlines = self
             .lines
             .values()
             .flatten()
             .map(|waiting| deadline(waiting, self.expire));
-        let readies = self
-            .lines
-            .values()
-            .filter_map(|line| line.front())
-            .map(|waiting| waiting.ready)
-            .filter(|ready| *ready > now.unix_millis());
+        let readies = self.lines.iter().filter_map(|(session, line)| {
+            let front = line.front()?;
+            if front.ready > now.unix_millis() {
+                return Some(front.ready);
+            }
+            (!self.out.contains(session) && open(&front.item)).then_some(now.unix_millis())
+        });
         let ends = self
             .lines
             .keys()
