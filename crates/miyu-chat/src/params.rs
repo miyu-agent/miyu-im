@@ -221,6 +221,7 @@ fn blank() -> Params {
             invisible: Vec::new(),
             leak_open: Vec::new(),
             leak_close: Vec::new(),
+            turn_marks: Vec::new(),
             strip_period: false,
             humanlike: false,
             pause: false,

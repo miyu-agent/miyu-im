@@ -19,6 +19,7 @@ mod period;
 mod split;
 mod target;
 
+pub use clean::next_turn;
 pub use human::{Bubble, bubbles};
 pub use split::split;
 pub use target::aimed;
@@ -90,6 +91,9 @@ pub struct Outbound {
     /// 清理：漏进正文的工具调用到哪结束（出厂 `</tool_call>`、`</function>`），和 `leak_open` 一样长（第八条「怎么走」
     /// 第 7 条）。
     pub(crate) leak_close: Vec<String>,
+    /// 清理：模型多吐出来的「下一轮」从哪开始（施工 I-214）。她自己不会写这些：是给模型看的块的开头（`<style-note>`、
+    /// `<another-line>`……）。正文里出现了，从最早的一处起到末尾整段去掉（[`next_turn`]）。可以是空的。
+    pub(crate) turn_marks: Vec<String>,
     /// 去掉一条话末尾的一个 `。`（出厂开，照旧版；施工 O-47）。
     pub(crate) strip_period: bool,
     /// 分多条发送（出厂开；施工 I-26，[`bubbles()`]）。
@@ -172,6 +176,12 @@ pub struct OutChain {
 }
 
 impl Outbound {
+    /// 模型多吐出来的下一轮从哪开始的那份标记（施工 I-214，[`next_turn`]）。
+    #[must_use]
+    pub fn turn_marks(&self) -> &[String] {
+        &self.turn_marks
+    }
+
     /// 去不去掉一条话末尾的一个「。」（施工 O-58 上：接入通讯平台 的后台页照它说卡片里的默认）。
     #[must_use]
     pub fn strip_period(&self) -> bool {
@@ -241,3 +251,5 @@ impl OutChain {
 pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod turn_tests;
