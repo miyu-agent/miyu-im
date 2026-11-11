@@ -215,7 +215,7 @@ fn importing_keeps_the_original_times_and_importing_again_adds_nothing() {
         old_one(Some("qq:40001"), "小明", 1_000),
         old_one(None, "只有名字", 2_000)
     ]);
-    let first = call_one(&state, "import", json!({"entries": entries})).expect("导得进");
+    let first = call_one(&state, "sponsor.import", json!({"entries": entries})).expect("导得进");
     assert_eq!(first, json!({"added": 2, "skipped": 0}));
     let listed = call_one(&state, "list", json!({})).expect("列得出");
     let ats: Vec<&Value> = listed["entries"]
@@ -229,11 +229,11 @@ fn importing_keeps_the_original_times_and_importing_again_adds_nothing() {
         [&json!(2_000), &json!(1_000)],
         "照原来的时刻，不换成此刻"
     );
-    let again = call_one(&state, "import", json!({"entries": entries})).expect("导得进");
+    let again = call_one(&state, "sponsor.import", json!({"entries": entries})).expect("导得进");
     assert_eq!(again, json!({"added": 0, "skipped": 2}), "重导是空操作");
     // 名字改了的、换了顺序的照样认得：有号认号。
     let renamed = json!([old_one(Some("qq:40001"), "改了名字", 1_000)]);
-    let third = call_one(&state, "import", json!({"entries": renamed})).expect("导得进");
+    let third = call_one(&state, "sponsor.import", json!({"entries": renamed})).expect("导得进");
     assert_eq!(third, json!({"added": 0, "skipped": 1}));
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
@@ -247,31 +247,30 @@ fn what_is_exported_imports_back_into_an_empty_book() {
         json!({"platform": "qq", "user": "40001", "amount": 5, "currency": "USD"}),
     )
     .expect("记得上");
-    let exported = call_one(&source, "export", json!({})).expect("导得出");
+    let exported = call_one(&source, "sponsor.export", json!({})).expect("导得出");
     assert_eq!(exported["version"], 1);
     let (other_dir, other) = state("export-target");
-    let imported =
-        call_one(&other, "import", json!({"entries": exported["entries"]})).expect("导得进");
-    assert_eq!(imported, json!({"added": 1, "skipped": 0}));
-    let back = call_one(&other, "export", json!({})).expect("导得出");
-    assert_eq!(back, exported, "搬过去一模一样（编号、汇率、时刻都在）");
-    // 总线上名字 `sponsor` 底下的两个（施工 I-211）是同一件事。
-    let by_name = call_one(&other, "sponsor.export", json!({})).expect("导得出");
-    assert_eq!(by_name, exported);
-    let again = call_one(
+    let imported = call_one(
         &other,
         "sponsor.import",
         json!({"entries": exported["entries"]}),
     )
     .expect("导得进");
-    assert_eq!(again, json!({"added": 0, "skipped": 1}));
-    assert!(
-        register()["methods"]
+    assert_eq!(imported, json!({"added": 1, "skipped": 0}));
+    let back = call_one(&other, "sponsor.export", json!({})).expect("导得出");
+    assert_eq!(back, exported, "搬过去一模一样（编号、汇率、时刻都在）");
+    // 登记的是总线上名字 `sponsor` 底下的全名，不带前缀的不认（施工 I-215）。
+    let names = register();
+    let named = |name: &str| {
+        names["methods"]
             .as_array()
             .expect("是数组")
             .iter()
-            .any(|one| one["name"] == "sponsor.import")
-    );
+            .any(|one| one["name"] == name)
+    };
+    assert!(named("sponsor.import") && named("sponsor.export"));
+    assert!(!named("import") && !named("export"));
+    assert!(call_one(&other, "export", json!({})).is_err(), "老名字不认");
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
     std::fs::remove_dir_all(other_dir).expect("删得掉临时目录");
 }
@@ -282,7 +281,8 @@ fn one_wrong_entry_imports_nothing() {
     let mut bad = old_one(Some("qq:40001"), "小明", 0);
     bad["at"] = json!(0);
     let entries = json!([old_one(Some("qq:40002"), "对的", 1_000), bad]);
-    let refused = call_one(&state, "import", json!({"entries": entries})).expect_err("不收");
+    let refused =
+        call_one(&state, "sponsor.import", json!({"entries": entries})).expect_err("不收");
     assert_eq!(refused["code"], -32602);
     assert_eq!(
         refused["message"],

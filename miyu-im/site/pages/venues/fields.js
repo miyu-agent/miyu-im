@@ -119,11 +119,12 @@ export const FIELDS = {
     // 去掉末尾句号、一条分多条发送、打字速度（施工 I-49，项目主人 10-27：每张卡片单独设，原来在设置页「通用」里管所有会话；施工 I-165 起
     // 句号在「说话方式」、分条和速度在「怎么发」）。
     { key: 'rules.outbound.strip_period', control: 'switch', label: 'field/strip-period', hint: 'field/strip-period-hint' },
-    // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。
+    // 智能引用、智能艾特、贴表情（施工 I-7 中三下二）。贴表情要平台给了能贴的表情（`needs`）。施工 I-216 起引用了就一起艾特，
+    // 「隔多久才艾特」只在智能引用关着时有用，开着的藏起来。
     { key: 'rules.outbound.quote', control: 'switch', label: 'field/quote', hint: 'field/quote-hint' },
     { key: 'rules.outbound.quote_after', control: 'number', label: 'field/quote-after', unit: 'unit/messages', advanced: true, min: 0, max: 1000, dep: { key: 'rules.outbound.quote', on: true } },
     { key: 'rules.outbound.mention', control: 'switch', label: 'field/mention', hint: 'field/mention-hint', kinds: GROUPS },
-    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400, dep: { key: 'rules.outbound.mention', on: true } },
+    { key: 'rules.outbound.mention_after', control: 'seconds', label: 'field/mention-after', kinds: GROUPS, advanced: true, min: 1, max: 86400, dep: [{ key: 'rules.outbound.mention', on: true }, { key: 'rules.outbound.quote', on: false }] },
     { key: 'rules.reaction', control: 'reaction', label: 'field/reaction', hint: 'field/reaction-hint', kinds: GROUPS, needs: 'reactions' },
     { group: 'field/sending' },
     { key: 'rules.outbound.humanlike', control: 'switch', label: 'field/humanlike', hint: 'field/humanlike-hint' },

@@ -83,7 +83,7 @@ async fn a_sticker_she_sends_reaches_the_group_before_the_words_after_it() {
         .iter()
         .filter_map(|segment| segment["data"]["text"].as_str())
         .collect();
-    assert_eq!(text, "看这个", "{words:?}");
+    assert_eq!(text.trim(), "看这个", "{words:?}");
     let events = until_events(&home.root, &format!("qq:30003:group:{GROUP}"), |events| {
         of_kind(events, "venue.delivered").len() == 2
     })

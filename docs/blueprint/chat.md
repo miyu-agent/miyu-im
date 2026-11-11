@@ -430,7 +430,7 @@ Rust 这一边：
    - 图：哈希在 `Sent.images` 里的去掉；同一条里重复的只留一张。图都去掉了、正文也没了：`Drop(Repeated)`。
 4. **引用和 @**（`Target` 交进来的是「本来想要」，这里决定这一条实际带不带）：
    - 引用：本来要引用，并且（群里最后一条是她自己的，或者 `others` 不少于 `quote_after`）。`quote_after` 是 0 时后一样恒成立，不另写一条。`others` 是她回的那一条以后隔了几条：别人的话（发它的人自己补的不算），加上她回别的话发出去的（施工 I-162）。
-   - @：本来要 @，并且 `elapsed` 不少于 `mention_after`，并且这一条引用了（施工 I-137：@ 跟着引用走，不单独 @）；智能引用关着的照原来，`others` 大于 0。
+   - @：本来要 @，并且这一条引用了（施工 I-137：@ 跟着引用走，不单独 @；施工 I-216 起引用了就 @，不再要 `elapsed` 不少于 `mention_after`：线上她几秒就回，一天 330 次回话只有 4% 带了 @，项目主人 11-11 定去掉）；智能引用关着的照原来，`others` 大于 0 并且 `elapsed` 不少于 `mention_after`。
    - 私聊不带引用和 @（外面交进来的 `Target` 两样都是假）。
 5. **Markdown 转纯文本**：施工 O-47 去掉，过了链的正文原样交给按段拆开。
 6. **按段拆开**（`max_chars` 按字符数，不是字节，中文不会被切到半个字）：
@@ -651,7 +651,7 @@ restraint_half_life = "3m"
 | `judge.retries` | 整数 0 到 10 | 1 | `Judge::retries` |
 | `judge.reason_chars` | 整数 0 到 100000 | 500 | `Judge::reason_chars`：交给第六条的 `read` |
 | `outbound.quote_after` | 整数 0 到 1000 | 2（I-137 以前 4） | `Outbound::quote_after` |
-| `outbound.mention_after` | 时长 1 秒到 1 天 | `20s`（I-137 以前 `15s`） | `Outbound::mention_after` |
+| `outbound.mention_after` | 时长 1 秒到 1 天 | `20s`（I-137 以前 `15s`） | `Outbound::mention_after`：智能引用关着时隔多久才 @（I-216 起开着的不看它） |
 | `outbound.min_bigrams` | 整数 1 到 10000 | 16 | `Outbound::min_bigrams` |
 | `outbound.similar` | 整数 1 到 100，百分比 | 66 | `Outbound::similar` |
 | `outbound.strip_period` | 开关 | `true` | `Outbound::strip_period`：第五条第 8 条，去掉末尾的一个 `。`（施工 O-47） |
