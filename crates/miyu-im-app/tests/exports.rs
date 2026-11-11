@@ -70,6 +70,32 @@ async fn registered(head: &mut Head) {
 }
 
 #[tokio::test]
+async fn the_bus_finds_im_by_the_name_chat() {
+    // 施工 I-211（核心设计 67）：im 在总线上提供名字 `chat`，别的包、头照名字调，不写 im 的包编号。
+    let (home, _listen) = up(&Value::Null).await;
+    let mut head = Head::connect(&home.root).await;
+    registered(&mut head).await;
+    let listed = head.call("bus.list", json!({"name": "chat"})).await;
+    let names = listed["result"]["names"].as_array().expect("有名字");
+    assert_eq!(names.len(), 1, "{listed}");
+    let one = &names[0];
+    assert_eq!(
+        (&one["name"], &one["kind"], &one["package"], &one["ready"]),
+        (
+            &json!("chat"),
+            &json!("provides"),
+            &json!("miyu-im"),
+            &json!(true)
+        ),
+        "{listed}"
+    );
+    // 照名字调的和照包编号调的是同一件事：短名一段，核心拼成 `chat.venue`。
+    let asked = json!({"name": "chat", "method": "venue", "params": {"session": "nope"}});
+    let reply = head.call("bus.call", asked).await;
+    assert_eq!(reply["result"], json!({"venue": null}), "{reply}");
+}
+
+#[tokio::test]
 async fn actions_go_to_napcat_and_come_back_as_napcat_said() {
     let (home, listen) = up(&Value::Null).await;
     let mut head = Head::connect(&home.root).await;

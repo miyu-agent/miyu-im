@@ -29,9 +29,20 @@ use crate::wire::Answer;
 
 mod transfer;
 
-/// 登记的方法。
-pub const NAMES: [&str; 9] = [
-    "totals", "list", "ranking", "add", "update", "delete", "rate", "import", "export",
+/// 登记的方法。最后两个是总线上名字 `sponsor` 底下的（施工 I-211，清单 `[export]` 里写的就是它们），和不带前缀的那两个是
+/// 同一件事。
+pub const NAMES: [&str; 11] = [
+    "totals",
+    "list",
+    "ranking",
+    "add",
+    "update",
+    "delete",
+    "rate",
+    "import",
+    "export",
+    "sponsor.import",
+    "sponsor.export",
 ];
 
 /// 名字、号最多几个字。
@@ -118,8 +129,8 @@ pub fn call(state: &State, request: &Value, (now, zone): (i64, &TimeZone)) -> An
             let (rate, _) = frozen(state.rates.as_ref(), 1.0, &currency, &base);
             Ok(json!({"base": base, "rate": rate}))
         }
-        "import" => transfer::import(state, params),
-        "export" => transfer::export(state),
+        "import" | "sponsor.import" => transfer::import(state, params),
+        "export" | "sponsor.export" => transfer::export(state),
         _ => Err(crate::wire::unknown_method()),
     }
 }

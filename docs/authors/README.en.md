@@ -91,7 +91,7 @@ Groups have many people and many strangers. A tool that changes anything must ch
 
 ### 7. Working with the QQ bridge
 
-Your extension can call the bridge, and the bridge can call you. Both go through the core's `package.call` (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)). The manifest must declare `packages.call` and a person must approve it.
+Your extension can call the bridge, and the bridge can call you. You call it by its bus name `chat`: `bus.call {"name": "chat", "method": "venue", "params"}` (`method` is the part after `chat.`; never its package id). It calls you through the core's `package.call` for now (core author guide, ["Writing an extension": more abilities](https://github.com/miyu-agent/miyu/blob/main/docs/authors/extensions.en.md#more-abilities)). The manifest must declare `packages.call` and a person must approve it.
 
 **You call the bridge** (details in [`extending.md` section 1](../blueprint/extending.md)):
 

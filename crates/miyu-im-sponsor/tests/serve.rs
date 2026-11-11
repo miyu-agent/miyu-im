@@ -1,5 +1,5 @@
 //! 赞助记录的程序（施工 S-1 上b）：测试扮核心，经管道拉起真的 `miyu-im-sponsor serve`，照协议握手、收 `provide`、发 `tool.call`、
-//! 答它回头问 im 的 `package.call`；汇率照本机的假服务（`MIYU_SPONSOR_RATES_URL`）。管理员叫的那一轮记上美元、换成人民币；
+//! 答它回头照总线问的 `bus.call`；汇率照本机的假服务（`MIYU_SPONSOR_RATES_URL`）。管理员叫的那一轮记上美元、换成人民币；
 //! 普通成员叫的记不上；后台页经 `method.call` 查得到合计（施工 S-1 下）；关了标准输入程序照常退出，账本落了盘。
 
 use std::io::{BufRead, BufReader, Read, Write};
@@ -106,10 +106,10 @@ impl Sponsor {
             "quote": {"msg": "5", "sender": {"id": "qq:40001", "name": "小明"}},
             "mentions": [],
         }});
-        let asked = self.answers("package.call", &venue);
+        let asked = self.answers("bus.call", &venue);
         assert_eq!(
             asked["params"],
-            json!({"package": "miyu-im", "method": "chat.venue", "params": {"session": "s1"}})
+            json!({"name": "chat", "method": "venue", "params": {"session": "s1"}})
         );
         let answer = self.next();
         assert_eq!(answer["id"], id, "{answer}");
