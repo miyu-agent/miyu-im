@@ -319,6 +319,7 @@
 | I-209 | 查用量的工具里不到 1 的金额多留两位（`0.004 USD`，原来写成 `0.00`）；施工单 `I-209-小额金额多留两位.md` | 见 `git log --grep I-209` |
 | I-210 | 测试挑的空端口偶发被别的测试占走（CI 上 `page port not opened … Address already in use`）：从系统自己挑不到的一段里发；施工单 `I-210-测试端口偶发被占.md` | 见 `git log --grep I-210` |
 | I-211 | 总线（核心设计 67，BUS-4）第一步：im 声明 `provides = ["chat"]`；赞助记录照名字调 `chat.venue`（`bus.call`），自己声明 `provides = ["sponsor"]`、导出 `sponsor.import`、`sponsor.export`；施工单 `I-211-总线第一步.md` | 见 `git log --grep I-211` |
+| I-213 | 总线第三步：长文转图照总线上的名字 `render` 调（`bus.call`，方法 `markdown`），不写渲染包的编号；施工单 `I-213-调渲染走总线.md` | 见 `git log --grep I-213` |
 | I-212 | 总线第二步：插件挂接改成接进总线上的名字 `chat.hook`（方法 `chat.hook.event`、`inbound`、`outbound`、`score`），im 订阅 `bus` 流找、经 `bus.call` 调；施工单 `I-212-挂接走总线.md` | 见 `git log --grep I-212` |
 | I-171 | 会话卡片关了回复，管理员叫她也只记下（原来管理员在哪都豁免，项目主人 11-06 定关了谁都不回）；命令照旧；施工单 `I-171-关了回复管理员也不回.md` | 见 `git log --grep I-171` |
 | S-1 上a | 叫她的那一条交给插件（设计 03 2026-10-24 补定）：`chat.venue` 多 `origin`（谁发的、引用了谁、@ 了谁，带号和名字），赞助记录插件照它认「记谁」；设计 03 补定认赞助人、场所开关（核心 O-60「不开就不出现」）、认管理员；施工单 `S-1上a-叫她的那一条交给插件.md` | 见 `git log --grep S-1` |
