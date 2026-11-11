@@ -117,25 +117,34 @@ fn sessions_wait_apart() {
 
 #[test]
 fn it_wakes_at_the_first_deadline_or_the_end_of_a_mute() {
+    // 门都关着（到了点的不算，施工 I-225）：只看过期、禁言到期。
     let empty: Queue<&str> = Queue::new(EXPIRE);
-    assert_eq!(empty.wake(at(0), |_| Some(at(5))), None, "没排着的不醒");
+    assert_eq!(
+        empty.wake(at(0), |_| Some(at(5)), |_| true),
+        None,
+        "没排着的不醒"
+    );
     let mut queue = Queue::new(EXPIRE);
     queue.push("甲", (at(10_000), Duration::ZERO, true), "一");
     queue.push("甲", (at(20_000), Duration::ZERO, true), "二");
     queue.push("乙", (at(15_000), Duration::ZERO, true), "三");
     assert_eq!(
-        queue.wake(at(20_000), |_| None),
+        queue.wake(at(20_000), |_| None, |_| false),
         Some(at(70_000)),
         "最早的过期"
     );
     let muted = |session: &str| (session == "乙").then(|| at(30_000));
     assert_eq!(
-        queue.wake(at(20_000), muted),
+        queue.wake(at(20_000), muted, |_| false),
         Some(at(30_000)),
         "禁言先到期"
     );
     let later = |_: &str| Some(at(90_000));
-    assert_eq!(queue.wake(at(20_000), later), Some(at(70_000)), "过期先到");
+    assert_eq!(
+        queue.wake(at(20_000), later, |_| false),
+        Some(at(70_000)),
+        "过期先到"
+    );
 }
 
 #[test]
@@ -151,7 +160,7 @@ fn a_paused_piece_waits_and_holds_the_ones_behind() {
         "第二段没到点"
     );
     assert_eq!(
-        queue.wake(at(1000), |_| None),
+        queue.wake(at(1000), |_| None, |_| true),
         Some(at(5000)),
         "醒在第二段到点"
     );
@@ -225,7 +234,11 @@ fn unordered_pieces_go_at_once_without_waiting() {
         ["一", "二", "三"],
         "不等前一段回、不停顿"
     );
-    assert_eq!(queue.wake(at(0), |_| None), None, "都交了，不用醒");
+    assert_eq!(
+        queue.wake(at(0), |_| None, |_| true),
+        None,
+        "都交了，不用醒"
+    );
     // 门关着的照旧留着，过了期照旧作废。
     queue.push("t", (at(0), Duration::ZERO, false), "甲");
     assert!(queue.take("t", at(0), false).ready.is_empty());
@@ -270,7 +283,7 @@ fn a_shut_door_does_not_wake_for_pieces_already_due() {
     let mut queue = Queue::new(EXPIRE);
     queue.push("s", (at(0), Duration::from_secs(5), true), "一");
     assert_eq!(
-        queue.wake(at(6000), |_| None),
+        queue.wake(at(6000), |_| None, |_| false),
         Some(at(60_000)),
         "到了点的不算，只等过期"
     );
@@ -329,5 +342,33 @@ fn a_reply_ends_as_sent_or_failed_and_why() {
         (REJECTED, TIMEOUT, DISCONNECTED, EXPIRED),
         ("rejected", "timeout", "disconnected", "expired"),
         "写进 `failed` 的 `why`"
+    );
+}
+
+#[test]
+fn a_piece_that_came_due_while_the_door_is_open_wakes_at_once() {
+    // 施工 I-225：别的事刚好在到点的那一刻进来、重算醒的时刻时，到了点的那一段原来不算，要等到期限作废（queue_waits 偶发的红）。
+    let mut queue = Queue::new(EXPIRE);
+    queue.push("s", (at(0), Duration::ZERO, true), "一");
+    queue.push("s", (at(0), Duration::from_secs(5), true), "二");
+    assert_eq!(queue.take("s", at(0), true).ready, ["一"]);
+    queue.answered("s");
+    assert_eq!(
+        queue.wake(at(5001), |_| None, |_| true),
+        Some(at(5001)),
+        "到了点、门开着：马上醒"
+    );
+    assert_eq!(
+        queue.wake(at(5001), |_| None, |_| false),
+        Some(at(60_000)),
+        "门关着的不算：醒在期限"
+    );
+    // 有一段在外面的不算：回了会再看一遍。
+    queue.push("s", (at(5001), Duration::ZERO, true), "三");
+    assert_eq!(queue.take("s", at(5001), true).ready, ["二"]);
+    assert_eq!(
+        queue.wake(at(5002), |_| None, |_| true),
+        Some(at(65_001)),
+        "第二段在外面：醒在第三段的期限"
     );
 }
