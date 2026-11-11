@@ -1,54 +1,54 @@
-//! 挂接点记谁挂在哪（施工 O-43 上）：在跑、导出了桥认的名字的才算；不在跑的、缺了依赖的、没导出的、导出别的名字的不算；照编号排。
+//! 挂接点记谁挂在哪（施工 O-43 上；I-212 起照总线上的名字）：接进 `chat.hook`、登记了桥认的方法的才算；没登记的（没在跑）、别的
+//! 名字的不算；照编号排。
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::*;
 
+/// 总线上的一行：包 `package` 接进名字 `name`（哪一种 `kind`），登记了 `methods`。
+fn row(name: &str, kind: &str, package: &str, methods: &[&str]) -> Value {
+    json!({"name": name, "kind": kind, "package": package, "ready": true, "methods": methods})
+}
+
 #[test]
-fn only_running_packages_exporting_a_known_point_are_hooked() {
-    let packages = json!([
-        {"package": "zeta", "status": "running", "export": {"methods": ["chat.event", "other"]}},
-        {"package": "alpha", "status": "running", "export": {"methods": ["chat.event"]}},
-        {"package": "stopped", "status": "stopped", "export": {"methods": ["chat.event"]}},
-        {"package": "missing", "status": "depends_missing", "export": {"methods": ["chat.event"]}},
-        {"package": "plain", "status": "running"},
-        {"package": "elsewhere", "status": "running", "export": {"methods": ["chat.action"]}},
-        {"status": "running", "export": {"methods": ["chat.event"]}},
+fn only_packages_plugged_into_chat_hook_with_a_known_point_registered_are_hooked() {
+    let names = json!([
+        row("chat.hook", "plugs", "zeta", &["event", "other"]),
+        row("chat.hook", "plugs", "alpha", &["event", "inbound"]),
+        // 程序没在跑：没有登记着的方法。
+        row("chat.hook", "plugs", "stopped", &[]),
+        // 别的名字、im 自己提供的 `chat`：不是挂接。
+        row("chat", "provides", "miyu-im", &["event", "venue"]),
+        row("tts.engine", "plugs", "elsewhere", &["event"]),
+        // 写的是全名、不是短名的不认。
+        row("chat.hook", "plugs", "long", &["chat.hook.event"]),
+        {"name": "chat.hook", "kind": "plugs", "ready": true, "methods": ["event"]},
+        // 老核心的行没有 `methods`：不算挂上。
+        {"name": "chat.hook", "kind": "plugs", "package": "old", "ready": true},
     ]);
-    let hooked = table(&packages);
+    let hooked = table(&names);
     assert_eq!(hooked_at(&hooked, EVENT), ["alpha", "zeta"]);
+    assert_eq!(hooked_at(&hooked, INBOUND), ["alpha"]);
     assert_eq!(hooked_at(&hooked, "chat.action"), Vec::<String>::new());
     assert_eq!(hooked.len(), 2);
     assert_eq!(points(&json!(null)), Vec::<&str>::new());
     assert_eq!(
-        points(&json!({"status": "running", "export": {"methods": "chat.event"}})),
+        points(&json!({"name": "chat.hook", "kind": "plugs", "methods": "event"})),
         Vec::<&str>::new()
     );
 }
 
 #[test]
-fn a_pushed_entry_hooks_or_unhooks_that_package_only() {
-    let mut hooked = table(&json!([
-        {"package": "alpha", "status": "running", "export": {"methods": ["chat.event"]}},
-        {"package": "beta", "status": "running", "export": {"methods": ["chat.event"]}},
-    ]));
-    let running = json!({"status": "running", "export": {"methods": ["chat.event"]}});
-    change(&mut hooked, "gamma", &running);
-    assert_eq!(hooked_at(&hooked, EVENT), ["alpha", "beta", "gamma"]);
-    change(
-        &mut hooked,
-        "alpha",
-        &json!({"status": "stopped", "export": {"methods": ["chat.event"]}}),
+fn a_hook_is_asked_by_its_short_name_under_chat_hook_naming_the_package() {
+    // `plugs` 的名字要写挑哪一家；方法写短名，核心拼成 `chat.hook.inbound`。
+    assert_eq!(
+        asking("memes", INBOUND, json!({"text": "hi"})),
+        json!({"name": "chat.hook", "package": "memes", "method": "inbound", "params": {"text": "hi"}})
     );
-    change(&mut hooked, "gamma", &json!(null));
-    assert_eq!(hooked_at(&hooked, EVENT), ["beta"]);
-    change(
-        &mut hooked,
-        "beta",
-        &json!({"status": "running", "export": {"methods": []}}),
-    );
-    assert_eq!(hooked_at(&hooked, EVENT), Vec::<String>::new());
-    assert!(hooked.is_empty());
+    for point in POINTS {
+        assert_eq!(format!("chat.hook.{}", short(point)), point);
+        assert!(!short(point).contains('.'), "{point}");
+    }
 }
 
 #[test]

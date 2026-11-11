@@ -10,7 +10,7 @@
 //!   `chat.home`），`panel = true` 在会话浮窗加一页（`chat.panel`），`[[plugin.ui.pages]]` 一个整页一段：`id`（小写字母开头，小写
 //!   字母、数字、`-`，最多 32 个，不重）、`title`（照语言写）、`method`（交内容的方法，写法同核心登记的方法名）；最多 [`PAGES`] 个。
 //!
-//! 写错的、认不出的键、认不出的能力整份不收。「挂在哪几处」照核心清单的 `[export] methods`，这里不另写。
+//! 写错的、认不出的键、认不出的能力整份不收。「挂在哪几处」照核心清单的 `[export]`（`plugs = ["chat.hook"]` 和名字底下的方法，施工 I-212），这里不另写。
 
 use std::collections::BTreeMap;
 

@@ -1,5 +1,5 @@
 //! 进站挂接点（施工 O-43 中，`onebot.md` 第一条「挂接点」第 3 条，`extending.md` 第二条）：真核心照开关拉起真桥，管理员家目录里
-//! 另装导出 `chat.inbound` 的测试包。
+//! 另装导出 `chat.hook.inbound` 的测试包。
 //!
 //! - 回 `record`：别人 @ 她只记下，判断写 `hook`；终端管理员 @ 她照回、不写 `hook`。问的是这一条的场所、号、发的人、正文。
 //! - 回 `reply`：别人随口说的（不 @）也直接回，不问判官；两个包一个 `record` 一个 `reply` 照 `record`。
@@ -54,10 +54,10 @@ fn log_of(root: &DataRoot, id: &str) -> std::path::PathBuf {
 fn hook(root: &DataRoot, id: &str, answer: &str) {
     let record = format!("record:{}", log_of(root, id).display());
     let how = match answer {
-        "slow" => "slow:chat.inbound".to_string(),
-        answer => format!("answer:chat.inbound:{answer}"),
+        "slow" => "slow:chat.hook.inbound".to_string(),
+        answer => format!("answer:chat.hook.inbound:{answer}"),
     };
-    install(root, id, &[record, how], &["chat.inbound"]);
+    install(root, id, &[record, how], &["chat.hook.inbound"]);
 }
 
 /// 测试包 `id` 记下的调用。
@@ -90,7 +90,7 @@ async fn record_holds_her_back_except_for_the_admin() {
         "{held}"
     );
     let asked = &calls(&home.root, "guard")[0];
-    assert_eq!(asked["method"], "chat.inbound");
+    assert_eq!(asked["method"], "chat.hook.inbound");
     assert_eq!(asked["from"], "miyu-im");
     assert_eq!(
         asked["params"],

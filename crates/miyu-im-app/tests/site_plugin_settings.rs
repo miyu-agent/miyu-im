@@ -9,7 +9,7 @@ use miyu_store::root::DataRoot;
 use crate::support::browser::{call, logged_in};
 use crate::support::group::*;
 use crate::support::head::Head;
-use crate::support::hooked::{install, until_hooked};
+use crate::support::hooked::{install, until_plugged};
 use crate::support::*;
 
 /// 假 NapCat 认得的群成员：她自己。
@@ -46,7 +46,7 @@ description = { en = "The token." }
 fn dice(root: &DataRoot) {
     let roll = r#"answer:dice.roll:{"rolled":4}"#.to_string();
     let record = format!("record:{}", root.path().join("dice.calls").display());
-    install(root, "dice", &[record, roll], &["chat.inbound"]);
+    install(root, "dice", &[record, roll], &["chat.hook.inbound"]);
     let manifest = root.packages().join("dice/package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     std::fs::write(&manifest, format!("{text}{SETTINGS}")).expect("写得进");
@@ -65,7 +65,8 @@ async fn a_plugin_s_own_settings_and_methods_are_reached_from_the_page() {
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
     // 桥读到骰子插件以前问的回 `bad_params`（不是 im 插件）：先等它读到（Windows 跑得慢时撞上过）。
-    until_hooked(&home, 1).await;
+    // 它只在清单里写了挂接、程序没登记那个方法：照总线上登记着的认（施工 I-212）不算挂上，这里只等读到插件。
+    until_plugged(&home, 0, 1).await;
 
     let got = call(
         &mut open,

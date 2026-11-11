@@ -144,7 +144,7 @@ pub struct Gate {
     tell: Arc<dyn Fn(Notice) + Send + Sync>,
     /// 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（施工 O-18）。
     changed: Arc<Changed>,
-    /// 挂接点（施工 O-43 上）：平台的通知、请求原样交给挂在 `chat.event` 的包。
+    /// 挂接点（施工 O-43 上）：平台的通知、请求原样交给挂在 `chat.hook.event` 的包。
     hooks: Arc<Hooks>,
     /// 驱动自己的状态目录（施工 Q-3，同 `toolset::Call::store`）。
     store: PathBuf,
@@ -223,7 +223,7 @@ impl Gate {
         self.changed.notify();
     }
 
-    /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：
+    /// 机器人号 `bot` 收到的一件平台事件 `event` 原样交给挂在 `chat.hook.event` 的包，不等；`to` 是驱动认出的场所（施工 I-8 上：
     /// 只问在那个场所开着的插件），认不出的是空的。带上这个驱动的平台（施工 I-70 上）。
     pub fn event(&self, bot: Id, to: Option<To>, event: &Value) {
         self.hooks.event(self.platform, bot, to, event);

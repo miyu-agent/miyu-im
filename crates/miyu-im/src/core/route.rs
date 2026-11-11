@@ -259,7 +259,7 @@ pub(crate) struct Route {
     forwarding: Forwarding,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
-    /// 挂接点（施工 O-43 上，`packages`）：起来时订阅软件包列表，推来的照换。
+    /// 挂接点（施工 O-43 上，`packages`）：起来时订阅总线上的名字，推来的照换。
     hooks: Arc<Hooks>,
     /// 问过进站挂接点、照先后等着判的（施工 O-43 中，`steering`）。
     steering: FuturesOrdered<JoinHandle<Steering>>,

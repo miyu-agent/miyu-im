@@ -1,6 +1,6 @@
 ## 给接入通讯平台 写扩展包
 
-状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `chat.event`，O-43 中写了 `chat.inbound`，O-43 下写了 `chat.outbound`，O-43 末写了 `chat.score`，O-52 `chat.inbound` 多带 `media`，O-56 多 `chat.send`。项目主人 2026-10-17 定：接入通讯平台 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-im-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
+状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `chat.hook.event`，O-43 中写了 `chat.hook.inbound`，O-43 下写了 `chat.hook.outbound`，O-43 末写了 `chat.hook.score`，O-52 `chat.hook.inbound` 多带 `media`，O-56 多 `chat.send`。项目主人 2026-10-17 定：接入通讯平台 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-im-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
 
 ### 是什么
 
@@ -49,7 +49,7 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 
 ### 二、插进接入通讯平台 里面
 
-导出约定名字的方法，接入通讯平台 在那一处经核心调你（施工 O-43）。不用另外登记：接入通讯平台 照核心的软件包列表找，你的包装上、跑起来就挂上，停了、卸了就没了。几个包挂在同一处的照包的编号排先后。
+接进总线上的名字 `chat.hook`（核心设计 67，施工 I-212），登记名字底下约定的方法，接入通讯平台 在那一处经核心的 `bus.call` 调你（施工 O-43）。不用另外登记：接入通讯平台 照核心的总线找（`bus` 流），你的包装上、跑起来、登记了方法就挂上，停了、卸了就没了。几个包挂在同一处的照包的编号排先后。
 
 **清单**：
 
@@ -58,14 +58,15 @@ capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批�
 packages = ["im"]              # 没装接入通讯平台 的装不上（核心 F-11）
 
 [export]
-methods = ["chat.event"]             # 挂在哪几处
+plugs = ["chat.hook"]                     # 接进接入通讯平台 的挂接（可以多家并存）
+methods = ["chat.hook.event"]             # 挂在哪几处：名字底下的全名
 ```
 
-经 `package.methods` 登记同样的名字，核心转来的 `method.call` 带 `from: "im"`。
+经 `package.methods` 登记同样的名字（全名 `chat.hook.event`），核心转来的 `method.call` 的 `method` 也是全名，带 `from`（接入通讯平台 的包编号）。施工 I-212 以前的名字是 `chat.event`、`chat.inbound`、`chat.outbound`、`chat.score`，不声明 `plugs`；老名字不再认。
 
-**`chat.event`**（QQ 事件，施工 O-43 上）：NapCat 推来的每一件通知、请求（OneBot 的 `post_type` 是 `notice`、`request` 的，进群、退群、戳一戳、撤回、好友请求……）原样交给你：`{"platform": "qq", "bot": <机器人号>, "event": <OneBot 事件原样>}`。每件各自交、核心也各自转，先后不保证，要排先后的看事件里的 `time`。接入通讯平台 不等你的回答、不看它，回 `{}` 就行；它自己该办的照办（撤回记进会话、好友请求照白名单……）。要让 QQ 做事的，调第一条的 `chat.action`。
+**`chat.hook.event`**（QQ 事件，施工 O-43 上）：NapCat 推来的每一件通知、请求（OneBot 的 `post_type` 是 `notice`、`request` 的，进群、退群、戳一戳、撤回、好友请求……）原样交给你：`{"platform": "qq", "bot": <机器人号>, "event": <OneBot 事件原样>}`。每件各自交、核心也各自转，先后不保证，要排先后的看事件里的 `time`。接入通讯平台 不等你的回答、不看它，回 `{}` 就行；它自己该办的照办（撤回记进会话、好友请求照白名单……）。要让 QQ 做事的，调第一条的 `chat.action`。
 
-**`chat.inbound`**（进站，施工 O-43 中）：群里一条人说的话记下以后、接入通讯平台 判回不回以前问你：
+**`chat.hook.inbound`**（进站，施工 O-43 中）：群里一条人说的话记下以后、接入通讯平台 判回不回以前问你：
 
 ```json
 {"venue": "qq:group:<群号>", "bot": <机器人号>, "msg": "<平台的消息编号>", "sender": {"id": "qq:<号>", "name": "<名字>"},
@@ -83,14 +84,14 @@ methods = ["chat.event"]             # 挂在哪几处
 - 只问群消息，私聊不问。
 - 要让 QQ 做事（踢人、撤回……）的，回答以外另调第一条的 `chat.action`。
 
-**`chat.outbound`**（出站，施工 O-43 下）：AI 的一段话（群里、私聊）发出去以前问你：`{"platform", "venue", "bot", "text": "<这一段>"}`。回 `{"text": "<换成的>"}` 换掉它，`{"drop": true}` 不发，`{}` 照原样。
+**`chat.hook.outbound`**（出站，施工 O-43 下）：AI 的一段话（群里、私聊）发出去以前问你：`{"platform", "venue", "bot", "text": "<这一段>"}`。回 `{"text": "<换成的>"}` 换掉它，`{"drop": true}` 不发，`{}` 照原样。
 
 - 几个包挂在这里的照编号一个接一个：前一个换过的交给后一个；有一个说不发就不再问后面的。
 - 最多等 1.5 秒；等不到、出错、写法不对的照原样发。等你的时候她后面的话排着，答得快些。
 - 换过的照样过接入通讯平台 的出站链（清理 Markdown、去重、拆段）。不发的 AI 不知道：它以为自己说了。
 - 命令回执、限流提示这类不是 AI 说的话，不问你。
 
-**`chat.score`**（判断打分，施工 O-43 末）：群里一条消息要 AI 的判官打分时，判官答了以后问你：
+**`chat.hook.score`**（判断打分，施工 O-43 末）：群里一条消息要 AI 的判官打分时，判官答了以后问你：
 
 ```json
 {"venue": "qq:group:<群号>", "msg": "<平台的消息编号>", "conditions": [{"kind": "direct", "bonus": 0.3}],

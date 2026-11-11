@@ -27,10 +27,10 @@ fn plugins(root: &DataRoot) {
         r#"answer:chat.panel:[{"type":"form","id":"f","fields":[{"key":"on","label":"On","control":"toggle","value":true}],"submit":{"label":"Save","call":"dice.save"}}]"#.to_string(),
         r#"answer:dice.stats:[{"type":"heading","text":{"en":"Stats","zh":"统计"}},{"type":"buttons","items":[{"label":"Again","action":{"open":"stats"}}]}]"#.to_string(),
     ];
-    install(root, "dice", &answers, &["chat.inbound"]);
+    install(root, "dice", &answers, &["chat.hook.inbound"]);
     std::fs::write(root.packages().join("dice/im/plugin.toml"), DECLARED).expect("写得进");
     let sloppy = r#"answer:sloppy.page:[{"type":"nope"}]"#.to_string();
-    install(root, "sloppy", &[sloppy], &["chat.inbound"]);
+    install(root, "sloppy", &[sloppy], &["chat.hook.inbound"]);
     let declared = "[plugin]\nname = { en = \"Sloppy\" }\n[[plugin.ui.pages]]\nid = \"p\"\ntitle = { en = \"P\" }\nmethod = \"sloppy.page\"\n";
     std::fs::write(root.packages().join("sloppy/im/plugin.toml"), declared).expect("写得进");
 }
@@ -53,7 +53,7 @@ async fn plugin_content_is_fetched_checked_and_localized_for_the_page() {
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
 
-    // 桥从软件包列表的订阅里认到插件要一会儿（Windows 上慢过一次，Q-4 补）：认到以前要的回 `bad_params`，等到回了内容。
+    // 桥从总线的订阅里认到插件要一会儿（Windows 上慢过一次，Q-4 补）：认到以前要的回 `bad_params`，等到回了内容。
     let mut asked = 100;
     let card = within("认到插件", async {
         loop {

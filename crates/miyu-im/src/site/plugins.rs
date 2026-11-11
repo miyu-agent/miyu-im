@@ -150,7 +150,7 @@ pub(super) fn builtin(mut plugin: Value, switched: &Value, own: &Value) -> Value
     copy(shown, own, &["version", "author"]);
     shown.insert("enabled".into(), json!(enabled));
     shown.insert("from".into(), json!("builtin"));
-    shown.insert("points".into(), json!(["chat.inbound"]));
+    shown.insert("points".into(), json!(["chat.hook.inbound"]));
     shown.insert(
         "status".into(),
         json!(if enabled { "running" } else { "stopped" }),
