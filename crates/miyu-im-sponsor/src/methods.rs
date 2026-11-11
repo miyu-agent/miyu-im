@@ -10,7 +10,7 @@
 //! - `delete {id}` → `{deleted}`。
 //! - `rate {currency}` → `{base, rate}`：照现在的默认币种查一次（补汇率时页面先问），查不到的 `rate` 是 `null`。
 //! - `export` → `{version, entries}`、`import {entries}` → `{added, skipped}`：备份、搬家、迁移（施工 I-131，[`transfer`]）。这两件
-//!   也写进清单的 `[export]`：别的包经 `package.call` 调（核心拉起的扩展照批过的能力放行，人在终端起的迁移程序算本机的人）；
+//!   也写进清单的 `[export]`（总线上的名字 `sponsor` 底下，施工 I-211、I-215）：别的包经 `bus.call` 调（核心拉起的扩展照批过的能力放行，人在终端起的迁移程序算本机的人）；
 //!   后台页只有主人打得开。
 //!
 //! 参数写错的回 JSON-RPC 的 -32602，`message` 说哪个；没有这一笔的回 `not_found`。
@@ -29,9 +29,9 @@ use crate::wire::Answer;
 
 mod transfer;
 
-/// 登记的方法。最后两个是总线上名字 `sponsor` 底下的（施工 I-211，清单 `[export]` 里写的就是它们），和不带前缀的那两个是
-/// 同一件事。
-pub const NAMES: [&str; 11] = [
+/// 登记的方法。最后两个是总线上名字 `sponsor` 底下的（施工 I-211，清单 `[export]` 里写的就是它们；不带前缀的别名 I-215 删了，
+/// 核心 BUS-5 起不在声明的名字底下的导出方法谁也调不到）。
+pub const NAMES: [&str; 9] = [
     "totals",
     "list",
     "ranking",
@@ -39,8 +39,6 @@ pub const NAMES: [&str; 11] = [
     "update",
     "delete",
     "rate",
-    "import",
-    "export",
     "sponsor.import",
     "sponsor.export",
 ];
@@ -129,8 +127,8 @@ pub fn call(state: &State, request: &Value, (now, zone): (i64, &TimeZone)) -> An
             let (rate, _) = frozen(state.rates.as_ref(), 1.0, &currency, &base);
             Ok(json!({"base": base, "rate": rate}))
         }
-        "import" | "sponsor.import" => transfer::import(state, params),
-        "export" | "sponsor.export" => transfer::export(state),
+        "sponsor.import" => transfer::import(state, params),
+        "sponsor.export" => transfer::export(state),
         _ => Err(crate::wire::unknown_method()),
     }
 }
