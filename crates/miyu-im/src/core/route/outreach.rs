@@ -76,7 +76,7 @@ pub(super) enum Answer {
 }
 
 impl Route {
-    /// 别的包经 `package.call` 调的一次 `chat.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
+    /// 别的包经总线（`bus.call`，名字 `chat`）调的一次 `chat.send`（`pushed` 是 `method.call`）：写错的拒 `bad_params`，别的起一个任务发；
     /// `bot` 写了的照它。平台照 `platform`（施工 I-70 上，`Platforms::ours`）：写了别的平台的、挂了几个平台又没写的拒 `bad_params`。
     ///
     /// # Errors

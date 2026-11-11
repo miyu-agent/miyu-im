@@ -15,7 +15,7 @@
 capabilities = ["packages.call"]   # 调别的包的方法，开的时候人批（核心 X-18）
 ```
 
-经核心的总线照名字调（施工 I-211，核心设计 67）：`bus.call {"name": "chat", "method": "venue", "params"}`，`method` 写名字后面的那一段（`chat.venue` 写 `venue`）；接入通讯平台 在清单里声明了 `provides = ["chat"]`，调的一方不写它的包编号。照包编号的 `package.call {"package": "miyu-im", …}` 核心收掉跨包的那条路以前还通，新写的别用。核心转给接入通讯平台，回什么交回什么（核心的 `protocol.md`「`package.call`」）。没批 `packages.call` 的核心回 `needs_approval`；接入通讯平台 没在跑回 `program_not_running`；接入通讯平台 拒了的回 `method_failed`，`data.message` 是下面写的原因。
+经核心的总线照名字调（施工 I-211，核心设计 67）：`bus.call {"name": "chat", "method": "venue", "params"}`，`method` 写名字后面的那一段（`chat.venue` 写 `venue`）；接入通讯平台 在清单里声明了 `provides = ["chat"]`，调的一方不写它的包编号。扩展照包编号的 `package.call` 只调得到自己（核心 BUS-5），调接入通讯平台 只有这一条路。核心转给接入通讯平台，回什么交回什么（核心的 `protocol.md`「`package.call`」）。没批 `packages.call` 的核心回 `needs_approval`；接入通讯平台 没在跑回 `program_not_running`；接入通讯平台 拒了的回 `method_failed`，`data.message` 是下面写的原因。
 
 **平台**（施工 I-1，设计 01 第四节第 3 条）：挂接点和方法从 `qq.*` 改名成 `chat.*`，准备接别的平台。接入通讯平台交给你的参数（每一个挂接点）、`chat.venue` 的回答都带 `"platform"`（现在只有 `"qq"`）；你调 `chat.action`、`chat.venue`、`chat.send` 时可以写 `"platform"`，写了别的平台、不是字的拒 `bad_params`。
 
