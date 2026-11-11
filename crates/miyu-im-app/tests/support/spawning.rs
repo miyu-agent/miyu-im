@@ -77,11 +77,7 @@ fn same(one: &Path, other: &Path) -> bool {
     one.len() == other.len() && one.modified().ok() == other.modified().ok()
 }
 
-/// 一个空着的端口：系统挑一个，马上放掉。
-pub fn free_port() -> u16 {
-    let free = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
-    free.local_addr().expect("有地址").port()
-}
+pub use super::ports::free_port;
 
 /// 真的程序 `miyu-im`：数据根是 `root`，资源目录是源码树的，包文件夹照核心拉起它时那样交（`MIYU_PACKAGE_DIR`，施工 S-6
 /// 上：走正路，不走没设时的回退）；系统的语言是英文（握手回中文的，说的话换成中文，才看得出照握手回的语言说）。不用
