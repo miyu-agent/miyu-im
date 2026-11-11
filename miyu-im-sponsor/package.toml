@@ -26,8 +26,7 @@ capabilities = ["tools", "packages.call", "network"]
 
 # 后台页（施工 S-1 下，设计 03 第一节第 6 条）：网页的「软件后台」、im 插件卡片的「打开面板」打开的都是它。
 # 给别的包调的（施工 I-131）：迁移程序把旧版的赞助记录导进来、导出备份；照样经 package.methods 登记。
-# 施工 I-211（核心设计 67）：在总线上提供名字 `sponsor`，方法照名字带前缀；不带前缀的 `import`、`export` 照旧登记着（后台页、
-# 人的连接调得到），不写进这里。
+# 施工 I-211（核心设计 67）：在总线上提供名字 `sponsor`，方法照名字带前缀。
 [export]
 provides = ["sponsor"]
 methods = ["sponsor.import", "sponsor.export"]

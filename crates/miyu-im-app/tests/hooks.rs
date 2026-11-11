@@ -65,8 +65,10 @@ async fn notices_and_requests_reach_the_package_hooked_on_events() {
                 install(
                     root,
                     "other",
-                    &[other, "answer:qq.other:{}".to_string()],
-                    &["qq.other"],
+                    // 也接进了 `chat.hook`，可登记的是桥不认的一处（施工 I-215：核心 BUS-5 起不在声明的名字底下的导出
+                    // 方法整份清单不收，原来这里导出的是 `qq.other`）。
+                    &[other, "answer:chat.hook.other:{}".to_string()],
+                    &["chat.hook.other"],
                 );
             },
         );
