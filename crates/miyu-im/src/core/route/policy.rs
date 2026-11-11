@@ -10,6 +10,7 @@
 //! - 有回合在跑（`turn_running`）：隔 [`RETRY`] 再发，最多 [`TRIES`] 次。核心拒了别的（`unknown_model`、`unknown_persona` 这类）
 //!   记一行运行日志，会话照原来的。
 //! - 上下文上限（施工 I-189，`context`）另发一次，见 [`context`]。
+//! - 看图的模型（施工 I-224，核心 VM-1 的 `vision`）同模型：设了的第一次发，变了的发，清掉的交 `null` 回到跟着 `models.vision`。
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -38,6 +39,8 @@ const TRIES: u32 = 30;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct Wanted {
     model: Option<String>,
+    /// 看图的模型（施工 I-224）。
+    vision: Option<String>,
     persona: Option<String>,
     preset: Option<String>,
     /// 上下文上限（施工 I-189）：另发，不在 [`Wanted::first`]、[`Wanted::since`] 里。
@@ -49,6 +52,7 @@ impl Wanted {
     pub(super) fn of(applied: &Applied) -> Wanted {
         Wanted {
             model: applied::model(applied).map(str::to_string),
+            vision: applied::vision(applied).map(str::to_string),
             persona: applied::text_of(applied, "persona").map(str::to_string),
             preset: applied::text_of(applied, "preset").map(str::to_string),
             context: applied::context(applied),
@@ -68,6 +72,7 @@ impl Wanted {
         let mut fields = Map::new();
         for (key, value) in [
             ("model", &self.model),
+            ("vision", &self.vision),
             ("persona", &self.persona),
             ("preset", &self.preset),
         ] {
@@ -81,8 +86,14 @@ impl Wanted {
     /// 从 `before` 换成这个要发的：模型变了的（清掉的是 `null`），人格、预设变成另一个的。没有要发的是空的。
     fn since(&self, before: &Wanted) -> Option<Map<String, Value>> {
         let mut fields = Map::new();
-        if self.model != before.model {
-            fields.insert("model".into(), json!(self.model));
+        // 模型、看图的模型清掉的交 `null`：回到跟着配置。
+        for (key, now, was) in [
+            ("model", &self.model, &before.model),
+            ("vision", &self.vision, &before.vision),
+        ] {
+            if now != was {
+                fields.insert(key.into(), json!(now));
+            }
         }
         for (key, now, was) in [
             ("persona", &self.persona, &before.persona),
