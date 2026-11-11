@@ -68,9 +68,8 @@ tier = "lite"
 name = { en = "Join approval", zh = "入群审批", ja = "参加承認" }
 summary = { en = "Checks a request to join a group against its rule", zh = "照群里写的条件判断入群申请", ja = "グループの条件に照らして参加申請を判断する" }
 
-# 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：别的包经核心的 package.call 只调得到这里列的（核心 X-18）；后台页的
-# status、connection.token 不列，只有人调得到。
-# 总线（核心设计 67，施工 I-211）：im 提供名字 `chat`，别的包照名字调（`bus.call {"name": "chat", "method": "venue"}`），不写 im 的包编号。
+# 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：im 在总线上提供名字 `chat`（核心设计 67，施工 I-211），别的包照名字调
+# （`bus.call {"name": "chat", "method": "venue"}`），只调得到这里列的；后台页的 status、connection.token 不列，只有人调得到。
 [export]
 provides = ["chat"]
 methods = ["chat.action", "chat.venue", "chat.media", "chat.send", "chat.note"]
