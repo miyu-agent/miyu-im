@@ -367,5 +367,7 @@ fn the_writer_waits_for_a_cleaning_instead_of_dropping_the_message() {
         )
         .expect("数得出");
     assert_eq!(count, 1);
+    // 先关连接再删：Windows 上开着的库文件删不掉。
+    drop(writer);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
