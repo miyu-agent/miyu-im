@@ -1,6 +1,6 @@
 // 消息记录页的列表（施工 C-1 中下，设计 01 第八节第 9 条）：库里有记录的场所，一个连接一组（机器人的头像、名字和号），组里从新到旧列
 // 场所（头像、群名或人名、群聊还是私聊和号、最后一条什么时候、一共几条）；哪个连接收的照桥的场所会话认（sessions.list，名字也照它），
-// 认不出的放在最后一组。点一个进它的记录。上面一行搜（跨场所，filter.js），右上角「删除记录」开删的浮窗（purge.js，勾几个场所）。
+// 认不出的放在最后一组。点一个进它的记录。上面一行搜（跨场所，filter.js），右上角「清理记录」开清理的浮窗（purge.js，勾几个场所）。标题旁写库占了多大，每个场所写约数（施工 I-230，todolist 第 53 条）。
 // 连接不止一个时标题旁一个下拉（施工 I-85 中，shell/connection-pick.js，有「全部」）：选了一个的只列那个连接的场所（平台对得上、
 // 认得出连接的照连接）。
 import { element, say } from '../../shell/i18n.js';
@@ -8,7 +8,7 @@ import { face } from '../venues/face.js';
 import { idWord } from '../venues/names.js';
 import { drawFound, filterBar } from './filter.js';
 import { openPurge } from './purge.js';
-import { botNames, namer, openVenue, throttled, venueParts, when } from './shared.js';
+import { botNames, namer, openVenue, sizeText, throttled, venueParts, when } from './shared.js';
 import { connectionPick, platformDot } from '../../shell/connection-pick.js';
 import { chooseConnection, chosenOf, onConnection } from '../../shell/connection.js';
 
@@ -26,7 +26,8 @@ export function mountVenues(view, { request }) {
   purge.addEventListener('click', () => {
     openPurge({ request, venues: (rows || []).map(choice), chosen: [], done: load });
   });
-  head.append(element('h1', null, say('records/title')), pickSlot, element('span', 'grow'), purge);
+  const size = element('span', 'muted records-size');
+  head.append(element('h1', null, say('records/title')), size, pickSlot, element('span', 'grow'), purge);
   const filter = filterBar((conditions) => {
     searching = conditions;
     draw();
@@ -53,6 +54,7 @@ export function mountVenues(view, { request }) {
       for (const one of group.sessions || []) known.set(one.venue, { bot: group.bot, name: one.name });
     }
     rows = (listed.venues || []).map((row) => ({ ...row, ...venueParts(row.venue), ...known.get(row.venue) }));
+    size.textContent = listed.bytes == null ? '' : say('records/size', { size: sizeText(listed.bytes) });
     if (!searching) draw();
   };
   const reload = throttled(10000, load);
@@ -121,7 +123,8 @@ export function mountVenues(view, { request }) {
     const text = element('span', 'grow');
     text.append(element('span', 'name', titleOf(row)), element('span', 'id', detailOf(row)));
     const side = element('span', 'records-row-side');
-    side.append(element('span', null, when(row.last)), element('span', null, say('records/count', { count: row.count })));
+    const count = row.bytes == null ? say('records/count', { count: row.count }) : say('records/count-size', { count: row.count, size: sizeText(row.bytes) });
+    side.append(element('span', null, when(row.last)), element('span', null, count));
     button.append(face(row.type, row.id, titleOf(row)), text, side);
     button.addEventListener('click', () => openVenue(row.venue));
     return button;
