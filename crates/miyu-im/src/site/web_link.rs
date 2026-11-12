@@ -14,8 +14,8 @@ use serde_json::{Value, json};
 use super::Person;
 use super::plugins::core;
 
-/// 网页软件的包编号。
-const WEBUI: &str = "miyu-webui";
+/// 网页软件的包编号（11-12 起不带 miyu-，网页那边 eba24c5d 改的，施工 I-228）。
+const WEBUI: &str = "webui";
 
 /// 网页的端口：系统配置的键。
 const PORT: &str = "web.port";
