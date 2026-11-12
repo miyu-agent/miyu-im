@@ -96,3 +96,5 @@
 .records-viewer-head .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .records-viewer-body { display: grid; min-height: 160px; place-items: center; padding: 8px 20px 20px; color: var(--text-faint); overflow: auto; }
 .records-viewer-image { max-width: 100%; max-height: calc(100vh - 140px); border-radius: 10px; object-fit: contain; }
+.records-purge-now { margin: 0 0 12px; }
+.records-keep { flex-wrap: wrap; }
