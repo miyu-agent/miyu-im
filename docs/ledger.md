@@ -152,7 +152,8 @@
 | `im/data/onebot/tool-results/no-recipient.txt` | 工具结果 | `qq_send` 没写发给谁，或者 `user`、`group` 两个都写了（施工 I-16） | 21 | 原来借禁言那句「要对方回复或 @」，10-20 实测她拿 `qq_send` 回当前群，被那句带偏连试 40 秒；照实说要写给谁、回这个会话直接写字 | `46343f76` |
 | `im/data/onebot/tool-results/activity.txt` | 工具结果 | `qq_activity_ranking`：几天里说得最多的几个人（施工 I-20） | 19（字段不填） | 名次、名字、号、条数接在后面一行里，她照它说 | `62254293` |
 | `im/data/onebot/tool-results/glance-set.txt` | 工具结果 | `qq_glance` 换好了定时（施工 I-89 下） | 8（字段填 `60`） | 告诉她下一次在几分钟以后 | `d9da9776` |
-| `im/data/onebot/tool-results/uploading.txt` | 工具结果 | `qq_send_file` 交出去了，在传（施工 I-130） | 15（字段填 `report.pdf`、`3.4 MB`） | 告诉她在传了、多大；没传成的另记一块 `unshown` | `0b6c206c` |
+| `im/data/onebot/tool-results/uploading.txt` | 工具结果 | `qq_send_file` 交出去了，在传（施工 I-130） | 28（施工 I-231 照项目主人 11-12 的意思改成「后台在传、要一段时间、没到先等」，字段填 `report.pdf`、`3.4 MB`，2026-11-12 经 opencode Console Go 的 `deepseek-v4.1-flash` 量） | 告诉她在传了、多大；没传成的另记一块 `unshown` | `ba2afd20` |
+| `im/data/onebot/tool-results/still-uploading.txt` | 工具结果 | `qq_send_file` 同一份（场所、名字、大小一样）还在传，不再传（施工 I-231，todolist 第 58 条） | 14（字段填 `report.pdf`） | 主人 11-12：她以为没传成又叫一次，群文件里就有两份 | `b2103c65` |
 | `im/data/onebot/tool-results/not-local.txt` | 工具结果 | `qq_send_file`：NapCat 不是从本机连进来的，读不到她的文件（施工 I-130） | 15 | 别再换路径重试 | `cd89405a` |
 | `im/data/onebot/tool-results/no-file.txt` | 工具结果 | `qq_send_file`：没有这个文件、不是普通文件、判的时候被换了（施工 I-130；I-190 把工作区外面的分出去答 `outside`） | 12（字段填 `out/report.pdf`；原来那句 16） | 说清是找不到这个文件：原来一律说「不是工作区里的文件」，她当成了白名单（11-10 主人私聊里实测） | `8d3a8b16` |
 | `im/data/onebot/tool-results/unsendable.txt` | 工具结果 | `qq_send_file`：钉不住（跨文件系统硬链接不了；不是 Unix 的系统上核不了 inode），不传（施工 I-130） | 14 | 别再换路径重试；不退回拷一份，拷也有同样的时间差 | `426c28ee` |
@@ -257,7 +258,8 @@
 | `im/data/telegram/tool-results/reacted.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/reacted.txt`（字节一样，施工 I-185 下上） | 4 | Telegram 那套答同样的话 | `4940f1eb` |
 | `im/data/telegram/tool-results/no-quote.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-quote.txt`（字节一样，施工 I-185 下上） | 19（2026-10-17 量；O-31 那一句 16） | Telegram 那套答同样的话 | `5c41e58f` |
 | `im/data/telegram/tools/tg_send_file.json` | tools 数组 | Telegram 的私聊、群（同 `qq_send_file`，说明一字不差，宿主同一份代码 `common::send_file`）（施工 I-185 下下） | 70（设计 13 施工 I-220 多 `group`、`private`，终端里说是哪个场所；Telegram 那一套一起时的边际，2026-11-11 经 opencode Console Go 的 `deepseek-v4.1-flash` 量；原来 52（十件一起的边际）） | 项目主人 11-09 定 Telegram 也要能发文件 | `3954bfa5` |
-| `im/data/telegram/tool-results/uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/uploading.txt`（字节一样，施工 I-185 下下） | 15（字段填 `report.pdf`、`3.4 MB`） | Telegram 那套答同样的话 | `0b6c206c` |
+| `im/data/telegram/tool-results/uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/uploading.txt`（字节一样，施工 I-185 下下） | 28（施工 I-231 照项目主人 11-12 的意思改成「后台在传、要一段时间、没到先等」，字段填 `report.pdf`、`3.4 MB`，2026-11-12 经 opencode Console Go 的 `deepseek-v4.1-flash` 量） | Telegram 那套答同样的话 | `ba2afd20` |
+| `im/data/telegram/tool-results/still-uploading.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/still-uploading.txt`（字节一样，施工 I-231） | 14（字段填 `report.pdf`） | Telegram 那套答同样的话 | `b2103c65` |
 | `im/data/telegram/tool-results/no-file.txt` | 工具结果 | Telegram 的工具答的，同 `onebot/tool-results/no-file.txt`（字节一样，施工 I-185 下下、I-190） | 12（字段填 `out/report.pdf`） | Telegram 那套答同样的话 | `8d3a8b16` |
 | `im/data/telegram/tool-results/not-local.txt` | 工具结果 | `tg_send_file` 对端读不到本机的文件（Telegram 驱动和 im 在同一个进程，照说不会；施工 I-185 下下） | 12 | 同 QQ 的那一句，平台写 Telegram | `e149a81c` |
 | `im/data/telegram/tool-results/unsendable.txt` | 工具结果 | `tg_send_file` 钉不住那份文件（施工 I-185 下下） | 14 | 同 QQ 的那一句，平台写 Telegram | `75d07729` |

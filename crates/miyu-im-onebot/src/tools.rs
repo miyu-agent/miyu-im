@@ -233,8 +233,9 @@ const TOOLS: [Decl; 22] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 71] = [
+const ANSWERS: [(&str, &[&str]); 72] = [
     ("uploading", &["name", "size"]),
+    ("still-uploading", &["name"]),
     ("not-local", &[]),
     ("no-file", &["path"]),
     ("outside", &["path"]),

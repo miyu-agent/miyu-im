@@ -173,3 +173,54 @@ async fn the_owner_in_a_fully_open_session_gets_files_outside_sent_too() {
     assert_eq!(std::fs::read(outside).expect("原文件还在"), b"key");
     stopped(home).await;
 }
+
+#[tokio::test]
+async fn the_same_file_still_uploading_is_not_sent_again() {
+    // 施工 I-231（todolist 第 58 条）：大文件传得慢，她以为没传成又叫一次。同一份还在传的不再传，答 still-uploading；假 NapCat
+    // 压着头两条发东西的回应（第一份上传、她说的「好了」；两次调用都不带话，不占名额），第一份一直在传到她说完。
+    let (release, hold) = oneshot::channel();
+    let lines = Lines::new([
+        Line::uses("", "qq_send_file", r#"{"path":"out/report.pdf"}"#).released_by(hold),
+        Line::uses("", "qq_send_file", r#"{"path":"out/report.pdf"}"#),
+        Line::says("好了"),
+    ]);
+    let (home, mut napcat, _) = started_showing(Arc::new(lines), RULES, |napcat| {
+        napcat.reversing(MEMBERS, 2)
+    })
+    .await;
+    napcat.send(group_frame(
+        GROUP,
+        MEMBER,
+        1,
+        json!([at(BOT), plain(" 传一下")]),
+        ("小明", "member"),
+    ));
+    let cwd = until_group_cwd(&home).await;
+    std::fs::create_dir_all(cwd.join("out")).expect("建得了目录");
+    std::fs::write(cwd.join("out/report.pdf"), b"%PDF-1.7").expect("写得进");
+    release.send(()).expect("还在等");
+    let results = two_results(&home).await;
+    assert!(
+        results[0].starts_with("Uploading report.pdf (8 B)"),
+        "{results:?}"
+    );
+    assert!(
+        results[1].starts_with("report.pdf is still uploading"),
+        "{results:?}"
+    );
+    // 交给 NapCat 的：只有一次上传，接着是她说的「好了」。
+    let mut uploads = 0;
+    loop {
+        let action = napcat.action().await;
+        match action["action"].as_str() {
+            Some("upload_group_file") => uploads += 1,
+            Some("send_group_msg") if action.to_string().contains("好了") => break,
+            _ => {}
+        }
+    }
+    assert_eq!(uploads, 1, "还在传的那一份不再传");
+    until_logged(&home.root, |log| log.contains("file shown")).await;
+    let pinned: Vec<_> = std::fs::read_dir(outbox(&home)).expect("列得出").collect();
+    assert!(pinned.is_empty(), "没传的那一份钉的也删了：{pinned:?}");
+    stopped(home).await;
+}
