@@ -109,6 +109,12 @@ async fn the_records_page_reads_searches_and_deletes() {
     let venues = call(&mut open, 9, "records.venues", json!({})).await;
     assert_eq!(venues["result"]["venues"][0]["venue"], venue(), "{venues}");
     assert_eq!(venues["result"]["venues"][0]["count"], 2, "{venues}");
+    // 占多大（施工 I-230）：总的照硬盘上的文件，场所的是约数、不比总的大。
+    let total = venues["result"]["bytes"].as_u64().expect("有总的");
+    let share = venues["result"]["venues"][0]["bytes"]
+        .as_u64()
+        .expect("有约数");
+    assert!(share > 0 && share <= total, "{venues}");
     // 删：参数写错的拒；什么都没写的不删；删小林的；全部删。
     let wrong = call(&mut open, 4, "records.delete", json!({"from": "昨天"})).await;
     assert_eq!(wrong["error"]["reason"], "bad_params", "{wrong}");
@@ -128,5 +134,18 @@ async fn the_records_page_reads_searches_and_deletes() {
     assert_eq!(all["result"], json!({"deleted": 1}), "{all}");
     let empty = call(&mut open, 8, "records.page", json!({"venue": venue()})).await;
     assert_eq!(empty["result"]["items"], json!([]), "{empty}");
+    // 清完整理（施工 I-230）：交回前后在硬盘上占的，整理以后不比以前大。
+    let compacted = call(&mut open, 11, "records.compact", json!({})).await;
+    let (before, after) = (
+        &compacted["result"]["before"],
+        &compacted["result"]["after"],
+    );
+    assert!(
+        after
+            .as_u64()
+            .zip(before.as_u64())
+            .is_some_and(|(after, before)| after <= before),
+        "{compacted}"
+    );
     stopped(home).await;
 }

@@ -343,3 +343,29 @@ fn venues_are_listed_newest_first_and_several_go_in_one_delete() {
     drop(connection);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
+
+#[test]
+fn the_writer_waits_for_a_cleaning_instead_of_dropping_the_message() {
+    // 施工 I-230：页面上清理一大批时库锁着（主人那份库删 30 天以前的约 15 万条锁了 3.8 秒），写的线程原来照 rusqlite 默认只等
+    // 5 秒，再久就当场写不进、那几秒里进来的消息丢了。这里锁 6 秒，过了默认的那一截。
+    let (dir, _) = fresh("writer-waits");
+    let path = dir.join(FILE);
+    let writer = writing(&path).expect("开得了");
+    let cleaning = connection(&path).expect("开得了");
+    cleaning.execute_batch("BEGIN IMMEDIATE;").expect("锁得上");
+    let holder = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(6));
+        cleaning.execute_batch("COMMIT;").expect("放得开");
+    });
+    written(&writer, &said("201", "清理的时候进来的一条")).expect("等锁放开再写，不丢");
+    holder.join().expect("没 panic");
+    let count: i64 = writer
+        .query_row(
+            "SELECT count(*) FROM messages WHERE msg = '201'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("数得出");
+    assert_eq!(count, 1);
+    std::fs::remove_dir_all(dir).expect("删得掉临时目录");
+}
