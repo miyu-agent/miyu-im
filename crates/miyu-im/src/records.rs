@@ -23,6 +23,7 @@ pub(crate) mod delete;
 pub(crate) mod history;
 pub(crate) mod import;
 pub(crate) mod read;
+pub(crate) mod space;
 
 /// 库文件的名字（im 状态目录里）。
 pub(crate) const FILE: &str = "records.db";
@@ -156,7 +157,7 @@ pub(crate) struct Records {
 impl Records {
     /// 打开 `path` 的库（没有的建上），起写的线程。打不开的记一行运行日志，交回一份什么都不记的。
     pub(crate) fn open(path: PathBuf) -> Records {
-        let connection = match prepared(&path) {
+        let connection = match writing(&path) {
             Ok(connection) => connection,
             Err(error) => {
                 tracing::warn!(target: TARGET, path = %path.display(), error = %error, "records not opened");
@@ -205,6 +206,18 @@ fn prepared(path: &Path) -> rusqlite::Result<Connection> {
     connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.execute_batch(SCHEMA)?;
     connection.pragma_update(None, "user_version", VERSION)?;
+    Ok(connection)
+}
+
+/// 写的线程等锁最多等多久：页面上清理、整理（`VACUUM`）一大批时库锁着，写的线程排着等，不当场放弃（施工 I-230：原来照
+/// rusqlite 默认只等 5 秒，主人那份库删 30 天以前的约 15 万条就锁了 3.8 秒，库再大、盘再慢就过了，那几秒里进来的消息写不进、
+/// 丢了）。写的线程只管排着写，等久一点不挡别的。
+const WRITER_WAIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// 写的线程的连接：同 [`prepared`]，锁着的时候等 [`WRITER_WAIT`]。
+pub(crate) fn writing(path: &Path) -> rusqlite::Result<Connection> {
+    let connection = prepared(path)?;
+    connection.busy_timeout(WRITER_WAIT)?;
     Ok(connection)
 }
 

@@ -61,3 +61,13 @@ export function namer(bots, names) {
 export function botNames(connections) {
   return new Map((connections || []).map((one) => [String(one.bot), one.name || '']));
 }
+
+/** 占的字节 `bytes` 写成给人看的大小（施工 I-230）：不到 1 MB 写 KB，不到 10 MB 带一位小数，再大写整数 MB，过了 1 GB 写 GB。 */
+export function sizeText(bytes) {
+  const n = Math.max(0, Number(bytes) || 0);
+  const mb = n / 1048576;
+  if (mb < 1) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  if (mb < 10) return `${mb.toFixed(1)} MB`;
+  if (mb < 1024) return `${Math.round(mb)} MB`;
+  return `${(mb / 1024).toFixed(1)} GB`;
+}

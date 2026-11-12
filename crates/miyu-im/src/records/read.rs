@@ -8,6 +8,8 @@
 use rusqlite::{Connection, Row, params_from_iter, types::Value as Sql};
 use serde_json::{Value, json};
 
+use super::space;
+
 /// 一页、一次搜最多几条。
 pub(crate) const MOST: i64 = 200;
 
@@ -115,24 +117,36 @@ pub(crate) fn page(
     Ok(json!({"items": items, "more": more, "before": oldest_id}))
 }
 
-/// 有记录的场所：交回 `{venues: [{venue, last, count}]}`，`last` 是最后一条的时刻，最近说过话的在前。
+/// 有记录的场所：交回 `{venues: [{venue, last, count, bytes}]}`，`last` 是最后一条的时刻，`bytes` 是它约占库里多少字节
+/// （[`space::shares`]，施工 I-230），最近说过话的在前。
 ///
 /// # Errors
 ///
 /// 库读不出。
 pub(crate) fn venues(connection: &Connection) -> rusqlite::Result<Value> {
     let mut statement = connection.prepare(
-        "SELECT venue, MAX(at), COUNT(*) FROM messages GROUP BY venue ORDER BY MAX(at) DESC, venue",
+        "SELECT venue, MAX(at), COUNT(*), SUM(length(CAST(text AS BLOB)) + length(CAST(media AS BLOB)) + length(CAST(mentions AS BLOB)) + ?1) FROM messages GROUP BY venue ORDER BY MAX(at) DESC, venue",
     )?;
-    let venues: Vec<Value> = statement
-        .query_map([], |row| {
-            Ok(json!({
+    let rows: Vec<(Value, i64)> = statement
+        .query_map([space::ROW], |row| {
+            let one = json!({
                 "venue": row.get::<_, String>(0)?,
                 "last": row.get::<_, i64>(1)?,
                 "count": row.get::<_, i64>(2)?,
-            }))
+            });
+            Ok((one, row.get::<_, i64>(3)?))
         })?
         .collect::<rusqlite::Result<_>>()?;
+    let weights: Vec<i64> = rows.iter().map(|(_, weight)| *weight).collect();
+    let shares = space::shares(space::used(connection)?, &weights);
+    let venues: Vec<Value> = rows
+        .into_iter()
+        .zip(shares)
+        .map(|((mut one, _), bytes)| {
+            one["bytes"] = json!(bytes);
+            one
+        })
+        .collect();
     Ok(json!({"venues": venues}))
 }
 

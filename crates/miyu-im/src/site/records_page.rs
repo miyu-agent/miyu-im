@@ -1,10 +1,12 @@
 //! 消息记录页要的方法（施工 C-1 中，设计 04 第一节第 2、3 条）：读、搜、删 im 自己的聊天记录库（`crate::records`）。库在 im 自己
 //! 的状态目录里，页面服务就在 im 的进程里，直接开连接读写，不经核心。读写的事放到阻塞的线程里做。
 //!
-//! - `records.venues` → `{venues: [{venue, last, count}]}`：有记录的场所（`records::read::venues`），最近说过话的在前。
+//! - `records.venues` → `{venues: [{venue, last, count, bytes}], bytes}`：有记录的场所（`records::read::venues`），最近说过话的在前；
+//!   外面的 `bytes` 是库在硬盘上占的，场所的 `bytes` 是约数（`records::space`，施工 I-230）。
 //! - `records.page {venue, before?}` → `{items, more, before}`：一页（`records::read::page`），从旧到新，带判断和群事件。
 //! - `records.search {query?, venue?, sender?, from?, to?}` → `{items}`：新的在前，最多 200 条。
 //! - `records.delete {venue?, venues?, from?, to?, sender?, all?}` → `{deleted}`：删了几条消息（`venues` 一次删几个场所的）；什么都没写、又没写 `all` 的不删。
+//! - `records.compact` → `{before, after}`：清理完整理一遍，把空出来的还给硬盘（施工 I-230），交回前后在硬盘上占的字节。
 //!
 //! 参数写错的拒 `bad_params`；库打不开、读写不成的拒 `records_failed`（原话交回）。
 
@@ -14,7 +16,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use super::Site;
-use crate::records::{self, delete, read};
+use crate::records::{self, delete, read, space};
 use crate::status_file;
 
 /// 一页几条。
@@ -89,7 +91,9 @@ fn venues(params: &Value) -> Result<Vec<String>, Refused> {
 
 /// `records.venues`（模块的说明）。
 pub(super) async fn listed(site: &Arc<Site>) -> Result<Value, Refused> {
-    with(site, |connection| read::venues(connection)).await
+    let mut listed = with(site, |connection| read::venues(connection)).await?;
+    listed["bytes"] = json!(space::on_disk(&path(site)));
+    Ok(listed)
 }
 
 /// `records.page`（模块的说明）。
@@ -127,4 +131,14 @@ pub(super) async fn remove(site: &Arc<Site>, params: &Value) -> Result<Value, Re
     let deleted = with(site, move |connection| delete::delete(connection, &scope)).await?;
     tracing::info!(target: crate::TARGET, deleted, "records deleted");
     Ok(json!({"deleted": deleted}))
+}
+
+/// `records.compact`（模块的说明）。
+pub(super) async fn compact(site: &Arc<Site>) -> Result<Value, Refused> {
+    let file = path(site);
+    let before = space::on_disk(&file);
+    with(site, |connection| space::compact(connection)).await?;
+    let after = space::on_disk(&file);
+    tracing::info!(target: crate::TARGET, before, after, "records compacted");
+    Ok(json!({"before": before, "after": after}))
 }
