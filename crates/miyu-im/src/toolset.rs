@@ -267,7 +267,7 @@ pub enum Effect {
 
 /// 时不时看一眼的工具挂的场所插件名（施工 I-89 下）：im 只对开着看一眼的场所告诉核心它开着（`venue.plugins`），别的场所的工具表里
 /// 没有这件。不是真的软件包。
-pub const GLANCE_PLUGIN: &str = "miyu-im-glance";
+pub const GLANCE_PLUGIN: &str = "im-glance";
 
 /// 一次调用怎么办（[`ToolSet::plan`]）。
 pub enum Planned {

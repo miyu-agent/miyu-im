@@ -123,10 +123,7 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
     drop(std::fs::remove_dir_all(&dir));
     std::fs::create_dir_all(&dir).expect("建得了");
     let mut sponsor = Sponsor::start(&dir);
-    let hello = sponsor.answers(
-        "hello",
-        &json!({"config": {"miyu-im-sponsor.currency": "CNY"}}),
-    );
+    let hello = sponsor.answers("hello", &json!({"config": {"im-sponsor.currency": "CNY"}}));
     assert_eq!(hello["params"]["protocol"], json!([1, 1]));
     let provided = sponsor.answers("provide", &json!({"tools": 1}));
     let tool = &provided["params"]["tools"][0];
@@ -136,7 +133,7 @@ fn it_shakes_hands_provides_the_tool_and_records_only_for_an_admin() {
     );
     assert!(tool["description"].is_string() && tool["input_schema"]["type"] == "object");
     assert_eq!(
-        tool["plugin"], "miyu-im-sponsor",
+        tool["plugin"], "im-sponsor",
         "关着的场所没有它（核心 O-60）"
     );
     // 后台页的方法（施工 S-1 下）。

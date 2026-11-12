@@ -5,7 +5,7 @@
 //! - 状态目录：`MIYU_STATE_DIR`，过渡期间核心一起给的旧名字 `MIYU_PACKAGE_STATE` 也认（核心 FH-6 删旧名字）。
 //! - 日志目录：`MIYU_LOG_DIR`。im 自己的运行日志 `miyu-im.log` 写在这里，核心记的 im 的标准错误也在这里，叫 `stderr`。
 //! - 配置目录：`MIYU_CONFIG_DIR`。主人手改的场所规则 `venues.d/`、违规词表 `moderation.txt` 在这里；旧位置（数据根下的
-//!   `venues.d/`、`modules/miyu-im/`）不读，核心 FH-7 一次搬过来。
+//!   `venues.d/`、`modules/im/`）不读，核心 FH-7 一次搬过来。
 //! - 只认绝对路径：给了个相对的、空的，当没给。
 
 use std::ffi::OsString;

@@ -14,9 +14,7 @@ use crate::support::*;
 
 /// Telegram 的那一句 `telegram/tool-results/<name>.txt`，去掉行尾。
 fn tg_sentence(name: &str) -> String {
-    let path = resources().join(format!(
-        "packages/miyu-im/data/telegram/tool-results/{name}.txt"
-    ));
+    let path = resources().join(format!("packages/im/data/telegram/tool-results/{name}.txt"));
     std::fs::read_to_string(path)
         .expect("读得出")
         .trim_end()

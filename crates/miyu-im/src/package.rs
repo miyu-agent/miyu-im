@@ -3,7 +3,7 @@
 //!
 //! 在哪由核心定：核心拉起扩展、转交包的命令时把 `MIYU_APP_DIR` 设成这个包的文件夹（出厂的在资源目录、自己装的在数据根的
 //! `opt/<编号>/`，哪一层就是哪一层；核心设计 55 第四节，过渡期间一起给的旧名字 `MIYU_PACKAGE_DIR` 也认）；桥不自己拼家目录的
-//! 布局。没设的（人在终端里直接跑）退回资源目录的 `packages/miyu-im/`。
+//! 布局。没设的（人在终端里直接跑）退回资源目录的 `packages/im/`。
 
 #[cfg(test)]
 mod tests;
@@ -32,7 +32,7 @@ pub struct Package {
 
 impl Package {
     /// 照环境变量 [`VARIABLES`] 的值 `given` 找：设了、不是空的就是它；没设、空的退回资源目录 `resources` 里出厂的那一份
-    /// （`packages/miyu-im/`）。
+    /// （`packages/im/`）。
     pub fn locate(given: Option<&OsStr>, resources: &ResourceRoot) -> Package {
         match given.filter(|given| !given.is_empty()) {
             Some(given) => Package::at(given),

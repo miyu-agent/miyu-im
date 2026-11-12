@@ -12,7 +12,7 @@ use crate::support::*;
 #[test]
 fn factory_mistakes_are_all_reported() {
     let resources = copied_resources();
-    let factory = resources.join("packages/miyu-im/data");
+    let factory = resources.join("packages/im/data");
     std::fs::write(
         factory.join("venues.d/50-defaults.toml"),
         "[[rule]]\nrate = \"abc\"\n",
@@ -63,7 +63,7 @@ fn factory_mistakes_are_all_reported() {
 fn broken_judge_texts_are_factory_mistakes() {
     // 判官的说明（施工 O-23 下）：`violations.txt` 的模板写坏了、要了别的字段，记一条 `bad_format`；少了一份记一条读不成。
     let resources = copied_resources();
-    let judge = resources.join("packages/miyu-im/data/judge");
+    let judge = resources.join("packages/im/data/judge");
     std::fs::write(judge.join("violations.txt"), "Severity {nope}.\n").expect("写得进");
     let problems =
         crate::support::shipped::factory_at(&package_in(&resources)).expect_err("模板写坏了");
@@ -82,7 +82,7 @@ fn broken_judge_texts_are_factory_mistakes() {
         "{problems:?}"
     );
     std::fs::copy(
-        resources_file("packages/miyu-im/data/judge/violations.txt"),
+        resources_file("packages/im/data/judge/violations.txt"),
         judge.join("violations.txt"),
     )
     .expect("抄得了");
@@ -107,7 +107,7 @@ fn resources_file(path: &str) -> PathBuf {
 #[test]
 fn a_factory_warning_or_a_missing_directory_is_a_mistake_too() {
     let resources = copied_resources();
-    let rules = resources.join("packages/miyu-im/data/venues.d");
+    let rules = resources.join("packages/im/data/venues.d");
     std::fs::write(rules.join("60-extra.toml"), "nonsense = 1\n").expect("写得进");
     let problems =
         crate::support::shipped::factory_at(&package_in(&resources)).expect_err("警告也算");

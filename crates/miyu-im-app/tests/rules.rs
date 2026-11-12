@@ -69,15 +69,15 @@ pub fn copied_resources() -> PathBuf {
     let (dir, _) = temp_root();
     let copy = dir.join("resources");
     for file in [
-        "packages/miyu-im/package.toml",
-        "packages/miyu-im/data/bridge.json",
-        "packages/miyu-im/data/human/en.json",
-        "packages/miyu-im/data/human/zh.json",
-        "packages/miyu-im/data/human/ja.json",
-        "packages/miyu-im/data/venues.d/50-defaults.toml",
-        "packages/miyu-im/data/defaults.toml",
-        "packages/miyu-im/data/moderation.txt",
-        "packages/miyu-im/data/cards/human/page.json",
+        "packages/im/package.toml",
+        "packages/im/data/bridge.json",
+        "packages/im/data/human/en.json",
+        "packages/im/data/human/zh.json",
+        "packages/im/data/human/ja.json",
+        "packages/im/data/venues.d/50-defaults.toml",
+        "packages/im/data/defaults.toml",
+        "packages/im/data/moderation.txt",
+        "packages/im/data/cards/human/page.json",
     ] {
         let to = copy.join(file);
         std::fs::create_dir_all(to.parent().expect("有上一级")).expect("建得了");
@@ -86,20 +86,20 @@ pub fn copied_resources() -> PathBuf {
     // 判官的说明（施工 O-23 下）、给她看的事实的模板（施工 O-25 下）、群名那一段（施工 O-49）、桥的工具的说明和答的两句（施工 O-26）：
     // 整个目录抄过去。
     for dir in [
-        "packages/miyu-im/data/judge",
-        "packages/miyu-im/data/facts",
-        "packages/miyu-im/data/system",
+        "packages/im/data/judge",
+        "packages/im/data/facts",
+        "packages/im/data/system",
         // 每一轮末尾的那一句（施工 I-172）。
-        "packages/miyu-im/data/tail",
-        "packages/miyu-im/data/tool-results",
+        "packages/im/data/tail",
+        "packages/im/data/tool-results",
         // 驱动交的工具的说明、答的话（施工 T-1）。
-        "packages/miyu-im/data/onebot/tools",
-        "packages/miyu-im/data/onebot/tool-results",
-        "packages/miyu-im/data/onebot/facts",
-        "packages/miyu-im/data/onebot/prompts",
+        "packages/im/data/onebot/tools",
+        "packages/im/data/onebot/tool-results",
+        "packages/im/data/onebot/facts",
+        "packages/im/data/onebot/prompts",
         // Telegram 的工具（施工 I-183 下下）。
-        "packages/miyu-im/data/telegram/tools",
-        "packages/miyu-im/data/telegram/tool-results",
+        "packages/im/data/telegram/tools",
+        "packages/im/data/telegram/tool-results",
     ] {
         let to = copy.join(dir);
         std::fs::create_dir_all(&to).expect("建得了");

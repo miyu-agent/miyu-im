@@ -76,7 +76,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     assert_eq!(one(&listed, "lazy")["enabled"], true, "{listed}");
     assert_eq!(one(&listed, "dice")["enabled"], false, "{listed}");
     let wrongs = [
-        json!({"package": "miyu-im", "on": false}),
+        json!({"package": "im", "on": false}),
         json!({"package": "dice"}),
         json!({"package": "lazy", "on": true, "approve": true}),
         json!({"on": true}),
@@ -88,13 +88,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
             "{wrong} {refused}"
         );
     }
-    let unknown = call(
-        &mut open,
-        8,
-        "plugins.readme",
-        json!({"package": "miyu-im"}),
-    )
-    .await;
+    let unknown = call(&mut open, 8, "plugins.readme", json!({"package": "im"})).await;
     assert_eq!(unknown["error"]["reason"], "bad_params", "{unknown}");
     stopped(home).await;
 }
@@ -107,7 +101,7 @@ async fn the_builtin_identity_plugin_is_listed_switched_and_set_from_the_page() 
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
-    let id = "miyu-im-identity";
+    let id = "im-identity";
 
     let listed = call(&mut open, 1, "plugins.list", json!({})).await;
     let identity = one(&listed, id);

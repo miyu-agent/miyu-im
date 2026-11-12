@@ -108,7 +108,7 @@
     "status/stopped-restart": "直したら 'miyu im restart' を実行",
     "status/stderr": "標準エラーの最後の数行：",
     "status/other": "メッセージング接続の状態：{state}",
-    "status/missing": "コアに miyu-im パッケージがありません",
+    "status/missing": "コアに im パッケージがありません",
     "status/missing-hint": "'miyu check' で確認する",
     "status/napcat": "NapCat 接続中：{implementation} {version}、ボット {bot}",
     "status/napcat-bot": "NapCat 接続中：ボット {bot}",

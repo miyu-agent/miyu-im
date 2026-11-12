@@ -38,7 +38,7 @@ fn a_handed_program_that_is_gone_falls_back_beside_then_to_path() {
     assert_eq!(locate(Some(gone.clone()), &im), beside);
     assert_eq!(locate(None, &im), beside);
     std::fs::remove_dir_all(&dir).expect("删得掉");
-    // 装在数据根的 `opt/miyu-im/bin/` 下：旁边没有主程序，照名字从 PATH 找。
+    // 装在数据根的 `opt/im/bin/` 下：旁边没有主程序，照名字从 PATH 找。
     let (dir, im) = installed("path", false);
     let by_name = PathBuf::from(format!("miyu{}", std::env::consts::EXE_SUFFIX));
     assert_eq!(locate(Some(gone), &im), by_name);

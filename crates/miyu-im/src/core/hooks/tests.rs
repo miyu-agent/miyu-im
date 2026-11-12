@@ -18,7 +18,7 @@ fn only_packages_plugged_into_chat_hook_with_a_known_point_registered_are_hooked
         // 程序没在跑：没有登记着的方法。
         row("chat.hook", "plugs", "stopped", &[]),
         // 别的名字、im 自己提供的 `chat`：不是挂接。
-        row("chat", "provides", "miyu-im", &["event", "venue"]),
+        row("chat", "provides", "im", &["event", "venue"]),
         row("tts.engine", "plugs", "elsewhere", &["event"]),
         // 写的是全名、不是短名的不认。
         row("chat.hook", "plugs", "long", &["chat.hook.event"]),

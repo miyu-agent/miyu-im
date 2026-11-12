@@ -25,7 +25,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (LIN, "小林", "lin")];
 
 /// 订阅整页 `widget`，交回第一份有内容的。
 async fn open(head: &mut Head, widget: &str) -> Value {
-    let page = json!({"package": "miyu-im", "widget": widget});
+    let page = json!({"package": "im", "widget": widget});
     let reply = head
         .call(
             "subscribe",
@@ -35,7 +35,7 @@ async fn open(head: &mut Head, widget: &str) -> Value {
     let listed = reply["result"]["widgets"].as_array().expect("几块").clone();
     if let Some(content) = listed
         .iter()
-        .find(|one| one["package"] == "miyu-im" && one["id"] == widget)
+        .find(|one| one["package"] == "im" && one["id"] == widget)
         .map(|one| one["content"].clone())
         .filter(Value::is_array)
     {

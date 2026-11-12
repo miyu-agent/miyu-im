@@ -7,8 +7,7 @@
 version = "0.2.0"
 targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
-# 包编号是 miyu-im（包文件夹的名字，核心设计 48）；配置键 im.*、记进会话的 ext.im.* 照这个前缀，包改名不跟着变（施工 I-86）。
-prefix = "im"
+# 包编号是 im（包文件夹的名字，核心设计 48；11-12 起编号不带 miyu-，施工 I-226）：配置键 im.*、记进会话的 ext.im.* 照它，不用另写 prefix。
 name = { en = "Connect Messaging", zh = "接入通讯平台", ja = "メッセージング接続" }
 summary = { en = "Connect the AI to messaging platforms such as QQ, WeChat and Telegram", zh = "把 AI 接入通讯平台，例如 QQ、微信、Telegram 等", ja = "AI を QQ、WeChat、Telegram などのメッセージングプラットフォームにつなぐ" }
 # 软件包页上的图标（Lucide 的名字，施工 O-28 上，docs/blueprint/package-pages.md「清单多的几格」）。

@@ -10,7 +10,7 @@ use super::{TOOLS, connected};
 /// 出厂清单 `[features]` 里每个功能列的 Telegram 的工具。
 fn features() -> BTreeMap<String, Vec<String>> {
     let manifest: toml::Table =
-        toml::from_str(include_str!("../../../../miyu-im/package.toml")).expect("清单是 TOML");
+        toml::from_str(include_str!("../../../../im/package.toml")).expect("清单是 TOML");
     manifest["features"]
         .as_table()
         .expect("有功能表")

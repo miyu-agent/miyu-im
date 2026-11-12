@@ -1,7 +1,7 @@
 //! 门禁程序（照核心仓库的 `xtask`，施工 S-6 中）：`cargo xtask check` 依次跑格式、clippy、文档、纯逻辑、行数、许可证和测试，
 //! 最后打一张结果表。本机验收和三平台 CI 跑的是同一条命令。设了 `MIYU_BUILD_LOCK` 的，编译的几步照锁排队（[`BUILD_LOCK`]）。
 //!
-//! 「文档」那一项还查登记簿：`miyu-im/data/` 里给模型看的字和 `docs/ledger.md` 一一对上（[`ledger`]）。「纯逻辑」查群聊内核
+//! 「文档」那一项还查登记簿：`im/data/` 里给模型看的字和 `docs/ledger.md` 一一对上（[`ledger`]）。「纯逻辑」查群聊内核
 //! 不碰 I/O、时钟，不用遍历顺序会变的容器（[`purity`]，施工 O-40）。「行数」查每个 `.rs`
 //! 不超过 500 行，测试也算。「许可证」查发布的四个平台上用得到的第三方依赖，许可证都能和 AGPL-3.0-or-later 合在一起发，
 //! 第三方许可证清单 `THIRD-PARTY-LICENSES.txt` 是最新的（施工 I-93，`notices.rs`）；`cargo xtask notices` 重新生成它。

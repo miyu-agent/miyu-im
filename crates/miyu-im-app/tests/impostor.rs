@@ -59,7 +59,7 @@ fn noted(events: &[Value]) -> Vec<String> {
 
 /// 出厂的模板换出来的那一块。
 fn fact(msg: i64, name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/miyu-im/data/facts/impostor.txt"))
+    std::fs::read_to_string(resources().join("packages/im/data/facts/impostor.txt"))
         .expect("读得出")
         .replace("{msg}", &msg.to_string())
         .replace("{name}", name)
@@ -93,7 +93,8 @@ async fn borrowing_the_admins_or_her_name_is_noted_once() {
     assert!(of_kind(&events, "turn.started").is_empty());
     // 在这个群关掉识人术（施工 I-10 上：场所开关照软件包插件的算，「陌生群」卡上的开关）：再有人借也不记。
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-identity": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-identity": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     says(&napcat, 20011, "老板二号", 8);

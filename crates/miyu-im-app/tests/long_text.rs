@@ -1,5 +1,5 @@
 //! 长文转成图（施工 O-59 上，`onebot.md`「场所卡片」的「长文」、「出站队列」）：真核心拉起真桥、假 NapCat，另装一个测试包扮渲染包
-//! （`miyu-render`，`render:` 答两页）。出厂超过 300 个字的回话画成图：一页一条图片段、照先后，渲染包收到的是全文；入队第一页记成
+//! （`render`，`render:` 答两页）。出厂超过 300 个字的回话画成图：一页一条图片段、照先后，渲染包收到的是全文；入队第一页记成
 //! `reply`（全文）、第二页记成 `image`；`venue.delivered` 第一页带全文和回的人、第二页都是空的；她 `mention` 的 @ 只在第一页。
 //! 判、画、记照过了出站链的全文（去了末尾的「。」）。不长的照发字；渲染包没装的、交回零页的、这个群写了
 //! `long_text = "split"` 的照发字。合并转发（施工 O-59 下）：她的长回话发成一条、算她的话（入队带 `forward`）；命令回执、别的包
@@ -58,14 +58,14 @@ fn renderer(record: &std::path::Path) -> impl Fn(&miyu_store::root::DataRoot) + 
         format!("render:{}", path.display()),
     ];
     move |root: &miyu_store::root::DataRoot| {
-        install_with(root, "miyu-render", &args, &[]);
+        install_with(root, "render", &args, &[]);
         export_markdown(root);
     }
 }
 
 /// 测试包的清单声明提供总线上的名字 `render`、导出 `render.markdown`（施工 I-213；`install_with` 不导出方法）。
 fn export_markdown(root: &miyu_store::root::DataRoot) {
-    let manifest = root.packages().join("miyu-render/package.toml");
+    let manifest = root.packages().join("render/package.toml");
     let text = std::fs::read_to_string(&manifest).expect("读得出");
     std::fs::write(
         &manifest,
@@ -152,7 +152,7 @@ async fn a_long_reply_goes_out_as_pages_in_order() {
         cleaned(),
         "渲染包收到的是过了出站链的全文"
     );
-    assert_eq!(call["from"], "miyu-im");
+    assert_eq!(call["from"], "im");
     // 首页「今天」的回复（施工 I-6 下）：长文的几页算一段。
     let day = crate::support::events::until_counted(&home.root, |day| day["replied"] != 0).await;
     assert_eq!(day["replied"], 1, "{day}");
@@ -204,7 +204,7 @@ async fn a_renderer_that_draws_no_pages_does_not_swallow_the_reply() {
     let script = Script::new([Play::Says(long())]);
     let args = vec![r#"answer:render.markdown:{"pages":[]}"#.to_string()];
     let install = move |root: &miyu_store::root::DataRoot| {
-        install_with(root, "miyu-render", &args, &[]);
+        install_with(root, "render", &args, &[]);
         export_markdown(root);
     };
     let (home, mut napcat, _) = started_installed(&script, "", MEMBERS, install).await;
@@ -332,7 +332,7 @@ async fn a_long_message_sent_for_another_package_follows_the_setting_there() {
     )
     .await;
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let call = json!({"package": "miyu-im", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
+    let call = json!({"package": "im", "method": "chat.send", "params": {"group": GROUP, "text": "公告：今晚八点开会"}});
     let reply = head.call("package.call", call.clone()).await;
     assert_eq!(reply["result"], json!({"sent": 2}), "{reply}");
     is_a_page(&napcat.group_message(GROUP).await);

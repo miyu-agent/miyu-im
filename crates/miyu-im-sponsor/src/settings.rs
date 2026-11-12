@@ -4,7 +4,7 @@
 use serde_json::{Map, Value};
 
 /// 包的编号：配置项的键照它开头。
-pub const PACKAGE: &str = "miyu-im-sponsor";
+pub const PACKAGE: &str = "im-sponsor";
 
 /// 总线上的名字（核心设计 67，施工 I-211）：问场所照它找，谁提供 `chat` 就问谁（官方的是 im）。
 pub const CHAT: &str = "chat";

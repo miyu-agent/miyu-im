@@ -14,7 +14,7 @@ use miyu_im::plugins::{Builtin, Declared};
 use crate::admin::switched;
 
 /// 查询信息的编号。
-pub(crate) const ID: &str = "miyu-im-qq-lookup";
+pub(crate) const ID: &str = "im-qq-lookup";
 
 /// 查询信息的总开关。
 pub(crate) const ON: &str = "lookup_on";

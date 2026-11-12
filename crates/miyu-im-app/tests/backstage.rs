@@ -33,7 +33,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         .as_array()
         .unwrap_or_else(|| panic!("{listed}"))
         .iter()
-        .find(|one| one["package"] == "miyu-im")
+        .find(|one| one["package"] == "im")
         .cloned()
         .unwrap_or_else(|| panic!("没有 onebot：{listed}"));
     assert_eq!(onebot["icon"], "message-circle", "{onebot}");
@@ -49,7 +49,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
         "后台页由 im 自己的网页服务给：{onebot}"
     );
     let file = head
-        .call("package.file", json!({"package": "miyu-im", "path": ""}))
+        .call("package.file", json!({"package": "im", "path": ""}))
         .await;
     assert_eq!(file["error"]["data"]["reason"], "no_page", "{file}");
 

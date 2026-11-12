@@ -27,7 +27,7 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
         on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
     let hello = &served.hello;
     assert_eq!(hello["method"], "hello", "{hello}");
-    assert_eq!(hello["params"]["head"]["kind"], "miyu-im", "{hello}");
+    assert_eq!(hello["params"]["head"]["kind"], "im", "{hello}");
     assert_eq!(hello["params"]["caps"], json!({"input": false}), "{hello}");
     for credential in ["token", "code", "login", "user", "password"] {
         assert!(

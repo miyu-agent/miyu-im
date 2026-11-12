@@ -180,7 +180,7 @@ pub async fn ended(home: &Home, turn: usize) -> (String, String) {
 /// 出厂的那一句 `tool-results/<name>.txt`（施工 T-1 起挪进驱动的那几件的在 `onebot/tool-results/`，先找 im 的），字段照 `fields`
 /// 换，去掉行尾。
 pub fn sentence(name: &str, fields: &[(&str, &str)]) -> String {
-    let data = resources().join("packages/miyu-im/data");
+    let data = resources().join("packages/im/data");
     let own = data.join(format!("tool-results/{name}.txt"));
     let path = match own.exists() {
         true => own,

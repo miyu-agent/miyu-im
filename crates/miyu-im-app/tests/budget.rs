@@ -1,4 +1,4 @@
-//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31、O-33）：`miyu-im/data/onebot/tools/` 下的说明加起来（施工 T-1 到 T-4 起都是驱动交的）
+//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31、O-33）：`im/data/onebot/tools/` 下的说明加起来（施工 T-1 到 T-4 起都是驱动交的）
 //! 不超过 [`BUDGET`] 字节。
 //!
 //! 照基础系统、记忆的办法：2026-10-09 照 magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash` 量，十六件（基础系统十五件加
@@ -102,7 +102,7 @@ fn the_telegram_tool_face_stays_within_its_budget() {
 
 /// 包文件夹 `data/` 下 `dir` 里的说明：合计多少字节（照模型收到的数），有哪几件（排好）。
 fn face(dir: &str) -> (usize, Vec<String>) {
-    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../miyu-im/data");
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../im/data");
     let mut total = 0;
     let mut names = Vec::new();
     for entry in std::fs::read_dir(data.join(dir)).expect("读得了工具说明的目录") {

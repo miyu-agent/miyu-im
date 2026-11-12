@@ -1,4 +1,4 @@
-//! 识人术（施工 I-10 上，设计 01 第一节第 22 条；2026-10-19 项目主人定：OneBot 驱动里内置的 im 插件 `miyu-im-identity`，暂时只支持
+//! 识人术（施工 I-10 上，设计 01 第一节第 22 条；2026-10-19 项目主人定：OneBot 驱动里内置的 im 插件 `im-identity`，暂时只支持
 //! QQ）：群里一个人的名字借了别人的，提醒 AI 这不是那个人（O-53 写在桥里的冒充提醒挪进来）。记那一句、同一个人借同一个名字只记一次
 //! 由宿主做（`core/route/impostor.rs`），这里只认借没借、借的是谁。
 //!
@@ -19,7 +19,7 @@ use miyu_im::plugins::declared::{Links, Ui};
 use miyu_im::plugins::{Builtin, Declared, Seen};
 
 /// 编号。
-const ID: &str = "miyu-im-identity";
+const ID: &str = "im-identity";
 
 /// 设置项名字的开头。
 const PREFIX: &str = "identity_";

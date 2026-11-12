@@ -4,7 +4,7 @@
 
 这一页只讲「在 QQ 里」和在终端、网页里不一样的地方。包怎么写、清单怎么写、扩展怎么说协议，看核心仓库的作者说明：[写一个 Miyu 软件包](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.md)。每个方法的参数、回应、错误码在核心的[协议参考](https://github.com/miyu-agent/miyu/blob/main/docs/reference/README.md)（场所会话那几个在 [`venues.md`](https://github.com/miyu-agent/miyu/blob/main/docs/reference/venues.md)）。调接入通讯平台 的方法、插进接入通讯平台 里面的挂接点，细节在本仓库的 [`docs/blueprint/extending.md`](../blueprint/extending.md)。
 
-现成的例子：表情包包 [`miyu-memes`](https://github.com/miyu-agent/miyu-memes)（工具、注入提示、发图）、渲染包 [`miyu-render`](https://github.com/miyu-agent/miyu-render)（给接入通讯平台 调的方法）。
+现成的例子：表情包包 [`memes`](https://github.com/miyu-agent/miyu-memes)（工具、注入提示、发图）、渲染包 [`render`](https://github.com/miyu-agent/miyu-render)（给接入通讯平台 调的方法）。
 
 ### 一、先知道的几件事
 
@@ -103,7 +103,7 @@
 **接入通讯平台 调你**：
 
 - **挂接点**（细节在 [`extending.md` 第二条](../blueprint/extending.md#二插进接入qq-里面)）：清单声明 `plugs = ["chat.hook"]`，导出、登记名字底下约定的方法，装上、跑起来就挂上。`chat.hook.event`（QQ 的通知、请求原样交你）、`chat.hook.inbound`（群消息判以前问你：照常、只记下、直接回）、`chat.hook.outbound`（她的话发出去以前问你：换掉、不发、照原样）、`chat.hook.score`（判官打完分问你加减分）。`chat.hook.event` 不等你的回答，别的三处最多等 1.5 秒，等不到的照没意见算。
-- **约定的服务**：接入通讯平台 认得的包编号、方法名，装上就用。现在有一个：`miyu-render` 的 `markdown {markdown}` → `{pages: [{blob, width, height}]}`，接入通讯平台 把超过阈值的长回话交给它画成图（每张场所卡片的「长文」一格）。你写一个同编号、同方法的包就能换掉画法；调不通、超时（15 秒）的接入通讯平台 照拆段发。
+- **约定的服务**：接入通讯平台 认得的包编号、方法名，装上就用。现在有一个：`render` 的 `markdown {markdown}` → `{pages: [{blob, width, height}]}`，接入通讯平台 把超过阈值的长回话交给它画成图（每张场所卡片的「长文」一格）。你写一个同编号、同方法的包就能换掉画法；调不通、超时（15 秒）的接入通讯平台 照拆段发。
 
 ### 八、在 QQ 里试
 

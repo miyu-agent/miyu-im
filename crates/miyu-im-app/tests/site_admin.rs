@@ -15,7 +15,7 @@ use crate::support::*;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 群管理的编号。
-const ADMIN: &str = "miyu-im-qq-admin";
+const ADMIN: &str = "im-qq-admin";
 
 /// 要群管理的一块内容。
 fn asking(place: &str, more: Value) -> Value {

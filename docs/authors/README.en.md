@@ -4,7 +4,7 @@ For third-party authors who want to add features to Miyu in QQ. You write an ord
 
 This page only covers what is different "in QQ" compared with the terminal and the web app. For how to write a package, its manifest and the extension protocol, read the core repository's author guide: [Writing a Miyu package](https://github.com/miyu-agent/miyu/blob/main/docs/authors/README.en.md). Every method's parameters, answers and error codes are in the core's [protocol reference](https://github.com/miyu-agent/miyu/blob/main/docs/reference/README.en.md) (the venue session ones in [`venues.en.md`](https://github.com/miyu-agent/miyu/blob/main/docs/reference/venues.en.md)). Calling the QQ bridge's methods and its hook points are specified in this repository's [`docs/blueprint/extending.md`](../blueprint/extending.md) (Chinese).
 
-Working examples: the memes package [`miyu-memes`](https://github.com/miyu-agent/miyu-memes) (tools, injected hints, sending pictures) and the render package [`miyu-render`](https://github.com/miyu-agent/miyu-render) (a method the bridge calls).
+Working examples: the memes package [`memes`](https://github.com/miyu-agent/miyu-memes) (tools, injected hints, sending pictures) and the render package [`render`](https://github.com/miyu-agent/miyu-render) (a method the bridge calls).
 
 ### 1. Things to know first
 
@@ -103,7 +103,7 @@ Your extension can call the bridge, and the bridge can call you. You call it by 
 **The bridge calls you**:
 
 - **Hook points** (details in [`extending.md` section 2](../blueprint/extending.md)): declare `plugs = ["chat.hook"]` in the manifest, export and register the agreed methods under that name, and they are hooked up once your package is installed and running. `chat.hook.event` (QQ notices and requests, passed on as is), `chat.hook.inbound` (asked before a group message is decided: pass, record only, reply), `chat.hook.outbound` (asked before her words go out: replace, drop, keep), `chat.hook.score` (asked after the judge has scored: add or subtract). `chat.hook.event` does not wait for your answer. The other three wait at most 1.5 seconds and treat no answer as no opinion.
-- **Known services**: package ids and method names the bridge knows and uses when installed. There is one now: `miyu-render`'s `markdown {markdown}` → `{pages: [{blob, width, height}]}`. The bridge hands long replies over the threshold to it and sends them as pictures (the "long text" field on each venue card). A package with the same id and method replaces how it is drawn. When the call fails or takes longer than 15 seconds, the bridge splits the text into messages instead.
+- **Known services**: package ids and method names the bridge knows and uses when installed. There is one now: `render`'s `markdown {markdown}` → `{pages: [{blob, width, height}]}`. The bridge hands long replies over the threshold to it and sends them as pictures (the "long text" field on each venue card). A package with the same id and method replaces how it is drawn. When the call fails or takes longer than 15 seconds, the bridge splits the text into messages instead.
 
 ### 8. Trying it in QQ
 

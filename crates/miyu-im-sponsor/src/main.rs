@@ -3,7 +3,7 @@
 //!
 //! 起来先握手（核心交设置的最终值），经 `provide` 登记工具 `sponsor`（只给场所会话：群、私聊），然后一直读标准输入，读到头退出。
 //! 每次 `tool.call` 先经总线（`bus.call`，名字 `chat`）问 `chat.venue`：是哪个平台、哪个场所、叫她的那一条引用了谁、@ 了谁（S-1 上a）。
-//! 后台页（`miyu-im-sponsor/page/`）经 `package.methods` 登记的方法读、改账本（施工 S-1 下，`methods.rs`）。
+//! 后台页（`im-sponsor/page/`）经 `package.methods` 登记的方法读、改账本（施工 S-1 下，`methods.rs`）。
 
 mod methods;
 mod money;

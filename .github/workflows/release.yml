@@ -1,9 +1,9 @@
 # 发包（施工 I-126 起照官方软件源的打包模板，原来打 tar.gz、zip，施工 S-6 中）：推 `v*` 标签（`v` 加上两份清单里同一个
-# `version`）时，im `miyu-im` 和赞助记录 `miyu-im-sponsor` 一种系统各打一个 `.miyu`，传进这个标签的 Release；官方软件源
-# 每天收一次，收进索引以后 `miyu pkg install miyu-im` 就装得上。系统照清单的 `targets`：三台 CI 测过的那三种。
+# `version`）时，im（包编号 `im`）和赞助记录（`im-sponsor`） 一种系统各打一个 `.miyu`，传进这个标签的 Release；官方软件源
+# 每天收一次，收进索引以后 `miyu pkg install im` 就装得上。系统照清单的 `targets`：三台 CI 测过的那三种。
 #
-# - miyu-im：仓库里的 `miyu-im/` 文件夹（清单、`data/`、`page/`、`site/`）加上 `bin/miyu-im`（Windows 带 `.exe`）。
-# - miyu-im-sponsor：清单、`im/plugin.toml`、后台页 `page/` 加上 `bin/miyu-im-sponsor`；给模型看的字编进了程序，`data/` 不带。
+# - im：仓库里的 `im/` 文件夹（清单、`data/`、`page/`、`site/`）加上 `bin/miyu-im`（Windows 带 `.exe`）。
+# - im-sponsor：清单、`im/plugin.toml`、后台页 `page/` 加上 `bin/miyu-im-sponsor`；给模型看的字编进了程序，`data/` 不带。
 # - 两个都带本仓库的 `LICENSE` 和第三方许可证清单 `THIRD-PARTY-LICENSES.txt`（施工 I-93，`cargo xtask notices` 生成）。
 #
 # 手动跑（workflow_dispatch，在 `step/**` 上试打）照样编、打包，`.miyu` 放进这一趟的产物，不建 Release。
@@ -30,8 +30,8 @@ jobs:
     permissions:
       contents: write
     with:
-      package: miyu-im
-      folder: dist/miyu-im
+      package: im
+      folder: dist/im
       target: ${{ matrix.target }}
       runs-on: ${{ matrix.os }}
       build: |
@@ -40,13 +40,13 @@ jobs:
         cargo build --release --locked -p miyu-im-app --bin miyu-im
         exe=""
         if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
-        rm -rf dist/miyu-im && mkdir -p dist/miyu-im/bin
-        cp -R miyu-im/. dist/miyu-im/
-        cp "target/release/miyu-im$exe" dist/miyu-im/bin/
-        cp LICENSE THIRD-PARTY-LICENSES.txt dist/miyu-im/
+        rm -rf dist/im && mkdir -p dist/im/bin
+        cp -R im/. dist/im/
+        cp "target/release/miyu-im$exe" dist/im/bin/
+        cp LICENSE THIRD-PARTY-LICENSES.txt dist/im/
         # 结构不对就不打：清单、im 自己的页面、数据、程序、许可证都要在。
         for need in package.toml site/index.html data/bridge.json "bin/miyu-im$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
-          [ -f "dist/miyu-im/$need" ] || { echo "包里少了 miyu-im/$need"; exit 1; }
+          [ -f "dist/im/$need" ] || { echo "包里少了 im/$need"; exit 1; }
         done
 
   sponsor:
@@ -64,8 +64,8 @@ jobs:
     permissions:
       contents: write
     with:
-      package: miyu-im-sponsor
-      folder: dist/miyu-im-sponsor
+      package: im-sponsor
+      folder: dist/im-sponsor
       target: ${{ matrix.target }}
       runs-on: ${{ matrix.os }}
       build: |
@@ -74,12 +74,12 @@ jobs:
         cargo build --release --locked -p miyu-im-sponsor --bin miyu-im-sponsor
         exe=""
         if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
-        rm -rf dist/miyu-im-sponsor && mkdir -p dist/miyu-im-sponsor/bin dist/miyu-im-sponsor/im
-        cp miyu-im-sponsor/package.toml dist/miyu-im-sponsor/
-        cp miyu-im-sponsor/im/plugin.toml dist/miyu-im-sponsor/im/
-        cp -R miyu-im-sponsor/page dist/miyu-im-sponsor/page
-        cp "target/release/miyu-im-sponsor$exe" dist/miyu-im-sponsor/bin/
-        cp LICENSE THIRD-PARTY-LICENSES.txt dist/miyu-im-sponsor/
+        rm -rf dist/im-sponsor && mkdir -p dist/im-sponsor/bin dist/im-sponsor/im
+        cp im-sponsor/package.toml dist/im-sponsor/
+        cp im-sponsor/im/plugin.toml dist/im-sponsor/im/
+        cp -R im-sponsor/page dist/im-sponsor/page
+        cp "target/release/miyu-im-sponsor$exe" dist/im-sponsor/bin/
+        cp LICENSE THIRD-PARTY-LICENSES.txt dist/im-sponsor/
         for need in package.toml im/plugin.toml page/index.html "bin/miyu-im-sponsor$exe" LICENSE THIRD-PARTY-LICENSES.txt; do
-          [ -f "dist/miyu-im-sponsor/$need" ] || { echo "包里少了 miyu-im-sponsor/$need"; exit 1; }
+          [ -f "dist/im-sponsor/$need" ] || { echo "包里少了 im-sponsor/$need"; exit 1; }
         done
