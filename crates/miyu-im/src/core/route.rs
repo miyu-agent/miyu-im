@@ -104,11 +104,13 @@ mod speak;
 mod steering;
 mod stickers;
 mod strangers;
+mod submit;
 mod tasks;
 #[cfg(test)]
 mod tests;
 mod titled;
 mod turn_texts;
+mod uploading;
 mod venue_plugins;
 mod voicing;
 mod waiting;
@@ -130,8 +132,8 @@ use crate::TARGET;
 use crate::changed::Changed;
 use crate::chat::{Event, Members, Platform, Platforms};
 use crate::core::hooks::Hooks;
-use crate::core::{Core, Gone, reason};
-use crate::counters::{Count, Counters};
+use crate::core::{Core, Gone};
+use crate::counters::Counters;
 use crate::plugins::Toggles;
 use crate::recent::Recent;
 use crate::records::Records;
@@ -208,6 +210,8 @@ pub(crate) struct Route {
     /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
     /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
     chores: JoinSet<()>,
+    /// 正在传的文件（施工 I-231，`uploading`）：同一份还在传的不再传。
+    uploading: uploading::Uploading,
     /// im 的状态目录（`status_file::dir`）：每个驱动自己的状态目录在它下面照平台的名字（施工 Q-2，`toolset::Call::store`；施工
     /// I-70 中上起几个驱动各一个，`status_file::store_in`）。
     store: PathBuf,
@@ -334,6 +338,7 @@ impl Route {
             sending: FuturesOrdered::new(),
             spoken: HashMap::new(),
             chores: JoinSet::new(),
+            uploading: uploading::Uploading::default(),
             jobs: JoinSet::new(),
             recall,
             recalled,
@@ -448,53 +453,5 @@ impl Route {
                 return None;
             }
         }
-    }
-
-    /// 交一条消息：`/` 开头的先当斜杠命令交（「斜杠命令」），办完了的不再发；别的照 `session.send` 发（第 8 条，「群消息」
-    /// 第 6 条），交回会话编号和回应（接受的、拒绝的都原样：群的照它判，施工 O-23）。要带图的（施工 O-33）、要展开转发的（施工
-    /// O-34）先找到会话（不接的不去取），取了图带上、展开的转发写进场所的格；私聊没有字、没带东西、图又一张都没取到的不送。命令办完了的、
-    /// 不接的、找不到会话的、不送的是空的。
-    async fn submit(&mut self, mut message: Message) -> Result<Option<(String, Value)>, Gone> {
-        if command::looks_like(&message.text) && self.command(&message).await? {
-            return Ok(None);
-        }
-        if !self.expanded(&mut message).await? {
-            return Ok(None);
-        }
-        let mut attachments = Vec::new();
-        if let Some(pictures) = message.pictures.as_ref().filter(|pictures| pictures.any()) {
-            if !self.found(&message.place).await? {
-                return Ok(None);
-            }
-            let venue = message.place.peer.venue.to_string();
-            let shown;
-            let platform = message.place.peer.platform;
-            (attachments, shown) = self.pictures((platform, pictures), &venue).await?;
-            // 私聊里交了原图的那几样记 `shown`（施工 O-35）；群里冲她来的这一步不记。
-            if message.place.private_chat() {
-                fields::shown(&mut message.fields, &shown);
-            }
-        }
-        let bare = message.text.trim().is_empty() && message.fields.get("media").is_none();
-        if message.place.private_chat() && bare && attachments.is_empty() {
-            tracing::debug!(target: TARGET, venue = %message.place.peer.venue, message = message.number, "nothing to send");
-            return Ok(None);
-        }
-        let sent = self.deliver(&message, session::SEND, &attachments).await?;
-        let Some((session, reply)) = sent else {
-            return Ok(None);
-        };
-        let (venue, number) = (&message.place.peer.venue, message.number);
-        match reason(&reply) {
-            None => {
-                let chars = message.text.chars().count();
-                tracing::info!(target: TARGET, venue = %venue, message = number, chars, "message sent in");
-                self.counters.bump(Count::Received, &venue.to_string());
-            }
-            Some(other) => {
-                tracing::warn!(target: TARGET, venue = %venue, message = number, reason = other, "message refused");
-            }
-        }
-        Ok(Some((session, reply)))
     }
 }

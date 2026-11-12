@@ -294,10 +294,23 @@ impl Route {
                     answers.say("glance-set", &[("minutes", &minutes)], false),
                 );
             }
-            // 传文件（施工 I-130）：另起任务交给平台照路径传，当场答在传了；没传成的照 `show` 的文件记 `unshown`。
+            // 传文件（施工 I-130）：另起任务交给平台照路径传，当场答在传了；没传成的照 `show` 的文件记 `unshown`。同一份还在传的
+            // 不再传（施工 I-231）：答 `still-uploading`，这一次钉的那一份删掉。
             Planned::Host(Effect::Upload { path, name, size }) => {
-                let said = answers.say("uploading", &[("name", &name), ("size", &size)], false);
-                self.upload((&session, &line), &peer, (path, name));
+                let said = match self.uploading.start(peer.venue.as_str(), &name, &size) {
+                    Some(guard) => {
+                        let said =
+                            answers.say("uploading", &[("name", &name), ("size", &size)], false);
+                        self.upload((&session, &line), &peer, (path, name), guard);
+                        said
+                    }
+                    None => {
+                        if let Err(error) = std::fs::remove_file(&path) {
+                            tracing::debug!(target: TARGET, error = %error, "pinned file not removed");
+                        }
+                        answers.say("still-uploading", &[("name", &name)], false)
+                    }
+                };
                 logged(&venue, &tool, &said);
                 answerer.answer(&id, said);
             }
