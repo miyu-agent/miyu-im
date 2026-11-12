@@ -4,7 +4,7 @@
 [package]
 # 版本、能装的系统（施工 I-126，进官方软件源要的）：版本两个包一样，打标签 `v<版本>` 发版；系统是三台 CI 测过的那三种，
 # 一种打一个 `.miyu`（`.github/workflows/release.yml`）。
-version = "0.2.0"
+version = "0.3.0"
 targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
 # 包编号是 im（包文件夹的名字，核心设计 48；11-12 起编号不带 miyu-，施工 I-226）：配置键 im.*、记进会话的 ext.im.* 照它，不用另写 prefix。
