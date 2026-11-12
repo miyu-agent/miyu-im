@@ -28,6 +28,7 @@ import { mountWidget } from '../plugins/widget-host.js';
 import { goTo } from '../../shell/connection.js';
 import { watchVenue } from './watch.js';
 import { taskPage } from './tasks.js';
+import { viewSessionButton } from './view-session.js';
 
 /** 照 `kinds` 列的几页：编号、做好了没有、只在哪几种卡上有。 */
 const TABS = [
@@ -80,6 +81,8 @@ export function openVenue(one, context, onClose) {
   const recentState = {};
   // 定时任务那一页（施工 I-198）：头一回切过去才问宿主，跨重画留着（正在填的不丢）。
   let tasking = null;
+  // 装没装网页软件（施工 I-232）：装了的「实时日志」下面多一项「查看会话」，问到了再画一遍左栏。
+  let webInstalled = false;
   // 哪几页的「高级」展开着：重画时照旧。
   const expanded = new Set();
   // 插件加的几页：编号 → 画好的那一块（只取一次）。
@@ -168,6 +171,7 @@ export function openVenue(one, context, onClose) {
         });
       }
       tabs.append(button);
+      if (one.id === 'watch' && webInstalled) tabs.append(viewSessionButton(shown, context.request));
     }
     if (added.length > 0) tabs.append(element('div', 'd-sep', say('venue/plugins-added')));
     for (const one of added) {
@@ -198,6 +202,13 @@ export function openVenue(one, context, onClose) {
   };
   draw();
   refresh();
+  context.request('web.status').then(
+    (answer) => {
+      webInstalled = Boolean(answer?.installed);
+      if (webInstalled) draw();
+    },
+    () => {},
+  );
   return {
     update(now) {
       shown = now;

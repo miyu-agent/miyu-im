@@ -2,7 +2,8 @@
 //! （网页的 `served.js`，`miyu web` 也这样开），票是这份登录的人向核心要的一次性交接票（`login.ticket`，60 秒作废）。
 //!
 //! - `web.status` → `{"installed"}`：核心的包列表里有没有网页软件（[`WEBUI`]）。侧栏照它决定放不放入口。
-//! - `web.open` → `{"url"}`：主网页真正在听的地址加 `#ticket=<票>`。地址照 `miyu web --print` 印的（施工 I-201，项目主人 11-10：
+//! - `web.open {session?}` → `{"url"}`：主网页真正在听的地址加 `#ticket=<票>`；带了 `session` 的再加 `&session=<编号>`，网页软件直接
+//!   打开那个会话（施工 I-232，todolist 第 59 条：会话设置卡片的「查看会话」，场所会话在网页那边只读）。地址照 `miyu web --print` 印的（施工 I-201，项目主人 11-10：
 //!   原来照系统配置的 `web.port` 拼 `http://127.0.0.1:<端口>`，网页不在那个端口上听的时候跳错地方；`miyu web` 认的是网页软件自己记下
 //!   的地址，没在跑的还会先拉起来）。印不出来的（主程序找不到、十几秒没回）退回照 `web.port` 拼。没装网页的回 `not_installed`；
 //!   两样都拿不到的回 `no_port`。
@@ -36,7 +37,12 @@ pub(super) async fn status(person: &Person) -> Result<Value, (String, String)> {
 }
 
 /// `web.open`（模块的说明）。
-pub(super) async fn open(person: &Person) -> Result<Value, (String, String)> {
+pub(super) async fn open(person: &Person, params: &Value) -> Result<Value, (String, String)> {
+    let session = match &params["session"] {
+        Value::Null => None,
+        Value::String(session) if is_session(session) => Some(session.clone()),
+        _ => return Err(("bad_params".to_string(), String::new())),
+    };
     if !installed(person).await? {
         return Err(("not_installed".to_string(), String::new()));
     }
@@ -55,7 +61,7 @@ pub(super) async fn open(person: &Person) -> Result<Value, (String, String)> {
     let ticket = ticket["ticket"]
         .as_str()
         .ok_or_else(|| ("bad_reply".to_string(), String::new()))?;
-    Ok(json!({"url": url(&origin, ticket)}))
+    Ok(json!({"url": url(&origin, ticket, session.as_deref())}))
 }
 
 /// 等 `miyu web --print` 最多多久：它自己拉起网页软件最多等 10 秒。
@@ -87,21 +93,45 @@ fn origin(text: &str) -> Option<String> {
     (address.len() > "http://".len()).then(|| address.to_string())
 }
 
-/// 主网页带交接票的地址（纯逻辑）：`origin` 是不带末尾 `/` 的地址。
-fn url(origin: &str, ticket: &str) -> String {
-    format!("{origin}/#ticket={ticket}")
+/// 主网页带交接票的地址（纯逻辑）：`origin` 是不带末尾 `/` 的地址；带了会话 `session` 的直接打开它（同 `miyu web --session`）。
+fn url(origin: &str, ticket: &str, session: Option<&str>) -> String {
+    match session {
+        Some(session) => format!("{origin}/#ticket={ticket}&session={session}"),
+        None => format!("{origin}/#ticket={ticket}"),
+    }
+}
+
+/// 会话编号的写法（纯逻辑）：字母、数字、`-`，不长于 64 个字（放进网址不用转义，同网页软件读参数时查的）。
+fn is_session(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= 64
+        && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{origin, url};
+    use super::{is_session, origin, url};
 
     #[test]
     fn the_ticket_rides_in_the_fragment() {
         assert_eq!(
-            url("http://127.0.0.1:8310", "ab12"),
+            url("http://127.0.0.1:8310", "ab12", None),
             "http://127.0.0.1:8310/#ticket=ab12"
         );
+    }
+
+    #[test]
+    fn a_session_rides_after_the_ticket_and_odd_ones_are_refused() {
+        // 施工 I-232：「查看会话」带上会话编号，网页软件直接打开它。
+        let session = "019a4b2c-7d3e-7f10-8a2b-3c4d5e6f7a8b";
+        assert_eq!(
+            url("http://127.0.0.1:8310", "ab12", Some(session)),
+            format!("http://127.0.0.1:8310/#ticket=ab12&session={session}")
+        );
+        assert!(is_session(session));
+        for odd in ["", "a&settings=x", "a#b", "会话", &"a".repeat(65)] {
+            assert!(!is_session(odd), "{odd}");
+        }
     }
 
     #[test]

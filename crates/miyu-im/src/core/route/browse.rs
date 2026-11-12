@@ -2,9 +2,10 @@
 //! 列会话，管理员能删；C-1 中下起记录改读 im 自己的库，这里只剩认连接、删她的上下文，项目主人 10-24 定删掉读一页的
 //! `sessions.page`）。核心 Y-2 上起人碰不到场所会话，这两个都在桥自己的连接上问核心（核心只让平台桥碰关着的场所会话）：
 //!
-//! - `sessions.list` → `{connections: [{platform, bot, sessions: [{session, venue, kind, id, name}]}]}`：照核心的
+//! - `sessions.list` → `{connections: [{platform, bot, sessions: [{session, venue, kind, id, name, main}]}]}`：照核心的
 //!   `venue.sessions`（从新到旧），桥认得是哪个机器人号收进来的照它分组，认不得的（还没来过消息）放进 `bot` 是空的那一组；
-//!   名字照 NapCat 问到的群名、好友名（同会话页的 `cards.get`），问不到的是空的。
+//!   名字照 NapCat 问到的群名、好友名（同会话页的 `cards.get`），问不到的是空的。`main` 是这个场所此刻的主线会话（并行时还有
+//!   支线；施工 I-232，会话设置卡片的「查看会话」打开主线）。
 //! - `sessions.delete {session}` → 核心 `session.delete` 的回答：只删桥自己的会话。
 //!
 //! 不认得的会话拒 `session_not_found`，参数写错的拒 `bad_params`；核心拒了的照它的原因拒。
@@ -27,6 +28,8 @@ use crate::rules::Scope;
 struct Known {
     bot: Id,
     to: To,
+    /// 是这个场所此刻的主线会话（施工 I-232）。
+    main: bool,
 }
 
 impl Route {
@@ -45,6 +48,7 @@ impl Route {
                 let known = Known {
                     bot: peer.bot.clone(),
                     to: peer.to.clone(),
+                    main: self.venues.get(peer.venue.as_str()) == Some(session),
                 };
                 (session.clone(), known)
             })
@@ -137,6 +141,7 @@ fn grouped(
             "kind": kind,
             "id": number,
             "name": name,
+            "main": peer.is_some_and(|peer| peer.main),
         }));
     }
     let connections: Vec<Value> = order

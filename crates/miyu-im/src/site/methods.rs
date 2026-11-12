@@ -113,7 +113,7 @@ pub(super) async fn answer(
         Some("stats") => stats::stats(site, &login.person, params).await,
         Some("core.call") => core_call::call(&login.person, params).await,
         Some("web.status") => web_link::status(&login.person).await,
-        Some("web.open") => web_link::open(&login.person).await,
+        Some("web.open") => web_link::open(&login.person, params).await,
         Some("store.list") => store::list(&login.person, params).await,
         Some("store.install") => store::install(&login.person, params).await,
         Some("records.venues") => records_page::listed(site).await,
