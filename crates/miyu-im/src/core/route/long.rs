@@ -1,6 +1,6 @@
 //! 长文转成图（施工 O-59 上，`onebot.md`「场所卡片」的「长文」、「出站队列」）：她的一句话过了出站链以后，照这个场所的参数
 //! `long_text` 是 `image`、`long_chars` 不是 0、全文超过 `long_chars` 个字的，经核心的总线调提供 `render` 的包
-//! （`bus.call`，名字 `render`、方法 `markdown`，施工 I-213；官方的是 `miyu-render`）画成几页，每一页经 `blob.get` 读成 `base64://…`（不写会话：渲染包传的 blob 在管理员名下）。
+//! （`bus.call`，名字 `render`、方法 `markdown`，施工 I-213；官方的是 `render`）画成几页，每一页经 `blob.get` 读成 `base64://…`（不写会话：渲染包传的 blob 在管理员名下）。
 //!
 //! 桥这一头等着画完（同发表情包读图）：长图要和她前后的话守先后。等至多 [`WAIT`]；哪一步不成（没装、没开、拒了、超时、读不出）
 //! 交回空的、记一行 `long text not drawn`，调的一方照拆段发。

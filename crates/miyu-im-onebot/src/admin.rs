@@ -1,5 +1,5 @@
 //! 群管理（施工 Q-1 起，设计 02；2026-10-20 项目主人定：群管理内置进 OneBot 驱动，同识人术）：OneBot 驱动带的 im 插件
-//! `miyu-im-qq-admin`。禁言、踢人、查管理记录这几件工具在驱动的工具套里（`crate::tools`），这里是插件的声明、设置和生效的前提。
+//! `im-qq-admin`。禁言、踢人、查管理记录这几件工具在驱动的工具套里（`crate::tools`），这里是插件的声明、设置和生效的前提。
 //!
 //! 生效的前提（设计 02 第四节第 2 条）：插件开着（总开关、这个群的开关，im 交的 `Call::plugins`），并且她在这个群里是管理员或群主
 //! （[`ranked`]）。不满足的群里工具答 `admin-off`。
@@ -31,7 +31,7 @@ pub(crate) mod summary;
 pub(crate) mod sync;
 
 /// 编号。
-pub(crate) const ID: &str = "miyu-im-qq-admin";
+pub(crate) const ID: &str = "im-qq-admin";
 
 /// 设置项名字的开头。
 const PREFIX: &str = "admin_";

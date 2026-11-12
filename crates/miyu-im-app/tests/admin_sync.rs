@@ -53,7 +53,7 @@ fn moderated(events: &[Value]) -> Vec<String> {
 /// 出厂的模板换出来、套上插件记事实的外壳的那一句。
 fn fact(name: &str, fields: &[(&str, &str)]) -> String {
     let mut text = std::fs::read_to_string(
-        resources().join(format!("packages/miyu-im/data/onebot/facts/{name}.txt")),
+        resources().join(format!("packages/im/data/onebot/facts/{name}.txt")),
     )
     .expect("读得出");
     for (field, value) in fields {
@@ -166,7 +166,8 @@ async fn a_group_with_group_admin_switched_off_is_left_alone() {
     let (home, napcat) = up(&lines).await;
     // 在这个群关掉群管理（「陌生群」卡上的插件开关）。
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-admin": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     napcat.send(notice("group_ban", "ban", (MEMBER, MANAGER), Some(60)));

@@ -376,7 +376,7 @@ fn core() -> std::process::Command {
 /// 核心转交子命令、拉起扩展时交的主程序的真实位置（核心 G-15）。
 const MAIN_PROGRAM: &str = "MIYU_PROGRAM";
 
-/// 主程序 `miyu` 在哪（施工 I-186，core1 做便携版时撞见）：im 装在数据根的 `opt/miyu-im/bin/` 下，旁边从来没有主程序，核心没在跑
+/// 主程序 `miyu` 在哪（施工 I-186，core1 做便携版时撞见）：im 装在数据根的 `opt/im/bin/` 下，旁边从来没有主程序，核心没在跑
 /// 时 `start` 拉不起核心。照 [`locate`] 找。
 pub(crate) fn main_program() -> PathBuf {
     let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));

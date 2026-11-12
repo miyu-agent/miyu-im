@@ -77,12 +77,11 @@ async fn a_flood_is_recalled_muted_recorded_and_told_but_not_passed_on() {
             && heard(events).contains(&"1105".to_string())
     })
     .await;
-    let said = std::fs::read_to_string(
-        resources().join("packages/miyu-im/data/onebot/facts/spam-muted.txt"),
-    )
-    .expect("读得出")
-    .replace("{who}", "小明")
-    .replace("{duration}", "2 minutes");
+    let said =
+        std::fs::read_to_string(resources().join("packages/im/data/onebot/facts/spam-muted.txt"))
+            .expect("读得出")
+            .replace("{who}", "小明")
+            .replace("{duration}", "2 minutes");
     let noted: Vec<Value> = of_kind(&events, "context.injected")
         .into_iter()
         .filter(|event| event["body"]["kind"] == "moderated")
@@ -155,7 +154,8 @@ async fn admins_floods_and_groups_with_group_admin_off_are_left_alone() {
     assert_eq!(heard(&events), ["1301", "1302", "1303"]);
     // 这个群关了群管理（「陌生群」卡上的插件开关）：不管。
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-admin": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     floods(&napcat, MEMBER, "member", 1311..=1313);

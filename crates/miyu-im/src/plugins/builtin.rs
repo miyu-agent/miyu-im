@@ -35,7 +35,7 @@ pub struct Context {
 
 /// 驱动带的一个插件。
 pub trait Builtin: Send + Sync {
-    /// 编号（同软件包的写法，`miyu-im-identity`）：场所卡片的插件开关照它记。
+    /// 编号（同软件包的写法，`im-identity`）：场所卡片的插件开关照它记。
     fn id(&self) -> &'static str;
 
     /// 声明（同 `plugin.toml` 读出来的）。

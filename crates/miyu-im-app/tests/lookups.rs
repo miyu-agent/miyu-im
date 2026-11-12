@@ -61,7 +61,8 @@ async fn the_lookup_plugin_switches_its_tools() {
 
     // 卡片上关掉查询信息（场所的插件开关，核心 O-60）：之后的回合里八件都没有。
     let mut head = Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-lookup": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-lookup": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     called_once(&home, &napcat, 802, 2).await;
@@ -96,12 +97,9 @@ async fn group_only_plugins_are_off_in_a_private_chat() {
         .lines()
         .find(|line| line.contains("venue plugins told") && line.contains(&venue))
         .expect("说过");
-    for off in ["miyu-im-qq-admin", "miyu-im-identity"] {
+    for off in ["im-qq-admin", "im-identity"] {
         assert!(!told.contains(off), "只在群里用的私聊里没有 {off}：{told}");
     }
-    assert!(
-        told.contains("miyu-im-qq-lookup"),
-        "没限场所的照样开着：{told}"
-    );
+    assert!(told.contains("im-qq-lookup"), "没限场所的照样开着：{told}");
     stopped(home).await;
 }

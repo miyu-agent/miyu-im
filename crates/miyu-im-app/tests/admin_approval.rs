@@ -169,7 +169,7 @@ async fn groups_where_group_admin_is_not_on_are_left_to_people() {
     .await;
     rule(&home, "暗号是芝麻开门");
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let switch = |on: bool| json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": on}}});
+    let switch = |on: bool| json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-admin": on}}});
     let saved = head.page_call_with("cards.save_one", switch(false)).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     applies(&napcat, 50002, "关着的时候", "f2");

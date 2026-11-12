@@ -108,7 +108,7 @@
     "status/stopped-restart": "run 'miyu im restart' after fixing it",
     "status/stderr": "last lines of standard error:",
     "status/other": "Connect Messaging state: {state}",
-    "status/missing": "the core has no miyu-im package",
+    "status/missing": "the core has no im package",
     "status/missing-hint": "check it with 'miyu check'",
     "status/napcat": "NapCat connected: {implementation} {version}, bot {bot}",
     "status/napcat-bot": "NapCat connected: bot {bot}",

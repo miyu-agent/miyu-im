@@ -163,7 +163,7 @@ fn a_bad_venue_id_is_a_usage_error() {
 fn broken_factory_data_is_said_with_every_problem() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
-    let defaults = resources.join("packages/miyu-im/data/defaults.toml");
+    let defaults = resources.join("packages/im/data/defaults.toml");
     let good = std::fs::read_to_string(&defaults).expect("读得了");
     let line = good
         .lines()
@@ -287,7 +287,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
     let (dir, root) = temp_root();
     let resources = copied_resources();
     std::fs::write(
-        resources.join("packages/miyu-im/data/venues.d/50-defaults.toml"),
+        resources.join("packages/im/data/venues.d/50-defaults.toml"),
         "[[rule]]\nrate = \"abc\"\n",
     )
     .expect("写得进");

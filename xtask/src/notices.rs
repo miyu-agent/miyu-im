@@ -31,12 +31,12 @@ const STANDARD: [(&str, &str); 4] = [
 /// qrcode-generator（MIT，施工 I-167）。
 const DATA: [(&str, &str); 2] = [
     (
-        "Lucide icons (miyu-im/site/shell/lucide-all.json, lucide.js)",
-        "miyu-im/site/shell/LICENSE-lucide.txt",
+        "Lucide icons (im/site/shell/lucide-all.json, lucide.js)",
+        "im/site/shell/LICENSE-lucide.txt",
     ),
     (
-        "qrcode-generator 2.0.4 by Kazuhiko Arase (miyu-im/site/shell/qr/vendor/qrcode.mjs)",
-        "miyu-im/site/shell/qr/vendor/LICENSE",
+        "qrcode-generator 2.0.4 by Kazuhiko Arase (im/site/shell/qr/vendor/qrcode.mjs)",
+        "im/site/shell/qr/vendor/LICENSE",
     ),
 ];
 

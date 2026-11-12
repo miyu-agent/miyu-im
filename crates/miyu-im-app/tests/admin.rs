@@ -45,7 +45,8 @@ async fn mute_keeps_to_the_range_and_to_groups_where_group_admin_is_on() {
     // 在这个群关掉群管理（「陌生群」卡上的插件开关，同识人术）：从下一轮起工具表里没有群管理的三件（施工 S-1 上c，核心 O-60），她
     // 照旧调的核心直接回没有这件工具，不转给桥、不调 NapCat。
     let mut head = crate::support::head::Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-admin": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let missing = |name: &str| {

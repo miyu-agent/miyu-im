@@ -16,7 +16,7 @@ pub(crate) const INVISIBLE: [char; 15] = [
     '\u{2063}', '\u{2064}', '\u{FEFF}', '\u{00AD}', '\u{180E}', '\u{2028}', '\u{2029}',
 ];
 
-/// 「下一轮从哪开始」的标记（施工 I-214），同出厂的那一份（`miyu-im/data/defaults.toml` 的 `turn_marks`）。
+/// 「下一轮从哪开始」的标记（施工 I-214），同出厂的那一份（`im/data/defaults.toml` 的 `turn_marks`）。
 pub(crate) const TURN_MARKS: [&str; 18] = [
     "<style-note>",
     "<another-line>",

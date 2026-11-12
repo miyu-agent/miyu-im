@@ -12,7 +12,7 @@ use crate::support::resources;
 
 /// 出厂的页面目录。
 fn site_dir() -> PathBuf {
-    resources().join("packages/miyu-im/site")
+    resources().join("packages/im/site")
 }
 
 /// 页面目录 `dir` 里（连子目录，施工 I-6 上：外壳、一页一个文件夹）每一份 `.js`：（相对 `dir` 的路径，内容）。
@@ -189,7 +189,7 @@ fn japanese_is_written_in_japanese() {
 #[test]
 fn the_activity_log_names_tools_like_their_display_names() {
     // 施工 I-91 补：活动记录里的工具名和工具的显示名（`data/human/<语言>.json`，终端、网页的过程行照它）一字不差，改名不会只改一边。
-    let im = resources().join("packages/miyu-im");
+    let im = resources().join("packages/im");
     let texts = texts_in(&im.join("site"));
     for language in ["zh", "en", "ja"] {
         let human: Value = serde_json::from_str(

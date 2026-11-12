@@ -114,7 +114,8 @@ async fn a_chat_with_the_tool_turned_off_says_so_even_from_the_terminal() {
     let lines = Lines::new(uses("qq_members", "{\"group\":31}"));
     let (home, _napcat) = up(&lines).await;
     let mut head = Head::connect(&home.root).await;
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-lookup": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-lookup": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     local_session(&home, "看看 31 群有谁").await;

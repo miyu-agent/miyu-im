@@ -108,7 +108,7 @@ pub fn install_starting(root: &DataRoot, id: &str, args: &[String], exports: &[&
             std::fs::create_dir_all(&plugin).expect("建得了目录");
             let declared = format!("[plugin]\nname = {{ en = \"Hook {id}\" }}\n");
             std::fs::write(plugin.join("plugin.toml"), declared).expect("写得进");
-            format!("{manifest}\n[content.miyu-im]\ndir = \"im\"\n")
+            format!("{manifest}\n[content.im]\ndir = \"im\"\n")
         }
     };
     std::fs::write(dir.join("package.toml"), manifest).expect("写得进");
@@ -206,7 +206,7 @@ pub fn page_login_approved(root: &DataRoot) {
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_else(|| serde_json::json!({"version": 1, "on": {}}));
-    let mut names: Vec<String> = switches["approved"]["miyu-im"]
+    let mut names: Vec<String> = switches["approved"]["im"]
         .as_array()
         .map(|names| {
             names
@@ -219,7 +219,7 @@ pub fn page_login_approved(root: &DataRoot) {
         names.push("login.page".to_string());
         names.sort_unstable();
     }
-    switches["approved"]["miyu-im"] = serde_json::json!(names);
+    switches["approved"]["im"] = serde_json::json!(names);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).expect("建得了目录");
     }

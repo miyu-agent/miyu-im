@@ -16,7 +16,7 @@ use crate::support::*;
 
 /// 出厂的资源 `software/onebot/<name>` 原样。
 fn shipped(name: &str) -> String {
-    std::fs::read_to_string(resources().join("packages/miyu-im/data").join(name)).expect("读得出")
+    std::fs::read_to_string(resources().join("packages/im/data").join(name)).expect("读得出")
 }
 
 /// 出厂的 `provide` 参数（施工 T-4 从 im 的 `core/provider/tests.rs` 挪来，`tests/stdio.rs` 拿真的程序登记的比）：驱动交的十四件照
@@ -52,9 +52,9 @@ pub fn shipped_tools() -> Value {
         tool["plugin"] = json!(id);
         tool
     };
-    let admin = |tool| plugin("miyu-im-qq-admin", tool);
+    let admin = |tool| plugin("im-qq-admin", tool);
     // 查询信息的八件同样（施工 I-44、I-91）。
-    let lookup = |tool| plugin("miyu-im-qq-lookup", tool);
+    let lookup = |tool| plugin("im-qq-lookup", tool);
     json!({"tools": [
         entry("qq_skip_reply", "read", both),
         entry("qq_recall", "venue", both),
@@ -77,7 +77,7 @@ pub fn shipped_tools() -> Value {
         lookup(entry("qq_token_usage", "read", everywhere)),
         lookup(entry("qq_chat_history", "read", everywhere)),
         // 定下一次看一眼（施工 I-89 下）：只在开着时不时看一眼的场所里有。
-        plugin("miyu-im-glance", entry("qq_glance", "read", both)),
+        plugin("im-glance", entry("qq_glance", "read", both)),
         // 传文件（施工 I-130）。
         entry("qq_send_file", "venue", everywhere),
     ]})
@@ -180,7 +180,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
 fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
     assert!(crate::support::shipped::factory_at(&package_in(resources())).is_ok());
     let resources = copied_resources();
-    let software = resources.join("packages/miyu-im/data");
+    let software = resources.join("packages/im/data");
     for (file, text, wanted) in [
         (
             "onebot/tools/qq_skip_reply.json",

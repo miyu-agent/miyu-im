@@ -9,14 +9,14 @@ fn resources() -> std::path::PathBuf {
 
 /// 给人看的那几份，相对资源目录。
 const HUMAN_FACING: [&str; 8] = [
-    "packages/miyu-im/package.toml",
-    "packages/miyu-im/site/texts.js",
-    "packages/miyu-im/data/human/zh.json",
-    "packages/miyu-im/data/human/en.json",
-    "packages/miyu-im/data/human/ja.json",
-    "packages/miyu-im/data/defaults.toml",
-    "packages/miyu-im/data/venues.d/50-defaults.toml",
-    "packages/miyu-im/data/cards/human/page.json",
+    "packages/im/package.toml",
+    "packages/im/site/texts.js",
+    "packages/im/data/human/zh.json",
+    "packages/im/data/human/en.json",
+    "packages/im/data/human/ja.json",
+    "packages/im/data/defaults.toml",
+    "packages/im/data/venues.d/50-defaults.toml",
+    "packages/im/data/cards/human/page.json",
 ];
 
 /// 一行里有没有用代词说 AI：中文、日文照字，英文照整词（不分大小写）。
@@ -33,10 +33,7 @@ fn pronoun(line: &str) -> bool {
 }
 
 /// 仓库里另外几份给人看的（施工 I-180）：赞助记录的清单、后台页的字不在 im 的资源目录里，照仓库的路径读。
-const IN_REPO: [&str; 2] = [
-    "miyu-im-sponsor/package.toml",
-    "miyu-im-sponsor/page/texts.js",
-];
+const IN_REPO: [&str; 2] = ["im-sponsor/package.toml", "im-sponsor/page/texts.js"];
 
 /// 一行里给人看的那一段：页面的字（`texts.js`）只看值，键（`"activity/glance-hers": …`）是代码里的名字。
 fn shown<'a>(file: &str, line: &'a str) -> &'a str {
@@ -89,9 +86,9 @@ fn the_check_catches_each_form() {
     }
     // 页面的字只看值（施工 I-180）。
     let key = r#"    "activity/glance-hers": "[{where}] 下次 {at} 看一眼（AI 自己定的）","#;
-    assert!(!pronoun(shown("packages/miyu-im/site/texts.js", key)));
+    assert!(!pronoun(shown("packages/im/site/texts.js", key)));
     assert!(pronoun(shown(
-        "packages/miyu-im/site/texts.js",
+        "packages/im/site/texts.js",
         r#"    "x": "她会看到","#
     )));
 }

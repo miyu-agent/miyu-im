@@ -108,7 +108,7 @@
     "status/stopped-restart": "修复后运行 'miyu im restart'",
     "status/stderr": "标准错误的最后几行：",
     "status/other": "接入通讯平台状态：{state}",
-    "status/missing": "核心里没有 miyu-im 软件包",
+    "status/missing": "核心里没有 im 软件包",
     "status/missing-hint": "用 'miyu check' 检查",
     "status/napcat": "NapCat 已连接：{implementation} {version}，机器人 {bot}",
     "status/napcat-bot": "NapCat 已连接：机器人 {bot}",

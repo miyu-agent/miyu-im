@@ -280,7 +280,7 @@ fn assemble(factory: &Factory, root: &DataRoot, layers: Vec<File>) -> Loaded {
 }
 
 /// 系统的违规词表：im 的配置目录里的 `moderation.txt`（施工 I-16 起页面也写它，`site::moderation`；I-121 从
-/// `modules/miyu-im/` 挪来）。
+/// `modules/im/` 挪来）。
 pub(crate) fn words(root: &DataRoot) -> PathBuf {
     crate::dirs::config(root).join(MODERATION)
 }

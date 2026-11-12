@@ -6,7 +6,7 @@ import { toast } from '../../shell/dialog.js';
 import { tagInput } from '../../shell/tags.js';
 
 /** 群管理插件的编号（内置在 OneBot 驱动里）。 */
-export const ADMIN = 'miyu-im-qq-admin';
+export const ADMIN = 'im-qq-admin';
 
 /** 违规关键词那一段：先画「读取中」，读到了换上。 */
 export function moderationSection(request) {

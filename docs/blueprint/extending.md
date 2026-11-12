@@ -1,6 +1,6 @@
 ## 给接入通讯平台 写扩展包
 
-状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `chat.hook.event`，O-43 中写了 `chat.hook.inbound`，O-43 下写了 `chat.hook.outbound`，O-43 末写了 `chat.hook.score`，O-52 `chat.hook.inbound` 多带 `media`，O-56 多 `chat.send`。项目主人 2026-10-17 定：接入通讯平台 的新功能以后能做成单独的包装，例如 `miyu pkg install miyu-im-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
+状态：图纸，随施工 O-42 起草（2026-10-17），O-43 上写了第二条的找法和 `chat.hook.event`，O-43 中写了 `chat.hook.inbound`，O-43 下写了 `chat.hook.outbound`，O-43 末写了 `chat.hook.score`，O-52 `chat.hook.inbound` 多带 `media`，O-56 多 `chat.send`。项目主人 2026-10-17 定：接入通讯平台 的新功能以后能做成单独的包装，例如 `miyu pkg install im-qq-admin`。扩展口分三步：给别的包调的方法（O-42，第一条）、包之间的依赖（核心做，做完补进第一条的清单）、插进桥里面（进站、出站、QQ 事件、判断打分，O-43，第二条）。
 
 ### 是什么
 

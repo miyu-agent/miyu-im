@@ -38,7 +38,7 @@ async fn up(tuned: &Value) -> (Home, u16) {
 async fn exported(head: &mut Head, method: &str, params: Value) -> Value {
     head.call(
         "package.call",
-        json!({"package": "miyu-im", "method": method, "params": params}),
+        json!({"package": "im", "method": method, "params": params}),
     )
     .await
 }
@@ -84,7 +84,7 @@ async fn the_bus_finds_im_by_the_name_chat() {
         (
             &json!("chat"),
             &json!("provides"),
-            &json!("miyu-im"),
+            &json!("im"),
             &json!(true)
         ),
         "{listed}"
@@ -252,17 +252,18 @@ async fn a_group_session_names_its_venue_and_bot() {
     let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"],
-        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null, "plugins": ["miyu-im-identity", "miyu-im-qq-admin", "miyu-im-qq-lookup"]}),
+        json!({"platform": "qq", "venue": venue, "bot": BOT, "origin": null, "plugins": ["im-identity", "im-qq-admin", "im-qq-lookup"]}),
         "这一轮没在回：没有叫她的那一条（施工 S-1 上）{reply}"
     );
     // 施工 P-1 中：卡片上关掉群管理（「陌生群」卡），交回的插件里就没有它。
-    let off = json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"miyu-im-qq-admin": false}}});
+    let off =
+        json!({"card": {"kind": "other_groups"}, "values": {"plugins": {"im-qq-admin": false}}});
     let saved = head.page_call_with("cards.save_one", off).await;
     assert_eq!(saved["result"], json!({"saved": true}), "{saved}");
     let reply = exported(&mut head, "chat.venue", json!({"session": session})).await;
     assert_eq!(
         reply["result"]["plugins"],
-        json!(["miyu-im-identity", "miyu-im-qq-lookup"]),
+        json!(["im-identity", "im-qq-lookup"]),
         "{reply}"
     );
     let reply = exported(&mut head, "chat.venue", json!({"session": "nope"})).await;
