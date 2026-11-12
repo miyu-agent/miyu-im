@@ -1,1 +1,1 @@
-Uploading {name} ({size}) to this chat.
+Uploading {name} ({size}) in the background. This can take a while. If it has not arrived yet, wait.

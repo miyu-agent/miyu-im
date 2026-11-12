@@ -96,6 +96,8 @@ struct Job {
     file: Shown,
     /// 她这时被禁言着：不试，直接记。
     muted: bool,
+    /// 她用 `qq_send_file` 交的那一份在传（施工 I-231）：这份活办完、没了时放掉，同一份才能再传。
+    uploading: Option<super::uploading::Guard>,
     /// 机器人号的连接。
     bots: Arc<Bots>,
     /// 读 blob、记事实。
@@ -129,13 +131,15 @@ impl Route {
         (session, line): (&str, &str),
         peer: &Peer,
         (path, name): (String, String),
+        guard: super::uploading::Guard,
     ) {
         let file = Shown {
             source: Source::Path(path),
             name,
             media_type: String::new(),
         };
-        let job = self.job((session, line), peer, file);
+        let mut job = self.job((session, line), peer, file);
+        job.uploading = Some(guard);
         self.chores.spawn(send(job));
     }
 
@@ -152,6 +156,7 @@ impl Route {
             peer: peer.clone(),
             file,
             muted,
+            uploading: None,
             bots: self.platforms.bots(peer.platform),
             caller: self.core.caller(),
             template: self.rules.unshown().clone(),
