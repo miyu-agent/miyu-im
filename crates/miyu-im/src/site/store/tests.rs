@@ -8,7 +8,7 @@ use super::{named, plugins};
 fn only_packages_carrying_im_content_are_listed() {
     let found = json!([
         {"package": "im-memes", "contents": ["im"], "official": true},
-        {"package": "miyu-embed", "contents": [], "official": true},
+        {"package": "embed", "contents": [], "official": true},
         {"package": "miyu-web", "official": true},
         {"package": "both", "contents": ["skills", "im"], "official": false},
     ]);
