@@ -169,3 +169,6 @@ impl Known {
         held.get(&format!("{chat}:{id}")).cloned()
     }
 }
+
+#[cfg(test)]
+mod tests;
