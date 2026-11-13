@@ -25,7 +25,7 @@ Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 A
    miyu pkg install im
    ```
 
-   也可以从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己系统的包文件 `miyu-im-<版本>-<系统>.miyu`（Linux x86_64、macOS Apple 芯片、Windows x86_64），`miyu pkg install ./miyu-im-<版本>-<系统>.miyu`。赞助记录插件是另一个包 `im-sponsor`，装法一样。
+   也可以从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己系统的包文件 `im-<版本>-<系统>.miyu`（Linux x86_64、macOS Apple 芯片、Windows x86_64），`miyu pkg install ./im-<版本>-<系统>.miyu`。赞助记录插件是另一个包 `im-sponsor`，装法一样。
 
    它要的能力（代平台上的人发话、联网、读写会话……）照自己装的包走人批，装的时候核心会问。
 3. 运行 `miyu im web` 打开接入通讯平台的页面，点「新建连接」照着走：在 NapCat 那边新建反向 WebSocket，填页面上给的地址，再把 NapCat 生成的 Token 粘贴回页面。
@@ -43,7 +43,7 @@ cargo build --release -p miyu-im-onebot
 ```sh
 mkdir -p im/bin
 cp target/release/miyu-im im/bin/
-miyu pkg install ./miyu-im
+miyu pkg install ./im
 ```
 
 包的编号照文件夹的名字定：一定要装名叫 `im` 的文件夹（配置项的键是 `im.*`，赞助记录的是 `im-sponsor.*`）。程序不在 `bin/` 里的，核心当这个包没装。
