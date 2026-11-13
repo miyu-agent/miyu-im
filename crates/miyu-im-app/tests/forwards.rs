@@ -1,6 +1,6 @@
 //! 合并转发的展开（施工 O-34，`onebot.md` 第一条「群消息」第 2 条）：真核心拉起真桥、假 NapCat 答 `get_forward_msg`、她照台词说。
 //!
-//! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套两层，第三层只留占位；记进 `venue.forwards`，她的近况里那一行
+//! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套三层（施工 I-234，原来两层），第四层只留占位；记进 `venue.forwards`，她的近况里那一行
 //!   下面缩进写。
 //! - 限额：一个转发 20 条、多的记进 `more`；每条正文 500 个字符；一条最多展开 4 个；几个的标 `#1` `#2`；照核心的整条上限放，放不下的
 //!   算进 `more`，消息照记。
@@ -56,9 +56,13 @@ fn count(forwards: &Value) -> usize {
 async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
     let lines = Lines::new([Line::says("看到了。")]);
     let (home, napcat) = up(&lines).await;
+    let fourth = inline(
+        "fw-4",
+        json!([node(20005, "", "小周", json!([plain("第四层")]))]),
+    );
     let third = inline(
         "fw-3",
-        json!([node(20004, "", "老李", json!([plain("第三层")]))]),
+        json!([node(20004, "", "老李", json!([plain("第三层"), fourth]))]),
     );
     let second = inline(
         "fw-2",
@@ -91,10 +95,12 @@ async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
         json!([{"nodes": [
             {"name": "阿杰", "text": "今天谁值班"},
             {"name": "老王", "text": "看这个[forward]", "forwards": [{"nodes": [
-                {"name": "小美", "text": "第二层[forward]", "media": [{"kind": "image", "id": "p.jpg", "size": 2048, "index": 1}]},
+                {"name": "小美", "text": "第二层[forward]", "media": [{"kind": "image", "id": "p.jpg", "size": 2048, "index": 1}], "forwards": [{"nodes": [
+                    {"name": "老李", "text": "第三层[forward]"},
+                ]}]},
             ]}]},
         ]}]),
-        "第三层只留占位；转发里的图接着编号（施工 I-75）"
+        "第三层也展开、第四层只留占位（施工 I-234）；转发里的图接着编号（施工 I-75）"
     );
     assert_eq!(
         napcat.fetched(),
