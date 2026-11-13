@@ -1,7 +1,9 @@
 //! 她给人看的文件发进 QQ（施工 O-46，`onebot.md` 第一条「展示」；核心的 `show`，设计 35、`tools/show.md`）：场所会话里一次
 //! 工具结果的效果有 `file.shown` 的，照媒体类型发：常见的四种图片发成图片段，别的（PDF、文本、svg……）传成文件。
 //!
-//! - 内容是核心的 blob：经 `blob.get` 一块块读（一块最多 512 KiB），带上它出现在的那个会话（`session`，核心照会话的属主找）。
+//! - 内容照核心的 `session.shown` 一段段读（会话加那一步的调用编号 `call_id`，一段最多 512 KiB；施工 I-233：核心 SW-1 起展示
+//!   不再拷成 blob、不限大小，只记真实路径、大小、修改时间）。文件改过、没了的核心拒（`file_changed`、`file_gone`），照读不出记。
+//! - 大于 [`LIMIT`] 的不读：照原来核心替展示设的上限（20 MiB），读进内存、写成 base64 的这一条路不收更大的，记 `too_large`。
 //! - 交 NapCat 写成 `base64://…`（`image_to`、`upload_to`）。各起一个任务办（`chores`，同平台工具），跟核心的那一头不等。
 //! - 发不了的（读不出、她被禁言着、没连着、NapCat 回失败、等不到）经核心的 `session.note` 给那个会话记一块 `unshown` 事实，
 //!   她下一步看得到：工具结果已经说了「给人看了」，这一块说其实没到。不改那次工具结果，不另发一句。
@@ -25,8 +27,12 @@ use crate::core::{Caller, reason};
 /// 发成图片段的媒体类型：QQ 画得出的四种；别的图（svg 这类）传成文件。
 const IMAGES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
-/// `blob.get` 一块读多少字节：它的上限。
+/// `blob.get`、`session.shown` 一块读多少字节：它们的上限。
 const CHUNK: u64 = 512 * 1024;
+
+/// 展示的文件最大多少字节才读进来发（施工 I-233）：照核心 SW-1 以前替展示设的上限，读进内存、写成 base64 交 NapCat 的这条路
+/// 不收更大的。
+const LIMIT: u64 = 20 * 1024 * 1024;
 
 /// 没发出去那一块事实的 `kind`。
 const UNSHOWN: &str = "unshown";
@@ -34,8 +40,9 @@ const UNSHOWN: &str = "unshown";
 /// 内容从哪来。
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Source {
-    /// 核心的 blob：经 `blob.get` 读出来，写成 `base64://…` 交 NapCat（`show`）。
-    Blob(String),
+    /// 她用 `show` 展示的（施工 I-233）：照 `session.shown` 用这一步的调用编号 `call` 读出来，写成 `base64://…` 交 NapCat；
+    /// `size` 是展示时记的大小。
+    Shown { call: String, size: u64 },
     /// 本机的一份文件：路径原样交 NapCat，它自己读（`qq_send_file`，施工 I-130；im 不读进内存，不设大小上限）。是驱动钉在
     /// `outbox/` 里的那一份，传完、没传成都删。
     Path(String),
@@ -53,13 +60,16 @@ pub(super) struct Shown {
 }
 
 impl Shown {
-    /// 读一项效果：是 `file.shown`、`blob`、`name`、`media_type` 都是字的才是。
-    fn read(effect: &Value) -> Option<Shown> {
-        if effect["kind"] != "file.shown" {
+    /// 读调用编号 `call` 那一步的一项效果：是 `file.shown`、`path`、`name`、`media_type` 都是字、`size` 是数的才是。
+    fn read(effect: &Value, call: &str) -> Option<Shown> {
+        if effect["kind"] != "file.shown" || effect["path"].as_str().is_none() {
             return None;
         }
         Some(Shown {
-            source: Source::Blob(effect["blob"].as_str()?.to_string()),
+            source: Source::Shown {
+                call: call.to_string(),
+                size: effect["size"].as_u64()?,
+            },
             name: effect["name"].as_str()?.to_string(),
             media_type: effect["media_type"].as_str()?.to_string(),
         })
@@ -76,11 +86,14 @@ pub(super) fn shown_in(raw: &Value) -> Vec<Shown> {
     if raw["kind"] != "tool.result" {
         return Vec::new();
     }
+    let Some(call) = raw["body"]["call_id"].as_str() else {
+        return Vec::new();
+    };
     raw["body"]["effects"]
         .as_array()
         .into_iter()
         .flatten()
-        .filter_map(Shown::read)
+        .filter_map(|effect| Shown::read(effect, call))
         .collect()
 }
 
@@ -185,7 +198,7 @@ async fn send(job: Job) {
     }
 }
 
-/// 读出内容、交 NapCat。没成的交回为什么（`muted`、`unreachable`、`unreadable`、`failed`、`unanswered`）和原话。
+/// 读出内容、交 NapCat。没成的交回为什么（`muted`、`unreachable`、`too_large`、`unreadable`、`failed`、`unanswered`）和原话。
 async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     if job.muted {
         return Err(("muted", String::new()));
@@ -195,8 +208,11 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
     };
     let file = match &job.file.source {
         Source::Path(path) => path.clone(),
-        Source::Blob(blob) => {
-            let bytes = read(&job.caller, Some(&job.line), blob)
+        Source::Shown { size, .. } if *size > LIMIT => {
+            return Err(("too_large", format!("{size} bytes")));
+        }
+        Source::Shown { call, .. } => {
+            let bytes = read_shown(&job.caller, &job.line, call)
                 .await
                 .map_err(|why| ("unreadable", why))?;
             format!("base64://{}", STANDARD.encode(bytes))
@@ -236,6 +252,33 @@ pub(super) async fn read(
         }
         let reply = caller
             .call("blob.get", params)
+            .await
+            .map_err(|_| "gone".to_string())?;
+        if let Some(why) = reason(&reply) {
+            return Err(why.to_string());
+        }
+        let chunk = reply["result"]["data"]
+            .as_str()
+            .and_then(|data| STANDARD.decode(data).ok())
+            .ok_or_else(|| "bad_reply".to_string())?;
+        let size = reply["result"]["size"].as_u64().unwrap_or(0);
+        let ended = chunk.is_empty();
+        bytes.extend(chunk);
+        if ended || bytes.len() as u64 >= size {
+            return Ok(bytes);
+        }
+    }
+}
+
+/// 经 `session.shown` 把会话 `session` 里调用编号 `call` 那一步展示的文件一段段读完（施工 I-233）。读不成的交回原因（核心的原因码，
+/// 如 `file_changed`、`file_gone`；`gone`、写法不对）。
+async fn read_shown(caller: &Caller, session: &str, call: &str) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    loop {
+        let params =
+            json!({"session": session, "call": call, "offset": bytes.len(), "length": CHUNK});
+        let reply = caller
+            .call("session.shown", params)
             .await
             .map_err(|_| "gone".to_string())?;
         if let Some(why) = reason(&reply) {

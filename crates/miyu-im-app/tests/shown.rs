@@ -1,6 +1,8 @@
 //! 她给人看的文件发进 QQ（施工 O-46，`onebot.md` 第一条「展示」）：真核心照开关拉起真桥、假 NapCat、她照台词说
 //! （`support/speaking.rs`）。终端管理员私聊里她调核心的 `show`：图片发成图片段（`base64://` 是文件的原样），别的传成文件（带
-//! 文件名，比 `blob.get` 的一块大的分几块读）；NapCat 回失败的不另发一句，给那个会话记一块 `unshown` 事实（`context.injected`），写着为什么和文件名。
+//! 文件名，比 `session.shown` 的一段大的分几段读，施工 I-233 起照核心 SW-1 的样子：展示不再拷成 blob，照会话加调用编号读）；NapCat
+//! 回失败的不另发一句，给那个会话记一块 `unshown` 事实（`context.injected`），写着为什么和文件名。大于 20 MiB 的不读、不交，记
+//! `too_large`。
 //!
 //! 群里（施工 O-46 补）：终端管理员在群里 @ 她，她在群会话里调 `show`，图片发成群里的图片段、别的传成群文件。群会话关在沙盒里，
 //! blob 照 `blob.get {blob, session}` 读（核心 W-6 补）；W-6 补以前的核心回 `unknown_blob`，这一条是红的。她被禁言着的不发，
@@ -136,6 +138,49 @@ async fn a_picture_and_a_file_she_shows_reach_the_private_chat() {
     // 发出去了才写「file shown」：收到 NapCat 的动作时日志可能还没写。
     let log = until_logged(&home.root, |log| log.matches("file shown").count() >= 2).await;
     assert_eq!(log.matches("file shown").count(), 2, "{log}");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_file_too_large_to_send_is_noted_and_not_read() {
+    // 施工 I-233：核心 SW-1 起展示不限大小，读进内存、写成 base64 交 NapCat 的这条路照原来的 20 MiB 管，大的不读，记 too_large。
+    let (release, hold) = oneshot::channel();
+    let lines = Lines::new([
+        Line::uses("给你看", "show", r#"{"path":"big.bin"}"#).released_by(hold),
+        Line::says("好了"),
+    ]);
+    let (home, mut napcat, _) =
+        started_showing(Arc::new(lines), RULES, |napcat| napcat.answering(MEMBERS)).await;
+    napcat.send(private_frame(ADMIN, 1, json!([plain("看看")])));
+    let cwd = until_cwd(&home).await;
+    std::fs::create_dir_all(&cwd).expect("建得了目录");
+    std::fs::File::create(cwd.join("big.bin"))
+        .and_then(|file| file.set_len(21 * 1024 * 1024))
+        .expect("建得了 21 MiB 的文件");
+    release.send(()).expect("还在等");
+    let deadline = tokio::time::Instant::now() + WAIT;
+    let text = loop {
+        let found = all_events(&home).into_iter().find(|event| {
+            event["kind"] == "context.injected" && event["body"]["kind"] == "unshown"
+        });
+        if let Some(found) = found {
+            break found["body"]["text"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string();
+        }
+        assert!(tokio::time::Instant::now() < deadline, "等不到 unshown");
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    assert!(
+        text.contains("why=\"too_large\"") && text.contains("big.bin"),
+        "{text}"
+    );
+    // 交给 NapCat 的只有两句话，没有传文件。
+    for _ in 0..2 {
+        let action = napcat.action().await;
+        assert_ne!(action["action"], "upload_private_file", "{action}");
+    }
     stopped(home).await;
 }
 
