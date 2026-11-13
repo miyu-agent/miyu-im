@@ -50,3 +50,16 @@ fn sessions_are_grouped_by_the_bot_that_took_them_in() {
         ]})
     );
 }
+
+#[test]
+fn a_session_the_core_lists_can_be_deleted_even_if_the_bridge_does_not_know_it() {
+    // 施工 I-236：从旧版导进来、没有机器人号接着的群会话，列表里是 unknown，照核心的 venue.sessions 认。
+    let reply = json!({"result": {"sessions": [
+        {"session": "s-old", "venue": "qq:30003:group:31"},
+        {"session": "s-new", "venue": "qq:30003:group:32"},
+    ]}});
+    assert!(listed_by_core(&reply, "s-old"));
+    assert!(!listed_by_core(&reply, "s-gone"), "核心没列的不删");
+    let refused = json!({"error": {"code": -32010, "data": {"reason": "forbidden"}}});
+    assert!(!listed_by_core(&refused, "s-old"), "核心拒了的不删");
+}
