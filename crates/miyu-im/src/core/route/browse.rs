@@ -6,7 +6,8 @@
 //!   `venue.sessions`（从新到旧），桥认得是哪个机器人号收进来的照它分组，认不得的（还没来过消息）放进 `bot` 是空的那一组；
 //!   名字照 NapCat 问到的群名、好友名（同会话页的 `cards.get`），问不到的是空的。`main` 是这个场所此刻的主线会话（并行时还有
 //!   支线；施工 I-232，会话设置卡片的「查看会话」打开主线）。
-//! - `sessions.delete {session}` → 核心 `session.delete` 的回答：只删桥自己的会话。
+//! - `sessions.delete {session}` → 核心 `session.delete` 的回答：只删桥自己的会话。桥这会儿认得的照删；不认得的再问一次核心的
+//!   `venue.sessions`，列着的也照删（施工 I-236：从旧版导进来、没有机器人号接着的群会话列表里写 `unknown`，原来列得出、删不掉）。
 //!
 //! 不认得的会话拒 `session_not_found`，参数写错的拒 `bad_params`；核心拒了的照它的原因拒。
 
@@ -69,11 +70,9 @@ impl Route {
             answerer.refuse(&id, "bad_params");
             return true;
         };
-        if !known.contains_key(&session) {
-            answerer.refuse(&id, "session_not_found");
-            return true;
-        }
-        self.chores.spawn(deleted(id, session, caller, answerer));
+        let known = known.contains_key(&session);
+        self.chores
+            .spawn(deleted(id, (session, known), caller, answerer));
         true
     }
 }
@@ -155,7 +154,17 @@ fn grouped(
 }
 
 /// `sessions.delete`（模块的说明）。
-async fn deleted(id: Value, session: String, caller: Caller, answerer: Answerer) {
+async fn deleted(id: Value, (session, known): (String, bool), caller: Caller, answerer: Answerer) {
+    // 桥不认得的：核心的 `venue.sessions` 列着的才删（同 `sessions.list` 列的那一份）。
+    if !known {
+        let Ok(listed) = caller.call("venue.sessions", json!({})).await else {
+            return;
+        };
+        if !listed_by_core(&listed, &session) {
+            answerer.refuse(&id, "session_not_found");
+            return;
+        }
+    }
     let Ok(reply) = caller
         .call("session.delete", json!({"session": session}))
         .await
@@ -166,6 +175,14 @@ async fn deleted(id: Value, session: String, caller: Caller, answerer: Answerer)
         Some(why) => answerer.refuse(&id, why),
         None => answerer.answer(&id, json!({"deleted": true})),
     }
+}
+
+/// 核心 `venue.sessions` 的回答 `reply` 里有没有会话 `session`（纯逻辑）：拒了的、没有的都是没有。
+fn listed_by_core(reply: &Value, session: &str) -> bool {
+    reason(reply).is_none()
+        && reply["result"]["sessions"]
+            .as_array()
+            .is_some_and(|sessions| sessions.iter().any(|one| one["session"] == session))
 }
 
 #[cfg(test)]
