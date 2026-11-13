@@ -55,7 +55,7 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.message_images, 4);
     assert_eq!(tuning.fetch_per_turn, 4);
     assert_eq!(tuning.fetch(), Duration::from_secs(120));
-    // 合并转发：一条展开 4 个、套两层、一个放 20 条、每条 500 个字符（施工 O-34）。
+    // 合并转发：一条展开 4 个、套三层（施工 I-234，原来两层）、一个放 20 条、每条 500 个字符（施工 O-34）。
     assert_eq!(
         (
             tuning.message_forwards,
@@ -63,7 +63,7 @@ fn the_shipped_numbers_are_the_blueprints() {
             tuning.forward_nodes,
             tuning.forward_chars
         ),
-        (4, 2, 20, 500)
+        (4, 3, 20, 500)
     );
     // 问挂接点的包最多等一秒半（施工 O-43 中）。
     assert_eq!(tuning.hook(), Duration::from_millis(1500));
