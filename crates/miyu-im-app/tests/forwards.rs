@@ -1,7 +1,7 @@
 //! 合并转发的展开（施工 O-34，`onebot.md` 第一条「群消息」第 2 条）：真核心拉起真桥、假 NapCat 答 `get_forward_msg`、她照台词说。
 //!
 //! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套三层（施工 I-234，原来两层），第四层只留占位；记进 `venue.forwards`，她的近况里那一行
-//!   下面缩进写。
+//!   下面缩进写。转发里再套的转发 NapCat 给成「聊天记录」卡片的，照卡片里的资源编号取（施工 I-237）。
 //! - 限额：一个转发 20 条、多的记进 `more`；每条正文 500 个字符；一条最多展开 4 个；几个的标 `#1` `#2`；照核心的整条上限放，放不下的
 //!   算进 `more`，消息照记。
 //! - 取不到的只留占位、记一行运行日志，这一条后面要调的不再调；名字、正文里藏的换行伪造不出记录行；没名字的写号，号也没有的不放。
@@ -128,6 +128,40 @@ async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
         )),
         "{text}"
     );
+    stopped(home).await;
+}
+
+/// QQ「聊天记录」卡片：NapCat 给转发里再套的转发的样子（施工 I-237）。
+fn chat_record(resid: &str) -> Value {
+    let card = json!({"app": "com.tencent.multimsg", "meta": {"detail": {"resid": resid}}});
+    json!({"type": "json", "data": {"data": card.to_string()}})
+}
+
+#[tokio::test]
+async fn chat_record_cards_inside_a_forward_are_fetched_down_to_the_third_level() {
+    let lines = Lines::new([Line::says("看到了。")]);
+    let (home, napcat) = up(&lines).await;
+    let level = |n: &str, more: Value| json!([node(20001, "", "阿杰", json!([plain(n), more]))]);
+    napcat.stock_forward("fw-1", level("一", chat_record("res-2")));
+    napcat.stock_forward("res-2", level("二", chat_record("res-3")));
+    napcat.stock_forward("res-3", level("三", chat_record("res-4")));
+    says(
+        &home,
+        &napcat,
+        (MEMBER, "member"),
+        810,
+        json!([forward("fw-1")]),
+    )
+    .await;
+    let nested = |text: &str, inner: Value| json!([{"nodes": [{"name": "阿杰", "text": text, "forwards": inner}]}]);
+    let third = json!([{"nodes": [{"name": "阿杰", "text": "三[forward]"}]}]);
+    assert_eq!(
+        recorded(&home, "810")["venue"]["forwards"],
+        nested("一[forward]", nested("二[forward]", third)),
+        "卡片照转发取到第三层，第四层只留占位"
+    );
+    let asked: Vec<String> = napcat.fetched().into_iter().map(|(_, id)| id).collect();
+    assert_eq!(asked, ["fw-1", "res-2", "res-3"], "照资源编号取");
     stopped(home).await;
 }
 
