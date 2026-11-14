@@ -29,7 +29,10 @@ const B: i64 = 20022;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu"), (A, "阿甲", "a"), (B, "阿乙", "b")];
 
 /// 系统的场所规则：叫她才回（不过判官），总引用、马上 @：第一条一定带引用或 @。
-const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\noutbound = { quote_after = 0, mention_after = \"0s\" }\n";
+const RULES: &str = "[[rule]]\nmatch = { kind = \"group\" }\ndiscipline = \"when-called\"\noutbound = { quote_after = 0, mention_after = \"1s\" }\n";
+
+/// 规则收的最慢的打字速度（每分钟 20 个字，出厂 120）：第二条的停顿拉到很长（施工 I-244）。
+const SLOWEST: u32 = 20;
 
 /// 拆成正好两条的一句（照群聊内核挑：拆法以后调了，这里照样挑得到）和拆出来的两条。
 /// 出厂的打字速度（施工 I-163 起 120，原来 80）：拆法、停顿照它算。
@@ -111,13 +114,19 @@ async fn a_reply_goes_out_in_two_messages_with_a_pause() {
 #[tokio::test]
 async fn with_the_pause_off_the_messages_follow_at_once() {
     // 施工 I-195（设计 12 第 4 条，项目主人 11-10）：分条和停顿是两个开关。停顿关着照样分成两条，第二条不等。
-    let (text, said) = two();
+    // 施工 I-244（11-14 Windows 的 CI 红过：不停顿也等了 2.2 秒）：不比绝对的耗时（第二条本来就要等 NapCat 回了第一条、桥照先后办完，
+    // 慢的机器上一两秒），打字速度调到最慢（每分钟 20 个字），开着停顿的话第二条要停很久；关着的不到一半就到。
+    let (text, _) = two();
+    let said = bubbles(text, SLOWEST);
     assert!(
-        said[1].pause >= Duration::from_secs(1),
-        "这一句开着停顿时至少停一秒：{:?}",
+        said[1].pause >= Duration::from_secs(8),
+        "这一句开着停顿时要停很久：{:?}",
         said[1].pause
     );
-    let rules = RULES.replace("outbound = { ", "outbound = { pause = false, ");
+    let rules = RULES.replace(
+        "outbound = { ",
+        &format!("outbound = {{ pause = false, typing_speed = {SLOWEST}, "),
+    );
     let script = Script::new([Play::Says(text)]);
     let (home, mut napcat, _) = started(&script, &rules, "", MEMBERS).await;
     calls(&napcat, 1);
@@ -128,7 +137,7 @@ async fn with_the_pause_off_the_messages_follow_at_once() {
     assert_eq!(words(&first), said[0].text, "{first:?}");
     assert_eq!(words(&second), said[1].text, "照样分成两条：{second:?}");
     assert!(
-        waited < Duration::from_millis(700),
+        waited < said[1].pause / 2,
         "不停顿：等了 {waited:?}（开着的话停 {:?}）",
         said[1].pause
     );
