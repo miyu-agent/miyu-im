@@ -77,7 +77,7 @@ export function mountVenues(view, { request }) {
     purge.disabled = rows.length === 0;
     const shown = picked && connections.length > 1 ? rows.filter((row) => ours(row, picked)) : rows;
     if (shown.length === 0) {
-      body.replaceChildren(element('p', 'muted', say('records/none')));
+      body.replaceChildren(element('p', 'page-none', say('records/none')));
       return;
     }
     const order = [];

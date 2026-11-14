@@ -31,7 +31,45 @@ export function applyHanded(given) {
       document.documentElement.style.setProperty(`--${name.replace(/_/g, '-')}`, value);
     }
   }
+  markDarkSide(theme.colors || {});
   return true;
+}
+
+/** 侧栏底色和正文字色贴得太近（施工 I-241，大肥鱼这类主题：浅色页面配深色侧栏，网页软件在自己的侧栏、设置左列里另换浅色字，交过来的
+ *  只有底色）：`<html data-side="dark">`，侧栏里的字换成浅色，页面里拿侧栏选中色当底的选中项字换成 on-primary（shell.css）。 */
+function markDarkSide(colors) {
+  const side = rgb(colors.sidebar_bg);
+  const text = rgb(colors.text);
+  const dark = side && text && contrast(side, text) < 3 && luminance(side) < luminance(text);
+  if (dark) document.documentElement.dataset.side = 'dark';
+  else delete document.documentElement.dataset.side;
+}
+
+/** `rgb(…)`、`rgba(…)`、`#rgb`、`#rrggbb` 读成 [r, g, b]（0–255）；别的读不出。 */
+export function rgb(value) {
+  if (typeof value !== 'string') return null;
+  const hex = value.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  }
+  const fn = value.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+  return fn ? fn.slice(1, 4).map(Number) : null;
+}
+
+/** WCAG 相对亮度。 */
+export function luminance([r, g, b]) {
+  const [R, G, B] = [r, g, b].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+/** WCAG 对比度。 */
+export function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 /** 这个标签页的主题是不是网页软件交来的（是的不给手动切）。 */

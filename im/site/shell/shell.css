@@ -20,6 +20,10 @@ body.signed-in { height: 100vh; overflow: hidden; }
 .nav:disabled { cursor: default; opacity: 0.6; }
 .nav .soon { margin-left: auto; font-size: 11px; color: var(--text-faint); }
 /* 侧栏分组（施工 I-150）：组标题暗色小字，组前留一点空；设置前只留空。 */
+/* 深色侧栏配浅色页面（施工 I-241，大肥鱼这类主题，shell/theme.js 标 data-side="dark"）：侧栏里的字换成浅色；页面里拿侧栏选中色当底的选中项
+   （设置的子标签、会话浮窗的分页这些）字换成 on-primary，不然深底深字。 */
+:root[data-side="dark"] .side { --text: var(--on-primary); --text-soft: color-mix(in srgb, var(--on-primary) 78%, var(--sidebar-bg)); --text-faint: color-mix(in srgb, var(--on-primary) 56%, var(--sidebar-bg)); --line: color-mix(in srgb, var(--on-primary) 16%, transparent); color: var(--text); }
+:root[data-side="dark"] :is(.w-sec-item, .pf-list button, .pick, .d-tab).on { color: var(--on-primary); }
 .nav-group { margin: 14px 0 4px; padding: 0 10px; color: var(--text-faint); font-size: 11.5px; letter-spacing: 0.02em; }
 .nav-gap { height: 14px; }
 .side-foot { display: flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 10px; }

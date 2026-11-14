@@ -45,7 +45,7 @@ export function mountBackstage(view, { request, path }) {
     const tiles = plugins.flatMap((plugin) => backstages(plugin).map((entry) => tile(plugin, entry)));
     const grid = element('div', 'plug-grid');
     grid.append(...tiles);
-    view.replaceChildren(head(), tiles.length ? grid : element('p', 'faint', say('backstage/none')));
+    view.replaceChildren(head(), tiles.length ? grid : element('p', 'page-none', say('backstage/none')));
   };
   load();
   return {
