@@ -1,6 +1,7 @@
 // 清理聊天记录的浮窗（施工 C-1 中下，设计 04 第一节第 2 条；项目主人 10-23 定：只在 im 后台删，AI 不许删，能批量；I-230 起叫「清理」、
 // 带几个快捷的范围，todolist 第 53 条）：清哪些场所（勾几个、全部）、范围（保留近 7、30、90 天，全部清空，自定义：哪段时间、谁说的），
 // 点两次「清理」才清。清完整理一遍（records.compact），把空出来的还给硬盘，说空出了多少。清的只是这个库：她当时看过的还在她的会话里。
+import { dateField } from '../../shell/date-pick.js';
 import { element, icon, say } from '../../shell/i18n.js';
 import { openDialog, toast } from '../../shell/dialog.js';
 import { sizeText, venueParts } from './shared.js';
@@ -47,8 +48,8 @@ export function openPurge({ request, venues, chosen, done }) {
   }
 
   // 时间、人。
-  const from = dateInput();
-  const to = dateInput();
+  const from = dateField({ empty: say('pick/any'), before: true });
+  const to = dateField({ empty: say('pick/any'), before: true });
   const span = element('div', 'records-purge-line');
   span.append(element('span', 'muted', say('records/filter-from')), from, element('span', 'muted', say('records/filter-to')), to);
   const person = element('input', 'input records-purge-person');
@@ -97,6 +98,7 @@ export function openPurge({ request, venues, chosen, done }) {
     go.textContent = say('records/delete');
   };
   for (const one of [from, to, person]) one.addEventListener('input', disarm);
+  for (const one of [from, to]) one.addEventListener('change', disarm);
   go.addEventListener('click', async () => {
     const scope = scopeOf();
     if (!scope) return;
@@ -184,9 +186,3 @@ function section(key, body, hint) {
   return box;
 }
 
-/** 选日子的一格。 */
-function dateInput() {
-  const input = element('input', 'input');
-  input.type = 'date';
-  return input;
-}

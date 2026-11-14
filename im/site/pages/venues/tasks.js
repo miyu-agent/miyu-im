@@ -5,6 +5,7 @@
 //   点了列表里的「编辑」，这一张换成改那一个，存了、取消了换回来。
 // - 下面一张列表：一行一个任务：要做什么、什么时候、下一次几点、上一次的结果；能停、恢复、编辑、删（删要点两次）。
 // - 时间写得不对的，核心拒的那一句照原样提示。
+import { clockField, dateField } from '../../shell/date-pick.js';
 import { element, say } from '../../shell/i18n.js';
 import { sect } from '../../shell/sect.js';
 import { toast } from '../../shell/dialog.js';
@@ -77,16 +78,35 @@ export function taskPage(card, request) {
     option.value = one;
     kind.append(option);
   }
+  // 每隔几分钟、cron 打字；每天几点、某一刻的日子和时刻照网页软件画的选取器（施工 I-242，原来是浏览器自带的 time、datetime-local）。
   const value = element('input', 'input');
+  const day = dateField({ after: true });
+  const clock = clockField('08:00');
   const unit = element('span', 'faint');
   const shape = () => {
-    value.type = { daily: 'time', once: 'datetime-local' }[kind.value] || 'text';
+    value.hidden = kind.value === 'daily' || kind.value === 'once';
+    day.hidden = kind.value !== 'once';
+    clock.hidden = !value.hidden;
     value.inputMode = kind.value === 'every' ? 'numeric' : '';
     value.placeholder = kind.value === 'cron' ? '0 8 * * 1-5' : '';
     unit.textContent = kind.value === 'every' ? say('unit/minutes') : '';
   };
-  kind.addEventListener('change', () => {
+  // 照种类读、写那一格：每天几点是 `HH:MM`，某一刻是 `YYYY-MM-DDTHH:MM`（同原来的 datetime-local，whenOf、formOf 不变）。
+  const read = () => {
+    if (kind.value === 'daily') return clock.value;
+    if (kind.value === 'once') return day.value && clock.value ? `${day.value}T${clock.value}` : '';
+    return value.value;
+  };
+  const write = (text) => {
     value.value = '';
+    day.value = '';
+    clock.value = '08:00';
+    if (kind.value === 'daily' && text) clock.value = text;
+    else if (kind.value === 'once' && text) [day.value, clock.value] = text.split('T');
+    else if (kind.value !== 'daily' && kind.value !== 'once') value.value = text;
+  };
+  kind.addEventListener('change', () => {
+    write('');
     shape();
   });
   const save = element('button', 'btn primary');
@@ -100,11 +120,11 @@ export function taskPage(card, request) {
     const [shownKind, shownValue] = task ? formOf(task.when) : ['daily', ''];
     kind.value = shownKind;
     shape();
-    value.value = shownValue;
+    write(shownValue);
   };
   cancel.addEventListener('click', () => fill(null));
   save.addEventListener('click', async () => {
-    const when = whenOf(kind.value, value.value, zone);
+    const when = whenOf(kind.value, read(), zone);
     if (!text.value.trim() || !when) {
       toast(say('tasks/incomplete'));
       return;
@@ -130,7 +150,7 @@ export function taskPage(card, request) {
   const whenLabel = element('div', 'label');
   whenLabel.append(element('div', 'label-name', say('tasks/when')), element('small', null, say('tasks/when-hint', { zone })));
   const picked = element('span', 'inline');
-  picked.append(kind, value, unit);
+  picked.append(kind, value, day, clock, unit);
   whenRow.append(whenLabel, picked);
   const foot = element('div', 'tasks-foot');
   foot.append(cancel, save);

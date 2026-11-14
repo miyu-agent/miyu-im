@@ -16,9 +16,9 @@
 .records-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
 .records-filter .grow { flex: 1 1 200px; min-width: 0; }
 /* 宽的屏一行放下（施工 I-170：原来「到」掉到第二行）。 */
-@media (min-width: 900px) { .records-filter { flex-wrap: nowrap; } .records-filter .input[type="date"] { width: 140px; } }
+@media (min-width: 900px) { .records-filter { flex-wrap: nowrap; } }
 .records-filter-date { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-.records-filter .input[type="date"] { width: 150px; }
+.records-filter .dp-date { width: 140px; }
 
 /* 列表。 */
 .records-groups { display: flex; flex-direction: column; gap: 22px; }
@@ -85,7 +85,10 @@
   .records-head, .records-top { margin-top: -64px; padding-top: 60px; }
   .records-actions { flex: 1 1 100%; justify-content: flex-end; }
   .records-msg { max-width: 92%; }
-  .records-filter .input[type="date"] { width: 132px; }
+  /* 窄的时候搜的两格各占一行、一样宽（施工 I-242，miyu-ui：号码那一格比上面窄一截）；日子两格平分一行。 */
+  .records-filter > .input { flex: 1 1 100%; }
+  .records-filter-date { flex: 1 1 0; min-width: 0; }
+  .records-filter .dp-date { flex: 1; width: auto; min-width: 0; }
 }
 
 /* 带的东西现取现看（施工 C-1 中下补）。 */

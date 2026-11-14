@@ -1,0 +1,40 @@
+/* 日期、时刻的浮层（施工 I-242，shell/date-pick.js）：照网页软件定时任务包的月历、时刻两列；不描边，底色分层（平常同背景、悬停深一档、
+   选中主色底），今天的那一格用主色字标出来。浮层挂在 body 上，盖过浮窗（.layer 是 60）。 */
+.dp-date { min-width: 132px; }
+.dp-date .pk-label { flex: 1; text-align: left; }
+.dp-date.dp-empty .pk-label { color: var(--text-faint); }
+.dp-clock { width: 92px; font-variant-numeric: tabular-nums; }
+
+.dp-pop { position: fixed; z-index: 65; padding: 8px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--float-shadow); color: var(--text); font-size: 13px; }
+.dp-pop .btn { height: 26px; padding: 0 9px; font-size: 12.5px; }
+.dp-pop .grow { flex: 1; }
+
+.dp-cal { width: 272px; }
+.dp-cal-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.dp-cal-title { min-width: 76px; font-size: 13px; font-weight: 600; text-align: center; }
+.dp-cal-turn { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.dp-cal-turn:hover { background: var(--surface-2); color: var(--text); }
+.dp-cal-turn .icon { width: 14px; height: 14px; }
+.dp-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-cal-wd { padding: 4px 0; color: var(--text-faint); font-size: 11.5px; text-align: center; }
+.dp-cal-day { height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+.dp-cal-day:hover:not(:disabled):not(.on) { background: var(--surface-2); }
+.dp-cal-day.other { color: var(--text-faint); }
+.dp-cal-day.today:not(.on) { color: var(--accent); font-weight: 600; }
+.dp-cal-day.on, .dp-clock-item.on { background: var(--accent); color: var(--on-primary); }
+.dp-cal-day:disabled { opacity: 0.35; cursor: default; }
+
+.dp-clock-pop { padding: 6px; }
+.dp-clock-head { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 4px 4px; color: var(--text-faint); font-size: 11.5px; text-align: center; }
+.dp-clock-cols { display: grid; grid-template-columns: 56px 56px; gap: 4px; }
+.dp-clock-col { display: flex; flex-direction: column; gap: 1px; max-height: 196px; overflow-y: auto; scrollbar-width: none; }
+.dp-clock-col::-webkit-scrollbar { display: none; }
+.dp-clock-item { height: 28px; flex: none; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+.dp-clock-item:hover:not(.on) { background: var(--surface-2); }
+
+/* 手指点的屏：格子大一点。 */
+@media (pointer: coarse) {
+  .dp-cal { width: min(320px, calc(100vw - 16px)); }
+  .dp-cal-day { height: 38px; }
+  .dp-clock-item { height: 36px; }
+}

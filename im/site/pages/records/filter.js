@@ -1,5 +1,6 @@
 // 消息记录页的搜（施工 C-1 中下，设计 04 第一节第 3 条）：关键词、人（号或名字）、从哪天到哪天，写了哪一样就照哪一样搜，都空了回到
 // 原来的样子。列表页跨场所搜，一个场所的页只在那里搜（records.search 带 venue）。搜到的新的在前，点一条去它所在的场所、从那一条往回看。
+import { dateField } from '../../shell/date-pick.js';
 import { element, say } from '../../shell/i18n.js';
 import { drawItem } from './items.js';
 import { openMedia } from './media.js';
@@ -13,8 +14,9 @@ export function filterBar(changed) {
   const bar = element('div', 'records-filter');
   const word = field('text', 'records/filter-word', 'grow');
   const person = field('text', 'records/filter-person');
-  const from = field('date', 'records/filter-from');
-  const to = field('date', 'records/filter-to');
+  // 日子照网页软件画的月历（施工 I-242），空着是不限。
+  const from = dateField({ empty: say('pick/any'), before: true });
+  const to = dateField({ empty: say('pick/any'), before: true });
   const clear = element('button', 'btn ghost', say('records/filter-clear'));
   clear.hidden = true;
   const conditions = () => {
@@ -45,12 +47,11 @@ export function filterBar(changed) {
   return { element: bar, conditions };
 }
 
-/** 一格：`kind` 是 text、date，`hint` 是提示的字。 */
+/** 一格字：`hint` 是提示的字。 */
 function field(kind, hint, extra) {
   const input = element('input', `input${extra ? ` ${extra}` : ''}`);
   input.type = kind;
-  if (kind === 'text') input.placeholder = say(hint);
-  else input.title = say(hint);
+  input.placeholder = say(hint);
   return input;
 }
 
