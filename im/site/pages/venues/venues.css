@@ -95,9 +95,11 @@
 
 /* 概况里的最近判断（施工 I-7 上补），照样板 d-im.html。 */
 /* 这个会话的统计（施工 I-101）：格子、条照数据统计（stats.css），底色照「是否回复」那一行。 */
-/* 看一眼、最近判断两张卡（overview.js）装在这一格里：和上面的统计卡照样隔开。 */
-.venue-today { display: flex; flex-direction: column; gap: var(--sect-gap); }
+/* 看一眼、最近判断两张卡（overview.js）装在这一格里：和上面的统计卡、里面两张之间、和下面的危险操作卡都隔一个 --sect-gap
+   （施工 I-240：原来里面两张 gap 加上 .sect + .sect 的 margin 隔了两倍，下面的危险操作卡前面不是 .sect，一点没隔）。 */
+.venue-today { display: flex; flex-direction: column; }
 .venue-today:not(:empty) { margin-top: var(--sect-gap); }
+.venue-today + .sect { margin-top: var(--sect-gap); }
 .venue-stats { padding-bottom: 14px; }
 /* 六个数一行（施工 I-166：原来第六个掉到第二行），窄的屏三个一行；卡片里的数字块比卡片暗一档、不带影。 */
 .venue-stats .stat-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -192,6 +194,7 @@
 .venue-title-mark { margin-left: 8px; vertical-align: middle; }
 
 /* 会话浮窗的「定时任务」页（施工 I-198，tasks.js）：一行一个任务，右边几个按钮；停着的淡一些。不画描边。 */
+.tasks-what .area { flex: 1; min-width: 0; }
 .tasks-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0 2px; }
 .task { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
 .task.off .task-main { opacity: 0.55; }
