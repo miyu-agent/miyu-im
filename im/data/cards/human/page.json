@@ -90,9 +90,9 @@
     "ja": "QQ 番号を見る"
   },
   "field.glance": {
-    "zh": "时不时看一眼",
-    "en": "Glances now and then",
-    "ja": "ときどき覗く"
+    "zh": "自主循环",
+    "en": "Autonomous loop",
+    "ja": "自律ループ"
   },
   "field.glance_minutes": {
     "zh": "多久看一眼（分钟）",
@@ -445,8 +445,33 @@
     "ja": "切り替えられませんでした：{detail}"
   },
   "hint.glance": {
-    "zh": "隔一阵自己看一眼会话，说不说话由 AI 定",
-    "en": "Now and then the AI checks the chat on its own and decides whether to speak",
-    "ja": "ときどき AI が自分でチャットを覗いて、話すかどうかを決めます"
+    "zh": "AI 时不时看一眼群聊，自主决定回什么消息，要做什么",
+    "en": "Now and then the AI looks at the chat and decides on its own what to reply and what to do",
+    "ja": "AI がときどきチャットを覗いて、何を返すか、何をするかを自分で決めます"
+  },
+  "loop-on": {
+    "zh": "这个群的自主循环开了",
+    "en": "The autonomous loop is on for this group",
+    "ja": "このグループの自律ループをオンにしました"
+  },
+  "loop-off": {
+    "zh": "这个群的自主循环关了",
+    "en": "The autonomous loop is off for this group",
+    "ja": "このグループの自律ループをオフにしました"
+  },
+  "loop-usage": {
+    "zh": "群里只有 /loop（开自主循环）和 /loop off（关）",
+    "en": "In groups there is only /loop (turn the autonomous loop on) and /loop off (turn it off)",
+    "ja": "グループでは /loop（自律ループをオン）と /loop off（オフ）だけです"
+  },
+  "loop-refused": {
+    "zh": "没改成：{detail}",
+    "en": "Not changed: {detail}",
+    "ja": "変更できませんでした：{detail}"
+  },
+  "loop-no-card": {
+    "zh": "卡片没存上，看运行日志",
+    "en": "The card was not saved, see the log",
+    "ja": "カードを保存できませんでした。ログを確認してください"
   }
 }

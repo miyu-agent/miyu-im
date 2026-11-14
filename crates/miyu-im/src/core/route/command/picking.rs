@@ -3,7 +3,8 @@
 //! 卡片照这个连接的号找（施工 I-194：后台在会话页加的卡只管那一个号，原来只照「整个平台」的找，找不到就说没有卡片）：这个号
 //! 自己的那张，没有的改整个平台的那张，都没有的先建一张这个号的、只写这一格（施工 I-191，同后台在会话页「加卡片」），不改
 //! 兜底卡（会改到所有陌生的会话）。回的那一句照回执发（不撤回）。字照连接的语言，在出厂的
-//! `cards/human/page.json`（`model-*`、`persona-*`、`preset-*`）。
+//! `cards/human/page.json`（`model-*`、`persona-*`、`preset-*`）。改卡片的那一半（[`Route::save_card_value`]）群里的 `/loop` 也用
+//! （施工 I-239）。
 
 use miyu_chat::Venue;
 use serde_json::{Value, json};
@@ -82,7 +83,7 @@ impl Route {
     }
 
     /// `message` 那个场所的会话：记着的，没有的找（同发消息）。
-    async fn session_of(&mut self, message: &Message) -> Result<Option<String>, Gone> {
+    pub(super) async fn session_of(&mut self, message: &Message) -> Result<Option<String>, Gone> {
         let venue = message.place.peer.venue.as_str().to_string();
         let session = match self.venues.get(&venue).cloned() {
             Some(session) => Some(session),
@@ -165,9 +166,21 @@ impl Route {
         (words, lang): (&Words, &str),
     ) -> String {
         let word = |name: &str| words.get(&format!("{}-{name}", kind.key()), lang);
+        match self.save_card_value(message, kind.key(), json!(choice.map(|choice| &choice.id))) {
+            Saved::Done => match choice {
+                Some(choice) => word("set").replace("{name}", &choice.shown()),
+                None => word("cleared"),
+            },
+            Saved::Refused(detail) => word("refused").replace("{detail}", &detail),
+            Saved::Failed => word("no-card"),
+        }
+    }
+
+    /// 把这个场所的卡片 `key` 那一格改成 `value`（同后台卡片上改，`cards.save_one`）：有卡片的改那一张（这个号的，或者整个平台
+    /// 的）；没有的建一张这个号的、只写这一格。`/model` 这几条和群里的 `/loop`（施工 I-239）共用。
+    pub(super) fn save_card_value(&mut self, message: &Message, key: &str, value: Value) -> Saved {
         let peer = &message.place.peer;
         let platform = peer.platform.name();
-        // 有卡片的改那一张（这个号的，或者整个平台的）；没有的建一张这个号的。
         let bot = match self.own_card(message) {
             Some((bot, _)) => bot,
             None => Some(peer.bot.clone()),
@@ -181,30 +194,33 @@ impl Route {
             }
         };
         let mut values = serde_json::Map::new();
-        values.insert(
-            kind.key().to_string(),
-            json!(choice.map(|choice| &choice.id)),
-        );
-        let saved = self.save_one(&json!({"card": card, "values": values}), true);
-        match saved {
-            Some(answer) if answer["saved"] == true => match choice {
-                Some(choice) => word("set").replace("{name}", &choice.shown()),
-                None => word("cleared"),
-            },
+        values.insert(key.to_string(), value);
+        match self.save_one(&json!({"card": card, "values": values}), true) {
+            Some(answer) if answer["saved"] == true => Saved::Done,
             Some(answer) if answer.get("problems").is_some() => {
                 let detail = answer["problems"][0]["message"]
                     .as_str()
                     .unwrap_or_default()
                     .to_string();
-                tracing::info!(target: TARGET, venue = %peer.venue, command = kind.key(), reason = "card_refused", "not picked");
-                word("refused").replace("{detail}", &detail)
+                tracing::info!(target: TARGET, venue = %peer.venue, command = key, reason = "card_refused", "card not changed");
+                Saved::Refused(detail)
             }
             other => {
-                tracing::warn!(target: TARGET, venue = %peer.venue, command = kind.key(), answer = ?other, "card not saved");
-                word("no-card")
+                tracing::warn!(target: TARGET, venue = %peer.venue, command = key, answer = ?other, "card not saved");
+                Saved::Failed
             }
         }
     }
+}
+
+/// 改卡片上一格的结果（[`Route::save_card_value`]）。
+pub(super) enum Saved {
+    /// 存上了。
+    Done,
+    /// 卡片不收：核心、规则说的那一句。
+    Refused(String),
+    /// 没存上（找不到卡片、存的时候出错），运行日志里有。
+    Failed,
 }
 
 /// `id` 给人看的写法：能选的里有的照它（「名字 (编号)」），没有的照原样。

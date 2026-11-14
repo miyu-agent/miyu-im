@@ -194,7 +194,7 @@
     "watch/why-off": "这个会话没开回复",
     "watch/why-quiet": "没叫 AI",
     "watch/started": "▶ 开始回复 {who}",
-    "watch/started-glance": "▶ 时不时看一眼",
+    "watch/started-glance": "▶ 自主循环",
     "watch/started-anyone": "▶ 开始回复",
     "watch/thinking": "想：{text}",
     "watch/said": "说：{text}",
