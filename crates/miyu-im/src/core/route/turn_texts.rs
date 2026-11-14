@@ -35,6 +35,28 @@ impl Route {
         }
     }
 
+    /// 群里看一眼那一轮的尾巴（施工 I-243）：说话方式那一句后面再接看一眼的一句（照回放，两句都放、看一眼的在最后）。写不出的记一行、
+    /// 只交说话方式那一句。
+    pub(super) fn glance_tail(&self, venue: &str) -> Option<String> {
+        let style = self.context_style_tail(venue);
+        let fields: [(&str, &str); 0] = [];
+        let glance = match self
+            .rules
+            .glance_tail()
+            .render(&fields.iter().copied().collect())
+        {
+            Ok(text) => Some(text.trim_end().to_string()),
+            Err(error) => {
+                tracing::warn!(target: TARGET, error = %error, "glance tail not written");
+                None
+            }
+        };
+        match (style, glance) {
+            (Some(style), Some(glance)) => Some(format!("{style}\n{glance}")),
+            (style, glance) => style.or(glance),
+        }
+    }
+
     /// 会话的说话方式那一块事实（施工 I-140）：场所 `venue` 是群、卡片上写了「这个会话的说话方式」的才有，写的那段照模板转义填进去；模板
     /// 写不出的（照说不会：起来时查过字段）记一行、不带。
     pub(super) fn style_note_fact(&mut self, venue: &str) -> Option<Value> {

@@ -324,7 +324,9 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %prompt.venue, "glance quiet");
             return self.arm_glance(later, None).await;
         }
-        let facts = self.glance_fact(&prompt.venue);
+        // 群里看一眼的那一句不再是新消息前面的一块事实，接在这一轮请求的最末尾（施工 I-243）；额外提示词照旧是事实。
+        let facts = self.glance_fact(&prompt.venue, false);
+        let tail = self.glance_tail(&prompt.venue);
         let tag = Tag {
             id: format!("{OPENED}{id}"),
             number: 0,
@@ -334,7 +336,10 @@ impl Route {
             facts: Vec::new(),
         };
         let count = to.len();
-        match self.respond(&session, &to, &facts, &tag).await? {
+        match self
+            .respond_tailed(&session, &to, &facts, &tag, tail)
+            .await?
+        {
             Responded::Asked => {
                 tracing::info!(target: TARGET, venue = %prompt.venue, count, "glance opened");
                 self.glance_looked(&prompt.venue, count);
@@ -358,7 +363,7 @@ impl Route {
                 .insert(session, (id.to_string(), prompt));
             return Ok(());
         }
-        let facts = self.glance_fact(&prompt.venue);
+        let facts = self.glance_fact(&prompt.venue, true);
         let tag = Tag {
             id: format!("{OPENED}{id}"),
             number: 0,
@@ -431,15 +436,18 @@ impl Route {
             .map_or(0, super::projection::Projection::last)
     }
 
-    /// 看一眼那一轮带的事实：那一块 `glance`；场所 `venue` 的卡片上写了「看一眼时的额外提示词」的再带一块 `glance-task`（施工
-    /// I-196，设计 12 第 2 条：这一轮要做的事，写的那段照模板转义）。渲染不出（照说不会：起来时查过）的记一行，不带。
-    fn glance_fact(&mut self, venue: &str) -> Vec<Value> {
+    /// 看一眼那一轮带的事实：`glance` 是真的（私聊）带那一块 `glance`（群里的施工 I-243 起接在尾巴上，`glance_tail`）；场所 `venue`
+    /// 的卡片上写了「看一眼时的额外提示词」的再带一块 `glance-task`（施工 I-196，设计 12 第 2 条：这一轮要做的事，写的那段照模板
+    /// 转义）。渲染不出（照说不会：起来时查过）的记一行，不带。
+    fn glance_fact(&mut self, venue: &str, glance: bool) -> Vec<Value> {
         let none: [(&str, &str); 0] = [];
         let mut facts = Vec::new();
-        match self.rules.glance().render(&none.iter().copied().collect()) {
-            Ok(text) => facts.push(json!({"kind": GLANCE, "text": text})),
-            Err(error) => {
-                tracing::warn!(target: TARGET, error = %error, "glance fact not written");
+        if glance {
+            match self.rules.glance().render(&none.iter().copied().collect()) {
+                Ok(text) => facts.push(json!({"kind": GLANCE, "text": text})),
+                Err(error) => {
+                    tracing::warn!(target: TARGET, error = %error, "glance fact not written");
+                }
             }
         }
         let applied = parse(venue).map(|venue| self.applied(&venue));
