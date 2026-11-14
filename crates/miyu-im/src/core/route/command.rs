@@ -12,6 +12,8 @@
 //! 施工 I-55（2026-10-27 项目主人：群里一直有人说话，她总在一轮里，`/clear` 就一直被拒）：被拒是因为这一轮还在进行的
 //! （`turn_running`：`/clear`、`/compact`、`/undo` 这些），先打断这个会话的那一轮（排着的留着），再跑一次。核心判过谁能用
 //! 以后才拒这个，所以不另查是谁打的。
+//!
+//! 施工 I-239（2026-11-14 项目主人定）：群里的 `/loop` 是自主循环的开关，桥自己办（[`looping`]），不交核心。
 
 use miyu_client::ids::ExternalId;
 use serde_json::{Value, json};
@@ -26,6 +28,7 @@ const MANAGER: &str = "manager";
 /// 打断以后再跑的那一次的命令编号：这条消息的加上它（同一个编号核心只算一次，施工 I-55）。
 const FORCED: &str = ":forced";
 
+mod looping;
 mod pick;
 mod picking;
 
@@ -37,6 +40,12 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn command(&mut self, message: &Message) -> Result<bool, Gone> {
+        // 群里的 `/loop` 桥自己办，是自主循环的开关（施工 I-239），私聊的照旧交核心。
+        if looping::in_group(message)
+            && let Some(asked) = looping::asked(&message.text)
+        {
+            return self.loop_command(message, asked).await;
+        }
         // `/model`、`/persona`、`/preset` 桥自己办（施工 I-53、I-194）；不归它管的人打的照原来交核心。
         if let Some((kind, query)) = pick::picked(&message.text)
             && self.pick_command(message, kind, query).await?

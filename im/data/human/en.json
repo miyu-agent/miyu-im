@@ -194,7 +194,7 @@
     "watch/why-off": "replies are off here",
     "watch/why-quiet": "not called",
     "watch/started": "▶ replying to {who}",
-    "watch/started-glance": "▶ glancing at the chat",
+    "watch/started-glance": "▶ autonomous loop",
     "watch/started-anyone": "▶ replying",
     "watch/thinking": "thinks: {text}",
     "watch/said": "says: {text}",

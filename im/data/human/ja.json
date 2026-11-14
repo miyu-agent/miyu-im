@@ -194,7 +194,7 @@
     "watch/why-off": "この会話は返信オフ",
     "watch/why-quiet": "呼ばれていない",
     "watch/started": "▶ {who} に返信開始",
-    "watch/started-glance": "▶ ときどき覗く",
+    "watch/started-glance": "▶ 自律ループ",
     "watch/started-anyone": "▶ 返信開始",
     "watch/thinking": "考え：{text}",
     "watch/said": "発言：{text}",
