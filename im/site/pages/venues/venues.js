@@ -109,7 +109,7 @@ export function mountVenues(view, { request, path }) {
       cards = await request('cards.get', { platform, bot: chosenBot });
     } catch {
       // 读不到的：还没读到过的写一行，读到过的照旧画。
-      if (!answer) wall.replaceChildren(element('p', 'faint wall-none', say('venues/failed')));
+      if (!answer) wall.replaceChildren(element('p', 'page-none wall-none', say('venues/failed')));
       return;
     }
     // 等的时候又换了连接：这一份不要了。
@@ -204,7 +204,7 @@ export function mountVenues(view, { request, path }) {
       }
     }
     for (const key of [...drawn.keys()]) if (!kept.has(key)) drawn.delete(key);
-    if (answer && parts.length === 0) parts.push(element('p', 'faint wall-none', say('venues/none')));
+    if (answer && parts.length === 0) parts.push(element('p', 'page-none wall-none', say('venues/none')));
     wall.replaceChildren(...parts);
   };
 

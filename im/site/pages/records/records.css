@@ -78,10 +78,11 @@
 .records-check .icon { width: 13px; height: 13px; stroke-width: 3; }
 .records-check-row.on .records-check { background: var(--accent); color: var(--on-primary); }
 
-/* 窄屏：钉在顶上的那一行让出左上角收起左栏的按钮。 */
+/* 窄屏：左上角收起左栏的按钮单占一行（.view 上面留了 64px），钉在顶上的那一块往上伸进这一行、把它垫上底色，标题照内容左对齐
+   （施工 I-241：原来又往右让了 48px，标题比搜索框、内容右偏一截）。 */
 @media (max-width: 720px) {
-  .records-head { flex-wrap: wrap; row-gap: 4px; padding-left: 48px; }
-  .records-head .records-venue-title { flex: 1 1 calc(100% - 48px); }
+  .records-head { flex-wrap: wrap; row-gap: 4px; }
+  .records-head, .records-top { margin-top: -64px; padding-top: 60px; }
   .records-actions { flex: 1 1 100%; justify-content: flex-end; }
   .records-msg { max-width: 92%; }
   .records-filter .input[type="date"] { width: 132px; }

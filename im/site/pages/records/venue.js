@@ -179,7 +179,7 @@ export function mountVenue(view, { request, venue, at }) {
       if (drawn && at && item.id === at) drawn.classList.add('marked');
       return drawn;
     }).filter(Boolean);
-    list.replaceChildren(...(shown.length > 0 ? shown : [element('p', 'muted', say('records/empty'))]));
+    list.replaceChildren(...(shown.length > 0 ? shown : [element('p', 'page-none', say('records/empty'))]));
   };
 
   known();

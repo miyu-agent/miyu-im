@@ -76,7 +76,7 @@ export async function drawFound(body, { request, conditions, venue, who, venueNa
   if (stale()) return;
   const items = answer.items || [];
   if (items.length === 0) {
-    body.replaceChildren(element('p', 'muted', say('records/none-found')));
+    body.replaceChildren(element('p', 'page-none', say('records/none-found')));
     return;
   }
   const count = element('p', 'muted records-found-count', say(items.length >= 200 ? 'records/found-most' : 'records/found', { count: items.length }));
