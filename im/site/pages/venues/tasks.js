@@ -123,10 +123,9 @@ export function taskPage(card, request) {
     }
     save.disabled = false;
   });
-  const what = element('div', 'row');
-  const whatLabel = element('div', 'label');
-  whatLabel.append(element('div', 'label-name', say('tasks/text')));
-  what.append(whatLabel, text);
+  // 要做什么那一格不写标签（施工 I-240，项目主人 11-14：窄的时候标签被挤成一字一行），占满一行，例子写在框里。
+  const what = element('div', 'row tasks-what');
+  what.append(text);
   const whenRow = element('div', 'row');
   const whenLabel = element('div', 'label');
   whenLabel.append(element('div', 'label-name', say('tasks/when')), element('small', null, say('tasks/when-hint', { zone })));
