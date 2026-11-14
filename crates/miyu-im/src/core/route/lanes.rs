@@ -297,6 +297,19 @@ impl Route {
         facts: &[Value],
         tag: &Tag,
     ) -> Result<Responded, Gone> {
+        let tail = self.context_style_tail(&tag.venue);
+        self.respond_tailed(target, to, facts, tag, tail).await
+    }
+
+    /// 同 [`Route::respond`]，这一轮的尾巴照 `tail`（群里看一眼那一轮，施工 I-243：说话方式后面再接一句）。
+    pub(super) async fn respond_tailed(
+        &mut self,
+        target: &str,
+        to: &[u64],
+        facts: &[Value],
+        tag: &Tag,
+        tail: Option<String>,
+    ) -> Result<Responded, Gone> {
         let id = format!("{}/respond", tag.id);
         let mut params = json!({"session": target, "to": to});
         // 会话的说话方式（施工 I-139、I-140）排第一块：11-05 的回放实验里放得越靠后越管用，respond 的事实落在这一轮那条消息的开头。
@@ -307,7 +320,7 @@ impl Route {
             params["facts"] = json!(facts);
         }
         // 群里每一轮请求的最末尾接一句（施工 I-172，核心 RT-1 的 `tail`）：别照历史里的话、包括她自己的长回复学说话。不进历史。
-        if let Some(tail) = self.context_style_tail(&tag.venue) {
+        if let Some(tail) = tail {
             params["tail"] = json!(tail);
         }
         let reply = self.core.call_as(&id, "session.respond", params).await?;

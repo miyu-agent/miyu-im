@@ -1,5 +1,5 @@
 //! 时不时看一眼（施工 I-89，设计 05）：真核心照开关拉起真桥、假 NapCat，`bridge.json` 的 `glance_seconds` 改成 2 秒，经网页的样子存卡片。
-//! 名单里的群卡打开看一眼：核心的定时到点，上次以后有没人叫她的新消息的开一轮（带 `glance` 事实），她照剧本说的发回群里；那一轮
+//! 名单里的群卡打开看一眼：核心的定时到点，上次以后有没人叫她的新消息的开一轮（看一眼那一句接在请求最末尾，施工 I-243），她照剧本说的发回群里；那一轮
 //! 结束了照间隔再排；没有新消息的不开、照间隔再排；卡片关了删掉定时，再来新消息也不看。睡着的不开，顺延到醒。私聊（I-89 下）到点
 //! 不看有没有新消息，开一轮只带事实；她用 `qq_glance` 定了下一次的照她的，那一轮结束不再照出厂的间隔排。
 
@@ -83,12 +83,15 @@ async fn a_glance_opens_on_new_messages_only_and_stops_when_turned_off() {
             .is_some_and(|cause| cause.starts_with("glance/")),
         "{opened:#?}"
     );
+    // 群里看一眼的那一句接在请求最末尾、说话方式后面（施工 I-243），不是事实、不进历史。
+    let requests = script.requests();
+    let tail = requests[0].1.tail.as_deref().unwrap_or_default();
     assert!(
-        events
-            .iter()
-            .any(|event| event.to_string().contains("<glance>")),
-        "带一块看一眼的事实：{events:#?}"
+        tail.starts_with("<context-style-note>") && tail.ends_with("</glance>"),
+        "说话方式在前、看一眼在最后：{tail:?}"
     );
+    let messages = serde_json::to_string(&requests[0].1.messages).expect("写得成");
+    assert!(!messages.contains("<glance>"), "不进历史：{messages}");
     // 再到点没有新消息：不开，照间隔再排。
     tokio::time::sleep(TWO_GLANCES).await;
     assert_eq!(turns(&home, &venue), 1, "没有新消息不请求模型");
