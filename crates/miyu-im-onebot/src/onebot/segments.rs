@@ -37,18 +37,46 @@ fn take(segments: &mut Segments, kind: &str, data: &Value) {
                 segments.reply_to = id(&data["id"]);
             }
         }
-        "forward" => {
-            segments.pieces.push(Piece::Text(FORWARD.to_string()));
-            segments.forwards.push(Forwarded {
-                id: id(&data["id"]),
-                content: data["content"]
-                    .as_array()
-                    .map(|messages| messages.iter().map(super::node).collect()),
-            });
-        }
-        "json" | "xml" => segments.pieces.push(Piece::Text(CARD.to_string())),
+        "forward" => forwarded(
+            segments,
+            id(&data["id"]),
+            data["content"]
+                .as_array()
+                .map(|messages| messages.iter().map(super::node).collect()),
+        ),
+        "json" => match chat_record(data) {
+            Some(resid) => forwarded(segments, Some(resid), None),
+            None => segments.pieces.push(Piece::Text(CARD.to_string())),
+        },
+        "xml" => segments.pieces.push(Piece::Text(CARD.to_string())),
         _ => segments.media.extend(media(kind, data)),
     }
+}
+
+/// 一个合并转发：正文照旧写占位，另记下它的编号和内联的消息。
+fn forwarded(segments: &mut Segments, id: Option<String>, content: Option<Vec<super::Node>>) {
+    segments.pieces.push(Piece::Text(FORWARD.to_string()));
+    segments.forwards.push(Forwarded { id, content });
+}
+
+/// QQ「聊天记录」卡片的 `app`。
+const CHAT_RECORD: &str = "com.tencent.multimsg";
+
+/// `json` 段是不是一个合并转发（施工 I-237）：转发里再套的转发，NapCat 不给 `forward` 段，给的是 QQ 的「聊天记录」卡片，
+/// `data.data` 是卡片的 JSON（字，也认对象），`app` 是 [`CHAT_RECORD`]，`meta.detail.resid` 是它的资源编号，
+/// `get_forward_msg {id}` 照它取。是的交回资源编号；别的卡片、读不出的没有。
+fn chat_record(data: &Value) -> Option<String> {
+    let parsed;
+    let card = match &data["data"] {
+        Value::String(text) => {
+            parsed = serde_json::from_str::<Value>(text).ok()?;
+            &parsed
+        }
+        other => other,
+    };
+    (card["app"] == CHAT_RECORD)
+        .then(|| id(&card["meta"]["detail"]["resid"]))
+        .flatten()
 }
 
 /// 认一条消息的 `message`：段的数组一段一段认；字符串（CQ 码）照第 6 条只读字（[`text_of`]）；别的什么都没有。

@@ -45,3 +45,36 @@ fn the_action_and_the_reply() {
     assert_eq!(forward_messages(&json!({"messages": "x"})), None);
     assert_eq!(forward_messages(&json!(null)), None);
 }
+
+/// QQ「聊天记录」卡片，照 NapCat 给转发里再套的转发那样（`data.data` 是卡片 JSON 的字）。
+fn chat_record(resid: &str) -> serde_json::Value {
+    let card = json!({"app": "com.tencent.multimsg", "desc": "[聊天记录]",
+        "meta": {"detail": {"news": [{"text": "Shorin: 嗯"}], "resid": resid, "summary": "查看2条转发消息"}}});
+    json!({"type": "json", "data": {"data": card.to_string()}})
+}
+
+#[test]
+fn a_chat_record_card_inside_a_forward_is_a_forward_to_fetch() {
+    let other = json!({"type": "json", "data": {"data": r#"{"app":"com.tencent.miniapp_01"}"#}});
+    let read = node(&json!({"user_id": 20017, "sender": {"nickname": "阿杰"},
+        "message": [chat_record("res/abc=="), other, {"type": "json", "data": {"data": "{"}}]}));
+    assert_eq!(
+        read.segments.pieces,
+        ["[forward]", "[card]", "[card]"].map(|text| Piece::Text(text.to_string())),
+        "聊天记录卡片写成转发的占位（施工 I-237），别的卡片、读不出的照旧"
+    );
+    assert_eq!(read.segments.forwards.len(), 1);
+    assert_eq!(read.segments.forwards[0].id.as_deref(), Some("res/abc=="));
+    assert!(
+        read.segments.forwards[0].content.is_none(),
+        "照资源编号去取"
+    );
+    let object = json!({"type": "json", "data": {"data": {"app": "com.tencent.multimsg",
+        "meta": {"detail": {"resid": "r2"}}}}});
+    let read = node(&json!({"message": [object]}));
+    assert_eq!(
+        read.segments.forwards[0].id.as_deref(),
+        Some("r2"),
+        "对象也认"
+    );
+}
