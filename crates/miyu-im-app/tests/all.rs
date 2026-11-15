@@ -93,6 +93,7 @@ mod queue_waits;
 mod quota;
 mod quote;
 mod quote_timing;
+mod quoted;
 mod ranking;
 mod reactions;
 mod receipts;

@@ -89,6 +89,8 @@ pub struct Fetched {
     pub group: Option<Id>,
     /// 发的人的号；读不出的是空的。
     pub user: Option<Id>,
+    /// 发的人当时叫什么（群名片、昵称，施工 I-238：引用的那一条要写名字）；照原样，没洗，没有的是空的。
+    pub name: Option<String>,
     /// 认出来的段。
     pub segments: Segments,
 }

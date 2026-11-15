@@ -79,9 +79,11 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
         "{calling}"
     );
     assert!(has_blob(&home, &quoted));
+    // 引用的那一条取两次：交以前取内容写进 `quoted`（施工 I-238），取图再取一次。
     assert_eq!(
         napcat.fetched(),
         [
+            ("get_msg".to_string(), "500".to_string()),
             ("get_msg".to_string(), "500".to_string()),
             ("get_image".to_string(), "q.jpg".to_string()),
             ("get_image".to_string(), "a.jpg".to_string()),

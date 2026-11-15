@@ -24,7 +24,7 @@ use std::time::Instant;
 use futures_util::future::BoxFuture;
 use serde_json::{Value, json};
 
-use super::fields::{NAME, clean, media};
+use super::fields::{NAME, clean, fits, media};
 use super::{Message, Route};
 use crate::TARGET;
 use crate::chat::{CallError, FORWARD, Forwarded, Id, Node, Piece, Segments};
@@ -52,7 +52,8 @@ pub(crate) struct Forwarding {
     pub(crate) chars: usize,
 }
 
-/// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、自己带了几样、它的转发。
+/// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、自己带了几样、它的转发、它引用的那一条
+/// （施工 I-238，`quoted`）。
 pub(super) struct Forwards {
     /// 收进它的机器人号：经它的连接取。
     pub(super) bot: Id,
@@ -64,46 +65,54 @@ pub(super) struct Forwards {
     pub(super) own: usize,
     /// 转发，照段的先后。
     pub(super) forwards: Vec<Forwarded>,
+    /// 引用的那一条的平台编号（群里的才有，`quoted`）：取回来写进场所的格的 `quoted`。
+    pub(super) quoted: Option<String>,
 }
 
 impl Forwards {
-    /// 机器人号 `bot` 收进来的、群号是 `group`（私聊的是空的）、平台编号是 `msg` 的那一条（认出来的段 `segments`）：没有转发的是空的。
+    /// 机器人号 `bot` 收进来的、群号是 `group`（私聊的是空的）、平台编号是 `msg` 的那一条（认出来的段 `segments`）：群里的引用了
+    /// 一条的另取那一条（施工 I-238；私聊核心不写引用那一行，不取）。没有转发、不取引用的是空的。
     pub(super) fn of(
         bot: Id,
         group: Option<Id>,
         msg: i64,
         segments: &Segments,
     ) -> Option<Forwards> {
-        (!segments.forwards.is_empty()).then(|| Forwards {
+        let quoted = group
+            .as_ref()
+            .and(segments.reply_to.clone())
+            .filter(|id| fits(id));
+        (!segments.forwards.is_empty() || quoted.is_some()).then(|| Forwards {
             bot,
             group,
             msg,
             own: kept(&segments.media).len(),
             forwards: segments.forwards.clone(),
+            quoted,
         })
     }
 }
 
 /// 这一条消息还放得下多少（核心的整条上限）、还调不调 `get_forward_msg`、带的东西编到哪了（施工 I-75）。
-struct Budget {
+pub(super) struct Budget {
     nodes: usize,
     bytes: usize,
     asking: bool,
-    numbers: Numbering,
+    pub(super) numbers: Numbering,
 }
 
 /// 取的那一头：连接、平台和群号、记运行日志的场所和编号。
-struct At<'a> {
-    link: Option<Arc<dyn Link>>,
+pub(super) struct At<'a> {
+    pub(super) link: Option<Arc<dyn Link>>,
     platform: Platform,
-    group: Option<Id>,
-    venue: &'a str,
-    msg: i64,
+    pub(super) group: Option<Id>,
+    pub(super) venue: &'a str,
+    pub(super) msg: i64,
 }
 
 impl Route {
-    /// 交 `message` 以前展开它的转发，写进场所的格的 `forwards`（没有转发的什么都不做）：先找到会话，不接的不去取，交回假，这条
-    /// 不送。
+    /// 交 `message` 以前展开它的转发，写进场所的格的 `forwards`，再取它引用的那一条写进 `quoted`（施工 I-238，[`Route::quoted`]：
+    /// 放在转发后面，整条上限先给转发；都没有的什么都不做）：先找到会话，不接的不去取，交回假，这条不送。
     ///
     /// # Errors
     ///
@@ -116,22 +125,25 @@ impl Route {
             return Ok(false);
         }
         let venue = message.place.peer.venue.to_string();
-        let forwards = self
-            .forwards((message.place.peer.platform, wanted), &venue)
-            .await;
+        let (at, mut budget) = self.start((message.place.peer.platform, wanted), &venue);
+        let forwards = self.expand(&at, &wanted.forwards, 1, &mut budget).await;
         if !forwards.is_empty() {
             message.fields["forwards"] = Value::Array(forwards);
+        }
+        if let Some(quoted) = &wanted.quoted
+            && let Some(one) = self.quoted(&at, quoted, &mut budget).await
+        {
+            message.fields["quoted"] = one;
         }
         Ok(true)
     }
 
-    /// 展开 `wanted` 里的转发，交回场所的格的 `forwards`（照先后，一条都没展开的是空的）：经平台 `platform` 上收进它的号取。`venue`
-    /// 只记运行日志。
-    pub(super) async fn forwards(
+    /// 取 `wanted` 的那一头和整条的上限：经平台 `platform` 上收进它的号取。`venue` 只记运行日志。
+    fn start<'a>(
         &self,
         (platform, wanted): (Platform, &Forwards),
-        venue: &str,
-    ) -> Vec<Value> {
+        venue: &'a str,
+    ) -> (At<'a>, Budget) {
         let at = At {
             link: self.platforms.link(platform, &wanted.bot),
             platform,
@@ -139,13 +151,13 @@ impl Route {
             venue,
             msg: wanted.msg,
         };
-        let mut budget = Budget {
+        let budget = Budget {
             nodes: ALL_NODES,
             bytes: ALL_BYTES,
             asking: true,
             numbers: Numbering::after(wanted.own),
         };
-        self.expand(&at, &wanted.forwards, 1, &mut budget).await
+        (at, budget)
     }
 
     /// 第 `depth` 层的几个转发：照限额和 `budget` 放。不去取的、没放进去的照样编号（[`Numbering`]）。
@@ -202,9 +214,9 @@ impl Route {
         })
     }
 
-    /// 放转发里的一条 `read`（第 `depth` 层）：带的东西编上号，套着的转发往下展开。没名字的交回 `Err(false)`，放不下的
-    /// `Err(true)`（这个转发后面的不再放）：都不动 `budget`，调的一方照只数不放的办。
-    async fn node(
+    /// 放转发里的一条 `read`（第 `depth` 层；引用的那一条是第 0 层，它里面的转发是第一层）：带的东西编上号，套着的转发往下
+    /// 展开。没名字的交回 `Err(false)`，放不下的 `Err(true)`（这个转发后面的不再放）：都不动 `budget`，调的一方照只数不放的办。
+    pub(super) async fn node(
         &self,
         at: &At<'_>,
         read: &Node,

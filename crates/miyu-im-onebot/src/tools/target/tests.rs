@@ -445,6 +445,7 @@ fn a_given_msg_is_recallable_only_in_this_chat() {
         private,
         group,
         user,
+        name: None,
         segments: Default::default(),
     };
     let group = To::Group(Id::from(888));
