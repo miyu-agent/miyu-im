@@ -1,6 +1,6 @@
 # 接入通讯平台
 
-Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 AI 说话。现在接的是 QQ（经 NapCat 这类 OneBot v11 实现的反向 WebSocket）。它不随 Miyu 的发布包一起装，要用的自己装。
+Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 AI 说话。现在接的是 QQ（经 NapCat 这类 OneBot v11 实现的反向 WebSocket）和 Telegram（官方机器人接口）。它不随 Miyu 的发布包一起装，要用的自己装。
 
 核心在 [`miyu-agent/miyu`](https://github.com/miyu-agent/miyu)；这个仓库照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。
 
@@ -9,33 +9,33 @@ Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 A
 | 目录 | 是什么 |
 |---|---|
 | `crates/miyu-im/` | 接入通讯平台的宿主：场所会话、群聊、插件挂接点、给模型的工具，和平台无关；不依赖驱动 |
-| `crates/miyu-im-onebot/` | OneBot v11 的驱动和程序 `miyu-im`：核心拉起它、经标准输入输出说协议；NapCat 反连进来，消息送进场所会话，她的回复发回 QQ |
+| `crates/miyu-im-app/` | 程序 `miyu-im`：把各个平台的驱动交给宿主；核心拉起它、经标准输入输出说协议。起真程序的集成测试也在这里 |
+| `crates/miyu-im-onebot/` | OneBot v11 的驱动：NapCat 反连进来，消息送进场所会话，AI 的回复发回 QQ |
+| `crates/miyu-im-telegram/` | Telegram 的驱动：官方机器人接口，长轮询收消息 |
+| `crates/miyu-im-sponsor/` | 赞助记录插件，程序 `miyu-im-sponsor` |
 | `crates/miyu-chat/` | 群聊内核：通讯平台里和平台无关的那一层（场所规则、进站链、主动回复判断、判官、出站链），纯逻辑；别的平台要用照 git 依赖它 |
-| `im/` | 包文件夹（包编号 `im`）：清单 `package.toml`、im 自己的页面 `site/`、网页软件框里的后台页 `page/`、桥自己读的出厂数据和给模型看的字 `data/` |
+| `im/` | 包文件夹（包编号 `im`）：清单 `package.toml`、im 自己的页面 `site/`、桥自己读的出厂数据和给模型看的字 `data/` |
+| `im-sponsor/` | 赞助记录插件的包文件夹（包编号 `im-sponsor`） |
 | `docs/blueprint/` | 图纸：`onebot.md`（桥）、`chat.md`（群聊内核） |
 | `docs/ledger.md` | 登记簿：`im/data/` 里给模型看的每一份字 |
 | `xtask/` | 门禁：`cargo xtask check` |
 
 ## 装
 
-1. 先装好 Miyu。
-2. 装上（收进官方软件源以后）：
+先装好 Miyu，再：
 
-   ```sh
-   miyu pkg install im
-   ```
+```sh
+miyu pkg install im
+```
 
-   也可以从 [Releases](https://github.com/miyu-agent/miyu-im/releases) 下载自己系统的包文件 `im-<版本>-<系统>.miyu`（Linux x86_64、macOS Apple 芯片、Windows x86_64），`miyu pkg install ./im-<版本>-<系统>.miyu`。赞助记录插件是另一个包 `im-sponsor`，装法一样。
-
-   它要的能力（代平台上的人发话、联网、读写会话……）照自己装的包走人批，装的时候核心会问。
-3. 运行 `miyu im web` 打开接入通讯平台的页面，点「新建连接」照着走：在 NapCat 那边新建反向 WebSocket，填页面上给的地址，再把 NapCat 生成的 Token 粘贴回页面。
+赞助记录插件是另一个包 `im-sponsor`，装法一样。接 QQ、Telegram，管谁能叫 AI、群里的规矩，见 [接入通讯平台](https://github.com/miyu-agent/miyu/blob/main/docs/guide/heads/im.md)。
 
 ## 从源码编
 
 要 Rust（版本照 `rust-toolchain.toml`，`rustup` 会自己装）和 git（cargo 照 git 依赖取核心）。
 
 ```sh
-cargo build --release -p miyu-im-onebot
+cargo build --release -p miyu-im-app --bin miyu-im
 ```
 
 程序放进包文件夹 `im/` 的 `bin/` 里（Windows 上带 `.exe`；`im/bin/` 不进 git），再装这个文件夹：
