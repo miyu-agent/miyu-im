@@ -26,12 +26,14 @@ pub const PRIVATE_FILE_URL: &str = "get_private_file_url";
 /// 同 [`GROUP_LIST`]：机器人自己的号和昵称（施工 I-6 中）。
 pub const LOGIN_INFO: &str = "get_login_info";
 
-/// `get_msg` 回应的 `data`：`message_type` 是 `private` 的是私聊里的；群号 `group_id`、发的人 `user_id`；段照 `message` 认。
+/// `get_msg` 回应的 `data`：`message_type` 是 `private` 的是私聊里的；群号 `group_id`、发的人 `user_id`、名字照 `sender`
+/// （同群消息的 `name`）；段照 `message` 认。
 pub fn fetched(data: &Value) -> Fetched {
     Fetched {
         private: data["message_type"] == "private",
         group: id(&data["group_id"]),
         user: id(&data["user_id"]),
+        name: display_name(&data["sender"]),
         segments: segments(&data["message"]),
     }
 }

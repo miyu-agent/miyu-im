@@ -91,6 +91,7 @@ mod pushed;
 mod queue;
 mod quiet;
 mod quota;
+mod quoted;
 mod reaction;
 mod recall;
 mod receipt;

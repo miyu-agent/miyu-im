@@ -104,6 +104,7 @@ fn remember((chat, message): (&str, &Value), segments: Segments, known: &Known) 
         private,
         group: (!private).then(|| id_of(&message["chat"]["id"])).flatten(),
         user: id_of(&message["from"]["id"]),
+        name: Some(full_name(&message["from"])).filter(|name| !name.is_empty()),
         segments,
     };
     known.set_message(chat, id, fetched);

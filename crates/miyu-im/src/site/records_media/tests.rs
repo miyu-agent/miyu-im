@@ -7,6 +7,7 @@ fn got(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
         private,
         group: group.map(Id::from),
         user: user.map(Id::from),
+        name: None,
         segments: crate::chat::Segments::default(),
     }
 }
