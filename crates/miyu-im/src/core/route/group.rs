@@ -146,7 +146,7 @@ impl Route {
             }),
             forwards: Forwards::of(
                 posted.bot.clone(),
-                Some(group.clone()),
+                To::Group(group.clone()),
                 posted.message_id,
                 &posted.segments,
             ),

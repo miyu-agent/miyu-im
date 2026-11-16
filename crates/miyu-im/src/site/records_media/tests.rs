@@ -1,6 +1,7 @@
 //! 现取带的东西：那一条是不是这个场所的、字节的媒体类型。
 
 use super::*;
+use crate::chat::Fetched;
 
 fn got(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
     Fetched {
@@ -14,13 +15,13 @@ fn got(private: bool, group: Option<i64>, user: Option<i64>) -> Fetched {
 
 #[test]
 fn only_messages_of_this_venue_are_fetched() {
-    assert!(owned(
+    assert!(in_chat(
         &got(false, Some(31), Some(7)),
         &To::Group(Id::from(31)),
         &Id::from(100)
     ));
     assert!(
-        !owned(
+        !in_chat(
             &got(false, Some(32), Some(7)),
             &To::Group(Id::from(31)),
             &Id::from(100)
@@ -28,7 +29,7 @@ fn only_messages_of_this_venue_are_fetched() {
         "别的群的"
     );
     assert!(
-        owned(
+        in_chat(
             &got(true, None, Some(7)),
             &To::Private(Id::from(7)),
             &Id::from(100)
@@ -36,7 +37,7 @@ fn only_messages_of_this_venue_are_fetched() {
         "对方发的"
     );
     assert!(
-        owned(
+        in_chat(
             &got(true, None, Some(100)),
             &To::Private(Id::from(7)),
             &Id::from(100)
@@ -44,7 +45,7 @@ fn only_messages_of_this_venue_are_fetched() {
         "她发给对方的"
     );
     assert!(
-        !owned(
+        !in_chat(
             &got(true, None, Some(8)),
             &To::Private(Id::from(7)),
             &Id::from(100)
@@ -52,7 +53,7 @@ fn only_messages_of_this_venue_are_fetched() {
         "别人的私聊"
     );
     assert!(
-        !owned(
+        !in_chat(
             &got(false, Some(31), Some(7)),
             &To::Private(Id::from(7)),
             &Id::from(100)

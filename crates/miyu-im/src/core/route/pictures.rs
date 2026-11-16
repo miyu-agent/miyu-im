@@ -22,7 +22,7 @@ use crate::chat::{Fetch, Id, Media, Segments, To};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::core::blobs::{Unstored, put};
-use crate::media::{Missed, message, over, take, too_large};
+use crate::media::{Missed, in_chat, message, over, take, too_large};
 
 /// 一条要带图的消息：收进它的机器人号、平台编号、带的东西、引用的那一条。
 pub(super) struct Pictures {
@@ -79,6 +79,10 @@ impl Route {
         let mut lists = Vec::new();
         if let Some(quoted) = &wanted.quoted {
             match message(link.as_ref(), &wanted.to, quoted).await {
+                // 别处的不带（施工 I-245，同 `quoted`）：编号照说是平台给的，但照编号取得到别的群、别的私聊的。
+                Ok(fetched) if !in_chat(&fetched, &wanted.to, &wanted.bot) => {
+                    tracing::warn!(target: TARGET, venue, message = quoted, why = "elsewhere", "picture not fetched");
+                }
                 Ok(fetched) => lists.push((quoted.clone(), kept(&fetched.segments.media), false)),
                 Err(missed) => {
                     tracing::warn!(target: TARGET, venue, message = quoted, why = missed.name(), "picture not fetched");
