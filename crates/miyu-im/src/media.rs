@@ -19,7 +19,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use miyu_client::http::{Get, Got, Proxy};
 
-use crate::chat::{CallError, Fetch, Fetched, Link, Source, To};
+use crate::chat::{CallError, Fetch, Fetched, Id, Link, Source, To};
 
 mod guarded;
 mod numbered;
@@ -68,6 +68,18 @@ pub fn owned(fetched: &Fetched, to: To) -> bool {
     match to {
         To::Group(group) => fetched.group == Some(group),
         To::Private(user) => fetched.private && fetched.user == Some(user),
+    }
+}
+
+/// 取回来的那一条是不是聊天 `to` 里的（纯逻辑；消息记录页取图，施工 I-238、I-245 引用的那一条也照它）：群里是这个群的，私聊里是
+/// 对方发的或机器人号 `bot` 发给对方的。和 [`owned`] 不同，她自己在私聊里说的也算。
+pub fn in_chat(fetched: &Fetched, to: &To, bot: &Id) -> bool {
+    match to {
+        To::Group(group) => !fetched.private && fetched.group.as_ref() == Some(group),
+        To::Private(user) => {
+            fetched.private
+                && (fetched.user.as_ref() == Some(user) || fetched.user.as_ref() == Some(bot))
+        }
     }
 }
 

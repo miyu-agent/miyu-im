@@ -117,7 +117,7 @@ impl Route {
             pictures: Some(pictures),
             forwards: Forwards::of(
                 posted.bot.clone(),
-                None,
+                To::Private(posted.user.clone()),
                 posted.message_id,
                 &posted.segments,
             ),

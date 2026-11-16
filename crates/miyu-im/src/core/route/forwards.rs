@@ -27,7 +27,7 @@ use serde_json::{Value, json};
 use super::fields::{NAME, clean, fits, media};
 use super::{Message, Route};
 use crate::TARGET;
-use crate::chat::{CallError, FORWARD, Forwarded, Id, Node, Piece, Segments};
+use crate::chat::{CallError, FORWARD, Forwarded, Id, Node, Piece, Segments, To};
 use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::toolset::{Numbering, kept};
@@ -52,39 +52,31 @@ pub(crate) struct Forwarding {
     pub(crate) chars: usize,
 }
 
-/// 要展开的一条消息：收进它的机器人号、群号（私聊的是空的）、平台编号（只记运行日志）、自己带了几样、它的转发、它引用的那一条
-/// （施工 I-238，`quoted`）。
+/// 要展开的一条消息：收进它的机器人号、在哪（群、私聊的对方）、平台编号（只记运行日志）、自己带了几样、它的转发、它引用的
+/// 那一条（施工 I-238，`quoted`；私聊的施工 I-245）。
 pub(super) struct Forwards {
     /// 收进它的机器人号：经它的连接取。
     pub(super) bot: Id,
-    /// 群号：@ 的名字照这个群的缓存。私聊的是空的。
-    pub(super) group: Option<Id>,
+    /// 在哪：群里的 @ 的名字照这个群的缓存；引用的那一条照这里取。
+    pub(super) to: To,
     /// 平台编号。
     pub(super) msg: i64,
     /// 自己带了几样（`venue.media` 那几样，施工 I-75）：转发里的接着它编号。
     pub(super) own: usize,
     /// 转发，照段的先后。
     pub(super) forwards: Vec<Forwarded>,
-    /// 引用的那一条的平台编号（群里的才有，`quoted`）：取回来写进场所的格的 `quoted`。
+    /// 引用的那一条的平台编号（`quoted`）：取回来写进场所的格的 `quoted`。
     pub(super) quoted: Option<String>,
 }
 
 impl Forwards {
-    /// 机器人号 `bot` 收进来的、群号是 `group`（私聊的是空的）、平台编号是 `msg` 的那一条（认出来的段 `segments`）：群里的引用了
-    /// 一条的另取那一条（施工 I-238；私聊核心不写引用那一行，不取）。没有转发、不取引用的是空的。
-    pub(super) fn of(
-        bot: Id,
-        group: Option<Id>,
-        msg: i64,
-        segments: &Segments,
-    ) -> Option<Forwards> {
-        let quoted = group
-            .as_ref()
-            .and(segments.reply_to.clone())
-            .filter(|id| fits(id));
+    /// 机器人号 `bot` 收进来的、在 `to`（群、私聊的对方）、平台编号是 `msg` 的那一条（认出来的段 `segments`）：引用了一条的
+    /// 另取那一条（施工 I-238，私聊的 I-245）。没有转发、没有引用的是空的。
+    pub(super) fn of(bot: Id, to: To, msg: i64, segments: &Segments) -> Option<Forwards> {
+        let quoted = segments.reply_to.clone().filter(|id| fits(id));
         (!segments.forwards.is_empty() || quoted.is_some()).then(|| Forwards {
             bot,
-            group,
+            to,
             msg,
             own: kept(&segments.media).len(),
             forwards: segments.forwards.clone(),
@@ -101,11 +93,12 @@ pub(super) struct Budget {
     pub(super) numbers: Numbering,
 }
 
-/// 取的那一头：连接、平台和群号、记运行日志的场所和编号。
+/// 取的那一头：连接和收进这条的机器人号、平台、在哪（群、私聊的对方）、记运行日志的场所和编号。
 pub(super) struct At<'a> {
     pub(super) link: Option<Arc<dyn Link>>,
+    pub(super) bot: Id,
     platform: Platform,
-    pub(super) group: Option<Id>,
+    pub(super) to: To,
     pub(super) venue: &'a str,
     pub(super) msg: i64,
 }
@@ -146,8 +139,9 @@ impl Route {
     ) -> (At<'a>, Budget) {
         let at = At {
             link: self.platforms.link(platform, &wanted.bot),
+            bot: wanted.bot.clone(),
             platform,
-            group: wanted.group.clone(),
+            to: wanted.to.clone(),
             venue,
             msg: wanted.msg,
         };
@@ -265,9 +259,11 @@ impl Route {
                 Piece::Text(words) => text.push_str(words),
                 Piece::At(user) => {
                     text.push('@');
-                    let name = at
-                        .group
-                        .clone()
+                    let group = match &at.to {
+                        To::Group(group) => Some(group.clone()),
+                        To::Private(_) => None,
+                    };
+                    let name = group
                         .and_then(|group| {
                             self.members
                                 .name((at.platform, group, user.clone()), Instant::now())

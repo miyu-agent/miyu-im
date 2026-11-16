@@ -17,8 +17,8 @@ use miyu_chat::Venue;
 use miyu_client::ids::VenueId;
 
 use super::Site;
-use crate::chat::{Fetch, Fetched, Id, Link, Source, To};
-use crate::media::{Missed, bytes, image_extension, message, take};
+use crate::chat::{Fetch, Id, Link, Source, To};
+use crate::media::{Missed, bytes, image_extension, in_chat, message, take};
 
 /// 页面上一次最多拿多少字节。
 const LIMIT: usize = 16 * 1024 * 1024;
@@ -29,17 +29,6 @@ type Refused = (String, String);
 /// 只有原因的拒。
 fn refused(why: &str) -> Refused {
     (why.to_string(), String::new())
-}
-
-/// 取回来的那一条在不在场所 `to` 里（纯逻辑）：群里是这个群的，私聊里是对方发的或机器人号 `bot` 发给对方的。
-fn owned(fetched: &Fetched, to: &To, bot: &Id) -> bool {
-    match to {
-        To::Group(group) => fetched.group.as_ref() == Some(group),
-        To::Private(user) => {
-            fetched.private
-                && (fetched.user.as_ref() == Some(user) || fetched.user.as_ref() == Some(bot))
-        }
-    }
 }
 
 /// 字节的媒体类型（纯逻辑）：认得的图写图的，别的是 `application/octet-stream`。
@@ -103,7 +92,7 @@ async fn fetched(
 ) -> Result<Value, Refused> {
     let gone = |_| refused("gone");
     let found = message(link, to, msg).await.map_err(gone)?;
-    if !owned(&found, to, bot) {
+    if !in_chat(&found, to, bot) {
         return Err(refused("gone"));
     }
     let item = found

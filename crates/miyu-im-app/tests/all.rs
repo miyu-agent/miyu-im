@@ -94,6 +94,7 @@ mod quota;
 mod quote;
 mod quote_timing;
 mod quoted;
+mod quoted_private;
 mod ranking;
 mod reactions;
 mod receipts;
