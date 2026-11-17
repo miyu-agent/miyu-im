@@ -1,6 +1,7 @@
 //! 群名、群号（施工 O-49，`onebot.md` 第一条「群名」）：真核心拉起真桥、假 NapCat（每个群都叫 [`GROUP_NAME`]）。群会话 system
-//! 的最后是那一段，名字、号对；群里再来一条不再问、不再放；私聊没有。群的、私聊的会话都不自动起标题（施工 O-43）。群名还跟着
-//! 每条群消息交进场所的格的 `place`（施工 I-54，给记忆），第一条就有；私聊不写。
+//! 的最后是那一段，名字、号对；群里再来一条不再问、不再放。私聊的最后是对方的名字和号那一段（施工 I-246）。群的、私聊的会话都不
+//! 自动起标题（施工 O-43），标题由桥设成群名、对方的名字（施工 I-246）。群名还跟着每条群消息交进场所的格的 `place`（施工 I-54，
+//! 给记忆），第一条就有；私聊不写。
 
 use std::sync::Arc;
 
@@ -17,20 +18,38 @@ const GROUP: i64 = 777;
 /// 假 NapCat 认得的群成员：她自己。
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
-/// 出厂模板换出来的那一段。
-fn title() -> String {
-    std::fs::read_to_string(resources().join("packages/im/data/system/group.txt"))
+/// 出厂模板 `system/<file>` 换出来的那一段。
+fn filled(file: &str, name: &str, id: i64) -> String {
+    std::fs::read_to_string(resources().join(format!("packages/im/data/system/{file}")))
         .expect("读得出")
         .replace("{platform}", "QQ")
-        .replace("{name}", GROUP_NAME)
-        .replace("{id}", &GROUP.to_string())
+        .replace("{name}", name)
+        .replace("{id}", &id.to_string())
         .trim_end()
         .to_string()
 }
 
+/// 群名那一段。
+fn title() -> String {
+    filled("group.txt", GROUP_NAME, GROUP)
+}
+
+/// 会话日志 `events` 里设过的标题，照先后。
+fn titles(events: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    of_kind(events, "session.meta_changed")
+        .iter()
+        .map(|event| event["body"]["title"].clone())
+        .collect()
+}
+
 #[tokio::test]
-async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not() {
-    let script = Script::new([Play::Says("在"), Play::Says("嗯"), Play::Says("私聊在")]);
+async fn a_group_session_knows_its_name_and_number_and_a_private_chat_knows_who_it_is_with() {
+    let script = Script::new([
+        Play::Says("在"),
+        Play::Says("嗯"),
+        Play::Says("私聊在"),
+        Play::Says("私聊还在"),
+    ]);
     let (home, mut napcat, _) = started(&script, "", "", MEMBERS).await;
     let call = |id: i64, text: &str| {
         group_frame(
@@ -69,17 +88,29 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
         [GROUP],
         "问的是这个群，一小时里只问一次"
     );
-    // 私聊不放。
-    napcat.send(private_frame(ADMIN, 3, json!([plain("在吗")])));
-    let action = napcat.action().await;
-    assert_eq!(action["action"], "send_private_msg", "{action}");
-    assert_eq!(action["params"]["message"][0]["data"]["text"], "私聊在");
-    let private = &script.requests()[2].1.system;
-    assert!(!private.contains("<venue>"), "私聊没有：{private}");
+    // 私聊放对方的名字和号（施工 I-246，2026-11-17 项目主人验收：私聊里她不知道自己在哪）。终端管理员的私聊交了才找到会话，
+    // 第一轮赶不上，第二轮起带上。
+    for (id, said) in [(3, "私聊在"), (4, "私聊还在")] {
+        napcat.send(private_frame(ADMIN, id, json!([plain("在吗")])));
+        let action = napcat.action().await;
+        assert_eq!(action["action"], "send_private_msg", "{action}");
+        assert_eq!(action["params"]["message"][0]["data"]["text"], said);
+    }
+    let private = &script.requests()[3].1.system;
+    let who = filled("private.txt", "someone", ADMIN);
+    assert_eq!(
+        who,
+        format!("<venue>QQ private chat with \"someone\" ({ADMIN})</venue>")
+    );
+    assert!(
+        private.trim_end().ends_with(&who),
+        "私聊那一段在 system 最后：{private}"
+    );
     // 场所会话不自动起标题（施工 O-43）：群的、私聊的造的时候都说了。
     let (_, group) =
         venue_session(&home.root, &format!("qq:30003:group:{GROUP}")).expect("有群会话");
     assert_eq!(group[0]["body"]["titles"], json!(false), "{}", group[0]);
+    assert_eq!(titles(&group), [json!(GROUP_NAME)], "标题是群名，设一次");
     let places: Vec<_> = said(&group)
         .iter()
         .map(|event| event["body"]["venue"]["place"].clone())
@@ -94,8 +125,9 @@ async fn a_group_session_knows_its_name_and_number_and_a_private_chat_does_not()
     let private = home.events(&admins[0]);
     let created = &private[0];
     assert_eq!(created["body"]["titles"], json!(false), "{created}");
+    assert_eq!(titles(&private), [json!("someone")], "标题是对方的名字");
     let heard = said(&private);
-    assert_eq!(heard.len(), 1, "{private:?}");
+    assert_eq!(heard.len(), 2, "{private:?}");
     assert!(
         heard[0]["body"]["venue"].get("place").is_none(),
         "私聊不写：{}",

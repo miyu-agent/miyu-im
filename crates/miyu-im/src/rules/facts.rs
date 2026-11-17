@@ -98,6 +98,9 @@ const GROUP: &str = "system/group.txt";
 /// 群名、群号那一段认的字段（「群名」第 2 条）；哪个平台（施工 I-188，驱动给的叫法）。
 const GROUP_FIELDS: &[&str] = &["platform", "name", "id"];
 
+/// 私聊的对方那一段（施工 I-246，放在私聊会话的 system 尾部，同 [`GROUP`]）在出厂目录里的位置。
+const PRIVATE: &str = "system/private.txt";
+
 /// 场所会话 system 尾部的附加提示词（施工 O-58 上，「场所卡片」）。
 const NOTE: &str = "system/note.txt";
 
@@ -115,6 +118,8 @@ pub(super) struct Facts {
     pub(super) unshown: Template,
     /// 群名、群号（施工 O-49）。
     pub(super) group: Template,
+    /// 私聊的对方（施工 I-246）。
+    pub(super) private: Template,
     /// 附加提示词（施工 O-58 上）。
     pub(super) note: Template,
     /// 她被禁言了（施工 O-50）。
@@ -151,6 +156,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
     let another_line = template(dir, ANOTHER_LINE, ANOTHER_LINE_FIELDS, problems);
     let unshown = template(dir, UNSHOWN, UNSHOWN_FIELDS, problems);
     let group = template(dir, GROUP, GROUP_FIELDS, problems);
+    let private = template(dir, PRIVATE, GROUP_FIELDS, problems);
     let note = template(dir, NOTE, NOTE_FIELDS, problems);
     let muted = template(dir, MUTED, MUTED_FIELDS, problems);
     let unmuted = template(dir, UNMUTED, UNMUTED_FIELDS, problems);
@@ -170,6 +176,7 @@ pub(super) fn load(dir: &Path, problems: &mut Vec<Problem>) -> Option<Facts> {
         another_line: another_line?,
         unshown: unshown?,
         group: group?,
+        private: private?,
         note: note?,
         muted: muted?,
         unmuted: unmuted?,
@@ -312,5 +319,10 @@ impl super::Venues {
     /// 群名、群号那一段的模板（施工 O-49）：出厂的，跑着不再读。
     pub fn group_title(&self) -> &Template {
         &self.factory.facts.group
+    }
+
+    /// 私聊的对方那一段的模板（施工 I-246）：出厂的，跑着不再读。
+    pub fn private_title(&self) -> &Template {
+        &self.factory.facts.private
     }
 }

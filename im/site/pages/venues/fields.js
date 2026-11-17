@@ -51,8 +51,9 @@ export const FIELDS = {
     { key: 'model', control: 'model', label: 'field/model', use: 'chat' },
     // 会话的上下文上限（施工 I-189，核心 CTX-1）：token 数，空着照模型的窗口；设得太小的核心不收，下面写最少多少。
     { key: 'rules.context', control: 'number', label: 'field/context-limit', hint: 'field/context-limit-hint', unit: 'unit/tokens', empty: 'field/context-limit-empty', min: 1, warn: contextWarn },
-    // 看图的模型（施工 I-224，todolist 第 34 条，核心 VM-1）：空着跟着设置里的多模态模型（`models.vision`）。
-    { key: 'rules.vision', control: 'model', label: 'field/vision-model', use: 'vision' },
+    // 看图的模型（施工 I-224，todolist 第 34 条，核心 VM-1）：空着跟着设置里的多模态模型（`models.vision`）。说明照项目主人 11-17
+    // 验收第 14 条写（施工 I-246）。
+    { key: 'rules.vision', control: 'model', label: 'field/vision-model', hint: 'field/vision-model-hint', use: 'vision' },
     // 判官没配模型的走旁路请求 `judge`（施工 I-42）：落到池的写池，池空了的照这张卡的模型（`orKey`），再照核心的对话模型。说明照它写
     // （施工 I-224，项目主人 11-11）。
     { key: 'rules.judge.model', control: 'model', label: 'field/judge-model', hint: 'field/judge-model-hint', use: 'judge', orKey: 'model', kinds: GROUPS, dep: JUDGE },
