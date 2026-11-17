@@ -43,6 +43,8 @@ pub(super) struct Titles {
     notes: HashMap<String, String>,
     /// 会话 → 上一次放进 system 的那一段。
     set: HashMap<String, String>,
+    /// 会话 → 上一次设的会话标题（施工 I-246）。
+    named: HashMap<String, String>,
 }
 
 impl Titles {
@@ -55,6 +57,7 @@ impl Titles {
             titles: HashMap::new(),
             notes: HashMap::new(),
             set: HashMap::new(),
+            named: HashMap::new(),
         }
     }
 
@@ -116,7 +119,7 @@ impl Route {
     }
 
     /// 平台 `platform` 上群号是 `group` 的群会话 `session`，群叫 `name`（[`Route::place`] 问到的，没有的不放）：照模板写一段放进它的 system 尾部，
-    /// 和上一次放的一样的不交。
+    /// 和上一次放的一样的不交；会话标题设成群名（施工 I-246）。
     ///
     /// # Errors
     ///
@@ -130,23 +133,84 @@ impl Route {
         let Some(name) = name else {
             return Ok(());
         };
-        let id = group.to_string();
-        // 哪个平台的群照驱动给的叫法写（施工 I-188：原来写死 `QQ group`，Telegram 的群也这么写）。
+        self.put_title(session, true, (platform, &group), name)
+            .await
+    }
+
+    /// 平台 `platform` 上和号是 `user` 的人的私聊会话 `session`，对方叫 `name`（发的人的名字，没有的写号）：照模板写一段放进它的
+    /// system 尾部（施工 I-246：私聊的她原来不知道自己在哪个平台、在跟谁说），会话标题照这个名字设。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn private_titled(
+        &mut self,
+        session: &str,
+        (platform, user): (Platform, &Id),
+        name: Option<&str>,
+    ) -> Result<(), Gone> {
+        let id = user.to_string();
+        let name = name.and_then(group_name).unwrap_or_else(|| id.clone());
+        self.put_title(session, false, (platform, user), &name)
+            .await
+    }
+
+    /// 照群（`group` 是真的）或私聊的模板写好那一段，放进会话 `session` 的 system 尾部；会话标题设成 `name`（施工 I-246）。
+    async fn put_title(
+        &mut self,
+        session: &str,
+        group: bool,
+        (platform, id): (Platform, &Id),
+        name: &str,
+    ) -> Result<(), Gone> {
+        let number = id.to_string();
+        // 哪个平台照驱动给的叫法写（施工 I-188：原来写死 `QQ group`，Telegram 的群也这么写）。
         let fields = BTreeMap::from([
             ("platform", platform.label()),
             ("name", name),
-            ("id", id.as_str()),
+            ("id", number.as_str()),
         ]);
-        let content = match self.rules.group_title().render(&fields) {
+        let template = match group {
+            true => self.rules.group_title(),
+            false => self.rules.private_title(),
+        };
+        let content = match template.render(&fields) {
             Ok(content) => content,
             Err(error) => {
                 // 照说不会：起来时查过模板只要这三个字段（`rules/facts.rs`）。
-                tracing::warn!(target: TARGET, group = %group, error = %error, "group title not written");
+                tracing::warn!(target: TARGET, id = %id, error = %error, "venue title not written");
                 return Ok(());
             }
         };
         self.titles.titles.insert(session.to_string(), content);
-        self.append_tail(session).await
+        self.append_tail(session).await?;
+        self.retitle(session, name).await
+    }
+
+    /// 会话 `session` 的标题设成 `name`（施工 I-246，2026-11-17 项目主人验收：im 网页「查看会话」写的是「未命名会话」）：场所会话
+    /// 不自动起标题（`titles: false`），群名、对方的名字就是它的标题。和上一次设的一样的不交；核心拒了的记一行，下一次照样再交。
+    async fn retitle(&mut self, session: &str, name: &str) -> Result<(), Gone> {
+        if self.titles.named.get(session).map(String::as_str) == Some(name) {
+            return Ok(());
+        }
+        let reply = self
+            .core
+            .call(
+                "session.set_meta",
+                json!({"session": session, "title": name}),
+            )
+            .await?;
+        match reason(&reply) {
+            None => {
+                self.titles
+                    .named
+                    .insert(session.to_string(), name.to_string());
+            }
+            Some(reason) => {
+                tracing::warn!(target: TARGET, session, reason, "session title not set")
+            }
+        }
+        Ok(())
     }
 
     /// 会话 `session` 的附加提示词换成 `note`（场所规则的 `extra_prompt`，没设的是空的，施工 O-58 上）：照模板写好，整段变了的

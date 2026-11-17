@@ -7,7 +7,7 @@
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
 //! | 违规词表 | `moderation.txt` | `moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
-//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、场所会话 system 尾部的群名（施工 O-49）、附加提示词（施工 O-58 上） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt`、`system/note.txt` | 没有：同上 |
+//! | 给她看的事实的模板（施工 O-25 下，O-36 多一份）、场所会话 system 尾部的群名（施工 O-49）、私聊的对方（施工 I-246）、附加提示词（施工 O-58 上） | `facts/undelivered.txt`、`facts/another-line.txt`、`facts/unshown.txt`、`facts/muted.txt`、`facts/unmuted.txt`、`facts/impostor.txt`、`facts/reached.txt`、`system/group.txt`、`system/private.txt`、`system/note.txt` | 没有：同上 |
 //! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
 //!
 //! - 配置项那一层（施工 O-41，[`Configured`]）：包的三项配置拼成一份规则文件，排在出厂、系统中间；推来变了当场重读。

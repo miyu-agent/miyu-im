@@ -12,6 +12,7 @@ use miyu_session::testkit::{Play, Script};
 
 use crate::support::group::*;
 use crate::support::head::Head;
+use crate::support::speaking::{Line, Lines};
 use crate::support::*;
 
 /// 群里的别人。
@@ -342,6 +343,54 @@ async fn a_private_glance_opens_without_new_messages_and_her_tool_sets_the_next(
     let log = run_log(&home.root);
     assert_eq!(log.matches("glance armed").count(), 2, "{log}");
     assert!(napcat.pending().is_none(), "别的什么都不发");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_glance_reply_quotes_the_message_she_picked() {
+    // 真机 11-17：看一眼那一轮她调了 `qq_quote`，发出去的那句没带引用（施工 I-246）。
+    let lines = Lines::new([
+        Line::uses("", "qq_quote", r#"{"msg":"2"}"#),
+        Line::says("不是手表"),
+    ]);
+    let tuned = json!({"glance_seconds": 2});
+    let (home, mut napcat, _) = started_tuned(Arc::new(lines.clone()), RULES, &tuned, |napcat| {
+        napcat.answering(MEMBERS)
+    })
+    .await;
+    let mut head = Head::connect(&home.root).await;
+    head.until("status", |status| status["napcat"]["connected"] == true)
+        .await;
+    let venue = format!("qq:{BOT}:group:{GROUP}");
+    napcat.send(chat(1, "今天吃什么"));
+    until_event(&home.root, &venue, |event| {
+        event["kind"] == "ext.im.chat.decided"
+    })
+    .await;
+    glance(&mut head, true).await;
+    napcat.stock_message(
+        2,
+        json!({"message_type": "group", "group_id": GROUP, "user_id": LIN, "message": [plain("这是手表吗")]}),
+    );
+    napcat.send(chat(2, "这是手表吗"));
+    let sent = loop {
+        let action = napcat.action().await;
+        if action["action"] == "send_group_msg" {
+            break action["params"]["message"].clone();
+        }
+    };
+    assert_eq!(
+        sent[0],
+        json!({"type": "reply", "data": {"id": "2"}}),
+        "{sent}"
+    );
+    assert_eq!(
+        sent.as_array()
+            .and_then(|all| all.last())
+            .map(|last| last["data"]["text"].clone()),
+        Some(json!("不是手表")),
+        "{sent}"
+    );
     stopped(home).await;
 }
 

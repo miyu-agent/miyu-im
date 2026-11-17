@@ -131,9 +131,17 @@ impl Route {
         if (known || (message.place.listed() && self.found(&message.place).await?))
             && let Some(session) = self.venues.get(&venue).cloned()
         {
+            self.private_titled(&session, (platform, &posted.user), posted.name.as_deref())
+                .await?;
             self.noted(&session, note.as_deref()).await?;
         }
+        let (user, name) = (posted.user.clone(), posted.name.clone());
         let submitted = self.submit(message).await?;
+        // 交了才找到的（终端管理员的私聊：桥认不出，交的时候才找）：这一条开的那一轮赶不上，下一轮起带上（施工 I-246）。
+        if !known && let Some(session) = self.venues.get(&venue).cloned() {
+            self.private_titled(&session, (platform, &user), name.as_deref())
+                .await?;
+        }
         // 会话浮窗的最近处理（施工 I-56，10-27 项目主人：私聊卡片没日志）：私聊不判，核心收下了的记一笔，交给她的写 `private`，
         // 只记下的写为什么。命令、不接的、被拒的不记。
         if let Some((_, reply)) = &submitted

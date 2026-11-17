@@ -266,7 +266,7 @@ async fn the_admin_is_taken_whether_the_binding_knows_him_or_cannot_be_asked() {
         napcat.admin_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在", "{known:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{known:?}");
-        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头几个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是核心拉起的桥，核心拒了）、订阅软件包列表（施工 O-43 上：挂接点）、列插件（施工 I-8 上）；找会话以前先问对方是不是终端管理员（施工 I-65）。
+        // 找到场所会话以后、第一轮以前先告诉核心这个场所开着哪些插件（施工 S-1 上c）：多一个 `venue.plugins`。她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头几个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是核心拉起的桥，核心拒了）、订阅软件包列表（施工 O-43 上：挂接点）、列插件（施工 I-8 上）；找会话以前先问对方是不是终端管理员（施工 I-65）。交了才找到会话的，交了以后放对方的名字和号那一段、设会话标题（施工 I-246）：多一个 `system.append`、一个 `session.set_meta`。
         assert_eq!(
             relay.asked(),
             [
@@ -280,6 +280,8 @@ async fn the_admin_is_taken_whether_the_binding_knows_him_or_cannot_be_asked() {
                 "subscribe",
                 "venue.plugins",
                 "session.send",
+                "system.append",
+                "session.set_meta",
                 "events.append"
             ],
             "{known:?}"
