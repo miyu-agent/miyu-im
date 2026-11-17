@@ -117,6 +117,8 @@ struct Job {
     caller: Caller,
     /// 「文件没发出去」的模板。
     template: Template,
+    /// 传成了的文件记在这里（施工 I-247：私聊里认下载的回执）。
+    sent: super::sent_files::SentFiles,
 }
 
 impl Route {
@@ -173,6 +175,7 @@ impl Route {
             bots: self.platforms.bots(peer.platform),
             caller: self.core.caller(),
             template: self.rules.unshown().clone(),
+            sent: self.sent_files.clone(),
         }
     }
 }
@@ -181,6 +184,11 @@ impl Route {
 async fn send(job: Job) {
     let venue = job.peer.venue.as_str().to_string();
     let kind = if job.file.is_image() { "image" } else { "file" };
+    // 传之前量好字节数（施工 I-247）：传完钉住的那一份就删了。
+    let size = match &job.file.source {
+        Source::Path(path) => std::fs::metadata(path).ok().map(|meta| meta.len()),
+        Source::Shown { size, .. } => Some(*size),
+    };
     let delivered = deliver(&job).await;
     // 钉住的那一份（施工 I-130）：NapCat 回了、过了时都不再读它，删掉。
     if let Source::Path(path) = &job.file.source
@@ -189,7 +197,13 @@ async fn send(job: Job) {
         tracing::debug!(target: TARGET, error = %error, "pinned file not removed");
     }
     match delivered {
-        Ok(()) => tracing::info!(target: TARGET, venue, kind, "file shown"),
+        Ok(()) => {
+            tracing::info!(target: TARGET, venue, kind, "file shown");
+            if let (false, Some(size)) = (job.file.is_image(), size) {
+                job.sent
+                    .note(&venue, (&job.file.name, size), std::time::Instant::now());
+            }
+        }
         Err((why, detail)) => {
             // 平台说的原话也记（施工 I-200：群文件空间满了只有她看得到，运行日志里只有 `failed`）。
             tracing::warn!(target: TARGET, venue, kind, why, detail = %detail, "file not shown");

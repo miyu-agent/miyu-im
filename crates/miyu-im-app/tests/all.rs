@@ -35,6 +35,7 @@ mod defaults_moved;
 mod dependencies;
 mod disciplines;
 mod display_names;
+mod download_receipt;
 mod drivers;
 mod exports;
 mod factory_rules;

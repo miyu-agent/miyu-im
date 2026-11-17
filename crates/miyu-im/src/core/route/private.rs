@@ -2,6 +2,8 @@
 //! 场所、平台上的人经群聊内核拼，拼不出来的记一行、这条不送；带上场所的格，`show_ids` 照这个私聊套出来的场所规则；白名单成员的
 //! 私聊照场所规则带人格、预设、工作区（施工 O-27）；陌生人照「其他私聊」卡过进站链（施工 O-60，`strangers`）；只有图、引用的照取图（施工 O-33），合并转发照群消息的写法（施工 O-34）。
 
+use std::time::Instant;
+
 use miyu_chat::{Outcome, VenueKind, Why};
 use serde_json::json;
 
@@ -10,6 +12,7 @@ use super::noted::recorded;
 use super::fields::{Flags, fields};
 use super::forwards::{Forwards, with_placeholders};
 use super::pictures::Pictures;
+use super::sent_files;
 use super::session::Place;
 use super::strangers::Gating;
 use super::{Message, Route, applied};
@@ -46,6 +49,16 @@ impl Route {
         }
         // 聊天记录（设计 04，施工 C-1 上）：谁的私聊都记，接不接是后面的事。
         self.record_heard((platform, &venue), &external, &posted, &text);
+        // 下载的回执（施工 I-247，2026-11-17 项目主人验收第 35 条）：对方下载了她传的文件，NapCat 推来一条只带那个文件的消息。
+        // 不是人发的话：记下了，不开一轮。
+        if let Some(file) = sent_files::receipt(&posted.segments)
+            && self
+                .sent_files
+                .sent(venue.id().as_str(), file, Instant::now())
+        {
+            tracing::info!(target: TARGET, venue = %venue.id(), message = posted.message_id, name = file.0, "download receipt, not taken");
+            return Ok(());
+        }
         // 陌生人（施工 O-60，`strangers`）：不在白名单里、「其他私聊」卡让接的才问是不是终端管理员（卡关着的照原来办，不多问一趟），
         // 是的这张卡不再管他；不是的照这张卡过进站链。
         let stranger = !self.whitelisted(&external)
