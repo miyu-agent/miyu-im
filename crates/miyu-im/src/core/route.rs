@@ -99,6 +99,7 @@ mod recording;
 mod request;
 mod revive;
 mod sending;
+mod sent_files;
 mod session;
 mod shown;
 mod speak;
@@ -236,6 +237,8 @@ pub(crate) struct Route {
     bindings: Bindings,
     /// 问过的群名、放进 system 的那一段（施工 O-49，`titled`）。
     titles: Titles,
+    /// 她传成了的文件（施工 I-247，`sent_files`）：私聊里认下载的回执。
+    sent_files: sent_files::SentFiles,
     /// 上下文上限设不上的会话（施工 I-189，`policy::context`）。
     context_refused: policy::context::Refused,
     /// 记过的冒充提醒（施工 O-53，`impostor`）。
@@ -350,6 +353,7 @@ impl Route {
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
+            sent_files: sent_files::SentFiles::default(),
             context_refused: policy::context::Refused::default(),
             impostors: Noted::default(),
             aims: Aims::default(),
