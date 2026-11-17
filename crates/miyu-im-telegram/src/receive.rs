@@ -83,6 +83,7 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
         rank: None,
         text,
         segments,
+        poke: None,
     };
     match chat["type"].as_str()? {
         "private" => Some(Event::Private(posted)),

@@ -36,7 +36,10 @@ impl Route {
                 fields::shown(&mut message.fields, &shown);
             }
         }
-        let bare = message.text.trim().is_empty() && message.fields.get("media").is_none();
+        // 戳了戳她的（施工 I-248）没有字也没带东西，照样交。
+        let bare = message.text.trim().is_empty()
+            && message.fields.get("media").is_none()
+            && message.fields.get("poke").is_none();
         if message.place.private_chat() && bare && attachments.is_empty() {
             tracing::debug!(target: TARGET, venue = %message.place.peer.venue, message = message.number, "nothing to send");
             return Ok(None);

@@ -50,6 +50,18 @@ pub(super) fn fields(
     if let Some(place) = place.and_then(|place| clean(place, NAME)) {
         venue.insert("place".into(), json!(place));
     }
+    // 拍了拍她（施工 I-248，核心 VP-1）：没有字和段，核心照这一格画成平台事实。
+    if let Some(poke) = &posted.poke {
+        venue.insert("poke".into(), json!(true));
+        // 拍的人自己设的后缀：别人改得了的字，洗法同名字（`poke_text`，核心照不可信的字转义写在后面）。
+        if let Some(suffix) = poke
+            .suffix
+            .as_deref()
+            .and_then(|suffix| clean(suffix, NAME))
+        {
+            venue.insert("poke_text".into(), json!(suffix));
+        }
+    }
     if let Some(reply_to) = segments.reply_to.as_deref().filter(|id| fits(id)) {
         venue.insert("reply_to".into(), json!(reply_to));
     }

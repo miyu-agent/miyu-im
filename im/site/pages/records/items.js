@@ -71,13 +71,13 @@ function judged(box, note) {
 
 /** 群里的一件事：居中一行小字，前面是时刻。撤回的不画（划在气泡上了）。 */
 function drawEvent(item, who) {
-  if (!['muted', 'unmuted', 'kicked', 'left', 'joined'].includes(item.kind)) return null;
+  if (!['muted', 'unmuted', 'kicked', 'left', 'joined', 'poked'].includes(item.kind)) return null;
   const fields = {
     actor: item.actor ? who(item.actor) : '',
     target: item.target ? who(item.target) : say('records/someone'),
     span: span(item.seconds || 0),
   };
-  const byOther = item.actor && item.actor !== item.target && ['muted', 'unmuted', 'kicked'].includes(item.kind);
+  const byOther = item.actor && item.actor !== item.target && ['muted', 'unmuted', 'kicked', 'poked'].includes(item.kind);
   const line = element('div', 'records-event');
   line.append(element('span', 'muted', when(item.at)), ` ${say(`records/event-${item.kind}${byOther ? '' : '-plain'}`, fields)}`);
   return line;
