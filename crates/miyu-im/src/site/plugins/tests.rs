@@ -2,7 +2,7 @@
 
 use serde_json::json;
 
-use super::{builtin, merged};
+use super::{builtin, merged, off};
 
 #[test]
 fn a_plugin_takes_what_the_core_says_about_its_package() {
@@ -51,4 +51,21 @@ fn a_builtin_plugin_takes_its_switch_and_im_s_version() {
     assert!(unset.get("version").is_none());
     let package = json!({"package": "dice", "version": "1"});
     assert_eq!(builtin(package.clone(), &off, &own), package);
+}
+
+#[test]
+fn closed_im_plugins_come_from_the_package_list() {
+    // 施工 I-249：关着的、给 im 带内容的才列；开着的、给别人带的、im 已经认得的不列。
+    let packages = json!({"packages": [
+        {"package": "lazy", "name": "Lazy", "enabled": false, "provides": {"content": ["im"]}},
+        {"package": "dice", "name": "Dice", "enabled": true, "provides": {"content": ["im"]}},
+        {"package": "theme", "name": "Theme", "enabled": false, "provides": {"content": ["webui"]}},
+        {"package": "known", "name": "Known", "enabled": false, "provides": {"content": ["im"]}},
+        {"package": "bare", "name": "Bare", "enabled": false, "provides": {}},
+    ]});
+    let known = [json!({"package": "known"})];
+    assert_eq!(
+        off(&packages, &known),
+        [json!({"package": "lazy", "name": "Lazy"})]
+    );
 }

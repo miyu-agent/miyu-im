@@ -45,8 +45,9 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     let status = head.until("status", |status| status["web"].is_u64()).await;
     let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
     let mut open = logged_in(&home.root, web).await;
-    // 桥从总线的订阅里读到两个插件要一会儿（Windows 上撞上过：列出来只有驱动带的）：先等挂上一个、读到两个。
-    until_plugged(&home, 1, 2).await;
+    // 桥从总线的订阅里读到插件要一会儿（Windows 上撞上过：列出来只有驱动带的）：先等挂上一个、读到一个。lazy 关着，它的内容核心
+    // 不交（核心 UX-1），im 读不到，照 `package.list` 列（施工 I-249）。
+    until_plugged(&home, 1, 1).await;
 
     let listed = call(&mut open, 1, "plugins.list", json!({})).await;
     let dice = one(&listed, "dice");
@@ -59,6 +60,7 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     let lazy = one(&listed, "lazy");
     assert_eq!(lazy["enabled"], false, "{lazy}");
     assert!(lazy.get("links").is_none(), "{lazy}");
+    assert!(lazy["name"].is_string(), "关着的只有核心挑好的名字：{lazy}");
 
     let read = call(&mut open, 2, "plugins.readme", json!({"package": "dice"})).await;
     assert_eq!(read["result"]["text"], README, "{read}");
@@ -72,6 +74,8 @@ async fn the_plugin_page_lists_reads_and_switches_plugins_through_the_core() {
     let off = json!({"package": "dice", "on": false});
     let switched = call(&mut open, 5, "plugins.enable", off).await;
     assert_eq!(switched["result"]["enabled"], false, "{switched}");
+    // 开关以后核心推 `content.changed`，im 重读：lazy 读到了、dice 关着照 `package.list` 列。
+    until_plugged(&home, 0, 1).await;
     let listed = call(&mut open, 6, "plugins.list", json!({})).await;
     assert_eq!(one(&listed, "lazy")["enabled"], true, "{listed}");
     assert_eq!(one(&listed, "dice")["enabled"], false, "{listed}");

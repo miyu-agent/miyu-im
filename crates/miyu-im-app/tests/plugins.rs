@@ -360,6 +360,11 @@ async fn a_plugin_installed_while_running_is_known_from_the_pushed_change() {
         )
         .await;
     assert!(installed.get("result").is_some(), "{installed}");
+    // 装上了还关着（`manual`，核心 UX-1：关着的包的内容核心不交）：打开以后核心推 `content.changed`，im 才读到它。
+    let enabled = head
+        .call("package.enable", json!({"package": "late"}))
+        .await;
+    assert!(enabled.get("result").is_some(), "{enabled}");
     until_plugged(&home, 0, 1).await;
     assert!(run_log(&home.root).contains("plugin known package=late"));
     stopped(home).await;

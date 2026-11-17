@@ -1,13 +1,16 @@
 //! 插件页（施工 I-9 上，设计 01 第四节、第八节第 4 条）：
 //!
-//! - `plugins.list` → `{"plugins": [...]}`：im 认得的插件（会话浮窗的 `cards.get` 交的那一份，`crate::core::hooks`），每个并上核心说的：
+//! - `plugins.list` → `{"plugins": [...]}`：im 认得的插件（会话浮窗的 `cards.get` 交的那一份，`crate::core::hooks`），再加关着的插件
+//!   （施工 I-249，核心 UX-1：关着的包的内容核心不交，im 读不到它的 `plugin.toml`；照 `package.list` 里 `enabled` 是假、`provides` 的
+//!   `content` 有 im 的列，只有包名、核心照连接的语言挑好的 `name` 和下面并上的几格），每个并上核心说的：
 //!   `package.list` 的 `version`、`author`、`from`、`enabled`、`status`、`page`（有后台页的为真）和 `points`（导出的挂接点，照
 //!   `POINTS` 的先后），`extension.status` 的 `state`、`reason`、`capabilities`（`[{id, name, summary}]`）、`unapproved`。核心那边没有
 //!   这个包的只有 im 的几格。声明了首页卡片的另带 `on_home`（放不放，`home_cards`，施工 I-8 下）。
 //! - `plugins.readme {package}` → `{"text"}`：插件声明的 README（`links.readme`，经桥自己的连接 `content.read`：只有 im 读得到插件带给
-//!   它的目录）。没写的、读不成的 `not_found`，不是 UTF-8 的 `bad_readme`。
+//!   它的目录）。没写的、读不成的、关着的 `not_found`，不是 UTF-8 的 `bad_readme`。
 //! - `plugins.enable {package, on, approve?}` → 核心回的那一项：人的连接上 `package.enable`（`approve` 是要一并批准的能力的编号，
-//!   照传；还有没批的核心拒 `needs_approval`）或 `package.disable`。不是 im 插件的、`approve` 不是字的列表的 `bad_params`。
+//!   照传；还有没批的核心拒 `needs_approval`）或 `package.disable`。不是 im 插件的（认得的、关着的都不是）、`approve` 不是字的列表
+//!   的 `bad_params`。
 //!
 //! 驱动带的插件（施工 I-10 上，`builtin: true`）不是软件包：`plugins.list` 的 `enabled` 照它的总开关（配置项 `<settings>on`，没写的开），
 //! `from` 是 `builtin`，版本、作者照 im 的包，挂在进站；`plugins.enable` 改那个配置项（写进系统那一层）。
@@ -42,6 +45,36 @@ pub(super) async fn known(person: &Person) -> Result<Vec<Value>, (String, String
     Ok(cards["plugins"].as_array().cloned().unwrap_or_default())
 }
 
+/// `package.list` 的回应 `packages` 里关着的 im 插件（施工 I-249）：`enabled` 是假、`provides` 的 `content` 有 im，不在 `known` 里的。
+/// 每个只有 `package` 和核心挑好的 `name`。
+pub(super) fn off(packages: &Value, known: &[Value]) -> Vec<Value> {
+    packages["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|entry| entry["enabled"] == false)
+        .filter(|entry| {
+            entry["provides"]["content"]
+                .as_array()
+                .is_some_and(|hosts| hosts.iter().any(|host| host == crate::PACKAGE))
+        })
+        .filter(|entry| {
+            !known
+                .iter()
+                .any(|plugin| plugin["package"] == entry["package"])
+        })
+        .map(|entry| json!({"package": entry["package"], "name": entry["name"]}))
+        .collect()
+}
+
+/// `package` 是不是关着的 im 插件（[`off`]）。
+async fn is_off(person: &Person, package: &str, known: &[Value]) -> Result<bool, (String, String)> {
+    let packages = core(person, "package.list", json!({})).await?;
+    Ok(off(&packages, known)
+        .iter()
+        .any(|plugin| plugin["package"] == package))
+}
+
 /// `package` 是不是 im 认得的插件。
 pub(super) async fn is_plugin(person: &Person, package: &str) -> Result<bool, (String, String)> {
     Ok(known(person)
@@ -72,8 +105,10 @@ pub(super) async fn list(site: &Site, person: &Person) -> Result<Value, (String,
         .find(|entry| entry["package"] == crate::PACKAGE)
         .cloned()
         .unwrap_or(Value::Null);
+    let closed = off(&packages, &known);
     let plugins: Vec<Value> = known
         .into_iter()
+        .chain(closed)
         .map(|plugin| merged(plugin, &packages["packages"], &extensions["extensions"]))
         .map(|plugin| builtin(plugin, &switched, &own))
         .map(|mut plugin| {
@@ -175,10 +210,14 @@ pub(super) async fn readme(
 ) -> Result<Value, (String, String)> {
     let package = params["package"].as_str().ok_or_else(bad)?;
     let known = known(person).await?;
-    let path = known
-        .iter()
-        .find(|plugin| plugin["package"] == package)
-        .ok_or_else(bad)?["links"]["readme"]
+    let Some(plugin) = known.iter().find(|plugin| plugin["package"] == package) else {
+        // 关着的插件（施工 I-249）：im 读不到它带的目录。
+        return Err(match is_off(person, package, &known).await? {
+            true => ("not_found".to_string(), String::new()),
+            false => bad(),
+        });
+    };
+    let path = plugin["links"]["readme"]
         .as_str()
         .ok_or_else(|| ("not_found".to_string(), String::new()))?
         .to_string();
@@ -198,11 +237,12 @@ pub(super) async fn enable(person: &Person, params: &Value) -> Result<Value, (St
     let package = params["package"].as_str().ok_or_else(bad)?;
     let on = params["on"].as_bool().ok_or_else(bad)?;
     let known = known(person).await?;
-    let plugin = known
-        .iter()
-        .find(|plugin| plugin["package"] == package)
-        .ok_or_else(bad)?;
-    if plugin["builtin"] == true {
+    let plugin = known.iter().find(|plugin| plugin["package"] == package);
+    // 关着的插件（施工 I-249）照样开关得了，它不是驱动带的。
+    if plugin.is_none() && !is_off(person, package, &known).await? {
+        return Err(bad());
+    }
+    if let Some(plugin) = plugin.filter(|plugin| plugin["builtin"] == true) {
         let key = format!("{}on", plugin["settings"].as_str().ok_or_else(bad)?);
         let change = json!({"key": key, "value": on});
         core(
