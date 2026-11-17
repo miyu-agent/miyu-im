@@ -43,12 +43,20 @@ impl Route {
             &posted.segments,
         );
         let text = with_placeholders(&posted.text, posted.segments.forwards.len());
-        if text.trim().is_empty() && pictures.own.is_empty() && !pictures.any() {
+        // 拍了拍她的（施工 I-248）没有字，照私聊的一条开一轮。
+        if text.trim().is_empty()
+            && pictures.own.is_empty()
+            && !pictures.any()
+            && posted.poke.is_none()
+        {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
         // 聊天记录（设计 04，施工 C-1 上）：谁的私聊都记，接不接是后面的事。
-        self.record_heard((platform, &venue), &external, &posted, &text);
+        match posted.poke.is_some() {
+            true => self.record_poke(platform, venue.id().as_str(), &posted),
+            false => self.record_heard((platform, &venue), &external, &posted, &text),
+        }
         // 下载的回执（施工 I-247，2026-11-17 项目主人验收第 35 条）：对方下载了她传的文件，NapCat 推来一条只带那个文件的消息。
         // 不是人发的话：记下了，不开一轮。
         if let Some(file) = sent_files::receipt(&posted.segments)

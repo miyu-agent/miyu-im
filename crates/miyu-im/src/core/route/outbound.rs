@@ -60,7 +60,12 @@ pub(super) fn relead(
         last_is_own,
     };
     let target = miyu_chat::aimed(aimed.want, &since, outbound);
-    lead.reply = aimed.aim.msg.clone().filter(|_| target.quote);
+    // 拍一拍的编号平台上没有，引用它的话 NapCat 可能整条不发（施工 I-248）。
+    lead.reply = aimed
+        .aim
+        .msg
+        .clone()
+        .filter(|msg| target.quote && !crate::chat::is_poke(msg));
     lead.at = number(&aimed.aim).filter(|_| target.mention);
     target
 }

@@ -132,7 +132,10 @@ fn private(time: Option<Value>) -> Value {
 /// 认出来的私聊的时刻。
 fn time_of(frame: Value) -> i64 {
     match read(frame) {
-        Frame::Event(Event::Private(private)) => private.time,
+        Frame::Event(event) => match *event {
+            Event::Private(private) => private.time,
+            other => panic!("该认成私聊：{other:?}"),
+        },
         other => panic!("该认成私聊：{other:?}"),
     }
 }

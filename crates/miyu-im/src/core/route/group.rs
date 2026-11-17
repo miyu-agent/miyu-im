@@ -68,6 +68,12 @@ impl Route {
             }
         };
         let applied = self.applied(&venue);
+        // 拍了拍她的（施工 I-248）：平台不带名字，照群成员的缓存补。
+        let mut posted = posted;
+        if posted.poke.is_some() && posted.name.is_none() {
+            let who = (platform, group.clone(), posted.user.clone());
+            posted.name = self.members.name(who, Instant::now()).map(str::to_string);
+        }
         if let Some(name) = &posted.name {
             self.members.remember(
                 (platform, group.clone(), posted.user.clone()),
@@ -84,7 +90,7 @@ impl Route {
             );
         }
         let text = self.named((platform, group.clone()), &posted).await;
-        if text.trim().is_empty() && posted.segments.media.is_empty() {
+        if text.trim().is_empty() && posted.segments.media.is_empty() && posted.poke.is_none() {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
@@ -117,7 +123,10 @@ impl Route {
         let place = self
             .place(platform, group.clone(), posted.bot.clone())
             .await;
-        let calls_her = addressed(VenueKind::Group, flags.mentions_me, &text, &keywords);
+        // 拍了拍她的当作冲她来的一条（施工 I-248，项目主人 11-17 定：交给群里现有的判断定回不回）；场所的格不写 @ 了她，核心照
+        // `poke` 那一格画。
+        let called = flags.mentions_me || posted.poke.is_some();
+        let calls_her = addressed(VenueKind::Group, called, &text, &keywords);
         let message = Message {
             id: platform.command_id(&posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
@@ -158,7 +167,7 @@ impl Route {
             sender: external,
             name: posted.name.clone(),
             text: message.text.clone(),
-            mentions_me: flags.mentions_me,
+            mentions_me: called,
             quotes_me,
             mentions_others: !mentions.is_empty(),
             reply_to: posted.segments.reply_to.clone(),
@@ -170,13 +179,17 @@ impl Route {
                 .map(|media| media.kind)
                 .collect(),
         };
-        // 聊天记录（设计 04，施工 C-1 上）：照记进会话的同一处记一份。
-        self.record_heard(
-            (platform, &heard.venue),
-            &heard.sender,
-            &posted,
-            &heard.text,
-        );
+        // 聊天记录（设计 04，施工 C-1 上）：照记进会话的同一处记一份；拍了拍她的记成一件事（施工 I-248）。
+        if posted.poke.is_some() {
+            self.record_poke(platform, heard.venue.id().as_str(), &posted);
+        } else {
+            self.record_heard(
+                (platform, &heard.venue),
+                &heard.sender,
+                &posted,
+                &heard.text,
+            );
+        }
         // 问进站挂接点的那一条（施工 O-43 中，`onebot.md`「挂接点」第 3 条）。
         let ask = json!({
             "venue": heard.venue.id().as_str(),
