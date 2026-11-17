@@ -7,6 +7,9 @@
 //! - 群里发出去了记 `venue.delivered`（正文空的、`images` 是这张图）；没发出去的（读不出、失败、过期、等不到）经核心的
 //!   `session.note` 给那条线记一块 `unshown` 事实（模板同展示），她下一步知道没到。
 //! - 补来的（订阅时从头补的）、这一轮不说话了的（`skip_reply`）不发：调的一方不交进来。
+//! - 她说的话合成的语音（施工 I-250，核心 SD-1：`sent` 里写了 `"voice": true`、`media_type` 是 `audio/` 开头的那一段）走同一条路，
+//!   发的时候照平台的语音消息发（QQ 的语音段、Telegram 的 `sendVoice`），不是图也不是文件；群里发出去了不记 `venue.delivered`
+//!   （它只有字和图），没发出去的同样记 `unshown`。
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -34,6 +37,8 @@ pub(super) struct Sent {
     pub(super) name: String,
     /// 是表情包。
     pub(super) sticker: bool,
+    /// 是一段语音：音频的格式（施工 I-250）。
+    pub(super) voice: Option<String>,
 }
 
 /// 一次工具结果 `raw`（会话事件原样）里她发出去的图（纯逻辑）：不是工具结果的、没有的是空的；`blob` 不是字的那一张不要。
@@ -47,17 +52,34 @@ pub(super) fn sent_in(raw: &Value) -> Vec<Sent> {
         .flatten()
         .filter_map(|one| {
             let sticker = one["sticker"] == true;
+            // 语音（施工 I-250）：格式照写的，不是音频的不认。
+            let voice = match one["voice"] == true {
+                true => Some(
+                    one["media_type"]
+                        .as_str()
+                        .filter(|kind| kind.starts_with("audio/"))?,
+                ),
+                false => None,
+            };
             let name = one["name"]
                 .as_str()
                 .or_else(|| one["alt"].as_str())
                 .map_or_else(
-                    || (if sticker { "sticker" } else { "image" }).to_string(),
+                    || {
+                        let fallback = match (voice.is_some(), sticker) {
+                            (true, _) => "voice",
+                            (false, true) => "sticker",
+                            (false, false) => "image",
+                        };
+                        fallback.to_string()
+                    },
                     str::to_string,
                 );
             Some(Sent {
                 blob: one["blob"].as_str()?.to_string(),
                 name,
                 sticker,
+                voice: voice.map(str::to_string),
             })
         })
         .collect()
@@ -87,6 +109,7 @@ impl Route {
                 name: one.name,
                 sticker: one.sticker,
                 file: String::new(),
+                voice: one.voice,
             };
             match read(&self.core.caller(), Some(line), &image.blob).await {
                 Ok(bytes) => image.file = format!("base64://{}", STANDARD.encode(bytes)),

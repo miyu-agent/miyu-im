@@ -85,6 +85,11 @@ impl Link for Bot {
                 (upload(Upload::image(file, caption)), quoted(lead))
             }
             Outgoing::Upload { file, name } => (upload(Upload::document(file, name)), None),
+            Outgoing::Voice {
+                file,
+                media_type,
+                name,
+            } => (upload(Upload::voice(file, media_type, name)), None),
             Outgoing::Forward { .. } => return Box::pin(async { Err(CallError::Unsupported) }),
         };
         let body = match body {

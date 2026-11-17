@@ -9,6 +9,8 @@
 //! - `slow:<方法>`：这个方法收了不答。
 //! - `sticker:<路径>`：把这个图经 `blob.put` 传上去，登记一件工具 `sticker`（施工 O-51：表情包包那样，私聊、群里用），她调了
 //!   答一段字和 `sent` 里一张表情包（核心 X-19）。要清单里批过 `tools`。
+//! - `voice:<路径>`：把这段音频经 `blob.put` 传上去，登记一件工具 `speak`，她调了答一段字和 `sent` 里一段语音（施工 I-250，核心 SD-1：
+//!   `voice: true`、`media_type` 写 `audio/mpeg`）。有 `record:` 的，收到的 `tool.call` 的参数也记一行（`{"tool_call": <参数>}`）。
 //! - `sticker-end`：`sticker` 的回答带 `end_turn`（施工 O-57：她最后一步带着工具调用、这一轮到此结束，表情包包的 `meme_send` 那样）。
 //! - `note:<种类>:<字>`：扮 im 的插件记一句（施工 I-8 上）：收到 `chat.hook.inbound` 先经核心的总线（`bus.call`，名字 `chat`）调 `chat.note`
 //!   （场所照问的那一条的），把回应记进 `record:` 的文件（`{"noted": <回应>, "venue"}`），再照写的答。要清单里批过
@@ -37,6 +39,7 @@ fn main() {
     let mut record: Option<File> = None;
     let mut answers: BTreeMap<String, Answer> = BTreeMap::new();
     let mut sticker: Option<String> = None;
+    let mut voice: Option<String> = None;
     let mut render: Option<String> = None;
     let mut end = false;
     let mut note: Option<(String, String)> = None;
@@ -58,6 +61,8 @@ fn main() {
             answers.insert(method.to_string(), Answer::Silent);
         } else if let Some(path) = arg.strip_prefix("sticker:") {
             sticker = Some(path.to_string());
+        } else if let Some(path) = arg.strip_prefix("voice:") {
+            voice = Some(path.to_string());
         } else if let Some(path) = arg.strip_prefix("render:") {
             render = Some(path.to_string());
         } else if let Some(rest) = arg.strip_prefix("note:") {
@@ -104,6 +109,26 @@ fn main() {
             "alt": "A cat waving.",
             "sticker": true,
         }])
+    });
+    // 她说的话合成的一段语音（施工 I-250）：传上去，`sent` 里标成语音。
+    let sent = sent.or_else(|| {
+        let path = voice?;
+        let put = ask(&mut input, "blob.put", json!({"path": path}));
+        let tool = json!({
+            "name": "speak",
+            "description": "Say it aloud.",
+            "input_schema": {"type": "object", "properties": {}},
+            "access": "read",
+            "venues": ["private", "group"],
+        });
+        ask(&mut input, "provide", json!({"tools": [tool]}));
+        Some(json!([{
+            "blob": put["result"]["blob"],
+            "media_type": "audio/mpeg",
+            "voice": true,
+            "name": "say-01.mp3",
+            "duration_ms": 1200,
+        }]))
     });
     loop {
         let line = read(&mut input);
@@ -171,6 +196,10 @@ fn serve(
     if message["method"] == "tool.call"
         && let Some(sent) = sent
     {
+        if let Some(file) = record {
+            writeln!(file, "{}", json!({"tool_call": message["params"]})).expect("写得进");
+            file.flush().expect("写得出");
+        }
         let mut result = json!({"blocks": [{"type": "text", "text": "Sent."}], "sent": sent});
         if end {
             result["end_turn"] = json!(true);

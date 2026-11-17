@@ -8,9 +8,10 @@ use miyu_client::ids::{ExternalId, VenueId};
 
 use super::{Id, To};
 
-/// 一个平台：名字是驱动给的；给模型看的叫法也是（施工 I-188，[`Platform::labeled`]），认平台只认名字。
+/// 一个平台：名字是驱动给的；给模型看的叫法也是（施工 I-188，[`Platform::labeled`]），一段语音至多多少毫秒也是（施工 I-250，
+/// [`Platform::voice_limited`]）。认平台只认名字。
 #[derive(Debug, Clone, Copy)]
-pub struct Platform(&'static str, &'static str);
+pub struct Platform(&'static str, &'static str, Option<u32>);
 
 impl PartialEq for Platform {
     fn eq(&self, other: &Platform) -> bool {
@@ -29,13 +30,24 @@ impl std::hash::Hash for Platform {
 impl Platform {
     /// 名字是 `name` 的平台：给模型看的叫法也照名字，驱动另给的照 [`Platform::labeled`]。
     pub const fn new(name: &'static str) -> Platform {
-        Platform(name, name)
+        Platform(name, name, None)
     }
 
     /// 给模型看的叫法换成 `label`（施工 I-188：群会话 system 尾部的场所那一段写「QQ group」「Telegram group」）。
     #[must_use]
     pub const fn labeled(self, label: &'static str) -> Platform {
-        Platform(self.0, label)
+        Platform(self.0, label, self.2)
+    }
+
+    /// 一段语音至多 `millis` 毫秒（施工 I-250，核心 SD-1：找会话时交 `voice_max_ms`，她合成长了的核心那边不交、回出错让她重说）。
+    /// 没有上限的平台不设。
+    pub const fn voice_limited(self, millis: u32) -> Platform {
+        Platform(self.0, self.1, Some(millis))
+    }
+
+    /// 一段语音至多多少毫秒；没有上限的是空的。
+    pub fn voice_max_ms(self) -> Option<u32> {
+        self.2
     }
 
     /// 平台的名字。

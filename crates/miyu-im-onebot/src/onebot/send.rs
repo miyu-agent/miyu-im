@@ -55,6 +55,11 @@ fn lead_segments(lead: &Lead) -> Vec<Value> {
 }
 
 /// 一串段 `message` 发给 `to`：`send_private_msg {user_id, message}`、`send_group_msg {group_id, message}`。
+/// 一段语音（施工 I-250）：QQ 的语音段，`file` 照宿主交的 `base64://…` 原样给。NapCat 用 FFmpeg 把 mp3、wav 这些转成 QQ 认的格式。
+pub fn voice_to(to: To, file: &str) -> (&'static str, Value) {
+    send_to(to, vec![json!({"type": "record", "data": {"file": file}})])
+}
+
 fn send_to(to: To, message: Vec<Value>) -> (&'static str, Value) {
     match to {
         To::Private(user) => (

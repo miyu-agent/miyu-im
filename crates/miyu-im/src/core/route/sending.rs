@@ -87,6 +87,8 @@ pub(super) struct Image {
     pub(super) sticker: bool,
     /// NapCat 认的 `base64://…`：入队以前读好。
     pub(super) file: String,
+    /// 是她说的话合成的一段语音（施工 I-250，`voices`）：音频的格式，照语音发；图的是空的。
+    pub(super) voice: Option<String>,
 }
 
 /// 长文画成的一页（施工 O-59 上）：图照发图的写法（线、回合、blob、名字、读好的 `base64://…`），另带她回的人、是不是第一页。
@@ -314,9 +316,16 @@ impl Route {
                         nickname,
                         nodes,
                     },
-                    (Body::Text, What::Image(image)) => Outgoing::Image {
-                        file: &image.file,
-                        sticker: image.sticker,
+                    (Body::Text, What::Image(image)) => match &image.voice {
+                        Some(media_type) => Outgoing::Voice {
+                            file: &image.file,
+                            media_type,
+                            name: &image.name,
+                        },
+                        None => Outgoing::Image {
+                            file: &image.file,
+                            sticker: image.sticker,
+                        },
                     },
                     (Body::Text, What::Page(page)) => Outgoing::Picture {
                         file: &page.image.file,
@@ -400,9 +409,13 @@ impl Route {
         tracing::info!(target: TARGET, venue = %venue, chars, text = %text, "reply sent");
         // 聊天记录（设计 04，施工 C-1 上）：她发出去了的照记（回了编号的）。
         if let Some(msg) = &msg {
-            let image = matches!(item.piece.what, What::Image(_) | What::Page(_));
+            let kind = match &item.piece.what {
+                What::Image(image) if image.voice.is_some() => Some("voice"),
+                What::Image(_) | What::Page(_) => Some("image"),
+                _ => None,
+            };
             let mine = (peer.platform, venue.as_str(), &peer.bot);
-            self.record_mine(mine, (msg, &item.piece.text), image);
+            self.record_mine(mine, (msg, &item.piece.text), kind);
         }
         // 回复按轮数（施工 I-169）：一轮拆成几条的只数头一段。
         if said(&item.piece.what)
@@ -428,6 +441,8 @@ impl Route {
                 tracing::warn!(target: TARGET, venue = %venue, chars, "delivered without a message id");
                 Ok(())
             }
+            // 语音（施工 I-250）：`venue.delivered` 只有字和图，不记（同展示的文件）。
+            (What::Image(image), Some(_)) if image.voice.is_some() => Ok(()),
             // 她发出去的图（施工 O-51）：正文是空的，`images` 是它。回的人不算（图不引用、不 @）。
             (What::Image(image), Some(msg)) => {
                 let body = json!({"line": image.line, "turn": image.turn, "to": [], "msg": msg.to_string(), "text": "", "images": [image.blob]});

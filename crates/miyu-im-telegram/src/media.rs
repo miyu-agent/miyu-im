@@ -5,6 +5,8 @@
 //! - Bot API 的上限：图 10 MB、文件 50 MB。超了 10 MB 的图改照文件发（Telegram 不压它），超了 50 MB 的不发，答为什么。
 //! - 长文画成的图带 `lead` 的引用和 @：@ 写进图的说明（`caption`），引用照 `reply_parameters`。
 //! - 表情包（`sticker`）也照图发：`sendSticker` 只收 512 px 以内的 WebP、PNG，宿主交的不一定合。
+//! - 她说的话合成的语音（`Outgoing::Voice`，施工 I-250）：`sendVoice` 收的格式（OGG、MP3、M4A，[`VOICE_TYPES`]）照语音消息发，
+//!   别的（WAV 这类）照 `sendAudio` 发成音频；都至多 50 MB。
 //!
 //! 请求体自己拼（不为它多带依赖）：几格字，一格文件，分隔符照进程号和此刻的纳秒拼，碰不上正文的概率可以不管（正文里撞上了
 //! Telegram 回读不懂，照没成答）。
@@ -19,12 +21,23 @@ pub const PHOTO_MOST: usize = 10 * 1024 * 1024;
 /// `sendDocument` 最大 50 MB。
 pub const DOCUMENT_MOST: usize = 50 * 1024 * 1024;
 
+/// `sendVoice` 收的格式（Bot API：OGG 编的 OPUS、MP3、M4A）。
+const VOICE_TYPES: [&str; 7] = [
+    "audio/ogg",
+    "audio/opus",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+];
+
 /// 要传的一份：照哪个方法、放在哪一格、叫什么、内容，图的说明（字和实体）。
 #[derive(Debug, Clone)]
 pub struct Upload {
-    /// `sendPhoto` 或 `sendDocument`。
+    /// `sendPhoto`、`sendDocument`、`sendVoice`、`sendAudio`。
     pub method: &'static str,
-    /// `photo` 或 `document`。
+    /// `photo`、`document`、`voice`、`audio`。
     pub field: &'static str,
     /// 文件名。
     pub name: String,
@@ -70,6 +83,35 @@ impl Upload {
             method: "sendDocument",
             field: "document",
             name: if name.is_empty() { "file" } else { name }.to_string(),
+            bytes,
+            caption: None,
+        })
+    }
+}
+
+impl Upload {
+    /// 一段语音（施工 I-250），格式 `media_type`、文件名 `name`：`sendVoice` 收的照语音发，别的照 `sendAudio`。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Upload::image`]。
+    pub fn voice(file: &str, media_type: &str, name: &str) -> Result<Upload, String> {
+        let bytes = read(file)?;
+        if bytes.len() > DOCUMENT_MOST {
+            return Err(too_large());
+        }
+        let kind = media_type
+            .split(';')
+            .next()
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase();
+        let voice = VOICE_TYPES.contains(&kind.as_str());
+        let name = name.trim();
+        Ok(Upload {
+            method: if voice { "sendVoice" } else { "sendAudio" },
+            field: if voice { "voice" } else { "audio" },
+            name: if name.is_empty() { "voice" } else { name }.to_string(),
             bytes,
             caption: None,
         })

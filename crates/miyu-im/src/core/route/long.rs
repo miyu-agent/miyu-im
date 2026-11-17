@@ -200,6 +200,7 @@ impl Route {
                 name: page_name(index),
                 sticker: false,
                 file: page.file,
+                voice: None,
             };
             let piece = Piece {
                 what: What::Page(Box::new(Page {

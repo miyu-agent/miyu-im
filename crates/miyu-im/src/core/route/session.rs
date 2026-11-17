@@ -67,6 +67,14 @@ pub(super) struct Place {
     wanted: Wanted,
 }
 
+/// 找会话的参数 `opening` 带上这个平台一段语音至多多少毫秒（施工 I-250，核心 SD-1 的 `voice_max_ms`：记进 `session.created`，
+/// 派给扩展的 `tool.call` 原样带，`say` 合成长了的不交、回出错让她重说）。没有上限的平台不写。
+fn voice_limit(opening: &mut Value, platform: Platform) {
+    if let Some(millis) = platform.voice_max_ms() {
+        opening["voice_max_ms"] = json!(millis);
+    }
+}
+
 impl Place {
     /// 平台 `platform` 上机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。对方是白名单成员的，`listed` 是
     /// 套到这个私聊上的场所规则：`venue.session` 照它带人格、预设、工作区（施工 O-27，同群），会话关在沙盒里的也接。
@@ -89,6 +97,7 @@ impl Place {
             // 陌生人的会话本来就不接）。白名单成员的会话关在沙盒里、群的不写（不写，不是写假；`onebot.md` 第 241 条）。
             None => opening["profile"] = json!(true),
         }
+        voice_limit(&mut opening, platform);
         Place {
             opening,
             peer: Peer {
@@ -117,6 +126,7 @@ impl Place {
         if let Some(recent) = super::applied::recent(applied) {
             opening["recent"] = json!(recent);
         }
+        voice_limit(&mut opening, platform);
         Place {
             opening,
             wanted: Wanted::of(applied),

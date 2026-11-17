@@ -33,12 +33,17 @@ pub use members::{
 };
 pub use miyu_im::chat::{Event, Id, Lead, Platform, Posted, Recall, To};
 pub use segments::{FORWARD, Fetch, Forwarded, Media, MediaKind, Piece, Segments, segments};
-pub use send::{forward_to, image_to, message_to, picture_to};
+pub use send::{forward_to, image_to, message_to, picture_to, voice_to};
 pub use text::text_of;
 pub use wire::Wire;
 
 /// 平台：场所、平台上的人、命令编号的头一段是 `qq`（第 7、8 条，拼法在 [`Platform`]）。
-pub const PLATFORM: Platform = Platform::new("qq").labeled("QQ");
+pub const PLATFORM: Platform = Platform::new("qq")
+    .labeled("QQ")
+    .voice_limited(VOICE_MAX_MS);
+
+/// QQ 一段语音至多多少毫秒（施工 I-250）：QQ 客户端自己录的最长 60 秒；经 NapCat 发更长的会怎样查不到，照它定，真机试出来不同再改。
+pub const VOICE_MAX_MS: u32 = 60_000;
 
 /// NapCat 发来的一帧。
 #[derive(Debug, Clone, PartialEq)]
