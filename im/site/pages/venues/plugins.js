@@ -95,6 +95,8 @@ export function pluginSwitch(one, plugin, fallback, request) {
 /** 照页面的语言挑：没有的照英文、中文，再没有的照第一个。 */
 export function named(texts) {
   if (!texts) return '';
+  // 关着的插件（施工 I-249）只有核心照连接的语言挑好的一个名字。
+  if (typeof texts === 'string') return texts;
   const lang = document.documentElement.lang || 'en';
   return texts[lang] ?? texts.en ?? texts.zh ?? Object.values(texts)[0] ?? '';
 }
