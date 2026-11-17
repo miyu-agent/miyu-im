@@ -28,7 +28,7 @@ fn group(user: Value, sender: Value) -> Value {
 /// 认出来的一件事。
 fn event(frame: Value) -> Event {
     match read(frame) {
-        Frame::Event(event) => event,
+        Frame::Event(event) => *event,
         other => panic!("该认成一件事：{other:?}"),
     }
 }
@@ -55,7 +55,9 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
         rank,
         text,
         segments,
+        poke,
     } = posted;
+    assert!(poke.is_none());
     assert_eq!(
         (bot, user, message_id, time),
         (Id::from(30003), Id::from(20002), 9, 1_759_800_000)

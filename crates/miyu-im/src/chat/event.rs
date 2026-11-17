@@ -25,6 +25,23 @@ pub struct Posted {
     pub text: String,
     /// 认出来的段（施工 O-22，驱动认）：群的正文照它写；私聊取引用和带的东西。
     pub segments: Segments,
+    /// 这一条是发的人拍了拍她（施工 I-248，项目主人 11-17 定）：没有字和段，编号是驱动收到那一刻的毫秒数（平台不给编号），
+    /// 交核心时场所的格写 `poke: true`（核心 VP-1）。私聊照私聊消息开一轮，群里当作冲她来的一条照规则判。别的是空的。
+    pub poke: Option<Poke>,
+}
+
+/// 一次拍一拍（[`Posted::poke`]）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Poke {
+    /// 拍的人在 QQ 里自己设的后缀（「拍了拍你的小脑袋」里的「的小脑袋」）：平台给了才有，照原样，没洗。
+    pub suffix: Option<String>,
+}
+
+/// 平台编号 `msg` 是拍一拍的（施工 I-248，[`Posted::poke`]）：驱动编的毫秒数，比 QQ 的消息编号（32 位整数）大。平台上没有这一条，
+/// 不能引用、不能贴表情。
+pub fn is_poke(msg: &str) -> bool {
+    msg.parse::<i64>()
+        .is_ok_and(|number| number > i64::from(i32::MAX))
 }
 
 /// 一次撤回（「撤回」，施工 O-22）。
@@ -176,6 +193,8 @@ pub enum GroupChange {
     Left,
     /// 进群。
     Joined,
+    /// 拍了拍别人（施工 I-248）：对谁是被拍的人，谁做的是拍的人。拍她的不在这里，是一条 [`Posted::poke`]。
+    Poked,
 }
 
 impl GroupChange {
@@ -187,6 +206,7 @@ impl GroupChange {
             GroupChange::Kicked => "kicked",
             GroupChange::Left => "left",
             GroupChange::Joined => "joined",
+            GroupChange::Poked => "poked",
         }
     }
 }

@@ -156,6 +156,7 @@ async fn frame_in(
             }
         }
         Frame::Event(event) => {
+            let event = *event;
             noted(&event);
             // 补拉消息（施工 I-15）：记下每个群收到的最后一条（刷屏的也算，平台上有它）。
             if let (Event::Group { group, posted }, Some(seen)) = (&event, seen.as_mut()) {

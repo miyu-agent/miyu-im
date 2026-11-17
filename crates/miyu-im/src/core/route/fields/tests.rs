@@ -20,6 +20,7 @@ fn posted(name: Option<&str>, segments: Segments) -> Posted {
         rank: None,
         text: String::new(),
         segments,
+        poke: None,
     }
 }
 

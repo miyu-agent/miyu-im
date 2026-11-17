@@ -183,6 +183,10 @@ impl Route {
         else {
             return;
         };
+        // 拍一拍没有平台上的那一条，贴不了（施工 I-248）。
+        if crate::chat::is_poke(&message) {
+            return;
+        }
         // 这个群贴哪个（施工 I-7 中三下二，规则的 `reaction`）：`off` 不贴，没写的照桥的出厂。
         let chosen = Venue::parse(&peer.venue)
             .and_then(|venue| applied::reaction(&self.applied(&venue)).map(str::to_string));

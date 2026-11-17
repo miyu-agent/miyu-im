@@ -176,10 +176,13 @@ pub(crate) fn missed(messages: &Value, (bot, group): (Id, Id), since: i64) -> (V
                 }
             }
             match onebot::read(frame) {
-                Frame::Event(Event::Group {
-                    group: from,
-                    posted,
-                }) if from == group => Some(posted),
+                Frame::Event(event) => match *event {
+                    Event::Group {
+                        group: from,
+                        posted,
+                    } if from == group => Some(posted),
+                    _ => None,
+                },
                 _ => None,
             }
         })

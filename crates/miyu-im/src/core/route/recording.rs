@@ -95,6 +95,12 @@ impl Route {
 }
 
 impl Route {
+    /// 号是 `posted.user` 的人在场所 `venue` 拍了拍她（施工 I-248）：记成一件 `poked`，对谁是她，谁做的是拍的人。
+    pub(super) fn record_poke(&self, platform: Platform, venue: &str, posted: &Posted) {
+        let who = (Some(posted.bot.clone()), Some(posted.user.clone()));
+        self.record_happening((platform, venue, "poked"), who, (None, None));
+    }
+
     /// 平台 `platform` 上群里的一件事 `happened`（设计 04，施工 C-1 上补）：别人被禁言、解禁，有人被踢、退群、进群。
     pub(super) fn group_happened(&self, platform: Platform, happened: Happened) {
         let Ok(venue) = platform.venue(&happened.bot, VenueKind::Group, &happened.group) else {

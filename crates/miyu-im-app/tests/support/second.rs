@@ -166,6 +166,7 @@ impl Telegram {
             rank: None,
             text: text.to_string(),
             segments: miyu_im::chat::Segments::default(),
+            poke: None,
         };
         assert!(
             self.gate().await.inbound(Event::Private(posted)).await,

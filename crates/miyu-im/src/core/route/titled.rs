@@ -150,7 +150,12 @@ impl Route {
         name: Option<&str>,
     ) -> Result<(), Gone> {
         let id = user.to_string();
-        let name = name.and_then(group_name).unwrap_or_else(|| id.clone());
+        // 这一条没带名字（戳一戳，施工 I-248）、已经放过的：照放过的，不拿号盖掉名字。
+        let name = match name.and_then(group_name) {
+            Some(name) => name,
+            None if self.titles.titles.contains_key(session) => return Ok(()),
+            None => id.clone(),
+        };
         self.put_title(session, false, (platform, user), &name)
             .await
     }

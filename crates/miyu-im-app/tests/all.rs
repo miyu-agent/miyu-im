@@ -82,6 +82,7 @@ mod picks;
 mod pipe;
 mod platform;
 mod plugins;
+mod poke;
 mod private;
 mod private_gated;
 mod private_media;

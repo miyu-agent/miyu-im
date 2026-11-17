@@ -16,6 +16,7 @@ mod forwards;
 mod happenings;
 pub mod media;
 mod members;
+mod poke;
 pub(crate) mod reactions;
 mod renamed;
 mod replies;
@@ -50,8 +51,9 @@ pub const VOICE_MAX_MS: u32 = 60_000;
 pub enum Frame {
     /// 动作的回应：带 `echo`、不是事件。
     Reply(Value),
-    /// 一条消息、一次撤回、禁言和解禁（施工 O-25 中）、好友请求和群邀请（施工 O-27）。
-    Event(Event),
+    /// 一条消息、一次撤回、禁言和解禁（施工 O-25 中）、好友请求和群邀请（施工 O-27）。装箱：别的几种都很小（clippy 的
+    /// `large_enum_variant`）。
+    Event(Box<Event>),
     /// 别的事件（别的通知、请求、心跳、生命周期、机器人自己发的……）或者读不懂的：`post_type`，没有的是空字。
     Other(String),
 }
@@ -67,12 +69,13 @@ pub fn read(frame: Value) -> Frame {
         "notice" => recall(&frame)
             .or_else(|| ban(&frame))
             .or_else(|| happenings::happened(&frame))
-            .or_else(|| renamed::renamed(&frame)),
+            .or_else(|| renamed::renamed(&frame))
+            .or_else(|| poke::poked(&frame)),
         "request" => request(&frame),
         _ => None,
     };
     match event {
-        Some(event) => Frame::Event(event),
+        Some(event) => Frame::Event(Box::new(event)),
         None => Frame::Other(kind),
     }
 }
@@ -101,6 +104,7 @@ fn posted(frame: &Value) -> Option<Event> {
         rank: rank_of(&frame["sender"]),
         text: text_of(&frame["message"]),
         segments: segments(&frame["message"]),
+        poke: None,
     };
     Some(match group {
         Some(group) => Event::Group { group, posted },
