@@ -3,14 +3,12 @@
 //! 群里的带 `group_id`。
 //!
 //! - 拍她的（`target_id` 是收到它的机器人号）：交成拍的人发来的一条（[`Posted::poke`]），私聊的是 [`Event::Private`]，群里的是
-//!   [`Event::Group`]。没有字和段，名字照群成员的缓存补（群里），编号是此刻的毫秒数：平台不给编号，毫秒数比 QQ 的消息编号
-//!   （32 位整数）大，撞不上。
+//!   [`Event::Group`]。没有字和段，名字照群成员的缓存补（群里），编号照 [`miyu_im::chat::poke_number`] 编：平台不给编号，
+//!   编的是负的、比 32 位整数小，撞不上 QQ 的消息编号，同一毫秒的也不重（施工 AUD-3）。
 //! - 群里拍别人的：一件 [`GroupChange::Poked`]，只记进聊天记录。私聊里拍别人（拍自己）的、她自己拍的、号读不出的不是。
 //! - 拍的人自己设的后缀（「拍了拍你的小脑袋」里的「的小脑袋」，[`Poke::suffix`]）：NapCat 的 `raw_info` 是那条灰条拆成的几段，`type`
 //!   是 `nor` 的是字，第一段是动作（「戳了戳」，QQ 改名以前是「拍了拍」，哪个都一样当动作），后面的接起来是后缀（[`suffix`]）。NapCat 的源码已经不公开、文档没写，这是照记得的
 //!   样子认的，认不出的不写；拍她的那一次把整份 `raw_info` 记一行运行日志（`poke raw`），对得上对不上照真机的看。
-
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
@@ -50,7 +48,7 @@ pub fn poked(frame: &Value) -> Option<Event> {
     let posted = Posted {
         bot,
         user,
-        message_id: now_millis(),
+        message_id: miyu_im::chat::poke_number(),
         time: number(&frame["time"]).unwrap_or(0),
         name: None,
         rank: None,
@@ -77,15 +75,6 @@ fn suffix(raw: &Value) -> Option<String> {
     let rest = words.get(1..)?.concat();
     let rest = rest.trim();
     (!rest.is_empty()).then(|| rest.to_string())
-}
-
-/// 此刻的毫秒数（拍一拍的编号）。
-fn now_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|since| i64::try_from(since.as_millis()).ok())
-        .unwrap_or_default()
 }
 
 #[cfg(test)]

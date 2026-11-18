@@ -52,12 +52,12 @@ function described(line, names, tagged) {
   const toolName = tool === `activity/tool-${fields.tool}` ? fields.tool : tool;
   switch (msg) {
     case 'chat decided': {
-      // 戳一戳（施工 I-248）没有字，编号是驱动编的毫秒数，比 QQ 的消息编号（32 位整数）大：写成「戳了戳 AI」。
-      const poked = !fields.text && Number(fields.message) > 2147483647;
+      // 戳一戳（施工 I-248，AUD-3 改）没有字，编号是驱动编的负数，比 32 位整数最小的还小（`chat::poke_number`）：写成「戳了戳 AI」。
+      const poked = !fields.text && Number(fields.message) < -2147483648;
       const text = poked ? say('activity/poked') : fields.text || '';
       return {
-        // 以前的日志行没有谁、说了什么（施工 I-16 以前写的）：说成「一条消息」。
-        head: fields.who || fields.text
+        // 以前的日志行没有谁、说了什么（施工 I-16 以前写的）：说成「一条消息」。戳一戳没有字，照 `text`（审计 #107）。
+        head: fields.who || text
           ? say('activity/said', { where, who: fields.who || '', text })
           : say('activity/a-message', { where }),
         tail: decided(fields),

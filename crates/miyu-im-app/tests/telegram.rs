@@ -49,6 +49,21 @@ async fn a_bot_connects_and_resumes_where_it_stopped_after_a_restart() {
 }
 
 #[tokio::test]
+async fn update_numbers_that_start_over_are_followed() {
+    // 施工 AUD-3（审计 #108）：Telegram 一周没有新消息、自建的 Bot API 重建以后编号重新起，比记着的小：照新的接着收。
+    let api = BotApi::start(Mode::Normal).await;
+    let (home, mut open) = started(&api).await;
+    until_tg(&mut open, |one| one["connected"] == true).await;
+    api.push(json!({"update_id": 41, "message": {"message_id": 1, "date": 1, "chat": {"id": 5, "type": "private"}, "text": "hi"}}));
+    api.until(|method, params| method == "getUpdates" && params["offset"] == 42)
+        .await;
+    api.push(json!({"update_id": 5, "message": {"message_id": 2, "date": 2, "chat": {"id": 5, "type": "private"}, "text": "again"}}));
+    api.until(|method, params| method == "getUpdates" && params["offset"] == 6)
+        .await;
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
 async fn a_token_used_elsewhere_is_reported_and_not_fought_over() {
     let api = BotApi::start(Mode::Conflict).await;
     let (home, mut open) = started(&api).await;

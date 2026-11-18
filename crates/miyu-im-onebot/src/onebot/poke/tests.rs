@@ -31,8 +31,9 @@ fn poking_her_in_private_is_a_message_from_the_poker() {
     );
     assert!(posted.text.is_empty() && posted.segments == Segments::default());
     assert!(
-        posted.message_id > i64::from(i32::MAX),
-        "毫秒数比 QQ 的编号大"
+        miyu_im::chat::is_poke(&posted.message_id.to_string()),
+        "编号认得出是戳一戳：{}",
+        posted.message_id
     );
 }
 

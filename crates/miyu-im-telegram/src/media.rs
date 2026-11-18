@@ -37,7 +37,7 @@ const VOICE_TYPES: [&str; 7] = [
 pub struct Upload {
     /// `sendPhoto`、`sendDocument`、`sendVoice`、`sendAudio`。
     pub method: &'static str,
-    /// `photo`、`document`、`voice`、`audio`。
+    /// `photo`、`document`、`voice`、`audio`、`animation`。
     pub field: &'static str,
     /// 文件名。
     pub name: String,
@@ -48,13 +48,26 @@ pub struct Upload {
 }
 
 impl Upload {
-    /// 一张图（`file` 照模块的说明读）：超了 10 MB 的改照文件发，超了 50 MB 的交回为什么。
+    /// 一张图（`file` 照模块的说明读）：GIF 动图照动图发（`sendAnimation`，施工 AUD-3，审计 #110：照图发 Telegram 只留第一帧），
+    /// 别的超了 10 MB 的改照文件发，超了 50 MB 的交回为什么。
     ///
     /// # Errors
     ///
     /// 读不出、太大：为什么（英文短句，答宿主的 `failed` 照它）。
     pub fn image(file: &str, caption: Option<(String, Vec<Value>)>) -> Result<Upload, String> {
         let bytes = read(file)?;
+        if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+            if bytes.len() > DOCUMENT_MOST {
+                return Err(too_large());
+            }
+            return Ok(Upload {
+                method: "sendAnimation",
+                field: "animation",
+                name: "image.gif".to_string(),
+                bytes,
+                caption,
+            });
+        }
         let photo = bytes.len() <= PHOTO_MOST;
         if !photo && bytes.len() > DOCUMENT_MOST {
             return Err(too_large());

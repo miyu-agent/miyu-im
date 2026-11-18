@@ -48,7 +48,7 @@
 | `crates/miyu-im-onebot/src/bin/miyu-im-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
 | `crates/miyu-im/src/core/route/shown.rs`（O-46） | 她给人看的文件发进 QQ：认 `file.shown`、经 `blob.get` 读、发图片段或传文件、发不了的记 `unshown` 事实（「展示」）；I-130 起也办 `qq_send_file` 交的本机文件（路径原样交 NapCat，不读进来） |
 | `crates/miyu-im/src/core/route/sent_files.rs`（I-247） | 她传成了的文件（名字、字节数）按场所记在内存里，私聊里认下载的回执（「怎么走」第 7 条之前的「下载的回执」） |
-| `crates/miyu-im-onebot/src/onebot/poke.rs`（I-248） | 戳一戳：戳她的认成戳的人发来的一条（`Posted::poke`，编号是毫秒数），取 `raw_info` 里的后缀；群里戳别人的认成一件 `poked`（「戳一戳」） |
+| `crates/miyu-im-onebot/src/onebot/poke.rs`（I-248） | 戳一戳：戳她的认成戳的人发来的一条（`Posted::poke`，编号照 `chat::poke_number` 编：负的毫秒数、同一毫秒往下数，比 32 位整数小，AUD-3），取 `raw_info` 里的后缀；群里戳别人的认成一件 `poked`（「戳一戳」） |
 | `crates/miyu-im-onebot/src/tools/send_file.rs`（I-130） | `qq_send_file {path}`：只认会话工作区里的普通文件（真实位置比、链接解开再判），判过的硬链接进驱动状态目录的 `outbox/` 钉住、链接好再核一遍 inode，NapCat 从本机连进来才传，交 im 另起任务传（「传文件」） |
 | `crates/miyu-im/src/core/route/steering.rs`、`voicing.rs`（O-43 中、下） | 进站、出站挂接点的那一队：另起任务问、照先后交回来再判、再过出站链（「挂接点」第 3、4 条） |
 | `crates/miyu-im/src/core/route/pushed.rs`（O-43 下，从 `route.rs` 挪出来） | 核心推来的一条怎么分：配置、平台工具、软件包列表、给别的包调的方法、群和私聊会话的事件、掉了队的再订阅 |

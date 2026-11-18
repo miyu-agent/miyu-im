@@ -37,11 +37,32 @@ pub struct Poke {
     pub suffix: Option<String>,
 }
 
-/// 平台编号 `msg` 是拍一拍的（施工 I-248，[`Posted::poke`]）：驱动编的毫秒数，比 QQ 的消息编号（32 位整数）大。平台上没有这一条，
-/// 不能引用、不能贴表情。
+/// 平台编号 `msg` 是戳一戳的（施工 I-248，[`Posted::poke`]）：驱动照 [`poke_number`] 编的负数，比 32 位整数最小的还小。QQ 的消息
+/// 编号落不进去：NapCat 的是正的 32 位整数，别家 64 位编号的实现也是正的（施工 AUD-3，审计 #107：以前认的是「比 32 位最大的大」，
+/// 64 位编号的正常消息都被当成戳一戳，引用不了、贴不了表情）。平台上没有这一条，不能引用、不能贴表情。
 pub fn is_poke(msg: &str) -> bool {
     msg.parse::<i64>()
-        .is_ok_and(|number| number > i64::from(i32::MAX))
+        .is_ok_and(|number| number < i64::from(i32::MIN))
+}
+
+/// 给一次戳一戳编一个编号（[`is_poke`] 认得的）：此刻的毫秒数取负；同一毫秒来几次的接着往下数，一个进程里不重（审计 #107：同一
+/// 毫秒两次以前撞号，后一次被当成重复丢掉）。
+pub fn poke_number() -> i64 {
+    use std::sync::atomic::{AtomicI64, Ordering};
+    static LAST: AtomicI64 = AtomicI64::new(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|since| i64::try_from(since.as_millis()).ok())
+        .unwrap_or_default();
+    // 比上一个大、不比此刻小：先过 32 位整数的范围，再取负。
+    let next = |last: i64| last.max(now.max(i64::from(i32::MAX)) - 1) + 1;
+    let previous = LAST
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
+            Some(next(last))
+        })
+        .unwrap_or_default();
+    -next(previous)
 }
 
 /// 一次撤回（「撤回」，施工 O-22）。
@@ -282,3 +303,6 @@ impl std::fmt::Debug for Replier {
         formatter.write_str("Replier")
     }
 }
+
+#[cfg(test)]
+mod tests;
