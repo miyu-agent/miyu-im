@@ -323,3 +323,53 @@ async fn a_private_chat_handed_to_her_is_noted_as_handled() {
     );
     stopped(home).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_private_chat_with_its_own_card_is_not_a_stranger() {
+    // 施工 I-256（2026-11-19 项目主人：「陌生私聊」卡的统计里全是自己的私聊）：终端管理员有自己的私聊卡、不在白名单里，他的私聊
+    // 照他自己那张卡算，不算进「陌生私聊」。
+    let script = Script::new([Play::Says("在的。")]);
+    let (home, mut napcat, _) = started(&script, "", "", MEMBERS).await;
+    let mut head = Head::connect(&home.root).await;
+    let status = head
+        .until("status", |status| {
+            status["napcat"]["connected"] == true && status["web"].is_u64()
+        })
+        .await;
+    let web = u16::try_from(status["web"].as_u64().expect("有端口")).expect("是端口");
+    let mut open = logged_in(&home.root, web).await;
+    // 主人本机那样：终端管理员有自己的私聊卡，白名单是空的。页面加私聊卡会顺手写白名单，再经核心清掉。
+    let added = call(
+        &mut open,
+        1,
+        "cards.add",
+        json!({"value": format!("p:{ADMIN}")}),
+    )
+    .await;
+    assert!(added.get("error").is_none(), "{added}");
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    let changes = json!({"layer": "system", "changes": [{"key": "im.whitelist", "value": []}]});
+    let reply = core
+        .call("whitelist-1", "config.set", changes)
+        .await
+        .expect("改得了");
+    assert!(reply.get("error").is_none(), "{reply}");
+    until_logged(&home.root, |log| log.contains("whitelist changed count=0")).await;
+    napcat.send(private_frame(ADMIN, 1, json!([plain("在吗")])));
+    let action = napcat.action().await;
+    assert_eq!(action["action"], "send_private_msg", "{action}");
+    let own = overview(&mut open, json!({"kind": "private", "id": ADMIN}), 1).await;
+    assert_eq!(own["today"]["received"], 1, "算在他自己的卡上：{own}");
+    let strangers = call(
+        &mut open,
+        2,
+        "cards.overview",
+        json!({"card": {"kind": "other_privates"}}),
+    )
+    .await;
+    assert_eq!(strangers["result"]["recent"], json!([]), "{strangers}");
+    assert_eq!(strangers["result"]["today"]["received"], 0, "{strangers}");
+    stopped(home).await;
+}
