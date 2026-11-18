@@ -10,7 +10,6 @@
 //! - 图、文件（施工 I-185 中，[`crate::media`]）排在同一条队里，照 `multipart/form-data` 传，图的说明带 @。
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -54,6 +53,8 @@ pub struct Job {
     pub body: Body,
     /// 引用的那一条的编号（只第一段带）。
     pub reply: Option<i64>,
+    /// 话题群里发在哪个话题（`Known::thread_for`）；不在话题里的是空的。
+    pub thread: Option<i64>,
     /// 交答：发出去的最后一条的编号。
     pub answer: oneshot::Sender<Result<Option<String>, CallError>>,
 }
@@ -62,12 +63,12 @@ pub struct Job {
 pub type Queue = mpsc::UnboundedSender<Job>;
 
 /// 起一条队：交回口子和发的那个任务（放下口子任务就停）。
-pub fn queue(api: Api, known: Arc<Known>) -> (Queue, impl std::future::Future<Output = ()> + Send) {
+pub fn queue(api: Api) -> (Queue, impl std::future::Future<Output = ()> + Send) {
     let (queue, mut jobs) = mpsc::unbounded_channel::<Job>();
     let writer = async move {
         let mut last: HashMap<String, Instant> = HashMap::new();
         while let Some(job) = jobs.recv().await {
-            let result = deliver(&api, &known, &job, &mut last).await;
+            let result = deliver(&api, &job, &mut last).await;
             if job.answer.send(result).is_err() {
                 // 等的一头不等了：不要紧。
             }
@@ -79,7 +80,6 @@ pub fn queue(api: Api, known: Arc<Known>) -> (Queue, impl std::future::Future<Ou
 /// 发一件（几段字的、一份图或文件的）：交回最后一条的编号。
 async fn deliver(
     api: &Api,
-    known: &Known,
     job: &Job,
     last: &mut HashMap<String, Instant>,
 ) -> Result<Option<String>, CallError> {
@@ -93,7 +93,7 @@ async fn deliver(
             tokio::time::sleep_until(*at + GAP).await;
         }
         let mut params = json!({"chat_id": job.chat});
-        if let Some(thread) = known.thread(&job.chat) {
+        if let Some(thread) = job.thread {
             params["message_thread_id"] = json!(thread);
         }
         if index == 0

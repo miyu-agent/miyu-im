@@ -1,6 +1,6 @@
 //! 令牌没设（施工 O-16 补、补二，O-28 下改；`onebot.md` 第一条「怎么走」第 1、2 条、「施工时定的」第 3 条；`18-通讯平台.md`
 //! 第三节「还没配好就 `start`」）：桥照样起来，端口开着，说一句怎么办；NapCat 连进来 401。核心推来令牌（施工 O-20：后台页写进
-//! 令牌，核心换上新配置就推），不重启，NapCat 下一次连就通；再换一个，新的进得来、旧的不收，已经连着的那一条照样收发。真的程序
+//! 令牌，核心换上新配置就推），不重启，NapCat 下一次连就通；再换一个，新的进得来、旧的不收，照旧令牌连着的那一条断开（施工 AUD-2，审计 #104）。真的程序
 //! `miyu-im serve` 照常起来（施工 O-18 起测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌，
 //! 后台页的 `status` 的 `token` 跟着变、NapCat 不用重启就连上，`connection.token` 交出值、运行日志里没有它。
 
@@ -93,7 +93,7 @@ async fn a_pushed_token_lets_napcat_in_without_a_restart() {
 }
 
 #[tokio::test]
-async fn a_new_token_takes_over_and_the_open_connection_stays() {
+async fn a_new_token_takes_over_and_closes_the_open_connection() {
     let home = Home::new(&Script::new([Play::Says("在")]));
     let (serve, push) = serve_pushing(home.root.clone(), settings());
     let bridge = start(serve).await;
@@ -109,8 +109,12 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
     )
     .await;
     assert_eq!(old.err(), Some(401), "旧的不收");
-    open.admin_says(1, "还在吗").await;
-    assert_eq!(open.reply().await, "在", "已经连着的那一条照样收发");
+    within("照旧令牌连着的断开了", async {
+        while open.alive().await {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
     fresh.close().await;
     bridge.stop().await.expect("停得下");
 }

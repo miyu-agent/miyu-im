@@ -230,6 +230,8 @@ pub struct Lead {
     pub at: Option<String>,
     /// 她用 `mention` 指定要 @ 的号（施工 O-54 后的 O-55）：照先后接在 `at` 后面，和它重的不再写。
     pub more: Vec<String>,
+    /// 她回的那一条的平台编号，带不带引用都有（施工 AUD-2，审计 #106）：Telegram 话题群照它回在那一条所在的话题里。
+    pub answers: Option<String>,
 }
 
 /// 问一次模型的答往哪交（[`Event::Asked`]）：只交一次。比、抄都照同一个交的地方算（事件要能比、能抄）。

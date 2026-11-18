@@ -287,6 +287,23 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
         .expect("停得下");
 }
 
+/// 照换下来的令牌连着的那一条断开了（施工 AUD-2）。
+async fn until_closed(open: &mut NapCat) {
+    within("照换下来的令牌连着的断开了", async {
+        while open.alive().await {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+}
+
+/// 终端管理员的 NapCat 用令牌 `token` 连回端口 `listen`。
+async fn reconnected(listen: u16, token: &str) -> NapCat {
+    napcat(listen, "/onebot/v11/ws", Auth::Bearer(token), Some(BOT))
+        .await
+        .expect("用新令牌连得回来")
+}
+
 #[tokio::test]
 async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let script = Script::new([Play::Says("在"), Play::Says("还在")]);
@@ -299,7 +316,7 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     .await;
     // 照握手交的：配置里写的端口、密钥文件里的令牌。
     let mut open = admin_napcat(listen).await;
-    // 只换密钥的值（`secret.set`，引用不变）：新的收、旧的拒，连着的那一条照样收发。
+    // 只换密钥的值（`secret.set`，引用不变）：新的收、旧的拒；照旧令牌连着的那一条断开（施工 AUD-2，审计 #104），用新的连回来照样收发。
     core_call(
         &home.root,
         "secret.set",
@@ -309,8 +326,10 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     until_admitted(listen, NEW).await.close().await;
     let old = napcat(listen, "/ws", Auth::Bearer(TOKEN), None).await;
     assert_eq!(old.err(), Some(401), "旧的不收");
+    until_closed(&mut open).await;
+    let mut open = reconnected(listen, NEW).await;
     open.admin_says(1, "在吗").await;
-    assert_eq!(open.reply().await, "在", "已经连着的那一条照样收发");
+    assert_eq!(open.reply().await, "在", "用新令牌连回来的照样收发");
     // 引用换成别的密钥（`config.set`）。
     core_call(
         &home.root,
@@ -323,6 +342,8 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     until_admitted(listen, OTHER).await.close().await;
     let old = napcat(listen, "/ws", Auth::Bearer(NEW), None).await;
     assert_eq!(old.err(), Some(401), "换下来的不收");
+    until_closed(&mut open).await;
+    let mut open = reconnected(listen, OTHER).await;
     // NapCat 的端口：当场换，旧的关了，连着的那一条照样收发。
     let new_listen = moved(&home.root).await;
     until_port(listen, false).await;

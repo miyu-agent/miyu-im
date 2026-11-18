@@ -140,6 +140,38 @@ async fn called_in_a_topic_she_answers_in_that_topic() {
 }
 
 #[tokio::test]
+async fn a_word_in_another_topic_does_not_pull_her_answer_there() {
+    // 施工 AUD-2（审计 #106）：话题 3 里叫她，回之前话题 9 有人说了一句（没叫她）：照旧回在话题 3，不跟着最近一条去话题 9。
+    let api = BotApi::start(Mode::Normal).await;
+    let cards = r#"{"others": {"tg": {"groups": {"on": true, "final_only": false}}}}"#;
+    let (home, mut open) =
+        started_with_cards(&api, Script::new([Play::Says("在呢")]), Some(cards)).await;
+    until_tg(&mut open, |one| one["connected"] == true).await;
+    let group =
+        json!({"id": -1001, "type": "supergroup", "title": "Miyu 测试群", "is_forum": true});
+    // 两条一起排：同一次 getUpdates 交出去，她回以前两条都收到了。
+    api.push(json!({"update_id": 1, "message": {
+        "message_id": 50, "date": 1_700_000_000, "chat": group,
+        "from": {"id": ADMIN, "is_bot": false, "first_name": "Shorin"},
+        "is_topic_message": true, "message_thread_id": 3,
+        "text": "@miyu_test_bot 在吗", "entities": [{"type": "mention", "offset": 0, "length": 14}],
+    }}));
+    api.push(json!({"update_id": 2, "message": {
+        "message_id": 51, "date": 1_700_000_001, "chat": group,
+        "from": {"id": ADMIN + 1, "is_bot": false, "first_name": "Other"},
+        "is_topic_message": true, "message_thread_id": 9,
+        "text": "别的话题聊别的",
+    }}));
+    let sent = api.until(|method, _| method == "sendMessage").await;
+    let log = std::fs::read_to_string(miyu_im::dirs::log_file(&home.root)).unwrap_or_default();
+    assert_eq!(
+        sent["message_thread_id"], 3,
+        "回在叫她的那个话题里：{sent}\n{log}"
+    );
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
 async fn the_owner_gets_the_command_menu_in_private() {
     // 施工 I-183 下上（项目主人 11-09）：号连上时 im 问核心有哪些命令、谁是主人，只给主人的私聊登记命令菜单。
     let api = BotApi::start(Mode::Normal).await;

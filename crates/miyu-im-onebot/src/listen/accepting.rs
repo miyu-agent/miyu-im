@@ -6,22 +6,22 @@
 //!    它的端口 NapCat 连进来一律 401，接着说 `Notice::NoToken`、记一行运行日志。
 //! 2. 每个端口一个任务接 TCP 连接，接到的交回这里，每个连接一个任务（`super::accept`），带着它是从哪个端口来的；接不了的
 //!    （打开的文件太多这类）歇一下再接，不空转。
-//! 3. 核心推来的配置变了（宿主经 `Gate::config` 通知）：令牌换了记一行（不记值，已经连着的不断，只有连进来的那一下比令牌）；
-//!    新的端口开上，不要了的端口关掉；同一个端口换了地址的先开新的，开上了换掉旧的，开不了的不换（旧的照旧，不另试：人换一个
-//!    再存，配置变了核心再推）。已经接进来的连接都不断。
+//! 3. 核心推来的配置变了（宿主经 `Gate::config` 通知）：令牌换了记一行（不记值），这个端口已经连着的断开（施工 AUD-2，审计 #104，
+//!    `super::tokens`：照旧令牌连进来的不该还连着；NapCat 用新的令牌重连）；
+//!    新的端口开上，不要了的端口关掉；换了端口的先开新的，开上了换掉旧的，开不了的不换（旧的照旧，不另试：人换一个再存，配置
+//!    变了核心再推）；同一个端口换了地址的先关旧的再开新的（旧的占着新的开不上，施工 AUD-2），开不了的把旧的开回去。关端口、
+//!    换地址，已经接进来的连接都不断。
 //! 4. 报给宿主（`Gate::report`）：头一个连接的 `host`、`listen`、`token`（后台页的 `status`、状态文件照旧读这几格），加上
 //!    `connections`：每个连接的地址、实际听的端口、有没有令牌。
 
-use std::collections::BTreeMap;
 use std::net::IpAddr;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 use serde_json::{Map, Value, json};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, watch};
 use tokio::task::{AbortHandle, JoinSet};
 
-use miyu_client::settings::Secret;
 use miyu_im::TARGET;
 use miyu_im::driver::{Gate, Running};
 use miyu_im::serve::{Failure, Notice};
@@ -31,8 +31,12 @@ use super::pending::{Full, Pending};
 use super::refusing::Refusing;
 use crate::settings::Settings;
 
-/// 每个听着的端口（实际的）现在的令牌：连进来的那一下照它比（`super::admitted`）。
-pub(super) type Tokens = Arc<Mutex<BTreeMap<u16, Option<Secret>>>>;
+/// 每个听着的端口（实际的）现在的令牌（`super::tokens`）：连进来的那一下照它比（`super::admitted`），换了的断开连着的。
+pub(super) type Tokens = Arc<super::tokens::Tokens>;
+
+/// 刚关掉的端口等它空出来：每次歇多久、最多试几次（合起来一秒）。
+const FREE_WAIT: std::time::Duration = std::time::Duration::from_millis(10);
+const FREE_TRIES: u32 = 100;
 
 /// 接到的连接和它是从哪个端口来的：每个端口的任务交过来，这里起任务接。
 type Accepted = (TcpStream, u16);
@@ -218,6 +222,14 @@ async fn apply(
     let mut olds = listening.into_iter();
     for settings in fresh {
         let old = olds.next();
+        // 同一个端口换了地址：旧的不放，新的开不上（`0.0.0.0` 占着时同一个端口的 `127.0.0.1` 也开不上，审计 #104）。
+        let old = match old {
+            Some(old) if settings.port != 0 && old.port == settings.port => {
+                kept.extend(moved(old, settings, (sender, &mut *ports), gate).await);
+                continue;
+            }
+            other => other,
+        };
         match open(settings.clone(), (sender, &mut *ports), gate).await {
             Ok(opened) => {
                 tracing::info!(target: TARGET, host = %settings.host, listen = opened.port, "applied");
@@ -240,12 +252,65 @@ async fn apply(
     kept
 }
 
+/// 同一个端口换地址（模块的说明第 3 条，施工 AUD-2）：先关旧的、等端口空出来再开新的；新的开不上的把旧的照原来的端口开回去。
+/// 都开不上的（端口刚好被别人抢了）交回空的，记一行。
+async fn moved(
+    old: Listening,
+    settings: Settings,
+    (sender, ports): (&mpsc::Sender<Accepted>, &mut JoinSet<()>),
+    gate: &Arc<Gate>,
+) -> Option<Listening> {
+    old.task.abort();
+    let failure = match freed(settings.clone(), (sender, &mut *ports), gate).await {
+        Ok(opened) => {
+            tracing::info!(target: TARGET, host = %settings.host, listen = opened.port, "applied");
+            return Some(opened);
+        }
+        Err(failure) => failure,
+    };
+    tracing::warn!(target: TARGET, port = settings.port, failure = ?failure, "apply failed");
+    let back = Settings {
+        port: old.port,
+        ..old.settings.clone()
+    };
+    match freed(back, (sender, ports), gate).await {
+        Ok(mut back) => {
+            back.settings = old.settings;
+            Some(back)
+        }
+        Err(failure) => {
+            tracing::error!(target: TARGET, port = old.port, failure = ?failure, "listen lost");
+            None
+        }
+    }
+}
+
+/// 开 `settings` 的端口，刚关掉的还没空出来的歇一下再试：放下接连接的任务以后端口要等那个任务真停了才空。
+async fn freed(
+    settings: Settings,
+    (sender, ports): (&mpsc::Sender<Accepted>, &mut JoinSet<()>),
+    gate: &Arc<Gate>,
+) -> Result<Listening, Failure> {
+    let mut tried = 0;
+    loop {
+        match open(settings.clone(), (sender, &mut *ports), gate).await {
+            Err(Failure::PortInUse(_)) if tried < FREE_TRIES => {
+                tried += 1;
+                tokio::time::sleep(FREE_WAIT).await;
+            }
+            opened => return opened,
+        }
+    }
+}
+
 /// 换好的连接表交出去：每个端口的令牌、报给宿主的状态（模块的说明第 4 条）。
 fn publish(listening: &[Listening], tokens: &Tokens, gate: &Gate) {
-    *tokens.lock().unwrap_or_else(PoisonError::into_inner) = listening
-        .iter()
-        .map(|one| (one.port, one.settings.token.clone()))
-        .collect();
+    tokens.set(
+        listening
+            .iter()
+            .map(|one| (one.port, one.settings.token.clone()))
+            .collect(),
+    );
     gate.report(status(listening));
 }
 
