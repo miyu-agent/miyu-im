@@ -23,13 +23,14 @@ fn notices_are_newest_first_and_read_from_several_shapes() {
 }
 
 #[test]
-fn at_most_ten_and_each_is_cut() {
+fn at_most_ten_and_each_is_whole() {
     let many: Vec<_> = (0..15)
         .map(|n| json!({"sender_id": 1, "publish_time": 1_700_000_000 + n, "message": {"text": "长".repeat(600)}}))
         .collect();
     let read = notices(&json!(many));
     assert_eq!(read.len(), 10);
-    assert!(read[0].text.chars().count() <= 500);
+    // 施工 I-254：每条整条给（原来截到 500 个字）。
+    assert_eq!(read[0].text, "长".repeat(600));
     assert_eq!(notices(&json!(null)), Vec::new());
 }
 

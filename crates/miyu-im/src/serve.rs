@@ -360,7 +360,6 @@ pub async fn run(
             glance: serve.tuning.glance(),
         },
         Fetching {
-            images: serve.tuning.message_images,
             quick: serve.tuning.call_timeout(),
             image_limit: serve.tuning.image_limit(),
             recent: Default::default(),

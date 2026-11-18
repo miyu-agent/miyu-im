@@ -107,6 +107,14 @@ fn wrong_arguments_say_which_one() {
 }
 
 #[test]
+fn a_long_text_is_kept_whole() {
+    // 施工 I-254（2026-11-19 项目主人定）：查回来的一条整条给，原来截到 300 个字。
+    let long = "长".repeat(600);
+    let one = json!({"venue": "qq:30003:group:31", "msg": "7", "sender": "qq:40001", "name": "小明", "at": OCT20, "text": long, "media": [], "mine": false});
+    assert!(line(&one, Some("qq:10001"), false).ends_with(&format!("msg=7: {long}")));
+}
+
+#[test]
 fn a_line_has_time_speaker_id_text_media_quote_and_recall() {
     let at = OCT20 + 60_000;
     let time = clock(u64::try_from(at / 1000).expect("正的"));

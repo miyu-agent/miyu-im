@@ -48,7 +48,7 @@ pub(super) struct Glances {
     default: Duration,
     /// 她定的一分钟按几秒算（`glance_minute_seconds`，施工 I-90：回放压缩时间用，出厂 60）。
     minute: u64,
-    /// 卡上没写「看一眼带几条」时那一轮最多交几条新消息（`glance_records`，施工 I-175，出厂 50）。
+    /// 卡上没写「看一眼带几条」时那一轮最多交几条新消息（`glance_records`，施工 I-175，出厂 64）。
     records: usize,
     /// 对过账了：起来时、卡片存了以后是假的，下一次 [`Route::sync_glances`] 照它对账。
     synced: bool,

@@ -51,16 +51,14 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.reaction(), Duration::from_secs(600));
     // 平台身份是不是终端管理员问到了记一分钟（施工 O-31，「平台工具（一）」第 3 条）。
     assert_eq!(tuning.binding(), Duration::from_secs(60));
-    // 冲她来的那条带 4 张原图，一轮取 4 次，取一次最多等两分钟（施工 O-33，「平台工具（二）」）。
-    assert_eq!(tuning.message_images, 4);
-    assert_eq!(tuning.fetch_per_turn, 4);
+    // 取一次最多等两分钟（施工 O-33，「平台工具（二）」）；冲她来的那条带几张原图、一轮取几次不设限（施工 I-254）。
     assert_eq!(tuning.fetch(), Duration::from_secs(120));
     // 合并转发：套三层（施工 I-234，原来两层）；几个转发、几条、每条多长不设限（施工 I-253）。
     assert_eq!(tuning.forward_depth, 3);
     // 问挂接点的包最多等一秒半（施工 O-43 中）。
     assert_eq!(tuning.hook(), Duration::from_millis(1500));
-    // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90），那一轮最多交 50 条（施工 I-175）。
-    assert_eq!(tuning.glance(), (Duration::from_secs(420), 60, 50));
+    // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90），那一轮最多交 64 条（施工 I-175；I-254 起出厂照核心的上限 64，原来 50）。
+    assert_eq!(tuning.glance(), (Duration::from_secs(420), 60, 64));
 }
 
 #[test]
@@ -161,14 +159,6 @@ fn a_bad_file_is_not_read_and_named() {
             good.replace("\"binding_seconds\": 60", "\"b\": 1"),
         ),
         (
-            "images-missing",
-            good.replace("\"message_images\": 4", "\"a\": 1"),
-        ),
-        (
-            "fetches-missing",
-            good.replace("\"fetch_per_turn\": 4", "\"c\": 1"),
-        ),
-        (
             "fetch-wait-missing",
             good.replace("\"fetch_seconds\": 120", "\"d\": 1"),
         ),
@@ -177,8 +167,8 @@ fn a_bad_file_is_not_read_and_named() {
             good.replace("\"forward_depth\": 3", "\"e\": 1"),
         ),
         (
-            "images-negative",
-            good.replace("\"message_images\": 4", "\"message_images\": -1"),
+            "image-size-negative",
+            good.replace("\"image_max_mb\": 20", "\"image_max_mb\": -1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

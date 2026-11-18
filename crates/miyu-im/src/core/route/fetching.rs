@@ -6,8 +6,6 @@ use std::time::Duration;
 /// 取东西的几个数。
 #[derive(Debug, Clone)]
 pub(crate) struct Fetching {
-    /// 冲她来的那条（和它引用的那条）各最多带几张图（`message_images`）。
-    pub(crate) images: usize,
     /// 冲她来的那条的图等多久（`call_timeout_seconds`）：交消息以前取，不能等太久。
     pub(crate) quick: Duration,
     /// 一张图最多多少字节（`image_max_mb`，施工 I-23）：段里写了大小、超了的不下，下载读到它就停。
