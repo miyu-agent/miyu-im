@@ -145,3 +145,104 @@ async fn a_bot_on_one_port_is_not_taken_over_from_another() {
     assert!(first.alive().await, "原来那一条照样通着");
     bridge.stop().await.expect("停得下");
 }
+
+#[tokio::test]
+async fn a_changed_token_closes_the_connections_made_with_the_old_one() {
+    // 施工 AUD-2（审计 #104）：一个端口换了令牌，照旧令牌连着的断开；别的端口没换的照样连着；用新令牌连得回来，旧的进不来。
+    let (_dir, root) = temp_root();
+    let _core = fake_core(&root);
+    let (serve, relay) = serve_handed(root, two(), None);
+    let bridge = start(serve).await;
+    let ports = within("两个端口都开了", async {
+        loop {
+            let ports = listening(&bridge);
+            if ports.len() >= 2 {
+                return ports;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    let (first, second) = (ports[0], ports[1]);
+    let mut a = admitted(first, "/ws", Auth::Bearer(FIRST), Some(BOT)).await;
+    let mut b = admitted(second, "/ws", Auth::Bearer(SECOND), Some(BOT + 1)).await;
+    assert!(a.alive().await);
+
+    let renewed = "napcat-renewed";
+    relay.config(json!({
+        "im.qq.hosts": ["127.0.0.1", "127.0.0.1"],
+        "im.qq.ports": [first, second],
+        "im.qq.tokens": [renewed, SECOND],
+    }));
+    within("照旧令牌连着的断开了", async {
+        while a.alive().await {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    assert!(b.alive().await, "别的端口没换令牌的照样连着");
+    let mut again = admitted(first, "/ws", Auth::Bearer(renewed), Some(BOT)).await;
+    assert!(again.alive().await, "新令牌连得回来");
+    assert_eq!(
+        napcat(first, "/ws", Auth::Bearer(FIRST), Some(BOT))
+            .await
+            .err(),
+        Some(401),
+        "旧令牌进不来"
+    );
+    bridge.stop().await.expect("停得下");
+}
+
+#[tokio::test]
+async fn narrowing_the_address_on_the_same_port_takes_effect() {
+    // 施工 AUD-2（审计 #104）：同一个端口从 0.0.0.0 收紧成 127.0.0.1：旧的不先关，新的开不上，别的机器还连得进来。
+    let Some(outward) = crate::listen::outward() else {
+        eprintln!("这台机器没有对外的地址，跳过");
+        return;
+    };
+    let (_dir, root) = temp_root();
+    let _core = fake_core(&root);
+    let wide = json!({
+        "im.qq.listen": 0,
+        "im.qq.hosts": ["0.0.0.0"],
+        "im.qq.ports": [0],
+        "im.qq.tokens": [FIRST],
+    });
+    let (serve, relay) = serve_handed(root, wide, None);
+    let bridge = start(serve).await;
+    let port = within("端口开了", async {
+        loop {
+            if let Some(port) = listening(&bridge).first() {
+                return *port;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    assert!(
+        tokio::net::TcpStream::connect((outward, port))
+            .await
+            .is_ok(),
+        "0.0.0.0 别的机器连得进来"
+    );
+    relay.config(
+        json!({"im.qq.hosts": ["127.0.0.1"], "im.qq.ports": [port], "im.qq.tokens": [FIRST]}),
+    );
+    within("收紧成只听本机", async {
+        while tokio::net::TcpStream::connect((outward, port))
+            .await
+            .is_ok()
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    let _a = admitted(port, "/ws", Auth::Bearer(FIRST), Some(BOT)).await;
+    let status = page_status(&relay, "core-narrow").await;
+    assert_eq!(
+        status["connections"],
+        json!([{"host": "127.0.0.1", "listen": port, "token": "set"}]),
+        "{status}"
+    );
+    bridge.stop().await.expect("停得下");
+}

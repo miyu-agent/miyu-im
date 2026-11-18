@@ -44,6 +44,8 @@ fn ats_use_usernames_or_text_mentions_and_only_the_first_part_carries_them() {
         reply: Some("5".to_string()),
         at: Some("7".to_string()),
         more: vec!["8".to_string(), "7".to_string()],
+
+        answers: None,
     };
     let cut = parts("你好", &lead, &known, 4096);
     assert_eq!(cut.len(), 1);

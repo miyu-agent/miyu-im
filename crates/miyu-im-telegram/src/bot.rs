@@ -137,7 +137,7 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
     };
     // 收的时候记下话题、名字、群名，发的时候照它们（施工 I-183 中下）；发的那条队整个连接一条，重连不换。
     let known = Arc::new(Known::default());
-    let (queue, writer) = send::queue(client.clone(), Arc::clone(&known));
+    let (queue, writer) = send::queue(client.clone());
     tokio::spawn(writer);
     let me = Me {
         bot: &bot,

@@ -112,6 +112,7 @@ pub(super) fn pass(
         reply: aim.filter(|_| target.quote).and_then(|aim| aim.msg.clone()),
         at: aim.filter(|_| target.mention).and_then(number),
         more: Vec::new(),
+        answers: aim.and_then(|aim| aim.msg.clone()),
     };
     let said = match ctx.outbound.humanlike() {
         true => bubbles(&outgoing.text, ctx.outbound.typing_speed()),

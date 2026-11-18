@@ -48,6 +48,9 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
         .then(|| message["message_thread_id"].as_i64())
         .flatten();
     known.set_thread(chat_id.as_str(), thread);
+    if let Some(number) = message["message_id"].as_i64() {
+        known.set_topic(chat_id.as_str(), number, thread);
+    }
     if let Some(title) = chat["title"].as_str() {
         known.set_title(chat_id.as_str(), title);
     }

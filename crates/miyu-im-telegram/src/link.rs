@@ -69,6 +69,11 @@ fn chat(to: &To) -> &Id {
 
 impl Link for Bot {
     fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, Pending> {
+        // 话题群里回在她回的那一条的话题里（施工 AUD-2）：字、带 @ 的图带着她回的是哪一条，别的照最近一条的话题。
+        let answers = match &outgoing {
+            Outgoing::Text { lead, .. } | Outgoing::Picture { lead, .. } => lead.answers.clone(),
+            _ => None,
+        };
         // 字（I-183 中下）；图、长文画成的图、文件（I-185 中，`crate::media`）；合并转发 Telegram 没有，答做不到（能力表不报）。
         let (body, reply) = match outgoing {
             Outgoing::Text { text, lead } => (
@@ -100,10 +105,13 @@ impl Link for Bot {
             return Box::pin(async { Err(CallError::Closed) });
         }
         let (answer, answered) = oneshot::channel();
+        let chat = chat(&to).as_str().to_string();
+        let thread = self.known.thread_for(&chat, answers.as_deref());
         let job = Job {
-            chat: chat(&to).as_str().to_string(),
+            chat,
             body,
             reply,
+            thread,
             answer,
         };
         let queued = self.queue.send(job).is_ok();

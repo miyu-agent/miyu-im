@@ -29,9 +29,14 @@ use super::handing::Handing;
 use crate::admin::spam::Spamming;
 use crate::backfill::{self, Seen};
 
-/// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号；`local` 是对端从本机连进来的（施工 I-130）。
-pub(super) async fn run<S>(io: S, gate: &Arc<Gate>, (mut bot, port, local): (Option<Id>, u16, bool))
-where
+/// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号；`local` 是对端从本机连进来的（施工 I-130）；`revoked` 交回了
+/// 就断开（这个端口换了令牌，施工 AUD-2，`super::tokens`），照断开的收尾。
+pub(super) async fn run<S>(
+    io: S,
+    gate: &Arc<Gate>,
+    (mut bot, port, local): (Option<Id>, u16, bool),
+    revoked: impl Future<Output = ()>,
+) where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let ws = WebSocketStream::from_raw_socket(io, Role::Server, None).await;
@@ -79,6 +84,7 @@ where
     gate.tell(Notice::Connected { bot: bot.clone() });
     let probe = version(&wire, gate);
     tokio::pin!(probe);
+    tokio::pin!(revoked);
     let mut probed = false;
     while reading {
         tokio::select! {
@@ -90,6 +96,10 @@ where
                 Some(Ok(_)) => {}
             },
             () = &mut probe, if !probed => probed = true,
+            () = &mut revoked => {
+                tracing::info!(target: TARGET, port, "token changed, connection closed");
+                reading = false;
+            }
         }
     }
     wire.calls.close();
