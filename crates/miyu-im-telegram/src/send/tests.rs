@@ -44,6 +44,8 @@ fn ats_use_usernames_or_text_mentions_and_only_the_first_part_carries_them() {
         reply: Some("5".to_string()),
         at: Some("7".to_string()),
         more: vec!["8".to_string(), "7".to_string()],
+
+        answers: None,
     };
     let cut = parts("你好", &lead, &known, 4096);
     assert_eq!(cut.len(), 1);
@@ -66,4 +68,22 @@ fn ats_use_usernames_or_text_mentions_and_only_the_first_part_carries_them() {
     );
     assert!(long.len() > 1);
     assert!(long[1..].iter().all(|(_, entities)| entities.is_empty()));
+}
+
+#[test]
+fn mentions_past_the_first_part_carry_no_entity() {
+    // 施工 AUD-3（审计 #109）：@ 多到第一段装不下，装不下的不挂实体（越过这一段的实体 Telegram 整条拒收）。
+    let known = Known::default();
+    let lead = Lead {
+        more: (1..=20).map(|user| user.to_string()).collect(),
+        ..Lead::default()
+    };
+    let cut = parts("x", &lead, &known, 30);
+    assert!(cut.len() > 1, "{cut:?}");
+    assert!(!cut[0].1.is_empty(), "装得下的照样挂：{cut:?}");
+    let first = u64::try_from(cut[0].0.encode_utf16().count()).expect("不大");
+    for entity in &cut[0].1 {
+        let end = entity["offset"].as_u64().expect("数") + entity["length"].as_u64().expect("数");
+        assert!(end <= first, "{entity} 越过了 {first}");
+    }
 }

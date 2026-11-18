@@ -23,6 +23,18 @@ fn images_go_as_photos_and_big_ones_as_documents() {
 }
 
 #[test]
+fn a_gif_goes_as_an_animation() {
+    // 施工 AUD-3（审计 #110）：GIF 照图发 Telegram 只留第一帧，照动图发。
+    let gif = Upload::image(&encoded(b"GIF89a\x01\x00"), None).expect("读得出");
+    assert_eq!(
+        (gif.method, gif.field, gif.name.as_str()),
+        ("sendAnimation", "animation", "image.gif")
+    );
+    let old = Upload::image(&encoded(b"GIF87a"), None).expect("读得出");
+    assert_eq!(old.method, "sendAnimation");
+}
+
+#[test]
 fn documents_are_read_from_base64_or_a_local_path() {
     let named = Upload::document(&encoded(b"%PDF"), " 报告.pdf ").expect("读得出");
     assert_eq!(

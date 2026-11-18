@@ -323,6 +323,7 @@ fn her_message_leads_with_the_quote_and_each_mention_once() {
             "10001".to_string(),
             "40005".to_string(),
         ],
+        answers: None,
     };
     let (action, params) = message_to(To::Group(Id::from(888)), "开会了", &lead);
     assert_eq!(action, "send_group_msg");

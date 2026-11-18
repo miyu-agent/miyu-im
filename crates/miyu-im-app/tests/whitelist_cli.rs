@@ -22,7 +22,7 @@ async fn ran(home: &Home, change: Change) -> (u8, String, String) {
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = run(
         &mut core,
-        (&change, miyu_im_onebot::onebot::PLATFORM),
+        (&change, &[miyu_im_onebot::onebot::PLATFORM][..]),
         &texts,
         (&mut out, &mut err),
     )

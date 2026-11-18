@@ -1,6 +1,8 @@
 //! 一个机器人收消息时记下的（施工 I-183 中下）：发消息要用、Bot API 又不好问的几样，收的时候顺手记着。
 //!
-//! - 每个聊天最近一条消息在哪个话题（`message_thread_id`）：话题群整个群一个场所，回话回在原来那个话题里（设计 07 第 3.5 节）。
+//! - 收到的每条群消息在哪个话题（`message_thread_id`，不在话题里的记空）：话题群整个群一个场所，回话回在她回的那一条所在的话题
+//!   里（设计 07 第 3.5 节；施工 AUD-2，审计 #106：以前只记每个群最近一条的，她想着的那几秒别的话题有人说话就回错了话题）。
+//!   不是回哪一条的（自己开口的、贴表情包）、那一条没记着的，照这个群最近一条的话题。
 //! - 人的名字和用户名：@ 一个人时，有用户名的写 `@用户名`（Telegram 自己认），没有的写名字、挂一个 `text_mention`。
 //! - 群名：宿主问群名（`Link::group_name`）时照它答。
 //! - 最近的消息（施工 I-185 上）：收到的、它引用的那一条（`reply_to_message` 带着整条），宿主问引用的那一条（`Link::message`，取它带
@@ -29,6 +31,8 @@ pub struct Person {
 #[derive(Debug, Default)]
 pub struct Known {
     threads: Mutex<HashMap<String, i64>>,
+    /// 每条群消息的话题：`<聊天>:<编号>` → 话题（不在话题里的是空的）。
+    topics: Mutex<HashMap<String, Option<i64>>>,
     people: Mutex<HashMap<String, Person>>,
     titles: Mutex<HashMap<String, String>>,
     /// 命令菜单里登记的名字到 Miyu 的命令名（施工 I-183 下上：Telegram 不许 `-`，登记时换成 `_`，收到时换回来）。
@@ -73,13 +77,30 @@ impl Known {
         }
     }
 
-    /// 聊天 `chat` 回话回在哪个话题；没有的是空的。
+    /// 聊天 `chat` 最近一条的话题；没有的是空的。
     pub fn thread(&self, chat: &str) -> Option<i64> {
         self.threads
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .get(chat)
             .copied()
+    }
+
+    /// 记下聊天 `chat` 编号 `message` 的那一条在话题 `thread` 里（不在话题里的是空的）。
+    pub fn set_topic(&self, chat: &str, message: i64, thread: Option<i64>) {
+        remember(&self.topics, &format!("{chat}:{message}"), thread);
+    }
+
+    /// 回聊天 `chat` 编号 `answers` 的那一条，回在哪个话题：记着那一条的照它；不是回哪一条的、没记着的照最近一条的。
+    pub fn thread_for(&self, chat: &str, answers: Option<&str>) -> Option<i64> {
+        let recorded = answers.and_then(|message| {
+            self.topics
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .get(&format!("{chat}:{message}"))
+                .copied()
+        });
+        recorded.unwrap_or_else(|| self.thread(chat))
     }
 
     /// 记下号是 `user` 的人。

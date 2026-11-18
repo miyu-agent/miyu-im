@@ -7,7 +7,7 @@ export function openEntry(ui, { entry, base }) {
   const editing = entry != null;
   const field = (label, input, hint) => h('label', { class: 'field' }, h('span', { text: label }), input, hint && h('small', { text: hint }));
   const platform = h('select', { disabled: editing },
-    ...(editing ? [entry.platform] : ui.platforms()).map((one) => h('option', { value: one, text: platformName(one) })));
+    ...(editing ? [entry.platform] : ui.platforms()).map((one) => h('option', { value: one, text: platformName(one), selected: one === ui.here })));
   const user = h('input', { inputmode: 'numeric', value: editing ? bareId(entry.user) : '', placeholder: say('id_hint') });
   const name = h('input', { value: entry?.name ?? '', placeholder: say('name_hint') });
   const amount = h('input', { type: 'number', min: '0', step: 'any', value: entry?.amount ?? '' });
@@ -75,9 +75,10 @@ export function openEntry(ui, { entry, base }) {
     if (!typed.user && !typed.name) { failed.textContent = say('need_who'); return; }
     if (editing) {
       params.id = entry.id;
-      if (typed.user !== bareId(entry.user) && typed.user) params.user = typed.user;
-      if (typed.name !== (entry.name ?? '') && typed.name) params.name = typed.name;
-      if (typed.note !== (entry.note ?? '') && typed.note) params.note = typed.note;
+      // 改了的都交，删空了的交空的（后端照空的清掉，施工 AUD-4）。
+      if (typed.user !== bareId(entry.user)) params.user = typed.user;
+      if (typed.name !== (entry.name ?? '')) params.name = typed.name;
+      if (typed.note !== (entry.note ?? '')) params.note = typed.note;
       if (value !== entry.amount) params.amount = value;
       if (typed.currency !== entry.currency) params.currency = typed.currency;
       if (pendingRate && Number(rate.value) > 0) params.rate = Number(rate.value);

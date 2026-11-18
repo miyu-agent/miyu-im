@@ -1,5 +1,5 @@
 //! 推来的配置当场生效（施工 O-16 补二、O-20，O-28 下改；`onebot.md` 第一条「怎么走」第 1、2 条、「施工时定的」第 45、167 条）：
-//! 核心推来 `extension.config`，桥不重启就照新的：令牌换了，旧的不收、新的收，已经连着的那一条还在；令牌没了一律 401；NapCat
+//! 核心推来 `extension.config`，桥不重启就照新的：令牌换了，旧的不收、新的收，照旧令牌连着的那一条断开（施工 AUD-2）；令牌没了一律 401；NapCat
 //! 的端口变了先开新的再换上，旧的关了，状态文件、后台页的 `status` 跟着换，连着的那一条不断。新端口被占的不换、旧的照旧，
 //! 空出来了也不另试（原来靠 `/apply` 再试一次，随桥自己的网页去掉）。推来的 `im.web` 不认，不开第二个端口。核心是替身，
 //! 推送由测试照核心的样子写；状态照状态文件和后台页的 `status`（测试当核心发 `method.call`）看。
@@ -186,10 +186,10 @@ async fn a_pushed_port_that_is_taken_changes_nothing_and_is_not_tried_again() {
 }
 
 #[tokio::test]
-async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
+async fn a_pushed_token_takes_over_and_closes_the_open_connection() {
     let changing = Changing::start().await;
     let port = changing.bridge.port;
-    let _open = admin_napcat(port).await;
+    let mut open = admin_napcat(port).await;
     changing.push.config(json!({"im.qq.token": NEW}));
     // 不报号：不顶掉连着的那一条。
     admitted(port, "/ws", Auth::Bearer(NEW), None)
@@ -198,13 +198,15 @@ async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
         .await;
     let old = napcat(port, "/ws", Auth::Bearer(TOKEN), None).await;
     assert_eq!(old.err(), Some(401), "旧的不收");
+    // 照旧令牌连着的那一条断开（施工 AUD-2，审计 #104）。
+    within("照旧令牌连着的断开了", async {
+        while open.alive().await {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
     let status = page_status(&changing.push, "core-1").await;
-    assert_eq!(
-        (&status["napcat"]["connected"], &status["napcat"]["self_id"]),
-        (&json!(true), &json!(BOT.to_string())),
-        "已经连着的那一条还在：{status}"
-    );
-    assert_eq!(status["token"], "set");
+    assert_eq!(status["token"], "set", "{status}");
     // 令牌没了：一律 401，`status` 说没设。
     changing.push.config(json!({"im.qq.token": null}));
     refused(port, NEW).await;

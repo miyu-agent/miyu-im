@@ -110,6 +110,7 @@ fn only_the_first_piece_carries_what_the_chain_left() {
             reply: Some("21".to_string()),
             at: Some("10001".to_string()),
             more: Vec::new(),
+            answers: Some("21".to_string()),
         },
         "隔了 4 条引用，引用了就一起 @，不看过了几秒（施工 I-216）"
     );
@@ -126,6 +127,7 @@ fn only_the_first_piece_carries_what_the_chain_left() {
             reply: Some("21".to_string()),
             at: Some("10001".to_string()),
             more: Vec::new(),
+            answers: Some("21".to_string()),
         },
         "隔了 2 条引用，隔了 20 秒连着 @ 发它的人（施工 I-137）"
     );
@@ -138,8 +140,11 @@ fn only_the_first_piece_carries_what_the_chain_left() {
     .expect("过得了");
     assert_eq!(
         alone.lead,
-        Lead::default(),
-        "只隔 1 条不引用，也不单独 @（施工 I-137）"
+        Lead {
+            answers: Some("21".to_string()),
+            ..Lead::default()
+        },
+        "只隔 1 条不引用，也不单独 @（施工 I-137）；回的是哪一条照样记着（施工 AUD-2）"
     );
     let right_away = pass(
         "嗯",
@@ -148,7 +153,36 @@ fn only_the_first_piece_carries_what_the_chain_left() {
         params.split_chars,
     )
     .expect("过得了");
-    assert_eq!(right_away.lead, Lead::default(), "紧接着回两样都不带");
+    assert_eq!(
+        right_away.lead,
+        Lead {
+            answers: Some("21".to_string()),
+            ..Lead::default()
+        },
+        "紧接着回两样都不带"
+    );
+}
+
+#[test]
+fn a_poke_is_never_quoted() {
+    // 施工 AUD-3（审计 #107）：她回的是一次戳一戳（编号平台上没有），想引用也不引用；回的是哪一条照样记着。
+    let poke = crate::chat::poke_number().to_string();
+    let poked = Aim {
+        msg: Some(poke.clone()),
+        ..aim()
+    };
+    let mut speaking = speaking(4);
+    speaking.aim = Some(poked.clone());
+    let params = params();
+    let passed = pass(
+        "嗯",
+        &group_ctx(&speaking, at(1), params.outbound),
+        Some(&poked),
+        params.split_chars,
+    )
+    .expect("过得了");
+    assert_eq!(passed.lead.reply, None, "{:?}", passed.lead);
+    assert_eq!(passed.lead.answers, Some(poke));
 }
 
 #[test]

@@ -15,7 +15,14 @@ const REFUSED = {
 export async function openMedia(request, { venue, msg, id, name }) {
   const box = element('div', 'dialog records-viewer');
   const body = element('div', 'records-viewer-body', say('records/media-loading'));
-  const close = openLayer(box);
+  // 图看完、浮层怎么关的都放掉取来的那一份（施工 AUD-4，审计 #117：以前一张大图一份，一直不放）。
+  let shownUrl = null;
+  let closed = false;
+  const close = openLayer(box, () => {
+    closed = true;
+    if (shownUrl) URL.revokeObjectURL(shownUrl);
+    shownUrl = null;
+  });
   box.append(element('div', 'records-viewer-head'), body);
   box.firstChild.append(element('span', 'grow', name || ''), closeButton(close));
   let got;
@@ -31,6 +38,12 @@ export async function openMedia(request, { venue, msg, id, name }) {
   for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
   const url = URL.createObjectURL(new Blob([bytes], { type: got.type || 'application/octet-stream' }));
   if (String(got.type || '').startsWith('image/')) {
+    // 取回来以前浮层已经关了的：不画了，放掉。
+    if (closed) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    shownUrl = url;
     const picture = element('img', 'records-viewer-image');
     picture.src = url;
     picture.alt = got.name || name || '';

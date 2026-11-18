@@ -31,12 +31,30 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
     let chat = &message["chat"];
     let chat_id = id_of(&chat["id"])?;
     let from = &message["from"];
-    if from["is_bot"] == true {
+    // 群里匿名的管理员（`from` 是 Telegram 的 GroupAnonymousBot）、用频道身份说话的：照 `sender_chat` 认，名字照署名、没署名的
+    // 照那个群、频道的名字（施工 AUD-3，审计 #110：以前当成机器人整条丢掉）。别的机器人照旧不收。
+    let sender_chat = &message["sender_chat"];
+    let on_behalf = from["is_bot"] == true && sender_chat.is_object();
+    if from["is_bot"] == true && !on_behalf {
         return None;
     }
-    let user = id_of(&from["id"])?;
-    let name = full_name(from);
-    let username = from["username"].as_str().map(str::to_string);
+    let (user, name, username) = match on_behalf {
+        true => (
+            id_of(&sender_chat["id"])?,
+            message["author_signature"]
+                .as_str()
+                .filter(|signed| !signed.trim().is_empty())
+                .or_else(|| sender_chat["title"].as_str())
+                .unwrap_or_default()
+                .to_string(),
+            sender_chat["username"].as_str().map(str::to_string),
+        ),
+        false => (
+            id_of(&from["id"])?,
+            full_name(from),
+            from["username"].as_str().map(str::to_string),
+        ),
+    };
     known.set_person(
         user.as_str(),
         Person {
@@ -48,6 +66,9 @@ pub fn event(me: &Me<'_>, message: &Value, known: &Known) -> Option<Event> {
         .then(|| message["message_thread_id"].as_i64())
         .flatten();
     known.set_thread(chat_id.as_str(), thread);
+    if let Some(number) = message["message_id"].as_i64() {
+        known.set_topic(chat_id.as_str(), number, thread);
+    }
     if let Some(title) = chat["title"].as_str() {
         known.set_title(chat_id.as_str(), title);
     }

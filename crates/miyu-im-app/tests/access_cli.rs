@@ -20,7 +20,7 @@ async fn ran(home: &Home, access: Access) -> (u8, String, String) {
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = run(
         &mut core,
-        (&access, miyu_im_onebot::onebot::PLATFORM),
+        (&access, &[miyu_im_onebot::onebot::PLATFORM][..]),
         &texts,
         (&mut out, &mut err),
     )
@@ -84,8 +84,19 @@ async fn groups_and_skipped_people_are_managed_from_the_command_line() {
         (0, say(Said::Removed(skip, "qq:50001".into())))
     );
     let (code, out, _) = ran(&home, Access::Group(Change::Remove("7001".into()))).await;
-    assert_eq!((code, out), (0, say(Said::Removed(groups, "7001".into()))));
+    assert_eq!(
+        (code, out),
+        (0, say(Said::Removed(groups.clone(), "7001".into())))
+    );
     let (code, _, err) = ran(&home, Access::Group(Change::Add("七千".into()))).await;
     assert_eq!((code, err), (2, say(Said::Bad("七千".into()))));
+    // 写明平台的（施工 AUD-4，审计 #114）：挂着的平台照它，没挂着的是写错。
+    let (code, out, _) = ran(&home, Access::Group(Change::Add("qq:7002".into()))).await;
+    assert_eq!(
+        (code, out),
+        (0, say(Said::Added(groups.clone(), "7002".into())))
+    );
+    let (code, _, err) = ran(&home, Access::Group(Change::Add("tg:-1001".into()))).await;
+    assert_eq!((code, err), (2, say(Said::Bad("tg:-1001".into()))));
     stopped(home).await;
 }

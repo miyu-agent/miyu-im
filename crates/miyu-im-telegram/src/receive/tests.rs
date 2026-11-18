@@ -220,3 +220,36 @@ fn the_message_and_the_one_it_quotes_are_remembered_for_the_host() {
         "别的聊天的同一个编号对不上"
     );
 }
+
+#[test]
+fn an_anonymous_admin_speaks_as_the_group_and_other_bots_are_skipped() {
+    // 施工 AUD-3（审计 #110）：匿名管理员的 `from` 是 GroupAnonymousBot，照 `sender_chat` 认，名字照署名、没署名的照群名。
+    let known = Known::default();
+    let anonymous = json!({"id": 1_087_968_824, "is_bot": true, "first_name": "Group", "username": "GroupAnonymousBot"});
+    let group = json!({"id": -1001, "type": "supergroup", "title": "Miyu 测试群"});
+    let (_, posted) = taken(
+        in_group(
+            json!({"from": anonymous, "sender_chat": group, "author_signature": "小林", "text": "hi"}),
+        ),
+        &known,
+    );
+    assert_eq!(
+        (posted.user.as_str(), posted.name.as_deref()),
+        ("-1001", Some("小林"))
+    );
+    let (_, unsigned) = taken(
+        in_group(json!({"from": anonymous, "sender_chat": group, "text": "hi"})),
+        &known,
+    );
+    assert_eq!(unsigned.name.as_deref(), Some("Miyu 测试群"));
+    let other = json!({"id": 42, "is_bot": true, "first_name": "Other"});
+    let id = bot();
+    let me = Me {
+        bot: &id,
+        username: "miyu_bot",
+    };
+    assert!(
+        event(&me, &in_group(json!({"from": other, "text": "hi"})), &known).is_none(),
+        "别的机器人不收"
+    );
+}

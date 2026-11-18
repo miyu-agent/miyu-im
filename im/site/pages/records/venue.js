@@ -68,7 +68,7 @@ export function mountVenue(view, { request, venue, at }) {
     const name = titleOf(row);
     const text = element('span', 'records-venue-name');
     text.append(element('strong', null, name), element('span', 'muted', detailOf(row)));
-    title.replaceChildren(face(row.type, row.id, name), text);
+    title.replaceChildren(face(row.type, row.id, name, row.platform), text);
   };
   drawTitle();
 

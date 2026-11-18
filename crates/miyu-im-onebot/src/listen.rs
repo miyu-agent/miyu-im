@@ -25,6 +25,7 @@ mod pending;
 mod refusing;
 #[cfg(test)]
 mod tests;
+mod tokens;
 
 use std::convert::Infallible;
 use std::net::IpAddr;
@@ -110,8 +111,8 @@ impl Driver for OneBot {
     }
 }
 
-/// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。
-type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>);
+/// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号、连进来出示的令牌（换了令牌照它断开，`tokens`）。
+type Upgrade = (OnUpgrade, Option<miyu_im::chat::Id>, String);
 
 /// 接一个 TCP 连接：当 HTTP 读，升级成了的接着当 NapCat 的连接跑，直到断开。`port` 是它连进来的端口，令牌照那个端口的比；
 /// `pending` 是还没升级的连接的名额，升级成了（或者没成、关了）就让出来。
@@ -122,6 +123,7 @@ async fn accept(
     guessed: (Arc<guesses::Guesses>, IpAddr),
 ) {
     let entry = port.0;
+    let tokens = Arc::clone(&port.1);
     // 从本机连进来的读得到本机的文件（施工 I-130：传文件交路径）。
     let local = guessed.1.is_loopback();
     let slot: Arc<Mutex<Option<Upgrade>>> = Arc::default();
@@ -148,13 +150,16 @@ async fn accept(
         tracing::debug!(target: TARGET, error = %error, "connection ended");
     }
     let upgrade = slot.lock().unwrap_or_else(PoisonError::into_inner).take();
-    let Some((upgrade, bot)) = upgrade else {
+    let Some((upgrade, bot, token)) = upgrade else {
         return;
     };
     let upgraded = upgrade.await;
     drop(pending);
+    let revoked = tokens.revoked(entry, &token);
     match upgraded {
-        Ok(upgraded) => connection::run(TokioIo::new(upgraded), &gate, (bot, entry, local)).await,
+        Ok(upgraded) => {
+            connection::run(TokioIo::new(upgraded), &gate, (bot, entry, local), revoked).await;
+        }
         Err(error) => tracing::debug!(target: TARGET, error = %error, "not upgraded"),
     }
 }
@@ -175,7 +180,8 @@ async fn handle(
         return empty(StatusCode::TOO_MANY_REQUESTS);
     }
     let presented = presented(&request).map(str::to_string);
-    if !admitted(port, presented.as_deref()) {
+    let Some(presented) = presented.filter(|presented| admitted(port, Some(presented.as_str())))
+    else {
         match guesses.missed(*source, Instant::now()) {
             guesses::Noted::First => {
                 tracing::warn!(target: TARGET, path = request.uri().path(), port = port.0, %source, "token refused");
@@ -186,7 +192,7 @@ async fn handle(
             guesses::Noted::Quiet => {}
         }
         return empty(StatusCode::UNAUTHORIZED);
-    }
+    };
     let headers = request.headers();
     let upgrade = headers
         .get(header::UPGRADE)
@@ -208,7 +214,7 @@ async fn handle(
     let response = switching(&derive_accept_key(key.as_bytes()));
     if response.status() == StatusCode::SWITCHING_PROTOCOLS {
         *slot.lock().unwrap_or_else(PoisonError::into_inner) =
-            Some((hyper::upgrade::on(&mut request), bot));
+            Some((hyper::upgrade::on(&mut request), bot, presented));
     }
     response
 }
@@ -231,13 +237,7 @@ fn switching(accept: &str) -> Response<Empty<Bytes>> {
 /// 出示的 `presented` 对得上端口 `port` 最新的令牌（连接表里这个端口的，施工 I-3、I-81 下）。手里没有、没出示的、端口已经
 /// 不在连接表里的对不上。
 fn admitted((port, tokens): &(u16, accepting::Tokens), presented: Option<&str>) -> bool {
-    let token = tokens
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get(port)
-        .cloned()
-        .flatten();
-    match (presented, token) {
+    match (presented, tokens.of(*port)) {
         (Some(presented), Some(token)) => same(presented.as_bytes(), token.expose().as_bytes()),
         _ => false,
     }

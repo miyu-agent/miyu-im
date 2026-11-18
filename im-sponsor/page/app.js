@@ -88,8 +88,10 @@ import { openEntry } from './edit.js';
     open: (entry, base) => openEntry(ui, { entry, base }),
     /** 头上「待补汇率」：明细只看没换算的。 */
     pending: () => ledger.onlyPending(),
-    /** 明细里出现过的平台（筛的下拉、记一笔的平台照它）。 */
+    /** 明细里出现过的平台，加上后台这时选着的平台（筛的下拉、记一笔的平台照它）。 */
     platforms: () => ledger.platforms(),
+    /** 后台这时选着的平台（`context.im.platform`，施工 AUD-4：账本还没有 Telegram 的记录时也记得了第一笔）；没给的是空的。 */
+    here: null,
   };
 
   function shell() {
@@ -112,6 +114,7 @@ import { openEntry } from './edit.js';
       document.documentElement.lang = context?.language ?? '';
       document.title = say('title');
       look(context?.theme, context?.colors);
+      ui.here = typeof context?.im?.platform === 'string' ? context.im.platform : null;
       shell();
       await ui.reload();
     } catch (error) {

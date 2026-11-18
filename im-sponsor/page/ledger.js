@@ -7,7 +7,7 @@ const WAIT_MS = 250;
 
 /** `ui` 是 app.js 交的。交回 `{el, load(), onlyPending(), platforms()}`。 */
 export function ledgerView(ui) {
-  const state = { base: 'CNY', entries: [], known: new Set(['qq']), pendingOnly: false, timer: 0 };
+  const state = { base: 'CNY', entries: [], known: new Set([ui.here || 'qq']), pendingOnly: false, timer: 0 };
   const query = h('input', { class: 'search', type: 'search', placeholder: say('search'), oninput: () => later() });
   const platform = h('select', { 'aria-label': say('platform'), onchange: () => load() });
   const from = h('input', { type: 'date', title: say('from'), onchange: () => load() });

@@ -85,7 +85,7 @@ export function openCreate(context, onAdded) {
         round = element('span', `avatar hx${type === 'group' ? ' sq' : ''}`);
         round.append(icon('i-plus'));
       } else {
-        round = face(type, id, name);
+        round = face(type, id, name, context.platform);
       }
       const named = element('div', 'grow', name);
       named.append(element('small', null, text));

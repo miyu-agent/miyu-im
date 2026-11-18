@@ -226,12 +226,16 @@ impl Book {
     }
 }
 
-/// 整份写到旁边的临时文件、再换过去。
+/// 整份写到旁边的临时文件、落了盘（`sync_all`，施工 AUD-4，审计 #116：不落盘就换过去，掉电可能留下一份空的账本）再换过去。
 fn write(path: &Path, file: &File) -> Result<(), String> {
+    use std::io::Write as _;
     let text = serde_json::to_vec_pretty(file).map_err(|error| error.to_string())?;
     let temporary = path.with_extension("json.tmp");
-    std::fs::write(&temporary, text)
-        .map_err(|error| format!("{}: {error}", temporary.display()))?;
+    let failed = |error: std::io::Error| format!("{}: {error}", temporary.display());
+    let mut out = std::fs::File::create(&temporary).map_err(failed)?;
+    out.write_all(&text).map_err(failed)?;
+    out.sync_all().map_err(failed)?;
+    drop(out);
     std::fs::rename(&temporary, path).map_err(|error| format!("{}: {error}", path.display()))
 }
 

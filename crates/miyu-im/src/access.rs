@@ -8,6 +8,9 @@
 //! - `access skip <群号> [list | add <号> | remove <号>]`：那个群卡上的 `rules."chatty.skip_users"`（一项 `<平台>:<号>`），经
 //!   `cards.get`、`cards.save_one` 读写。群不在名单里的说 [`Said::NoGroup`]、退出码 2。
 //!
+//! 号、群号可以写成 `<平台>:<号>`，只写号的照头一个平台（施工 AUD-4，审计 #114：以前只认 QQ）；群号可以是负的（Telegram 的超级群）。
+//! 挂着不止一个平台时，列出来的群写成 `<平台>:<群号>`。
+//!
 //! 号写错、连不上核心、核心拒了：同 `whitelist`。
 
 use std::io::Write;
@@ -16,6 +19,7 @@ use serde_json::{Value, json};
 
 use crate::PACKAGE;
 use crate::chat::Platform;
+use crate::rules::OLD_PLATFORM;
 use crate::texts::Texts;
 use crate::whitelist::{self, Change};
 
@@ -62,23 +66,23 @@ pub enum Said {
     Heading(String),
 }
 
-/// 照 `access` 看、改：经连上了的 `core`，平台是 `platform`，照 `texts` 说；交回退出码。
+/// 照 `access` 看、改：经连上了的 `core`，挂着的平台是 `platforms`（头一个是只写号时的平台），照 `texts` 说；交回退出码。
 pub async fn run(
     core: &mut miyu_client::open::Core,
-    (access, platform): (&Access, Platform),
+    (access, platforms): (&Access, &[Platform]),
     texts: &Texts,
     (out, err): (&mut impl Write, &mut impl Write),
 ) -> u8 {
     match access {
         Access::Whitelist(change) => {
-            whitelist::run(core, (change, platform), texts, (out, err)).await
+            whitelist::run(core, (change, platforms), texts, (out, err)).await
         }
-        Access::Group(change) => group(core, change, texts, (out, err)).await,
+        Access::Group(change) => group(core, (change, platforms), texts, (out, err)).await,
         Access::Skip(number, change) => {
-            skip(core, (number, change, platform), texts, (out, err)).await
+            skip(core, (number, change, platforms), texts, (out, err)).await
         }
         Access::List => {
-            let code = whitelist::run(core, (&Change::List, platform), texts, (out, err)).await;
+            let code = whitelist::run(core, (&Change::List, platforms), texts, (out, err)).await;
             if code != 0 {
                 return code;
             }
@@ -87,7 +91,13 @@ pub async fn run(
                 Err(refused) => return said(err, &refused, FAILED),
             };
             let mut lines = vec![texts.access(&Said::Heading(texts.access_list("groups", "")))];
-            for (id, set) in groups(&cards) {
+            let all = platforms.iter().flat_map(|platform| {
+                groups(&cards, *platform)
+                    .into_iter()
+                    .map(move |one| (*platform, one))
+            });
+            for (platform, (id, set)) in all {
+                let id = shown(platform, &id, platforms);
                 lines.push(id.clone());
                 let skipped = skipped(set);
                 if !skipped.is_empty() {
@@ -104,7 +114,7 @@ pub async fn run(
 /// 名单里的群：列、加、去。
 async fn group(
     core: &mut miyu_client::open::Core,
-    change: &Change,
+    (change, platforms): (&Change, &[Platform]),
     texts: &Texts,
     (out, err): (&mut impl Write, &mut impl Write),
 ) -> u8 {
@@ -112,33 +122,43 @@ async fn group(
         Ok(cards) => cards,
         Err(refused) => return said(err, &refused, FAILED),
     };
-    let listed: Vec<String> = groups(&cards).into_iter().map(|(id, _)| id).collect();
     let name = texts.access_list("groups", "");
-    let number = match change {
-        Change::List if listed.is_empty() => {
-            return said(out, &texts.access(&Said::Empty(name)), 0);
+    let written = match change {
+        Change::List => {
+            let listed: Vec<String> = platforms
+                .iter()
+                .flat_map(|platform| {
+                    groups(&cards, *platform)
+                        .into_iter()
+                        .map(|(id, _)| shown(*platform, &id, platforms))
+                })
+                .collect();
+            return match listed.is_empty() {
+                true => said(out, &texts.access(&Said::Empty(name)), 0),
+                false => said(out, &listed.join("\n"), 0),
+            };
         }
-        Change::List => return said(out, &listed.join("\n"), 0),
-        Change::Add(number) | Change::Remove(number) => match number.trim().parse::<u64>() {
-            Ok(parsed) if parsed > 0 => parsed.to_string(),
-            _ => return said(err, &texts.access(&Said::Bad(number.clone())), USAGE),
-        },
+        Change::Add(written) | Change::Remove(written) => written,
     };
-    let here = listed.contains(&number);
+    let Some((platform, number)) = whitelist::number_of(written, platforms, true) else {
+        return said(err, &texts.access(&Said::Bad(written.clone())), USAGE);
+    };
+    let here = groups(&cards, platform).iter().any(|(id, _)| *id == number);
+    let entry = shown(platform, &number, platforms);
     let (method, params, done) = match change {
-        Change::Add(_) if here => return said(out, &texts.access(&Said::Already(name, number)), 0),
+        Change::Add(_) if here => return said(out, &texts.access(&Said::Already(name, entry)), 0),
         Change::Remove(_) if !here => {
-            return said(out, &texts.access(&Said::Absent(name, number)), 0);
+            return said(out, &texts.access(&Said::Absent(name, entry)), 0);
         }
         Change::Add(_) => (
             "cards.add",
-            json!({"value": number}),
-            Said::Added(name, number.clone()),
+            json!({"value": number, "platform": platform.name()}),
+            Said::Added(name, entry),
         ),
         _ => (
             "cards.remove",
-            json!({"card": {"kind": "group", "id": card_id(&number)}}),
-            Said::Removed(name, number.clone()),
+            json!({"card": {"kind": "group", "id": card_id(&number)}, "platform": platform.name()}),
+            Said::Removed(name, entry),
         ),
     };
     match bridge(core, method, params).await {
@@ -147,10 +167,18 @@ async fn group(
     }
 }
 
+/// 说给人看的群号：挂着不止一个平台的写成 `<平台>:<群号>`。
+fn shown(platform: Platform, id: &str, platforms: &[Platform]) -> String {
+    match platforms.len() > 1 {
+        true => format!("{}:{id}", platform.name()),
+        false => id.to_string(),
+    }
+}
+
 /// 一个群跳过判断的人：列、加、去。
 async fn skip(
     core: &mut miyu_client::open::Core,
-    (number, change, platform): (&str, &Change, Platform),
+    (written, change, platforms): (&str, &Change, &[Platform]),
     texts: &Texts,
     (out, err): (&mut impl Write, &mut impl Write),
 ) -> u8 {
@@ -158,19 +186,32 @@ async fn skip(
         Ok(cards) => cards,
         Err(refused) => return said(err, &refused, FAILED),
     };
-    let group = number.trim().to_string();
-    let Some((_, set)) = groups(&cards).into_iter().find(|(id, _)| *id == group) else {
-        return said(err, &texts.access(&Said::NoGroup(group)), USAGE);
+    let Some((platform, group)) = whitelist::number_of(written, platforms, true) else {
+        return said(
+            err,
+            &texts.access(&Said::NoGroup(written.trim().to_string())),
+            USAGE,
+        );
+    };
+    let found = groups(&cards, platform)
+        .into_iter()
+        .find(|(id, _)| *id == group);
+    let Some((_, set)) = found else {
+        let entry = shown(platform, &group, platforms);
+        return said(err, &texts.access(&Said::NoGroup(entry)), USAGE);
     };
     let listed = skipped(set);
-    let name = texts.access_list("skip", &group);
-    let (list, told) = match whitelist::changed(&listed, change, platform) {
+    let name = texts.access_list("skip", &shown(platform, &group, platforms));
+    // 跳过的人只写号的照这个群的平台。
+    let mut here = vec![platform];
+    here.extend(platforms.iter().copied().filter(|one| *one != platform));
+    let (list, told) = match whitelist::changed(&listed, change, &here) {
         Ok(done) => done,
         Err(whitelist::Said::Bad(bad)) => return said(err, &texts.access(&Said::Bad(bad)), USAGE),
         Err(_) => return USAGE,
     };
     if let Some(list) = &list {
-        let params = json!({"card": {"kind": "group", "id": card_id(&group)}, "values": {"rules": {SKIP: list}}});
+        let params = json!({"card": {"kind": "group", "id": card_id(&group)}, "platform": platform.name(), "values": {"rules": {SKIP: list}}});
         if let Err(refused) = bridge(core, "cards.save_one", params).await {
             return said(err, &refused, FAILED);
         }
@@ -186,7 +227,7 @@ async fn skip(
 /// 卡片方法认的群卡编号：数（`cards.get` 交回的是数）；写不成数的照原样交，桥会拒。
 fn card_id(group: &str) -> Value {
     group
-        .parse::<u64>()
+        .parse::<i64>()
         .map_or_else(|_| json!(group), |id| json!(id))
 }
 
@@ -203,12 +244,13 @@ fn from_whitelist(told: whitelist::Said, name: &str) -> Said {
     }
 }
 
-/// `cards.get` 的回答里名单里的群：群号（字）和卡上的格。
-pub fn groups(cards: &Value) -> Vec<(String, &Value)> {
+/// `cards.get` 的回答（整份）里平台 `platform` 上名单里的群：群号（字）和卡上的格。卡上没写平台的是 [`OLD_PLATFORM`] 的。
+pub fn groups(cards: &Value, platform: Platform) -> Vec<(String, &Value)> {
     cards["cards"]["groups"]
         .as_array()
         .into_iter()
         .flatten()
+        .filter(|card| card["platform"].as_str().unwrap_or(OLD_PLATFORM) == platform.name())
         .filter_map(|card| {
             let id = match &card["id"] {
                 Value::Number(number) => number.to_string(),

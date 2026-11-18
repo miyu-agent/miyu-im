@@ -137,7 +137,7 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
     };
     // 收的时候记下话题、名字、群名，发的时候照它们（施工 I-183 中下）；发的那条队整个连接一条，重连不换。
     let known = Arc::new(Known::default());
-    let (queue, writer) = send::queue(client.clone(), Arc::clone(&known));
+    let (queue, writer) = send::queue(client.clone());
     tokio::spawn(writer);
     let me = Me {
         bot: &bot,
@@ -175,8 +175,10 @@ pub async fn run(gate: Arc<Gate>, connection: Connection, api: String, shared: A
                     .flatten()
                     .filter_map(|update| update["update_id"].as_i64())
                     .max();
+                // 照这一批最大的那条接着收，比记着的小也照它（施工 AUD-3，审计 #108）：Telegram 一周没有新消息、自建的 Bot API
+                // 重建以后编号会重新起，记着的老编号比新的大；照老的问，Bot API 照队头一直重交同几条，永远不往前走。
                 if let Some(last) = next
-                    && last + 1 > offset
+                    && last + 1 != offset
                 {
                     offset = last + 1;
                     write_offset(&offset_file, offset).await;

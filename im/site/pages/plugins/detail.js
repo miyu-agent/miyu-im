@@ -135,7 +135,7 @@ function where(plugin, all, { request, platform }) {
     const label = element('div', 'label', titleOf(one));
     label.append(element('small', null, idLine(one, { platform, bots: new Map() })));
     const fallback = one.id ? fallbacks[one.type] || {} : {};
-    line.append(face(one.type, one.id, one.name), label, pluginSwitch(one, plugin, fallback, request));
+    line.append(face(one.type, one.id, one.name, platform), label, pluginSwitch(one, plugin, fallback, request));
     rows.push(line);
   }
   return rows;
