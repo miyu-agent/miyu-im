@@ -32,6 +32,10 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           add-rust-environment-hash-key: false
+      # 卡住抓栈的脚本超时掐得干净（组织审计 #189）：几秒钟，Windows 不用它。
+      - name: hang-watch 掐得干净
+        if: runner.os != 'Windows'
+        run: .github/hang-watch-test.sh
       - name: 门禁
         if: runner.os != 'macOS'
         run: cargo xtask check
