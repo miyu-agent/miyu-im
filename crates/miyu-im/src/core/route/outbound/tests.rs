@@ -164,6 +164,28 @@ fn only_the_first_piece_carries_what_the_chain_left() {
 }
 
 #[test]
+fn a_poke_is_never_quoted() {
+    // 施工 AUD-3（审计 #107）：她回的是一次戳一戳（编号平台上没有），想引用也不引用；回的是哪一条照样记着。
+    let poke = crate::chat::poke_number().to_string();
+    let poked = Aim {
+        msg: Some(poke.clone()),
+        ..aim()
+    };
+    let mut speaking = speaking(4);
+    speaking.aim = Some(poked.clone());
+    let params = params();
+    let passed = pass(
+        "嗯",
+        &group_ctx(&speaking, at(1), params.outbound),
+        Some(&poked),
+        params.split_chars,
+    )
+    .expect("过得了");
+    assert_eq!(passed.lead.reply, None, "{:?}", passed.lead);
+    assert_eq!(passed.lead.answers, Some(poke));
+}
+
+#[test]
 fn what_the_chain_drops_and_how_it_is_named() {
     let params = params();
     let ctx = private_ctx(vec!["我在看这个问题。".to_string()], params.outbound);

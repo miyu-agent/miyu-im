@@ -109,7 +109,11 @@ pub(super) fn pass(
         Out::Drop(why) => return Err(why),
     };
     let lead = Lead {
-        reply: aim.filter(|_| target.quote).and_then(|aim| aim.msg.clone()),
+        // 戳一戳的编号平台上没有，引用不了（施工 AUD-3，审计 #107：这里漏了，`relead` 那边有）。
+        reply: aim
+            .filter(|_| target.quote)
+            .and_then(|aim| aim.msg.clone())
+            .filter(|msg| !crate::chat::is_poke(msg)),
         at: aim.filter(|_| target.mention).and_then(number),
         more: Vec::new(),
         answers: aim.and_then(|aim| aim.msg.clone()),

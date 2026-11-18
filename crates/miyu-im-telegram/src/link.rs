@@ -18,7 +18,7 @@ use miyu_im::chat::{
 use crate::api::Api;
 use crate::known::Known;
 use crate::media::Upload;
-use crate::send::{Body, Job, LIMIT, Queue, parts};
+use crate::send::{Body, CAPTION, Job, LIMIT, Queue, parts};
 
 /// 一个机器人的连接。
 #[derive(Debug)]
@@ -83,7 +83,7 @@ impl Link for Bot {
             Outgoing::Image { file, .. } => (upload(Upload::image(file, None)), None),
             Outgoing::Picture { file, lead } => {
                 // @ 写进图的说明：照发字的拼法拼一段（只要 @，没有字）。
-                let caption = parts("", lead, &self.known, LIMIT)
+                let caption = parts("", lead, &self.known, CAPTION)
                     .into_iter()
                     .next()
                     .filter(|(text, _)| !text.trim().is_empty());

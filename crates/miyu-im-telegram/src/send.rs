@@ -25,6 +25,9 @@ use crate::media::{Upload, form};
 /// 一条最多多少个 UTF-16 单位（Bot API 的 `sendMessage`）。
 pub const LIMIT: usize = 4096;
 
+/// 图、文件的说明最多多少个 UTF-16 单位（Bot API 的 `caption`，施工 AUD-3，审计 #109）。
+pub const CAPTION: usize = 1024;
+
 /// 同一个聊天两条之间至少隔多久。
 pub const GAP: Duration = Duration::from_secs(1);
 
@@ -211,8 +214,18 @@ pub fn parts(text: &str, lead: &Lead, known: &Known, limit: usize) -> Vec<(Strin
         .map(|part| (part, Vec::new()))
         .collect();
     if let Some(first) = parts.first_mut() {
-        // @ 都在开头，拆不开（`split` 不在开头的那一小段里断）。
-        first.1 = entities;
+        // @ 都在开头；@ 多到第一段装不下的，装不下的那几个不挂实体（施工 AUD-3，审计 #109：越过这一段的实体 Telegram 整条拒收）。
+        let length = first.0.encode_utf16().count();
+        first.1 = entities
+            .into_iter()
+            .filter(|entity| {
+                let end = entity["offset"]
+                    .as_u64()
+                    .unwrap_or(u64::MAX)
+                    .saturating_add(entity["length"].as_u64().unwrap_or(u64::MAX));
+                usize::try_from(end).is_ok_and(|end| end <= length)
+            })
+            .collect();
     }
     parts
 }
