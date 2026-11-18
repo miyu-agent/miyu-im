@@ -19,7 +19,9 @@ mod source;
 pub use bots::Bots;
 pub use calls::{CallError, DETAIL};
 pub use cap::{CAPS, Cap};
-pub use event::{Event, GroupChange, Happened, Lead, Poke, Posted, Recall, Replier, To, is_poke};
+pub use event::{
+    Event, GroupChange, Happened, Lead, Poke, Posted, Recall, Replier, To, is_poke, poke_number,
+};
 pub use forwards::Node;
 pub use id::Id;
 pub use link::{

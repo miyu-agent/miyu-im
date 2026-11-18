@@ -95,7 +95,7 @@ async fn a_port_in_use_is_named() {
 }
 
 /// 这台机器对外的一个地址（不是回环的）：照系统给的出口挑，UDP 只连不发。没有的（没联网的机器）是空的。
-fn outward() -> Option<std::net::IpAddr> {
+pub(crate) fn outward() -> Option<std::net::IpAddr> {
     let socket = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
     socket.connect(("192.0.2.1", 9)).ok()?;
     let ip = socket.local_addr().ok()?.ip();

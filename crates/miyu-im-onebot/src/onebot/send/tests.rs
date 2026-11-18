@@ -13,6 +13,8 @@ fn a_page_carries_the_quote_and_mentions_before_the_image() {
         reply: Some("77".into()),
         at: Some("1001".into()),
         more: vec!["1001".into(), "1002".into()],
+
+        answers: None,
     };
     let (action, params) = picture_to(To::Group(Id::from(5)), "base64://AA==", &lead);
     assert_eq!(action, "send_group_msg");
