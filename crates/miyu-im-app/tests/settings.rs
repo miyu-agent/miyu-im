@@ -342,6 +342,33 @@ fn the_manifest_exports_only_the_methods_for_other_packages() {
 }
 
 #[test]
+fn the_manifest_names_the_purposes_of_its_model_calls() {
+    // 施工 I-251（核心 UP-3）：判官（`judge`）、入群审核（`join-approval`）在清单 `[[purpose]]` 里声明给人看的名字，核心的
+    // `usage.query` 照它给 `purpose_name`；名字同后台「数据统计」页的字表。
+    let text = std::fs::read_to_string(package_in(resources()).dir().join("package.toml"))
+        .expect("读得了");
+    let manifest = miyu_config::package::read(&text).expect("读得出");
+    let named: Vec<(&str, Option<&str>, Option<&str>)> = manifest
+        .purposes
+        .iter()
+        .map(|purpose| {
+            (
+                purpose.id.as_str(),
+                purpose.name.get("en").map(String::as_str),
+                purpose.name.get("zh").map(String::as_str),
+            )
+        })
+        .collect();
+    assert_eq!(
+        named,
+        [
+            ("judge", Some("Judge"), Some("判官")),
+            ("join-approval", Some("Join review"), Some("入群审核")),
+        ]
+    );
+}
+
+#[test]
 fn setting_keys_read_as_their_names_in_the_language() {
     // 施工 O-41 补二：`miyu im status` 说没认出来的配置项用名字；清单里没有的照键。
     let package = package_in(resources());
