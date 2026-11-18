@@ -10,10 +10,9 @@
 //!   同 `venue.media` 的洗法；名字照节点的发的人（群名片、昵称，洗法同 `name`），都没有的写号，号也没有的这一条不放、算进
 //!   `more`。里面又是 `forward` 的照层数往下取。
 //! - 限额：套 `forward_depth` 层（`bridge.json`），再深的只留占位。一条消息几个转发、一个转发几条、每条多长 im 自己不设限（施工
-//!   I-253，2026-11-19 项目主人定：原来一个转发只放 20 条、每条 500 字、一条消息 4 个转发，AI 看转发看到一半就没了），每条正文
-//!   只夹到核心的 4096 字节。
-//!   照核心的整条上限（所有转发合起来 100 条、名字和正文 16 KiB）一条条放，放不下的算进 `more`：超了核心整条拒，这条消息就丢了。
-//!   一条都放不进的转发不交。
+//!   I-253，2026-11-19 项目主人定：原来一个转发只放 20 条、每条 500 字、一条消息 4 个转发，AI 看转发看到一半就没了），正文整条给。
+//!   核心也不限条数、长短（核心 O-34 补，施工 I-255），只剩连接上一行 1 MiB：照写进 JSON 的字节数一条条放，合起来到
+//!   [`LINE_BUDGET`] 为止，放不下的算进 `more`（超了核心整条收不到，这条消息就丢了）。一条都放不进的转发不交。
 //! - 带的东西的编号（施工 I-75，`crate::media::numbered` 那一套）：接着这条消息自己带的数，放进去的那几样带上 `index`，核心写成
 //!   `[image #<编号>: …]`，她照这条消息的 `msg` 和编号 `fetch_media`。没放进去的几条照样数；打不开的转发（取不到的，照限额没去取、
 //!   又没内联的）到这里为止，后面的不带编号。
@@ -32,12 +31,15 @@ use crate::chat::{Link, Platform};
 use crate::core::Gone;
 use crate::toolset::{Numbering, kept};
 
-/// 核心的整条上限（`venues.md`「场所的格」的 `forwards`）：一条场所消息里所有转发合起来最多几条。
-const ALL_NODES: usize = 100;
-/// 同上：所有转发的名字和正文合起来最多几个字节。
-const ALL_BYTES: usize = 16 * 1024;
-/// 同上：转发里一条的正文最多几个字节。
-const TEXT_BYTES: usize = 4096;
+/// 一条场所消息里所有转发（和引用的那一条）合起来最多放多少字节（照写进 JSON 以后的长短算）。核心不再限条数、长短（核心 O-34 补，
+/// 施工 I-255），只剩连接上一行最多 1 MiB（`session.send` 整条一行）：留 64 KiB 给这条消息别的格，超了核心整条收不到。
+const LINE_BUDGET: usize = 960 * 1024;
+
+/// 转发里一条除了名字、正文以外的 JSON 字节（`{"name":…,"text":…}` 的键、引号、逗号），宽着算。
+const NODE_OVERHEAD: usize = 32;
+
+/// 带的一样记号除了它自己的格以外多出的字节（`index` 这一格）。
+const MEDIA_OVERHEAD: usize = 16;
 
 /// 展开合并转发的几个数（`bridge.json`，施工 O-34）。
 #[derive(Debug, Clone, Copy)]
@@ -81,7 +83,6 @@ impl Forwards {
 
 /// 这一条消息还放得下多少（核心的整条上限）、还调不调 `get_forward_msg`、带的东西编到哪了（施工 I-75）。
 pub(super) struct Budget {
-    nodes: usize,
     bytes: usize,
     asking: bool,
     pub(super) numbers: Numbering,
@@ -140,8 +141,7 @@ impl Route {
             msg: wanted.msg,
         };
         let budget = Budget {
-            nodes: ALL_NODES,
-            bytes: ALL_BYTES,
+            bytes: LINE_BUDGET,
             asking: true,
             numbers: Numbering::after(wanted.own),
         };
@@ -171,7 +171,6 @@ impl Route {
                 let mut nodes = Vec::new();
                 let mut placing = true;
                 for read in &messages {
-                    placing &= budget.nodes > 0;
                     let placed = match placing {
                         true => self.node(at, read, depth, budget).await,
                         false => Err(false),
@@ -213,15 +212,20 @@ impl Route {
             .and_then(|name| clean(name, NAME))
             .or_else(|| read.user.clone().map(|user| user.to_string()))
             .ok_or(false)?;
-        let text = clip(&self.words(at, &read.segments));
-        let bytes = name.len() + text.len();
+        let text = self.words(at, &read.segments);
+        let mut carried = media(&read.segments.media);
+        let bytes = json_len(&json!(name))
+            + json_len(&json!(text))
+            + NODE_OVERHEAD
+            + carried
+                .iter()
+                .map(|item| json_len(item) + MEDIA_OVERHEAD)
+                .sum::<usize>();
         if bytes > budget.bytes {
             return Err(true);
         }
-        budget.nodes -= 1;
         budget.bytes -= bytes;
         let mut one = json!({"name": name, "text": text});
-        let mut carried = media(&read.segments.media);
         for item in &mut carried {
             if let Some(number) = budget.numbers.take() {
                 item["index"] = json!(number);
@@ -309,18 +313,7 @@ pub(super) fn with_placeholders(text: &str, forwards: usize) -> String {
     out
 }
 
-/// 转发里一条的正文：夹到核心的 [`TEXT_BYTES`] 字节（截在字的边界上）：超了核心整条拒，这条消息就丢了（2026-10-11 核心审时
-/// 建议）。im 自己不再先截字数（施工 I-253）。
-pub(super) fn clip(text: &str) -> String {
-    let mut out = String::new();
-    for c in text.chars() {
-        if out.len() + c.len_utf8() > TEXT_BYTES {
-            break;
-        }
-        out.push(c);
-    }
-    out
+/// `value` 写成 JSON 的字节数（核心收的那一行照它算）。
+fn json_len(value: &Value) -> usize {
+    serde_json::to_string(value).map_or(0, |text| text.len())
 }
-
-#[cfg(test)]
-mod tests;
