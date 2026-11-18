@@ -28,7 +28,7 @@ Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 A
 miyu pkg install im
 ```
 
-赞助记录插件是另一个包 `im-sponsor`，装法一样。接 QQ、Telegram，管谁能叫 AI、群里的规矩，见 [接入通讯平台](https://github.com/miyu-agent/miyu/blob/main/docs/guide/heads/im.md)。
+赞助记录插件是另一个包 `im-sponsor`，装法一样。接 QQ、Telegram，管谁能叫 AI、群里的规矩，见 [接入通讯平台](https://github.com/miyu-agent/miyu/blob/main/docs/zh/guide/heads/im.md)。
 
 ## 从源码编
 
