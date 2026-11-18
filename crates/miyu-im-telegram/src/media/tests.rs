@@ -71,3 +71,18 @@ fn the_form_carries_the_fields_and_the_file() {
     assert!(body.windows(4).any(|window| window == b"\x89PNG"));
     assert!(text.ends_with(&format!("\r\n--{boundary}--\r\n")));
 }
+
+#[test]
+fn a_voice_goes_as_a_voice_message_when_telegram_takes_the_format() {
+    // 施工 I-250：MP3、OGG、M4A 照语音消息发；WAV 这类照音频文件发。
+    let file = format!("base64://{}", STANDARD.encode(b"ID3"));
+    let mp3 = Upload::voice(&file, "audio/mpeg", "say-01.mp3").expect("读得出");
+    assert_eq!(
+        (mp3.method, mp3.field, mp3.name.as_str()),
+        ("sendVoice", "voice", "say-01.mp3")
+    );
+    let ogg = Upload::voice(&file, "audio/ogg; codecs=opus", "").expect("读得出");
+    assert_eq!((ogg.method, ogg.name.as_str()), ("sendVoice", "voice"));
+    let wav = Upload::voice(&file, "audio/wav", "say.wav").expect("读得出");
+    assert_eq!((wav.method, wav.field), ("sendAudio", "audio"));
+}

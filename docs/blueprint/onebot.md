@@ -1390,6 +1390,10 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
 3. **没发出去**（读不出、NapCat 回失败、过期、等不到、没连着）：`failed` 照记，另经核心的 `session.note` 给那条线记一块 `unshown` 事实（模板同「展示」第 4 条，`name` 照第 1 条），她下一步知道没到。
 4. 补来的（订阅时从头补的）、这一轮不说话了的（`skip_reply`）不发（同「展示」）；支线里发的照主线发进群里。
 5. 终端管理员的私聊归他本人：核心 W-6 再补（4a691ddc，O-51 补钉上）起 `blob.get` 认 `sent` 里的 blob，读得到；群会话、白名单成员的私聊同在主人名下（I-71），本来就读得到。
+6. **语音**（I-250，2026-11-17 项目主人验收第 26 条：QQ 里她永远在发文件；核心 SD-1，say 交付方案「im」一节）：`sent` 里写了 `"voice": true`、`media_type` 是 `audio/` 开头的那一段是她说的话合成的语音（核心至多一段、10 MiB），不是音频的不认。照第 1 到 3 条读、入队（`kind` 照旧 `image`）、没发出去的记 `unshown`，发的时候照平台的语音消息发：QQ 是一个语音段 `{"type": "record", "data": {"file": "base64://…"}}`（NapCat 用 FFmpeg 把 mp3、wav 转成 QQ 认的格式，真机待试），Telegram 照格式挑 `sendVoice`（OGG、MP3、M4A）或 `sendAudio`（别的，如 WAV），都至多 50 MB。群里发出去了不记 `venue.delivered`（它只有字和图，同「展示」的文件）；聊天记录里她那一条记成带一段 `voice`。没名字的叫 `voice`。
+7. **语音的上限**（I-250，核心 SD-1）：找会话（`venue.session`，「怎么走」第 7 条、「群消息」第 3 条）带上这个平台一段语音至多多少毫秒 `voice_max_ms`：QQ 是 60000（QQ 客户端自己录的最长 60 秒；经 NapCat 发更长的会怎样查不到，真机试出来不同再改，`onebot::VOICE_MAX_MS`），Telegram 没有时长上限不带。核心记进 `session.created`、派给扩展的 `tool.call` 原样带，`say` 合成长了的不交、回出错让她重说（2026-11-17 项目主人定：不退文件、不自动切）。找回的会话照造的时候的。
+
+**守着它的（语音）**：`tests/voice.rs`（测试包带 `voice:` 登记一件工具 `speak`、答 `sent` 里一段 `voice: true` 的 `audio/mpeg`）：群里终端管理员 @ 她，她先调 `speak` 再说一句：先发一个语音段、内容是那段音频，再发字；`venue.delivered` 只有字那一条；群会话的 `session.created` 记着 `voice_max_ms` 60000，核心派给测试包的 `tool.call` 带着它。`stickers/tests.rs`：`voice: true` 的照语音认、格式照写的，不是音频的不认。Telegram `media/tests.rs`：MP3、OGG 照 `sendVoice`，WAV 照 `sendAudio`。
 
 **守着它的**：`tests/stickers.rs`（真核心拉起真桥、假 NapCat，测试包 `miyu-im-test-hook` 带 `sticker:` 登记一件工具 `sticker`、答 `sent` 里一张表情包）：群里终端管理员 @ 她，她先调 `sticker` 再说一句：先发一个带 `sub_type`、`subType` 是 1 的图片段、内容是那张图，再发字；`venue.delivered` 的头一条 `images` 是那张图、正文空的；入队的照先后是 `image`、`reply`。白名单成员的私聊、终端管理员的私聊（O-51 补，钉回 f4eb1b1e 时是红的）一样。禁言着、`queue_expire_seconds` 是 1：图过期作废，记一块 `unshown`（`why="expired"`、名字照 `alt`）。`src/core/route/stickers/tests.rs`：只认工具结果的 `sent`，名字的取法，`blob` 不是字的不要。
 

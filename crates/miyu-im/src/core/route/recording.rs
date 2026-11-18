@@ -41,12 +41,13 @@ impl Route {
         self.records.write(Write::Said(Box::new(said)));
     }
 
-    /// 她（平台 `platform` 上的机器人号 `bot`）在场所 `venue` 发出去的一条，平台编号 `msg`，正文 `text`；`image` 的是一张图。
+    /// 她（平台 `platform` 上的机器人号 `bot`）在场所 `venue` 发出去的一条，平台编号 `msg`，正文 `text`；带了一样东西的 `kind` 是它的
+    /// 种类（`image`，施工 I-250 起有 `voice`）。
     pub(super) fn record_mine(
         &self,
         (platform, venue, bot): (Platform, &str, &Id),
         (msg, text): (&str, &str),
-        image: bool,
+        kind: Option<&'static str>,
     ) {
         let Ok(sender) = platform.person(bot) else {
             return;
@@ -60,11 +61,9 @@ impl Route {
             text: text.to_string(),
             reply_to: None,
             mentions: Vec::new(),
-            media: if image {
-                vec![json!({"kind": "image"})]
-            } else {
-                Vec::new()
-            },
+            media: kind
+                .map(|kind| vec![json!({"kind": kind})])
+                .unwrap_or_default(),
             mine: true,
         };
         self.records.write(Write::Said(Box::new(said)));

@@ -16,7 +16,7 @@ use super::replies::{
 use super::{
     Calls, MEMBER_INFO, delete_msg, emoji_like, forward_messages, forward_to, friend_add,
     get_forward_msg, group_add, group_ban, group_kick, image_to, member_info, message_id,
-    message_to, node, picture_to, poke, upload_to,
+    message_to, node, picture_to, poke, upload_to, voice_to,
 };
 use miyu_im::chat::{
     self, CallError, Face, Fetch, Fetched, Friend, Group, GroupFiles, Id, Implementation, Link,
@@ -107,9 +107,10 @@ impl Link for Wire {
     fn begin<'a>(&'a self, to: To, outgoing: Outgoing<'a>) -> Reply<'a, chat::Pending> {
         let wait = match outgoing {
             Outgoing::Text { .. } => None,
-            Outgoing::Image { .. } | Outgoing::Picture { .. } | Outgoing::Forward { .. } => {
-                self.media
-            }
+            Outgoing::Image { .. }
+            | Outgoing::Picture { .. }
+            | Outgoing::Forward { .. }
+            | Outgoing::Voice { .. } => self.media,
             Outgoing::Upload { .. } => self.upload.or(self.media),
         };
         let (action, params) = match outgoing {
@@ -122,6 +123,7 @@ impl Link for Wire {
                 nodes,
             } => forward_to(to, bot, nickname, nodes),
             Outgoing::Upload { file, name } => upload_to(to, file, name),
+            Outgoing::Voice { file, .. } => voice_to(to, file),
         };
         Box::pin(async move {
             let pending = self.calls.begin(&self.out, action, params).await?;

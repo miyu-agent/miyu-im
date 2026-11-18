@@ -78,6 +78,17 @@ pub enum Outgoing<'a> {
         /// 文件名。
         name: &'a str,
     },
+    /// 一段她说的话合成的语音（施工 I-250，核心 SD-1：工具结果 `sent` 里 `voice: true` 的那一段）：平台照自己的语音消息发（QQ 的
+    /// 语音段、Telegram 的 `sendVoice`），不是文件。`file` 写成 `base64://…`，`media_type` 是音频的格式（`audio/mpeg`……），
+    /// 文件名 `name`（照文件发的平台用）。
+    Voice {
+        /// 音频。
+        file: &'a str,
+        /// 格式。
+        media_type: &'a str,
+        /// 文件名。
+        name: &'a str,
+    },
 }
 
 /// 取回来的一条消息（[`Link::message`]）。
