@@ -10,7 +10,7 @@
 //! - `identity_people`：识人映射，一项写 `名字=QQ号`；名字被号码对不上的人用了就算借（同一个名字写了几个号的，哪一个都算本人）。
 //!   写错的那一项不算。
 //!
-//! 比法照旧版：都转小写、去掉空白，含着就算（「老板本人」「米尤bot」也算）；不到两个字的名字不比（一个字到处撞）；借了几个的取头一个
+//! 比法照旧版：都转小写、去掉空白和看不见的字（零宽空格、方向符这些，施工 AUD-4，审计 #112：插一个就骗过去了），含着就算（「老板本人」「米尤bot」也算）；不到两个字的名字不比（一个字到处撞）；借了几个的取头一个
 //! （终端管理员的、她自己的、映射里的，照这个先后）。
 
 use serde_json::{Map, Value};
@@ -117,12 +117,22 @@ pub(crate) fn people(value: Option<&Value>) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 照这一种写法比：转小写、去掉空白。
+/// 照这一种写法比：转小写、去掉空白和看不见的字（[`invisible`]）。
 fn folded(name: &str) -> String {
     name.chars()
-        .filter(|char| !char.is_whitespace())
+        .filter(|char| !char.is_whitespace() && !invisible(*char))
         .flat_map(char::to_lowercase)
         .collect()
+}
+
+/// 显示出来看不见、插在名字里不改样子的字：Unicode 的格式字符（Cf：零宽空格、零宽连接、方向符、BOM、软连字符、标签字符）、
+/// 变体选择符、组合用的看不见的字、谚文的填充字。
+fn invisible(char: char) -> bool {
+    matches!(char,
+        '\u{00AD}' | '\u{034F}' | '\u{061C}' | '\u{115F}' | '\u{1160}' | '\u{17B4}' | '\u{17B5}'
+        | '\u{180B}'..='\u{180F}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}'
+        | '\u{2060}'..='\u{206F}' | '\u{3164}' | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}' | '\u{FFA0}'
+        | '\u{FFF9}'..='\u{FFFB}' | '\u{1D173}'..='\u{1D17A}' | '\u{E0000}'..='\u{E0FFF}')
 }
 
 /// `name` 借了 `protected` 里哪一个：照 [`folded`] 比，含着就算；不到 [`SHORTEST`] 个字的不比；借了几个的取头一个。

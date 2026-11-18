@@ -6,7 +6,8 @@
 //! - `ranking {platform?, from?, to?}` → `{base, rows: [{user, name, platform, sum, count}]}`：全部（施工 I-60）。
 //! - `add {platform, user?, name?, amount, currency?, note?}` → `{entry}`：记一笔（照汇率换算、冻结），号、名字至少一样。
 //! - `update {id, user?, name?, amount?, currency?, note?, rate?}` → `{entry}`：改一笔；写了 `rate` 的照它重算（补汇率），改了
-//!   金额、币种的照原来的汇率重算（币种变了的汇率作废、照现在的再查一次）。
+//!   金额、币种的照原来的汇率重算（币种变了的汇率作废、照现在的再查一次；写了同一个币种的不算变）；`user`、`name`、`note` 写空字的
+//!   是清掉（施工 AUD-4）。
 //! - `delete {id}` → `{deleted}`。
 //! - `rate {currency}` → `{base, rate}`：照现在的默认币种查一次（补汇率时页面先问），查不到的 `rate` 是 `null`。
 //! - `export` → `{version, entries}`、`import {entries}` → `{added, skipped}`：备份、搬家、迁移（施工 I-131，[`transfer`]）。这两件
@@ -215,6 +216,14 @@ impl Filter {
     }
 }
 
+/// 改一笔时的一段字（施工 AUD-4，审计 #115）：没写的是不改（外层空的）；写了的照 [`text`] 读，空字的是清掉（里层空的）。
+fn edited(params: &Value, key: &str, most: usize) -> Result<Option<Option<String>>, Value> {
+    match &params[key] {
+        Value::Null => Ok(None),
+        _ => text(params, key, most).map(Some),
+    }
+}
+
 /// 一段字：去掉控制字符，截到 `most` 个字；空的是空的。不是字的交回 -32602。
 fn text(params: &Value, key: &str, most: usize) -> Result<Option<String>, Value> {
     match &params[key] {
@@ -295,9 +304,9 @@ fn add(state: &State, params: &Value, (base, now): (&str, i64)) -> Answer {
 /// 改一笔（模块的说明）。
 fn update(state: &State, params: &Value, base: &str) -> Answer {
     let id = id_of(params)?;
-    let user = text(params, "user", NAME)?;
-    let name = text(params, "name", NAME)?;
-    let note = text(params, "note", NOTE)?;
+    let user = edited(params, "user", NAME)?;
+    let name = edited(params, "name", NAME)?;
+    let note = edited(params, "note", NOTE)?;
     let amount = match &params["amount"] {
         Value::Null => None,
         value => Some(amount(value)?),
@@ -327,18 +336,19 @@ fn update(state: &State, params: &Value, base: &str) -> Answer {
     };
     let changed = locked(state).update(id, |entry| {
         if let Some(user) = user {
-            entry.user = Some(identity(&entry.platform, &user));
+            entry.user = user.map(|user| identity(&entry.platform, &user));
         }
-        if name.is_some() {
+        if let Some(name) = name {
             entry.name = name;
         }
-        if note.is_some() {
+        if let Some(note) = note {
             entry.note = note;
         }
         if let Some(amount) = amount {
             entry.amount = amount;
         }
-        if let Some(currency) = currency {
+        // 币种没变的不重查（施工 AUD-4，审计 #115：照今天的汇率冲掉了记账时冻结的）。
+        if let Some(currency) = currency.filter(|currency| *currency != entry.currency) {
             entry.currency = currency;
             entry.rate = fresh.flatten();
             entry.base = base.to_string();

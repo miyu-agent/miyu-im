@@ -102,6 +102,13 @@ pub async fn get(port: u16, path: &str) -> Answer {
     request(port, ("GET", path, &host), &[], b"").await
 }
 
+/// `GET path`，带着会话号 `session`（`Authorization: Bearer`）。
+pub async fn get_as(port: u16, path: &str, session: &str) -> Answer {
+    let host = format!("127.0.0.1:{port}");
+    let bearer = format!("Authorization: Bearer {session}");
+    request(port, ("GET", path, &host), &[bearer.as_str()], b"").await
+}
+
 /// `POST path`，正文是 JSON `body`，带 `headers`。
 pub async fn post(port: u16, path: &str, headers: &[&str], body: &Value) -> Answer {
     let host = format!("127.0.0.1:{port}");
@@ -190,6 +197,11 @@ pub async fn page_port(bridge: &Bridge, nth: usize) -> u16 {
 
 /// 照页面的样子进来：头要一张交接票，换登录，开通道、出示会话号（施工 I-6 中）。交回开着的通道。
 pub async fn logged_in(root: &miyu_store::root::DataRoot, port: u16) -> Channel {
+    logged_in_as(root, port).await.0
+}
+
+/// 同 [`logged_in`]，另交回会话号（取头像这类要带 `Authorization: Bearer` 的请求用，施工 AUD-4）。
+pub async fn logged_in_as(root: &miyu_store::root::DataRoot, port: u16) -> (Channel, String) {
     let mut head = super::head::Head::connect(root).await;
     let ticket = head.call("login.ticket", serde_json::json!({})).await["result"]["ticket"].clone();
     let session = post(
@@ -206,7 +218,7 @@ pub async fn logged_in(root: &miyu_store::root::DataRoot, port: u16) -> Channel 
     let mut open = channel(port, None).await;
     say(&mut open, &serde_json::json!({"session": session})).await;
     assert!(heard(&mut open).await.is_ok(), "通道认了会话号");
-    open
+    (open, session)
 }
 
 /// 在通道上调 `method`（编号 `id`）：交回回应（推来的跳过）。

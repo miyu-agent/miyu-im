@@ -36,6 +36,26 @@ fn a_name_containing_a_protected_one_borrows_it() {
 }
 
 #[test]
+fn invisible_letters_inside_a_name_do_not_hide_the_borrowing() {
+    // 施工 AUD-4（审计 #112）：零宽空格、零宽连接、方向符、BOM、软连字符插进去看着一样，照样认出来。
+    let protected = names(&["老板", "Miyu Bot"]);
+    for sneaky in [
+        "老\u{200B}板",
+        "老\u{200D}板",
+        "\u{202E}老板",
+        "老\u{FEFF}板",
+        "Mi\u{00AD}yu\u{2060}Bot",
+        "老\u{E0041}板",
+    ] {
+        assert!(
+            borrowed(sneaky, &protected).is_some(),
+            "{:?}",
+            sneaky.escape_unicode().to_string()
+        );
+    }
+}
+
+#[test]
 fn a_one_letter_name_is_not_compared() {
     let protected = names(&["A", "  好  "]);
     assert_eq!(borrowed("Alice", &protected), None);

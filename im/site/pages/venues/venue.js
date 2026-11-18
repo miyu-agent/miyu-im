@@ -148,7 +148,7 @@ export function openVenue(one, context, onClose) {
     const who = element('div', 'd-who');
     const named = element('div');
     named.append(element('b', null, titleOf(shown)), element('small', null, idLine(shown, context)));
-    who.append(faceOf(shown), named);
+    who.append(faceOf(shown, context.platform), named);
     const tabs = element('div', 'd-tabs');
     side.replaceChildren(who, tabs);
     const added = shown.id
@@ -171,7 +171,7 @@ export function openVenue(one, context, onClose) {
         });
       }
       tabs.append(button);
-      if (one.id === 'watch' && webInstalled) tabs.append(viewSessionButton(shown, context.request));
+      if (one.id === 'watch' && webInstalled) tabs.append(viewSessionButton(shown, context.request, context.platform));
     }
     if (added.length > 0) tabs.append(element('div', 'd-sep', say('venue/plugins-added')));
     for (const one of added) {

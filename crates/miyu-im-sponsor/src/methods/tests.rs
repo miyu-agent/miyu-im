@@ -165,6 +165,40 @@ fn the_page_adds_lists_ranks_changes_and_deletes() {
 }
 
 #[test]
+fn editing_keeps_the_frozen_rate_and_clears_what_was_emptied() {
+    // 施工 AUD-4（审计 #115）：写了同一个币种不重查汇率（不冲掉补好的那一个）；号、名字、备注写空字的清掉，没写的不动。
+    let (dir, state) = state("edit");
+    call_one(
+        &state,
+        "add",
+        json!({"platform": "qq", "user": "40001", "name": "小明", "amount": 3, "currency": "EUR", "note": "服务器"}),
+    )
+    .expect("记得上");
+    call_one(&state, "update", json!({"id": 1, "rate": 7.9})).expect("补得了");
+    let same = call_one(
+        &state,
+        "update",
+        json!({"id": 1, "currency": "EUR", "note": "域名"}),
+    )
+    .expect("改得了");
+    assert_eq!(
+        (
+            same["entry"]["rate"].as_f64(),
+            same["entry"]["converted"].as_f64(),
+            same["entry"]["note"].as_str()
+        ),
+        (Some(7.9), Some(23.7), Some("域名")),
+        "{same}"
+    );
+    let cleared =
+        call_one(&state, "update", json!({"id": 1, "user": "", "note": ""})).expect("改得了");
+    assert_eq!(cleared["entry"]["user"], Value::Null, "{cleared}");
+    assert_eq!(cleared["entry"]["note"], Value::Null, "{cleared}");
+    assert_eq!(cleared["entry"]["name"], "小明", "没写的不动：{cleared}");
+    std::fs::remove_dir_all(dir).expect("删得掉");
+}
+
+#[test]
 fn totals_follow_the_local_month_and_year() {
     let (dir, state) = state("periods");
     for (at, amount) in [

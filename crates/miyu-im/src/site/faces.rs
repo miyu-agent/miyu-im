@@ -27,21 +27,30 @@ const MOST: usize = 512;
 pub(super) enum Whose {
     /// 机器人的号。
     Bot(Id),
-    /// 会话里一个人的号。
-    User(Id),
-    /// 群号。
-    Group(Id),
+    /// 会话里一个人的号，在哪个平台（没写的照后台页的头一个驱动）。
+    User(Option<String>, Id),
+    /// 群号，在哪个平台（同上）。
+    Group(Option<String>, Id),
 }
 
 impl Whose {
-    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`user/<号>`、`group/<号>`。号照 [`Id`] 的规矩查（平台认不认得由驱动定，施工 I-82）。
+    /// 照 `/avatar/` 后面的路径认：`<号>` 是机器人，`[<平台>/]user/<号>`、`[<平台>/]group/<号>`（平台：施工 AUD-4，审计 #113，
+    /// 没写平台的 Telegram 的人、群拿到同号的 QQ 头像）。号照 [`Id`] 的规矩查（平台认不认得由驱动定，施工 I-82）。
     pub(super) fn parse(rest: &str) -> Option<Whose> {
         let number = Id::new;
-        match rest.split_once('/') {
-            None => number(rest).map(Whose::Bot),
-            Some(("user", id)) => number(id).map(Whose::User),
-            Some(("group", id)) => number(id).map(Whose::Group),
-            Some(_) => None,
+        let parts: Vec<&str> = rest.split('/').collect();
+        let (platform, kind, id) = match parts.as_slice() {
+            [bot] => return number(bot).map(Whose::Bot),
+            [kind, id] => (None, *kind, *id),
+            [platform, kind, id] if !platform.is_empty() => {
+                (Some(platform.to_string()), *kind, *id)
+            }
+            _ => return None,
+        };
+        match kind {
+            "user" => number(id).map(|id| Whose::User(platform, id)),
+            "group" => number(id).map(|id| Whose::Group(platform, id)),
+            _ => None,
         }
     }
 }
@@ -96,13 +105,15 @@ impl Faces {
             return Some(Arc::clone(avatar));
         }
         let tuning = &site.running.tuning;
-        // 机器人的照它所在的那个平台（施工 I-85 上），群、人的照后台页那个平台（第一个驱动的）。
+        // 机器人的照它所在的那个平台（施工 I-85 上），群、人的照写着的平台（施工 AUD-4），没写的照后台页那个平台（第一个驱动的）。
         let known = |station: &&crate::running::Station| match &whose {
             Whose::Bot(bot) => {
                 station.bots.get(bot).is_some()
                     || station.bots.gone().iter().any(|(gone, ..)| gone == bot)
             }
-            Whose::User(_) | Whose::Group(_) => false,
+            Whose::User(platform, _) | Whose::Group(platform, _) => {
+                platform.as_deref() == Some(station.platform.name())
+            }
         };
         let station = site
             .running
@@ -112,6 +123,14 @@ impl Faces {
             .unwrap_or_else(|| site.running.first());
         let bots = &station.bots;
         let any = || bots.first().map(|(_, link)| link);
+        // 写了平台却没有这个驱动的：不拿别的平台的号去问。
+        let named = |platform: &Option<String>| {
+            platform
+                .as_deref()
+                .is_none_or(|platform| platform == station.platform.name())
+                .then(any)
+                .flatten()
+        };
         let (face, link) = match &whose {
             Whose::Bot(bot) => {
                 if bots.get(bot).is_none() && !bots.gone().iter().any(|(gone, ..)| gone == bot) {
@@ -119,8 +138,8 @@ impl Faces {
                 }
                 (Face::User(bot.clone()), bots.get(bot).or_else(any)?)
             }
-            Whose::User(user) => (Face::User(user.clone()), any()?),
-            Whose::Group(group) => (Face::Group(group.clone()), any()?),
+            Whose::User(platform, user) => (Face::User(user.clone()), named(platform)?),
+            Whose::Group(platform, group) => (Face::Group(group.clone()), named(platform)?),
         };
         let source = match link.avatar(&face).await {
             Ok(Some(source)) => source,

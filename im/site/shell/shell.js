@@ -183,7 +183,7 @@ export function mountShell(root, { request, handed }) {
     // #plugins/<编号> 这样的：头一段是哪一页，后面交给那一页（施工 I-9 上：插件详情）。
     const [id, ...rest] = hashParts().route.split('/');
     const wanted = PAGES.find((page) => page.mount && page.id === id) || PAGES[0];
-    const path = rest.length > 0 ? decodeURIComponent(rest.join('/')) : '';
+    const path = rest.length > 0 ? decoded(rest.join('/')) : '';
     for (const [id, nav] of navs) nav.classList.toggle('on', id === wanted.id);
     current?.dispose?.();
     const view = element('section', 'view');
@@ -233,4 +233,13 @@ export function mountShell(root, { request, handed }) {
       current?.dispose?.();
     },
   };
+}
+
+/** 地址栏里的一段解开百分号；解不开的（人手敲的裸 `%`，施工 AUD-4，审计 #117）照原样，不让整页停下。 */
+function decoded(text) {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
 }

@@ -146,7 +146,25 @@ function look() {
     }),
   );
   probe.remove();
-  const rgb = (colors.surface.match(/[\d.]+/g) ?? ['255', '255', '255']).slice(0, 3).map(Number);
-  const light = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 > 0.5;
+  const [r, g, b] = srgb(colors.surface);
+  const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
   return { theme: light ? 'light' : 'dark', colors };
+}
+
+/** 算出来的颜色 `color` 的 0–255 三个分量：画到一个像素上读回来（施工 AUD-4，审计 #117：外观包写 `oklch()`、`color(srgb …)` 的，
+ *  算出来不是 `rgb()`，照数字除 255 会把白当成黑）。画不了的当白。 */
+function srgb(color) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.fillStyle = '#fff';
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+    return [r, g, b];
+  } catch {
+    return [255, 255, 255];
+  }
 }

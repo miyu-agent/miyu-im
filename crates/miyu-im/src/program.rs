@@ -125,10 +125,11 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
         ["records", "import", file] => Command::Import(PathBuf::from(file)),
         _ => return wrong(&texts, &args),
     };
-    let Some(first) = drivers.first().map(|driver| driver.platform()) else {
+    let platforms: Vec<_> = drivers.iter().map(|driver| driver.platform()).collect();
+    if platforms.is_empty() {
         eprintln!("{PROGRAM}: no driver");
         return ExitCode::from(FAILED);
-    };
+    }
     let fail = |texts: &Texts, reason: String| {
         eprintln!("{}", texts.failure(&Failure::Start(reason)));
         ExitCode::from(FAILED)
@@ -198,7 +199,7 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
                     Ok(mut connected) => {
                         crate::access::run(
                             &mut connected,
-                            (&access, first),
+                            (&access, platforms.as_slice()),
                             &texts,
                             (&mut std::io::stdout(), &mut std::io::stderr()),
                         )
