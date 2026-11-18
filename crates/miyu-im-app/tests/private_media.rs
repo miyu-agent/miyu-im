@@ -3,7 +3,7 @@
 //!
 //! - 私聊带图、带文件的一条：图当原图交进来，`venue.media` 里那一样记 `shown`；她看到正文后面一块 `[msg=…]` 和没交原图的那几样
 //!   的记号，编号照旧连着数。只带文件、取不到图又没有字的也送。
-//! - 私聊里 `fetch_media`：取文件写进这个私聊会话的工作区、取图交回图片块；一轮第五次 `too-many`，下一轮从头数。
+//! - 私聊里 `fetch_media`：取文件写进这个私聊会话的工作区、取图交回图片块；一轮取几次不限（施工 I-254，原来第五次 `too-many`）。
 //! - 核对归属：人打的 `[msg=…]` 指到别人的私聊、这个人在群里说的、别的群的，`get_msg` 以后对不上，回 `not-found`、不取不写；
 //!   群里指到私聊的消息同样。
 
@@ -143,7 +143,7 @@ async fn a_private_message_shows_its_marks_and_fetch_media_works_there() {
         [
             refused("not-found", &[]),
             refused("not-found", &[]),
-            refused("too-many", &[("count", "4")]),
+            (saved_text.clone(), "ok".to_string()),
         ]
     );
     // 对不上的不取：别人的、群里的那两样从来没去拿。
@@ -160,7 +160,7 @@ async fn a_private_message_shows_its_marks_and_fetch_media_works_there() {
         .collect();
     names.sort();
     assert_eq!(names, ["801-2-排班.pdf"], "对不上的不写");
-    // 第二轮从头数。
+    // 第二轮照样取得到。
     napcat.send(private_frame(ADMIN, 804, json!([plain("再来")])));
     let second = private_results(&home, 2).await;
     assert_eq!(answered(&second[5..]), [(saved_text, "ok".to_string())]);

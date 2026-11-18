@@ -6,8 +6,8 @@
 //!
 //! 任务里：`get_msg` 现认那一条的段（桥重启了也认得；同一套 `segments`，第几个和交给核心的 `venue.media` 一个数法），不在这个
 //! 会话里的当没有（[`owned`]：人打得出假的 `[msg=…]`，编号不能拿去看别处的消息）；图存成 blob，作为工具结果的图片块交回（核心照调用它的会话属主拷 blob，核心 O-2 三补）；存不成图的（太大、
-//! 不是图）和视频、文件一样写进这个会话工作区的 `qq-files/`，回路径。语音、小黄脸、`mface` 商城表情取不了。一轮最多取
-//! `fetch_per_turn` 次（`bridge.json`，出厂 4，照旧 Miyu），取没取到都算一次。不设大小上限。
+//! 不是图）和视频、文件一样写进这个会话工作区的 `qq-files/`，回路径。语音、小黄脸、`mface` 商城表情取不了。一轮取几次不限
+//! （施工 I-254，2026-11-19 项目主人定；原来 `fetch_per_turn` 4 次）。不设大小上限。
 //!
 //! 合并转发里的（施工 I-75）：第几个超过这条消息自己带的，照展开时的数法（`miyu_im::toolset::Numbering`）往转发里找，内联的照它、
 //! 没内联的调 `get_forward_msg`。找到的先照段里的下载地址下（`get_image` 照编号找的是外面那一条，转发里的不一定认），下不下来的再照
@@ -48,17 +48,9 @@ pub(crate) fn wanted(args: &Value) -> Result<Wanted, &'static str> {
     Ok(Wanted { msg, index })
 }
 
-/// `fetch_media` 的一次调用（模块的说明）：这一轮已经取了 `limit` 次的答 `too-many`（取没取到都算一次），参数不对的答 `not-found`，
-/// 别的交给 im 另起任务去取，最多等 `wait`。
-pub(super) fn fetch_media(
-    call: Call,
-    limit: usize,
-    (wait, image_limit): (Duration, usize),
-) -> Planned {
-    if call.used >= limit {
-        let limit = limit.to_string();
-        return Planned::Now(call.answers.say("too-many", &[("count", &limit)], true));
-    }
+/// `fetch_media` 的一次调用（模块的说明）：参数不对的答 `not-found`，别的交给 im 另起任务去取，最多等 `wait`。一轮取几次不限
+/// （施工 I-254）。
+pub(super) fn fetch_media(call: Call, (wait, image_limit): (Duration, usize)) -> Planned {
     let wanted = match wanted(&call.args) {
         Ok(wanted) => wanted,
         Err(why) => return Planned::Now(call.answers.say(why, &[], true)),

@@ -87,3 +87,59 @@ async fn messages_missed_while_away_are_backfilled_into_the_chat_log_only() {
     assert!(!log.contains("backfill truncated"), "{log}");
     stopped(home).await;
 }
+
+/// 断得久，一页装不下（施工 I-254，2026-11-19 项目主人定：原来只补最近 30 条）：照第一页最早那一条的编号往前再问一页，两页都补进来；
+/// 第二页够到了记着的那一刻就不再问。
+#[tokio::test(flavor = "multi_thread")]
+async fn a_long_absence_is_backfilled_page_by_page() {
+    let (home, napcat, listen) = started(&Script::new([]), "", "", MEMBERS).await;
+    let venue = format!("qq:30003:group:{GROUP}");
+    napcat.send(group_frame(
+        GROUP,
+        LIN,
+        1,
+        json!([plain("先说一句")]),
+        ("小林", "lin"),
+    ));
+    until_event(&home.root, &venue, |event| event["kind"] == "message.user").await;
+    drop(napcat);
+    until_logged(&home.root, |log| log.contains("napcat disconnected")).await;
+
+    let mut again = admin_napcat(listen).await;
+    // 第一页：最近的 30 条，都晚于记着的那一刻。
+    let newest: Vec<Value> = (0..30)
+        .map(|n| history(LIN, 100 + n, TIME + 1000 + n, &format!("后{n}")))
+        .collect();
+    let first = again.history(Value::Array(newest)).await;
+    assert!(
+        first.get("message_seq").is_none(),
+        "第一页从最新的问：{first}"
+    );
+    // 第二页：照第一页最早那一条（编号 100）往前，够到记着的那一刻。
+    let older: Vec<Value> = std::iter::once(history(LIN, 1, TIME, "先说一句"))
+        .chain((0..10).map(|n| history(LIN, 10 + n, TIME + 100 + n, &format!("前{n}"))))
+        .collect();
+    let second = again.history(Value::Array(older)).await;
+    assert_eq!(second["message_seq"], 100, "{second}");
+    let _serving = again.answering(MEMBERS);
+    let events = until_events(&home.root, &venue, |events| said(events).len() >= 41).await;
+    let texts: Vec<String> = said(&events)
+        .iter()
+        .filter_map(|event| {
+            event["body"]["blocks"][0]["text"]
+                .as_str()
+                .map(str::to_string)
+        })
+        .collect();
+    assert_eq!(
+        texts.len(),
+        41,
+        "实时的一条、第二页十条、第一页三十条：{texts:?}"
+    );
+    assert_eq!(
+        (texts[1].as_str(), texts[40].as_str()),
+        ("前0", "后29"),
+        "照先后"
+    );
+    stopped(home).await;
+}

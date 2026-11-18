@@ -233,7 +233,7 @@ const TOOLS: [Decl; 22] = [
 ];
 
 /// 答的话：名字和认的字段（`failed`、`unanswered`、`unreachable` 几件共用）。
-const ANSWERS: [(&str, &[&str]); 72] = [
+const ANSWERS: [(&str, &[&str]); 71] = [
     ("uploading", &["name", "size"]),
     ("still-uploading", &["name"]),
     ("not-local", &[]),
@@ -264,7 +264,6 @@ const ANSWERS: [(&str, &[&str]); 72] = [
     ("sent", &[]),
     ("no-item", &["count"]),
     ("not-fetchable", &[]),
-    ("too-many", &["count"]),
     ("recalled", &[]),
     ("muted", &["who", "duration"]),
     ("unmuted", &["who"]),
@@ -334,8 +333,6 @@ pub struct QqTools {
     pub(crate) members: usize,
     /// 下东西最多等多久（`fetch_seconds`）。
     pub(crate) wait: Duration,
-    /// `fetch_media` 一轮最多取几次（`fetch_per_turn`）。
-    pub(crate) per_turn: usize,
     /// 一张图最多多少字节（`image_max_mb`，施工 I-23）：`fetch_media` 取的图、头像照它。
     pub(crate) image_limit: usize,
     /// 传文件最多等多久（`upload_seconds`，施工 I-130）：`outbox/` 里比它还老的照没删掉的清。
@@ -352,7 +349,6 @@ impl QqTools {
             ),
             members: tuning.members_shown,
             wait: tuning.fetch(),
-            per_turn: tuning.fetch_per_turn,
             image_limit: tuning.image_limit(),
             upload: tuning.upload(),
         }
@@ -435,7 +431,7 @@ impl ToolSet for QqTools {
             ACTIVITY_RANKING => ranking::ranking(&call),
             TOKEN_USAGE => usage::usage(call, "user must be a QQ number or a name"),
             GLANCE => glance::glance(&call),
-            FETCH_MEDIA => fetch::fetch_media(call, self.per_turn, (self.wait, self.image_limit)),
+            FETCH_MEDIA => fetch::fetch_media(call, (self.wait, self.image_limit)),
             MENTION => mention::mention(call),
             QUOTE => quote::quote(call),
             SET_CARD => card::set_card(call),

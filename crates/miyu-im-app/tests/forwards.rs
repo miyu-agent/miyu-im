@@ -2,8 +2,8 @@
 //!
 //! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套三层（施工 I-234，原来两层），第四层只留占位；记进 `venue.forwards`，她的近况里那一行
 //!   下面缩进写。转发里再套的转发 NapCat 给成「聊天记录」卡片的，照卡片里的资源编号取（施工 I-237）。
-//! - 限额：一个转发 20 条、多的记进 `more`；每条正文 500 个字符；一条最多展开 4 个；几个的标 `#1` `#2`；照核心的整条上限放，放不下的
-//!   算进 `more`，消息照记。
+//! - 一个转发几条、每条多长、一条消息几个转发都不设限（施工 I-253，原来 20 条、500 个字符、4 个）；几个的标 `#1` `#2`；照核心的
+//!   整条上限放，放不下的算进 `more`，消息照记。
 //! - 取不到的只留占位、记一行运行日志，这一条后面要调的不再调；名字、正文里藏的换行伪造不出记录行；没名字的写号，号也没有的不放。
 //! - 私聊：只有转发的也送，正文是占位，那几行接在后面。
 //! - 转发里带的东西（施工 I-75）：接着这条消息自己带的编号，她照这条的 `msg` 和编号 `fetch_media` 取。
@@ -166,10 +166,11 @@ async fn chat_record_cards_inside_a_forward_are_fetched_down_to_the_third_level(
 }
 
 #[tokio::test]
-async fn limits_cut_nodes_text_and_forwards_and_several_are_numbered() {
+async fn whole_forwards_are_shown_and_several_are_numbered() {
+    // 施工 I-253（2026-11-19 项目主人：一个合并转发最多只给 AI 20 条完全不合理）：39 条全放、600 个字的一条不截、五个转发都展开。
     let lines = Lines::new([Line::says("看到了。")]);
     let (home, napcat) = up(&lines).await;
-    let many: Vec<Value> = (0..25)
+    let many: Vec<Value> = (0..39)
         .map(|n| node(20001, "阿杰", "", json!([plain(&format!("第{n}条"))])))
         .collect();
     napcat.stock_forward("fw-a", Value::Array(many));
@@ -187,15 +188,9 @@ async fn limits_cut_nodes_text_and_forwards_and_several_are_numbered() {
     )
     .await;
     let forwards = &recorded(&home, "810")["venue"]["forwards"];
-    assert_eq!(forwards[0]["nodes"].as_array().map(Vec::len), Some(20));
-    assert_eq!(forwards[0]["more"], 5);
-    assert_eq!(forwards[1]["more"], Value::Null, "全放下的不写");
-    assert_eq!(
-        forwards[1]["nodes"][0]["text"],
-        "长".repeat(500),
-        "截到 500 个字符"
-    );
-    // 一条最多展开 4 个，第五个只留占位。
+    assert_eq!(forwards[0]["nodes"].as_array().map(Vec::len), Some(39));
+    assert_eq!(forwards[0]["more"], Value::Null, "全放下的不写");
+    assert_eq!(forwards[1]["nodes"][0]["text"], long, "整条不截");
     let one = || {
         inline(
             "fw-x",
@@ -211,8 +206,7 @@ async fn limits_cut_nodes_text_and_forwards_and_several_are_numbered() {
     )
     .await;
     let body = recorded(&home, "811");
-    assert_eq!(body["venue"]["forwards"].as_array().map(Vec::len), Some(4));
-    assert_eq!(body["blocks"][0]["text"], "[forward]".repeat(5));
+    assert_eq!(body["venue"]["forwards"].as_array().map(Vec::len), Some(5));
     says(
         &home,
         &napcat,
@@ -224,12 +218,9 @@ async fn limits_cut_nodes_text_and_forwards_and_several_are_numbered() {
     results(&home, 1).await;
     let text = user_text(&lines.requests()[0]);
     assert!(text.contains("  forward #1:\n    阿杰: 第0条\n"), "{text}");
-    assert!(
-        text.contains("    (5 more not shown)\n  forward #2:\n    老王: 长"),
-        "{text}"
-    );
-    assert!(text.contains("  forward #4:\n    阿杰: 嗯\n"), "{text}");
-    assert!(!text.contains("forward #5"), "{text}");
+    assert!(text.contains("    阿杰: 第38条\n"), "最后一条也在：{text}");
+    assert!(!text.contains("more not shown"), "{text}");
+    assert!(text.contains("  forward #5:\n    阿杰: 嗯\n"), "{text}");
     stopped(home).await;
 }
 

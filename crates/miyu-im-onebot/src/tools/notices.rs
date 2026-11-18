@@ -1,5 +1,5 @@
 //! 读群公告（施工 I-37，2026-10-23 项目主人定：她能读群公告，群规、活动通知这些她就答得出）：`qq_notices`，没有参数，只给群。
-//! 照 NapCat 的 `_get_group_notice {group_id}` 取，新的在前，最多 [`MOST`] 条，每条的正文最多 [`TEXT`] 个字；只读。
+//! 照 NapCat 的 `_get_group_notice {group_id}` 取，新的在前，最多 [`MOST`] 条，每条的正文整条给（施工 I-254，原来最多 500 个字）；只读。
 //!
 //! NapCat 回的一条：`sender_id`、`publish_time`（整数秒）、`message.text`（有的实现直接给 `message` 是字、或 `content`）。读不出
 //! 正文的那条不列。名字照这个群缓存着的，没有的写号；正文过 `clean` 洗掉控制字符。
@@ -14,9 +14,6 @@ use super::lookup::{said, undone};
 
 /// 最多列几条。
 const MOST: usize = 10;
-
-/// 一条的正文最多几个字。
-const TEXT: usize = 500;
 
 /// 一条公告：谁发的、什么时候（整数秒）、正文。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +35,7 @@ pub(crate) fn notices(data: &Value) -> Vec<Notice> {
                 .or_else(|| one["message"].as_str())
                 .or_else(|| one["content"].as_str())?;
             // 换行写成空格（`clean` 去掉控制字符，不换就粘在一起）。
-            let text = clean(raw.replace('\n', " ").trim(), TEXT)?;
+            let text = clean(raw.replace('\n', " ").trim(), usize::MAX)?;
             Some(Notice {
                 sender: one["sender_id"].as_i64().map(Id::from),
                 time: one["publish_time"].as_i64().unwrap_or_default(),

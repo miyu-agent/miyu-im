@@ -12,7 +12,7 @@
 
 use std::path::PathBuf;
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 use miyu_http::testkit::Server;
 
@@ -94,12 +94,41 @@ async fn a_message_calling_her_brings_its_pictures_and_the_quoted_ones() {
 }
 
 #[tokio::test]
+async fn every_picture_of_a_message_calling_her_comes_along() {
+    // 施工 I-254（2026-11-19 项目主人定）：冲她来的那条带的图都交，原来最多 4 张，九宫格只看到 4 张。
+    let lines = Lines::new([Line::says("看到了。")]);
+    let (home, napcat) = up(&lines).await;
+    let mut words = vec![at(BOT), plain(" 看看这几张")];
+    for n in 1..=6 {
+        let id = format!("p{n}.jpg");
+        napcat.stock_file(
+            &id,
+            Ok(json!({"base64": format!("base64://{}", encoded(&png(n, n)))})),
+        );
+        words.push(image(&id, 1024));
+    }
+    says(&home, &napcat, (ADMIN, "member"), 520, Value::Array(words)).await;
+    results(&home, 1).await;
+    let request = &lines.requests()[0];
+    let names: Vec<String> = pictures(request)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(
+        names,
+        (1..=6).map(|n| format!("msg-520-{n}")).collect::<Vec<_>>(),
+        "{request:?}"
+    );
+    stopped(home).await;
+}
+
+#[tokio::test]
 async fn fetch_media_brings_back_pictures_and_saves_files() {
     let picture = png(5, 5);
     let server = Server::start(vec![serving(&picture)]).await;
     let fetch = |args: &'static str| Line::uses("", "qq_fetch_media", args);
     let lines = Lines::new([
-        // 第一轮：图、文件、小黄脸、没有的编号、第五次。
+        // 第一轮：图、文件、小黄脸、没有的编号、第五次（施工 I-254 起一轮不限次数，照常取：601 只带两样）。
         fetch(r#"{"msg":"601","index":1}"#),
         fetch(r#"{"msg":"602"}"#),
         fetch(r#"{"msg":"601","index":2}"#),
@@ -189,7 +218,7 @@ async fn fetch_media_brings_back_pictures_and_saves_files() {
         [
             refused("not-fetchable", &[]),
             refused("not-found", &[]),
-            refused("too-many", &[("count", "4")]),
+            refused("no-item", &[("count", "2")]),
         ]
     );
     admin_asks(611).await;

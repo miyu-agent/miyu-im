@@ -73,7 +73,7 @@ pub(super) const ATTRS: &[(&str, Form)] = &[
         "glance_minutes",
         Form::Kind(Kind::Int { min: 1, max: 10080 }),
     ),
-    // 看一眼那一轮最多交几条没回的新消息（施工 I-175，项目主人 11-05）：没写的照桥的出厂（`glance_records`，50）。核心的
+    // 看一眼那一轮最多交几条没回的新消息（施工 I-175，项目主人 11-05）：没写的照桥的出厂（`glance_records`，64）。核心的
     // `session.respond` 一次最多 64 条。
     ("glance_records", Form::Kind(Kind::Int { min: 1, max: 64 })),
     // 会话的说话方式（施工 I-140，原来 I-139 的开关 `brief`）：写了的，群里每开一轮都带一块事实；没写的不带（桥照它管）。

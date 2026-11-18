@@ -4,7 +4,8 @@
 //!
 //! - 群消息都先记下再判开不开一轮（「群消息」第 6 条）：交的时候还不知道，照「冲她来」取（2026-10-11 主会话定）；判下来只记下
 //!   的，图在 blob 里，近况那一行只写字（`kernel/request.md`「群聊近况」），她看不到。旁听的不取。
-//! - 一条最多 `message_images` 张（`bridge.json`，出厂 4），照这一条里的先后；引用的那一条另算，排在前面（照原来的先后：它先说的）。
+//! - 这一条带的图都取（施工 I-254，2026-11-19 项目主人定；原来最多 `message_images` 4 张，九宫格只看到 4 张），照这一条里的先后；
+//!   引用的那一条另算，排在前面（照原来的先后：它先说的）。
 //!   名字是 `msg-<编号>-<第几个>`（第几个照这一条带的东西从 1 数，和近况那一行的 `#n`、`fetch_media` 的 `index` 一个数法），
 //!   她分得清哪张是哪一条的第几样。
 //! - 一张最多 `image_max_mb`（`bridge.json`，出厂 20 MB，施工 I-23，2026-10-22 项目主人定：陌生人 @ 她就会取）：段里写了大小、超了
@@ -95,7 +96,6 @@ impl Route {
             let picked: Vec<(usize, &Media)> = (1..)
                 .zip(&media)
                 .filter(|(_, item)| item.fetch == Some(Fetch::Image))
-                .take(self.fetching.images)
                 .collect();
             let taken = join_all(
                 picked
