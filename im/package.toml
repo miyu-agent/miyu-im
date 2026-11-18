@@ -90,6 +90,16 @@ summary = { en = "Checks a request to join a group against its rule", zh = "照�
 
 # 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：im 在总线上提供名字 `chat`（核心设计 67，施工 I-211），别的包照名字调
 # （`bus.call {"name": "chat", "method": "venue"}`），只调得到这里列的；后台页的 status、connection.token 不列，只有人调得到。
+# 用量的用途叫什么（施工 I-251，核心 UP-3）：im 问模型时的 `purpose`，数据统计照 `usage.query` 的 `purpose_name` 写给人看。
+# `judge` 是判官（群里判回不回，`core/route/ask.rs`），`join-approval` 是入群审核（`miyu-im-onebot` 的 `admin/approval.rs`）。
+[[purpose]]
+id = "judge"
+name = { en = "Judge", zh = "判官", ja = "返信判定" }
+
+[[purpose]]
+id = "join-approval"
+name = { en = "Join review", zh = "入群审核", ja = "参加審査" }
+
 [export]
 provides = ["chat"]
 methods = ["chat.action", "chat.venue", "chat.media", "chat.send", "chat.note"]
