@@ -1,6 +1,6 @@
 //! 合并转发的展开（施工 O-34，`onebot.md` 第一条「群消息」第 2 条）：真核心拉起真桥、假 NapCat 答 `get_forward_msg`、她照台词说。
 //!
-//! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套三层（施工 I-234，原来两层），第四层只留占位；记进 `venue.forwards`，她的近况里那一行
+//! - 群里一条合并转发：没内联的调 `get_forward_msg` 取，内联的不调；套八层（施工 I-255，原来三层），第九层只留占位；记进 `venue.forwards`，她的近况里那一行
 //!   下面缩进写。转发里再套的转发 NapCat 给成「聊天记录」卡片的，照卡片里的资源编号取（施工 I-237）。
 //! - 一个转发几条、每条多长、一条消息几个转发都不设限（施工 I-253，原来 20 条、500 个字符、4 个）；几个的标 `#1` `#2`；照核心的
 //!   整条上限放，放不下的算进 `more`，消息照记。
@@ -96,11 +96,13 @@ async fn a_group_forward_is_fetched_nested_once_and_shown_under_the_line() {
             {"name": "阿杰", "text": "今天谁值班"},
             {"name": "老王", "text": "看这个[forward]", "forwards": [{"nodes": [
                 {"name": "小美", "text": "第二层[forward]", "media": [{"kind": "image", "id": "p.jpg", "size": 2048, "index": 1}], "forwards": [{"nodes": [
-                    {"name": "老李", "text": "第三层[forward]"},
+                    {"name": "老李", "text": "第三层[forward]", "forwards": [{"nodes": [
+                        {"name": "小周", "text": "第四层"},
+                    ]}]},
                 ]}]},
             ]}]},
         ]}]),
-        "第三层也展开、第四层只留占位（施工 I-234）；转发里的图接着编号（施工 I-75）"
+        "第四层也展开（施工 I-255 起套八层，原来三层）；转发里的图接着编号（施工 I-75）"
     );
     assert_eq!(
         napcat.fetched(),
@@ -138,13 +140,25 @@ fn chat_record(resid: &str) -> Value {
 }
 
 #[tokio::test]
-async fn chat_record_cards_inside_a_forward_are_fetched_down_to_the_third_level() {
+async fn chat_record_cards_inside_a_forward_are_fetched_down_to_the_eighth_level() {
+    // 施工 I-237（卡片照资源编号取）；施工 I-255 起套八层（核心 O-34 补，只为防栈），第九层只留占位。
     let lines = Lines::new([Line::says("看到了。")]);
     let (home, napcat) = up(&lines).await;
-    let level = |n: &str, more: Value| json!([node(20001, "", "阿杰", json!([plain(n), more]))]);
-    napcat.stock_forward("fw-1", level("一", chat_record("res-2")));
-    napcat.stock_forward("res-2", level("二", chat_record("res-3")));
-    napcat.stock_forward("res-3", level("三", chat_record("res-4")));
+    let level = |n: usize, more: Value| {
+        json!([node(
+            20001,
+            "",
+            "阿杰",
+            json!([plain(&n.to_string()), more])
+        )])
+    };
+    napcat.stock_forward("fw-1", level(1, chat_record("res-2")));
+    for n in 2..=9 {
+        napcat.stock_forward(
+            &format!("res-{n}"),
+            level(n, chat_record(&format!("res-{}", n + 1))),
+        );
+    }
     says(
         &home,
         &napcat,
@@ -153,15 +167,20 @@ async fn chat_record_cards_inside_a_forward_are_fetched_down_to_the_third_level(
         json!([forward("fw-1")]),
     )
     .await;
-    let nested = |text: &str, inner: Value| json!([{"nodes": [{"name": "阿杰", "text": text, "forwards": inner}]}]);
-    let third = json!([{"nodes": [{"name": "阿杰", "text": "三[forward]"}]}]);
+    let mut expected = json!([{"nodes": [{"name": "阿杰", "text": "8[forward]"}]}]);
+    for n in (1..=7).rev() {
+        expected = json!([{"nodes": [{"name": "阿杰", "text": format!("{n}[forward]"), "forwards": expected}]}]);
+    }
     assert_eq!(
         recorded(&home, "810")["venue"]["forwards"],
-        nested("一[forward]", nested("二[forward]", third)),
-        "卡片照转发取到第三层，第四层只留占位"
+        expected,
+        "卡片照转发取到第八层，第九层只留占位"
     );
     let asked: Vec<String> = napcat.fetched().into_iter().map(|(_, id)| id).collect();
-    assert_eq!(asked, ["fw-1", "res-2", "res-3"], "照资源编号取");
+    let wanted: Vec<String> = std::iter::once("fw-1".to_string())
+        .chain((2..=8).map(|n| format!("res-{n}")))
+        .collect();
+    assert_eq!(asked, wanted, "照资源编号取，第九层不取");
     stopped(home).await;
 }
 
@@ -224,12 +243,13 @@ async fn whole_forwards_are_shown_and_several_are_numbered() {
     stopped(home).await;
 }
 
-/// 照核心的整条上限放（100 条、名字和正文 16 KiB）：放不下的算进 `more`，消息照记，不被核心整条拒。
+/// 核心不再限条数、长短（核心 O-34 补，施工 I-255）：几百条照放；只剩连接上一行 1 MiB，照写进 JSON 的字节数放到预算为止，放不下的
+/// 算进 `more`，消息照记，不被核心整条拒。
 #[tokio::test]
-async fn the_whole_message_stays_within_the_core_limits() {
+async fn the_whole_message_stays_within_one_line() {
     let lines = Lines::new([]);
     let (home, napcat) = up(&lines).await;
-    // 条数：四个转发，每个头一条套着 30 条的转发，每个 20 条：照先后放到 100 条为止。
+    // 条数：四个转发，每个头一条套着 30 条的转发、后面 19 条：合起来 200 条，都放（原来到 100 条为止）。
     let nested = || {
         let inner: Vec<Value> = (0..30)
             .map(|_| node(20003, "小美", "", json!([plain("嗯")])))
@@ -252,26 +272,23 @@ async fn the_whole_message_stays_within_the_core_limits() {
     )
     .await;
     let forwards = &recorded(&home, "820")["venue"]["forwards"];
-    assert_eq!(count(forwards), 100, "{forwards}");
-    // 字节数：每条 300 个汉字（900 字节），四个转发各 20 条：放到 16 KiB 为止。
-    let heavy = || {
-        let nodes: Vec<Value> = (0..20)
-            .map(|_| node(20001, "阿杰", "", json!([plain(&"重".repeat(300))])))
-            .collect();
-        inline("heavy", Value::Array(nodes))
-    };
+    assert_eq!(count(forwards), 200, "{forwards}");
+    // 字节数：一个转发 400 条、每条一千个汉字（3000 字节），合起来超过一行：放到预算为止，剩下的算进 `more`。
+    let nodes: Vec<Value> = (0..400)
+        .map(|_| node(20001, "阿杰", "", json!([plain(&"重".repeat(1000))])))
+        .collect();
     says(
         &home,
         &napcat,
         (MEMBER, "member"),
         821,
-        json!([heavy(), heavy(), heavy(), heavy()]),
+        json!([inline("heavy", Value::Array(nodes))]),
     )
     .await;
     let forwards = recorded(&home, "821")["venue"]["forwards"].clone();
     let placed = count(&forwards);
-    assert_eq!(placed, 16_384 / (900 + 6), "{forwards}");
-    assert_eq!(forwards[0]["more"], 20 - placed as u64);
+    assert!((300..400).contains(&placed), "放到一行的预算为止：{placed}");
+    assert_eq!(forwards[0]["more"], 400 - placed as u64);
     assert!(!run_log(&home.root).contains("message refused"));
     stopped(home).await;
 }

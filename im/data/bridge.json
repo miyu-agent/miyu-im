@@ -25,7 +25,7 @@
   "binding_seconds": 60,
   "image_max_mb": 20,
   "fetch_seconds": 120,
-  "forward_depth": 3,
+  "forward_depth": 8,
   "hook_millis": 1500,
   "group_info_seconds": 3600,
   "mute_window_seconds": 300,

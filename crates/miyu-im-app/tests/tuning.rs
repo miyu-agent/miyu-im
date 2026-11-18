@@ -53,8 +53,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.binding(), Duration::from_secs(60));
     // 取一次最多等两分钟（施工 O-33，「平台工具（二）」）；冲她来的那条带几张原图、一轮取几次不设限（施工 I-254）。
     assert_eq!(tuning.fetch(), Duration::from_secs(120));
-    // 合并转发：套三层（施工 I-234，原来两层）；几个转发、几条、每条多长不设限（施工 I-253）。
-    assert_eq!(tuning.forward_depth, 3);
+    // 合并转发：套八层（施工 I-255，核心 O-34 补只为防栈；原来三层）；几个转发、几条、每条多长不设限（施工 I-253）。
+    assert_eq!(tuning.forward_depth, 8);
     // 问挂接点的包最多等一秒半（施工 O-43 中）。
     assert_eq!(tuning.hook(), Duration::from_millis(1500));
     // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90），那一轮最多交 64 条（施工 I-175；I-254 起出厂照核心的上限 64，原来 50）。
@@ -164,7 +164,7 @@ fn a_bad_file_is_not_read_and_named() {
         ),
         (
             "forwards-missing",
-            good.replace("\"forward_depth\": 3", "\"e\": 1"),
+            good.replace("\"forward_depth\": 8", "\"e\": 1"),
         ),
         (
             "image-size-negative",
