@@ -3,7 +3,8 @@
 //! why}]}`：今天的数照 `crate::counters` 这张卡的场所加起来，最近判断照 `crate::recent`，新的在前。
 //!
 //! - 群卡、私聊卡：那一个场所。
-//! - 「陌生群」：名单以外的群并起来；「陌生私聊」：不在私聊白名单里的人的私聊并起来（终端管理员的私聊也算在里面）。
+//! - 「陌生群」：名单以外的群并起来；「陌生私聊」：不在私聊白名单里、也没有自己私聊卡的人的私聊并起来（终端管理员没有卡的也算在
+//!   里面；有卡的照他自己那张，施工 I-256）。
 //! - 卡写错的拒 `bad_params`。
 //! - 多 `glance`（施工 I-114）：这张卡管的场所里最近看过、排着的那一个看一眼的样子（`glance::seen`），没有的不写。
 //! - 带 `venues: true` 的（施工 I-101：浮窗「概况」的统计）多交 `venues`：最近 [`SEEN_DAYS`] 天计数里见过的、这张卡管的场所，页面拿去问
@@ -130,11 +131,22 @@ impl Route {
                 })
             }
             Card::OtherPrivates(scope) => {
-                let listed: BTreeSet<String> = self
+                // 名单：白名单里的人，加上有自己私聊卡的人（整个平台的卡，加上这个号自己的，同「陌生群」；施工 I-256：终端管理员
+                // 有自己的卡、不在白名单里时，他的私聊被算进了「陌生私聊」）。
+                let mut listed: BTreeSet<String> = self
                     .whitelist_numbers(&scope.platform)
                     .into_iter()
                     .map(|id| id.to_string())
                     .collect();
+                listed.extend(
+                    self.rules
+                        .cards()
+                        .privates
+                        .iter()
+                        .filter(|card| card.platform == scope.platform)
+                        .filter(|card| card.bot.is_none() || card.bot == scope.bot)
+                        .map(|card| card.id.to_string()),
+                );
                 Box::new(move |venue: &str| {
                     parts(venue).is_some_and(|seen| {
                         seen.within(&scope)
