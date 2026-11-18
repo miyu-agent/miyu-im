@@ -120,6 +120,14 @@ pub(super) async fn handle(
             empty(StatusCode::NO_CONTENT)
         }
         (Method::GET, path) if path.starts_with("/avatar/") => {
+            // 要登录（施工 AUD-4，审计 #113：开着局域网时外人能拿它枚举机器人号、叫服务往外拉任意号的头像）：页面带着会话号取
+            // （`shell/avatar.js`，`<img>` 带不了头，照 fetch 取了再画）。
+            if bearer(&request)
+                .and_then(|session| site.logins.get(session))
+                .is_none()
+            {
+                return empty(StatusCode::UNAUTHORIZED);
+            }
             let avatar = match Whose::parse(path.trim_start_matches("/avatar/")) {
                 Some(whose) => site.faces.avatar(site, whose).await,
                 None => None,

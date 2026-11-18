@@ -213,7 +213,7 @@ export function mountVenues(view, { request, path }) {
     const top = element('div', 'top');
     const named = element('div', 'grow');
     named.append(element('div', 'name', titleOf(one)), element('div', 'id', idLine(one, context)));
-    top.append(faceOf(one), named);
+    top.append(faceOf(one, context.platform), named);
     if (one.on !== null) top.append(toggle(one, request));
     const tags = element('div', 'chips');
     for (const chip of labels) tags.append(element('span', chip.inherited ? 'chip inherited' : 'chip', chip.text));

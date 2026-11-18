@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use miyu_session::testkit::Script;
 
-use crate::support::browser::{call, changed, get, logged_in, page_port};
+use crate::support::browser::{call, changed, get, get_as, logged_in, logged_in_as, page_port};
 use crate::support::head::Head;
 use crate::support::napcat::{NICKNAME, admin_napcat};
 use crate::support::*;
@@ -59,7 +59,7 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
     serve.tuning.avatar_group_url = format!("http://127.0.0.1:{pictures}/g/{{id}}.png");
     let bridge = start(serve).await;
     let port = page_port(&bridge, 1).await;
-    let mut open = logged_in(&home.root, port).await;
+    let (mut open, session) = logged_in_as(&home.root, port).await;
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.version().await;
     // 头一回问：还没有名字，桥另去问平台；问到了推变了，再问就带上。
@@ -84,34 +84,39 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
     assert_eq!(named["connected"], true, "{named}");
     assert_eq!(named["avatar"], format!("/avatar/{BOT}"));
     // 头像由页面服务转：照模板换号去取，取过的记着。
-    let avatar = get(port, &format!("/avatar/{BOT}")).await;
+    let avatar = get_as(port, &format!("/avatar/{BOT}"), &session).await;
     assert_eq!(avatar.status, 200);
     assert_eq!(avatar.header("content-type"), Some("image/png"));
     // 头像让浏览器记十分钟（施工 I-7 上修：页面重画不闪），别的照旧不记。
     assert_eq!(avatar.header("cache-control"), Some("private, max-age=600"));
     assert_eq!(
-        get(port, "/avatar/x").await.header("cache-control"),
+        get_as(port, "/avatar/x", &session)
+            .await
+            .header("cache-control"),
         Some("no-store")
     );
     assert_eq!(avatar.body, PNG);
-    assert_eq!(get(port, &format!("/avatar/{BOT}")).await.body, PNG);
+    assert_eq!(
+        get_as(port, &format!("/avatar/{BOT}"), &session).await.body,
+        PNG
+    );
     assert_eq!(
         *seen.lock().expect("没 panic"),
         [format!("/u/{BOT}.png")],
         "取过的不再取"
     );
     assert_eq!(
-        get(port, "/avatar/12345").await.status,
+        get_as(port, "/avatar/12345", &session).await.status,
         404,
         "不认识的号不取"
     );
-    assert_eq!(get(port, "/avatar/x").await.status, 404);
+    assert_eq!(get_as(port, "/avatar/x", &session).await.status, 404);
     // 会话卡上的（施工 I-7 上）：群的、人的照各自的模板取，不查号。
     // 取过的记着：隔了别的再要也不再取。
-    assert_eq!(get(port, "/avatar/user/20004").await.body, PNG);
-    assert_eq!(get(port, "/avatar/group/777").await.body, PNG);
-    assert_eq!(get(port, "/avatar/user/20004").await.body, PNG);
-    assert_eq!(get(port, "/avatar/group/777").await.body, PNG);
+    assert_eq!(get_as(port, "/avatar/user/20004", &session).await.body, PNG);
+    assert_eq!(get_as(port, "/avatar/group/777", &session).await.body, PNG);
+    assert_eq!(get_as(port, "/avatar/user/20004", &session).await.body, PNG);
+    assert_eq!(get_as(port, "/avatar/group/777", &session).await.body, PNG);
     assert_eq!(
         *seen.lock().expect("没 panic"),
         [
@@ -121,6 +126,23 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
         ],
         "群、人的各取一次"
     );
+    // 要登录（施工 AUD-4，审计 #113）：没带会话号的、带错的都 401，也不去取。
+    assert_eq!(get(port, &format!("/avatar/{BOT}")).await.status, 401);
+    assert_eq!(get_as(port, "/avatar/user/20005", "nope").await.status, 401);
+    // 写了平台的照那个平台取；没有那个平台的驱动的不拿别的平台的号去问。
+    assert_eq!(
+        get_as(port, "/avatar/qq/user/20005", &session).await.body,
+        PNG
+    );
+    assert_eq!(
+        get_as(port, "/avatar/tg/user/20006", &session).await.status,
+        404
+    );
+    assert_eq!(
+        seen.lock().expect("没 panic").last().map(String::as_str),
+        Some("/u/20005.png"),
+        "Telegram 的号不去 QQ 的地址取"
+    );
     for wrong in [
         "/avatar/group/a:b",
         "/avatar/group/-1",
@@ -128,7 +150,7 @@ async fn a_bot_gets_its_name_avatar_and_a_card_after_it_leaves() {
         "/avatar/room/1",
         "/avatar/user/",
     ] {
-        assert_eq!(get(port, wrong).await.status, 404, "{wrong}");
+        assert_eq!(get_as(port, wrong, &session).await.status, 404, "{wrong}");
     }
     // 断开了：卡留着，写断开的时刻。
     let closing = std::time::SystemTime::now()

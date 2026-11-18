@@ -5,14 +5,15 @@ import { element, icon, say } from '../../shell/i18n.js';
 import { lucide } from '../../shell/lucide.js';
 import { toast } from '../../shell/dialog.js';
 
-/** 「查看会话」那一项：`card` 是这张卡（kind 是 group、private，id 是群号、对方的号），`request` 调宿主。 */
-export function viewSessionButton(card, request) {
+/** 「查看会话」那一项：`card` 是这张卡（kind 是 group、private，id 是群号、对方的号，bot 是问到它的机器人），`request` 调宿主，
+ *  `platform` 是后台这时选着的平台。 */
+export function viewSessionButton(card, request, platform) {
   const button = element('button', 'd-tab d-tab-out');
   button.append(element('span', 'grow', say('venue/view-session')), lucide('external-link', icon('i-link')));
   button.addEventListener('click', async () => {
     const tab = window.open('', '_blank');
     try {
-      const session = sessionOf(await request('sessions.list'), card);
+      const session = sessionOf(await request('sessions.list'), card, platform);
       if (!session) {
         tab?.close();
         toast(say('venue/view-session-none'));
@@ -31,9 +32,12 @@ export function viewSessionButton(card, request) {
   return button;
 }
 
-/** sessions.list 的回答 `listed` 里卡片 `card` 那个群、私聊的会话编号：主线优先，没有主线标记的取最新的那个；没有的是空的。 */
-export function sessionOf(listed, card) {
+/** sessions.list 的回答 `listed` 里平台 `platform` 上卡片 `card` 那个群、私聊的会话编号：主线优先，没有主线标记的取最新的那个；
+ *  没有的是空的。卡上记着机器人的只看那个号的（施工 AUD-4，审计 #117：两个平台、两个号有同号的群时找错了会话）。 */
+export function sessionOf(listed, card, platform) {
   const mine = (listed?.connections || [])
+    .filter((group) => !platform || group.platform === platform)
+    .filter((group) => card.bot == null || String(group.bot) === String(card.bot))
     .flatMap((group) => group.sessions || [])
     .filter((one) => one.kind === card.kind && String(one.id) === String(card.id));
   return (mine.find((one) => one.main) || mine[0])?.session || null;

@@ -108,7 +108,7 @@ export function mountVenues(view, { request }) {
       const name = found?.name || bots.get(String(bot));
       // 有用户名的机器人（Telegram，施工 I-183 下中）写 @用户名，不写「用户 ID 号」。
       const id = found?.username ? `@${found.username}` : `${idWord('private', on)} ${bot}`;
-      title.append(tagged ? platformDot(on) : face('private', bot, name || bot), element('strong', null, name || id));
+      title.append(tagged ? platformDot(on) : face('private', bot, name || bot, on), element('strong', null, name || id));
       if (name) title.append(element('span', 'muted', id));
     } else {
       title.append(element('strong', null, say('records/unknown-connection')));
@@ -125,7 +125,7 @@ export function mountVenues(view, { request }) {
     const side = element('span', 'records-row-side');
     const count = row.bytes == null ? say('records/count', { count: row.count }) : say('records/count-size', { count: row.count, size: sizeText(row.bytes) });
     side.append(element('span', null, when(row.last)), element('span', null, count));
-    button.append(face(row.type, row.id, titleOf(row)), text, side);
+    button.append(face(row.type, row.id, titleOf(row), row.platform), text, side);
     button.addEventListener('click', () => openVenue(row.venue));
     return button;
   };

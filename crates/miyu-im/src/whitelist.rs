@@ -3,8 +3,8 @@
 //! （核心没在跑就照 `start` 那样拉起，同 `venue show`），`config.get` 读、`config.set` 写进系统那一层；改了当场生效（桥照推来的配置换）。
 //!
 //! - `list`（不写也是它）：一项一行；空的说 [`Said::Empty`]。
-//! - `add`：号要是正整数，写错的在标准错误上说 [`Said::Bad`]、退出码 2；已经在的说 [`Said::Already`]，不写；加了的说
-//!   [`Said::Added`]。
+//! - `add`：号要是正整数，可以写成 `<平台>:<号>`（`tg:123`，平台要是挂着的那几个之一；只写号的照头一个平台，施工 AUD-4，审计 #114），
+//!   写错的在标准错误上说 [`Said::Bad`]、退出码 2；已经在的说 [`Said::Already`]，不写；加了的说 [`Said::Added`]。
 //! - `remove`：同上，不在的说 [`Said::Absent`]；去掉了的说 [`Said::Removed`]。
 //! - 连不上核心、核心拒了：标准错误上说原话，退出码 1。
 
@@ -53,22 +53,48 @@ pub enum Said {
     Absent(String),
 }
 
-/// 照 `change` 改白名单 `listed`（纯逻辑）：交回改完的（没改的是空的）和要说的那一句。号写错的交回 `Err`。
+/// 照写法认一个号 `text`：`<平台>:<号>` 照写的平台（要是挂着的 `platforms` 之一），只写号的照 `platforms` 的头一个（施工 AUD-4）；
+/// 号是正整数，`signed` 的是不为 0 的整数（Telegram 的超级群号是负的）。交回平台和照整数重写的号；写错的是空的。
+pub fn number_of(text: &str, platforms: &[Platform], signed: bool) -> Option<(Platform, String)> {
+    let text = text.trim();
+    let (platform, number) = match text.split_once(':') {
+        Some((name, number)) => {
+            let name = name.trim();
+            let platform = platforms.iter().copied().find(|one| one.name() == name)?;
+            (platform, number.trim())
+        }
+        None => (*platforms.first()?, text),
+    };
+    let number = match signed {
+        true => number
+            .parse::<i64>()
+            .ok()
+            .filter(|number| *number != 0)?
+            .to_string(),
+        false => number
+            .parse::<u64>()
+            .ok()
+            .filter(|number| *number > 0)?
+            .to_string(),
+    };
+    Some((platform, number))
+}
+
+/// 照 `change` 改白名单 `listed`（纯逻辑）：交回改完的（没改的是空的）和要说的那一句。号照 [`number_of`] 认，只写号的照
+/// `platforms` 的头一个；写错的交回 `Err`。
 ///
 /// # Errors
 ///
-/// 号不是正整数。
+/// 号不是正整数、平台不是挂着的。
 pub fn changed(
     listed: &[String],
     change: &Change,
-    platform: Platform,
+    platforms: &[Platform],
 ) -> Result<(Option<Vec<String>>, Option<Said>), Said> {
     let entry = |number: &str| -> Result<String, Said> {
-        let number = number.trim();
-        match number.parse::<u64>() {
-            Ok(parsed) if parsed > 0 => Ok(format!("{}:{parsed}", platform.name())),
-            _ => Err(Said::Bad(number.to_string())),
-        }
+        number_of(number, platforms, false)
+            .map(|(platform, number)| format!("{}:{number}", platform.name()))
+            .ok_or_else(|| Said::Bad(number.trim().to_string()))
     };
     match change {
         Change::List => Ok((None, listed.is_empty().then_some(Said::Empty))),
@@ -96,10 +122,11 @@ pub fn changed(
     }
 }
 
-/// 照 `change` 看、改白名单：经连上了的 `core` 读写，平台是 `platform`，照 `texts` 说；交回退出码（印不出去的是 1）。
+/// 照 `change` 看、改白名单：经连上了的 `core` 读写，挂着的平台是 `platforms`（头一个是只写号时的平台），照 `texts` 说；交回退出码
+/// （印不出去的是 1）。
 pub async fn run(
     core: &mut miyu_client::open::Core,
-    (change, platform): (&Change, Platform),
+    (change, platforms): (&Change, &[Platform]),
     texts: &Texts,
     (out, err): (&mut impl Write, &mut impl Write),
 ) -> u8 {
@@ -116,7 +143,7 @@ pub async fn run(
             .collect(),
         Err(refused) => return said(err, &refused.to_string(), FAILED),
     };
-    let (list, told) = match changed(&listed, change, platform) {
+    let (list, told) = match changed(&listed, change, platforms) {
         Ok(done) => done,
         Err(bad) => return said(err, &texts.whitelist(&bad), USAGE),
     };
