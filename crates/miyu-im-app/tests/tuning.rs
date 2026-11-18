@@ -55,16 +55,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.message_images, 4);
     assert_eq!(tuning.fetch_per_turn, 4);
     assert_eq!(tuning.fetch(), Duration::from_secs(120));
-    // 合并转发：一条展开 4 个、套三层（施工 I-234，原来两层）、一个放 20 条、每条 500 个字符（施工 O-34）。
-    assert_eq!(
-        (
-            tuning.message_forwards,
-            tuning.forward_depth,
-            tuning.forward_nodes,
-            tuning.forward_chars
-        ),
-        (4, 3, 20, 500)
-    );
+    // 合并转发：套三层（施工 I-234，原来两层）；几个转发、几条、每条多长不设限（施工 I-253）。
+    assert_eq!(tuning.forward_depth, 3);
     // 问挂接点的包最多等一秒半（施工 O-43 中）。
     assert_eq!(tuning.hook(), Duration::from_millis(1500));
     // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90），那一轮最多交 50 条（施工 I-175）。
@@ -182,7 +174,7 @@ fn a_bad_file_is_not_read_and_named() {
         ),
         (
             "forwards-missing",
-            good.replace("\"forward_nodes\": 20", "\"e\": 1"),
+            good.replace("\"forward_depth\": 3", "\"e\": 1"),
         ),
         (
             "images-negative",

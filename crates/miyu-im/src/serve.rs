@@ -366,10 +366,7 @@ pub async fn run(
             recent: Default::default(),
         },
         Forwarding {
-            per_message: serve.tuning.message_forwards,
             depth: serve.tuning.forward_depth,
-            nodes: serve.tuning.forward_nodes,
-            chars: serve.tuning.forward_chars,
         },
     );
     let route = Route::new(
