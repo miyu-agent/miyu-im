@@ -4,7 +4,7 @@
 //! `history-admin-only`。回复判断不在库的这一头，她查不到。
 //!
 //! 搜到的取最新的 30 条（`SHOWN`）（工具面预算紧，不给 `limit`；要更早的照时间段再查），照先后从旧到新一行一条：时刻、（跨场所的）哪个场所、谁（她自己写
-//! `you`）、`msg=` 编号（拿去引用、取图）、正文（洗掉控制字符、换行写成空格、最多 300 个字（`TEXT`））、带的东西的占位、引用了哪条、撤回了的
+//! `you`）、`msg=` 编号（拿去引用、取图）、正文（洗掉控制字符、换行写成空格、整条不截：施工 I-254，原来最多 300 个字）、带的东西的占位、引用了哪条、撤回了的
 //! 标上。头一行照模板，一行一条接在后面（同查管理记录）。
 
 use jiff::civil::{Date, DateTime};
@@ -17,9 +17,6 @@ use super::args::{Bad, bad_args, optional_text};
 
 /// 一次列几条。
 const SHOWN: i64 = 30;
-
-/// 一条的正文最多几个字。
-const TEXT: usize = 300;
 
 /// 查什么（读好的参数）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,7 +157,7 @@ fn line(one: &Value, me: Option<&str>, everywhere: bool) -> String {
     let msg = one["msg"].as_str().unwrap_or_default();
     line.push_str(&format!(" {who} msg={msg}:"));
     let text = one["text"].as_str().unwrap_or_default().replace('\n', " ");
-    if let Some(text) = clean(text.trim(), TEXT) {
+    if let Some(text) = clean(text.trim(), usize::MAX) {
         line.push(' ');
         line.push_str(&text);
     }

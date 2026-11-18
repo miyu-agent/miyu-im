@@ -3,9 +3,12 @@
 //!
 //! 1. 每个号记着每个群收到的最后一条的平台时刻（[`Seen`]，`<状态>/backfill/<号>.json`）：实时收到的群消息都记，隔
 //!    [`FLUSH`] 写一次盘，断开时再写一次。没记过的群不补（桥第一次见它以前的不算漏掉的）。
-//! 2. 号认出来以后（[`start`]）另起任务，照记着的群一个一个问 `get_group_msg_history`（最近 [`COUNT`] 条），平台时刻不早于记着的、
+//! 2. 号认出来以后（[`start`]）另起任务，照记着的群一个一个问 `get_group_msg_history`，一页 [`COUNT`] 条，平台时刻不早于记着的、
 //!    不是她自己发的，照先后交给 im。同一秒的、补拉时实时又收到的会重：命令编号同实时的那一条，核心只记一次。
-//! 3. 补满了 [`COUNT`] 条的（断得久，前面可能还有）记一行 `INFO backfill truncated`；问不到的记一行 `WARN`，这个群这次不补。
+//! 3. 一页满了、最早的一条还晚于记着的（断得久，前面还有）：照这一页最早那一条的编号（`message_seq`）往前再问一页，直到够到记着的
+//!    那一刻（施工 I-254，2026-11-19 项目主人定：原来只补最近 30 条，断久了中间的她不知道）。翻不动的（交回的没有比上一页更早的，
+//!    平台不认这个参数也是这样）停下，记一行 `INFO backfill stopped`，补到哪算哪。问不到的记一行 `WARN`：第一页就问不到的这个群这次
+//!    不补，翻到一半问不到的补已经拿到的。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -19,7 +22,7 @@ use miyu_im::TARGET;
 use miyu_im::chat::{Id, Link, Posted};
 use miyu_im::driver::Gate;
 
-/// 一个群最多补几条。
+/// 一页问几条。
 pub(crate) const COUNT: usize = 30;
 
 /// 记着的最多隔多久写一次盘：桥崩了少记的那一段下次多补几条，核心照命令编号去重。
@@ -120,28 +123,10 @@ pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: Id, groups: Vec
     let (gate, link) = (Arc::clone(gate), Arc::clone(link));
     tokio::spawn(async move {
         for (group, since) in groups {
-            let params = json!({"group_id": group, "count": COUNT});
-            let reply = match link.raw("get_group_msg_history", params).await {
-                Ok(reply) if reply["status"] == "ok" => reply,
-                Ok(reply) => {
-                    let said = reply["message"].as_str().unwrap_or_default().to_string();
-                    tracing::warn!(target: TARGET, group = %group, said, "backfill not fetched");
-                    continue;
-                }
-                Err(error) => {
-                    tracing::warn!(target: TARGET, group = %group, error = ?error, "backfill not fetched");
-                    continue;
-                }
+            let Some(found) = pages(link.as_ref(), (&bot, &group), since).await else {
+                continue;
             };
-            let (missed, full) = missed(
-                &reply["data"]["messages"],
-                (bot.clone(), group.clone()),
-                since,
-            );
-            if full {
-                tracing::info!(target: TARGET, group = %group, count = COUNT, "backfill truncated");
-            }
-            for posted in missed {
+            for posted in found {
                 if !gate
                     .inbound(Event::Backfilled {
                         group: group.clone(),
@@ -156,9 +141,69 @@ pub(crate) fn start(gate: &Arc<Gate>, link: &Arc<dyn Link>, bot: Id, groups: Vec
     });
 }
 
-/// 平台交回的最近几条（`messages`）里漏掉的：号 `bot` 收到的、群 `group` 的、平台时刻不早于 `since` 的、不是她自己发的，照
-/// 时刻、编号排好；另交回前面是不是可能还有（交回了 [`COUNT`] 条，最早的一条也晚于 `since`）。读不出的那一条不要。
-pub(crate) fn missed(messages: &Value, (bot, group): (Id, Id), since: i64) -> (Vec<Posted>, bool) {
+/// 群 `group` 从 `since` 起漏掉的，一页页往前问齐（模块的说明第 2、3 条），照先后排好、去掉重的。第一页就问不到的是空的。
+async fn pages(link: &dyn Link, (bot, group): (&Id, &Id), since: i64) -> Option<Vec<Posted>> {
+    let mut found: BTreeMap<(i64, i64), Posted> = BTreeMap::new();
+    let mut before: Option<i64> = None;
+    let mut reached: Option<(i64, i64)> = None;
+    loop {
+        let mut params = json!({"group_id": group, "count": COUNT});
+        if let Some(seq) = before {
+            params["message_seq"] = json!(seq);
+        }
+        let reply = match link.raw("get_group_msg_history", params).await {
+            Ok(reply) if reply["status"] == "ok" => reply,
+            Ok(reply) => {
+                let said = reply["message"].as_str().unwrap_or_default().to_string();
+                tracing::warn!(target: TARGET, group = %group, said, "backfill not fetched");
+                return before.is_some().then(|| found.into_values().collect());
+            }
+            Err(error) => {
+                tracing::warn!(target: TARGET, group = %group, error = ?error, "backfill not fetched");
+                return before.is_some().then(|| found.into_values().collect());
+            }
+        };
+        let page = missed(
+            &reply["data"]["messages"],
+            (bot.clone(), group.clone()),
+            since,
+        );
+        // 翻没翻到更早的：头一页有就算；之后的要比上一页最早的还早，不然平台交回的还是这几条，再问也一样。
+        let older = match (reached, page.earliest) {
+            (_, None) => false,
+            (None, Some(_)) => true,
+            (Some(last), Some(earliest)) => earliest < last,
+        };
+        for posted in page.found {
+            found.insert((posted.time, posted.message_id), posted);
+        }
+        match (page.more, older, page.earliest) {
+            (true, true, Some(earliest)) => {
+                before = Some(earliest.1);
+                reached = Some(earliest);
+            }
+            (true, false, _) => {
+                tracing::info!(target: TARGET, group = %group, count = found.len(), "backfill stopped");
+                break;
+            }
+            _ => break,
+        }
+    }
+    Some(found.into_values().collect())
+}
+
+/// 一页认下来的：漏掉的几条、前面是不是可能还有、这一页最早的一条（平台时刻、编号）。
+#[derive(Debug)]
+pub(crate) struct Page {
+    pub(crate) found: Vec<Posted>,
+    pub(crate) more: bool,
+    pub(crate) earliest: Option<(i64, i64)>,
+}
+
+/// 平台交回的一页（`messages`）里漏掉的：号 `bot` 收到的、群 `group` 的、平台时刻不早于 `since` 的、不是她自己发的，照
+/// 时刻、编号排好；另交回前面是不是可能还有（交回了 [`COUNT`] 条，最早的一条也晚于 `since`）和这一页最早的一条（照它往前翻）。
+/// 读不出的那一条不要。
+pub(crate) fn missed(messages: &Value, (bot, group): (Id, Id), since: i64) -> Page {
     let all = messages.as_array().map(Vec::as_slice).unwrap_or_default();
     let read: Vec<Posted> = all
         .iter()
@@ -187,14 +232,21 @@ pub(crate) fn missed(messages: &Value, (bot, group): (Id, Id), since: i64) -> (V
             }
         })
         .collect();
-    let earliest = read.iter().map(|posted| posted.time).min();
-    let full = all.len() >= COUNT && earliest.is_some_and(|earliest| earliest > since);
+    let earliest = read
+        .iter()
+        .map(|posted| (posted.time, posted.message_id))
+        .min();
+    let more = all.len() >= COUNT && earliest.is_some_and(|(time, _)| time > since);
     let mut found: Vec<Posted> = read
         .into_iter()
         .filter(|posted| posted.time >= since && posted.user != bot)
         .collect();
     found.sort_by_key(|posted| (posted.time, posted.message_id));
-    (found, full)
+    Page {
+        found,
+        more,
+        earliest,
+    }
 }
 
 #[cfg(test)]

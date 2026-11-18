@@ -360,16 +360,12 @@ pub async fn run(
             glance: serve.tuning.glance(),
         },
         Fetching {
-            images: serve.tuning.message_images,
             quick: serve.tuning.call_timeout(),
             image_limit: serve.tuning.image_limit(),
             recent: Default::default(),
         },
         Forwarding {
-            per_message: serve.tuning.message_forwards,
             depth: serve.tuning.forward_depth,
-            nodes: serve.tuning.forward_nodes,
-            chars: serve.tuning.forward_chars,
         },
     );
     let route = Route::new(

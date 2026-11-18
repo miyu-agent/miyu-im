@@ -9,10 +9,10 @@
 //! - 每条照同一套认段（`segments`）：字照原样接，@ 写成 `@名字`（群里照群成员的缓存，不另问；没有的、私聊的写号），带的东西
 //!   同 `venue.media` 的洗法；名字照节点的发的人（群名片、昵称，洗法同 `name`），都没有的写号，号也没有的这一条不放、算进
 //!   `more`。里面又是 `forward` 的照层数往下取。
-//! - 限额（`bridge.json`）：一条消息（转发里的一条也算一条）最多展开 `message_forwards` 个转发，多的只留占位；套
-//!   `forward_depth` 层，再深的只留占位；一个转发最多放 `forward_nodes` 条，多的记进 `more`；每条正文截到 `forward_chars` 个字符，
-//!   再夹到核心的 4096 字节。
-//!   另照核心的整条上限（所有转发合起来 100 条、名字和正文 16 KiB）一条条放，放不下的算进 `more`：超了核心整条拒，这条消息就丢了。
+//! - 限额：套 `forward_depth` 层（`bridge.json`），再深的只留占位。一条消息几个转发、一个转发几条、每条多长 im 自己不设限（施工
+//!   I-253，2026-11-19 项目主人定：原来一个转发只放 20 条、每条 500 字、一条消息 4 个转发，AI 看转发看到一半就没了），每条正文
+//!   只夹到核心的 4096 字节。
+//!   照核心的整条上限（所有转发合起来 100 条、名字和正文 16 KiB）一条条放，放不下的算进 `more`：超了核心整条拒，这条消息就丢了。
 //!   一条都放不进的转发不交。
 //! - 带的东西的编号（施工 I-75，`crate::media::numbered` 那一套）：接着这条消息自己带的数，放进去的那几样带上 `index`，核心写成
 //!   `[image #<编号>: …]`，她照这条消息的 `msg` 和编号 `fetch_media`。没放进去的几条照样数；打不开的转发（取不到的，照限额没去取、
@@ -42,14 +42,8 @@ const TEXT_BYTES: usize = 4096;
 /// 展开合并转发的几个数（`bridge.json`，施工 O-34）。
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Forwarding {
-    /// 一条消息最多展开几个转发（`message_forwards`）。
-    pub(crate) per_message: usize,
     /// 最多套几层（`forward_depth`）：消息里的转发是第一层。
     pub(crate) depth: usize,
-    /// 一个转发最多放几条（`forward_nodes`）。
-    pub(crate) nodes: usize,
-    /// 每条正文最多几个字符（`forward_chars`）。
-    pub(crate) chars: usize,
 }
 
 /// 要展开的一条消息：收进它的机器人号、在哪（群、私聊的对方）、平台编号（只记运行日志）、自己带了几样、它的转发、它引用的
@@ -169,19 +163,15 @@ impl Route {
                 budget.numbers.skip(forwards);
                 return out;
             }
-            for (taken, forwarded) in forwards.iter().enumerate() {
-                if taken >= limits.per_message {
-                    budget.numbers.skip(std::slice::from_ref(forwarded));
-                    continue;
-                }
+            for forwarded in forwards {
                 let Some(messages) = messages(at, forwarded, budget).await else {
                     budget.numbers.stop();
                     continue;
                 };
                 let mut nodes = Vec::new();
                 let mut placing = true;
-                for (seen, read) in messages.iter().enumerate() {
-                    placing &= seen < limits.nodes && budget.nodes > 0;
+                for read in &messages {
+                    placing &= budget.nodes > 0;
                     let placed = match placing {
                         true => self.node(at, read, depth, budget).await,
                         false => Err(false),
@@ -223,7 +213,7 @@ impl Route {
             .and_then(|name| clean(name, NAME))
             .or_else(|| read.user.clone().map(|user| user.to_string()))
             .ok_or(false)?;
-        let text = clip(&self.words(at, &read.segments), self.forwarding.chars);
+        let text = clip(&self.words(at, &read.segments));
         let bytes = name.len() + text.len();
         if bytes > budget.bytes {
             return Err(true);
@@ -319,11 +309,11 @@ pub(super) fn with_placeholders(text: &str, forwards: usize) -> String {
     out
 }
 
-/// 转发里一条的正文：截到 `chars` 个字符，再夹到核心的 [`TEXT_BYTES`] 字节（截在字的边界上）。`forward_chars` 调大了、全是
-/// 4 字节的字（1025 个以上）也不超核心的上限：超了核心整条拒，这条消息就丢了（2026-10-11 核心审时建议）。
-pub(super) fn clip(text: &str, chars: usize) -> String {
+/// 转发里一条的正文：夹到核心的 [`TEXT_BYTES`] 字节（截在字的边界上）：超了核心整条拒，这条消息就丢了（2026-10-11 核心审时
+/// 建议）。im 自己不再先截字数（施工 I-253）。
+pub(super) fn clip(text: &str) -> String {
     let mut out = String::new();
-    for c in text.chars().take(chars) {
+    for c in text.chars() {
         if out.len() + c.len_utf8() > TEXT_BYTES {
             break;
         }

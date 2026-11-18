@@ -22,14 +22,20 @@ fn only_what_came_after_the_last_seen_and_not_her_own_are_backfilled() {
         history(777, 2, 11, 1100),
         history(888, 2, 14, 1400),
     ]);
-    let (found, full) = missed(&messages, (Id::from(1), Id::from(777)), 1100);
+    let page = missed(&messages, (Id::from(1), Id::from(777)), 1100);
+    let found = &page.found;
     let ids: Vec<i64> = found.iter().map(|posted| posted.message_id).collect();
     assert_eq!(
         ids,
         [11, 13],
         "同一秒的也交（核心照命令编号去重），她自己的、别的群的、更早的不交"
     );
-    assert!(!full);
+    assert!(!page.more);
+    assert_eq!(
+        page.earliest,
+        Some((1000, 10)),
+        "这一页最早的一条：她自己的也算（照它往前翻）"
+    );
     assert_eq!(found[1].bot, Id::from(1));
     assert_eq!(found[1].text, "第 13 条");
 }
@@ -39,16 +45,13 @@ fn a_full_page_newer_than_the_mark_says_more_may_be_missing() {
     let page: Vec<Value> = (0..COUNT as i64)
         .map(|n| history(777, 2, n, 2000 + n))
         .collect();
-    let (found, full) = missed(&json!(page), (Id::from(1), Id::from(777)), 1000);
-    assert_eq!((found.len(), full), (COUNT, true));
-    let (_, full) = missed(&json!(page), (Id::from(1), Id::from(777)), 2000);
-    assert!(!full, "最早的一条就是记着的那一秒：前面没漏");
-    assert_eq!(
-        missed(&json!(null), (Id::from(1), Id::from(777)), 0)
-            .0
-            .len(),
-        0
-    );
+    let full = missed(&json!(page), (Id::from(1), Id::from(777)), 1000);
+    assert_eq!((full.found.len(), full.more), (COUNT, true));
+    assert_eq!(full.earliest, Some((2000, 0)));
+    let reached = missed(&json!(page), (Id::from(1), Id::from(777)), 2000);
+    assert!(!reached.more, "最早的一条就是记着的那一秒：前面没漏");
+    let none = missed(&json!(null), (Id::from(1), Id::from(777)), 0);
+    assert_eq!((none.found.len(), none.earliest), (0, None));
 }
 
 #[test]
