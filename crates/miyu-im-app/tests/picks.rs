@@ -38,7 +38,7 @@ async fn slash_model_switches_a_card_that_belongs_to_this_bot() {
         "读的也是这个号的那张"
     );
     napcat.admin_says(2, "/model 2").await;
-    assert_eq!(napcat.reply().await, "换成 @lite 了");
+    assert_eq!(napcat.reply().await, "已切换为 @lite");
     let card = own_card(&dir);
     assert_eq!(card["set"]["model"], "@lite", "{card}");
     assert_eq!(card["bot"], BOT, "改的是原来那张，没另建");
@@ -80,7 +80,7 @@ async fn slash_persona_and_preset_list_with_numbers_and_switch_by_number() {
             None => shown,
         };
         napcat.admin_says(say + 2, &format!("{command} 1")).await;
-        assert_eq!(napcat.reply().await, format!("换成 {shown} 了"));
+        assert_eq!(napcat.reply().await, format!("已切换为 {shown}"));
         let card = own_card(&dir);
         assert_eq!(card["set"][key], id, "写进了这个会话的卡片：{card}");
         napcat.admin_says(say + 3, command).await;
@@ -91,7 +91,7 @@ async fn slash_persona_and_preset_list_with_numbers_and_switch_by_number() {
                 .starts_with(&format!("现在用的是 {shown}\n"))
         );
         napcat.admin_says(say + 4, &format!("{command} 默认")).await;
-        assert_eq!(napcat.reply().await, "改回跟随默认了");
+        assert_eq!(napcat.reply().await, "已改回跟随默认");
         assert_eq!(own_card(&dir)["set"][key], Value::Null);
     }
     bridge.stop().await.expect("停得下");

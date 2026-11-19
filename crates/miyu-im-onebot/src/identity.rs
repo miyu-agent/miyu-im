@@ -57,7 +57,7 @@ impl Builtin for Identity {
         Declared {
             name: words("识人术", "Identity", "なりすまし防止"),
             summary: words(
-                "认清谁是谁：有人借了别人的名字，提醒 AI 这不是那个人。",
+                "识别冒充者：有人使用别人的名字时，提醒 AI 这不是本人。",
                 "Tells who is who: when someone borrows another person's name, reminds the AI it is not them.",
                 "誰が誰かを見分けます。他人の名前を名乗る人がいたら、本人ではないと AI に伝えます。",
             ),

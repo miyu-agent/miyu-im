@@ -56,14 +56,14 @@ async fn slash_loop_in_a_group_switches_the_autonomous_loop_and_nothing_else() {
     let on = napcat.action().await;
     assert_eq!(
         (on["action"].as_str(), text_of(&on)),
-        (Some("send_group_msg"), "这个群的自主循环开了"),
+        (Some("send_group_msg"), "这个群的自主循环已开启"),
         "{on}"
     );
     assert_eq!(glance(&home), true);
     napcat.send(group_says(ADMIN, 61, "/loop 5m 看看群里"));
     assert_eq!(
         text_of(&napcat.action().await),
-        "群里只有 /loop（开自主循环）和 /loop off（关）"
+        "群里可以使用 /loop 开启自主循环，/loop off 关闭"
     );
     assert_eq!(glance(&home), true, "用法不改卡片");
     // 别人打的：什么都不回，卡片不动。接着管理员关上，下一个动作就是关上的回执。
@@ -71,7 +71,7 @@ async fn slash_loop_in_a_group_switches_the_autonomous_loop_and_nothing_else() {
     napcat.send(group_says(ADMIN, 63, "/loop off"));
     assert_eq!(
         text_of(&napcat.action().await),
-        "这个群的自主循环关了",
+        "这个群的自主循环已关闭",
         "小林的没回"
     );
     assert_eq!(glance(&home), false);

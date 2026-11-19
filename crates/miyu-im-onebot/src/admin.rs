@@ -93,7 +93,7 @@ impl Builtin for Admin {
         Declared {
             name: words("群管理", "Group admin", "グループ管理"),
             summary: words(
-                "AI 是管理员的群里，让 AI 禁言、踢人、查管理记录。",
+                "在 AI 担任管理员的群里，让 AI 可以禁言、踢人、查看管理记录。",
                 "In groups where the AI is an admin, lets the AI mute, kick and look up moderation records.",
                 "AI が管理者のグループで、AI がミュート、退出、管理記録の確認をできるようにします。",
             ),

@@ -30,7 +30,7 @@
     "ja": "グループ"
   },
   "remove": {
-    "zh": "删掉",
+    "zh": "删除",
     "en": "Remove",
     "ja": "削除"
   },
@@ -55,7 +55,7 @@
     "ja": "ペース"
   },
   "heading.out": {
-    "zh": "发出去",
+    "zh": "发送",
     "en": "Sending",
     "ja": "送信"
   },
@@ -80,12 +80,12 @@
     "ja": "トリガー語"
   },
   "field.managers": {
-    "zh": "管理的人",
+    "zh": "管理员",
     "en": "Managers",
     "ja": "管理者"
   },
   "field.show_ids": {
-    "zh": "看得到 QQ 号",
+    "zh": "显示 QQ 号",
     "en": "Sees QQ numbers",
     "ja": "QQ 番号を見る"
   },
@@ -125,7 +125,7 @@
     "ja": "長文のしきい値"
   },
   "hint.persona": {
-    "zh": "改了以后新开的会话才换",
+    "zh": "修改后，新开的会话才会使用新人格",
     "en": "Takes effect in new conversations",
     "ja": "新しい会話から反映"
   },
@@ -145,7 +145,7 @@
     "ja": "例：3/60s（60 秒に最大 3 件）"
   },
   "hint.long_chars": {
-    "zh": "超过几个字算长文，0 是不算",
+    "zh": "超过多少字算作长文，0 表示不算",
     "en": "Characters before a reply counts as long; 0 turns it off",
     "ja": "この文字数を超えると長文、0 で無効"
   },
@@ -165,7 +165,7 @@
     "ja": "既定 · {}"
   },
   "unset": {
-    "zh": "不设",
+    "zh": "不设置",
     "en": "Not set",
     "ja": "未設定"
   },
@@ -185,47 +185,47 @@
     "ja": "このカードはもうありません"
   },
   "whitelist_changed": {
-    "zh": "白名单刚被别处改过，请再试一次",
+    "zh": "白名单刚在其他地方被修改，请再试一次",
     "en": "The whitelist was just changed elsewhere, try again",
     "ja": "ホワイトリストが他で変更されました。もう一度お試しください"
   },
   "whitelist_failed": {
-    "zh": "改不了白名单：{}",
+    "zh": "无法修改白名单：{}",
     "en": "Could not change the whitelist: {}",
     "ja": "ホワイトリストを変更できません：{}"
   },
   "not_saved": {
-    "zh": "存不进盘",
+    "zh": "无法保存到磁盘",
     "en": "Could not save",
     "ja": "保存できません"
   },
   "problem.value": {
-    "zh": "写法不对",
+    "zh": "格式不正确",
     "en": "Not valid",
     "ja": "書き方が正しくありません"
   },
   "problem.unknown_key": {
-    "zh": "没有这一格",
+    "zh": "没有这个设置项",
     "en": "Unknown field",
     "ja": "不明な項目"
   },
   "problem.other": {
-    "zh": "写法不对",
+    "zh": "格式不正确",
     "en": "Not valid",
     "ja": "書き方が正しくありません"
   },
   "problem.field.rate": {
-    "zh": "要写成 3/60s 这样：60 秒最多 3 条",
+    "zh": "需要写成 3/60s 的格式，表示 60 秒最多 3 条",
     "en": "Write it like 3/60s: at most 3 per 60 seconds",
     "ja": "3/60s のように書いてください（60 秒に最大 3 件）"
   },
   "problem.field.sleep": {
-    "zh": "要写成 23:00-07:00 这样",
+    "zh": "需要写成 23:00-07:00 的格式",
     "en": "Write it like 23:00-07:00",
     "ja": "23:00-07:00 のように書いてください"
   },
   "problem.field.long_chars": {
-    "zh": "要填 0 到 100000 的整数",
+    "zh": "需要填写 0 到 100000 的整数",
     "en": "Enter a whole number from 0 to 100000",
     "ja": "0 から 100000 の整数を入力してください"
   },
@@ -235,7 +235,7 @@
     "ja": "その人格はありません"
   },
   "problem.field.managers": {
-    "zh": "写 QQ 号",
+    "zh": "填写 QQ 号",
     "en": "Write QQ numbers",
     "ja": "QQ 番号を書いてください"
   },
@@ -250,7 +250,7 @@
     "ja": "最終メッセージのみ送信"
   },
   "hint.final_only": {
-    "zh": "调工具时说的话不发，只发这一轮最后那段",
+    "zh": "不发送调用工具时说的话，只发送这一轮最后一段",
     "en": "Words said while using tools are not sent, only the last reply of a turn",
     "ja": "ツール使用中の発言は送らず、そのターン最後の返信だけを送る"
   },
@@ -280,17 +280,17 @@
     "ja": "既定に従っています"
   },
   "model-set": {
-    "zh": "换成 {name} 了",
+    "zh": "已切换为 {name}",
     "en": "Switched to {name}",
     "ja": "{name} に切り替えました"
   },
   "model-cleared": {
-    "zh": "改回跟随默认了",
+    "zh": "已改回跟随默认",
     "en": "Back to the default",
     "ja": "既定に戻しました"
   },
   "model-usage": {
-    "zh": "/model search：列出全部模型（带编号）\n/model search <关键词>：搜\n/model <编号>：切换\n/model 默认：改回跟随默认",
+    "zh": "/model search：列出全部模型（带编号）\n/model search <关键词>：搜索\n/model <编号>：切换\n/model 默认：改回跟随默认",
     "en": "/model search: list every model with a number\n/model search <keywords>: narrow the list\n/model <number>: switch\n/model default: follow the default",
     "ja": "/model search：全部のモデルを番号つきで一覧\n/model search <キーワード>：絞り込み\n/model <番号>：切り替え\n/model 既定：既定に戻す"
   },
@@ -305,22 +305,22 @@
     "ja": "（使用中）"
   },
   "model-search-none": {
-    "zh": "没找到和「{query}」对得上的",
+    "zh": "没有找到和「{query}」匹配的结果",
     "en": "Nothing matches \"{query}\"",
     "ja": "「{query}」に当てはまるものはありません"
   },
   "model-none": {
-    "zh": "没有「{query}」这个编号或模型，用 /model search 看编号",
+    "zh": "没有「{query}」这个编号或模型，可以用 /model search 查看编号",
     "en": "No model numbered or named \"{query}\", see the numbers with /model search",
     "ja": "「{query}」という番号やモデルはありません。/model search で番号を確認してください"
   },
   "model-no-card": {
-    "zh": "卡片没存上，看运行日志",
+    "zh": "卡片保存失败，请查看运行日志",
     "en": "The card was not saved, see the log",
     "ja": "カードを保存できませんでした。ログを確認してください"
   },
   "model-refused": {
-    "zh": "没换成：{detail}",
+    "zh": "切换失败：{detail}",
     "en": "Not switched: {detail}",
     "ja": "切り替えられませんでした：{detail}"
   },
@@ -340,17 +340,17 @@
     "ja": "既定に従っています"
   },
   "persona-set": {
-    "zh": "换成 {name} 了",
+    "zh": "已切换为 {name}",
     "en": "Switched to {name}",
     "ja": "{name} に切り替えました"
   },
   "persona-cleared": {
-    "zh": "改回跟随默认了",
+    "zh": "已改回跟随默认",
     "en": "Back to the default",
     "ja": "既定に戻しました"
   },
   "persona-usage": {
-    "zh": "/persona search：列出全部人格（带编号）\n/persona search <关键词>：搜\n/persona <编号>：切换\n/persona 默认：改回跟随默认",
+    "zh": "/persona search：列出全部人格（带编号）\n/persona search <关键词>：搜索\n/persona <编号>：切换\n/persona 默认：改回跟随默认",
     "en": "/persona search: list every persona with a number\n/persona search <keywords>: narrow the list\n/persona <number>: switch\n/persona default: follow the default",
     "ja": "/persona search：全部のペルソナを番号つきで一覧\n/persona search <キーワード>：絞り込み\n/persona <番号>：切り替え\n/persona 既定：既定に戻す"
   },
@@ -365,22 +365,22 @@
     "ja": "（使用中）"
   },
   "persona-search-none": {
-    "zh": "没找到和「{query}」对得上的",
+    "zh": "没有找到和「{query}」匹配的结果",
     "en": "Nothing matches \"{query}\"",
     "ja": "「{query}」に当てはまるものはありません"
   },
   "persona-none": {
-    "zh": "没有「{query}」这个编号或人格，用 /persona search 看编号",
+    "zh": "没有「{query}」这个编号或人格，可以用 /persona search 查看编号",
     "en": "No persona numbered or named \"{query}\", see the numbers with /persona search",
     "ja": "「{query}」という番号やペルソナはありません。/persona search で番号を確認してください"
   },
   "persona-no-card": {
-    "zh": "卡片没存上，看运行日志",
+    "zh": "卡片保存失败，请查看运行日志",
     "en": "The card was not saved, see the log",
     "ja": "カードを保存できませんでした。ログを確認してください"
   },
   "persona-refused": {
-    "zh": "没换成：{detail}",
+    "zh": "切换失败：{detail}",
     "en": "Not switched: {detail}",
     "ja": "切り替えられませんでした：{detail}"
   },
@@ -400,17 +400,17 @@
     "ja": "既定に従っています"
   },
   "preset-set": {
-    "zh": "换成 {name} 了",
+    "zh": "已切换为 {name}",
     "en": "Switched to {name}",
     "ja": "{name} に切り替えました"
   },
   "preset-cleared": {
-    "zh": "改回跟随默认了",
+    "zh": "已改回跟随默认",
     "en": "Back to the default",
     "ja": "既定に戻しました"
   },
   "preset-usage": {
-    "zh": "/preset search：列出全部预设（带编号）\n/preset search <关键词>：搜\n/preset <编号>：切换\n/preset 默认：改回跟随默认",
+    "zh": "/preset search：列出全部预设（带编号）\n/preset search <关键词>：搜索\n/preset <编号>：切换\n/preset 默认：改回跟随默认",
     "en": "/preset search: list every preset with a number\n/preset search <keywords>: narrow the list\n/preset <number>: switch\n/preset default: follow the default",
     "ja": "/preset search：全部のプリセットを番号つきで一覧\n/preset search <キーワード>：絞り込み\n/preset <番号>：切り替え\n/preset 既定：既定に戻す"
   },
@@ -425,52 +425,52 @@
     "ja": "（使用中）"
   },
   "preset-search-none": {
-    "zh": "没找到和「{query}」对得上的",
+    "zh": "没有找到和「{query}」匹配的结果",
     "en": "Nothing matches \"{query}\"",
     "ja": "「{query}」に当てはまるものはありません"
   },
   "preset-none": {
-    "zh": "没有「{query}」这个编号或预设，用 /preset search 看编号",
+    "zh": "没有「{query}」这个编号或预设，可以用 /preset search 查看编号",
     "en": "No preset numbered or named \"{query}\", see the numbers with /preset search",
     "ja": "「{query}」という番号やプリセットはありません。/preset search で番号を確認してください"
   },
   "preset-no-card": {
-    "zh": "卡片没存上，看运行日志",
+    "zh": "卡片保存失败，请查看运行日志",
     "en": "The card was not saved, see the log",
     "ja": "カードを保存できませんでした。ログを確認してください"
   },
   "preset-refused": {
-    "zh": "没换成：{detail}",
+    "zh": "切换失败：{detail}",
     "en": "Not switched: {detail}",
     "ja": "切り替えられませんでした：{detail}"
   },
   "hint.glance": {
-    "zh": "AI 时不时看一眼群聊，自主决定回什么消息，要做什么",
+    "zh": "AI 不定时看一眼群聊，自主决定回复什么、做什么",
     "en": "Now and then the AI looks at the chat and decides on its own what to reply and what to do",
     "ja": "AI がときどきチャットを覗いて、何を返すか、何をするかを自分で決めます"
   },
   "loop-on": {
-    "zh": "这个群的自主循环开了",
+    "zh": "这个群的自主循环已开启",
     "en": "The autonomous loop is on for this group",
     "ja": "このグループの自律ループをオンにしました"
   },
   "loop-off": {
-    "zh": "这个群的自主循环关了",
+    "zh": "这个群的自主循环已关闭",
     "en": "The autonomous loop is off for this group",
     "ja": "このグループの自律ループをオフにしました"
   },
   "loop-usage": {
-    "zh": "群里只有 /loop（开自主循环）和 /loop off（关）",
+    "zh": "群里可以使用 /loop 开启自主循环，/loop off 关闭",
     "en": "In groups there is only /loop (turn the autonomous loop on) and /loop off (turn it off)",
     "ja": "グループでは /loop（自律ループをオン）と /loop off（オフ）だけです"
   },
   "loop-refused": {
-    "zh": "没改成：{detail}",
+    "zh": "修改失败：{detail}",
     "en": "Not changed: {detail}",
     "ja": "変更できませんでした：{detail}"
   },
   "loop-no-card": {
-    "zh": "卡片没存上，看运行日志",
+    "zh": "卡片保存失败，请查看运行日志",
     "en": "The card was not saved, see the log",
     "ja": "カードを保存できませんでした。ログを確認してください"
   }
