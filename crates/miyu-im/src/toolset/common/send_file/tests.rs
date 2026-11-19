@@ -1,5 +1,5 @@
 //! 传文件只认工作区里的普通文件、钉住了再交（施工 I-130）：相对的、绝对的都照真实位置比；`..`、指出去的链接、目录、不在的都不认；
-//! 钉住以后原文件换成指出去的链接，钉住的那一份照旧是原来的内容（core1 11-04 审出来的时间差）。
+//! 钉住以后原文件换成指出去的链接，钉住的那一份照旧是原来的内容（11-04 审查发现的时间差）。
 
 use super::*;
 
@@ -181,7 +181,7 @@ fn a_shortcut_is_not_followed_even_inside_the_workspace() {
 #[cfg(unix)]
 #[test]
 fn a_file_swapped_for_a_link_after_the_check_is_not_copied_through_it() {
-    // core1 11-10 审出来的时间差：判的时候是普通文件，钉的时候换成了指向 `~/.ssh/id_rsa` 这类的链接。钉的那一步（`taken`）不跟
+    // 11-10 审查发现的时间差：判的时候是普通文件，钉的时候换成了指向 `~/.ssh/id_rsa` 这类的链接。钉的那一步（`taken`）不跟
     // 链接：拿到的已经是判过的位置，换成链接的照样不拷，`outbox/` 里没有外面那份的内容。
     let (root, workspace, outbox) = setup("swapped");
     let at = workspace.join("out/report.pdf");
@@ -204,7 +204,7 @@ fn a_file_swapped_for_a_link_after_the_check_is_not_copied_through_it() {
 #[cfg(unix)]
 #[test]
 fn a_folder_swapped_for_a_link_is_not_walked_through() {
-    // core1 11-10 审出来的第二处：判完到开之间把工作区里的子目录换成指向外面目录（`~/.ssh` 这类）的链接，只管最后一段的
+    // 11-10 审查发现的第二处：判完到开之间把工作区里的子目录换成指向外面目录（`~/.ssh` 这类）的链接，只管最后一段的
     // `O_NOFOLLOW` 拦不住中间那一段。一级一级往下开、每一级都不跟链接：中间那一段是链接的照样不开，`outbox/` 里没有外面的内容。
     let (root, workspace, outbox) = setup("folder");
     let outer = root.join("outer");
@@ -256,7 +256,7 @@ fn only_plain_names_below_the_workspace_are_walked() {
 #[cfg(unix)]
 #[test]
 fn a_named_pipe_is_refused_at_once() {
-    // core1 11-10：工作区里 `mkfifo` 一个具名管道再叫发它，阻塞地打开会一直等写的那头、卡死处理工具的那条线。最后一段不阻塞
+    // 11-10 审查：工作区里 `mkfifo` 一个具名管道再叫发它，阻塞地打开会一直等写的那头、卡死处理工具的那条线。最后一段不阻塞
     // 打开，一秒内答不是文件。
     let (root, workspace, outbox) = setup("fifo");
     let made = std::process::Command::new("mkfifo")

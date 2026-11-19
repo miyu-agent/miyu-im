@@ -217,7 +217,7 @@ fn amounts_are_split_kept_by_day_and_currency_and_old_rows_count_as_unpriced() {
 
 #[test]
 fn a_ledger_left_with_only_one_of_the_two_amount_columns_gets_the_other() {
-    // 施工 I-205（core1 审出来的）：两列是分两句加的，加了 `amount` 就断了的库，下回打开得把 `currency` 补上，
+    // 施工 I-205（审查发现的）：两列是分两句加的，加了 `amount` 就断了的库，下回打开得把 `currency` 补上，
     // 不然往后每一笔都写不进（没有这一列）。
     let dir = dir("half-migrated");
     std::fs::create_dir_all(&dir).expect("建得了");

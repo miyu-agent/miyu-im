@@ -20,7 +20,7 @@ fn names() -> Vec<Choice> {
         "@lite",
         "dev/antigravity/gemini-3.8-flash",
         "dev/antigravity/gemini-3.8-flash-tiered",
-        "dev/clinepass/cline-pass/deepseek-v4.1-flash",
+        "dev/deepseek/deepseek-v4.1-flash",
         "dev/opencode-zen/gemini-3.8-flash",
     ])
 }
@@ -98,7 +98,7 @@ fn only_an_exact_name_switches() {
     );
     assert_eq!(
         id(exact(Kind::Model, "deepseek-v4.1-flash", &names)),
-        Some("dev/clinepass/cline-pass/deepseek-v4.1-flash"),
+        Some("dev/deepseek/deepseek-v4.1-flash"),
         "只写模型那一段、只有一个对得上的也算"
     );
     assert_eq!(
@@ -164,8 +164,8 @@ fn search_lists_every_match_with_its_number_in_the_whole_list() {
 #[test]
 fn search_ignores_dots_dashes_and_case() {
     let names = models(&[
-        "magpie/anthropic/claude-opus-4-5",
-        "magpie/anthropic/claude-opus-5-5",
+        "relay/anthropic/claude-opus-4-5",
+        "relay/anthropic/claude-opus-5-5",
     ]);
     for query in ["opus5.5", "OPUS 5-5", "opus55", "claude_opus_5_5"] {
         let found = search(query, &names);
@@ -183,7 +183,7 @@ fn a_number_from_the_list_switches_too() {
     assert_eq!(id(exact(Kind::Model, "1", &names)), Some("@lite"));
     assert_eq!(
         id(exact(Kind::Model, "4", &names)),
-        Some("dev/clinepass/cline-pass/deepseek-v4.1-flash")
+        Some("dev/deepseek/deepseek-v4.1-flash")
     );
     assert_eq!(exact(Kind::Model, "0", &names), None, "从 1 编号");
     assert_eq!(exact(Kind::Model, "6", &names), None, "超出的不换");
