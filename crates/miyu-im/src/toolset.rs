@@ -230,8 +230,14 @@ impl From<Value> for Done {
 pub enum Effect {
     /// 这条线这一轮她的下一句第一段前面 @ 这几个号（`mention`）。
     Mention(Vec<Id>),
-    /// 这条线这一轮她的下一句第一段引用这一条（平台编号，`quote`，施工 I-31）：这一句不再自动引用、自动 @。
-    Quote(String),
+    /// 这条线这一轮她的下一句第一段引用这一条（`quote`，施工 I-31）：这一句不再自动引用、自动 @，@ 的是 `author`（施工 I-258）。
+    Quote {
+        /// 引用的那一条的平台编号。
+        msg: String,
+        /// 跟着引用一起 @ 的人：QQ 客户端引用群里别人的话会自动 @ 他（项目主人 11-19：引用必须有艾特），引用她自己的、私聊里的、
+        /// 平台不这么做的（Telegram）是空的。
+        author: Option<Id>,
+    },
     /// 以她的名义发到 `to`（`chat_send`）：im 照对方场所的出站链发、找对方的会话记一句，发成了答 `sent`，没成的照原因答（`failed`、
     /// `unreachable`、`unanswered`、`no-target`，用这一套的答的话）。
     Send {

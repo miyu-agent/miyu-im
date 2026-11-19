@@ -208,8 +208,9 @@ async fn private_replies_carry_neither_and_are_not_repeated() {
 }
 
 #[tokio::test]
-async fn a_quote_she_picks_replaces_the_automatic_quote_and_mention() {
-    // 同上一条的情形（该自动 @ 叫她的人了），她先 `qq_quote` 挑了一条（施工 I-31）：引用她挑的，不再 @。
+async fn a_quote_she_picks_replaces_the_automatic_quote_and_mentions_its_author() {
+    // 同上一条的情形（该自动 @ 叫她的人了），她先 `qq_quote` 挑了一条（施工 I-31）：引用她挑的、@ 发那一条的小林（施工 I-258，
+    // 同 QQ 客户端），不再 @ 叫她的人。
     let (release, released) = oneshot::channel();
     let lines = Lines::new([
         Line::says("在"),
@@ -231,10 +232,11 @@ async fn a_quote_she_picks_replaces_the_automatic_quote_and_mention() {
     tokio::time::sleep(Duration::from_millis(1100)).await;
     release.send(()).expect("她在等");
     let quote = json!({"type": "reply", "data": {"id": "555"}});
+    let mention = json!({"type": "at", "data": {"qq": LIN.to_string()}});
     assert_eq!(
         napcat.group_message(PROMPT).await,
-        [quote, words("说的是这条")],
-        "引用她挑的那一条，不 @"
+        [quote, mention, words(" "), words("说的是这条")],
+        "引用她挑的那一条，@ 发它的小林"
     );
     stopped(home).await;
 }

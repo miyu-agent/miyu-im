@@ -315,7 +315,7 @@ impl Route {
                 answerer.answer(&id, said);
             }
             // @ 谁、引用哪条要带着答的话交回（`Planned::Later` 的 `Done`）：当场交的是驱动写错了，照够不着答。
-            Planned::Host(Effect::Mention(_) | Effect::Quote(_)) => {
+            Planned::Host(Effect::Mention(_) | Effect::Quote { .. }) => {
                 answerer.answer(&id, answers.say("unreachable", &[], true));
             }
         }
@@ -336,7 +336,9 @@ impl Route {
         } = finished;
         match (done.effect, turn) {
             (Some(Effect::Mention(users)), Some(turn)) => self.mention(line, turn, &users),
-            (Some(Effect::Quote(msg)), Some(turn)) => self.quote(line, turn, msg),
+            (Some(Effect::Quote { msg, author }), Some(turn)) => {
+                self.quote(line, turn, msg, author)
+            }
             _ => {}
         }
         let answer = labelled(done.answer, label.as_deref());
