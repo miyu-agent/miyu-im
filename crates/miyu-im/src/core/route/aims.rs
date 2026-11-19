@@ -1,7 +1,7 @@
 //! 她指定下一句指向谁：@ 指定的人（施工 O-55，`onebot.md` 第一条「@ 指定的人」，2026-10-17 项目主人定，照旧版的 `qq_mention_users`）、
 //! 引用指定的一条（施工 I-31，2026-10-23 项目主人定：以后的 loop 里她要自己决定指向谁）。群里她调 `mention {users}`、`quote {msg}`
 //! （施工 T-4 起在驱动里认号、认是不是这个会话的），驱动交回「@ 这几个号」「引用这一条」，这里记下：她在这条线这一轮的下一句话
-//! 第一段前面 @ 他们、引用那一条（`say` 用掉）。
+//! 第一段前面 @ 他们、引用那一条（`say` 用掉）；引用群里别人的话时一起 @ 发那一条的人（施工 I-258，同 QQ 客户端）。
 //!
 //! 记在桥的内存里，按线：换了一轮的、她这一轮没再说话的作废（下一次照新的一轮比）。
 
@@ -22,6 +22,8 @@ pub(super) struct Aim {
     pub(super) users: Vec<String>,
     /// 要引用的那一条的平台编号。
     pub(super) quote: Option<String>,
+    /// 跟着引用一起 @ 的号（施工 I-258）：驱动认好了交回的，没有的是不 @。
+    pub(super) quote_author: Option<String>,
 }
 
 impl Route {
@@ -39,9 +41,17 @@ impl Route {
         self.aim(line, turn).users = numbers;
     }
 
-    /// 记下线 `line` 第 `turn` 轮她要引用的那一条 `msg`（施工 I-31）：同一轮指定过要 @ 的留着。
-    pub(super) fn quote(&mut self, line: String, turn: u64, msg: String) {
-        self.aim(line, turn).quote = Some(msg);
+    /// 记下线 `line` 第 `turn` 轮她要引用的那一条 `msg`（施工 I-31）和跟着 @ 的人 `author`（施工 I-258）：同一轮指定过要 @ 的留着。
+    pub(super) fn quote(
+        &mut self,
+        line: String,
+        turn: u64,
+        msg: String,
+        author: Option<crate::chat::Id>,
+    ) {
+        let aim = self.aim(line, turn);
+        aim.quote = Some(msg);
+        aim.quote_author = author.map(|author| author.to_string());
     }
 
     /// 线 `line` 第 `turn` 轮的那一份：记的是别的一轮的换成空的。

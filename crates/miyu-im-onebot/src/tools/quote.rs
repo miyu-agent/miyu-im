@@ -1,9 +1,11 @@
 //! 引用指定的一条（施工 I-31，2026-10-23 项目主人定：以后的 loop 里她要自己决定指向谁）：`qq_quote {msg}`，私聊、群都给。`msg` 是那
 //! 一条的编号（`[msg=…]`），先 `get_msg` 核对在不在这个会话里（同撤回、贴表情：人打得出别的群的编号）；在的交回「引用这一条」，im
-//! 记在这条线这一轮，她的下一句话第一段引用它，这一句不再自动引用、自动 @。
+//! 记在这条线这一轮，她的下一句话第一段引用它，这一句不再自动引用、自动 @。群里引用别人的话时一起 @ 发那一条的人（施工 I-258，
+//! 项目主人 11-19：QQ 客户端引用会自动 @，引用必须有艾特，不看智能艾特）；引用她自己的、私聊里的不 @。
 
 use serde_json::Value;
 
+use miyu_im::chat::{Fetched, Id, To};
 use miyu_im::toolset::{Call, Done, Effect, Missed, Planned, message, msg_id};
 
 use super::args::bad_args;
@@ -33,7 +35,18 @@ async fn quoted(call: &Call, msg: String) -> Done {
     }
     Done {
         answer: call.answers.say("quoted", &[], false),
-        effect: Some(Effect::Quote(msg)),
+        effect: Some(Effect::Quote {
+            author: author(&fetched, &call.to, &call.bot),
+            msg,
+        }),
+    }
+}
+
+/// 跟着引用一起 @ 的人（施工 I-258）：群里发那一条的人；是她自己、私聊里的、取到的没写发的人的不 @。
+fn author(fetched: &Fetched, to: &To, bot: &Id) -> Option<Id> {
+    match to {
+        To::Group(_) => fetched.user.clone().filter(|user| user != bot),
+        To::Private(_) => None,
     }
 }
 
