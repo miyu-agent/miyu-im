@@ -21,7 +21,7 @@ I-183 下中以后，Telegram 的群和私聊里一件工具都没有：不能�
 ### 坑
 
 - 清单写了 `[features]` 的包，登记的工具要归某一个功能，不然核心**整批不收**（`bad_tool`，`problem: feature`）：连 QQ 的工具也一起登记不上。第一趟集成测试她调 `tg_quote` 得到「没有这件工具」，运行日志里 `tools not provided reason=bad_tool` 才看出来。现在两个驱动各有单元测试核对，去掉清单那两行测试报红。
-- magpie 网关上的模型名现在是 `opencode-go/deepseek-v4.1-flash`（以前的 `clinepass/…` 答 404）。
+- 开发网关上的模型名换了（以前的线路名答 404）。
 
 ### 验收
 

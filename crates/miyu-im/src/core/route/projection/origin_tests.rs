@@ -142,7 +142,7 @@ fn judged(seq: u64, msgs: &[u64], kinds: &[&str]) -> miyu_client::events::Event 
 
 #[test]
 fn only_a_turn_a_manager_called_her_into_counts_as_commanded() {
-    // 施工 I-204（core1 审出来的）：删群文件这种收不回来的事，只认管理的人直接叫她开的那一轮。
+    // 施工 I-204（审查发现的）：删群文件这种收不回来的事，只认管理的人直接叫她开的那一轮。
     let manager = |who: &miyu_client::ids::ExternalId| *who == qq(20009);
     let mut projection = Projection::new(LINE, 0);
     take_all(
