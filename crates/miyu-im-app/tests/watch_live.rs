@@ -250,7 +250,7 @@ async fn the_command_follows_a_group_by_its_number() {
     );
     let driving = async {
         within("开始看了", async {
-            while !out.text().contains("正在看") {
+            while !out.text().contains("正在查看") {
                 tokio::time::sleep(std::time::Duration::from_millis(20)).await;
             }
         })
@@ -275,7 +275,7 @@ async fn the_command_follows_a_group_by_its_number() {
         () = driving => {}
     }
     let printed = out.text();
-    assert!(printed.starts_with("正在看 "), "{printed}");
+    assert!(printed.starts_with("正在查看 "), "{printed}");
     for expected in [
         "小林：大家好",
         "小林：@米尤 在吗",

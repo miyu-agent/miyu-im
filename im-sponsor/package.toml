@@ -7,7 +7,7 @@ version = "0.3.0"
 targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
 name = { en = "Sponsorships", zh = "赞助记录", ja = "スポンサー記録" }
-summary = { en = "The AI records sponsorships when an admin asks, and anyone can look them up", zh = "管理员叫 AI 记赞助，谁都能查", ja = "管理者に頼まれてスポンサーを記録し、誰でも確認できる" }
+summary = { en = "The AI records sponsorships when an admin asks, and anyone can look them up", zh = "管理员可以让 AI 记录赞助，所有人都能查询", ja = "管理者に頼まれてスポンサーを記録し、誰でも確認できる" }
 icon = "hand-coins"
 author = "miyu-agent"
 upstream = "https://github.com/miyu-agent/miyu-im"

@@ -206,7 +206,7 @@ fn ranking(records: &[Record], period: Period, now: u64, most: usize) -> Value {
         .collect();
     match items.is_empty() {
         true => {
-            json!({"type": "text", "text": t("这段时间没有人被管过。", "Nobody was moderated in this period.", "この期間に管理された人はいません。"), "tone": "dim"})
+            json!({"type": "text", "text": t("这段时间没有管理记录。", "Nobody was moderated in this period.", "この期間に管理された人はいません。"), "tone": "dim"})
         }
         false => json!({"type": "list", "items": items}),
     }
@@ -234,7 +234,7 @@ fn period_field(period: Period) -> Value {
 /// 存怎么看的一张表（编号 `id`，几格 `fields`）：存了照新的重画。
 fn view_form(id: String, fields: Vec<Value>, group: Id) -> Value {
     json!({"type": "form", "id": id, "fields": fields,
-        "submit": {"label": t("看", "Show", "表示"), "call": "admin.view", "params": {"group": group}}})
+        "submit": {"label": t("查看", "Show", "表示"), "call": "admin.view", "params": {"group": group}}})
 }
 
 /// 会话浮窗的「群管理」页（群 `group`，设置 `settings`，记录 `records`，成员汇总开没开 `summary`，此刻 `now`）。一个 heading 一张
@@ -252,13 +252,13 @@ pub(crate) fn panel(
     let mut blocks = vec![
         json!({"type": "heading", "text": t("刷屏处理", "Flood handling", "連投稿の処理")}),
         json!({"type": "form", "id": format!("spam-{group}"), "fields": [
-            {"key": "on", "label": t("开启刷屏处理", "Handle floods", "連投稿を処理する"), "hint": t("同一个人连着发三次同样的话就撤回重复的、禁言。", "When someone sends the same words three times in a row, recall the repeats and mute them.", "同じ人が同じ言葉を三回続けたら、重複を取り消してミュートします。"), "control": "toggle", "value": spam.on},
+            {"key": "on", "label": t("开启刷屏处理", "Handle floods", "連投稿を処理する"), "hint": t("同一个人连续发三次相同的消息时，撤回重复的消息并禁言。", "When someone sends the same words three times in a row, recall the repeats and mute them.", "同じ人が同じ言葉を三回続けたら、重複を取り消してミュートします。"), "control": "toggle", "value": spam.on},
             {"key": "window", "label": t("几秒以内", "Within seconds", "何秒以内"), "control": "number", "value": spam.window, "min": 10, "max": 3600, "integer": true},
             {"key": "mute", "label": t("禁言几分钟", "Mute minutes", "ミュートする分"), "control": "number", "value": spam.mute / 60, "min": 1, "max": 43200, "integer": true}
         ], "submit": {"label": t("保存", "Save", "保存"), "call": "admin.spam", "params": {"group": group}}}),
         json!({"type": "heading", "text": t("入群审批", "Join requests", "参加審査")}),
         json!({"type": "form", "id": format!("approval-{group}"), "fields": [
-            {"key": "rule", "label": t("通过条件", "Rule to pass", "承認の条件"), "hint": t("写能接受的答案，原样交给 AI 审；群设了入群问题的，问题也一起带上。空着的不审，留给人工。", "Write the answers you accept; the AI reviews requests against it as written, with the group's join question. Leave it empty to review by hand.", "受け入れる答えを書きます。AI がそのまま照らし合わせて審査します（グループの参加質問も一緒に）。空なら手動で審査します。"), "control": "textarea", "value": settings.approval.rule}
+            {"key": "rule", "label": t("通过条件", "Rule to pass", "承認の条件"), "hint": t("填写可以接受的答案，原样交给 AI 审核；如果群设置了入群问题，问题也会一起交给 AI。不填写时不审核，留给人工处理。", "Write the answers you accept; the AI reviews requests against it as written, with the group's join question. Leave it empty to review by hand.", "受け入れる答えを書きます。AI がそのまま照らし合わせて審査します（グループの参加質問も一緒に）。空なら手動で審査します。"), "control": "textarea", "value": settings.approval.rule}
         ], "submit": {"label": t("保存", "Save", "保存"), "call": "admin.approval", "params": {"group": group}}}),
         json!({"type": "heading", "text": t("最近的管理记录", "Recent moderation", "最近の管理記録")}),
         view_form(
@@ -297,7 +297,7 @@ pub(crate) fn section(
             "warn",
         ),
         None => (
-            json!({"text": t("问不到身份", "Role unknown", "役割不明"), "tone": "dim"}),
+            json!({"text": t("无法获取身份", "Role unknown", "役割不明"), "tone": "dim"}),
             "off",
         ),
     };

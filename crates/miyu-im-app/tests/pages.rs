@@ -166,7 +166,7 @@ async fn the_groups_page_edits_adds_and_removes_group_cards() {
         .await;
     assert_eq!(
         refused["result"]["problems"],
-        json!([{"key": "rate", "message": "要写成 3/60s 这样：60 秒最多 3 条"}]),
+        json!([{"key": "rate", "message": "需要写成 3/60s 的格式，表示 60 秒最多 3 条"}]),
         "照那一格该怎么写说，不给人看原因码：{refused}"
     );
     assert_eq!(on_disk(&home)["groups"][0]["set"]["rate"], "2/60s");

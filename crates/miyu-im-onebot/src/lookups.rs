@@ -39,7 +39,7 @@ impl Builtin for Lookup {
         Declared {
             name: words("查询信息", "Lookups", "情報の照会"),
             summary: words(
-                "让 AI 查聊天记录、取消息里的图和文件、看头像、群成员、群公告、群文件、通讯录和发言排行。",
+                "让 AI 可以查询聊天记录，获取消息里的图片和文件，查看头像、群成员、群公告、群文件、通讯录和发言排行。",
                 "Lets the AI search chat history, fetch images and files from messages, and see avatars, group members, announcements, group files, contacts and the activity ranking.",
                 "AI がチャット履歴を検索し、メッセージの画像やファイルを取り出し、アイコン、グループのメンバー、お知らせ、ファイル、連絡先、発言ランキングを見られるようにします。",
             ),

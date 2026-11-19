@@ -251,7 +251,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.notice(&Notice::NoToken),
-        "miyu im: 警告：没有设置 Token，NapCat 的连接会被拒绝\n提示：用 'miyu im web' 打开管理页面，粘贴 NapCat 的 Token"
+        "miyu im: 警告：没有设置令牌，NapCat 的连接会被拒绝\n提示：运行 'miyu im web' 打开管理页面，粘贴 NapCat 的令牌"
     );
     assert!(
         texts
@@ -264,18 +264,18 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.bad_args("logs"),
-        "miyu im: 'logs' 的参数不对\n提示：运行 'miyu im logs --help' 查看用法"
+        "miyu im: 'logs' 的参数不正确\n提示：运行 'miyu im logs --help' 查看用法"
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
-        "miyu im: 没有收到核心的握手回应\n提示：'miyu-im serve' 只能由核心启动，用 'miyu im start' 启动"
+        "miyu im: 没有收到核心的握手回应\n提示：'miyu-im serve' 只能由核心启动，需要运行 'miyu im start' 启动"
     );
     assert_eq!(texts.report(&Report::Started), "已启动接入通讯平台");
     assert_eq!(texts.report(&Report::Stopped), "已停止接入通讯平台");
     assert_eq!(texts.report(&Report::Restarted), "已重启接入通讯平台");
     assert_eq!(
         texts.report(&Report::Off),
-        "接入通讯平台未运行\n提示：用 'miyu im start' 启动"
+        "接入通讯平台未运行\n提示：运行 'miyu im start' 启动"
     );
     assert_eq!(texts.report(&Report::Starting), "接入通讯平台正在启动");
     assert_eq!(
@@ -326,7 +326,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.report(&Report::Missing),
-        "miyu im: 核心里没有 im 软件包\n提示：用 'miyu check' 检查"
+        "miyu im: 核心里没有 im 软件包\n提示：运行 'miyu check' 检查"
     );
     assert_eq!(
         texts.report(&Report::Napcat {
@@ -351,7 +351,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.report(&Report::Page),
-        "提示：用 'miyu im web' 打开管理页面"
+        "提示：运行 'miyu im web' 打开管理页面"
     );
     assert_eq!(
         texts.heading(&Heading::Stderr("a/miyu-im.stderr".to_string())),
@@ -407,29 +407,29 @@ fn venue_show_and_problems_read_as_drawn() {
     assert_eq!(
         said,
         [
-            "系统 80-x.toml 第 1 条规则，第 3 行：读不了：",
-            "系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读",
-            "系统 80-x.toml 第 1 条规则，第 3 行：不是 UTF-8，不读",
-            "系统 80-x.toml 第 1 条规则，第 3 行：TOML 写法不对：",
+            "系统 80-x.toml 第 1 条规则，第 3 行：无法读取：",
+            "系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读取",
+            "系统 80-x.toml 第 1 条规则，第 3 行：不是 UTF-8 编码，不读取",
+            "系统 80-x.toml 第 1 条规则，第 3 行：TOML 格式不正确：",
             "系统 80-x.toml 第 1 条规则，第 3 行：未知的键 rate",
-            "系统 80-x.toml 第 1 条规则，第 3 行：rate 的类型不对：\"abc\"",
-            "系统 80-x.toml 第 1 条规则，第 3 行：rate 不是能选的值：\"abc\"",
+            "系统 80-x.toml 第 1 条规则，第 3 行：rate 的类型不正确：\"abc\"",
+            "系统 80-x.toml 第 1 条规则，第 3 行：rate 不是可选的值：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate 超出范围：\"abc\"",
-            "系统 80-x.toml 第 1 条规则，第 3 行：rate 写法不对：\"abc\"",
+            "系统 80-x.toml 第 1 条规则，第 3 行：rate 格式不正确：\"abc\"",
             "系统 80-x.toml 第 1 条规则，第 3 行：rate：unknown_secret",
             "系统 80-x.toml 第 1 条规则，第 3 行：未知的键 rat（也许是 rate）",
             "出厂 defaults.toml 第 3 行：rate 超出范围：\"abc\"",
-            "出厂 defaults.toml：缺了 chatty.base",
-            "系统 80-x.toml：读不了：permission denied",
+            "出厂 defaults.toml：缺少 chatty.base",
+            "系统 80-x.toml：无法读取：permission denied",
         ]
     );
     assert_eq!(
         texts.failure(&Failure::Factory(problems()[..2].to_vec())),
         "miyu im: 出厂数据有问题，无法启动（打包错误）：\n  \
-         系统 80-x.toml 第 1 条规则，第 3 行：读不了：\n  \
-         系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读"
+         系统 80-x.toml 第 1 条规则，第 3 行：无法读取：\n  \
+         系统 80-x.toml 第 1 条规则，第 3 行：超过 1 MiB，不读取"
     );
-    assert_eq!(texts.shown(&Shown::None), "没有规则设置这个场所");
+    assert_eq!(texts.shown(&Shown::None), "没有规则设置这个群或私聊");
     assert_eq!(
         texts.shown(&Shown::Defaults),
         "未列出的参数使用出厂的 defaults.toml"
@@ -440,7 +440,7 @@ fn venue_show_and_problems_read_as_drawn() {
     );
     assert_eq!(
         texts.shown(&Shown::BadVenue("qq:room:1".to_string())),
-        "miyu im: 无法识别场所编号 'qq:room:1'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'"
+        "miyu im: 无法识别会话编号 'qq:room:1'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'"
     );
     let english = Texts::load(resources(), crate::support::package(), "en").expect("读得出来");
     assert_eq!(

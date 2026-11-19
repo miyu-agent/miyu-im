@@ -88,7 +88,7 @@ fn values_and_origins_come_one_a_line_and_problems_after() {
              show_ids = true（出厂 50-defaults.toml 第 1 条规则，第 19 行）\n\
              未列出的参数使用出厂的 defaults.toml\n\
              读取时发现以下问题（有问题的项、规则或文件不生效）：\n  \
-             系统 90-bad.toml 第 2 条规则，第 6 行：rate 写法不对：\"abc\"\n"
+             系统 90-bad.toml 第 2 条规则，第 6 行：rate 格式不正确：\"abc\"\n"
                 .to_string(),
             String::new()
         )
@@ -126,7 +126,7 @@ fn a_venue_nothing_sets_says_so() {
         shown_with(&root, "qq:30003:private:1", &zh(&resources()), Ok(listed)),
         (
             0,
-            "没有规则设置这个场所\n未列出的参数使用出厂的 defaults.toml\n".to_string(),
+            "没有规则设置这个群或私聊\n未列出的参数使用出厂的 defaults.toml\n".to_string(),
             String::new()
         )
     );
@@ -150,7 +150,7 @@ fn a_bad_venue_id_is_a_usage_error() {
                 2,
                 String::new(),
                 format!(
-                    "miyu im: 无法识别场所编号 '{wrong}'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'\n"
+                    "miyu im: 无法识别会话编号 '{wrong}'\n提示：写成 '<平台>:<机器人号>:group:<群号>' 或 '<平台>:<机器人号>:private:<号>'，例如 'qq:10001:group:123456'\n"
                 )
             ),
             "{wrong:?}"
@@ -213,7 +213,7 @@ fn settings_are_named_by_key_and_an_unreachable_core_is_said() {
              show_ids = true（配置项 im.show_ids）\n\
              未列出的参数使用出厂的 defaults.toml\n\
              读取时发现以下问题（有问题的项、规则或文件不生效）：\n  \
-             配置项 im.sleep：sleep 写法不对：\"abc\"\n"
+             配置项 im.sleep：sleep 格式不正确：\"abc\"\n"
                 .to_string(),
             String::new()
         )

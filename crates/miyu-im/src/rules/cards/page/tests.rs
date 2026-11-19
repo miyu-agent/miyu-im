@@ -115,7 +115,10 @@ fn the_groups_page_has_other_groups_first_and_forms_per_group() {
         field(group, "persona")["default"]["text"]["en"],
         "Default · Miyu"
     );
-    assert_eq!(field(group, "rate")["default"]["text"]["zh"], "默认 · 不设");
+    assert_eq!(
+        field(group, "rate")["default"]["text"]["zh"],
+        "默认 · 不设置"
+    );
     let personas = field(group, "persona")["options"]
         .as_array()
         .expect("选项")

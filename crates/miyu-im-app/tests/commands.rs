@@ -350,15 +350,15 @@ async fn slash_model_switches_by_number_and_adds_a_card_when_there_is_none() {
     let bridge = bridge(&home).await;
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.admin_says(1, "/model @lite").await;
-    assert_eq!(napcat.reply().await, "换成 @lite 了", "没卡片的先建一张");
+    assert_eq!(napcat.reply().await, "已切换为 @lite", "没卡片的先建一张");
     napcat.admin_says(2, "/model 默认").await;
-    assert_eq!(napcat.reply().await, "改回跟随默认了");
+    assert_eq!(napcat.reply().await, "已改回跟随默认");
     napcat.admin_says(3, "/model search").await;
     let found = napcat.reply().await;
     assert!(found.starts_with("用 /model <编号> 切换："), "{found}");
     assert!(found.lines().any(|line| line == "2. @lite"), "{found}");
     napcat.admin_says(4, "/model 2").await;
-    assert_eq!(napcat.reply().await, "换成 @lite 了");
+    assert_eq!(napcat.reply().await, "已切换为 @lite");
     let text = std::fs::read_to_string(dir.join("cards.json")).expect("建了卡片");
     let cards: Value = serde_json::from_str(&text).expect("是 JSON");
     let card = cards["privates"]
@@ -397,7 +397,7 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     napcat.admin_says(2, "/model lite").await;
     assert_eq!(
         napcat.reply().await,
-        "没有「lite」这个编号或模型，用 /model search 看编号"
+        "没有「lite」这个编号或模型，可以用 /model search 查看编号"
     );
     assert_eq!(model(), Value::Null, "模糊的不换");
     napcat.admin_says(3, "/model search lite").await;
@@ -405,7 +405,7 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     assert!(found.starts_with("用 /model <编号> 切换："), "{found}");
     assert!(found.lines().any(|line| line == "2. @lite"), "{found}");
     napcat.admin_says(4, "/model @lite").await;
-    assert_eq!(napcat.reply().await, "换成 @lite 了");
+    assert_eq!(napcat.reply().await, "已切换为 @lite");
     assert_eq!(model(), "@lite", "写进了这个会话的卡片");
     napcat.admin_says(5, "/model search lite").await;
     let found = napcat.reply().await;
@@ -416,7 +416,7 @@ async fn slash_model_reads_and_switches_the_card_of_this_chat() {
     napcat.admin_says(6, "/model").await;
     assert!(napcat.reply().await.starts_with("现在用的是 @lite\n"));
     napcat.admin_says(7, "/model 默认").await;
-    assert_eq!(napcat.reply().await, "改回跟随默认了");
+    assert_eq!(napcat.reply().await, "已改回跟随默认");
     assert_eq!(model(), Value::Null, "卡片上的模型去掉了");
     bridge.stop().await.expect("停得下");
 }

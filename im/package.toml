@@ -19,7 +19,7 @@ upstream = "https://github.com/miyu-agent/miyu-im"
 [command]
 name = "im"
 program = "miyu-im"
-about = { en = "Start, stop and look at Connect Messaging", zh = "开、关、查看接入通讯平台", ja = "メッセージング接続を起動・停止・確認する" }
+about = { en = "Start, stop and look at Connect Messaging", zh = "开启、关闭、查看接入通讯平台", ja = "メッセージング接続を起動・停止・確認する" }
 
 [process]
 args = ["serve"]
@@ -86,7 +86,7 @@ summary = { en = "Decides whether to reply when someone talks in a group", zh = 
 id = "approval"
 tier = "lite"
 name = { en = "Join approval", zh = "入群审批", ja = "参加承認" }
-summary = { en = "Checks a request to join a group against its rule", zh = "照群里写的条件判断入群申请", ja = "グループの条件に照らして参加申請を判断する" }
+summary = { en = "Checks a request to join a group against its rule", zh = "按群里设置的条件判断入群申请", ja = "グループの条件に照らして参加申請を判断する" }
 
 # 给别的包调的方法（施工 O-42，docs/blueprint/extending.md）：im 在总线上提供名字 `chat`（核心设计 67，施工 I-211），别的包照名字调
 # （`bus.call {"name": "chat", "method": "venue"}`），只调得到这里列的；后台页的 status、connection.token 不列，只有人调得到。
@@ -137,7 +137,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Listen address", zh = "监听地址", ja = "待ち受けアドレス" }
-description = { en = "The address NapCat's reverse WebSocket connects to. 0.0.0.0 accepts other machines and Docker too, and the token keeps strangers out. 127.0.0.1 accepts only this machine.", zh = "NapCat 反向 WebSocket 连进来的地址。0.0.0.0 是别的机器、Docker 里的也能连，外人靠令牌挡；127.0.0.1 是只收本机的。", ja = "NapCat のリバース WebSocket が接続してくるアドレスです。0.0.0.0 はほかのマシンや Docker からも受け付け、部外者はトークンで防ぎます。127.0.0.1 はこのマシンからだけ受け付けます。" }
+description = { en = "The address NapCat's reverse WebSocket connects to. 0.0.0.0 accepts other machines and Docker too, and the token keeps strangers out. 127.0.0.1 accepts only this machine.", zh = "NapCat 通过反向 WebSocket 连接的地址。0.0.0.0 允许其他电脑和 Docker 里的程序连接，靠令牌阻止外人；127.0.0.1 只允许本机连接。", ja = "NapCat のリバース WebSocket が接続してくるアドレスです。0.0.0.0 はほかのマシンや Docker からも受け付け、部外者はトークンで防ぎます。127.0.0.1 はこのマシンからだけ受け付けます。" }
 
 [settings.qq.listen]
 type = "int"
@@ -148,7 +148,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Port", zh = "端口", ja = "ポート" }
-description = { en = "The port NapCat's reverse WebSocket connects to. With NapCat on this machine use ws://127.0.0.1:<port>/ws; on another machine use this machine's address.", zh = "NapCat 反向 WebSocket 连进来的端口。NapCat 在这台机器上的，那边的地址填 ws://127.0.0.1:<端口>/ws；在别的机器上的，填这台机器的地址。", ja = "NapCat のリバース WebSocket が接続してくるポートです。NapCat がこのマシンにあるなら ws://127.0.0.1:<ポート>/ws、ほかのマシンにあるならこのマシンのアドレスを使います。" }
+description = { en = "The port NapCat's reverse WebSocket connects to. With NapCat on this machine use ws://127.0.0.1:<port>/ws; on another machine use this machine's address.", zh = "NapCat 通过反向 WebSocket 连接的端口。如果 NapCat 在这台电脑上，NapCat 那边的地址填写 ws://127.0.0.1:<端口>/ws；如果在其他电脑上，填写这台电脑的地址。", ja = "NapCat のリバース WebSocket が接続してくるポートです。NapCat がこのマシンにあるなら ws://127.0.0.1:<ポート>/ws、ほかのマシンにあるならこのマシンのアドレスを使います。" }
 
 [settings.qq.token]
 type = "secret"
@@ -156,7 +156,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Token", zh = "令牌", ja = "トークン" }
-description = { en = "The token NapCat shows when it connects, the same one as in NapCat. Without it NapCat is refused. Paste it on the Connect Messaging page (miyu im web).", zh = "NapCat 连进来时要出示的验证 Token，和 NapCat 那边的一样。没设的，NapCat 连进来会被拒。在接入通讯平台的页面上粘贴（miyu im web）。", ja = "NapCat が接続するときに示す認証トークンで、NapCat 側と同じものです。未設定だと NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）で貼り付けます。" }
+description = { en = "The token NapCat shows when it connects, the same one as in NapCat. Without it NapCat is refused. Paste it on the Connect Messaging page (miyu im web).", zh = "NapCat 连接时出示的验证令牌，与 NapCat 那边设置的相同。如果没有设置，NapCat 的连接会被拒绝。可以在接入通讯平台的网页上粘贴（miyu im web）。", ja = "NapCat が接続するときに示す認証トークンで、NapCat 側と同じものです。未設定だと NapCat の接続は拒否されます。メッセージング接続のページ（miyu im web）で貼り付けます。" }
 
 [settings.qq.hosts]
 type = "list"
@@ -166,7 +166,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Listen addresses", zh = "监听地址（每个连接）", ja = "待ち受けアドレス（接続ごと）" }
-description = { en = "One per connection, in the same order as the ports. Set on the Connect Messaging page.", zh = "一个连接一项，和端口一一对应。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、ポートと同じ順です。メッセージング接続のページで変更します。" }
+description = { en = "One per connection, in the same order as the ports. Set on the Connect Messaging page.", zh = "每个连接一项，与端口一一对应。在接入通讯平台的网页上修改。", ja = "接続ごとに一つ、ポートと同じ順です。メッセージング接続のページで変更します。" }
 
 [settings.qq.ports]
 type = "list"
@@ -177,7 +177,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Ports", zh = "端口（每个连接）", ja = "ポート（接続ごと）" }
-description = { en = "One per connection: the port that connection's NapCat connects to. Set on the Connect Messaging page.", zh = "一个连接一项：那个连接的 NapCat 连进来的端口。在接入通讯平台的页面上改。", ja = "接続ごとに一つ：その接続の NapCat が接続してくるポートです。メッセージング接続のページで変更します。" }
+description = { en = "One per connection: the port that connection's NapCat connects to. Set on the Connect Messaging page.", zh = "每个连接一项，填写这个连接的 NapCat 使用的端口。在接入通讯平台的网页上修改。", ja = "接続ごとに一つ：その接続の NapCat が接続してくるポートです。メッセージング接続のページで変更します。" }
 
 [settings.qq.tokens]
 type = "list"
@@ -186,7 +186,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Tokens", zh = "令牌（每个连接）", ja = "トークン（接続ごと）" }
-description = { en = "One per connection, in the same order as the ports: the token that connection's NapCat shows. Set on the Connect Messaging page.", zh = "一个连接一项，和端口一一对应：那个连接的 NapCat 出示的 Token。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、ポートと同じ順：その接続の NapCat が示すトークンです。メッセージング接続のページで変更します。" }
+description = { en = "One per connection, in the same order as the ports: the token that connection's NapCat shows. Set on the Connect Messaging page.", zh = "每个连接一项，与端口一一对应，填写这个连接的 NapCat 出示的令牌。在接入通讯平台的网页上修改。", ja = "接続ごとに一つ、ポートと同じ順：その接続の NapCat が示すトークンです。メッセージング接続のページで変更します。" }
 
 # Telegram 驱动的配置（施工 I-183 中上，设计 07 第 3.5 节）：在 im.tg 那一组。连接表两个藏起来的列表，第几项是第几个连接，只有 im 的
 # 后台页写；api 是 Bot API 的地址，自建 Bot API 服务、测试才改。
@@ -198,7 +198,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Telegram bot tokens", zh = "Telegram 机器人令牌（每个连接）", ja = "Telegram ボットのトークン（接続ごと）" }
-description = { en = "One per connection: the token BotFather gave. Set on the Connect Messaging page.", zh = "一个连接一项：BotFather 给的令牌。在接入通讯平台的页面上改。", ja = "接続ごとに一つ：BotFather が発行したトークンです。メッセージング接続のページで変更します。" }
+description = { en = "One per connection: the token BotFather gave. Set on the Connect Messaging page.", zh = "每个连接一项，填写 BotFather 给的令牌。在接入通讯平台的网页上修改。", ja = "接続ごとに一つ：BotFather が発行したトークンです。メッセージング接続のページで変更します。" }
 
 [settings.tg.proxies]
 type = "list"
@@ -208,7 +208,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Telegram proxies", zh = "Telegram 代理（每个连接）", ja = "Telegram プロキシ（接続ごと）" }
-description = { en = "One per connection, in the same order as the tokens: empty follows Miyu's network settings, direct connects without a proxy, anything else is a proxy address (http, https or socks5). Set on the Connect Messaging page.", zh = "一个连接一项，和令牌一一对应：空的跟随 Miyu 的联网设置，direct 是直连，别的是代理地址（http、https、socks5）。在接入通讯平台的页面上改。", ja = "接続ごとに一つ、トークンと同じ順：空は Miyu のネットワーク設定に従い、direct は直接接続、それ以外はプロキシのアドレス（http、https、socks5）です。メッセージング接続のページで変更します。" }
+description = { en = "One per connection, in the same order as the tokens: empty follows Miyu's network settings, direct connects without a proxy, anything else is a proxy address (http, https or socks5). Set on the Connect Messaging page.", zh = "每个连接一项，与令牌一一对应。留空时跟随 Miyu 的联网设置，direct 表示直连，其他值是代理地址（http、https、socks5）。在接入通讯平台的网页上修改。", ja = "接続ごとに一つ、トークンと同じ順：空は Miyu のネットワーク設定に従い、direct は直接接続、それ以外はプロキシのアドレス（http、https、socks5）です。メッセージング接続のページで変更します。" }
 
 [settings.tg.api]
 type = "text"
@@ -218,7 +218,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Telegram Bot API address", zh = "Telegram Bot API 地址", ja = "Telegram Bot API のアドレス" }
-description = { en = "Where to reach the Bot API. Change it only for a self-hosted Bot API server.", zh = "Bot API 在哪。自建 Bot API 服务时才改。", ja = "Bot API の場所です。Bot API サーバーを自分で立てたときだけ変えます。" }
+description = { en = "Where to reach the Bot API. Change it only for a self-hosted Bot API server.", zh = "Bot API 服务的地址。只有自建 Bot API 服务时才需要修改。", ja = "Bot API の場所です。Bot API サーバーを自分で立てたときだけ変えます。" }
 
 # 识人术（施工 I-10 上，设计 01 第一节第 22 条）：OneBot 驱动带的插件，设置是驱动的配置项，藏起来，只在 im 页面的插件页「识人术」的
 # 「设置」里改；总开关是插件页上的开关。
@@ -228,7 +228,7 @@ default = true
 layers = ["system"]
 applies = "now"
 hidden = true
-name = { en = "Identity on", zh = "识人术开着", ja = "なりすまし防止を使う" }
+name = { en = "Identity on", zh = "开启识人术", ja = "なりすまし防止を使う" }
 description = { en = "The switch of the Identity plugin.", zh = "识人术插件的总开关。", ja = "なりすまし防止プラグインのスイッチです。" }
 
 [settings.qq.identity_admin]
@@ -238,7 +238,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Protect the terminal admin's name", zh = "保护终端管理员的名字", ja = "端末管理者の名前を守る" }
-description = { en = "When someone uses the terminal admin's name with another number, remind the AI.", zh = "有人用了终端管理员的名字、号却对不上，提醒 AI", ja = "端末管理者の名前を別の番号の人が使ったら AI に伝えます。" }
+description = { en = "When someone uses the terminal admin's name with another number, remind the AI.", zh = "有人使用终端管理员的名字但号码不对时，提醒 AI", ja = "端末管理者の名前を別の番号の人が使ったら AI に伝えます。" }
 
 [settings.qq.identity_card]
 type = "bool"
@@ -247,7 +247,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Protect the AI's own group card", zh = "保护 AI 自己的群名片", ja = "AI 自身のグループ名を守る" }
-description = { en = "When someone changes their group card to the AI's, remind the AI.", zh = "有人把群名片改成和 AI 一样，提醒 AI", ja = "グループ名を AI と同じにした人がいたら AI に伝えます。" }
+description = { en = "When someone changes their group card to the AI's, remind the AI.", zh = "有人把群名片改成和 AI 相同时，提醒 AI", ja = "グループ名を AI と同じにした人がいたら AI に伝えます。" }
 
 [settings.qq.identity_people]
 type = "list"
@@ -258,7 +258,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "People and numbers", zh = "识人映射", ja = "人と番号の対応" }
-description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字对上、号码对不上的，提醒 AI 这不是那个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
+description = { en = "One per person, written name=QQ number, for example Boss=10001. When someone uses the name with another number, remind the AI.", zh = "一项一个人，写「名字=QQ号」，例如 主人=10001。名字相同但号码不同时，提醒 AI 这不是同一个人。", ja = "一人ずつ「名前=QQ番号」で書きます。例：主人=10001。名前が同じで番号が違う人がいたら AI に伝えます。" }
 
 # 查询信息（施工 I-44 起，I-91 把群聊记录、群资料并成一个）：OneBot 驱动带的插件，同群管理。总开关关了的，它的工具不登记。
 [settings.qq.lookup_on]
@@ -267,7 +267,7 @@ default = true
 layers = ["system"]
 applies = "now"
 hidden = true
-name = { en = "Lookups on", zh = "查询信息开着", ja = "情報の照会を使う" }
+name = { en = "Lookups on", zh = "开启查询信息", ja = "情報の照会を使う" }
 description = { en = "The switch of the Lookups plugin.", zh = "查询信息插件的总开关。", ja = "情報の照会プラグインのスイッチです。" }
 
 # 群管理（施工 Q-1，设计 02）：OneBot 驱动带的插件，同识人术。总开关关了、禁言工具的开关关了的，禁言不登记（改的时候 im 重新登记）。
@@ -277,7 +277,7 @@ default = true
 layers = ["system"]
 applies = "now"
 hidden = true
-name = { en = "Group admin on", zh = "群管理开着", ja = "グループ管理を使う" }
+name = { en = "Group admin on", zh = "开启群管理", ja = "グループ管理を使う" }
 description = { en = "The switch of the Group admin plugin.", zh = "群管理插件的总开关。", ja = "グループ管理プラグインのスイッチです。" }
 
 [settings.qq.admin_mute]
@@ -287,7 +287,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Mute tool", zh = "禁言工具", ja = "ミュートツール" }
-description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 能禁言、解禁群成员。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
+description = { en = "Let the AI mute and unmute group members. Turning it off takes the tool away from the AI.", zh = "让 AI 可以禁言、解禁群成员。关闭后 AI 不能使用这个工具。", ja = "AI がグループメンバーをミュート、ミュート解除できるようにします。オフにすると AI はこのツールを使えません。" }
 
 [settings.qq.admin_mute_min]
 type = "int"
@@ -318,7 +318,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Kick tool", zh = "踢人工具", ja = "退出ツール" }
-description = { en = "Let the AI remove group members, and refuse their later join requests if it chooses. Turning it off takes the tool away from the AI.", zh = "让 AI 能把群成员移出群，也能拒绝他以后的加群申请。关掉以后 AI 没有这件工具。", ja = "AI がグループメンバーを退出させ、必要なら今後の参加申請も拒否できるようにします。オフにすると AI はこのツールを使えません。" }
+description = { en = "Let the AI remove group members, and refuse their later join requests if it chooses. Turning it off takes the tool away from the AI.", zh = "让 AI 可以把群成员移出群，也可以拒绝这个人以后的加群申请。关闭后 AI 不能使用这个工具。", ja = "AI がグループメンバーを退出させ、必要なら今後の参加申請も拒否できるようにします。オフにすると AI はこのツールを使えません。" }
 
 [settings.qq.admin_log]
 type = "bool"
@@ -327,7 +327,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Moderation log tool", zh = "查管理记录工具", ja = "管理記録ツール" }
-description = { en = "Let the AI look up this group's moderation records and ranking. Turning it off takes the tool away from the AI.", zh = "让 AI 能查这个群的管理记录和排行榜。关掉以后 AI 没有这件工具。", ja = "AI がこのグループの管理記録とランキングを確認できるようにします。オフにすると AI はこのツールを使えません。" }
+description = { en = "Let the AI look up this group's moderation records and ranking. Turning it off takes the tool away from the AI.", zh = "让 AI 可以查看这个群的管理记录和排行榜。关闭后 AI 不能使用这个工具。", ja = "AI がこのグループの管理記録とランキングを確認できるようにします。オフにすると AI はこのツールを使えません。" }
 
 [settings.qq.admin_records]
 type = "bool"
@@ -347,7 +347,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Records kept per group", zh = "每个群最多留多少条记录", ja = "グループごとに残す記録の数" }
-description = { en = "Older records go first.", zh = "超了从旧的删。", ja = "超えたら古いものから消します。" }
+description = { en = "Older records go first.", zh = "超过时从最早的记录开始删除。", ja = "超えたら古いものから消します。" }
 
 [settings.qq.admin_summary]
 type = "bool"
@@ -356,7 +356,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Member summary", zh = "成员汇总", ja = "メンバーのまとめ" }
-description = { en = "Count mutes and kicks per member and rank them, for the AI and the panel.", zh = "照人数被禁言、被踢的次数，排成榜，给 AI 和面板看。", ja = "メンバーごとのミュートと退出の回数を数えてランキングにし、AI とパネルに見せます。" }
+description = { en = "Count mutes and kicks per member and rank them, for the AI and the panel.", zh = "按每个人被禁言、被踢的次数排行，供 AI 和面板查看。", ja = "メンバーごとのミュートと退出の回数を数えてランキングにし、AI とパネルに見せます。" }
 
 [settings.qq.admin_sync_unmute]
 type = "bool"
@@ -364,8 +364,8 @@ default = true
 layers = ["system"]
 applies = "now"
 hidden = true
-name = { en = "Sync other admins' unmutes", zh = "同步群里别的管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
-description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里别的管理员解禁了谁，也记下来、告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
+name = { en = "Sync other admins' unmutes", zh = "同步其他管理员的解禁", ja = "他の管理者のミュート解除も記録する" }
+description = { en = "When another admin unmutes someone, record it and tell the AI too.", zh = "群里其他管理员解禁成员时，也记录下来并告诉 AI。", ja = "他の管理者が誰かのミュートを解除したときも、記録して AI に伝えます。" }
 
 # 页面服务的端口（施工 I-5 上，设计 01 第九节第 1 条）：im 自己的页面听这个端口（施工 I-167 起能向局域网开放）。键是 im.web.port（施工 I-3 补：
 # 核心 9287d31d 起清单能多一层组）。
@@ -387,7 +387,7 @@ default = "127.0.0.1"
 layers = ["system"]
 applies = "now"
 name = { en = "Web page address", zh = "网页服务地址", ja = "Web ページのアドレス" }
-description = { en = "127.0.0.1 for this machine only, 0.0.0.0 to open the page to the local network. Turn it on in Settings > Access on the Connect Messaging page.", zh = "127.0.0.1 只给本机，0.0.0.0 向局域网开放。在接入通讯平台网页的「设置 → 访问」里打开。", ja = "127.0.0.1 はこのマシンだけ、0.0.0.0 でローカルネットワークに公開します。メッセージング接続のページの「設定 → アクセス」でオンにします。" }
+description = { en = "127.0.0.1 for this machine only, 0.0.0.0 to open the page to the local network. Turn it on in Settings > Access on the Connect Messaging page.", zh = "127.0.0.1 只允许本机访问，0.0.0.0 向局域网开放。在接入通讯平台网页的「设置 → 访问」里开启。", ja = "127.0.0.1 はこのマシンだけ、0.0.0.0 でローカルネットワークに公開します。メッセージング接続のページの「設定 → アクセス」でオンにします。" }
 
 # 白名单成员（施工 O-27，2026-10-10 项目主人定：原来的键叫 trusted，旧键不认）。
 [settings.whitelist]
@@ -408,7 +408,7 @@ default = ["clear", "clear-memory"]
 layers = ["system"]
 applies = "now"
 name = { en = "Recalled command receipts", zh = "撤回回执的命令", ja = "返答を取り消すコマンド" }
-description = { en = "Commands whose receipts in groups are recalled a few seconds after they are sent. Write the command name without the slash, for example clear. Private chats are never recalled.", zh = "群里这些命令的回执发出去几秒后撤回。写命令名，不带斜杠，例如 clear。私聊的不撤。", ja = "グループでこれらのコマンドの返答を送ってから数秒後に取り消します。コマンド名をスラッシュなしで書きます。例：clear。個人チャットは取り消しません。" }
+description = { en = "Commands whose receipts in groups are recalled a few seconds after they are sent. Write the command name without the slash, for example clear. Private chats are never recalled.", zh = "群里这些命令的回执在发出几秒后撤回。填写命令名，不带斜杠，例如 clear。私聊里的回执不撤回。", ja = "グループでこれらのコマンドの返答を送ってから数秒後に取り消します。コマンド名をスラッシュなしで書きます。例：clear。個人チャットは取り消しません。" }
 
 # 群的三项（施工 O-41，2026-10-17 项目主人定：做成配置项，网页、终端的设置页照清单画；O-58 上群白名单、白名单以外的群、两档
 # 限流挪进后台页的场所卡片）。桥照它们拼一份规则文件 60-settings.toml，排在出厂、系统中间：没设的什么都不改；卡片里设了的盖它，
@@ -422,7 +422,7 @@ max = 11
 layers = ["system"]
 applies = "now"
 name = { en = "Sleep hours", zh = "睡觉时间", ja = "休止時間" }
-description = { en = "HH:MM-HH:MM in local time, for example 23:00-07:00. In these hours the AI only records; the terminal administrator and whitelisted people can still call it. Empty or off: no sleep.", zh = "写成 HH:MM-HH:MM，照本机的时间，例如 23:00-07:00。这段时间里 AI 只记下、不接话，终端管理员和白名单成员照样叫得动。不填或 off 是不睡。", ja = "HH:MM-HH:MM でこのマシンの時刻で書きます。例：23:00-07:00。この時間は記録だけします。端末の管理者とホワイトリストの人は呼び出せます。空欄か off で眠りません。" }
+description = { en = "HH:MM-HH:MM in local time, for example 23:00-07:00. In these hours the AI only records; the terminal administrator and whitelisted people can still call it. Empty or off: no sleep.", zh = "格式为 HH:MM-HH:MM，按本机时间计算，例如 23:00-07:00。这段时间里 AI 只记录消息、不回复，但终端管理员和白名单成员仍然可以叫 AI。不填写或填写 off 表示不睡眠。", ja = "HH:MM-HH:MM でこのマシンの時刻で書きます。例：23:00-07:00。この時間は記録だけします。端末の管理者とホワイトリストの人は呼び出せます。空欄か off で眠りません。" }
 
 [settings.keywords]
 # 挪进了会话默认值（施工 I-7 下二）：藏起来，老的配置照读，桥起来时搬进卡片、去掉这一项。
@@ -433,7 +433,7 @@ max = 64
 layers = ["system"]
 applies = "now"
 name = { en = "Trigger words", zh = "群里的触发词", ja = "グループの呼び出し語" }
-description = { en = "A group message that starts with one of these counts as calling the AI, like an @. Case-sensitive; put its name here too.", zh = "群里的话以其中一个词开头，算叫 AI，和 @ 一样。区分大小写；名字也写在这里。", ja = "グループの発言がこのどれかで始まると、@ と同じく AI を呼んだことになります。大文字と小文字を区別します。名前もここに書きます。" }
+description = { en = "A group message that starts with one of these counts as calling the AI, like an @. Case-sensitive; put its name here too.", zh = "群里的消息以其中一个词开头时，算作叫 AI，效果和 @ 相同。区分大小写；AI 的名字也写在这里。", ja = "グループの発言がこのどれかで始まると、@ と同じく AI を呼んだことになります。大文字と小文字を区別します。名前もここに書きます。" }
 
 [settings.strip_period]
 type = "bool"
@@ -442,7 +442,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Drop the final period", zh = "去掉末尾的句号", ja = "末尾の句点を外す" }
-description = { en = "On: a reply ending in a single 。 is sent without it, like people type in chats. Applies to every group and private chat.", zh = "开着的，回话末尾的一个「。」去掉再发，像平常聊天那样。管所有群和私聊。", ja = "オン：返信の末尾の「。」を一つ外して送ります。普段のチャットと同じです。すべてのグループと個人チャットに効きます。" }
+description = { en = "On: a reply ending in a single 。 is sent without it, like people type in chats. Applies to every group and private chat.", zh = "开启后，去掉回复末尾的一个「。」再发送，更像平常聊天。对所有群和私聊生效。", ja = "オン：返信の末尾の「。」を一つ外して送ります。普段のチャットと同じです。すべてのグループと個人チャットに効きます。" }
 
 [settings.humanlike]
 type = "bool"
@@ -451,7 +451,7 @@ layers = ["system"]
 applies = "now"
 hidden = true
 name = { en = "Send like a person, in several messages", zh = "模拟真人一条分多条发送", ja = "人のように何通かに分けて送る" }
-description = { en = "On: a reply is split like people chat, at full stops and sometimes at commas, with a short pause between messages. Long or multi-line replies stay whole. Applies to every group and private chat.", zh = "开着的，一句回复照真人聊天的样子分成几条发：句号处断，有时也在逗号处断，每条之间停一会儿。太长的、带换行的照旧一条。管所有群和私聊。", ja = "オン：返信を人のチャットのように何通かに分けて送ります。句点で区切り、ときどき読点でも区切り、間を少し空けます。長い返信や改行を含む返信は一通のままです。すべてのグループと個人チャットに効きます。" }
+description = { en = "On: a reply is split like people chat, at full stops and sometimes at commas, with a short pause between messages. Long or multi-line replies stay whole. Applies to every group and private chat.", zh = "开启后，按真人聊天的习惯把一条回复分成几条发送：在句号处断开，有时也在逗号处断开，每条之间停顿一会儿。太长或带换行的回复仍然作为一条发送。对所有群和私聊生效。", ja = "オン：返信を人のチャットのように何通かに分けて送ります。句点で区切り、ときどき読点でも区切り、間を少し空けます。長い返信や改行を含む返信は一通のままです。すべてのグループと個人チャットに効きます。" }
 
 [settings.show_ids]
 # 挪进了会话默认值（施工 I-7 下二）：藏起来，老的配置照读，桥起来时搬进卡片、去掉这一项。
@@ -461,4 +461,4 @@ default = false
 layers = ["system"]
 applies = "now"
 name = { en = "Show QQ numbers", zh = "让 AI 看到 QQ 号", ja = "QQ 番号を AI に見せる" }
-description = { en = "On: the AI sees the QQ number of whoever speaks, next to the name.", zh = "开着的，AI 看得到发话人的 QQ 号，写在名字旁边。", ja = "オン：発言した人の QQ 番号を名前の横に AI が見られます。" }
+description = { en = "On: the AI sees the QQ number of whoever speaks, next to the name.", zh = "开启后，AI 可以看到发言人的 QQ 号，显示在名字旁边。", ja = "オン：発言した人の QQ 番号を名前の横に AI が見られます。" }

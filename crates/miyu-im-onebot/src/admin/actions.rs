@@ -71,7 +71,7 @@ fn venue_group(venue: &str) -> Option<Id> {
 async fn whole(context: &Context, summary: bool, now: u64) -> Value {
     let bots = context.bots.all();
     if bots.is_empty() {
-        return json!([{"type": "text", "text": t("QQ 没连着：连上以后这里列出她在的群。", "QQ is not connected: the groups appear once it is.", "QQ が接続されていません。接続するとグループが表示されます。"), "tone": "dim"}]);
+        return json!([{"type": "text", "text": t("QQ 未连接。连接以后，这里会列出 AI 所在的群。", "QQ is not connected: the groups appear once it is.", "QQ が接続されていません。接続するとグループが表示されます。"), "tone": "dim"}]);
     }
     // 每个号在的群，并着问；群的先后照号的先后、QQ 列的先后（同以前）。
     let mut listing = tokio::task::JoinSet::new();
@@ -131,7 +131,7 @@ async fn whole(context: &Context, summary: bool, now: u64) -> Value {
         })
         .collect();
     if items.is_empty() {
-        return json!([{"type": "text", "text": t("她还不在任何群里。", "She is not in any group yet.", "まだどのグループにも入っていません。"), "tone": "dim"}]);
+        return json!([{"type": "text", "text": t("AI 还不在任何群里。", "She is not in any group yet.", "まだどのグループにも入っていません。"), "tone": "dim"}]);
     }
     json!([{"type": "sections", "items": items}])
 }
@@ -165,7 +165,7 @@ fn saved(
     let mut problems = Vec::new();
     let mut check = |key: &str, ok: bool| {
         if !ok {
-            problems.push(json!({"key": key, "message": t("这一格写得不对。", "This value is not valid.", "この値は正しくありません。")}));
+            problems.push(json!({"key": key, "message": t("这一项的格式不正确。", "This value is not valid.", "この値は正しくありません。")}));
         }
     };
     let number = |key: &str, min: u64, max: u64| {
