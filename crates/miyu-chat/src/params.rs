@@ -1,4 +1,4 @@
-//! 出厂参数和按场所改（`docs/blueprint/chat.md` 第八条，`docs/designs/18-通讯平台.md` Q26，施工 O-15）。
+//! 出厂参数和按场所改（`docs/blueprint/chat.md` 第八条，`internal/designs/18-通讯平台.md` Q26，施工 O-15）。
 //!
 //! 第二到第六条要的数有一份出厂的数据文件（软件包资源里的 `defaults.toml`）：[`Params::read`] 照声明读、照声明查，有一条
 //! 问题就整份不用；场所规则写同名的表改的几项，由 [`Params::at`] 套上。表的名字和每一项的类型只在 `items` 里声明一次，

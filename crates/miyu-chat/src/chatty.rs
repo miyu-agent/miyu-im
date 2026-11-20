@@ -1,4 +1,4 @@
-//! 主动回复判断的上半（`docs/blueprint/chat.md` 第三条，`docs/designs/18-通讯平台.md` 第七节、Q4、Q23，施工 O-7）：线路规程
+//! 主动回复判断的上半（`docs/blueprint/chat.md` 第三条，`internal/designs/18-通讯平台.md` 第七节、Q4、Q23，施工 O-7）：线路规程
 //! 「看情况插话」`chatty` 的核心。一条消息成立了哪些触发条件（[`conditions`]），走哪条路（[`route`]），拿到判官的回答
 //! 以后算分、跟门槛比（[`score()`]）；冷静机制抬门槛（[`pressure`]）。下半（`chat.md` 第四条，施工 O-9）在 `supersede`、
 //! `dispatch` 两个文件：顶替窗口（[`supersede()`]）和主线、支线的分派（[`dispatch()`]）。
