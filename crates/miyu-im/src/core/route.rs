@@ -319,6 +319,7 @@ impl Route {
         let tools = rules.tools();
         hooks.set_toggles(Toggles::from_cards(rules.cards()));
         let limits = Limits::new(spent, people, core.caller());
+        let sent_files = sent_files::SentFiles::load(store.join(sent_files::FILE));
         Route {
             core,
             store,
@@ -353,7 +354,7 @@ impl Route {
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),
-            sent_files: sent_files::SentFiles::default(),
+            sent_files,
             context_refused: policy::context::Refused::default(),
             impostors: Noted::default(),
             aims: Aims::default(),

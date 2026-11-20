@@ -359,6 +359,13 @@ fn answer(
                 None => ("failed", Value::Null),
             }
         }
+        // 传文件照 NapCat 回文件编号（施工 I-268，`UploadPrivateFile.ts`：`{file_id}`）：写成 `<文件名>-id`。照样占一个消息编号，
+        // 别的测试数到的编号不变。
+        Some("upload_private_file" | "upload_group_file") => {
+            *sent += 1;
+            let name = action["params"]["name"].as_str().unwrap_or_default();
+            ("ok", json!({"file_id": format!("{name}-id")}))
+        }
         _ => {
             *sent += 1;
             ("ok", json!({"message_id": *sent - 1}))
