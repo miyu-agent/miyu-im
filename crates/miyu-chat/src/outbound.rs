@@ -1,4 +1,4 @@
-//! 出站链与纯文本（`docs/blueprint/chat.md` 第五条，`docs/designs/18-通讯平台.md` 第十节、Q8、Q14，施工 O-10）。
+//! 出站链与纯文本（`docs/blueprint/chat.md` 第五条，`internal/designs/18-通讯平台.md` 第十节、Q8、Q14，施工 O-10）。
 //!
 //! 她要说出去的一切先过出站链，像 netfilter 的 OUTPUT 链：一条条规则（[`OutboundRule`]）照顺序过，每条可以改写这一条
 //! 往下走，或者整条丢掉（[`OutStep`]）。自带四条（[`OutChain::builtin`]）：清理、去末尾句号（施工 O-47）、去重、引用和 @，

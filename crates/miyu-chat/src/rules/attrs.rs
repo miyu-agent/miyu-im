@@ -1,4 +1,4 @@
-//! 规则能设的属性（`docs/blueprint/chat.md` 第一条「对外的样子」那张属性表，`docs/designs/18-通讯平台.md` 第四节）：名字和
+//! 规则能设的属性（`docs/blueprint/chat.md` 第一条「对外的样子」那张属性表，`internal/designs/18-通讯平台.md` 第四节）：名字和
 //! 类型。拼错的名字找离得最近的那一个，和配置共用 `miyu_config::problem::nearest`（施工 O-12）。
 //!
 //! 能照配置清单的类型认的，用 [`Kind`]，读和查都照配置（`miyu_config::parse::read`、[`Kind::check`]），原因码一样；配置清单

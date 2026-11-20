@@ -4,14 +4,14 @@
 
 ## 这个仓库是什么
 
-Miyu 的「接入通讯平台」软件包（正在改成「接入通讯平台」`im`）：宿主 `crates/miyu-im`、OneBot 驱动 `crates/miyu-im-onebot`（程序 `miyu-im`；宿主不依赖驱动）、群聊内核 `crates/miyu-chat`、包文件夹 `im/`（包编号、配置前缀都是 `im`；赞助记录的在 `im-sponsor/`，编号 `im-sponsor`。包编号不带 `miyu-`，仓库名、程序名照旧带，2026-11-12 项目主人定）。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install im`（从源码编的装文件夹 `./im`）。
+Miyu 的「接入通讯平台」软件包（正在改成「接入通讯平台」`im`）：宿主 `crates/miyu-im`、OneBot 驱动 `crates/miyu-im-onebot`（程序 `miyu-im`；宿主不依赖驱动）、群聊内核 `crates/miyu-chat`、包文件夹 `im/`（包编号、配置前缀都是 `im`；赞助记录的在 `im-sponsor/`，编号 `im-sponsor`。包编号不带 `miyu-`，仓库名、程序名照旧带，2026-11-12 项目主人定）。核心在 `miyu-agent/miyu`，这里照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `internal/designs/32-仓库拆分.md` 第九节）。它不进核心的发布包：单独发、用的人自己 `miyu pkg install im`（从源码编的装文件夹 `./im`）。
 
 ## 先读什么
 
 - `docs/blueprint/onebot.md`（桥）、`docs/blueprint/chat.md`（群聊内核）：现在长什么样，事无巨细，由哪些测试守着。改一个部件之前，先读它那一节。`docs/blueprint/extending.md`：写给扩展包作者的约定（施工 O-42 起），改给别的包调的方法、挂接点时一起改。
 - `docs/ledger.md`：登记簿，`im/data/` 里给模型看的每一份字。
 - `docs/construction/README.md`：施工方案，怎么施工、做到哪了；每一步的施工单在同一个目录。
-- 核心仓库的设计文档（`docs/designs/`）：平台接入是设计 18，给模型看的字是设计 26，软件包是设计 31。O 线以前的施工单在核心仓库的 `docs/construction/` 里，是历史；O-40 起的施工单写在这个仓库的 `docs/construction/`。
+- 核心仓库的设计文档（`internal/designs/`）：平台接入是设计 18，给模型看的字是设计 26，软件包是设计 31。O 线以前的施工单在核心仓库的 `internal/construction/` 里，是历史；O-40 起的施工单写在这个仓库的 `docs/construction/`。
 
 ## 施工的规矩
 
@@ -25,7 +25,7 @@ Miyu 的「接入通讯平台」软件包（正在改成「接入通讯平台」
 ## 和核心的边界
 
 - 桥、群聊内核只经门面 `miyu-client` 用核心的代码（设计 32 第九节第 1 条）；群聊内核另外直接用 `miyu-kernel`、`miyu-config` 的类型。缺的告诉核心的主会话加进门面，不直接依赖核心里别的 crate（`crates/miyu-im-app/tests/dependencies.rs` 守着）。测试可以用核心的别的 crate（开发依赖），钉同一个提交。
-- 协议、事件的形状以核心仓库的 `docs/blueprint/protocol.md`、`docs/designs/samples/` 为准；改到协议的事先找核心。
+- 协议、事件的形状以核心仓库的 `internal/blueprint/protocol.md`、`internal/designs/samples/` 为准；改到协议的事先找核心。
 - 升级核心：改根目录 `Cargo.toml` 的 `[workspace.dependencies]` 里钉住的提交（核心的几个 crate 都在那里，一个 `rev`），刷 `Cargo.lock`，过三台 CI。
 - 桥的文件从包文件夹读（核心拉起它时交 `MIYU_PACKAGE_DIR`），不读核心资源目录里的 `software/onebot/`。
 

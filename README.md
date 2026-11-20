@@ -2,7 +2,7 @@
 
 Miyu 的一个软件包：把 AI 接入通讯平台，私聊、群里都能和 AI 说话。现在接的是 QQ（经 NapCat 这类 OneBot v11 实现的反向 WebSocket）和 Telegram（官方机器人接口）。它不随 Miyu 的发布包一起装，要用的自己装。
 
-核心在 [`miyu-agent/miyu`](https://github.com/miyu-agent/miyu)；这个仓库照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `docs/designs/32-仓库拆分.md` 第九节）。
+核心在 [`miyu-agent/miyu`](https://github.com/miyu-agent/miyu)；这个仓库照 `Cargo.toml` 里的 git 依赖钉住核心的一个提交（核心仓库的设计 `internal/designs/32-仓库拆分.md` 第九节）。
 
 ## 里面有什么
 

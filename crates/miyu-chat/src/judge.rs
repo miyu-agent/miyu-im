@@ -1,10 +1,10 @@
-//! 判官的请求和回答（`docs/blueprint/chat.md` 第六条，`docs/designs/18-通讯平台.md` 第七节「判官和她各看各的」，
+//! 判官的请求和回答（`docs/blueprint/chat.md` 第六条，`internal/designs/18-通讯平台.md` 第七节「判官和她各看各的」，
 //! 施工 O-11）。
 //!
 //! 主动回复判断要问判官的那一次：[`request()`] 照 `model.call` 的形状拼出一条 `system`、一条 `user`，[`read()`] 从回答里
 //! 读出第三条的 [`Judgement`](crate::Judgement)。说明的原文是接入通讯平台 包文件夹的 `data/judge/` 下的十六份（[`JudgeSources`]，
 //! 查过的是 [`JudgeTexts`]），
-//! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
+//! 登记在 `internal/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
 //! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）；违规的门槛从算分的参数拿。调用的其余几格（`purpose`、
 //! `model`、`max_tokens`）、超时、重试、记 `ext.im.chat.decided`，由桥管（「怎么走」第 3、5 条）。
@@ -176,7 +176,7 @@ pub enum Mode {
 /// 一次判断要的：都由外面交进来。违规的门槛不在这里：只留一份，在 [`Chatty::severity_min`](crate::Chatty)，[`request()`]
 /// 从它拿（施工 O-12）。
 ///
-/// 群聊记录、这一条由核心的渲染器渲染好（一行一条，不可信的字段转义成一行，`docs/designs/18-通讯平台.md` 第一节），
+/// 群聊记录、这一条由核心的渲染器渲染好（一行一条，不可信的字段转义成一行，`internal/designs/18-通讯平台.md` 第一节），
 /// 这里原样夹进标签里，不再转义。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ask {
@@ -204,7 +204,7 @@ pub struct Answering {
     pub text: String,
 }
 
-/// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。名字带 `Judge`，免得和内核的
+/// `model.call` 的一条消息（`internal/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。名字带 `Judge`，免得和内核的
 /// `request::Message` 撞（施工时定的第 10 条，O-12 下改名）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JudgeMessage {

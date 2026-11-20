@@ -1,4 +1,4 @@
-// 赞助记录的后台页（设计 03 第一节第 6 条，施工 S-1 下；核心 docs/blueprint/package-pages.md「框和网页之间怎么说」）：通道、字、颜色，
+// 赞助记录的后台页（设计 03 第一节第 6 条，施工 S-1 下；核心 internal/blueprint/package-pages.md「框和网页之间怎么说」）：通道、字、颜色，
 // 页顶一排（标题、记一笔），下面头上的合计和排行榜（board.js）、明细（ledger.js），记一笔、改一笔的浮窗（edit.js）。
 //
 // - 页面跑在网页给的隔离框里：只经网页交来的 MessageChannel 照 JSON-RPC 说，方法 context、call（转 package.call → 包的

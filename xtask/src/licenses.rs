@@ -9,7 +9,7 @@ use std::process::Command;
 
 use serde_json::Value;
 
-/// 发布的四个平台（核心仓库的 `docs/designs/12-进程形态与分发.md` R11）。
+/// 发布的四个平台（核心仓库的 `internal/designs/12-进程形态与分发.md` R11）。
 pub const PLATFORMS: [&str; 4] = [
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",

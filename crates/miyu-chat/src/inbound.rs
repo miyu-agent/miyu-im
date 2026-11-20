@@ -1,4 +1,4 @@
-//! 进站链与限流的判定（`docs/blueprint/chat.md` 第二条，`docs/designs/18-通讯平台.md` 第六节、第十六节，施工 O-5）。
+//! 进站链与限流的判定（`docs/blueprint/chat.md` 第二条，`internal/designs/18-通讯平台.md` 第六节、第十六节，施工 O-5）。
 //!
 //! 进来的每条消息先过进站链，像 netfilter 的 INPUT 链：一条条规则（[`InboundRule`]）照顺序过，每条给出往下走、插旗往下走、
 //! 或者停下给结果（[`Step`]）。自带七条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、复读（施工 I-28）、违规关键词、限流、额度（im 施工 I-135），
