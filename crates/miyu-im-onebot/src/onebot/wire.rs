@@ -113,6 +113,12 @@ impl Link for Wire {
             | Outgoing::Voice { .. } => self.media,
             Outgoing::Upload { .. } => self.upload.or(self.media),
         };
+        // 传文件回的不是消息编号，是文件编号（`file_id`，NapCat 的 fileUuid）：交回它，对方下载以后推来的那条只带这个文件的消息
+        // 带的是同一个编号（施工 I-268，宿主照它认下载的回执）。
+        let id = match outgoing {
+            Outgoing::Upload { .. } => "file_id",
+            _ => "message_id",
+        };
         let (action, params) = match outgoing {
             Outgoing::Text { text, lead } => message_to(to, text, lead),
             Outgoing::Image { file, sticker } => image_to(to, file, sticker),
@@ -132,7 +138,7 @@ impl Link for Wire {
                     Some(wait) => pending.wait_for(wait).await?,
                     None => pending.wait().await?,
                 };
-                Ok(message_id(&reply["data"]["message_id"]))
+                Ok(message_id(&reply["data"][id]))
             });
             Ok(sent)
         })

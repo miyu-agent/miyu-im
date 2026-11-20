@@ -21,7 +21,8 @@ use super::{CallError, Fetch, Id, Lead, Node, Rank, Segments, Source, To};
 /// 一次调用的结局。
 pub type Reply<'a, T> = Pin<Box<dyn Future<Output = Result<T, CallError>> + Send + 'a>>;
 
-/// 放进了写队列、在等回应的一次发送（[`Link::begin`]）：等到的是发出去那一条的平台编号（字），平台没回编号的是空的。
+/// 放进了写队列、在等回应的一次发送（[`Link::begin`]）：等到的是发出去那一条的平台编号（字），平台没回编号的是空的。传文件
+/// （[`Outgoing::Upload`]）回得出文件编号的平台交文件编号（QQ 的 `file_id`，施工 I-268）。
 pub type Pending = Pin<Box<dyn Future<Output = Result<Option<String>, CallError>> + Send>>;
 
 /// 这个平台做不到：[`Link`] 的默认（施工 I-82）。

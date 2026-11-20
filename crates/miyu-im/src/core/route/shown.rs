@@ -197,11 +197,16 @@ async fn send(job: Job) {
         tracing::debug!(target: TARGET, error = %error, "pinned file not removed");
     }
     match delivered {
-        Ok(()) => {
+        Ok(id) => {
             tracing::info!(target: TARGET, venue, kind, "file shown");
             if let (false, Some(size)) = (job.file.is_image(), size) {
-                job.sent
-                    .note(&venue, (&job.file.name, size), std::time::Instant::now());
+                let sent = super::sent_files::Sent {
+                    name: job.file.name.clone(),
+                    size,
+                    id,
+                    at: crate::recent::now(),
+                };
+                job.sent.note(&venue, sent);
             }
         }
         Err((why, detail)) => {
@@ -212,8 +217,9 @@ async fn send(job: Job) {
     }
 }
 
-/// 读出内容、交 NapCat。没成的交回为什么（`muted`、`unreachable`、`too_large`、`unreadable`、`failed`、`unanswered`）和原话。
-async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
+/// 读出内容、交 NapCat。成了的交回平台回的编号（传文件的是文件编号，施工 I-268），没成的交回为什么（`muted`、`unreachable`、
+/// `too_large`、`unreadable`、`failed`、`unanswered`）和原话。
+async fn deliver(job: &Job) -> Result<Option<String>, (&'static str, String)> {
     if job.muted {
         return Err(("muted", String::new()));
     }
@@ -243,7 +249,7 @@ async fn deliver(job: &Job) -> Result<(), (&'static str, String)> {
         },
     };
     match link.send(job.peer.to.clone(), outgoing).await {
-        Ok(_) => Ok(()),
+        Ok(id) => Ok(id),
         Err(CallError::Failed { said, .. }) => Err(("failed", said)),
         Err(CallError::Timeout) => Err(("unanswered", String::new())),
         Err(CallError::Closed) => Err(("unreachable", String::new())),

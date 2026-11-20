@@ -1,10 +1,12 @@
-//! 下载的回执（施工 I-247，2026-11-17 项目主人验收第 35 条）：真核心拉起真桥、假 NapCat。终端管理员私聊里叫她传一个文件，她用
-//! `qq_send_file` 传了；对方下载了，NapCat 推来一条对方发的、只带这个文件的私聊消息：记进聊天记录、不开一轮。对方真发来一个
-//! 别的文件、再说一句的，照常开一轮。
+//! 下载的回执（施工 I-247，2026-11-17 项目主人验收第 35 条；I-268）：真核心拉起真桥、假 NapCat。终端管理员私聊里叫她传一个
+//! 文件，她用 `qq_send_file` 传了；对方下载了，NapCat 推来一条对方发的、只带这个文件的私聊消息：不开一轮。文件编号对得上、名字
+//! 不一样的也是（I-268：传文件回的编号记进状态目录的 `sent-files.json`，桥重启也认得）。对方真发来一个别的文件、再说一句的，
+//! 照常开一轮。
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use miyu_im::status_file;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
@@ -89,6 +91,16 @@ async fn a_download_receipt_of_her_file_does_not_open_a_turn() {
         json!([file("say-01.mp3", VOICE.len())]),
     ));
     until_log(&home, "download receipt, not taken").await;
+    // 施工 I-268：传文件回的编号记进了状态目录。
+    let kept =
+        std::fs::read_to_string(status_file::path(&home.root).with_file_name("sent-files.json"))
+            .expect("记下了她传的文件");
+    assert!(kept.contains(r#""id":"say-01.mp3-id""#), "{kept}");
+    // 编号对得上、名字不一样的（QQ 下载时改了名）：也是回执。
+    let mut renamed = file("say-01.mp3", VOICE.len());
+    renamed["data"]["file"] = json!("say-01(1).mp3");
+    napcat.send(private_frame(ADMIN, 5, json!([renamed])));
+    until_logged_twice(&home, "download receipt, not taken").await;
     // 对方真发来一个别的文件：照常开一轮。
     napcat.send(private_frame(ADMIN, 3, json!([file("notes.md", 12)])));
     assert_eq!(next_private(&mut napcat).await, "收到你的文件了");
@@ -108,6 +120,19 @@ async fn a_download_receipt_of_her_file_does_not_open_a_turn() {
         .collect();
     assert_eq!(heard, [json!("1"), json!("3"), json!("4")], "回执不进会话");
     stopped(home).await;
+}
+
+/// 等到运行日志里 `wanted` 有两行。
+async fn until_logged_twice(home: &Home, wanted: &str) {
+    let deadline = tokio::time::Instant::now() + WAIT;
+    while run_log(&home.root).matches(wanted).count() < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "等不到第二行 {wanted}：{}",
+            run_log(&home.root)
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
 }
 
 /// 等到运行日志里有 `wanted`。
