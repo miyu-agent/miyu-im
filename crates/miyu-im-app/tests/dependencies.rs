@@ -39,9 +39,11 @@ fn the_bridge_does_not_depend_on_the_core_crates() {
             );
         }
     }
+    // miyu-store 是临时的（施工 I-267）：钉的核心把 `Human::with_dir` 放到了它的 `testkit` 后面，宿主只为打开这个特性直接
+    // 依赖它，代码里不用。核心恢复成正式接口以后，连同 `crates/miyu-im/Cargo.toml` 那一行一起去掉。
     assert_eq!(
         ours(&used("miyu-im")),
-        ["miyu-chat", "miyu-client"],
+        ["miyu-chat", "miyu-client", "miyu-store"],
         "宿主只经门面拿核心的东西，不依赖驱动（施工 I-2 下）"
     );
     assert_eq!(
