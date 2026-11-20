@@ -117,6 +117,7 @@ mod tasks;
 mod audit4;
 mod revived;
 mod rules;
+mod schemas_portable;
 mod scoring;
 mod segments;
 mod send_file;
