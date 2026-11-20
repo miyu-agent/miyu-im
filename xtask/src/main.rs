@@ -12,6 +12,7 @@ mod files;
 mod ledger;
 mod licenses;
 mod notices;
+mod privacy;
 mod purity;
 mod size;
 mod test_targets;
@@ -136,6 +137,7 @@ fn check() -> ExitCode {
         ]
         .concat(),
     });
+    outcomes.push(privacy::outcome(&root));
     // 先在锁里把测试程序都编好，再出锁跑（2026-10-22 项目主人定：锁只管编译）。编不过的不再跑。
     let mut tests = cargo_step(
         &cargo,
