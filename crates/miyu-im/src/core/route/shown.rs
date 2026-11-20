@@ -198,7 +198,7 @@ async fn send(job: Job) {
     }
     match delivered {
         Ok(id) => {
-            tracing::info!(target: TARGET, venue, kind, "file shown");
+            // 先记下、写好盘再记日志（施工 I-268）：日志里有了这一行，回执就认得出。
             if let (false, Some(size)) = (job.file.is_image(), size) {
                 let sent = super::sent_files::Sent {
                     name: job.file.name.clone(),
@@ -208,6 +208,7 @@ async fn send(job: Job) {
                 };
                 job.sent.note(&venue, sent);
             }
+            tracing::info!(target: TARGET, venue, kind, "file shown");
         }
         Err((why, detail)) => {
             // 平台说的原话也记（施工 I-200：群文件空间满了只有她看得到，运行日志里只有 `failed`）。
