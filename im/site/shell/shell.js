@@ -26,19 +26,20 @@ import { mountBackstage } from '../pages/backstage/backstage.js';
 
 /** 侧边栏的几页：编号、名字、做好了的画法（没有的灰着）、分在哪一组（施工 I-150，2026-11-05 项目主人：十二项太长，照用途分组加小
  *  标题；没写的是头一组，不带标题；`end` 只隔开一点、不带标题）。施工 I-153（项目主人 11-05）：「扩展」改叫「软件」，下面
- *  照内核的叫法写已安装、软件后台、下载软件，还是只管 im 的插件；网址里的编号（plugins、backstage、store）不变。 */
+ *  照内核的叫法写已安装、软件后台、下载软件，还是只管 im 的插件；网址里的编号（plugins、backstage、store）不变。施工 I-272（主人
+ *  11-22）：「已安装」改叫「软件包」，两组的先后照网页包设置页（模型、预设、人格；下载软件、软件包、软件后台）。 */
 const PAGES = [
   { id: 'home', name: () => say('nav/home'), mount: mountHome },
   { id: 'venues', name: () => say('nav/venues'), mount: mountVenues },
   { id: 'records', name: () => say('nav/records'), mount: mountRecords },
   { id: 'stats', name: () => say('nav/stats'), mount: mountStats },
   { id: 'limits', name: () => say('nav/limits'), mount: mountLimits },
-  { id: 'personas', name: () => say('nav/personas'), mount: mountPersonas, group: 'ai' },
-  { id: 'presets', name: () => say('nav/presets'), mount: mountPresets, group: 'ai' },
   { id: 'models', name: () => say('nav/models'), mount: mountModels, group: 'ai' },
+  { id: 'presets', name: () => say('nav/presets'), mount: mountPresets, group: 'ai' },
+  { id: 'personas', name: () => say('nav/personas'), mount: mountPersonas, group: 'ai' },
+  { id: 'store', name: () => say('nav/store'), mount: mountStore, group: 'extend' },
   { id: 'plugins', name: () => say('nav/plugins'), mount: mountPlugins, group: 'extend' },
   { id: 'backstage', name: () => say('nav/backstage'), mount: mountBackstage, group: 'extend' },
-  { id: 'store', name: () => say('nav/store'), mount: mountStore, group: 'extend' },
   { id: 'settings', name: () => say('nav/settings'), mount: mountSettings, group: 'end' },
 ];
 

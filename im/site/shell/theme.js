@@ -5,6 +5,8 @@
 //   是网页软件那一套的。
 // - 单独打开的：跟随系统，能手动切成浅色、深色（记进 localStorage）。施工 I-110（项目主人 11-02）：设置页「外观」三档都能选，侧栏
 //   左下角那一下只在浅色、深色之间切（照现在显示的换成另一个）。
+// - 施工 I-272（主人 11-22：单独打开的配色先跟网页包统一，新开标签页要记得）：网页软件交来的颜色另照浅色、深色各记一份进
+//   localStorage；单独打开的（新标签页、书签）照现在显示的深浅换上记着的那一份，没记过的用默认的。手动切、系统深浅变了照新的那一份换。
 
 /** 认得的颜色名（网页软件 design.js 的 page 那一组里页面用到的）。 */
 const KNOWN = [
@@ -15,24 +17,45 @@ const KNOWN = [
 
 const HANDED = 'miyu-im-handed-theme';
 const CHOSEN = 'miyu-im-scheme';
+/** 网页软件交来过的颜色，浅色、深色各一份（`miyu-im-colors-light` 这样）。 */
+const COLORS = 'miyu-im-colors-';
 
 /** 照网址片段交来的 `given`（没有的照这个标签页记着的）定主题。交回是不是网页软件交来的（是的不给手动切）。 */
 export function applyHanded(given) {
   let theme = given && (given.scheme || given.colors) ? { scheme: given.scheme, colors: given.colors } : null;
-  if (theme) remember(sessionStorage, HANDED, JSON.stringify(theme));
-  else theme = parse(recall(sessionStorage, HANDED));
+  if (theme) {
+    remember(sessionStorage, HANDED, JSON.stringify(theme));
+    if ((theme.scheme === 'light' || theme.scheme === 'dark') && theme.colors) {
+      remember(localStorage, COLORS + theme.scheme, JSON.stringify(theme.colors));
+    }
+  } else theme = parse(recall(sessionStorage, HANDED));
   if (!theme) {
     applyChosen(recall(localStorage, CHOSEN) || 'system');
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (chosen() === 'system') applyColors(remembered(shown()));
+    });
     return false;
   }
   if (theme.scheme === 'light' || theme.scheme === 'dark') document.documentElement.dataset.theme = theme.scheme;
-  for (const [name, value] of Object.entries(theme.colors || {})) {
+  applyColors(theme.colors || {});
+  return true;
+}
+
+/** 记着的 `scheme`（light、dark）那一份网页软件的颜色；没记过的是空的。 */
+function remembered(scheme) {
+  return parse(recall(localStorage, COLORS + scheme)) || {};
+}
+
+/** 换上 `colors`（网页软件 design.js 的 page 那一组）：先去掉上一回换上的，认得的写成 CSS 变量。 */
+function applyColors(colors) {
+  const style = document.documentElement.style;
+  for (const name of KNOWN) style.removeProperty(`--${name.replace(/_/g, '-')}`);
+  for (const [name, value] of Object.entries(colors)) {
     if (KNOWN.includes(name) && typeof value === 'string' && value.length < 200 && !/[;{}]/.test(value)) {
-      document.documentElement.style.setProperty(`--${name.replace(/_/g, '-')}`, value);
+      style.setProperty(`--${name.replace(/_/g, '-')}`, value);
     }
   }
-  markDarkSide(theme.colors || {});
-  return true;
+  markDarkSide(colors);
 }
 
 /** 侧栏底色和正文字色贴得太近（施工 I-241，大肥鱼这类主题：浅色页面配深色侧栏，网页软件在自己的侧栏、设置左列里另换浅色字，交过来的
@@ -100,6 +123,7 @@ export function choose(scheme) {
 function applyChosen(scheme) {
   if (scheme === 'light' || scheme === 'dark') document.documentElement.dataset.theme = scheme;
   else delete document.documentElement.dataset.theme;
+  applyColors(remembered(shown()));
 }
 
 function parse(text) {
