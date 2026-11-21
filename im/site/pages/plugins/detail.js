@@ -165,6 +165,16 @@ function about(plugin, all, host, context) {
     row.append(element('span', null, say(`plugins-page/about-${key}`)), element('b', key === 'platform' && plugin.unusable ? 'bad' : null, value));
     panel.append(row);
   }
+  // 上游（施工 I-272，照网页包的软件包详情）：只认 http、https 的网址。
+  if (typeof plugin.upstream === 'string' && /^https?:\/\//.test(plugin.upstream)) {
+    const row = element('div', 'meta-row');
+    const link = element('a', 'plug-upstream', plugin.upstream.replace(/^https?:\/\//, ''));
+    link.href = plugin.upstream;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    row.append(element('span', null, say('plugins-page/about-upstream')), link);
+    panel.append(row);
+  }
   if (plugin.ui?.home) panel.append(homeSwitch(plugin, context));
   return panel;
 }

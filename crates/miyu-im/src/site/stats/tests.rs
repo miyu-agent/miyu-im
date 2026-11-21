@@ -39,7 +39,7 @@ fn only_the_chosen_connections_venue_sessions_count() {
     );
     assert_eq!(
         shown["purposes"][0],
-        json!({"name": "turn", "tokens": 1050, "requests": 2, "cost": null})
+        json!({"name": "turn", "tokens": 1050, "requests": 2, "cost": null, "hit_rate": 0.8})
     );
     assert_eq!(shown["venues"][1]["name"], "qq:private:5");
     assert_eq!(token(&[], &[], 0)["per_reply"], serde_json::Value::Null);
@@ -188,4 +188,61 @@ fn token_carries_the_money() {
         (Some(json!(0.75)), Some(json!(1.0))),
         "{shown}"
     );
+}
+
+/// 施工 I-272：「全部」从最早记过的那一天起、不比；自定义含头含尾、尾在今天以后的算到今天；写错的、头在尾后面的不收。
+#[test]
+fn periods_cover_all_and_custom_ranges() {
+    let date = |text: &str| text.parse::<jiff::civil::Date>().expect("日子");
+    let today = date("2026-11-22");
+    let first = date("2026-11-01");
+    let of = |params: serde_json::Value| period(&params, today, first);
+    assert_eq!(
+        of(json!({"period": "7d"})),
+        Ok(Period {
+            start: date("2026-11-16"),
+            days: 7,
+            all: false
+        })
+    );
+    assert_eq!(
+        of(json!({"period": "nope"})),
+        Ok(Period {
+            start: today,
+            days: 1,
+            all: false
+        })
+    );
+    assert_eq!(
+        of(json!({"period": "all"})),
+        Ok(Period {
+            start: first,
+            days: 22,
+            all: true
+        })
+    );
+    assert_eq!(
+        of(json!({"period": "custom", "from": "2026-11-10", "until": "2026-11-12"})),
+        Ok(Period {
+            start: date("2026-11-10"),
+            days: 3,
+            all: false
+        })
+    );
+    assert_eq!(
+        of(json!({"period": "custom", "from": "2026-11-20", "until": "2026-12-31"})),
+        Ok(Period {
+            start: date("2026-11-20"),
+            days: 3,
+            all: false
+        })
+    );
+    for bad in [
+        json!({"period": "custom", "from": "2026-11-12", "until": "2026-11-10"}),
+        json!({"period": "custom", "from": "11-10", "until": "2026-11-12"}),
+        json!({"period": "custom", "until": "2026-11-12"}),
+        json!({"period": "custom", "from": "2000-01-01", "until": "2026-11-12"}),
+    ] {
+        assert!(of(bad.clone()).is_err(), "{bad}");
+    }
 }

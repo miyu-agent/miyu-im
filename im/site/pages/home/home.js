@@ -98,7 +98,7 @@ export function mountHome(view, { request }) {
       element('h2', null, say('home/connections')),
       element('span', 'faint', say('home/count', { count: connections.length })),
       element('span', 'grow'),
-      newButton('btn'),
+      newButton('btn primary'),
     );
     const grid = element('div', 'conn-grid');
     const picking = connections.length > 1;
@@ -147,14 +147,17 @@ export function mountHome(view, { request }) {
   };
 }
 
-/** 「会话设置」那一块（施工 I-222）：名单里有的写几个群、几个私聊，「去设置」；空的写「还没有会话」，「添加会话」。都跳会话设置页。 */
+/** 「会话设置」那一块（施工 I-222）：名单里有的写几个群、几个私聊，「去设置」；空的写名单里还没有（施工 I-272：原来写「还没有会话」，
+ *  私聊照默认值聊着也这么写，对不上），「＋ 添加会话」。都跳会话设置页。 */
 function venuesPanel({ groups, privates }) {
   const panel = element('div', 'panel home-venues');
   const none = groups + privates === 0;
   const words = element('div', 'grow');
-  words.append(element('b', null, say(none ? 'home/venues-none' : 'nav/venues')));
-  if (!none) words.append(element('span', 'faint', say('home/venues-count', { groups, privates })));
-  const go = element('button', none ? 'btn primary' : 'btn', say(none ? 'home/venues-add' : 'home/venues-go'));
+  words.append(element('b', null, say('nav/venues')));
+  words.append(element('span', 'faint', none ? say('home/venues-none') : say('home/venues-count', { groups, privates })));
+  const go = element('button', none ? 'btn primary' : 'btn');
+  if (none) go.append(icon('i-plus'));
+  go.append(document.createTextNode(say(none ? 'home/venues-add' : 'home/venues-go')));
   go.addEventListener('click', () => goTo('venues'));
   panel.append(words, go);
   return panel;

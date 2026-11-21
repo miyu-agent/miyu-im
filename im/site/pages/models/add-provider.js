@@ -127,7 +127,7 @@ export function openAdd(request, done, manual) {
       : row.kind === 'catalog' && !row.supported
         ? ['off', say('add/tag-unsupported')]
         : row.kind === 'catalog' && row.env
-          ? ['', say('add/tag-found')]
+          ? ['accent', say('add/tag-found')]
           : null;
     const button = element('button', 'add-row');
     button.disabled = row.kind === 'catalog' && !row.supported;

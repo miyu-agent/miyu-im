@@ -11,8 +11,8 @@ use crate::{records, spent, status_file};
 /// 列几个人。
 const MOST: usize = 100;
 
-/// 从 `from`（毫秒）起每个人用了多少：`[{id, name, tokens}]`。
-pub(super) async fn people(site: &Site, from: i64, scope: Option<&Scope>) -> Value {
+/// `from` 到 `until`（毫秒，含头不含尾）每个人用了多少：`[{id, name, tokens}]`。
+pub(super) async fn people(site: &Site, (from, until): (i64, i64), scope: Option<&Scope>) -> Value {
     let platform = match scope {
         None => None,
         Some(Scope::Connection { platform, .. }) => Some(format!("{platform}:")),
@@ -24,7 +24,7 @@ pub(super) async fn people(site: &Site, from: i64, scope: Option<&Scope>) -> Val
         state.with_file_name(records::FILE),
     );
     let read = tokio::task::spawn_blocking(move || {
-        let mut top = spent::ranking(&used, from, MOST)?;
+        let mut top = spent::ranking(&used, (from, until), MOST)?;
         if let Some(platform) = &platform {
             top.retain(|(id, _)| id.starts_with(platform.as_str()));
         }

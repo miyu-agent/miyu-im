@@ -51,7 +51,11 @@ export function menuSelect(options, value, className) {
   return button;
 }
 
-/** 在 `anchor` 下面弹卡片；选了调 `pick(值)`。 */
+/** 在 `anchor` 下面弹一张选一项的卡片（`items` 同下拉的选项，`current` 那一项打 ✓）；选了调 `pick(值)`。 */
+export function openMenu(anchor, items, current, pick) {
+  open(anchor, items.map((one) => ({ value: String(one.value), text: one.text, sub: one.sub, off: Boolean(one.off) })), current, pick);
+}
+
 function open(anchor, items, current, pick) {
   if (items.length === 0) return;
   const pop = element('div', 'mn-pop');

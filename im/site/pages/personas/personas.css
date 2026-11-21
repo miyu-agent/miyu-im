@@ -2,22 +2,32 @@
 .persona-new { margin-left: auto; }
 .view-head p.faint { margin: 2px 0 0; }
 .persona-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.persona-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: box-shadow 0.15s ease; }
-.persona-card:hover { box-shadow: var(--card-shadow); }
+/* 列表卡片照网页包（施工 I-272）：平常和背景同色，悬停深一档；说明最多两行。 */
+.persona-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.persona-card:hover { background: var(--surface-2); }
 .persona-card.bad { cursor: default; }
 .persona-card.bad small { color: var(--danger); }
-.persona-face { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-2); font-weight: 600; overflow: hidden; }
+.persona-face { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-size: 16px; font-weight: 600; overflow: hidden; }
 .persona-face img { width: 100%; height: 100%; object-fit: cover; }
 .persona-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .persona-card-text b { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.persona-card-text small { color: var(--text-soft); overflow-wrap: anywhere; }
+.persona-card-text small { display: -webkit-box; color: var(--text-soft); overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.persona-card-text .chip { background: var(--surface-3); font-weight: 400; }
+.persona-id { color: var(--text-soft); font-family: var(--mono); font-size: 12px; }
+.persona-memory { display: inline-flex; align-items: center; gap: 10px; }
 .dialog:has(> .persona-body) { width: min(680px, 100%); }
 .d-body.persona-body { display: flex; flex-direction: column; gap: 14px; }
 .d-body.persona-body > * { flex-shrink: 0; }
 .persona-field { display: flex; flex-direction: column; gap: 6px; }
 .persona-label { color: var(--text-soft); font-size: 12.5px; }
+/* 宽屏上标签在左、控件在右两栏（施工 I-272，照网页包设置页的表单）；窄屏照旧标签在上。 */
+@media (min-width: 721px) {
+  .d-body.persona-body > .persona-field { display: grid; grid-template-columns: 120px minmax(0, 1fr); column-gap: 16px; align-items: start; }
+  .d-body.persona-body > .persona-field > .persona-label { padding-top: 7px; }
+  .d-body.persona-body > .persona-field > :not(.persona-label) { grid-column: 2; }
+}
 .persona-input { width: 100%; }
-.persona-area { min-height: 0; }
+.persona-area { min-height: 0; overflow: hidden; resize: none; }
 .persona-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .persona-pairs { display: flex; flex-direction: column; gap: 10px; }
 .persona-pair { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: var(--surface-2); }

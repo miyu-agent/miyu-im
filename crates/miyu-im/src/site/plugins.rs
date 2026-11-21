@@ -139,7 +139,8 @@ pub(super) fn merged(mut plugin: Value, packages: &Value, extensions: &Value) ->
         copy(
             shown,
             &entry,
-            &["version", "author", "from", "enabled", "status"],
+            // 施工 I-272：上游（源码、主页的网址）照网页包的软件包详情写一行链接。
+            &["version", "author", "from", "enabled", "status", "upstream"],
         );
         if entry
             .get("page")
@@ -170,7 +171,7 @@ pub(super) fn merged(mut plugin: Value, packages: &Value, extensions: &Value) ->
 }
 
 /// 驱动带的插件 `plugin`（不是的原样交回）：`enabled` 照 `config.get` 的回答 `switched` 里它的总开关（没有的开），`from` 是
-/// `builtin`，版本、作者照 im 的包 `own`（`package.list` 的那一项），挂在进站、在跑。
+/// `builtin`，版本、作者、上游（施工 I-272）照 im 的包 `own`（`package.list` 的那一项），挂在进站、在跑。
 pub(super) fn builtin(mut plugin: Value, switched: &Value, own: &Value) -> Value {
     if plugin["builtin"] != true {
         return plugin;
@@ -182,7 +183,7 @@ pub(super) fn builtin(mut plugin: Value, switched: &Value, own: &Value) -> Value
     let Some(shown) = plugin.as_object_mut() else {
         return plugin;
     };
-    copy(shown, own, &["version", "author"]);
+    copy(shown, own, &["version", "author", "upstream"]);
     shown.insert("enabled".into(), json!(enabled));
     shown.insert("from".into(), json!("builtin"));
     shown.insert("points".into(), json!(["chat.hook.inbound"]));

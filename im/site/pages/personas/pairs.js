@@ -8,6 +8,13 @@ export function area(text, hint, rows) {
   box.value = text;
   box.placeholder = hint;
   box.rows = rows;
+  // 随字长高，不给拖（施工 I-272，照网页包）：`rows` 是最少几行。
+  const grow = () => {
+    box.style.height = 'auto';
+    box.style.height = `${box.scrollHeight}px`;
+  };
+  box.addEventListener('input', grow);
+  requestAnimationFrame(grow);
   return box;
 }
 
@@ -47,7 +54,7 @@ export function pairsEditor(pairs, them, changed) {
     return row;
   };
   for (const pair of pairs) add(pair);
-  const more = element('button', 'btn ghost persona-add');
+  const more = element('button', 'btn persona-add');
   more.append(icon('i-plus'), element('span', null, say('personas/add-pair')));
   more.addEventListener('click', () => {
     add({ user: '', assistant: '' }).user.focus();

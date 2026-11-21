@@ -194,19 +194,23 @@ pub(crate) fn top(path: &Path, now: i64, most: usize) -> rusqlite::Result<Vec<(S
     rows.collect()
 }
 
-/// 页面读（数据统计页的「按人」，施工 I-169）：库 `path` 里 `from`（毫秒）以后用过的人，各用了多少，从多到少最多 `most` 个。只读地
-/// 开：还没有库的是空的，不建。
-pub(crate) fn ranking(path: &Path, from: i64, most: usize) -> rusqlite::Result<Vec<(String, u64)>> {
+/// 页面读（数据统计页的「按人」，施工 I-169）：库 `path` 里 `from` 到 `until`（毫秒，含头不含尾；施工 I-272 自定义的一段有尾）用过的人，
+/// 各用了多少，从多到少最多 `most` 个。只读地开：还没有库的是空的，不建。
+pub(crate) fn ranking(
+    path: &Path,
+    (from, until): (i64, i64),
+    most: usize,
+) -> rusqlite::Result<Vec<(String, u64)>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
     let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     connection.busy_timeout(std::time::Duration::from_secs(5))?;
     let mut statement = connection.prepare(
-        "SELECT person, SUM(tokens) FROM spent WHERE at >= ?1 GROUP BY person ORDER BY 2 DESC, person LIMIT ?2",
+        "SELECT person, SUM(tokens) FROM spent WHERE at >= ?1 AND at < ?2 GROUP BY person ORDER BY 2 DESC, person LIMIT ?3",
     )?;
     let rows = statement.query_map(
-        params![from, i64::try_from(most).unwrap_or(i64::MAX)],
+        params![from, until, i64::try_from(most).unwrap_or(i64::MAX)],
         |row| {
             let sum: i64 = row.get(1)?;
             Ok((

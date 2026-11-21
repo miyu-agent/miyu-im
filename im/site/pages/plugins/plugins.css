@@ -112,3 +112,5 @@ button.w-item:hover { background: color-mix(in srgb, var(--text) 4%, transparent
   .w-sections { grid-template-columns: minmax(0, 1fr); }
 }
 .w-form .input.num { width: 120px; }
+.backstage-state { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.plug-upstream { min-width: 0; overflow: hidden; color: var(--accent); text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }

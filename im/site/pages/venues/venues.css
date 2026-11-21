@@ -29,13 +29,15 @@
 .vcard .grow { flex: 1; min-width: 0; }
 .vcard .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vcard .id { color: var(--text-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vcard.off .chips, .vcard.off .id { opacity: 0.5; }
+/* 关着的（施工 I-272）：只淡名字和头像，号码、标签照常读得清（原来整块半透明，暗色下对比度不到 2）。 */
+.vcard.off .name { color: var(--text-soft); }
 .vcard.off .avatar { filter: grayscale(0.8); opacity: 0.7; }
 .avatar { overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .chips:empty { display: none; }
-.chip { height: 22px; max-width: 100%; padding: 0 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); font-size: 12px; line-height: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 小标签照网页包（施工 I-272）：小圆角、11.5px。 */
+.chip { height: 20px; max-width: 100%; padding: 0 7px; border-radius: var(--mark-radius); background: var(--surface-2); color: var(--text-soft); font-size: 11.5px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip.accent { background: var(--accent-soft); color: var(--on-primary-container); }
 /* 跟着下面几层的（施工 I-111）：淡一档。 */
 .chip.inherited { background: color-mix(in srgb, var(--surface-2) 50%, transparent); color: var(--text-faint); }
@@ -46,7 +48,8 @@
 .kind:hover { background: var(--surface-3); }
 .kind b { font-size: 14.5px; }
 .kind small { color: var(--text-soft); font-size: 12.5px; }
-.ico { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--on-primary-container); }
+.ico { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--surface-2); color: var(--text-soft); }
+.kind .ico { background: var(--surface-3); }
 .wide-input { width: 100%; font-family: var(--mono); }
 .pick-hint { margin: 8px 0 0; font-size: 12px; }
 .pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; margin-top: 10px; overflow-y: auto; }
@@ -85,7 +88,8 @@
   .dialog.wide { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .d-side { padding: 10px 10px 6px; }
   .d-who { padding-bottom: 8px; }
-  .d-tabs { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  /* 窄屏的分页（施工 I-272）：一行放不下的换行，不横着滚（原来截在半个字上）。 */
+  .d-tabs { flex-direction: row; flex-wrap: wrap; }
   .d-tab { flex: none; }
   .d-tab .soon { display: none; }
   /* 名字那一格至少留 160px：放不下控件的（标签、限流两格）换到下一行，不把名字挤成一字一行。 */

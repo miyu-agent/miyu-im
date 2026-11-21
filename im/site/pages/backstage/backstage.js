@@ -59,19 +59,22 @@ export function mountBackstage(view, { request, path }) {
   };
 }
 
-/** 一个后台一张：图标、插件的名字（整页的再写页名）、一句说明。 */
+/** 一个后台一张：图标、软件包的名字、在不在运行（施工 I-272，照网页包的软件后台：标题写包名，底下一行运行状态）、一句说明。整页的
+ *  页名写在说明前面。 */
 function tile(plugin, entry) {
   const card = element('a', 'plug-card backstage-card');
   card.href = entry.href;
   const top = element('div', 'top');
   const grow = element('div', 'grow');
   const name = named(plugin.name) || plugin.package;
-  // 面板名已经带着软件名的（「群管理」的「群管理面板」）只写面板名（施工 I-170：原来写成「群管理 · 群管理面板」）。
-  const title = entry.page ? named(entry.page.title) || entry.page.id : name;
-  grow.append(element('b', null, title.startsWith(name) ? title : `${name} · ${title}`));
+  const running = plugin.enabled && (!plugin.state || plugin.state === 'running');
+  const state = element('div', 'faint backstage-state');
+  state.append(element('span', running ? 'dot on' : 'dot'), document.createTextNode(say(running ? 'backstage/running' : 'backstage/stopped')));
+  grow.append(element('b', null, name), state);
   top.append(pluginIcon(plugin), grow, icon('i-right'));
   card.append(top);
-  const summary = named(plugin.summary);
+  const page = entry.page ? named(entry.page.title) || entry.page.id : null;
+  const summary = [page !== name ? page : null, named(plugin.summary)].filter(Boolean).join(' · ');
   if (summary) card.append(element('p', null, summary));
   return card;
 }

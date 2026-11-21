@@ -1,14 +1,16 @@
 /* 「模型」页（设计 09，施工 I-149）：左边供应商一列、右边这一家；控件不描边，平常同背景、悬停深一档、选中再深一档。 */
 .model-wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
 .model-providers { display: flex; flex-direction: column; gap: 2px; }
-.model-provider { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.model-provider:hover { background: var(--surface-2); }
-.model-provider.on { background: var(--surface-3); }
+/* 左边一列照网页包（施工 I-272）：一行 34 高、圆角 8、图标 18，选中的照侧栏选中带影子。 */
+.model-provider { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.model-provider:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.model-provider.on { background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow); }
+.model-provider .model-logo { width: 18px; height: 18px; font-size: 10px; }
 .model-provider.add { color: var(--text-soft); }
 .model-provider-text { display: flex; flex-direction: column; min-width: 0; }
 .model-provider-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-provider-text small { color: var(--text-faint); }
-.warn { color: var(--gold); }
+.warn { color: var(--warn); }
 small.warn, em.warn { font-style: normal; }
 .model-logo { display: inline-grid; flex: none; place-items: center; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .model-logo.initial { background: var(--surface-2); }
@@ -17,7 +19,8 @@ small.warn, em.warn { font-style: normal; }
 .model-head { display: flex; flex-direction: column; gap: 6px; }
 .model-head p { margin: 0; }
 .model-title { display: flex; align-items: center; gap: 12px; }
-.model-title .model-logo { width: 36px; height: 36px; }
+.model-title .model-logo { width: 28px; height: 28px; }
+.model-title-text strong { font-size: 16px; font-weight: 600; }
 .model-title-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .model-title-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -35,24 +38,33 @@ small.warn, em.warn { font-style: normal; }
 .model-lines { display: flex; flex-direction: column; gap: 2px; }
 .model-line { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .model-line:hover { background: var(--surface-2); }
-.model-line-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-line-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .model-id { margin-left: 6px; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
+/* 重名的模型的编号另起一行（施工 I-272，照网页包），窄屏照样整个读得到。 */
+.model-line-name .model-id { display: block; margin-left: 0; font-size: 11px; }
 .model-row { display: flex; align-items: center; gap: 12px; min-height: 36px; }
 .model-row-name { flex: 1; color: var(--text-soft); }
 .model-row-control { display: flex; align-items: center; gap: 6px; }
-.model-row-control .input { width: 160px; }
+.model-row-control .input { width: 96px; font-family: var(--mono); }
+/* 模型的设置（施工 I-272，照网页包）：一项一行，行间一条线。 */
+.model-detail > div + div, .model-detail > section { border-top: 1px solid var(--line); }
+.model-detail > section { padding-top: 12px; }
 .model-checks { display: flex; flex-wrap: wrap; gap: 6px; }
-.model-check { border: 0; cursor: pointer; }
-.model-check.on { background: var(--surface-3); color: var(--text); }
-.model-prices { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.model-check { display: inline-flex; align-items: center; gap: 2px; height: 24px; border: 0; color: var(--text); line-height: 24px; }
+.model-check-x { display: grid; place-items: center; width: 16px; height: 16px; margin-right: -3px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--text-faint); cursor: pointer; }
+.model-check-x:hover { background: var(--surface-3); color: var(--text); }
+.model-check-x .icon, .model-check-add .icon { width: 12px; height: 12px; }
+.model-check-add { justify-content: center; width: 24px; padding: 0; color: var(--text-soft); cursor: pointer; }
+.model-check-add:hover { background: var(--surface-3); color: var(--text); }
+.model-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .model-price { display: flex; flex-direction: column; gap: 4px; }
 .model-price .input { width: 100%; }
 .persona-field > .seg { align-self: flex-start; }
 @media (max-width: 760px) { .model-wrap { grid-template-columns: 1fr; } }
 /* 添加供应商的几屏（施工 I-151）。 */
-.add-group { margin-top: 4px; color: var(--text-faint); font-size: 12px; }
+.add-group { margin-top: 4px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
 .add-rows { display: flex; flex-direction: column; gap: 2px; }
-.add-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.add-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .add-row:hover:not(:disabled) { background: var(--surface-2); }
 .add-row:disabled { opacity: 0.5; cursor: default; }
 .add-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -66,11 +78,20 @@ small.warn, em.warn { font-style: normal; }
 .add-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
 .persona-field > .mn-trigger { align-self: flex-start; }
 /* 标签、默认模型、模型池（施工 I-152）。 */
-.models-tabs { margin-left: auto; }
-.model-defaults { gap: 6px; }
-.model-defaults .model-row { padding: 8px 0; }
-.model-row-name small { display: block; }
+/* 默认模型（施工 I-272，照网页包）：不包卡片，行间一条线；名字正文色 14px，说明 12.5px。 */
+.model-defaults { display: flex; flex-direction: column; }
+.model-defaults > div + div { border-top: 1px solid var(--line); }
+.model-defaults .model-row { gap: 16px; padding: 12px 0; }
+.model-defaults .model-row-name { color: var(--text); font-size: 14px; }
+.model-row-name small { display: block; font-size: 12.5px; }
 .model-defaults .pk-trigger { max-width: 320px; }
+.model-pick-label { display: inline-flex; align-items: center; gap: 6px; }
+.model-pick-label .model-logo { width: 16px; height: 16px; font-size: 10px; }
+.model-pick-label em { color: var(--text-faint); font-size: 12px; font-style: normal; }
+@media (max-width: 720px) {
+  .model-defaults .model-row { flex-wrap: wrap; }
+  .model-defaults .model-row-name { flex: 1 1 100%; }
+}
 .pools { display: flex; flex-direction: column; gap: 12px; }
 .pool { gap: 10px; }
 .pool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -81,3 +102,4 @@ small.warn, em.warn { font-style: normal; }
 .pool-member .icon-button:disabled { visibility: hidden; }
 .pool-gap { width: 30px; }
 .model-line.on { background: var(--surface-3); }
+.pool-head .model-id { font-weight: 400; font-size: 11.5px; }

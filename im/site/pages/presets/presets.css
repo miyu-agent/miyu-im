@@ -14,10 +14,11 @@
 .preset-features { display: flex; flex-direction: column; gap: 10px; }
 .preset-tree { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .preset-tree-col { display: flex; flex-direction: column; gap: 12px; }
-.preset-block { padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+/* 功能分组照网页包（施工 I-272）：不包卡片，组名常规字重，下面的工具左边一条竖线。 */
+.preset-block { padding: 2px 0; }
 .preset-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
-.preset-row.head { font-weight: 600; }
-.preset-row.tool { padding-left: 16px; color: var(--text-soft); }
+.preset-row.head { font-weight: 500; }
+.preset-row.tool { margin-left: 8px; padding-left: 12px; box-shadow: inset 1px 0 0 var(--line-strong); color: var(--text-soft); }
 .preset-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preset-count { color: var(--text-faint); font-size: 12px; font-weight: 400; }
 .preset-tools.off { opacity: 0.55; }

@@ -171,7 +171,8 @@ function people(got, { names, platforms, chosen, state }, save) {
       save();
     },
   });
-  const adding = row(say('limits-page/add-label'), say('limits-page/add-hint'), pick);
+  // 只有一个平台的不出平台下拉（shell/person-pick.js），提示也不说「先选择平台」（施工 I-272）。
+  const adding = row(say('limits-page/add-label'), say(platforms.length > 1 ? 'limits-page/add-hint' : 'limits-page/add-hint-one'), pick);
   adding.classList.add('limits-add');
   // 列名对着下面的三格；最后垫一个看不见的按钮，和「去掉」一样宽。
   const columns = element('div', 'limits-caps');

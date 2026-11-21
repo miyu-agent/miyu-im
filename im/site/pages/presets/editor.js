@@ -61,7 +61,9 @@ export function openPreset(request, id, name, hooks) {
     const sections = Array.isArray(got.sections)
       ? got.sections
       : fallbackSections(Array.isArray(got.features) ? got.features : [], say('presets/features'));
+    // 编号一行（施工 I-272，主人 11-22 定两边都显示）。
     const rows = [
+      field('personas/id', element('code', 'persona-id', id), 'div'),
       field('personas/name', named),
       field('personas/summary', summary),
       field('presets/icon', iconRow(label), 'div'),
