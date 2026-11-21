@@ -1,5 +1,5 @@
 // 「模型」页的「默认模型」（设计 09，施工 I-152；照网页软件 defaults.js，2026-10-11 项目主人定：一个用途一行）：对话（models.chat）、
-// 看图（models.vision）右边一个像下拉的按钮，点开按供应商分组的选择器（shell/picker.js，同会话卡片选模型；看图只列看得了图的）；
+// 多模态（models.vision）右边一个像下拉的按钮，点开按供应商分组的选择器（shell/picker.js，同会话卡片选模型；多模态只列看得了图的）；
 // 语义检索（models.embedding）右边一个下拉（内置模型、关，没装的暗着、点不了，选着的正是它时下面一行黄字）。选了当场存。
 import { element, say } from '../../shell/i18n.js';
 import { openPicker, pickButton } from '../../shell/picker.js';
@@ -33,7 +33,7 @@ function line(name, description, control) {
   };
 }
 
-/** 对话、看图。 */
+/** 对话、多模态。 */
 function useRow(state, which) {
   const item = itemFor(state.schema, state.got, `models.${which}`, {});
   if (!item) return null;
