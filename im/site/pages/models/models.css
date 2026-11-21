@@ -64,13 +64,13 @@ small.warn, em.warn { font-style: normal; }
 .add-result p { margin: 0; overflow-wrap: anywhere; }
 .add-fail { display: flex; gap: 8px; }
 .add-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
-.persona-field > .select { align-self: flex-start; }
+.persona-field > .mn-trigger { align-self: flex-start; }
 /* 标签、默认模型、模型池（施工 I-152）。 */
 .models-tabs { margin-left: auto; }
 .model-defaults { gap: 6px; }
 .model-defaults .model-row { padding: 8px 0; }
 .model-row-name small { display: block; }
-.model-defaults .pk-trigger, .model-defaults .select { max-width: 320px; }
+.model-defaults .pk-trigger { max-width: 320px; }
 .pools { display: flex; flex-direction: column; gap: 12px; }
 .pool { gap: 10px; }
 .pool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

@@ -2,13 +2,13 @@
 // 换掉原生 <select>（浏览器自带的粗箭头、系统弹层，和网页包两个样子）。
 //
 // - 用法和原生的一样：交回的按钮有 `.value`（读、写都行）、`.disabled`，选了别的一项发一声 `change`；`setOptions` 换一套选项。
-// - 选项：[{ value, text, sub? }]，`value` 是字（同原生 <option> 的 value）；`sub` 是名字后面的浅灰小字。
+// - 选项：[{ value, text, sub?, off? }]，`value` 是字（同原生 <option> 的 value）；`sub` 是名字后面的浅灰小字；`off` 的暗着、点不了。
 // - 键盘：按钮上回车、空格、上下键打开；卡片里上下键挪、回车选、Esc 关；点卡片外面关。
 import { element, icon } from './i18n.js';
 
-/** 一个下拉：`options` 见上，`value` 是一开始选着的。 */
-export function menuSelect(options, value) {
-  const button = element('button', 'pk-trigger mn-trigger');
+/** 一个下拉：`options` 见上，`value` 是一开始选着的，`className` 另加在按钮上。 */
+export function menuSelect(options, value, className) {
+  const button = element('button', className ? `pk-trigger mn-trigger ${className}` : 'pk-trigger mn-trigger');
   button.type = 'button';
   const label = element('span', 'pk-label');
   button.append(label, icon('i-down'));
@@ -21,7 +21,7 @@ export function menuSelect(options, value) {
     button.title = chosen ? chosen.text : '';
   };
   button.setOptions = (next) => {
-    items = (next || []).map((one) => ({ value: String(one.value), text: one.text, sub: one.sub }));
+    items = (next || []).map((one) => ({ value: String(one.value), text: one.text, sub: one.sub, off: Boolean(one.off) }));
     if (!items.some((one) => one.value === current)) current = items[0]?.value ?? null;
     draw();
   };
@@ -59,6 +59,7 @@ function open(anchor, items, current, pick) {
   const rows = items.map((one) => {
     const row = element('button', one.value === current ? 'mn-item on' : 'mn-item');
     row.type = 'button';
+    row.disabled = one.off && one.value !== current;
     row.setAttribute('role', 'option');
     const text = element('span', 'mn-text', one.text);
     if (one.sub) text.append(element('em', null, one.sub));
@@ -78,7 +79,6 @@ function open(anchor, items, current, pick) {
     if (!pop.contains(event.target) && !anchor.contains(event.target)) close();
   };
   const keys = (event) => {
-    const at = rows.indexOf(document.activeElement);
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -87,7 +87,9 @@ function open(anchor, items, current, pick) {
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      rows[(at + step + rows.length) % rows.length].focus();
+      const live = rows.filter((row) => !row.disabled);
+      const from = live.indexOf(document.activeElement);
+      live[(from + step + live.length) % live.length]?.focus();
     } else if (event.key === 'Tab') close();
   };
   const away = () => close();

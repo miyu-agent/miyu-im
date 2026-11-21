@@ -5,6 +5,7 @@ import { element, say } from '../../shell/i18n.js';
 import { openPicker, pickButton } from '../../shell/picker.js';
 import { expectFor, itemFor, modelName, providerName, sameNamed, seesImages, whereOf } from './config.js';
 import { metaOf } from './bits.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 默认模型那一栏。 */
 export function drawDefaults(state) {
@@ -77,13 +78,10 @@ function embeddingRow(state) {
   const current = typeof written === 'string' ? written : 'local';
   const options = (item.options ?? []).map((one) => ({ value: one.value, name: one.name ?? one.value, off: one.available === false }));
   if (!options.some((one) => one.value === current)) options.push({ value: current, name: current, off: false });
-  const select = element('select', 'select');
-  for (const one of options) {
-    const option = new Option(one.off ? `${one.name}（${say('models/not-installed')}）` : one.name, one.value);
-    option.disabled = one.off && one.value !== current;
-    select.append(option);
-  }
-  select.value = current;
+  const select = menuSelect(
+    options.map((one) => ({ value: one.value, text: one.name, sub: one.off ? say('models/not-installed') : undefined, off: one.off })),
+    current,
+  );
   let row;
   select.addEventListener('change', async () => {
     row.fail(await state.saveMany([{ key: item.key, value: select.value, expect: expectFor(item.entry) }]));

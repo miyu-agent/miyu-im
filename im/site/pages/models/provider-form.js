@@ -9,6 +9,7 @@ import { element, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
 import { envRef, inputText, packageValue, providerChanges, providerName, secretName, shows, validId } from './config.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 开表：`id` 是要编辑的那一家，null 是新建；存好了调 `done(id)`。 */
 export function openProviderForm(state, id, done) {
@@ -43,9 +44,10 @@ export function openProviderForm(state, id, done) {
     : null;
   const packagedDriver = editing ? packageValue(state.got, editing, 'driver') : null;
   const drivers = state.schema?.items.find((one) => one.key === 'providers.<id>.driver')?.options ?? [];
-  const driverField = element('select', 'select');
-  for (const option of drivers) driverField.append(new Option(option.name ?? option.value, option.value));
-  driverField.value = provider?.driver ?? drivers[0]?.value ?? '';
+  const driverField = menuSelect(
+    drivers.map((option) => ({ value: option.value, text: option.name ?? option.value })),
+    provider?.driver ?? drivers[0]?.value ?? '',
+  );
   // 密钥：粘贴（密码框，编辑时空着是不改）或者环境变量的名字。
   const keyRef = provider?.key?.ref ?? '';
   let keyKind = keyRef.startsWith('env:') ? 'env' : 'secret';

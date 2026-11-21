@@ -9,6 +9,7 @@ import { toast } from '../../shell/dialog.js';
 import { tagInput } from '../../shell/tags.js';
 import { fieldMark } from '../../shell/mark.js';
 import { block, grouped, tone } from './widgets.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** sections 段。 */
 export function drawSections(part, context) {
@@ -46,12 +47,7 @@ function adding(add, context) {
   const box = element('div', 'w-add');
   let pick = null;
   if (Array.isArray(add.options) && add.options.length > 0) {
-    pick = element('select', 'select');
-    for (const option of add.options) {
-      const one = element('option', null, option.label);
-      one.value = option.value;
-      pick.append(one);
-    }
+    pick = menuSelect(add.options.map((option) => ({ value: option.value, text: option.label })));
     box.append(pick);
   }
   const button = element('button', 'btn');
@@ -155,15 +151,14 @@ function control(field, value, put) {
       return button;
     }
     case 'select': {
-      const pick = element('select', value === null ? 'select inherited' : 'select');
-      if (value === null && fallback === undefined) pick.append(element('option', null, field.default?.text || ''));
-      for (const option of field.options || []) {
-        const one = element('option', null, option.label);
-        one.value = option.value;
-        one.selected = option.value === shown;
-        pick.append(one);
-      }
-      pick.addEventListener('change', () => put(pick.value));
+      // 没有值、也没有默认值的：最前面一项写默认的说法（选它不存）。
+      const unset = value === null && fallback === undefined;
+      const options = (field.options || []).map((option) => ({ value: option.value, text: option.label }));
+      if (unset) options.unshift({ value: '', text: field.default?.text || '' });
+      const pick = menuSelect(options, unset ? '' : shown, value === null ? 'inherited' : undefined);
+      pick.addEventListener('change', () => {
+        if (!(unset && pick.value === '')) put(pick.value);
+      });
       return pick;
     }
     case 'number': {

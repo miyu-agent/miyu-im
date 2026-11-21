@@ -9,6 +9,7 @@ import { clockField, dateField } from '../../shell/date-pick.js';
 import { element, say } from '../../shell/i18n.js';
 import { sect } from '../../shell/sect.js';
 import { toast } from '../../shell/dialog.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 一个日期的「月-日 时:分」；今天的只写时刻。 */
 function clock(text) {
@@ -72,12 +73,7 @@ export function taskPage(card, request) {
 
   const text = element('textarea', 'area');
   text.placeholder = say('tasks/text-hint');
-  const kind = element('select', 'select');
-  for (const one of ['daily', 'every', 'once', 'cron']) {
-    const option = element('option', null, say(`tasks/kind-${one}`));
-    option.value = one;
-    kind.append(option);
-  }
+  const kind = menuSelect(['daily', 'every', 'once', 'cron'].map((one) => ({ value: one, text: say(`tasks/kind-${one}`) })));
   // 每隔几分钟、cron 打字；每天几点、某一刻的日子和时刻照网页软件画的选取器（施工 I-242，原来是浏览器自带的 time、datetime-local）。
   const value = element('input', 'input');
   const day = dateField({ after: true });

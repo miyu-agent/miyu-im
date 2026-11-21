@@ -18,6 +18,7 @@ import { sect } from '../../shell/sect.js';
 import { chosenOf } from '../../shell/connection.js';
 import { short, spent } from '../stats/stats.js';
 import { platform } from '../home/platforms.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 三条线的键，照 5 小时、7 天、30 天。 */
 const KEYS = ['limit_5h', 'limit_week', 'limit_month'];
@@ -245,10 +246,10 @@ function platformFilter(platforms) {
 
 /** 组名那一行右边的平台下拉（施工 I-182）：选了记进 `state.platform`，调 `changed`。 */
 function platformPick(platforms, state, changed) {
-  const pick = element('select', 'select');
-  pick.append(new Option(say('limits-page/all-platforms'), ''));
-  for (const id of platforms) pick.append(new Option(platform(id).name(), id));
-  pick.value = state.platform || '';
+  const pick = menuSelect([
+    { value: '', text: say('limits-page/all-platforms') },
+    ...platforms.map((id) => ({ value: id, text: platform(id).name() })),
+  ], state.platform || '');
   pick.addEventListener('change', () => {
     state.platform = pick.value;
     changed();

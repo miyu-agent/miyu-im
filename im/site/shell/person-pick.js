@@ -2,6 +2,7 @@
 // `qq:10002`。使用限制页加人用整个控件，标签框（跳过判断的用户、管理员命令用户）只用提示（`suggest`）。样子在 shell/person-pick.css。
 import { element, say } from './i18n.js';
 import { platform } from '../pages/home/platforms.js';
+import { menuSelect } from './menu.js';
 
 /** 提示表的编号：一页上可能有几个。 */
 let made = 0;
@@ -36,9 +37,7 @@ export function personPick({ platforms, chosen, people, label, pick }) {
     hints.replaceChildren(suggest(number, mine));
   };
   if (platforms.length > 1) {
-    const select = element('select', 'select');
-    for (const one of platforms) select.append(new Option(platform(one).name(), one));
-    select.value = on;
+    const select = menuSelect(platforms.map((one) => ({ value: one, text: platform(one).name() })), on);
     select.addEventListener('change', () => {
       on = select.value;
       refill();
