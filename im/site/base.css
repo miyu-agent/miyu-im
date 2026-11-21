@@ -1,6 +1,15 @@
 /* 接入通讯平台页面的底子（设计 01 第八节，施工 I-6 上）：颜色的名字照网页软件 design.js 的 page 那一组（下划线换成连字符），
    从 WebUI 跳过来的照网址片段换成它这时的值（shell/theme.js）；单独打开的跟随系统深浅（浅色「晨光」、深色「tokyonight」，同网页
-   软件），能手动切（<html data-theme>）。控件照网页软件的设置页：不描边，底色分层，聚焦换亮底加软影。 */
+   软件），能手动切（<html data-theme>）。控件照网页软件的设置页：不描边，底色分层；施工 I-272（主人 11-22）：聚焦不换亮底，
+   底色不变加软影；分段选中的一格深一档，不变白。字体表、标点字体照网页包 styles/base.css。 */
+
+/* 中文里的弯引号、省略号、破折号用中文的样子（同网页包的「Miyu CJK Punct」：只包这几个字，指到本机黑体）。 */
+@font-face {
+  font-family: "Miyu CJK Punct";
+  src: local("Noto Sans CJK SC Regular"), local("NotoSansCJKsc-Regular"), local("Noto Sans SC Regular"), local("NotoSansSC-Regular"),
+    local("Source Han Sans SC Regular"), local("SourceHanSansSC-Regular"), local("Microsoft YaHei"), local("PingFang SC Regular");
+  unicode-range: U+2014-2015, U+2018-2019, U+201C-201D, U+2026;
+}
 
 :root {
   color-scheme: light;
@@ -29,7 +38,7 @@
   --sidebar-active-shadow: 0 1px 2px rgba(40, 32, 20, 0.08), 0 3px 10px -5px rgba(40, 32, 20, 0.14);
   --scrim: rgba(28, 24, 18, 0.32);
   --text-faint: color-mix(in srgb, var(--text-soft) 62%, var(--surface));
-  --sans: Inter, "Adwaita Sans", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sans: "Miyu CJK Punct", Inter, "Adwaita Sans", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", Georgia, serif;
   --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Noto Sans Mono CJK SC", monospace;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -115,6 +124,7 @@ body {
 }
 button, input, select { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
+small { font-size: 12.5px; }
 .mono { font-family: var(--mono); font-size: 12px; }
 .faint { color: var(--text-faint); }
 .soft { color: var(--text-soft); }
@@ -132,7 +142,7 @@ button, input, select { font: inherit; color: inherit; }
 .btn.lg { height: 38px; padding: 0 20px; font-size: 14px; border-radius: 10px; }
 .input { height: 32px; padding: 0 10px; border: 0; border-radius: 8px; outline: 0; background: var(--surface-2); transition: background-color 0.15s ease, box-shadow 0.15s ease; }
 .input:hover { background: var(--surface-3); }
-.input:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.input:focus, .input:focus:hover { background: var(--surface-2); box-shadow: var(--card-shadow); }
 button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 .avatar { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; color: #fff; font-weight: 600; font-size: 14px; background: linear-gradient(135deg, hsl(222 58% 62%), hsl(252 55% 52%)); }
@@ -153,7 +163,8 @@ button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(
 .page-none { margin: 24px 0; color: var(--text-faint); text-align: center; }
 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); }
 .seg button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); cursor: pointer; }
-.seg button.on { background: var(--surface-1); box-shadow: var(--bubble-shadow); color: var(--text); font-weight: 500; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--surface-3); color: var(--text); font-weight: 500; }
 .btn.danger { color: var(--danger); }
 .btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
 .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }

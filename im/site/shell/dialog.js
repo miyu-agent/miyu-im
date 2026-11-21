@@ -123,6 +123,8 @@ export function confirmFirst(title, text, ok) {
     const dialog = openDialog(title, () => {
       if (!answered) resolve(false);
     });
+    // 只问一句的：窄屏上照旧浮着，不铺满整屏（dialog.css）。
+    dialog.body.parentElement.classList.add('small');
     dialog.body.append(element('p', null, text));
     const cancel = element('button', 'btn', say('dialog/cancel'));
     const go = element('button', 'btn danger', ok);
