@@ -16,9 +16,6 @@ publish.workspace = true
 # 施工 O-33：只 http、https，超时、代理照它）。配置由核心在握手时交、变了推过来，桥不依赖核心的 crate（`miyu-core`、
 # `miyu-endpoint`，18 第一节）。
 miyu-client = { workspace = true }
-# 包文件夹的字并进核心的字（`Human::with_dir`，`texts.rs`、`rules/names.rs`）：钉的核心在 AU-P1d 把它放到了 `testkit` 后面，
-# 这里打开它（施工 I-267，临时）。这个特性只多出这个函数和测试删临时目录的帮手，不改别的行为。核心恢复成正式接口以后去掉。
-miyu-store = { workspace = true, features = ["testkit"] }
 # 下平台给的地址时过核心的地址闸（施工 I-96，`media/guarded.rs`；闸、代理、TLS 经门面 `miyu_client::http` 拿）：那一段自己跟跳转、
 # 钉解析好的地址，要直接用客户端，和核心的 miyu-http 用的同一版、同几个特性（不另带一份 TLS）。MIT OR Apache-2.0。
 reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
