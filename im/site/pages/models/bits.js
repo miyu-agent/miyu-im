@@ -22,7 +22,7 @@ export function logoElement(logo, name) {
 /** 有没有图标这一格（老核心没有，不画图标位）。 */
 export const hasLogos = (items) => (items ?? []).some((one) => one && typeof one === 'object' && 'logo' in one);
 
-/** 一行暗字：窗口（`long` 的写「上下文」）、看得了图的写「看图」。 */
+/** 一行暗字：窗口（`long` 的写「上下文」）、看得了图的写「多模态」（施工 I-271，原来写「看图」）。 */
 export function metaOf(model, long = false) {
   const count = shortCount(model.facts?.window?.value);
   const parts = [
