@@ -6,6 +6,7 @@ import { element, icon, say, spaced } from '../../shell/i18n.js';
 import { openDialog, toast } from '../../shell/dialog.js';
 import { venueKinds } from '../home/platforms.js';
 import { face } from './face.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 号码的样子。 */
 const NUMBER = /^\d{1,20}$/;
@@ -46,8 +47,7 @@ export function openCreate(context, onAdded) {
     back.hidden = types.length < 2;
     dialog.setTitle(say(`create/${type}-title`));
     const word = kinds[type].id();
-    const input = element('input', 'input wide-input');
-    input.placeholder = spaced(say('create/search', { id: word }));
+    const input = searchBox(spaced(say('create/search', { id: word })), 'wide-input');
     const list = element('div', 'pick-list');
     const known = (type === 'group' ? context.answer.groups : context.answer.friends) || [];
     let picked = null;
@@ -120,7 +120,7 @@ export function openCreate(context, onAdded) {
     cancel.addEventListener('click', () => dialog.close());
     dialog.foot.hidden = false;
     dialog.foot.replaceChildren(element('span', 'grow'), cancel, add);
-    dialog.body.replaceChildren(input, element('p', 'faint pick-hint', kinds[type].searchHint()), list);
+    dialog.body.replaceChildren(input.wrap, element('p', 'faint pick-hint', kinds[type].searchHint()), list);
     draw();
     input.focus();
   };

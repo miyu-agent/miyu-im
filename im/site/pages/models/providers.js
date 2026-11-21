@@ -220,7 +220,7 @@ function models(state, view, provider) {
   });
   const find = searchable(view.query, 'providers', rows);
   const top = element('div', 'model-list-head');
-  top.append(element('span', null, say('models/count', { count: all.length })), find.input);
+  top.append(element('span', null, say('models/count', { count: all.length })), find.input.wrap);
   const list = element('div', 'model-lines');
   list.append(...rows.map((row) => row.node));
   const box = element('section', 'model-list');

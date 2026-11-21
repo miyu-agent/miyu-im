@@ -4,6 +4,7 @@
 // 样子在 shell/listing.css。
 import { element, say } from './i18n.js';
 import { menuSelect } from './menu.js';
+import { searchBox } from './search.js';
 
 /**
  * `items` 是 [{ node, text, tags?, numbers? }]（`text` 是搜索照着找的字，`tags` 是 {筛选的键: 这一行的值}，`numbers` 是 {排序的键: 数}）。
@@ -25,16 +26,14 @@ export function listing(items, options = {}) {
   const filters = options.filters || [];
   const head = element('div', 'listing-head');
   if (options.search) {
-    const input = element('input', 'input listing-search');
-    input.type = 'search';
-    input.placeholder = options.search;
+    const input = searchBox(options.search, 'listing-search');
     input.value = state.query;
     input.addEventListener('input', () => {
       state.query = input.value;
       state.shown = page;
       fill();
     });
-    head.append(input);
+    head.append(input.wrap);
   }
   const sorts = options.sorts || [];
   if (sorts.length > 0) {

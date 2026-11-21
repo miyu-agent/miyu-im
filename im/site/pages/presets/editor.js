@@ -11,6 +11,7 @@ import { confirmFirst, openDialog, toast } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
 import { iconNames, lucide } from '../../shell/lucide.js';
 import { fallbackSections, featureTree, filterTree } from './tree.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 选图标时先列的那一组（同网页软件设置项 preset_icons 的出厂值）。 */
 export const PRESET_ICONS = [
@@ -80,10 +81,8 @@ export function openPreset(request, id, name, hooks) {
       return shown.length ? featureTree(shown, set, got.unlisted) : element('p', 'faint', say('presets/no-match'));
     };
     box.append(tree());
-    const find = element('input', 'input persona-input');
-    find.type = 'search';
+    const find = searchBox(say('presets/find'));
     find.value = query;
-    find.placeholder = say('presets/find');
     const refilter = () => {
       query = find.value;
       box.replaceChildren(tree());
@@ -101,7 +100,7 @@ export function openPreset(request, id, name, hooks) {
     // 存了一项重画时照旧留着搜的字和焦点。
     if (findFocused) queueMicrotask(() => find.focus());
     const all = element('div', 'preset-features');
-    all.append(find, box);
+    all.append(find.wrap, box);
     return all;
   };
 
@@ -133,8 +132,7 @@ export function openPreset(request, id, name, hooks) {
           : [element('p', 'faint', say('presets/icon-empty'))]),
       );
     };
-    const find = element('input', 'input persona-input');
-    find.placeholder = say('presets/icon-search');
+    const find = searchBox(say('presets/icon-search'), 'preset-icon-find');
     find.addEventListener('input', async () => {
       const wanted = find.value.trim().toLowerCase();
       if (!wanted) return fill(PRESET_ICONS);
@@ -144,7 +142,7 @@ export function openPreset(request, id, name, hooks) {
     const none = element('button', 'btn ghost', say('presets/icon-none'));
     none.addEventListener('click', () => pick(null));
     const tools = element('div', 'preset-icon-tools');
-    tools.append(find, none);
+    tools.append(find.wrap, none);
     fill(PRESET_ICONS);
     const box = element('div', 'preset-icon-pick');
     box.append(current, tools, cells);
