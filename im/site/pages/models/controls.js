@@ -3,7 +3,7 @@
 // 改了一条 config.set 存（带 expect），存不成的写在这一行下面。没写的照 schema 的默认、模型资料的值显示。
 import { element, icon, say } from '../../shell/i18n.js';
 import { expectFor, inputText, writtenIn } from './config.js';
-import { menuSelect } from '../../shell/menu.js';
+import { menuSelect, openMenu } from '../../shell/menu.js';
 
 /** 一行：`item` 是 itemFor 的（schema 的那一项加真键、读到的 entry、模型资料 fact），`label` 盖掉 schema 的名字。存经 `state.saveMany`。 */
 export function configRow(state, item, label) {
@@ -63,18 +63,37 @@ function control(item, value, save) {
   }
 }
 
-/** 一排勾选：点一下加、去掉，存整份列表。 */
+/** 一排选了的（施工 I-272，照网页包的「支持输入」）：只列选了的，各带一个 ×；最后一个 + 弹出没选的那几项，点一项加上。存整份列表。 */
 function checks(options, chosen, save) {
   const box = element('span', 'model-checks');
   const now = new Set(chosen);
-  for (const option of options) {
-    const chip = element('button', now.has(option.value) ? 'chip model-check on' : 'chip model-check', option.name ?? option.value);
-    chip.addEventListener('click', () => {
-      if (now.has(option.value)) now.delete(option.value);
-      else now.add(option.value);
-      save({ value: options.map((one) => one.value).filter((one) => now.has(one)) });
+  const store = () => save({ value: options.map((one) => one.value).filter((one) => now.has(one)) });
+  for (const option of options.filter((one) => now.has(one.value))) {
+    const chip = element('span', 'chip model-check');
+    const remove = element('button', 'model-check-x');
+    remove.type = 'button';
+    remove.title = say('models/input-remove');
+    remove.append(icon('i-x'));
+    remove.addEventListener('click', () => {
+      now.delete(option.value);
+      store();
     });
+    chip.append(document.createTextNode(option.name ?? option.value), remove);
     box.append(chip);
+  }
+  const rest = options.filter((one) => !now.has(one.value));
+  if (rest.length) {
+    const add = element('button', 'chip model-check model-check-add');
+    add.type = 'button';
+    add.title = say('models/input-add');
+    add.append(icon('i-plus'));
+    add.addEventListener('click', () =>
+      openMenu(add, rest.map((one) => ({ value: one.value, text: one.name ?? one.value })), null, (picked) => {
+        now.add(rest.find((one) => String(one.value) === picked)?.value ?? picked);
+        store();
+      }),
+    );
+    box.append(add);
   }
   return box;
 }

@@ -17,6 +17,7 @@ import { choose, chosen, handed } from '../../shell/theme.js';
 import { openBind } from './bind.js';
 import { lanCard } from './lan-card.js';
 import { sect } from '../../shell/sect.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 在 `view` 里起设置页：`request` 调宿主的方法。交回 update(connections)、dispose()。 */
 export function mountSettings(view, { request }) {
@@ -156,26 +157,14 @@ function general(got, save) {
   ]);
 }
 
-/** 外观（施工 I-110，项目主人 11-02）：深浅三档，跟随系统、浅色、深色，记在这台浏览器上（shell/theme.js）。从网页软件打开的照它的
- *  颜色，不给切。 */
+/** 外观（施工 I-110，项目主人 11-02）：明暗三档，跟随系统、浅色、深色，记在这台浏览器上（shell/theme.js）。从网页软件打开的照它的
+ *  颜色，不给切。施工 I-272：照网页包叫「明暗」、用下拉。 */
 function appearance() {
-  const seg = element('div', 'seg');
-  const draw = () => {
-    seg.replaceChildren(
-      ...['system', 'light', 'dark'].map((one) => {
-        const button = element('button', one === chosen() ? 'on' : null, say(`theme/${one}`));
-        button.disabled = handed();
-        button.addEventListener('click', () => {
-          choose(one);
-          draw();
-        });
-        return button;
-      }),
-    );
-  };
-  draw();
+  const pick = menuSelect(['system', 'light', 'dark'].map((one) => ({ value: one, text: say(`theme/${one}`) })), chosen());
+  pick.disabled = handed();
+  pick.addEventListener('change', () => choose(pick.value));
   const hint = handed() ? say('settings-page/scheme-handed') : null;
-  return section('settings-page/appearance', null, [row(say('settings-page/scheme'), hint, seg)]);
+  return section('settings-page/appearance', null, [row(say('settings-page/scheme'), hint, pick)]);
 }
 
 /** 访问（施工 I-167）：向局域网开放（`im.web.listen` 写 `0.0.0.0`，关了写回 `127.0.0.1`）、端口；开着的再给一张局域网网址的卡
@@ -194,7 +183,12 @@ function site(got, save) {
     if (Number.isInteger(number) && number > 0 && number < 65536) save('port', number);
     else toast(say('failed/invalid'));
   });
-  const rows = [row(say('settings-page/lan'), say('settings-page/lan-hint'), lan), row(say('settings-page/port'), say('settings-page/port-hint'), port)];
+  // 施工 I-272（照网页包「局域网访问」）：关着的名字后面一个「仅本机」小标签，说明下面一行橙字说不加密。
+  const lanRow = row(say('settings-page/lan'), say('settings-page/lan-hint'), lan);
+  const label = lanRow.querySelector('.label');
+  if (!open) label.firstChild.after(element('span', 'field-mark lan-local', say('settings-page/lan-local')));
+  label.append(element('small', 'warn-line', say('settings-page/lan-warn')));
+  const rows = [lanRow, row(say('settings-page/port'), say('settings-page/port-hint'), port)];
   if (open) rows.push(...lanRows(got));
   return section('settings-page/site', 'settings-page/site-hint', rows);
 }

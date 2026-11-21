@@ -1,6 +1,7 @@
 //! 统计（施工 I-14，设计 01 第八节第 4 条、第一节第 25 条：看统计主要是看 token，放最上面；I-85 下并进首页，I-100 拆回侧栏「数据统计」）：
-//! `stats {period, connection? | venues?}` → `{"token", "messages", "people", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照 `today`），每一样
-//! 都和前一段同样长的比。`connection` 是首页选中的连接（`scope`），没写的是全部连接；`venues` 是浮窗「概况」一张卡管的场所（施工
+//! `stats {period, from?, until?, connection? | venues?}` → `{"token", "messages", "people", "running"}`。`period` 是 `today`、`7d`、`30d`（不认的照
+//! `today`），每一样都和前一段同样长的比；施工 I-272（照网页包的用量页）多两样：`all`（从最早记过的那一天起，不比）、`custom`（`from`、
+//! `until` 两个 `YYYY-MM-DD`，含头含尾，和前一段同样长的比），见 [`period`]。`connection` 是首页选中的连接（`scope`），没写的是全部连接；`venues` 是浮窗「概况」一张卡管的场所（施工
 //! I-101），按小时的不分场所、是零。
 //!
 //! - **token**：照核心的用量账本 `usage.query`（这份登录的人的连接），只算选中的连接的场所会话：合计、
@@ -31,12 +32,75 @@ mod people;
 /// 按场所最多列几个（施工 I-169：页面上的「按会话」能搜、20 条以后「再显示」，原来 10 个）。
 const VENUES: usize = 100;
 
-/// 一段：几天。
-fn days_of(period: &str) -> i64 {
-    match period {
-        "7d" => 7,
-        "30d" => 30,
-        _ => 1,
+/// 「全部」、自定义最多算几天。
+const MOST_DAYS: i64 = 3660;
+
+/// 统计的一段（施工 I-272）：从 `start` 那一天起 `days` 天；`all` 的用量不设起点、不和前一段比。
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct Period {
+    pub(super) start: jiff::civil::Date,
+    pub(super) days: i64,
+    pub(super) all: bool,
+}
+
+/// 照 `params` 定一段（纯逻辑）：今天是 `today`，最早记过的是 `first`。自定义的日子写错、头在尾后面、太长的是 `bad_params`；尾在今天
+/// 以后的算到今天。
+pub(super) fn period(
+    params: &Value,
+    today: jiff::civil::Date,
+    first: jiff::civil::Date,
+) -> Result<Period, (String, String)> {
+    let bad = || ("bad_params".to_string(), String::new());
+    let between = |from: jiff::civil::Date, until: jiff::civil::Date| {
+        from.until(until)
+            .map(|span| i64::from(span.get_days()) + 1)
+            .unwrap_or(1)
+    };
+    let last = |days: i64| Period {
+        start: today
+            .checked_sub(jiff::Span::new().days(days - 1))
+            .unwrap_or(today),
+        days,
+        all: false,
+    };
+    match params["period"].as_str().unwrap_or("today") {
+        "7d" => Ok(last(7)),
+        "30d" => Ok(last(30)),
+        "all" => {
+            let start = first.min(today);
+            let days = between(start, today).min(MOST_DAYS);
+            Ok(Period {
+                start: today
+                    .checked_sub(jiff::Span::new().days(days - 1))
+                    .unwrap_or(start),
+                days,
+                all: true,
+            })
+        }
+        "custom" => {
+            let date = |key: &str| {
+                params[key]
+                    .as_str()
+                    .and_then(|text| text.parse::<jiff::civil::Date>().ok())
+            };
+            let (from, until) = (
+                date("from").ok_or_else(bad)?,
+                date("until").ok_or_else(bad)?.min(today),
+            );
+            if from > until {
+                return Err(bad());
+            }
+            let days = between(from, until);
+            if days > MOST_DAYS {
+                return Err(bad());
+            }
+            Ok(Period {
+                start: from,
+                days,
+                all: false,
+            })
+        }
+        _ => Ok(last(1)),
     }
 }
 
@@ -146,7 +210,7 @@ pub(super) fn token(rows: &[&Value], before: &[&Value], replied: u64) -> Value {
         list.into_iter()
             .take(top.unwrap_or(usize::MAX))
             .map(|(name, (parts, requests, money))| {
-                json!({"name": name, "tokens": all(parts), "requests": requests, "cost": money.amount()})
+                json!({"name": name, "tokens": all(parts), "requests": requests, "cost": money.amount(), "hit_rate": rate(parts)})
             })
             .collect()
     };
@@ -237,39 +301,60 @@ pub(super) async fn stats(
     person: &Person,
     params: &Value,
 ) -> Result<Value, (String, String)> {
-    let period = days_of(params["period"].as_str().unwrap_or("today"));
+    let today = jiff::Zoned::now().date();
+    let first = site.counters.first_day().parse().unwrap_or(today);
+    let Period { start, days, all } = period(params, today, first)?;
     let scope = Scope::of(params)?;
     let scope = scope.as_ref();
-    let today = jiff::Zoned::now().date();
-    let dates = |from: i64, count: i64| -> Vec<String> {
+    let dates = |from: jiff::civil::Date, count: i64| -> Vec<String> {
         (0..count)
-            .filter_map(|back| {
-                today
-                    .checked_sub(jiff::Span::new().days(from + count - 1 - back))
-                    .ok()
-            })
+            .filter_map(|ahead| from.checked_add(jiff::Span::new().days(ahead)).ok())
             .map(|date| date.to_string())
             .collect()
     };
-    let (now_days, prev_days) = (dates(0, period), dates(period, period));
-    let start = |days_back: i64| -> Option<String> {
-        miyu_client::time::Timestamp::from_unix_millis(start_millis(&today, days_back)?)
-            .map(|at| at.to_string())
+    let prev_start = start
+        .checked_sub(jiff::Span::new().days(days))
+        .unwrap_or(start);
+    let end = start
+        .checked_add(jiff::Span::new().days(days))
+        .unwrap_or(today);
+    let now_days = dates(start, days);
+    let prev_days = if all {
+        Vec::new()
+    } else {
+        dates(prev_start, days)
     };
-    let (from, prev_from) = (start(period - 1), start(2 * period - 1));
-    let now = miyu_client::time::Timestamp::from_unix_millis(
-        i64::try_from(unix_millis(SystemTime::now())).unwrap_or(i64::MAX),
-    )
-    .map(|at| at.to_string());
+    let now_millis = i64::try_from(unix_millis(SystemTime::now())).unwrap_or(i64::MAX);
+    // 用量的起止（毫秒）：尾是这一段最后一天的第二天零点，今天的照此刻。
+    let (from_millis, until_millis) = (
+        if all { 0 } else { midnight(start).unwrap_or(0) },
+        midnight(end).map_or(now_millis, |end| end.min(now_millis)),
+    );
+    let stamp = |millis: i64| {
+        miyu_client::time::Timestamp::from_unix_millis(millis).map(|at| at.to_string())
+    };
+    let (from, until, prev_from) = (
+        stamp(from_millis),
+        stamp(until_millis),
+        midnight(prev_start).and_then(stamp),
+    );
     let offset = offset();
-    let mut asked = json!({"group": ["venue", "day", "purpose", "model"], "offset": offset, "from": from, "until": now});
+    let mut asked =
+        json!({"group": ["venue", "day", "purpose", "model"], "offset": offset, "until": until});
+    if !all {
+        asked["from"] = json!(from);
+    }
     let rows = core(person, "usage.query", asked.take()).await?;
-    let before = core(
-        person,
-        "usage.query",
-        json!({"group": ["venue"], "offset": offset, "from": prev_from, "until": from}),
-    )
-    .await?;
+    let before = if all {
+        json!({"rows": []})
+    } else {
+        core(
+            person,
+            "usage.query",
+            json!({"group": ["venue"], "offset": offset, "from": prev_from, "until": from}),
+        )
+        .await?
+    };
     let counted = site.counters.days(&now_days);
     let counted_before = site.counters.days(&prev_days);
     let replied: u64 = counted
@@ -280,13 +365,12 @@ pub(super) async fn stats(
     let token = token(&shown, &ours(&before["rows"], scope), replied);
     let messages = messages(&counted, &counted_before, scope);
     let running = running(site, person).await;
-    let people = people::people(site, start_millis(&today, period - 1).unwrap_or(0), scope).await;
+    let people = people::people(site, (from_millis, until_millis), scope).await;
     Ok(json!({"token": token, "messages": messages, "people": people, "running": running}))
 }
 
-/// `today` 往前 `days_back` 天那一天本机零点的毫秒。
-fn start_millis(today: &jiff::civil::Date, days_back: i64) -> Option<i64> {
-    let date = today.checked_sub(jiff::Span::new().days(days_back)).ok()?;
+/// `date` 那一天本机零点的毫秒。
+fn midnight(date: jiff::civil::Date) -> Option<i64> {
     let zoned = date.to_zoned(jiff::tz::TimeZone::system()).ok()?;
     Some(zoned.timestamp().as_millisecond())
 }

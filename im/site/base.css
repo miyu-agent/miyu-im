@@ -30,6 +30,8 @@
   --ribbon: #b14a5c;
   --online: #2e8b57;
   --danger: #c2413b;
+  /* 提醒的橙字（施工 I-272，照网页包的 warn）：不照网页包交来的颜色换（交来的 gold 是灰紫，当提醒看不出来）。 */
+  --warn: #ab6e2a;
   --bubble-shadow: 0 1px 2px rgba(40, 32, 20, 0.05);
   --card-shadow: 0 1px 2px rgba(40, 32, 20, 0.04), 0 8px 24px -12px rgba(40, 32, 20, 0.16);
   --float-shadow: 0 18px 40px -12px rgba(40, 32, 20, 0.22), 0 3px 10px -3px rgba(40, 32, 20, 0.1);
@@ -75,6 +77,7 @@
     --ribbon: #f7768e;
     --online: #9ece6a;
     --danger: #f7768e;
+    --warn: #e0af68;
     --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
     --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
     --float-shadow: 0 22px 48px -16px rgba(0, 0, 0, 0.72), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
@@ -104,6 +107,7 @@
   --ribbon: #f7768e;
   --online: #9ece6a;
   --danger: #f7768e;
+  --warn: #e0af68;
   --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
   --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
   --float-shadow: 0 22px 48px -16px rgba(0, 0, 0, 0.72), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
@@ -166,11 +170,22 @@ button:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(
 .seg button:hover { color: var(--text); }
 .seg button.on { background: var(--surface-3); color: var(--text); font-weight: 500; }
 .btn.danger { color: var(--danger); }
+/* 标签条（施工 I-272，照网页包设置页的 .set-tabs）：标题下面一行，没有槽；悬停深一档，选中再深一档。 */
+.tabbar { display: flex; flex-wrap: wrap; gap: 4px; margin: -6px 0 16px; }
+.tabbar button { height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.tabbar button:hover { background: var(--surface-2); color: var(--text); }
+.tabbar button.on { background: var(--surface-3); color: var(--text); }
 .btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
+/* 照网页包（施工 I-272）：删除这类是灰底红字，不是透明底；点不了的主按钮灰底灰字。 */
+.btn.ghost.danger { background: var(--surface-2); }
+.btn.ghost.danger:hover { background: var(--surface-3); }
+.btn.primary:disabled { background: var(--surface-2); color: var(--text-faint); opacity: 1; }
 .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
 .dot.on { background: var(--online); }
 .dot.off { background: var(--danger); }
 .dot.warn { background: var(--gold); }
+.warn-line { display: block; margin-top: 2px; color: var(--warn); font-size: 12px; }
+.row .label small.warn-line { color: var(--warn); }
 .panel { padding: 16px 18px; border-radius: 14px; background: var(--surface-1); box-shadow: var(--bubble-shadow); }
 
 @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }

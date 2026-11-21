@@ -6,8 +6,12 @@
 // - 连接不止一个时标题旁一个下拉（施工 I-106，项目主人 11-02：按连接切换整页，取代 I-100 的「按连接」那一段），同消息记录：有
 //   「全部」，跟着整个页面选中的连接（shell/connection.js）。「全部」时场所前面画它的平台标志。
 // - 场所照首页给的名字写（cards.get 的群、好友），没有的写编号；点了去会话页打开那个场所的浮窗（#venues/<种类>/<号>，带上它的连接）。
-// - 图都是条：每天的 token 四样叠着画，构成画成一条，按小时 24 根。列表是带列名的小表（施工 I-106）。
-import { element, say } from '../../shell/i18n.js';
+// - 图都是条：每天的 token 三样叠着画，构成画成一条，按小时 24 根。列表是带列名的小表（施工 I-106）。
+// - 施工 I-272（照网页包的用量页，主人 11-22）：时段多「全部」「自定义」（两个日子，含头含尾），默认 30 天；头上写几点更新的、一个刷新；
+//   token 照网页包分三样（缓存命中、没命中的输入、输出：写缓存算进没命中的输入），颜色也照它（命中浅、没命中深）；几格数的名字、先后、
+//   底下一行小字照它；按用途、按模型多一列命中，模型名不带供应商、供应商灰字接在后面。
+import { element, icon, say } from '../../shell/i18n.js';
+import { dateField, ymd } from '../../shell/date-pick.js';
 import { sect } from '../../shell/sect.js';
 import { trend } from './trend.js';
 import { peopleRank, venueRank } from './rankings.js';
@@ -16,9 +20,19 @@ import { chooseConnection, chosenOf, onConnection } from '../../shell/connection
 import { namesOf } from '../home/activity.js';
 import { venueParts } from '../records/shared.js';
 
-const PERIODS = ['today', '7d', '30d'];
-const PARTS = ['cache_read', 'uncached', 'cache_write', 'output'];
+const PERIODS = ['today', '7d', '30d', 'all', 'custom'];
 const REMEMBER = 'miyu-im-stats-period';
+const RANGE = 'miyu-im-stats-range';
+
+/** token 的三样（照网页包的用量页）：名字和颜色。核心给的四样（读缓存、没命中、写缓存、输出）照 `three` 并成这三样。 */
+export const PART_KEYS = ['stats/part-hit', 'stats/part-miss', 'stats/part-output'];
+export const PART_CLASSES = ['p1', 'p0', 'p2'];
+
+/** 四样并成三样：写缓存算进没命中的输入。 */
+export function three(parts) {
+  const [read = 0, uncached = 0, write = 0, output = 0] = parts || [];
+  return [read, uncached + write, output];
+}
 // 宿主推了变了，隔多久才再问（毫秒）。
 const AGAIN = 30000;
 
@@ -26,6 +40,7 @@ const AGAIN = 30000;
 export function mountStats(view, { request }) {
   let disposed = false;
   let period = remembered();
+  let range = rememberedRange();
   let connections = [];
   let names = new Map();
   let shown = null;
@@ -38,9 +53,37 @@ export function mountStats(view, { request }) {
   const seg = element('div', 'seg');
   const pickSlot = element('span', 'pf-slot');
   const head = element('div', 'view-head stats-head');
-  head.append(element('h1', null, say('nav/stats')), pickSlot, seg);
+  const updated = element('span', 'faint stats-updated');
+  const refresh = element('button', 'icon-button');
+  refresh.title = say('stats/refresh');
+  refresh.append(icon('i-refresh'));
+  refresh.addEventListener('click', () => load());
+  head.append(element('h1', null, say('nav/stats')), pickSlot, element('span', 'grow'), updated, refresh, seg);
+  // 自定义的两个日子：选了「自定义」才出来。
+  const from = dateField({ before: true });
+  const until = dateField({ before: true });
+  from.value = range.from;
+  until.value = range.until;
+  const custom = element('div', 'stats-range');
+  custom.append(from, element('span', 'faint', say('stats/range-to')), until);
+  const pickedRange = () => {
+    range = { from: from.value, until: until.value };
+    if (range.from > range.until) {
+      range = { from: range.until, until: range.from };
+      from.value = range.from;
+      until.value = range.until;
+    }
+    try {
+      localStorage.setItem(RANGE, JSON.stringify(range));
+    } catch {
+      // 记不住就算了。
+    }
+    load();
+  };
+  from.addEventListener('change', pickedRange);
+  until.addEventListener('change', pickedRange);
   const body = element('div', 'stats-body');
-  view.replaceChildren(head, body);
+  view.replaceChildren(head, custom, body);
   const drawSeg = () => {
     seg.replaceChildren(
       ...PERIODS.map((one) => {
@@ -58,6 +101,7 @@ export function mountStats(view, { request }) {
         return button;
       }),
     );
+    custom.hidden = period !== 'custom';
   };
   const draw = () => {
     const picked = chosenOf(connections);
@@ -81,7 +125,8 @@ export function mountStats(view, { request }) {
     if (!shown) body.replaceChildren(element('p', 'faint', say('stats/loading')));
     let answer;
     try {
-      answer = await request('stats', picked ? { period, connection: picked.id } : { period });
+      const asked = period === 'custom' ? { period, from: range.from, until: range.until } : { period };
+      answer = await request('stats', picked ? { ...asked, connection: picked.id } : asked);
     } catch {
       if (!disposed && mine === asked && !shown) body.replaceChildren(element('p', 'faint', say('stats/failed')));
       return;
@@ -90,6 +135,8 @@ export function mountStats(view, { request }) {
     if (disposed || mine !== asked) return;
     shown = answer;
     loadedAt = Date.now();
+    const at = new Date(loadedAt);
+    updated.textContent = say('stats/updated', { time: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}` });
     draw();
   };
   drawSeg();
@@ -115,7 +162,7 @@ export function mountStats(view, { request }) {
   };
 }
 
-/** 记着的那一段；没记过、记不住的是今天。 */
+/** 记着的那一段；没记过、记不住的是 30 天（同网页包）。 */
 function remembered() {
   try {
     const saved = localStorage.getItem(REMEMBER);
@@ -123,7 +170,20 @@ function remembered() {
   } catch {
     // 记不住就算了。
   }
-  return 'today';
+  return '30d';
+}
+
+/** 记着的自定义的两个日子；没记过的是最近 7 天。 */
+function rememberedRange() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RANGE) || 'null');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(saved?.from) && /^\d{4}-\d{2}-\d{2}$/.test(saved?.until)) return saved;
+  } catch {
+    // 记不住、读不懂就算了。
+  }
+  const now = new Date();
+  const week = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  return { from: ymd(week), until: ymd(now) };
 }
 
 /** 一个场所（`qq:group:777`）：名字和去浮窗的链接（带上它的连接：选中的那一个，「全部」时照平台、号找）；`tagged` 的前面画平台
@@ -155,11 +215,14 @@ export function delta(now, before) {
   return { text: `${change >= 0 ? '↑' : '↓'}${Math.abs(change)}%`, up: change >= 0 };
 }
 
-/** 一格数：名字、值、和前一段比。 */
-export function tile(label, value, compare) {
+/** 一格数：名字、值、和前一段比，`sub` 是底下一行小字（施工 I-272，照网页包）。 */
+export function tile(label, value, compare, sub) {
   const box = element('div', 'stat-tile');
   box.append(element('span', 'faint', label), element('b', null, value));
-  if (compare) box.append(element('small', compare.up ? 'up' : 'down', compare.text));
+  const foot = element('small', 'stat-sub');
+  if (sub) foot.append(document.createTextNode(sub));
+  if (compare) foot.append(element('span', compare.up ? 'up' : 'down', compare.text));
+  if (sub || compare) box.append(foot);
   return box;
 }
 
@@ -242,47 +305,63 @@ function tokens(token) {
   // 金额（施工 I-104）：照核心换算成你设的币种的，没换成的接在后面（施工 I-181）；没价钱的写一行。
   const cost = token.cost || {};
   const costOf = (one) => (one.cost == null ? '—' : money(one.cost, cost.currency));
+  const [hit, miss, output] = three(token.parts);
   const tiles = element('div', 'stat-tiles');
   tiles.append(
-    tile(say('stats/tokens'), short(token.total), delta(token.total, token.prev_total)),
     tile(say('stats/cost'), spent(cost), delta(cost.amount, token.prev_cost)),
-    tile(say('stats/hit-rate'), rate(token.hit_rate), null),
+    tile(say('stats/requests'), say('stats/requests-count', { n: short(token.requests) }), delta(token.requests, token.prev_requests),
+      say('stats/venues-count', { n: (token.venues || []).length })),
+    tile(say('stats/tokens'), short(token.total), delta(token.total, token.prev_total),
+      say('stats/tokens-split', { input: short(hit + miss), output: short(output) })),
+    tile(say('stats/hit-rate'), rate(token.hit_rate), null, say('stats/hits-count', { n: short(hit) })),
     tile(say('stats/per-reply'), short(token.per_reply), null),
-    tile(say('stats/requests'), short(token.requests), delta(token.requests, token.prev_requests)),
   );
-  const classes = ['p0', 'p1', 'p2', 'p3'];
-  const keys = PARTS.map((part) => `stats/part-${part}`);
   // 一个 token 都没有的不画构成、按小时（空条像坏了）。
-  const total = token.parts.reduce((sum, one) => sum + one, 0);
+  const total = hit + miss + output;
   const make = total > 0 ? element('div', 'stats-chart') : document.createDocumentFragment();
   const strip = element('div', 'strip');
-  token.parts.forEach((value, index) => {
-    const piece = element('i', classes[index]);
+  [hit, miss, output].forEach((value, index) => {
+    const piece = element('i', PART_CLASSES[index]);
     piece.style.width = `${(value / total) * 100}%`;
-    piece.title = `${say(keys[index])} ${short(value)}`;
+    piece.title = `${say(PART_KEYS[index])} ${short(value)}`;
     strip.append(piece);
   });
-  if (total > 0) make.append(element('h3', null, say('stats/parts')), strip, legend(keys, classes));
+  if (total > 0) make.append(element('h3', null, say('stats/parts')), strip, legend(PART_KEYS, PART_CLASSES));
   // 会话的回合不带用途（核心的账本里是空的），是回复。
   const purpose = (name) => {
     const key = `stats/purpose-${name || 'turn'}`;
     const said = say(key);
     return said === key ? name : said;
   };
+  const columns = (first) => [first, say('stats/col-requests'), say('stats/col-tokens'), say('stats/col-hit'), say('stats/col-cost')];
   const grid = element('div', 'stats-grid');
   grid.append(
     table(
-      say('stats/by-purpose'),
-      [say('stats/col-purpose'), say('stats/col-requests'), say('stats/col-tokens'), say('stats/col-cost')],
-      (token.purposes || []).map((one) => [purpose(one.name), short(one.requests), short(one.tokens), costOf(one)]),
+      say('stats/by-model'),
+      columns(say('stats/col-model')),
+      (token.models || []).map((one) => [modelName(one.name), short(one.requests), short(one.tokens), rate(one.hit_rate), costOf(one)]),
     ),
     table(
-      say('stats/by-model'),
-      [say('stats/col-model'), say('stats/col-requests'), say('stats/col-tokens'), say('stats/col-cost')],
-      (token.models || []).map((one) => [one.name || '—', short(one.requests), short(one.tokens), costOf(one)]),
+      say('stats/by-purpose'),
+      columns(say('stats/col-purpose')),
+      (token.purposes || []).map((one) => [purpose(one.name), short(one.requests), short(one.tokens), rate(one.hit_rate), costOf(one)]),
     ),
   );
   return section(say('stats/token'), tiles, unpriced(cost), make, grid);
+}
+
+/** 模型那一格（照网页包）：`供应商/模型` 写成模型名，供应商灰字接在后面；悬停看全。 */
+function modelName(name) {
+  if (!name) return '—';
+  const at = name.indexOf('/');
+  const cell = element('span', 'stats-model');
+  cell.title = name;
+  if (at <= 0) {
+    cell.textContent = name;
+    return cell;
+  }
+  cell.append(document.createTextNode(name.slice(at + 1)), element('em', null, name.slice(0, at)));
+  return cell;
 }
 
 /** 金额照币种写：不到 1 的多留两位（$0.0832）；没有的写「—」，认不得的币种照「0.08 XYZ」写。 */

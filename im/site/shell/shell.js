@@ -163,6 +163,10 @@ export function mountShell(root, { request, handed }) {
     // 读不了：宽屏展开着。
   }
   collapse(wasCollapsed, false);
+  // 从宽屏缩成窄屏（转屏、拖窗口）：左栏会盖住内容，收起（施工 I-272）。
+  narrow.addEventListener('change', (event) => {
+    if (event.matches) collapse(true, false);
+  });
 
   // 深浅：照现在显示的换成另一个（施工 I-110）；图标画现在的样子，悬停说点了换成什么。
   const showScheme = () => {

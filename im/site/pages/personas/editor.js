@@ -92,11 +92,24 @@ export function openPersona(request, id, name, hooks, fresh = false) {
     if (fresh) fields.persona.focus();
   };
 
-  // 「记忆」那一行右边的「查看」（施工 I-207）：另开一个浮窗，只看。
+  // 「记忆」那一行右边的「查看」（施工 I-207）：另开一个浮窗，只看。施工 I-272（照网页包）：前面写几条，问到了再填上。
+  let remembered = null;
   const memoryButton = () => {
-    const button = element('button', 'btn ghost', say('memory/view'));
+    const box = element('span', 'persona-memory');
+    const count = element('span', 'faint', remembered == null ? '' : say('memory/count', { n: remembered }));
+    const button = element('button', 'btn', say('memory/view'));
     button.addEventListener('click', () => openMemory(request, id, before.name || say('personas/untitled')));
-    return button;
+    box.append(count, button);
+    if (remembered == null) {
+      core(request, 'memory.list', { persona: id, limit: 500 }).then(
+        (listed) => {
+          remembered = (listed.memories || []).length;
+          count.textContent = say('memory/count', { n: remembered });
+        },
+        () => {},
+      );
+    }
+    return box;
   };
 
   const draw = () => {
@@ -123,7 +136,9 @@ export function openPersona(request, id, name, hooks, fresh = false) {
       sync();
     });
     for (const box of [summary, persona, reminders]) box.addEventListener('input', sync);
+    // 编号一行（施工 I-272，主人 11-22 定两边都显示）。
     dialog.body.replaceChildren(
+      field('personas/id', element('code', 'persona-id', id), 'div'),
       ...look.rows.map(([label, box]) => field(label, box, 'div')),
       field('personas/name', name),
       field('personas/summary', summary),

@@ -1,5 +1,5 @@
 // 一个模型的设置（设计 09，施工 I-149；照网页软件 model-detail.js）：点供应商那一栏的一个模型开浮窗（网页软件是从右边滑进来的抽屉，
-// im 网页用浮窗）：支持输入、上下文窗口、默认思考强度（只列这个模型报的那几档，前面一个「默认」是删掉）、默认温度（这个模型收温度的
+// im 网页用浮窗）：支持输入、上下文窗口、思考程度（只列这个模型报的那几档，前面一个「默认」是删掉）、默认温度（这个模型收温度的
 // 才有）、价格（四格加币种，改一项照显示的整份存，空着的是删掉，不当成 0）。存完页面重读，浮窗照新读到的重画。
 import { element, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
@@ -11,7 +11,7 @@ export function openModel(state, providerId, modelId) {
   const dialog = openDialog('', () => {
     state.onDetail = null;
   });
-  dialog.body.classList.add('persona-body');
+  dialog.body.classList.add('persona-body', 'model-detail');
   const draw = () => {
     const provider = state.models?.providers?.find((one) => one.id === providerId);
     const model = provider?.models?.find((one) => one.model === modelId);

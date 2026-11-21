@@ -25,6 +25,11 @@ fn a_plugin_takes_what_the_core_says_about_its_package() {
     );
     let alone = json!({"package": "gone", "unusable": "broken"});
     assert_eq!(merged(alone.clone(), &packages, &json!(null)), alone);
+    let linked = json!([{"package": "dice", "upstream": "https://example.invalid/dice"}]);
+    assert_eq!(
+        merged(json!({"package": "dice"}), &linked, &json!(null))["upstream"],
+        "https://example.invalid/dice"
+    );
     let pageless = merged(json!({"package": "other"}), &packages, &extensions);
     assert_eq!(
         pageless,
@@ -36,14 +41,14 @@ fn a_plugin_takes_what_the_core_says_about_its_package() {
 fn a_builtin_plugin_takes_its_switch_and_im_s_version() {
     // 施工 I-10 上：驱动带的插件不是软件包，总开关照配置，版本、作者照 im 的包。
     let plugin = json!({"package": "im-identity", "builtin": true, "settings": "im.qq.identity_"});
-    let own =
-        json!({"package": "im", "version": "0.8.0", "author": "miyu-agent", "from": "shipped"});
+    let own = json!({"package": "im", "version": "0.8.0", "author": "miyu-agent", "from": "shipped",
+        "upstream": "https://example.invalid/im"});
     let off = json!({"items": {"im.qq.identity_on": {"value": false}}});
     assert_eq!(
         builtin(plugin.clone(), &off, &own),
         json!({
             "package": "im-identity", "builtin": true, "settings": "im.qq.identity_", "version": "0.8.0",
-            "author": "miyu-agent", "enabled": false, "from": "builtin", "points": ["chat.hook.inbound"], "status": "stopped",
+            "author": "miyu-agent", "upstream": "https://example.invalid/im", "enabled": false, "from": "builtin", "points": ["chat.hook.inbound"], "status": "stopped",
         })
     );
     let unset = builtin(plugin, &json!({"items": {}}), &json!(null));

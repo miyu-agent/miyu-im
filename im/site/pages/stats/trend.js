@@ -1,11 +1,8 @@
-// 数据统计的走势（设计 11 第三节第 3 条，施工 I-169）：原来每天的 token、每天的花费、每天的消息三张图，并成一张能切的：token（四样叠着）、
+// 数据统计的走势（设计 11 第三节第 3 条，施工 I-169）：原来每天的 token、每天的花费、每天的消息三张图，并成一张能切的：token（三样叠着，施工 I-272）、
 // 花费（有一天有金额才给这一项）、回复（回了的叠在收到的上面）。只有一天（今天）的不画。切到哪一样记在 `state` 里，重画时照旧。
 import { element, say } from '../../shell/i18n.js';
 import { sect } from '../../shell/sect.js';
-import { bars, legend, money } from './stats.js';
-
-/** 四样 token 的颜色，和构成那一条一样。 */
-const PARTS = ['p0', 'p1', 'p2', 'p3'];
+import { bars, legend, money, PART_CLASSES, PART_KEYS, three } from './stats.js';
 
 /** 走势那一张卡：`shown` 是 stats 的回答；画不出的交回空的片段。 */
 export function trend(shown, state) {
@@ -55,6 +52,5 @@ function drawn(mode, { days, messages, currency }) {
     ]);
     return [bars('', rows, ['p0', 'p1']), legend(['stats/replied', 'stats/received'], ['p0', 'p1'])];
   }
-  const keys = ['cache_read', 'uncached', 'cache_write', 'output'].map((part) => `stats/part-${part}`);
-  return [bars('', days.map((day) => [day.day.slice(5), day.parts]), PARTS), legend(keys, PARTS)];
+  return [bars('', days.map((day) => [day.day.slice(5), three(day.parts)]), PART_CLASSES), legend(PART_KEYS, PART_CLASSES)];
 }

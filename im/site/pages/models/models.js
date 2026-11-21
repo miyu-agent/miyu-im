@@ -21,7 +21,8 @@ export function mountModels(root, { request }) {
   const draw = () => {
     if (disposed) return;
     const head = element('div', 'view-head');
-    const tabs = element('div', 'seg models-tabs');
+    // 三个标签在标题下面、靠左，照网页包设置页的标签条（施工 I-272）：没有槽，选中的深一档。
+    const tabs = element('div', 'tabbar models-tabs');
     for (const tab of TABS) {
       const button = element('button', view.tab === tab ? 'on' : null, say(`models/tab-${tab}`));
       button.addEventListener('click', () => {
@@ -31,16 +32,16 @@ export function mountModels(root, { request }) {
       });
       tabs.append(button);
     }
-    head.append(element('h1', null, say('nav/models')), tabs);
-    if (state.failed) return root.replaceChildren(head, element('p', 'faint', state.failed));
-    if (!state.models) return root.replaceChildren(head, element('p', 'faint', say('models/loading')));
+    head.append(element('h1', null, say('nav/models')));
+    if (state.failed) return root.replaceChildren(head, tabs, element('p', 'faint', state.failed));
+    if (!state.models) return root.replaceChildren(head, tabs, element('p', 'faint', say('models/loading')));
     // 存好了的那一家：重读以后选中它。
     const added = (id) => {
       view.provider = id;
       state.load();
     };
     const add = () => openAdd(request, added, () => openProviderForm(state, null, added));
-    if (view.tab === 'defaults') return root.replaceChildren(head, drawDefaults(state));
+    if (view.tab === 'defaults') return root.replaceChildren(head, tabs, drawDefaults(state));
     if (view.tab === 'pools') {
       const note = element('p', 'persona-note', view.poolNote ?? '');
       note.hidden = !view.poolNote;
@@ -49,9 +50,9 @@ export function mountModels(root, { request }) {
         note.textContent = why ?? '';
         note.hidden = !why;
       });
-      return root.replaceChildren(head, note, pools);
+      return root.replaceChildren(head, tabs, note, pools);
     }
-    root.replaceChildren(head, drawProviders(state, view, draw, add));
+    root.replaceChildren(head, tabs, drawProviders(state, view, draw, add));
   };
   const state = modelState(request, () => {
     draw();

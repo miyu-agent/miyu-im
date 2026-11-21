@@ -238,6 +238,23 @@ impl Counters {
             .collect()
     }
 
+    /// 最早记过的那一天（施工 I-272，统计页的「全部」）：目录里 `YYYY-MM-DD.json` 最早的那一份，和今天手里的比；读不了目录的照今天。
+    pub(crate) fn first_day(&self) -> String {
+        let held = lock(&self.held).0.clone();
+        std::fs::read_dir(&self.dir)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let name = entry.ok()?.file_name().into_string().ok()?;
+                let date = name.strip_suffix(".json")?;
+                date.parse::<jiff::civil::Date>().ok()?;
+                Some(date.to_string())
+            })
+            .chain(std::iter::once(held))
+            .min()
+            .unwrap_or_default()
+    }
+
     /// 今天的几个数（记着的是前一天的当零）。
     pub(crate) fn today(&self) -> Day {
         self.on(&today())
