@@ -25,6 +25,16 @@ export function expectFor(entry, layer = LAYER) {
 /** 这一层写了这一项没有：写了的能「恢复默认」、删供应商时要删。 */
 export const writtenIn = (entry, layer = LAYER) => Boolean(entry?.layers?.some((one) => one.origin?.layer === layer));
 
+/** 一家供应商要不要画这一项（核心 FX-11：`model.list` 每家的 `needs.key`、`needs.base_url` 是 `none`、`optional`、`required`）：
+ *  `none` 的不画（Antigravity 这种扩展驱动没有地址、不要密钥）；旧核心没有 `needs` 的照旧画（施工 I-271）。 */
+export const shows = (need) => need !== 'none';
+
+/** 这一家的一项是不是软件包给的：`config.get` 里这一项此刻的来源是 `package` 的交它的值，别的交 null（施工 I-271）。 */
+export function packageValue(got, id, field) {
+  const entry = got?.items?.[`providers.${keySegment(id)}.${field}`];
+  return entry?.origin?.layer === 'package' ? (entry.value ?? null) : null;
+}
+
 /** 值是环境变量引用（{env: X}）的交回名字。 */
 export const envRef = (value) =>
   value && typeof value === 'object' && !Array.isArray(value) && typeof value.env === 'string' ? value.env : null;

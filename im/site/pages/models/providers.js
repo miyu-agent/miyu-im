@@ -1,16 +1,17 @@
 // 「模型」页的供应商（设计 09，施工 I-149；照网页软件 providers.js，2026-10-11 项目主人定的样子）：左边一家一格（图标、名字，下面用不了
 // 的原因或者地址的主机名，同名的几家靠地址分开），最底下「＋ 添加供应商」；右边头上图标、名字、地址和「测试连接」「编辑」「删除」，
-// 密钥一块，模型一个一行（名字、「1M 上下文 · 看图」），点一行开这个模型的设置（detail.js）。
+// 密钥一块，模型一个一行（名字、「1M 上下文 · 多模态」），点一行开这个模型的设置（detail.js）。
 //
 // - 删除（2026-10-19 加，10-20 改弹窗问）：只在系统配置里写过这一家时出现，默认模型用着它的问的话里多一句；确认了 providers.<id>.* 各
 //   unset。
+// - 不要密钥的一家（`needs.key` 是 `none`，核心 FX-11：Antigravity 这种扩展驱动）不画密钥那一块（施工 I-271）。
 // - 密钥：设了的一行「已设置」「来自环境变量 X」和「更换」；没设的直接一个框（粘贴或者改用环境变量）。粘贴的先 secret.set 存成新名字，
 //   再 config.set 写引用。配置里没写密钥的（本机的服务这类）同样能补，不写「用不了」（2026-10-13 W-139）。
 // - 还没有模型的一家自动请核心拉一次（这一页里每家一次）。测试连接成了，核心顺手存了列出来的模型，重读这一家。
 import { element, icon, say } from '../../shell/i18n.js';
 import { confirmFirst } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
-import { duplicates, hostOf, inputText, keyChange, modelName, providerName, providerRemoval, sameNamed, secretName, sharedState, whereOf } from './config.js';
+import { duplicates, hostOf, inputText, keyChange, modelName, providerName, providerRemoval, sameNamed, secretName, sharedState, shows, whereOf } from './config.js';
 import { hasLogos, loadingRow, logoElement, metaOf, searchable, testLine } from './bits.js';
 import { openProviderForm } from './provider-form.js';
 import { openModel } from './detail.js';
@@ -35,7 +36,9 @@ export function drawProviders(state, view, redraw, add) {
   wrap.append(list);
   if (!chosen) return wrap;
   const main = element('div', 'model-main');
-  main.append(head(state, view, chosen, logos, redraw), keyBlock(state, view, chosen, redraw), models(state, view, chosen));
+  main.append(head(state, view, chosen, logos, redraw));
+  if (shows(chosen.needs?.key)) main.append(keyBlock(state, view, chosen, redraw));
+  main.append(models(state, view, chosen));
   wrap.append(main);
   return wrap;
 }
