@@ -5,17 +5,16 @@
 // - 被下架的（blocked）不给装，标出来。
 // - 软件源这一次没连上、照上一次读到的列的（stale），头上写一句。
 import { element, icon, say } from '../../shell/i18n.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 在 `view` 里起商城：`request` 调宿主的方法。 */
 export function mountStore(view, { request }) {
   let disposed = false;
   let asked = 0;
-  const search = element('input', 'store-search');
-  search.type = 'search';
-  search.placeholder = say('store-page/search');
+  const search = searchBox(say('store-page/search'), 'store-search');
   const body = element('div', 'store-body');
   const top = element('div', 'page-head');
-  top.append(element('h1', null, say('store-page/title')), search);
+  top.append(element('h1', null, say('store-page/title')), search.wrap);
   view.replaceChildren(top, body);
   // 装着的、正在装的：重画时照旧。
   const installing = new Set();

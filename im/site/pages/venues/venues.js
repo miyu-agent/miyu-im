@@ -20,6 +20,7 @@ import { connectionLabel, connectionPick, platformDot } from '../../shell/connec
 import { chooseConnection, chosenOf, goTo, onConnection } from '../../shell/connection.js';
 import { fallbacksOf } from './plugins.js';
 import { openVenue, toggle } from './venue.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 墙上的三段：标题、哪几种卡、属于哪一种会话。 */
 const SECTIONS = [
@@ -71,8 +72,7 @@ export function mountVenues(view, { request, path }) {
   const head = element('div', 'view-head');
   const pickSlot = element('span', 'pf-slot');
   const seg = element('div', 'seg');
-  const search = element('input', 'input venue-search');
-  search.placeholder = say('venues/search');
+  const search = searchBox(say('venues/search'), 'venue-search');
   search.addEventListener('input', () => {
     query = search.value.trim().toLowerCase();
     drawWall();
@@ -88,7 +88,7 @@ export function mountVenues(view, { request, path }) {
       if (added) show(added);
     });
   });
-  head.append(element('h1', null, say('nav/venues')), pickSlot, seg, element('span', 'grow'), search, create);
+  head.append(element('h1', null, say('nav/venues')), pickSlot, seg, element('span', 'grow'), search.wrap, create);
   const wall = element('div', 'wall');
   view.replaceChildren(head, wall);
 
@@ -171,7 +171,7 @@ export function mountVenues(view, { request, path }) {
     }
     // 只有一种会话的平台不用筛；还没选连接的筛、搜、新建都不画。
     seg.hidden = kinds.length < 2 || !chosen;
-    search.hidden = !chosen;
+    search.wrap.hidden = !chosen;
     create.hidden = !chosen;
   };
 

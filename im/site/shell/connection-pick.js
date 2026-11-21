@@ -4,6 +4,7 @@
 import { element, icon, say } from './i18n.js';
 import { mark, platform } from '../pages/home/platforms.js';
 import { EVERY } from './connection.js';
+import { searchBox } from './search.js';
 
 /** 切连接：`connections` 是外壳问到的那一份，`chosen` 是选中的那一个（「全部」是空的），选了调 `onPick(id)`。交回元素。 */
 export function connectionPick(connections, chosen, { every, onPick }) {
@@ -14,8 +15,7 @@ export function connectionPick(connections, chosen, { every, onPick }) {
   current.append(icon('i-down'));
   const menu = element('div', 'pf-menu');
   menu.hidden = true;
-  const search = element('input', 'input');
-  search.placeholder = say('conn/search');
+  const search = searchBox(say('conn/search'));
   const list = element('div', 'pf-list');
   const pick = (id) => {
     menu.hidden = true;
@@ -44,7 +44,7 @@ export function connectionPick(connections, chosen, { every, onPick }) {
     }
   };
   search.addEventListener('input', draw);
-  menu.append(search, list);
+  menu.append(search.wrap, list);
   current.addEventListener('click', (event) => {
     event.stopPropagation();
     menu.hidden = !menu.hidden;

@@ -2,6 +2,7 @@
 // 结果、「正在读模型列表」、就地筛的搜索框。
 import { element, say } from '../../shell/i18n.js';
 import { filterModels, logoPlan, seesImages, shortCount } from './config.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 供应商的图标（2026-10-11 项目主人：有彩色的用彩色，其余单色照字色画）：核心给的 {svg, tint}；单色的用 CSS 遮罩铺字色，彩色的
  *  照原样画，都不把 SVG 插进页面；没有图的写名字的第一个字。 */
@@ -48,9 +49,7 @@ export const loadingRow = () => element('p', 'faint', say('models/loading'));
 
 /** 搜索框：照显示名、模型名、供应商名就地藏掉对不上的行（不重画，打字不丢焦点）；字记在 `memory[slot]`，重画以后照旧。 */
 export function searchable(memory, slot, rows) {
-  const input = element('input', 'input model-search');
-  input.type = 'search';
-  input.placeholder = say('models/search');
+  const input = searchBox(say('models/search'), 'model-search');
   input.value = memory[slot] ?? '';
   const empty = element('p', 'faint', say('models/no-match'));
   const apply = () => {

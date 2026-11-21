@@ -5,6 +5,7 @@
 // - `custom(字)` 交回一个值的（填了表情的数字编号），列表最上面多一行「用这个」，回车选它；不然回车选列出来的第一项。
 import { element, icon, say } from './i18n.js';
 import { closeButton, openLayer } from './dialog.js';
+import { searchBox } from './search.js';
 
 /**
  * 开选一项的小浮窗。`options`：
@@ -19,12 +20,10 @@ import { closeButton, openLayer } from './dialog.js';
 export function openPicker({ title, placeholder, groups, first, current, grid, custom, customText, pick }) {
   const dialog = element('div', 'dialog pk-dialog');
   const head = element('div', 'd-head');
-  const search = element('input', 'input pk-search');
-  search.placeholder = placeholder || '';
-  search.autocomplete = 'off';
+  const search = searchBox(placeholder, 'pk-search');
   const list = element('div', 'pk-body');
   dialog.append(head, element('div', 'pk-top'), list);
-  dialog.children[1].append(search);
+  dialog.children[1].append(search.wrap);
   const close = openLayer(dialog);
   head.append(element('h2', null, title), closeButton(close));
   const chosen = (value) => {

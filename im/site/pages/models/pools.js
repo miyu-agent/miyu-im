@@ -6,6 +6,7 @@ import { element, icon, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
 import { lucide } from '../../shell/lucide.js';
 import { duplicates, expectFor, filterModels, itemFor, keySegment, providerName, validId, writtenIn } from './config.js';
+import { searchBox } from '../../shell/search.js';
 
 /** 三个固定池的先后：旗舰、日常、轻量。 */
 export const FIXED_POOLS = ['flagship', 'normal', 'lite'];
@@ -162,9 +163,7 @@ function pickModels(rows, done) {
   const dialog = openDialog(say('models/pool-add'));
   dialog.body.classList.add('persona-body');
   const picked = [];
-  const find = element('input', 'input persona-input');
-  find.type = 'search';
-  find.placeholder = say('models/search');
+  const find = searchBox(say('models/search'));
   const list = element('div', 'model-lines');
   const go = element('button', 'btn primary');
   const sync = () => {
@@ -198,7 +197,7 @@ function pickModels(rows, done) {
   const cancel = element('button', 'btn', say('dialog/cancel'));
   cancel.addEventListener('click', () => dialog.close());
   sync();
-  dialog.body.append(find, list, empty);
+  dialog.body.append(find.wrap, list, empty);
   dialog.foot.append(element('span', 'grow'), cancel, go);
   find.focus();
 }
