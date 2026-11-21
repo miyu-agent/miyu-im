@@ -4,7 +4,7 @@
 [package]
 # 版本、能装的系统（施工 I-126，进官方软件源要的）：版本两个包一样，打标签 `v<版本>` 发版；系统是三台 CI 测过的那三种，
 # 一种打一个 `.miyu`（`.github/workflows/release.yml`）。
-version = "0.3.3"
+version = "0.3.4"
 targets = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
 protocol = [1, 1]
 # 最低要的核心（施工 I-267）：钉的核心是 rc2.4 那一版，更旧的核心读不了它带的字表、找不到场所会话，装的时候就说要更新。
