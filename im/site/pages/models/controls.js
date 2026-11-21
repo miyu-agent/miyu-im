@@ -3,6 +3,7 @@
 // 改了一条 config.set 存（带 expect），存不成的写在这一行下面。没写的照 schema 的默认、模型资料的值显示。
 import { element, icon, say } from '../../shell/i18n.js';
 import { expectFor, inputText, writtenIn } from './config.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 一行：`item` 是 itemFor 的（schema 的那一项加真键、读到的 entry、模型资料 fact），`label` 盖掉 schema 的名字。存经 `state.saveMany`。 */
 export function configRow(state, item, label) {
@@ -38,9 +39,10 @@ export function configRow(state, item, label) {
 function control(item, value, save) {
   switch (item.control) {
     case 'select': {
-      const shown = element('select', 'select');
-      for (const option of item.options ?? []) shown.append(new Option(option.name ?? String(option.value), JSON.stringify(option.value)));
-      shown.value = JSON.stringify(value);
+      const shown = menuSelect(
+        (item.options ?? []).map((option) => ({ value: JSON.stringify(option.value), text: option.name ?? String(option.value) })),
+        JSON.stringify(value),
+      );
       shown.addEventListener('change', () => {
         const picked = JSON.parse(shown.value);
         save(picked === null ? { unset: true } : { value: picked });

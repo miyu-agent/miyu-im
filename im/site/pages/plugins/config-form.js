@@ -6,6 +6,7 @@ import { element, say } from '../../shell/i18n.js';
 import { fieldMark } from '../../shell/mark.js';
 import { secretInput } from '../../shell/secret.js';
 import { tagInput } from '../../shell/tags.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 插件 `package` 的设置：先画「读取中」，读到了换上。 */
 export function drawSettings(packageId, request) {
@@ -114,14 +115,10 @@ function control(item, value, put) {
 
 /** 下拉：`options` 是 [{value, name, available?}]。 */
 function select(options, value, pick) {
-  const shown = element('select', 'select');
-  for (const option of options) {
-    const one = element('option', null, option.name ?? String(option.value));
-    one.value = JSON.stringify(option.value);
-    one.disabled = option.available === false;
-    one.selected = JSON.stringify(option.value) === JSON.stringify(value);
-    shown.append(one);
-  }
+  const shown = menuSelect(
+    options.map((option) => ({ value: JSON.stringify(option.value), text: option.name ?? String(option.value), off: option.available === false })),
+    JSON.stringify(value),
+  );
   shown.addEventListener('change', () => pick(JSON.parse(shown.value)));
   return shown;
 }
@@ -130,13 +127,10 @@ function select(options, value, pick) {
 function combo(suggestions, value, put) {
   const box = element('span', 'inline');
   const other = !suggestions.includes(value);
-  const shown = element('select', 'select');
-  for (const suggestion of [...suggestions, null]) {
-    const one = element('option', null, suggestion ?? say('plugins-page/other'));
-    one.value = suggestion ?? '';
-    one.selected = suggestion === null ? other : suggestion === value;
-    shown.append(one);
-  }
+  const shown = menuSelect(
+    [...suggestions, null].map((suggestion) => ({ value: suggestion ?? '', text: suggestion ?? say('plugins-page/other') })),
+    other ? '' : value,
+  );
   const typed = element('input', 'input plug-text');
   typed.value = other ? value ?? '' : '';
   typed.hidden = !other;

@@ -8,6 +8,7 @@ import { current, inherit, inherited, written } from './fields.js';
 import { modelControl, reactionControl } from './pickers.js';
 import { rate, seconds, sleep } from './spans.js';
 import { isDefaults } from './model.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 控件。`save(value)` 存（null 是恢复默认）。 */
 export function control(field, one, context, save, saveKey) {
@@ -140,10 +141,7 @@ function can(cap, one, context) {
 
 /** 下拉：第一项是「继承（…）」（交 null），别的照 `options`（[值, 给人看的]）。 */
 function select(options, mine, inherit, save) {
-  const shown = element('select', 'select');
-  shown.append(new Option(inherit, ''));
-  for (const [value, text] of options) shown.append(new Option(text, value));
-  shown.value = mine ?? '';
+  const shown = menuSelect([{ value: '', text: inherit }, ...options.map(([value, text]) => ({ value, text }))], mine ?? '');
   shown.addEventListener('change', () => save(shown.value === '' ? null : shown.value));
   return shown;
 }

@@ -3,6 +3,7 @@
 // 数筛、排，不问宿主。
 // 样子在 shell/listing.css。
 import { element, say } from './i18n.js';
+import { menuSelect } from './menu.js';
 
 /**
  * `items` 是 [{ node, text, tags?, numbers? }]（`text` 是搜索照着找的字，`tags` 是 {筛选的键: 这一行的值}，`numbers` 是 {排序的键: 数}）。
@@ -38,9 +39,7 @@ export function listing(items, options = {}) {
   const sorts = options.sorts || [];
   if (sorts.length > 0) {
     state.sort ??= sorts[0][0];
-    const pick = element('select', 'select');
-    for (const [value, text] of sorts) pick.append(new Option(text, value));
-    pick.value = state.sort;
+    const pick = menuSelect(sorts.map(([value, text]) => ({ value, text })), state.sort);
     pick.addEventListener('change', () => {
       state.sort = pick.value;
       fill();
@@ -48,11 +47,11 @@ export function listing(items, options = {}) {
     head.append(pick);
   }
   for (const filter of filters) {
-    const pick = element('select', 'select');
-    if (filter.all) pick.append(new Option(filter.all, ''));
-    for (const [value, text] of filter.options) pick.append(new Option(text, value));
     state.picked[filter.key] ??= filter.all ? '' : filter.options[0]?.[0] ?? '';
-    pick.value = state.picked[filter.key];
+    const pick = menuSelect(
+      [...(filter.all ? [{ value: '', text: filter.all }] : []), ...filter.options.map(([value, text]) => ({ value, text }))],
+      state.picked[filter.key],
+    );
     pick.addEventListener('change', () => {
       state.picked[filter.key] = pick.value;
       state.shown = page;

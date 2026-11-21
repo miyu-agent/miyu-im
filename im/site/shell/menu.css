@@ -5,6 +5,8 @@
 .mn-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: background-color 0.12s ease; }
 .mn-item:hover, .mn-item:focus-visible { background: var(--surface-2); box-shadow: none; outline: 0; }
 .mn-item.on { background: var(--surface-3); }
+.mn-item:disabled { color: var(--text-faint); cursor: default; }
+.mn-item:disabled:hover { background: transparent; }
 .mn-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-text em { margin-left: 6px; color: var(--text-faint); font-size: 12px; font-style: normal; }
 .mn-item .icon { flex: none; width: 14px; height: 14px; color: var(--accent); }

@@ -14,6 +14,7 @@ import { core, refusalText } from '../../shell/core.js';
 import { secretName, shows } from './config.js';
 import { logoElement } from './bits.js';
 import { cleanUrl, customId, customIdProblem, failureOf, mineRows, providerRows, setupChanges, testParams, usableIds, validUrl } from './add-logic.js';
+import { menuSelect } from '../../shell/menu.js';
 
 /** 搜索整份目录：停下多久再搜（毫秒）、最多几家。 */
 const SEARCH_WAIT = 200;
@@ -215,8 +216,7 @@ export function openAdd(request, done, manual) {
     const url = element('input', 'input persona-input');
     url.placeholder = 'https://…';
     const drivers = known.drivers.length ? known.drivers : ['openai-chat', 'anthropic', 'openai-responses'].map((value) => ({ value, name: value }));
-    const driver = element('select', 'select');
-    for (const one of drivers) driver.append(new Option(one.name, one.value));
+    const driver = menuSelect(drivers.map((one) => ({ value: one.value, text: one.name })));
     driver.addEventListener('change', () => stale?.());
     const keyInput = keyField(say('add/key-optional'));
     const idInput = element('input', 'input persona-input');

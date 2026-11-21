@@ -128,8 +128,6 @@
 .row-failed { color: var(--danger); font-size: 12px; }
 .row-failed:empty { display: none; }
 .inline { display: inline-flex; align-items: center; gap: 6px; color: var(--text-soft); white-space: nowrap; }
-.select { max-width: 280px; height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-2); cursor: pointer; }
-.select:hover { background: var(--surface-3); }
 .area { width: 100%; min-height: 96px; padding: 9px 10px; border: 0; border-radius: 10px; outline: 0; background: var(--surface-2); font: 13px/1.6 var(--sans); color: inherit; resize: vertical; }
 .area:focus, .area:focus:hover { background: var(--surface-2); box-shadow: var(--card-shadow); }
 .input.time { width: 96px; font-family: var(--mono); }
