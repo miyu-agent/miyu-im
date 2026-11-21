@@ -7,10 +7,11 @@
 // - 测成了上面填的几行收成一行摘要，点「修改」再摊开（2026-10-23）。核心要模型名的多一行填模型名。
 // - 自定义的 ID 照地址的主机名起好填上，人改过以后不再跟着地址变（2026-10-13：能自己起）；显示名可留空（2026-10-23）。
 // - 「手动填写…」关上浮窗、开原来那张表（provider-form.js）。
+// - 配好了的一家不要密钥的（`needs.key` 是 `none`，核心 FX-11）不出密钥那一行，也不能「重新设置」密钥（施工 I-271）。
 import { element, icon, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
-import { secretName } from './config.js';
+import { secretName, shows } from './config.js';
 import { logoElement } from './bits.js';
 import { cleanUrl, customId, customIdProblem, failureOf, mineRows, providerRows, setupChanges, testParams, usableIds, validUrl } from './add-logic.js';
 
@@ -184,7 +185,8 @@ export function openAdd(request, done, manual) {
         : { kind: 'catalog', catalog: row.id, env: row.env };
     let keyInput = null;
     let keyRow = null;
-    if (target.kind === 'configured') {
+    const keyless = target.kind === 'configured' && !shows(found?.needs?.key);
+    if (target.kind === 'configured' && !keyless) {
       keyRow = field('add/key', element('span', null, say('add/key-configured')));
     } else if (target.kind === 'catalog') {
       keyInput = keyField(target.env ? say('add/key-env', { name: target.env }) : say('add/key-paste'));

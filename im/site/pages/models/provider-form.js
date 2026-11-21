@@ -1,10 +1,14 @@
 // 编辑、手写添加一家供应商的表（设计 09，施工 I-149；照网页软件 provider-form.js）：ID（新建时写）、显示名、地址、接口、密钥（粘贴
 // 或者环境变量）。存的先后：粘贴了密钥的先 secret.set 存成新名字，再一条 config.set 写别的几项和密钥的引用；config.set 拒了的，
 // 已经存下的密钥名字写在报错后面。明文只在框里，存完、取消就扔。
+//
+// 只画这一家真有的项（施工 I-271，照网页软件 provider-fields.js，核心 FX-11）：`model.list` 每家的 `needs` 写 `none` 的那一项不出那一行
+// （Antigravity 这种扩展驱动没有地址、不要密钥）；旧核心没有 `needs` 的、新建的照旧都画。软件包带的一家，包给的地址框空着、暗的占位字
+// 写包给的地址，空着存不写；包给的接口人没换的不写（原来照选着的写进配置，存一次就把包给的接口抄进配置、盖住了包的）。
 import { element, say } from '../../shell/i18n.js';
 import { openDialog } from '../../shell/dialog.js';
 import { core, refusalText } from '../../shell/core.js';
-import { envRef, inputText, providerChanges, providerName, secretName, validId } from './config.js';
+import { envRef, inputText, packageValue, providerChanges, providerName, secretName, shows, validId } from './config.js';
 
 /** 开表：`id` 是要编辑的那一家，null 是新建；存好了调 `done(id)`。 */
 export function openProviderForm(state, id, done) {
@@ -26,12 +30,18 @@ export function openProviderForm(state, id, done) {
     value: written,
     placeholder: fallback ? say('models/form-name-empty', { name: fallback }) : say('models/form-name-empty-new'),
   });
-  // 地址是环境变量引用的：框空着就是不改。
+  const needs = provider?.needs ?? {};
+  // 地址是环境变量引用的、软件包给的：框空着就是不改。
   const urlEnv = envRef(provider?.base_url);
-  const urlField = input({
-    value: urlEnv ? '' : inputText(provider?.base_url ?? ''),
-    placeholder: urlEnv ? say('models/from-env', { name: urlEnv }) : 'https://…',
-  });
+  const urlPackaged = editing ? packageValue(state.got, editing, 'base_url') : null;
+  const urlKept = Boolean(urlEnv) || urlPackaged !== null;
+  const urlField = shows(needs.base_url)
+    ? input({
+      value: urlKept ? '' : inputText(provider?.base_url ?? ''),
+      placeholder: urlEnv ? say('models/from-env', { name: urlEnv }) : urlPackaged !== null ? inputText(urlPackaged) : 'https://…',
+    })
+    : null;
+  const packagedDriver = editing ? packageValue(state.got, editing, 'driver') : null;
   const drivers = state.schema?.items.find((one) => one.key === 'providers.<id>.driver')?.options ?? [];
   const driverField = element('select', 'select');
   for (const option of drivers) driverField.append(new Option(option.name ?? option.value, option.value));
@@ -84,9 +94,9 @@ export function openProviderForm(state, id, done) {
     }
     const form = {
       name: nameField.value,
-      base_url: urlEnv && !urlField.value.trim() ? null : urlField.value,
-      driver: driverField.value,
-      key: { kind: keyKind === 'secret' && !secret ? 'keep' : keyKind, value: envField.value },
+      base_url: !urlField || (urlKept && !urlField.value.trim()) ? null : urlField.value,
+      driver: typeof packagedDriver === 'string' && driverField.value === packagedDriver ? null : driverField.value,
+      key: { kind: !keyRow || (keyKind === 'secret' && !secret) ? 'keep' : keyKind, value: envField.value },
     };
     const why = await state.saveMany(providerChanges(chosen, form, state.got, secret));
     if (why) return fail(secret ? `${why}\n${say('models/form-secret-kept', { name: secret })}` : why);
@@ -100,14 +110,14 @@ export function openProviderForm(state, id, done) {
     box.append(element('span', 'persona-label', say(label)), control);
     return box;
   };
-  const keyRow = element('div', 'persona-field');
-  keyRow.append(element('span', 'persona-label', say('models/form-key')), kinds, keyBox);
+  const keyRow = shows(needs.key) ? element('div', 'persona-field') : null;
+  keyRow?.append(element('span', 'persona-label', say('models/form-key')), kinds, keyBox);
   dialog.body.append(
     row('models/form-id', idField),
     row('models/form-name', nameField),
-    row('models/form-url', urlField),
+    ...(urlField ? [row('models/form-url', urlField)] : []),
     row('models/form-driver', driverField),
-    keyRow,
+    ...(keyRow ? [keyRow] : []),
     error,
   );
   dialog.foot.append(element('span', 'grow'), cancel, save);
