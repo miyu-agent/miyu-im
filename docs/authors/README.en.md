@@ -103,7 +103,7 @@ Your extension can call chat platforms, and chat platforms can call your extensi
 
 **You call chat platforms** (details in [`extending.md` section 1](../blueprint/extending.md#一调接入通讯平台-的方法)):
 
-- Hook points and methods are all named `chat.*`. The parameters that chat platforms hand you and the answer of `chat.venue` all carry `platform` (`qq` or `tg`). When you call a method you may pass `platform`. If you leave it out and only one platform is in use, it counts as that platform; if several platforms are in use, the call is refused. A platform that is not connected is refused too, with the error `bad_params`.
+- Hook points and methods are all named `chat.*`. The parameters that chat platforms hand you and the answer of `chat.venue` all carry `platform` (`qq` or `tg`). When you call a method you may pass `platform`. If you leave it out and only one platform has had an account connected since chat platforms started (including one that has since disconnected), it counts as that platform; if no platform has had an account connected yet, it counts as `qq`; if several platforms have, the call is refused. A platform that is not connected is refused too, with the error `bad_params`.
 - `chat.send {user | group, text}`: send a message in the AI's name. The message goes through the outbound chain, and the receiving session records a fact, so the AI knows that it started the conversation.
 - `chat.action {action, params?, bot?}`: run a OneBot action for you (kick someone, list group members, fetch an image…), and hand NapCat's answer back to you unchanged. The AI does not know that messages sent this way are its own words.
 - `chat.venue {session}`: look up which group and which bot account a session id belongs to.
