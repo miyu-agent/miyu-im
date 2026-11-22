@@ -103,7 +103,7 @@
 
 **你调用通讯平台**（细节在 [`extending.md` 第一条](../blueprint/extending.md#一调接入通讯平台-的方法)）：
 
-- 挂接点和方法都叫 `chat.*`：通讯平台交给你的参数和 `chat.venue` 的回答都带有 `platform`（目前只有 `qq`）；你调用方法时可以写 `platform`，不写时当作 `qq`，写了其他平台会被拒绝，错误是 `bad_params`。
+- 挂接点和方法都叫 `chat.*`：通讯平台交给你的参数和 `chat.venue` 的回答都带有 `platform`（`qq` 或者 `tg`）；你调用方法时可以写 `platform`。不写时，如果只使用了一个平台，就当作这个平台；如果同时使用了几个平台，调用会被拒绝。写了没有接入的平台也会被拒绝，错误是 `bad_params`。
 - `chat.send {user | group, text}`：以 AI 的名义发送一条消息。这条消息会经过出站链，对方的会话会记一块事实，让 AI 知道是自己先找的对方。
 - `chat.action {action, params?, bot?}`：替你调用一个 OneBot 动作（踢人、查询群成员、获取图片……），NapCat 的回答原样交还给你。通过这种方式发出去的话，AI 不知道是自己说的。
 - `chat.venue {session}`：查询一个会话编号对应的是哪个群、哪个机器人号。
