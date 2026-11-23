@@ -15,6 +15,7 @@
 | `crates/miyu-im/`（第 5 层，头） | 宿主：和平台无关的那些（施工 I-2 下拆出来）；不依赖驱动 |
 | `crates/miyu-im-onebot/` | OneBot v11 的驱动（施工 I-2 下）；I-183 上以前程序 `miyu-im` 和集成测试也在这里 |
 | `crates/miyu-im-app/`（I-183 上） | 程序 `miyu-im`：把各个平台的驱动交给宿主（`src/main.rs` 一行）；起真程序的集成测试、测试用的程序 `miyu-im-test-hook` 也在这里 |
+| `crates/miyu-im-app/build.rs`（LW-IM-4） | 程序 `miyu-im` 的链接参数：Linux x86_64（glibc）的 release 加 `-z pack-relative-relocs`，重定位表打包成 RELR（`.rela.dyn` 原来 400 KB，起来时整张读进内存）；要 glibc 2.36 以上，im 跟着核心发，核心在 Linux 上的基线是 2.39。别的系统、debug 不加 |
 | `crates/miyu-im/src/chat.rs`、`chat/`（I-2 上） | 和平台无关的数据：一条消息、事件、段、发给谁；一个机器人号的一条连接 `Link`（`chat/link.rs`，宿主只经它碰平台；I-82 起除了发、对端是谁、关掉都有默认，答 `CallError::Unsupported`，接新平台只写做得到的几样；消息编号是字，撤回、贴表情、取一条带上聊天；头像 `Link::avatar(Face)` 由驱动给，QQ 照地址模板）、连着的号 `Bots`、平台名和照它拼的编号 `Platform`（I-2 下）、几个平台和各自连着的号、能力表 `Platforms`（I-82：`can` 照驱动报的能力表查，宿主撤回执、贴表情、长文转合并转发以前先查，做不到的不撤、不贴、照拆；I-70 上：照名字、照场所编号的第一段找平台，找号不跨平台，别的包调的方法只给号时照 `platform` 认）；宿主测试用的假连接 `chat/fake.rs`（I-70 中上起特性 `fake` 打开给驱动的集成测试用，发一句字也进队）；平台上的号 `Id`（`chat/id.rs`，I-79：群、人、机器人的号一律当字，非空、最长 48 字节、不含 `:`、空白和控制字符，宿主不解析；整数写法的写成 JSON 时照旧是数（超过 2⁵³ 的写成字），读的时候数、字都认；整数写法的照数排在前面。驱动在边上照自己的平台换，OneBot 照整数读写） |
 | `crates/miyu-im/src/driver.rs`（I-2 下） | 宿主和驱动之间：`Driver`（平台名、接一个连接）、`Gate`（驱动从宿主拿的几样；I-70 上起 `Gate` 知道自己是哪个平台，交来的事、平台事件带上它，驱动不用改）。I-70 中上起宿主挂几个驱动，一个驱动一个 `Gate`：各自的平台、连着的号、报的状态、状态目录、模板，配置照这个 `Gate` 的平台取（`Gate::config`、`Gate::default`）；交给跟核心的那一头的通道、说给人听的、叫状态文件再写的几个共用 |
 | `crates/miyu-im-onebot/src/onebot/wire.rs`、`im/replies.rs`（I-2 上） | OneBot 的一条连接 `Wire`：宿主要做的事照 OneBot 拼动作、回应读成宿主认的样子 |
