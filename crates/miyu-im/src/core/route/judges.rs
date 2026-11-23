@@ -165,7 +165,8 @@ impl Judges {
                     params["scores"] = json!(judgement.scores);
                     params["should_reply"] = json!(judgement.should_reply);
                     params["to_bot"] = json!(judgement.to_bot);
-                    Some(hooks.score(platform, packages, params).await)
+                    // 问挂接点的这一段同样挪到堆上（施工 LW-IM-6）：排着的任务不带着它。
+                    Some(Box::pin(hooks.score(platform, packages, params)).await)
                 }
                 _ => None,
             };

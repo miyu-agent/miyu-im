@@ -103,23 +103,53 @@ pub(super) enum Unjudged {
 }
 
 /// 问一次（见模块的说明）：人格的原文照 `personas` 记着的用、读到的记进去。核心断开了交回空的。
-pub(super) async fn ask(
+///
+/// 排着的这一段很小（施工 LW-IM-6）：交进来的几样先一起放进堆上的一块（约 0.6 KB），任务里只有它的指针、名额和排队的时限；
+/// 问的那一大段（拼请求、几次调用之间的状态，约 2 KB）占到名额才分配。原来交进来就是一整段，一阵灌几千条时排队的每一条都
+/// 带着它，峰值里一大半是它们（2026-11-23 量过：5000 条时 11.8 MB）。
+pub(super) fn ask(
     asking: Asking,
     caller: Caller,
     texts: Arc<JudgeTexts>,
     slots: Slots,
     personas: Personas,
-) -> Option<Answer> {
+) -> impl Future<Output = Option<Answer>> + Send {
     let start = Instant::now();
-    let finish = |tries: u32, model: Option<String>, result| Answer {
+    let given = Box::new((asking, caller, texts, personas));
+    async move {
+        let Ok(Ok(slot)) = tokio::time::timeout(slots.queue, slots.slots.acquire_owned()).await
+        else {
+            return Some(answered(start, 0, None, Err(Unjudged::Queue)));
+        };
+        let (asking, caller, texts, personas) = *given;
+        Box::pin(asked(start, slot, asking, caller, (texts, personas))).await
+    }
+}
+
+/// 交回的那一份：耗时从 `start`（交给判官、排队以前）算起。
+fn answered(
+    start: Instant,
+    tries: u32,
+    model: Option<String>,
+    result: Result<Judgement, Unjudged>,
+) -> Answer {
+    Answer {
         tries,
         millis: u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
         model,
         result,
-    };
-    let Ok(Ok(_slot)) = tokio::time::timeout(slots.queue, slots.slots.acquire_owned()).await else {
-        return Some(finish(0, None, Err(Unjudged::Queue)));
-    };
+    }
+}
+
+/// 占到名额以后的那一段（[`ask`] 的第 2 到 5 步）：名额 `_slot` 占到问完。
+async fn asked(
+    start: Instant,
+    _slot: tokio::sync::OwnedSemaphorePermit,
+    asking: Asking,
+    caller: Caller,
+    (texts, personas): (Arc<JudgeTexts>, Personas),
+) -> Option<Answer> {
+    let finish = |tries: u32, model: Option<String>, result| answered(start, tries, model, result);
     let mut ask = match records(&asking, &caller).await.ok()? {
         Ok(ask) => ask,
         Err(refused) => return Some(finish(0, None, Err(refused))),

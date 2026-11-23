@@ -72,7 +72,7 @@
 | `crates/miyu-im/src/core/route/body.rs`（O-23 下，从 `decide.rs` 挪出来） | `ext.im.chat.decided` 的 `body`（纯逻辑，第 7 条那张表） |
 | `crates/miyu-im/src/core/route/called.rs`（O-23） | 叫她：群消息记下以后，照场所规则、投影、这一条填好交 `decide.rs`，记判断，开一轮（限流提示 O-47 去掉）；要问判官的交给 `judges.rs`（第 3 到 8、11 条）；`Ctx.muted` 照投影（O-25 中） |
 | `crates/miyu-im/src/core/route/judges.rs`（O-23 下） | 在判的：桥内存里的 `Judging`、问判官的任务、全局的名额（第 11、12 条）；群会话用的人格（O-23 补，第 1 条） |
-| `crates/miyu-im/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、带上人格（O-23 补）、拼请求、`model.call`、读回答、重试（第 12、13 条） |
+| `crates/miyu-im/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、带上人格（O-23 补）、拼请求、`model.call`、读回答、重试（第 12、13 条）。排着的那一段只带交进来的几样（放在堆上的一块，LW-IM-6），问的那一大段占到名额才分配；先后、排队的时限、耗时都照原来从交给判官那一刻算 |
 | `crates/miyu-im/src/core/route/persona.rs`（O-23 补） | 判官带的人格的原文：`persona.read` 读，读到的记一阵，几个问判官的任务共用（第 12 条第 3 款） |
 | `crates/miyu-im/src/core/route/judged.rs`（O-23 下） | 判官回来了：算分、记判断、回的开一轮；被放下的丢掉（第 7、11、13 条） |
 | `crates/miyu-im/src/core/route/speak.rs`（O-23） | 群会话推来的事件：收进投影，她新说的话过出站链（O-25 上，`outbound.rs`）、照纯文本拆段，一段一条入队（O-25 中，`sending.rs`），第一段带引用和 @，NapCat 回了成功的记 `venue.delivered`（第 1、9 条）；私聊里她的话也从这里过出站链、入队（「怎么走」第 10 条，O-25 上）；这一轮不说话了的不发（O-26，`quiet.rs`）；补完以前推来的她的话照补发那条路发，不知道发到哪的记一行（O-32 补） |

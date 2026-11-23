@@ -457,3 +457,29 @@ async fn what_she_is_already_answering_reaches_the_judge() {
     );
     task.await.expect("没崩").expect("核心在");
 }
+
+/// 排队的那一段不带着问的那一大段（施工 LW-IM-6）：交出去以后、占到名额以前，任务里只有交进来的几样；占到以后的那一段另放在
+/// 堆上。原来两段是一个，一阵灌几千条时排着的每一条都带着整段。
+#[tokio::test]
+async fn a_queued_ask_does_not_carry_the_asking_part() {
+    let (caller, _core) = connected();
+    let waiting = ask(asking(|_| {}), caller.clone(), texts(), slots(), kept());
+    let permit = Arc::new(tokio::sync::Semaphore::new(1))
+        .try_acquire_owned()
+        .expect("有名额");
+    let body = super::asked(
+        tokio::time::Instant::now(),
+        permit,
+        asking(|_| {}),
+        caller,
+        (texts(), kept()),
+    );
+    let (queued, asked) = (
+        std::mem::size_of_val(&waiting),
+        std::mem::size_of_val(&body),
+    );
+    assert!(
+        queued * 2 < asked,
+        "排着的 {queued} 字节，问的那一段 {asked} 字节"
+    );
+}
