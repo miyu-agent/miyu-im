@@ -138,7 +138,10 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
     miyu_client::heap::tune();
     // 打开文件数的软上限照核心那一套调高（施工 YC-10，压测报告 F1）：也要在起别的线程以前；调不上去的等运行日志装好再记。
     let raised = matches!(command, Command::Serve).then(miyu_client::open_files::raise);
-    let runtime = match tokio::runtime::Runtime::new() {
+    // 工作线程照 `bridge.json` 的 `worker_threads`（施工 LW-IM-2）：桥基本都在等 IO，不照核数开。读不了的照 tokio 的默认，
+    // `serve` 接着读同一份、照原来那样报错退出。
+    let workers = Tuning::load(&texts.package().data()).map(|tuning| tuning.worker_threads);
+    let runtime = match runtime(workers.ok()) {
         Ok(runtime) => runtime,
         Err(error) => return fail(&texts, error.to_string()),
     };
@@ -245,6 +248,15 @@ pub fn main(drivers: Vec<Arc<dyn Driver>>) -> ExitCode {
 
 /// 装运行日志、读 `bridge.json`、清单里驱动的配置项的默认值和出厂的场所规则这几样、挂上 `drivers` 跑到停。`locale` 是系统的语言。
 /// 交回退出码。
+/// 起运行时：多线程的，工作线程 `workers` 条（没给的照 tokio 的默认：核数），开 IO 和时钟。
+fn runtime(workers: Option<usize>) -> std::io::Result<tokio::runtime::Runtime> {
+    let mut builder = tokio::runtime::Builder::new_multi_thread();
+    if let Some(workers) = workers {
+        builder.worker_threads(workers);
+    }
+    builder.enable_all().build()
+}
+
 async fn serve(
     root: DataRoot,
     (env, locale, limit): (&Env, Option<String>, Option<std::io::Error>),

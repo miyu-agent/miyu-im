@@ -103,6 +103,8 @@ pub struct Tuning {
     pub members_shown: usize,
     /// 跟核心的管道上最后一行过去几毫秒算安静下来了，安静下来把堆里空着的还给系统（施工 LW-IM-1，`crate::settle`）。
     pub settle_millis: u64,
+    /// tokio 开几条工作线程（施工 LW-IM-2）：桥基本都在等 IO（NapCat、核心的管道、HTTP），原来照核数开。至少 1。
+    pub worker_threads: usize,
 }
 
 impl Tuning {
@@ -128,8 +130,9 @@ impl Tuning {
             || tuning.glance_seconds == 0
             || tuning.glance_minute_seconds == 0
             || !(1..=64).contains(&tuning.glance_records)
+            || tuning.worker_threads == 0
         {
-            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds and glance_minute_seconds must be at least 1, glance_records 1 to 64".to_string()));
+            return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds, glance_minute_seconds and worker_threads must be at least 1, glance_records 1 to 64".to_string()));
         }
         Ok(tuning)
     }

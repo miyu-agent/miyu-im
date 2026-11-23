@@ -60,6 +60,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     // 时不时看一眼：没定下一次 7 分钟（施工 I-143，原来 25 分钟），她定的一分钟按 60 秒算（施工 I-90），那一轮最多交 64 条（施工 I-175；I-254 起出厂照核心的上限 64，原来 50）。
     assert_eq!(tuning.glance(), (Duration::from_secs(420), 60, 64));
     assert_eq!(tuning.settle(), Duration::from_secs(2));
+    // 工作线程（施工 LW-IM-2）：固定几条，不照核数。
+    assert_eq!(tuning.worker_threads, 2);
 }
 
 #[test]
@@ -76,6 +78,10 @@ fn a_bad_file_is_not_read_and_named() {
             good.replace("\"inbound_queue\": 256", "\"inbound_queue\": 0"),
         ),
         ("unknown", good.replacen('{', "{\"extra\": 1,", 1)),
+        (
+            "workers-zero",
+            good.replace("\"worker_threads\": 2", "\"worker_threads\": 0"),
+        ),
         (
             // 桥自己的网页的数随网页去掉了（施工 O-28 下）：再写它是多一格。
             "web-again",
