@@ -91,6 +91,19 @@ impl Spent {
         }
     }
 
+    /// 放掉连接的页缓存（施工 LW-IM-3，安静下来时 `crate::settle` 调，在阻塞线程上）。
+    pub(crate) fn shrink(&self) {
+        let Some(connection) = &self.connection else {
+            return;
+        };
+        let connection = connection
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Err(error) = crate::records::shrunk(&connection) {
+            tracing::debug!(target: TARGET, error = %error, "usage cache not shrunk");
+        }
+    }
+
     /// 记一次请求 `charge`，平分给 `payers`；此刻是 `now`（毫秒）。没人付的、四项都是 0 的、早于 [`KEEP_MS`] 的不记。
     pub(crate) fn charge(&self, charge: &Charge<'_>, payers: &[ExternalId], now: i64) {
         let Some(connection) = &self.connection else {

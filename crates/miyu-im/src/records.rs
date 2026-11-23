@@ -146,10 +146,21 @@ pub(crate) enum Write {
     },
 }
 
+/// 交给写的线程的一件：写一件，或者放掉连接的页缓存（施工 LW-IM-3）。
+enum Job {
+    /// 写这一件。
+    Write(Write),
+    /// 放掉页缓存（`PRAGMA shrink_memory`），放完了在这里说一声。
+    Shrink(mpsc::Sender<()>),
+}
+
+/// 放页缓存时最多等写的线程多久（施工 LW-IM-3）：它正排着等库锁（[`WRITER_WAIT`]）的这一次不放，等下一回安静下来。
+const SHRINK_WAIT: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// 聊天记录：交写的（读的随消息记录页，施工 C-1 中）。
 pub(crate) struct Records {
     /// 交给写的线程；库打不开的是空的（照跑，不记）。
-    writes: Option<mpsc::Sender<Write>>,
+    writes: Option<mpsc::Sender<Job>>,
     /// 库文件。
     path: PathBuf,
 }
@@ -187,9 +198,25 @@ impl Records {
     pub(crate) fn write(&self, write: Write) {
         if let Some(writes) = &self.writes {
             // 写的线程没了（照说不会）：这一件不记。
-            if writes.send(write).is_err() {
+            if writes.send(Job::Write(write)).is_err() {
                 tracing::debug!(target: TARGET, "records writer gone");
             }
+        }
+    }
+
+    /// 叫写的线程放掉连接的页缓存（施工 LW-IM-3，安静下来时 `crate::settle` 调，在阻塞线程上）：一阵写过以后页缓存涨到 SQLite
+    /// 的上限（默认 2 MB）一直占着。等它放完，最多等 [`SHRINK_WAIT`]。
+    pub(crate) fn shrink(&self) {
+        let Some(writes) = &self.writes else {
+            return;
+        };
+        let (done, waiting) = mpsc::channel();
+        if writes.send(Job::Shrink(done)).is_err() {
+            tracing::debug!(target: TARGET, "records writer gone");
+            return;
+        }
+        if waiting.recv_timeout(SHRINK_WAIT).is_err() {
+            tracing::debug!(target: TARGET, "records cache not shrunk in time");
         }
     }
 }
@@ -222,12 +249,29 @@ pub(crate) fn writing(path: &Path) -> rusqlite::Result<Connection> {
 }
 
 /// 写的线程：排着写，交的一头没了就停。
-fn writer(connection: Connection, received: &mpsc::Receiver<Write>) {
-    while let Ok(write) = received.recv() {
-        if let Err(error) = written(&connection, &write) {
-            tracing::warn!(target: TARGET, error = %error, "record not written");
+fn writer(connection: Connection, received: &mpsc::Receiver<Job>) {
+    while let Ok(job) = received.recv() {
+        match job {
+            Job::Write(write) => {
+                if let Err(error) = written(&connection, &write) {
+                    tracing::warn!(target: TARGET, error = %error, "record not written");
+                }
+            }
+            Job::Shrink(done) => {
+                if let Err(error) = shrunk(&connection) {
+                    tracing::debug!(target: TARGET, error = %error, "records cache not shrunk");
+                }
+                if done.send(()).is_err() {
+                    tracing::debug!(target: TARGET, "records shrink no longer awaited");
+                }
+            }
         }
     }
+}
+
+/// 放掉连接 `connection` 的页缓存、没在用的内存（施工 LW-IM-3，`PRAGMA shrink_memory`）。下一次写照常从库里读要的页。
+pub(crate) fn shrunk(connection: &Connection) -> rusqlite::Result<()> {
+    connection.execute_batch("PRAGMA shrink_memory")
 }
 
 /// 写一件。

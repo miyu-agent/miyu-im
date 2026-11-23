@@ -371,3 +371,61 @@ fn the_writer_waits_for_a_cleaning_instead_of_dropping_the_message() {
     drop(writer);
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
+
+/// 放页缓存（施工 LW-IM-3）：排在前面的照样写进去；放完了接着写照常；放的一头等得到写的线程说放完了。
+#[test]
+fn shrinking_the_cache_keeps_every_write() {
+    let dir = std::env::temp_dir().join(format!("im-records-{}-shrink", std::process::id()));
+    // 上一次留下的先删掉；这一次的不在末尾删：写的线程关库在放下以后，Windows 上那时删可能删不掉。
+    if std::fs::remove_dir_all(&dir).is_err() {
+        // 没有就是没有。
+    }
+    let path = dir.join(FILE);
+    let records = Records::open(path.clone());
+    for n in 0..300 {
+        records.write(said_at(
+            &n.to_string(),
+            "qq:1",
+            "x",
+            n,
+            "放掉页缓存以前写的话",
+        ));
+    }
+    records.shrink();
+    let count = |connection: &Connection| -> i64 {
+        connection
+            .query_row("SELECT count(*) FROM messages", [], |row| row.get(0))
+            .expect("数得出")
+    };
+    assert_eq!(
+        count(&prepared(&path).expect("开得了")),
+        300,
+        "放以前排着的都写了"
+    );
+    records.write(said_at("after", "qq:1", "x", 1000, "放完以后写的话"));
+    records.shrink();
+    assert_eq!(
+        count(&prepared(&path).expect("开得了")),
+        301,
+        "放完以后照常写"
+    );
+}
+
+/// 自带的 SQLite 是照「不给连接预留小块内存池」编的（施工 LW-IM-3，同核心 LW-23；仓库 `.cargo/config.toml` 的
+/// `LIBSQLITE3_FLAGS`）：这一项不是代码里设的，配置被改掉、被外面的环境变量盖掉时，没有别的地方看得出来。
+#[test]
+fn the_bundled_sqlite_keeps_no_lookaside_pool() {
+    let db = Connection::open_in_memory().expect("开得了");
+    let mut options = Vec::new();
+    db.pragma_query(None, "compile_options", |row| {
+        options.push(row.get::<_, String>(0)?);
+        Ok(())
+    })
+    .expect("问得到");
+    // MSVC 编出来的这一项末尾多一个逗号（`DEFAULT_LOOKASIDE=0,0,`）：只认开头，别的数（比如默认的 `1200,100`）对不上。
+    let off = |o: &String| {
+        o.strip_prefix("DEFAULT_LOOKASIDE=0,0")
+            .is_some_and(|rest| rest.trim_end_matches(',').is_empty())
+    };
+    assert!(options.iter().any(off), "{options:?}");
+}

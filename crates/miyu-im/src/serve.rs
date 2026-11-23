@@ -393,10 +393,13 @@ pub async fn run(
     );
     let route = tasks.spawn(async move { route.run(received).await }).id();
     // 一阵过去、安静下来还堆（施工 LW-IM-1，`crate::settle`）。
-    tasks.spawn(crate::settle::keep(
-        serve.tuning.settle(),
-        miyu_client::heap::trim,
-    ));
+    // 先放掉两个库连接的页缓存（施工 LW-IM-3），再还堆。
+    let (kept_records, kept_spent) = (Arc::clone(&records), Arc::clone(&spent));
+    tasks.spawn(crate::settle::keep(serve.tuning.settle(), move || {
+        kept_records.shrink();
+        kept_spent.shrink();
+        miyu_client::heap::trim()
+    }));
     tasks.spawn(counters::keep(counters));
     tasks.spawn(recent::keep(recent));
     tasks.spawn(status_file::keep(

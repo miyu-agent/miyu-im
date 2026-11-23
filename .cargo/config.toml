@@ -1,3 +1,10 @@
 [alias]
 # cargo xtask check：跑完全部门禁，见 xtask/src/main.rs。
 xtask = "run --quiet --package xtask --"
+
+[env]
+# 自带的 SQLite 不给连接预留小块内存池（lookaside，施工 LW-IM-3，同核心 LW-23）：默认每个连接开库时先分配一块池子，聊天记录、
+# 用量账本两个连接一直开着，空闲时池子一格都不用，却一直占着。关掉以后执行语句时的小分配照常向系统的分配器要。
+# libsqlite3-sys 编自带的 SQLite 时把这里的每一项当成一个 `-D`；外面已经设了的照外面的（不 force），那样这一项就不在了，内存
+# 多占一点，行为不变（`crates/miyu-im/src/records/tests.rs` 的 `the_bundled_sqlite_keeps_no_lookaside_pool` 守着）。
+LIBSQLITE3_FLAGS = "-DSQLITE_DEFAULT_LOOKASIDE=0,0"
