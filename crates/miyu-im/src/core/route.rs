@@ -57,6 +57,7 @@ mod driven;
 mod elsewhere;
 mod events;
 mod exports;
+mod failed;
 mod fetching;
 mod fields;
 mod forwards;
@@ -232,6 +233,8 @@ pub(crate) struct Route {
     reactions: Reactions,
     /// 这一轮不说话了的（施工 O-26，`quiet`）：群里、私聊的都在这一张表里。
     quiet: Quiet,
+    /// 在跑的几轮里模型请求出过的错，那一轮没回成时记进运行日志（施工 I-275，`failed`）。
+    failures: failed::Failures,
     /// 桥的工具（施工 O-31）：平台工具答的话。
     tools: Arc<Tools>,
     /// 问到的「是不是终端管理员」（施工 O-31，`bindings`）。
@@ -354,6 +357,7 @@ impl Route {
             judges,
             reactions,
             quiet: Quiet::new(tools.silence()),
+            failures: failed::Failures::default(),
             tools,
             bindings: Bindings::new(asking.binding),
             titles: Titles::new(asking.group_info),

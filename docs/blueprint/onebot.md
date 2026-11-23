@@ -428,6 +428,7 @@ O-36（2026-10-11；施工单 `O-36-群里的支线.md`「要拍板的」六条�
      - 支线刚好封存了（抄、`respond` 回 `session_sealed`）：当它已经不在，先把留着的推送收进投影（封存的那一条在里面，支线跟着去掉），重新分派一次，只重来一次；再被拒的照下面别的拒绝记。
 
      成了记一行 `INFO respond asked venue=… message=… session=…`（`session` 是开在哪条线，O-36），主触发是冲她来、续聊的贴表情（O-25 下，「贴表情」）；回 `already_answered`、`not_ambient` 的不再开，记一行 `INFO respond refused venue=… message=… reason=… messages=…`（`data.messages` 是那几条）；别的拒绝记 `WARN`。`events.append` 被拒的（照说不会）记 `WARN event not appended session=… kind=… reason=…`。
+     开了的那一轮没走完（I-275，`failed.rs`）：主线、支线、私聊推来的 `turn.ended` 不是 `completed` 的，记一行 `WARN turn failed venue=… session=… turn=… reason=… class=… error=…`（`class`、`error` 是这一轮最后一次出错的 `model.called` 的分类和原话，原话截到 300 字、去换行；人打断的、重启接着干的记 `INFO turn stopped`）。群里桥起来时补来的旧事件不记。只记运行日志，界面、平台里都不出（2026-11-23 项目主人定：「这个没法提醒」）。
    - 提示：O-47 去掉（2026-10-17 项目主人定：QQ 里不发限流提示），限流满了冲她来的只记下。
    - 只记下：不再做什么。
 
