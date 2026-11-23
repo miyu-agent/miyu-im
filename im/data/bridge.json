@@ -37,5 +37,7 @@
   "avatar_group_url": "https://p.qlogo.cn/gh/{id}/{id}/640/",
   "members_shown": 30,
   "settle_millis": 2000,
-  "worker_threads": 2
+  "worker_threads": 2,
+  "window_hours": 25,
+  "window_floor": 500
 }

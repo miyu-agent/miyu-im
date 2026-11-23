@@ -11,6 +11,7 @@
 //!   决定在这个场所出不出声。
 //! - `chat.media`（施工 I-39，`media`）：那个会话所在场所里一条消息的第几样图和它的来历（表情包包偷图）。
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -88,7 +89,13 @@ impl Route {
         }
         if params["method"] == VENUE {
             match args["session"].as_str() {
-                Some(session) => answerer.answer(&id, self.venue_of(session)),
+                // 引用的那一条丢出了投影的窗口（施工 LW-IM-7）：去聊天记录库认了发的人再答。
+                Some(session) => match self.venue_later(session) {
+                    Some(later) => {
+                        self.chores.spawn(later.answer(id, answerer));
+                    }
+                    None => answerer.answer(&id, self.venue_of(session)),
+                },
                 None => answerer.refuse(&id, "bad_params"),
             }
             return;
@@ -131,6 +138,28 @@ impl Route {
         }
     }
 
+    /// 会话 `session` 那条线叫她做的那一条引用了丢出投影窗口的一条（施工 LW-IM-7）：交回先拼好的回答和怎么去库里查、查到的人
+    /// 叫什么；不用查的是空的。
+    fn venue_later(&self, session: &str) -> Option<Later> {
+        let main = self.main_of(session);
+        let peer = self.peers.get(&main)?;
+        let To::Group(group) = &peer.to else {
+            return None;
+        };
+        let projection = self.groups.get(&main)?;
+        let lookup = self.quote_lookup(
+            &main,
+            peer.venue.as_str(),
+            projection.origin(session).as_ref(),
+        )?;
+        let cached = self.members.names_in(peer.platform, group, Instant::now());
+        Some(Later {
+            value: self.venue_of(session),
+            lookup,
+            names: (cached, projection.known_names()),
+        })
+    }
+
     /// 线 `line`（主线 `main`，平台 `platform` 上的对方 `to`）这一轮叫她做的那一条（模块的说明）；没有的是 `null`。
     fn origin_of(&self, line: &str, main: &str, (platform, to): (Platform, To)) -> Value {
         match to {
@@ -167,6 +196,32 @@ impl Route {
                 json!({"sender": {"id": other.as_str(), "name": null}, "quote": quote, "mentions": []})
             }
         }
+    }
+}
+
+/// 晚一点答的 `chat.venue`（施工 LW-IM-7）：先拼好的回答、去库里查引用的发的人、查到以后他叫什么（缓存的群名片，投影里他最近的
+/// 名字，同 `origin_of`）。
+struct Later {
+    value: Value,
+    lookup: super::quoted_sender::Lookup,
+    names: (HashMap<Id, String>, HashMap<ExternalId, String>),
+}
+
+impl Later {
+    /// 查、填进 `origin.quote.sender`、答。查不到的照「不知道是谁」（`null`）答。
+    async fn answer(self, id: Value, answerer: Answerer) {
+        let Later {
+            mut value,
+            lookup,
+            names: (cached, known),
+        } = self;
+        if let Some(who) = lookup.sender().await {
+            let name = number(&who)
+                .and_then(|user| cached.get(&user).cloned())
+                .or_else(|| known.get(&who).cloned());
+            value["origin"]["quote"]["sender"] = json!({"id": who.as_str(), "name": name});
+        }
+        answerer.answer(&id, value);
     }
 }
 

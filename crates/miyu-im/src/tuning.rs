@@ -105,6 +105,12 @@ pub struct Tuning {
     pub settle_millis: u64,
     /// tokio 开几条工作线程（施工 LW-IM-2）：桥基本都在等 IO（NapCat、核心的管道、HTTP），原来照核数开。至少 1。
     pub worker_threads: usize,
+    /// 群的投影只留最近几小时人说的话、开过的回合（施工 LW-IM-7，`core/route/projection/window.rs`）：不能比配置里最长的窗口
+    /// （[`miyu_chat::LONGEST_WINDOW`]，一天）短，读的时候查。
+    pub window_hours: u64,
+    /// 同上，人说的话至少留最近几条（施工 LW-IM-7）：安静的群也留得下看一眼、她挑着回的那几条。不能少于看一眼一轮最多交的条数
+    /// （`glance::MOST`，64）。
+    pub window_floor: usize,
 }
 
 impl Tuning {
@@ -134,7 +140,25 @@ impl Tuning {
         {
             return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds, glance_minute_seconds and worker_threads must be at least 1, glance_records 1 to 64".to_string()));
         }
+        // 投影的窗口不能比配置里最长的窗口短（施工 LW-IM-7）：短了，限流、复读这些照窗口数的会少数。
+        if tuning.window_hours.saturating_mul(3600) < miyu_chat::LONGEST_WINDOW
+            || tuning.window_floor < crate::glance::MOST
+        {
+            return Err(bad(format!(
+                "window_hours must cover the longest configurable window ({} hours), window_floor at least {}",
+                miyu_chat::LONGEST_WINDOW / 3600,
+                crate::glance::MOST
+            )));
+        }
         Ok(tuning)
+    }
+
+    /// 群的投影留多久、至少留几条（施工 LW-IM-7）。
+    pub fn window(&self) -> (Duration, usize) {
+        (
+            Duration::from_secs(self.window_hours.saturating_mul(3600)),
+            self.window_floor,
+        )
     }
 
     /// 安静多久以后还堆（施工 LW-IM-1）。

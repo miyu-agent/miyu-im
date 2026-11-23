@@ -36,6 +36,10 @@
 //!
 //! 出站队列随后面的 O 步加。
 
+/// 配置里能写的最长的窗口，秒：一天（施工 LW-IM-7）。限流的时长（`rate`）、复读、续聊、刚说过话、顶替的窗口都不超过它；桥的投影
+/// 照它定只留多久（`bridge.json` 的 `window_hours` 不能比它短），改这里要一起看那边。
+pub const LONGEST_WINDOW: u64 = 24 * 60 * 60;
+
 mod chatty;
 mod inbound;
 mod judge;

@@ -22,6 +22,7 @@ use crate::TARGET;
 pub(crate) mod delete;
 pub(crate) mod history;
 pub(crate) mod import;
+pub(crate) mod quoted;
 pub(crate) mod read;
 pub(crate) mod space;
 
@@ -187,6 +188,11 @@ impl Records {
             writes: Some(sender),
             path,
         }
+    }
+
+    /// 库文件（施工 LW-IM-7：引用的那一条丢出投影的窗口以后照它另开只读的连接查，`quoted.rs`）。
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
     }
 
     /// 只读地搜的口子（她查聊天记录的工具用，施工 C-1 下）。

@@ -105,6 +105,10 @@ impl Projection {
         let by = self.speakers(triggers);
         let mut to = Vec::new();
         add(&mut to, by.iter().map(|speaker| &speaker.id));
+        let by = by
+            .into_iter()
+            .map(|speaker| (speaker.id, speaker.admin))
+            .collect();
         self.turns.push(Turn { at, by });
         let running = turn.map(|turn| Running {
             turn,

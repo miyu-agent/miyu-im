@@ -62,6 +62,9 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.settle(), Duration::from_secs(2));
     // 工作线程（施工 LW-IM-2）：固定几条，不照核数。
     assert_eq!(tuning.worker_threads, 2);
+    // 群的投影留 25 小时、至少 500 条（施工 LW-IM-7）：比配置里最长的窗口（一天）长。
+    assert_eq!(tuning.window(), (Duration::from_secs(25 * 3600), 500));
+    assert!(tuning.window().0.as_secs() >= miyu_chat::LONGEST_WINDOW);
 }
 
 #[test]
@@ -78,6 +81,15 @@ fn a_bad_file_is_not_read_and_named() {
             good.replace("\"inbound_queue\": 256", "\"inbound_queue\": 0"),
         ),
         ("unknown", good.replacen('{', "{\"extra\": 1,", 1)),
+        (
+            // 投影的窗口比配置里最长的窗口（一天）短（施工 LW-IM-7）。
+            "window-short",
+            good.replace("\"window_hours\": 25", "\"window_hours\": 23"),
+        ),
+        (
+            "window-floor-small",
+            good.replace("\"window_floor\": 500", "\"window_floor\": 63"),
+        ),
         (
             "workers-zero",
             good.replace("\"worker_threads\": 2", "\"worker_threads\": 0"),

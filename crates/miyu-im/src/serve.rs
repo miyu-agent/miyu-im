@@ -358,6 +358,7 @@ pub async fn run(
             mute_window: serve.tuning.mute_window(),
             mute_replies: serve.tuning.mute_replies,
             glance: serve.tuning.glance(),
+            window: serve.tuning.window(),
         },
         Fetching {
             quick: serve.tuning.call_timeout(),

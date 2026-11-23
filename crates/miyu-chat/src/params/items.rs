@@ -68,8 +68,8 @@ const TIMEOUT: Kind = Kind::Duration { min: 1, max: HOUR };
 /// 字符数、token 数的上限：只防写错，不替人挑值。
 const LIMIT: i64 = 100_000;
 
-/// 一天的秒数。
-const DAY: u64 = 24 * HOUR;
+/// 一天的秒数：配置里最长的窗口（[`crate::LONGEST_WINDOW`]）。
+const DAY: u64 = crate::LONGEST_WINDOW;
 
 /// 一小时的秒数。
 const HOUR: u64 = 60 * 60;

@@ -34,6 +34,7 @@ pub(crate) struct Asking {
     /// 时不时看一眼没定下一次时隔多久（施工 I-89）、她定的一分钟按几秒算（施工 I-90，`glance_minute_seconds`）、那一轮最多交几条
     /// 新消息（施工 I-175，`glance_records`）。
     pub(crate) glance: (Duration, u64, usize),
+    pub(crate) window: (Duration, usize),
 }
 
 /// 一个发回话、撤回执的任务结束了：交回它交出来的（等来的结局，施工 O-25 中；从 `route.rs` 挪来，施工 T-4）。崩了（是 bug：任务里只等

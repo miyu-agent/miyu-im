@@ -92,6 +92,7 @@ mod queue;
 mod quiet;
 mod quota;
 mod quoted;
+mod quoted_sender;
 mod reaction;
 mod recall;
 mod receipt;
@@ -155,7 +156,7 @@ use outbound::Spoken;
 pub(crate) use parts::{Asking, Recalling};
 use parts::{Shared, sent};
 pub(crate) use persona::Personas;
-use projection::Projection;
+use projection::{Keep, Projection};
 use queue::Queue;
 use quiet::Quiet;
 use quota::Limits;
@@ -251,6 +252,8 @@ pub(crate) struct Route {
     mute_window: Duration,
     /// 解禁以后最多回几条排着的（施工 O-50）。
     mute_replies: usize,
+    /// 群的投影留多久、至少留几条（施工 LW-IM-7，`projection/window.rs`）。
+    window: Keep,
     /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
     quotes: HashMap<String, Option<String>>,
     /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
@@ -361,6 +364,7 @@ impl Route {
             deferred: HashMap::new(),
             mute_window: asking.mute_window,
             mute_replies: asking.mute_replies,
+            window: Keep::new(asking.window),
             quotes: HashMap::new(),
             backlogs: HashMap::new(),
             queued: waiting::Waiting::default(),

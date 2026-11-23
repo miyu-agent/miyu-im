@@ -165,6 +165,11 @@ impl Route {
                 (by.as_ref().and_then(number), None, origin, names)
             }
         };
+        // 引用的那一条丢出了投影的窗口：去聊天记录库认发的人（施工 LW-IM-7，`quoted_sender.rs`）。
+        let origin = match self.quote_lookup(&session, peer.venue.as_str(), origin.as_ref()) {
+            Some(lookup) => super::quoted_sender::with_sender(origin, lookup.sender().await),
+            None => origin,
+        };
         // 这一轮这件工具以前调过几次（施工 T-3）：群照投影里调用所在那条线这一轮，私聊照推来的事件的回合；换了回合从头数。
         let turn = match self.groups.get(&session).filter(|_| owner.is_none()) {
             Some(group) => group.turn(&line),

@@ -19,7 +19,7 @@ use crate::{Rate, Sleep};
 const MAX_TURNS: u64 = 10_000;
 
 /// 限流的时长最长几秒：一天（`rate` 的 `<时长>`）。最短一秒由时长的写法管：`0` 不是时长。
-const MAX_SPAN: u64 = 24 * 60 * 60;
+const MAX_SPAN: u64 = crate::LONGEST_WINDOW;
 
 /// 不限流的写法。
 const NO_LIMIT: &str = "0";

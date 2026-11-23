@@ -37,6 +37,7 @@ pub(super) use lanes::{Carry, Seen};
 use lanes::{Kept, Lane};
 use speaker::Speaker;
 use track::Track;
+pub(super) use window::Keep;
 
 /// 提示记成的事件（「群里怎么叫她」第 7 条）：出站队列的入队（`chat.md` 第七条第 2 条）。
 pub(super) const QUEUED: &str = "ext.im.venues.queued";
@@ -70,8 +71,9 @@ struct Committed {
 struct Turn {
     /// 开始的时刻（`turn.started` 的 `at`）。
     at: Timestamp,
-    /// 触发它的那几条的发的人，照先后；没有 `triggers` 的（回报、后台命令、定时）是空的。
-    by: Vec<Speaker>,
+    /// 触发它的那几条的发的人和是不是终端管理员，照先后；没有 `triggers` 的（回报、后台命令、定时）是空的。只记这两样，人说的话
+    /// 丢出窗口（`window.rs`）以后照样数得对。
+    by: Vec<(ExternalId, bool)>,
 }
 
 /// 她回的那一条（O-25 上，「群里怎么叫她」第 9 条）：引用它、@ 发它的人，从它记下起算过了多久。
@@ -157,6 +159,8 @@ pub(super) struct Projection {
     committed: Vec<Committed>,
     /// 最近的人话的正文开头：序号 → 开头（I-28，`echo.rs`：给判官看她已经在回的几条）。
     heads: BTreeMap<u64, String>,
+    /// 只留一个窗口（施工 LW-IM-7，`window.rs`）：说过话的人、留多久、丢到哪。
+    people: window::People,
 }
 
 impl Projection {
@@ -207,7 +211,9 @@ impl Projection {
                         answered: false,
                         direct: false,
                     };
+                    self.heard_from(&speaker);
                     self.said.insert(seq, speaker);
+                    self.drop_old(event.at);
                     self.remember(seq, &text);
                     self.keep(seq, event);
                 }
@@ -366,8 +372,8 @@ impl Projection {
     /// 进站链的 `Ctx.turns`：开过的回合的开始时刻，去掉触发的人全是终端管理员或白名单成员（`whitelist`，平台身份的原文）的；没有
     /// `triggers` 的照算（`chat.md` 第七条第 4 条）。
     pub(super) fn turns(&self, whitelist: &[String]) -> Vec<Timestamp> {
-        let exempt = |speaker: &Speaker| {
-            speaker.admin || whitelist.iter().any(|one| one == speaker.id.as_str())
+        let exempt = |(id, admin): &(ExternalId, bool)| {
+            *admin || whitelist.iter().any(|one| one == id.as_str())
         };
         self.turns
             .iter()
@@ -467,6 +473,7 @@ mod nearby;
 mod origin;
 mod speaker;
 mod track;
+mod window;
 
 #[cfg(test)]
 mod lanes_tests;
