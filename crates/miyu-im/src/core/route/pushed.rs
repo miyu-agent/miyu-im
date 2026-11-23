@@ -87,6 +87,8 @@ impl Route {
         // 实时日志（设计 10，施工 I-160 中）：照原样先交一份，下面照旧分。
         if pushed["method"] == "event" {
             self.watched(session, &params["event"]);
+            // 没回成的一轮记进运行日志（施工 I-275，`failed`）。
+            self.failure_heard(session, &params["event"]);
         }
         // 支线推来的走支线那条路，不当成私聊（施工 O-36，`lanes`）。
         if let Some(main) = self.main_of_lane(session) {
@@ -114,5 +116,32 @@ impl Route {
             _ => {}
         }
         Ok(())
+    }
+
+    /// 会话 `session`（主线、支线、私聊）推来的一条事件 `event` 交给 `failed`：那一轮没回成的记一行运行日志，出错、步数上限
+    /// 这类记 `WARN`，人打断的、重启接着干的记 `INFO`。群里桥起来时补来的旧事件（序号不大于补到的那一条）不记，免得重启一次把
+    /// 以前的出错再刷一遍；支线都是起来以后开的，推来的都是新的。
+    fn failure_heard(&mut self, session: &str, event: &Value) {
+        let main = self.main_of_lane(session);
+        let line = main.as_deref().unwrap_or(session);
+        if main.is_none()
+            && self
+                .backlogs
+                .get(session)
+                .is_some_and(|backlog| backlog.replayed(event))
+        {
+            return;
+        }
+        let Some(failed) = self.failures.heard(session, event) else {
+            return;
+        };
+        let venue = self.peers.get(line).map_or("", |peer| peer.venue.as_str());
+        let (turn, reason) = (failed.turn, failed.reason.as_str());
+        let (class, error) = (failed.class.as_str(), failed.message.as_str());
+        if failed.alarming() {
+            tracing::warn!(target: TARGET, venue, session, turn, reason, class, error, "turn failed");
+        } else {
+            tracing::info!(target: TARGET, venue, session, turn, reason, "turn stopped");
+        }
     }
 }
