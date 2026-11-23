@@ -124,6 +124,7 @@
 | `im/data/tools/skip_reply.json`、`tool-results/skipped.txt`、`tool-results/unknown.txt`（O-26） | 桥的工具说明和答的两句（给模型看的字，登记在 `docs/ledger.md`；说明照字节守预算，`10-自带软件.md` 第九节；「提供者和不说话」） |
 | `im/data/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」；O-16 起桥自己的网页的 `web/` 那几句随 O-28 下删掉）；`tools` 是桥的工具的显示名（O-26，「提供者和不说话」第 4 条） |
 | `xtask/src/order.rs`、`order/listing.rs`、`order/verify.rs`，`crates/miyu-im-app/tests/support/traced.rs`（LW-IM-8） | 排函数：`cargo xtask order`（Linux x86_64，要 `qemu-x86_64`、`nm`）先编 release 的集成测试，照五段（群聊；取图和文件；页面；Telegram；管理和看一眼）跑那几组测试，测试程序旁边的 `miyu-im` 换成一个小脚本，`serve` 经 QEMU 用户态模拟器带 `-d page,in_asm` 跑，只有桥在模拟器里、清单里只有它自己的函数；日志照 `nm` 换成函数，头一段照第一次执行的先后，后面每段只把新见到的接在后面；写进 `target/order/miyu-im.txt`，带 `MIYU_IM_LINK_ORDER` 重链 `target/release/miyu-im`，照核心的九成线核对（清单里的函数九成以上落在代码段开头 1.25 倍以内）。一段一份日志都没录到、模拟器没装、排不上都报错退出；段里个别测试没过只打一句。`build.rs` 认 `MIYU_IM_LINK_ORDER`：别的系统上设了的构建失败 |
+| `.github/workflows/release.yml`、`ci.yml` 的 `order`（LW-IM-9） | 发版：im 在 Linux x86_64 上的那一份装 `qemu-user`、用 `cargo xtask order` 编出排过函数的程序（多十来分钟），失败就不发；macOS、Windows 照旧 `cargo build --release`。只验排函数、不打包的手动入口是 `ci.yml` 的 `order`（只在 workflow_dispatch 时跑，清单放进产物），不进每次推送都跑的门禁 |
 | `xtask/src/ledger.rs` | 登记簿门禁豁免 `im/data/bridge.json` 这一份文件：是数据，不发给模型（O-16 另豁免的 `software/onebot/web/` 随 O-28 下去掉） |
 
 ### 一、骨架：终端管理员的私聊（施工 O-8）

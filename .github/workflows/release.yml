@@ -7,6 +7,9 @@
 # - 两个都带本仓库的 `LICENSE` 和第三方许可证清单 `THIRD-PARTY-LICENSES.txt`（施工 I-93，`cargo xtask notices` 生成）。
 #
 # 手动跑（workflow_dispatch，在 `step/**` 上试打）照样编、打包，`.miyu` 放进这一趟的产物，不建 Release。
+#
+# Linux x86_64 的 im 照执行的先后排函数（施工 LW-IM-9）：装 `qemu-user`，编程序换成 `cargo xtask order`（录清单、重链、核对，
+# 比直接编多十来分钟），失败就不发；macOS、Windows 照旧。只验排函数、不打包的手动入口在 `ci.yml` 的 `order`。
 name: release
 
 on:
@@ -37,7 +40,15 @@ jobs:
       build: |
         set -euo pipefail
         rustup toolchain install
-        cargo build --release --locked -p miyu-im-app --bin miyu-im
+        # Linux x86_64 的照执行的先后排函数（施工 LW-IM-8、LW-IM-9，`xtask/src/order.rs`）：在 QEMU 用户态模拟器里照集成测试录
+        # 清单、重链、核对；录不出、排不上的这一步失败，不发没排的。别的系统照旧编。
+        if [ "$TARGET" = linux-x86_64 ]; then
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+          cargo xtask order
+        else
+          cargo build --release --locked -p miyu-im-app --bin miyu-im
+        fi
         exe=""
         if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
         rm -rf dist/im && mkdir -p dist/im/bin

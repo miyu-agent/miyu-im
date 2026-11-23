@@ -43,3 +43,25 @@ jobs:
       - name: 门禁（卡住抓栈）
         if: runner.os == 'macOS'
         run: .github/hang-watch.sh cargo xtask check
+
+  # 排函数（施工 LW-IM-9，`cargo xtask order`）：只在手动跑的时候跑（workflow_dispatch），验它在 CI 的机器上录得出、排得上；要十来
+  # 分钟，不进每次推送都跑的那一组。发版时由 `release.yml` 的 Linux x86_64 那一份跑同一条命令。
+  order:
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: 装上 rust-toolchain.toml 钉住的工具链
+        run: rustup toolchain install
+      - name: 装 QEMU 的用户态模拟器
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+      - name: 录清单、重链、核对
+        run: cargo xtask order
+      - name: 清单放进产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: miyu-im-order
+          path: target/order/miyu-im.txt
