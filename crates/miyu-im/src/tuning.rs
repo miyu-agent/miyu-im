@@ -101,6 +101,8 @@ pub struct Tuning {
     pub avatar_group_url: String,
     /// 查群成员一次最多列几个（施工 O-54），多的只说一共几个。
     pub members_shown: usize,
+    /// 跟核心的管道上最后一行过去几毫秒算安静下来了，安静下来把堆里空着的还给系统（施工 LW-IM-1，`crate::settle`）。
+    pub settle_millis: u64,
 }
 
 impl Tuning {
@@ -130,6 +132,11 @@ impl Tuning {
             return Err(bad("write_queue, inbound_queue, connection_events, judge_concurrency, queue_expire_seconds, handshake_seconds, pending_connections, pending_per_source, glance_seconds and glance_minute_seconds must be at least 1, glance_records 1 to 64".to_string()));
         }
         Ok(tuning)
+    }
+
+    /// 安静多久以后还堆（施工 LW-IM-1）。
+    pub fn settle(&self) -> Duration {
+        Duration::from_millis(self.settle_millis)
     }
 
     /// 一次调用等回应最多多久。

@@ -43,6 +43,7 @@
 | `crates/miyu-im-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条）；O-31 多记身份（群主、管理员，「平台工具（一）」第 7 条） |
 | `crates/miyu-im/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`im.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条）；O-36 起 `core.rs` 能一起交出一个群的主线连同它几条支线留着的推送，`route.rs` 把子会话推来的交给 `route/lanes.rs`（「群里怎么叫她」第 1 条）；等回应时来的事件推送只看一眼方法、会话，留原文，取的时候一条一条解（I-98，`core/incoming.rs`：订阅补来的整份日志不再同时以 `Value` 活着） |
 | `crates/miyu-im/src/program.rs`（I-98） | 起运行时以前照核心那一套调堆（`miyu_client::heap::tune`）；起来补完日志（`revive`）以后在别的线程上 `trim` 一次，空着的还给系统 |
+| `crates/miyu-im/src/settle.rs`（LW-IM-1） | 安静下来还堆：跟核心的管道上每读到一行叫一声（`core.rs` 的读的一头），叫过以后 `settle_millis` 没有动静，在阻塞线程上 `trim` 一次；没动静时一直睡着，不定时醒。2026-11-23 量过：5 个群灌 5000 条、安静以后线程分配区驻留 21 MB、活着的 5.6 MB，原来只在补完日志后还一次 |
 | `crates/miyu-im/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
 | `crates/miyu-im/src/core/hooks.rs`、`core/route/packages.rs`（O-43 上） | 挂接点：照总线上的名字记谁挂在哪（订阅 `bus`、推来的 `bus.changed`、掉了队重订；I-212 以前照软件包列表），`chat.hook.event` 原样交通知、请求（「挂接点」） |
 | `crates/miyu-im-onebot/src/bin/miyu-im-test-hook.rs`（O-43 上） | 测试用的别的包的程序：握手、登记方法、照参数答 `method.call`、记下收到的；发版不带 |
@@ -179,6 +180,7 @@
 | `glance_minute_seconds`（I-90） | 60 | 她用 `qq_glance` 定的一分钟按几秒算：回放旧群、把时间压短量花费时改小（同 `glance_seconds` 一起按倍数缩）。至少 1 |
 | `avatar_user_url`、`avatar_group_url`（O-54） | QQ 的头像地址 | 一个人、一个群的头像从哪下（「头像和群成员」第 1 条）：`{id}` 换成号 |
 | `members_shown`（O-54） | 30 | 查群成员一次最多列几个，多的只说一共几个 |
+| `settle_millis`（LW-IM-1） | 2000 | 跟核心的管道上最后一行过去几毫秒算安静下来，安静下来把堆里空着的还给系统（同核心的 `settle`） |
 
 多一格、少一格、队列写 0、判官的并发写 0、排着的过期写 0、读不了：起不来（「出错」）。
 

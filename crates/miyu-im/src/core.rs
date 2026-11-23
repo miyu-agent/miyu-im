@@ -265,6 +265,8 @@ async fn read_lines(
             Ok(0) | Err(_) => return,
             Ok(_) => {}
         }
+        // 有动静了（施工 LW-IM-1）：安静下来以后还堆。
+        crate::settle::mark();
         match Incoming::read(&line) {
             // 事件推送：原文交过去，用的时候才解（施工 I-98）。
             Ok(event @ Incoming::Event { .. }) => {

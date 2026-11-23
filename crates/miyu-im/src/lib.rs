@@ -56,6 +56,7 @@ pub mod rules;
 mod running;
 pub mod serve;
 pub mod settings;
+mod settle;
 mod site;
 mod spent;
 pub mod status_file;

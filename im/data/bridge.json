@@ -35,5 +35,6 @@
   "glance_records": 64,
   "avatar_user_url": "https://q1.qlogo.cn/g?b=qq&nk={id}&s=640",
   "avatar_group_url": "https://p.qlogo.cn/gh/{id}/{id}/640/",
-  "members_shown": 30
+  "members_shown": 30,
+  "settle_millis": 2000
 }
