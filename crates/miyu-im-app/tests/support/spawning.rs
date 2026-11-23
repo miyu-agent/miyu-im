@@ -29,7 +29,7 @@ pub fn linked() -> &'static Path {
             .expect("有上一级")
             .to_path_buf();
         let path = dir.join(format!("miyu-im{}", std::env::consts::EXE_SUFFIX));
-        link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-im")), &path);
+        super::traced::beside(Path::new(env!("CARGO_BIN_EXE_miyu-im")), &path);
         path
     })
 }

@@ -6,12 +6,15 @@
 //! 不超过 500 行，测试也算。「许可证」查发布的四个平台上用得到的第三方依赖，许可证都能和 AGPL-3.0-or-later 合在一起发，
 //! 第三方许可证清单 `THIRD-PARTY-LICENSES.txt` 是最新的（施工 I-93，`notices.rs`）；`cargo xtask notices` 重新生成它。
 //! 「测试」另查每个测试文件都进了测试程序（`autotests = false` 的 crate）。里面的 cargo 一个接一个跑，不并行。
+//!
+//! `cargo xtask order`（施工 LW-IM-8，[`order`]）：Linux x86_64 上照集成测试录清单、编出照执行先后排过的 release 程序。
 
 mod drawing;
 mod files;
 mod ledger;
 mod licenses;
 mod notices;
+mod order;
 mod privacy;
 mod purity;
 mod size;
@@ -39,8 +42,19 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        // 排函数（施工 LW-IM-8，`order.rs`）：Linux x86_64 上编出排过的 release 程序。
+        Some("order") => match order::run(
+            &root(),
+            &std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string()),
+        ) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("{e}");
+                ExitCode::FAILURE
+            }
+        },
         _ => {
-            eprintln!("用法：cargo xtask check | cargo xtask notices");
+            eprintln!("用法：cargo xtask check | cargo xtask notices | cargo xtask order");
             ExitCode::from(2)
         }
     }
