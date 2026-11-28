@@ -2,6 +2,13 @@
 # cargo xtask check：跑完全部门禁，见 xtask/src/main.rs。
 xtask = "run --quiet --package xtask --"
 
+# Windows 的程序把 C 运行库静态链进去（施工 I-276，同核心 CRT-1）：不加的时候 `miyu-im.exe`、`miyu-im-sponsor.exe` 都要
+# `VCRUNTIME140.dll`，它是装 VC++ 2015–2022 运行库时放进系统的，Windows 自己不带，没装过的机器上起不来。`api-ms-win-crt-*`
+# （通用 C 运行库）Windows 10 起系统自带，不受影响。cc 编的 SQLite 看到这个特性也换成静态的运行库。CI 的 Windows 那台读两个
+# 程序的导入表，要了就报（`.github/workflows/ci.yml`）。
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
 [env]
 # 自带的 SQLite 不给连接预留小块内存池（lookaside，施工 LW-IM-3，同核心 LW-23）：默认每个连接开库时先分配一块池子，聊天记录、
 # 用量账本两个连接一直开着，空闲时池子一格都不用，却一直占着。关掉以后执行语句时的小分配照常向系统的分配器要。

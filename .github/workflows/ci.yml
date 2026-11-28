@@ -43,6 +43,19 @@ jobs:
       - name: 门禁（卡住抓栈）
         if: runner.os == 'macOS'
         run: .github/hang-watch.sh cargo xtask check
+      # Windows 的程序不要 VC++ 运行库（施工 I-276，同核心 CRT-1）：`.cargo/config.toml` 给 msvc 加了 +crt-static，导入表里就没有
+      # `VCRUNTIME140.dll`（调试版是 `VCRUNTIME140D.dll`）、`MSVCP140.dll`；没装过运行库的机器上要了它们就起不来。
+      # 门禁红了也照查（程序在门禁里已经编好了），两样各报各的。
+      - name: Windows 的程序不要 VC++ 运行库
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          exes="target/debug/miyu-im.exe target/debug/miyu-im-sponsor.exe"
+          ls -l $exes
+          if grep -l -a -i -E 'vcruntime140|msvcp140' $exes; then
+            echo "上面这几个程序要了 VC++ 运行库" >&2
+            exit 1
+          fi
 
   # 排函数（施工 LW-IM-9，`cargo xtask order`）：只在手动跑的时候跑（workflow_dispatch），验它在 CI 的机器上录得出、排得上；要十来
   # 分钟，不进每次推送都跑的那一组。发版时由 `release.yml` 的 Linux x86_64 那一份跑同一条命令。
