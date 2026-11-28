@@ -372,15 +372,43 @@ fn the_writer_waits_for_a_cleaning_instead_of_dropping_the_message() {
     std::fs::remove_dir_all(dir).expect("删得掉临时目录");
 }
 
-/// 放页缓存（施工 LW-IM-3）：排在前面的照样写进去；放完了接着写照常；放的一头等得到写的线程说放完了。
-#[test]
-fn shrinking_the_cache_keeps_every_write() {
-    let dir = std::env::temp_dir().join(format!("im-records-{}-shrink", std::process::id()));
-    // 上一次留下的先删掉；这一次的不在末尾删：写的线程关库在放下以后，Windows 上那时删可能删不掉。
+/// 只读地数 `path` 的库里有几条消息，数到 `expected` 条为止，最多等 [`SETTLE_WAIT`]；交回最后数到的。
+///
+/// [`Records::shrink`] 最多等写的线程 [`SHRINK_WAIT`]，等不到就先回来（施工 LW-IM-3），那时排着的不一定写完了，要数的测试在这里
+/// 等写的线程写完（施工 LW-IM-10）。只读地开：别的连接锁着库时照样数得出（WAL），也不去抢写的锁。
+fn settled(path: &Path, expected: i64) -> i64 {
+    let reading = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .expect("开得了");
+    let deadline = std::time::Instant::now() + SETTLE_WAIT;
+    loop {
+        let count: i64 = reading
+            .query_row("SELECT count(*) FROM messages", [], |row| row.get(0))
+            .expect("数得出");
+        if count >= expected || std::time::Instant::now() >= deadline {
+            return count;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// [`settled`] 最多等多久：给慢机器留足，正常几十毫秒就写完了。
+const SETTLE_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// 临时目录里给 [`Records`] 用的一个库：上一次留下的先删掉；这一次的不在末尾删：写的线程关库在放下以后，Windows 上那时删可能
+/// 删不掉。
+fn fresh_records(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("im-records-{}-{name}", std::process::id()));
     if std::fs::remove_dir_all(&dir).is_err() {
         // 没有就是没有。
     }
-    let path = dir.join(FILE);
+    dir.join(FILE)
+}
+
+/// 放页缓存（施工 LW-IM-3）：排在前面的照样写进去；放完了接着写照常。`shrink()` 最多等 [`SHRINK_WAIT`]，慢机器上它回来时 300 条
+/// 不一定写完，数之前先等写的线程写完（施工 LW-IM-10：CI 的 Windows 上回来时只写了 134 条）。
+#[test]
+fn shrinking_the_cache_keeps_every_write() {
+    let path = fresh_records("shrink");
     let records = Records::open(path.clone());
     for n in 0..300 {
         records.write(said_at(
@@ -392,23 +420,38 @@ fn shrinking_the_cache_keeps_every_write() {
         ));
     }
     records.shrink();
-    let count = |connection: &Connection| -> i64 {
-        connection
-            .query_row("SELECT count(*) FROM messages", [], |row| row.get(0))
-            .expect("数得出")
-    };
-    assert_eq!(
-        count(&prepared(&path).expect("开得了")),
-        300,
-        "放以前排着的都写了"
-    );
+    assert_eq!(settled(&path, 300), 300, "放以前排着的都写了");
     records.write(said_at("after", "qq:1", "x", 1000, "放完以后写的话"));
     records.shrink();
-    assert_eq!(
-        count(&prepared(&path).expect("开得了")),
-        301,
-        "放完以后照常写"
-    );
+    assert_eq!(settled(&path, 301), 301, "放完以后照常写");
+}
+
+/// 写的线程排着等库锁时放页缓存（施工 LW-IM-10）：`shrink()` 等满它的上限自己回来，不跟着等锁；那时排着的一条都还没写，锁放开
+/// 以后一条不少、照先后写进去。
+#[test]
+fn shrinking_returns_while_the_writes_wait_for_a_lock() {
+    let path = fresh_records("shrink-locked");
+    let records = Records::open(path.clone());
+    let cleaning = connection(&path).expect("开得了");
+    cleaning.execute_batch("BEGIN IMMEDIATE;").expect("锁得上");
+    for n in 0..300 {
+        records.write(said_at(&n.to_string(), "qq:1", "x", n, "锁着的时候排的话"));
+    }
+    records.shrink();
+    // 等到 0 条就是只数一次。
+    assert_eq!(settled(&path, 0), 0, "回来时排着的还没写");
+    cleaning.execute_batch("COMMIT;").expect("放得开");
+    assert_eq!(settled(&path, 300), 300, "锁放开以后都写了");
+    let mut order = cleaning
+        .prepare("SELECT msg FROM messages ORDER BY id")
+        .expect("查得了");
+    let msgs: Vec<String> = order
+        .query_map([], |row| row.get(0))
+        .expect("查得出")
+        .collect::<rusqlite::Result<_>>()
+        .expect("读得出");
+    let expected: Vec<String> = (0..300).map(|n: i64| n.to_string()).collect();
+    assert_eq!(msgs, expected, "照排的先后写");
 }
 
 /// 自带的 SQLite 是照「不给连接预留小块内存池」编的（施工 LW-IM-3，同核心 LW-23；仓库 `.cargo/config.toml` 的
